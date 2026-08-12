@@ -395,8 +395,13 @@ describe('review round: an unusable week counter refuses the ASK but not the RED
    * Neither is reachable through the save pipeline (`isValidGameState` requires
    * a numeric `weeksLived`), so these pin the intent for state that bypassed it.
    */
-  const noWeek = (over: Record<string, unknown> = {}) =>
-    ({ ...base(over), weeksLived: undefined } as unknown as GameState);
+  // No cast: `weeksLived` is optional on the override type, so both the absent
+  // and the NaN case go through the factory like any other fixture. An
+  // `as GameState` here would be the drift Hard Rule #3 exists to stop — and
+  // the weekly audit flags it, which is how the first draft of this block got
+  // caught.
+  const noWeek = (over: TestGameStateOverrides = {}): GameState =>
+    base({ ...over, weeksLived: undefined });
 
   it('refuses to BOOK a favour it cannot date', () => {
     const start = noWeek();
@@ -408,7 +413,7 @@ describe('review round: an unusable week counter refuses the ASK but not the RED
   });
 
   it('and refuses a NaN counter too', () => {
-    const start = { ...base(), weeksLived: NaN } as GameState;
+    const start = base({ weeksLived: NaN });
     const stub = createSetGameStateStub(start);
 
     expect(askNetworkFavor(start, stub.setGameState, LOBBYIST).success).toBe(false);
