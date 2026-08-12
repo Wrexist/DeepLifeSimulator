@@ -12,7 +12,8 @@
 import { createTestGameState } from '../helpers/createTestGameState';
 import { createSetGameStateStub } from '../helpers/setGameStateStub';
 import { enactPolicy } from '@/contexts/game/actions/PoliticalActions';
-import { updateMoney, updateStats } from '@/contexts/game/actions/MoneyActions';
+import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { getPolicyById } from '@/lib/politics/policies';
 import type { GameState } from '@/contexts/game/types';
 
