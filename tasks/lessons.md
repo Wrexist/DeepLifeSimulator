@@ -2276,3 +2276,32 @@ right without ego — the stale-closure fix was better than mine. And check
 whether it duplicated a rule rather than centralising one, because a fixer
 optimises for the file it was pointed at and cannot see that two files now
 disagree.
+
+## 2026-08-12 — Weekly audit: a clean week, and how "Remove story mode" avoided drift
+
+Weekly routine audit. Static suite green (one 🟡: three `as GameState` casts in
+`netWorthItemisation.test.ts`, a Hard Rule #3 hygiene slip in this window's
+net-worth work — backlog, not blocking). Type-check clean; money-conservation,
+save-migration, 677 economy tests, and long-run save/load all pass. Two deep
+subagent passes (economy exploits, correctness/stability) over every
+money-touching change of the last fortnight — ad cash bonus scaled off net
+worth, banking ledger symmetry, net-worth itemisation, dark-web rep/rotation,
+insurance expiry, arrears NaN guards — came back with **no real findings**. The
+in-window commits are overwhelmingly bug fixes, and they hold up.
+
+The one thing worth recording is a **model** for how to retire a shipped feature
+without save drift. Story mode (v38 `gameMode`) was removed after playtesting,
+but a TestFlight build had already shipped it, so saves carrying
+`version: 38, gameMode: 'story'` exist on real devices. The removal deliberately
+did **not** revert two things: `STATE_VERSION` stayed at 38 (dropping to 37
+would send every shipped save down the "save is newer than the app" branch), and
+`GameState.gameMode` stayed as an optional field marked RETIRED (removing it
+would make those saves parse into an impossible shape). Because it was a
+carve-out when it landed — default `undefined`, no backfill, no repair mirror —
+retiring it needed no unwind: there was no written value to clean up.
+
+**Rule.** A version number that has ever reached a device is a one-way ratchet;
+never lower `STATE_VERSION` to undo a feature. Retire the field (keep it optional,
+mark it RETIRED), keep the migration registered as an intentional no-op, and the
+carve-out fields (default `undefined`) are the cheapest ones to walk back because
+they never wrote anything to unwind.
