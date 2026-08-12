@@ -2348,3 +2348,48 @@ would have caught this the week it broke.
 Same session, same shape as the UI defects: a statement of behaviour the code
 does not have. It does not matter whether the statement is rendered to a player
 or read by the next engineer — both act on it.
+
+---
+
+## 2026-08-12 — Two declarations of one type kept a whole mechanic dead
+
+**What went wrong.** `Lobbyist.specialty` was rendered in three places in
+`PoliticalApp` and read by exactly one function,
+`calculateTotalLobbyistInfluence`, which had **zero call sites**. Every player
+who ever compared the Environmental Advocate against the Criminal Justice Expert
+was choosing on a distinction the game did not implement.
+
+**The pattern — and it is the interesting part.** The reason nobody wired it up
+was structural, not lazy: `PolicyType` was declared **twice**, five members in
+`lib/politics/lobbyists.ts` and eleven in `lib/politics/policies.ts`. Seven
+policy types could not even be *named* as a specialty, so any attempt to wire
+the targeting would have left `stock`, `realestate`, `education`, `crypto`,
+`technology`, `healthcare` and `transportation` with no possible specialist. The
+duplicate type didn't just permit the drift — it made the correct fix look
+impossible, so the dead function sat there for years while the UI kept
+advertising it.
+
+Three of the fifteen catalogue entries had descriptions that *already* promised
+multi-type coverage ("Great for social and economic policies") that the singular
+`specialty` field could not represent. The prose knew what the data could not
+say. **When copy and schema disagree, the copy is often the older, truer spec.**
+
+**The rule.** A domain type gets **one** declaration; a second copy in a
+neighbouring module is a bug even while the members happen to agree, because the
+narrower copy silently becomes a ceiling on what the feature can express. When
+you find a reader with no call sites, check whether something upstream made
+calling it impossible before assuming it was merely forgotten.
+
+**The guard.** `lib/politics/__tests__/lobbyistSpecialty.test.ts` asserts in both
+directions: every `PolicyType` in the policy catalogue has at least one
+specialist, and no lobbyist claims a specialty that is not a real policy type. A
+new policy type now fails a test instead of quietly becoming the eighth orphan.
+
+**Also worth keeping.** The fix stacked a new targeted discount on top of the
+existing `policyInfluence` one instead of replacing it. Replacing would have
+been cleaner to read and would have (a) re-opened the dead-stat hole a previous
+fix had just closed for `policyInfluence`, and (b) silently cut the discount of
+every save whose influence came from enacting policies rather than retainers.
+**A refactor that moves a mechanic off a stat is a nerf to everyone already
+holding that stat.** No `STATE_VERSION` bump was needed: specialties are
+catalogue data keyed by lobbyist id, so nothing new is persisted.

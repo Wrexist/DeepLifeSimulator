@@ -72,7 +72,12 @@ import { ensurePoliticsHasNewFields } from '@/lib/politics/operations';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS } from '@/lib/careers/political';
 import { getPolicyById, calculatePolicyEffects } from '@/lib/politics/policies';
 import type { Policy } from '@/lib/politics/policies';
-import { getLobbyistById, getAvailableLobbyists } from '@/lib/politics/lobbyists';
+import {
+  getLobbyistById,
+  getAvailableLobbyists,
+  describeSpecialties,
+  policyDiscountFraction,
+} from '@/lib/politics/lobbyists';
 import type { Lobbyist, PoliticalAlliance } from '@/contexts/game/types';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
 
@@ -805,6 +810,20 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     }
     const { forPct, againstPct } = forAgainst(policy.approvalImpact);
     const effects = describeEffects(policy);
+
+    // The price the player will actually be charged, from the SAME helper
+    // `enactPolicy` prices with — quoting the sticker cost here while charging a
+    // discounted one is how a targeted discount stays invisible, which is the
+    // defect this whole change is undoing. Now that a matching lobbyist is worth
+    // a further 15%, the roster the player hired has to be legible on the screen
+    // where they choose a bill.
+    const discount = policyDiscountFraction(
+      politics.policyInfluence,
+      lobbyists.map((l) => l?.id).filter((lid): lid is string => typeof lid === 'string'),
+      policy.type,
+    );
+    const sticker = policy.implementationCost || 0;
+    const payable = Math.max(0, Math.round(sticker * (1 - discount)));
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
         {/* Bill header */}
@@ -843,8 +862,13 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             <View style={{ flex: againstPct, backgroundColor: accent.danger }} />
           </View>
           <Text style={[styles.cardSubText, { color: theme.textMuted }]}>
-            Approval impact {policy.approvalImpact > 0 ? '+' : ''}{policy.approvalImpact} · {policy.duration ? `${policy.duration} wks` : 'Permanent'} · Cost {formatMoney(policy.implementationCost)}
+            Approval impact {policy.approvalImpact > 0 ? '+' : ''}{policy.approvalImpact} · {policy.duration ? `${policy.duration} wks` : 'Permanent'} · Cost {formatMoney(payable)}
           </Text>
+          {discount > 0 && (
+            <Text style={[styles.cardSubText, { color: accent.success }]}>
+              {Math.round(discount * 100)}% off {formatMoney(sticker)} — your influence and lobbyists
+            </Text>
+          )}
         </View>
 
         {/* Full effect breakdown */}
@@ -882,9 +906,11 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.detailTitle, { color: theme.text }]}>{name}</Text>
-              {cat?.specialty && (
+              {cat?.specialties && (
                 <View style={[styles.typeTag, { backgroundColor: theme.surfaceElevated }]}>
-                  <Text style={[styles.typeTagText, { color: theme.textSecondary }]}>{cat.specialty} specialist</Text>
+                  <Text style={[styles.typeTagText, { color: theme.textSecondary }]}>
+                    {describeSpecialties(cat.specialties)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -933,7 +959,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                 </View>
                 <View style={styles.pickerRowText}>
                   <Text style={[styles.rosterName, { color: theme.text }]} numberOfLines={1}>{lob.name}</Text>
-                  <Text style={[styles.rosterMeta, { color: SKY }]} numberOfLines={1}>{lob.specialty} · +{lob.influence} influence</Text>
+                  <Text style={[styles.rosterMeta, { color: SKY }]} numberOfLines={1}>{describeSpecialties(lob.specialties)} · +{lob.influence} influence</Text>
                   <Text style={[styles.cardSubText, { color: theme.textMuted }]} numberOfLines={2}>{lob.description}</Text>
                 </View>
                 <TouchableOpacity
@@ -1370,7 +1396,7 @@ function LobbyistRow({
           {lobbyist.active && <View style={[styles.liveDot, { backgroundColor: accent.success }]} />}
         </View>
         <Text style={[styles.rosterMeta, { color: theme.textMuted }]} numberOfLines={1}>
-          {(cat?.specialty ?? 'all')} · {formatMoney(lobbyist.cost)}
+          {describeSpecialties(cat?.specialties)} · {formatMoney(lobbyist.cost)}
         </Text>
         <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
           <View style={[styles.meterFill, { width: `${meterPct}%`, backgroundColor: SKY }]} />

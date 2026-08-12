@@ -10,7 +10,7 @@ import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS, canRunForOffice } from '@/lib/careers/political';
 import { getPolicyById } from '@/lib/politics/policies';
-import { getLobbyistById } from '@/lib/politics/lobbyists';
+import { getLobbyistById, policyDiscountFraction } from '@/lib/politics/lobbyists';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getNextElectionWeek } from '@/lib/politics/elections';
 import type { Dispatch, SetStateAction } from 'react';
@@ -539,11 +539,28 @@ export const enactPolicy = (
   // cost (up to 25% off, reached at influence >= 25). Before this it was a pure
   // vanity stat — accumulated by enact/lobby/hireLobbyist but never spent or
   // checked by any politics mechanic.
-  const influenceCost = (influence: number | undefined): number =>
-    Math.max(0, Math.round((policy.implementationCost || 0) * (1 - Math.min(0.25, Math.max(0, influence || 0) / 100))));
+  //
+  // Stacked on top of that, up to a further 15%: the influence of hired
+  // lobbyists who actually SPECIALISE in this policy's type. `specialty` was
+  // rendered in three places in `PoliticalApp` and read by nothing — the one
+  // function that consumed it had zero call sites — so choosing the
+  // Environmental Advocate over the Criminal Justice Expert for a green bill
+  // changed the copy and no number. It changes the price now.
+  //
+  // Both terms take the WHOLE politics slice so the pre-check and the in-updater
+  // re-check cannot drift: a discount computed from the stale snapshot and
+  // charged from `prev` is the gate-then-grant shape (CLAUDE.md §4.4).
+  const influenceCost = (p: GameState['politics'] | undefined): number => {
+    const discount = policyDiscountFraction(
+      p?.policyInfluence,
+      (p?.lobbyists || []).map((l) => l?.id).filter((id): id is string => typeof id === 'string'),
+      policy.type,
+    );
+    return Math.max(0, Math.round((policy.implementationCost || 0) * (1 - discount)));
+  };
 
   // Check implementation cost (after the influence discount).
-  const discountedCost = influenceCost(politics.policyInfluence);
+  const discountedCost = influenceCost(politics);
   if (gameState.stats.money < discountedCost) {
     return {
       success: false,
@@ -560,7 +577,7 @@ export const enactPolicy = (
   setGameState(prev => {
     const prevPolitics = prev.politics;
     if (prevPolitics?.policiesEnacted?.includes(policyId)) return prev;
-    if ((prev.stats?.money || 0) < influenceCost(prev.politics?.policyInfluence)) return prev;
+    if ((prev.stats?.money || 0) < influenceCost(prev.politics)) return prev;
 
     const updatedPoliciesEnacted = [...(prevPolitics?.policiesEnacted || []), policyId];
     const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
@@ -574,7 +591,7 @@ export const enactPolicy = (
         // policy.effects.money is applied exactly ONCE here at enactment, never
         // as a recurring weekly stream — the catalog copy is worded as one-time
         // to match. A true recurring payout would hook a per-week politics tick.
-        money: Math.max(0, prev.stats.money - influenceCost(prev.politics?.policyInfluence) + (policy.effects.money || 0)),
+        money: Math.max(0, prev.stats.money - influenceCost(prev.politics) + (policy.effects.money || 0)),
         happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
         health: Math.max(0, Math.min(100, (prev.stats.health || 0) + (policy.effects.health || 0))),
         reputation: Math.max(0, Math.min(100, (prev.stats.reputation || 0) + (policy.effects.reputation || 0))),
