@@ -380,3 +380,47 @@ describe('review round: the favour id comes from the committed week', () => {
     expect(openFavors(stub.current().favorLedger!)[0].value).toBe(100);
   });
 });
+
+describe('review round: an unusable week counter refuses the ASK but not the REDEEM', () => {
+  /**
+   * The two directions fail differently, so they are guarded differently.
+   *
+   * Creation writes `prevWeek` into three durable places — the id,
+   * `createdWeek` and `expiresWeek` — so a `?? 0` fallback on a save whose real
+   * week is 500 books a favour stamped week 0 that expires at week 12: already
+   * dead the moment the field is repaired. Redemption only READS the counter,
+   * and refusing there would deny a legitimately earned payout because of a
+   * field with nothing to do with the favour.
+   *
+   * Neither is reachable through the save pipeline (`isValidGameState` requires
+   * a numeric `weeksLived`), so these pin the intent for state that bypassed it.
+   */
+  const noWeek = (over: Record<string, unknown> = {}) =>
+    ({ ...base(over), weeksLived: undefined } as unknown as GameState);
+
+  it('refuses to BOOK a favour it cannot date', () => {
+    const start = noWeek();
+    const stub = createSetGameStateStub(start);
+    const r = askNetworkFavor(start, stub.setGameState, LOBBYIST);
+
+    expect(r.success).toBe(false);
+    expect(openFavors(stub.current().favorLedger ?? { favors: [] })).toHaveLength(0);
+  });
+
+  it('and refuses a NaN counter too', () => {
+    const start = { ...base(), weeksLived: NaN } as GameState;
+    const stub = createSetGameStateStub(start);
+
+    expect(askNetworkFavor(start, stub.setGameState, LOBBYIST).success).toBe(false);
+  });
+
+  it('but still PAYS a favour already earned', () => {
+    // The lenient direction, deliberately: the contact owes this and the
+    // deadline simply cannot be evaluated.
+    const start = noWeek({ favorLedger: { favors: [favorOf('influence', { expiresWeek: 112 })] } });
+    const stub = createSetGameStateStub(start);
+
+    expect(redeemFavor(start, stub.setGameState, 'f-influence').success).toBe(true);
+    expect(stub.current().stats.reputation).toBe(50 + INFLUENCE_FAVOR_REPUTATION);
+  });
+});

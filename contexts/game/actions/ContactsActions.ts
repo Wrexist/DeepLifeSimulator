@@ -248,6 +248,25 @@ export function redeemFavor(
      * for weeks. Refusing here makes the deadline mean the same thing whether
      * or not a tick has run.
      */
+    /**
+     * Redemption keeps the `?? 0` fallback ON PURPOSE, unlike creation above.
+     *
+     * The two directions fail differently. An absent week counter here means
+     * the deadline cannot be evaluated — and the lenient reading ("nothing has
+     * expired yet") pays out a favour the player genuinely earned, while the
+     * strict reading denies it because of a field that has nothing to do with
+     * the favour. Creation refuses because it WRITES the bad week; redemption
+     * only reads it.
+     *
+     * A non-finite counter is a different matter and is rejected below: `NaN`
+     * is corruption rather than absence, and `nowWeek >= NaN` is false, so it
+     * would skip the gate rather than fail it.
+     *
+     * None of this is reachable through the save pipeline — `isValidGameState`
+     * requires `typeof weeksLived === 'number'` and `repairGameState` forces a
+     * non-finite one back to 0 — so this is the behaviour for state that never
+     * went through it.
+     */
     const nowWeek = prev.weeksLived ?? 0;
     if (fresh.expiresWeek !== undefined) {
       // A non-finite bound does not compare: `nowWeek >= NaN` is false, so a
@@ -530,7 +549,24 @@ export function askNetworkFavor(
   setGameState((prev) => {
     if (prev.showDeathPopup) return prev;
     const prevLedger = ledgerOf(prev);
-    const prevWeek = prev.weeksLived ?? 0;
+
+    /**
+     * REFUSE rather than fall back to week 0.
+     *
+     * Creation is the asymmetric half. `prevWeek` is written into three durable
+     * places — the id, `createdWeek` and `expiresWeek` — so a `?? 0` fallback on
+     * a save whose real week is 500 books a favour stamped week 0 that expires
+     * at week 12, i.e. one that is already dead the moment the field is
+     * repaired. Refusing the ask costs the player one tap; booking that favour
+     * costs them the favour, silently and unrecoverably.
+     *
+     * Redemption deliberately does NOT mirror this — see the note there.
+     */
+    const prevWeek = prev.weeksLived;
+    if (typeof prevWeek !== 'number' || !isFinite(prevWeek) || prevWeek < 0) {
+      log.warn(`Cannot ask a favor without a usable week counter`, { weeksLived: prev.weeksLived });
+      return prev;
+    }
     // The id is derived from `prev`, NOT from the snapshot read above. It encodes
     // the week deliberately — that encoding is half the double-tap guard — so
     // building it from a stale snapshot would let a favor carry an id saying one
