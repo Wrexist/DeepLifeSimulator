@@ -17,7 +17,20 @@ import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAvatar } from '@dicebear/core';
-import * as collection from '@dicebear/collection';
+import {
+  adventurer, avataaars, bigEars, bigSmile, croodles, dylan, lorelei, micah,
+  miniavs, notionists, openPeeps, personas, pixelArt,
+} from '@dicebear/collection';
+
+/**
+ * Explicit map rather than `collection[name]`. A computed reference into a
+ * namespace import cannot be statically validated (the `import/namespace` lint
+ * rule), and a typo would then fail at render time instead of at import.
+ */
+const STYLES = {
+  adventurer, avataaars, bigEars, bigSmile, croodles, dylan, lorelei, micah,
+  miniavs, notionists, openPeeps, personas, pixelArt,
+};
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'screenshots');
@@ -30,7 +43,7 @@ const SKIN = ['f2d3b1', 'ecad80', 'd08b5b', 'ae5d29', '8d5524', '613915'];
 const HAIR_BY_AGE = ['2c1b18', '4a312c', '724133', 'a55728', 'b7b7b7', 'e8e1e1'];
 
 function one(style, options, size) {
-  return createAvatar(collection[style], {
+  return createAvatar(STYLES[style], {
     size,
     backgroundColor: ['transparent'],
     ...options,
@@ -43,8 +56,8 @@ const chip = (inner, px) =>
 const label = (t) => `<div style="color:#64748B;font:700 10px system-ui;width:74px;flex:0 0 auto">${t}</div>`;
 
 const block = (style) => {
-  const supportsSkin = !!collection[style].schema?.properties?.skinColor;
-  const supportsHair = !!collection[style].schema?.properties?.hairColor;
+  const supportsSkin = !!STYLES[style].schema?.properties?.skinColor;
+  const supportsHair = !!STYLES[style].schema?.properties?.hairColor;
 
   const skinRow = SKIN.map((s, i) =>
     chip(one(style, { seed: 'Skin', ...(supportsSkin ? { skinColor: [s] } : {}) }, 88), 88)

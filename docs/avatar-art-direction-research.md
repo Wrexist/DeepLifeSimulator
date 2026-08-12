@@ -56,9 +56,9 @@ Rendered locally at real game sizes on the app's dark palette —
 
 | Style | Licence | Option groups | skinColor | hairColor | Verdict |
 |---|---|---|---|---|---|
-| **adventurer** | CC BY 4.0 · Lisa Wischofsky | 14 (45 hair · 26 eyes · 30 mouths · 15 brows) | ✅ | ✅ | **Best overall.** Warm, modern, reads at 44px, ages convincingly |
+| **avataaars** | Free personal + commercial · Pablo Stanley | 20 (34 tops · 5 facial hair · 9 clothing) | ✅ | ✅ | **CHOSEN.** The only finalist with facial hair AND clothing |
+| adventurer | CC BY 4.0 · Lisa Wischofsky | 14 (45 hair · 26 eyes · 30 mouths · 15 brows) | ✅ | ✅ | Prettiest art, but **no facial hair and no clothing at all** |
 | **lorelei** | **CC0** · Lisa Wischofsky | 26 — the most (48 hair · 24 eyes · 27 mouths) | ✅ | ✅ | Elegant line art, zero licence burden. Does NOT take the lit frame |
-| **avataaars** | Free personal + commercial · Pablo Stanley | 20 (34 tops · clothing) | ✅ | ✅ | Safest and most proven — and the most ubiquitous avatar style on the internet |
 | micah | CC BY 4.0 · Micah Lanier | 25, but only 8 hair | ❌ (`baseColor`) | ✅ | Stylish, too shallow for a creator |
 | bigEars | CC BY 4.0 · The Visual Team | 12 (40 hair · 32 eyes · 38 mouths) | ✅ | ✅ | Deep, but childlike against a premium dark UI |
 | openPeeps | CC0 · Pablo Stanley | 11 | ✅ | ❌ | **Disqualified** — hair is baked into the head, so it cannot grey |
@@ -66,10 +66,34 @@ Rendered locally at real game sizes on the app's dark palette —
 | bigSmile | CC BY 4.0 | 8 | ✅ | ✅ | Every face grins. Wrong for a game with death in it |
 | personas, miniavs, croodles, dylan, pixelArt | CC BY 4.0 / CC0 | 6–20 | mixed | mixed | Weaker fits |
 
-Two disqualifications are worth stating plainly, because they are specific to
-a **birth-to-death** life sim rather than general taste: a style with no
-`hairColor` cannot grey, and a style with no `skinColor` cannot represent the
-player. Both were confirmed by rendering, not assumed.
+Three eliminations are worth stating plainly, because they are specific to a
+**birth-to-death** life sim rather than general taste:
+
+- A style with no `hairColor` **cannot grey** — that removes openPeeps.
+- A style with no `skinColor` **cannot represent the player** — notionists,
+  and micah, which exposes only `baseColor`.
+- A style with no facial hair **cannot show a man over 18** — that is what
+  removed adventurer, which was the initial recommendation until its schema
+  was checked properly. It has 45 hairstyles and no beards.
+
+All three were confirmed by rendering and by reading the schemas, not assumed.
+
+### Why avataaars, in the end
+
+It is the only candidate strong on every axis a life sim actually needs:
+
+- **Facial hair** — five sets, colour-linked to the hair so a grey-haired man
+  does not keep a black beard.
+- **Clothing** — nine outfits plus colour. This is upside the others cannot
+  offer at all: the outfit can eventually be driven by wealth and career.
+- **The cleanest ageing ladder** of anything rendered. One man at 10 → 80 stays
+  the same person, greys, then thins.
+- **No attribution required**, unlike every CC BY style.
+
+Its real weakness is ubiquity — it is the most-used avatar style on the
+internet. That is answered by **curation**: the shipped option sets are
+deliberate subsets, the palettes are ours, and the 2.5D plate is ours. What a
+player sees is not what an unconfigured avataaars install looks like.
 
 ### Licence practicalities
 
@@ -100,9 +124,15 @@ Ageing is driven entirely through real style options — no drawn-on wrinkles:
 
 | Age | Lever |
 |---|---|
-| Hair colour | dark → mid → salt-and-pepper → grey → white |
-| `hairProbability` | drops past ~72, so hair thins rather than being repainted |
-| `glassesProbability` | 10% young → 70% old |
+| Hair colour | greys toward white from ~34, smoothstepped so there is no kink |
+| Beard colour | follows the hair exactly — a grey man with a black beard is a very visible wrongness |
+| `hairProbability` | drops from 55 on **masculine faces only**; thinning a feminine hairline reads as an art bug |
+| `glassesProbability` | 0% under 40 → 65% over 70, and only when the player chose none |
+
+Known limitation, stated rather than hidden: **children look like small
+adults.** The style has no age geometry, so a six-year-old differs from a
+thirty-year-old only in the levers above. Every candidate shares this; the
+alternative is a separate child art set, which is a commission.
 
 The rendered ladder (8 → 85 on one seed) holds up: the person stays the same
 person and visibly ages, which is the exact property the old portrait pool
@@ -129,12 +159,31 @@ Replaced:
 `AvatarConfig`'s numeric indices map cleanly onto the style's option arrays,
 so the save format, the codec and the inheritance maths are unaffected.
 
-## Open items
+## Resolved during implementation
 
-- **Bundle size.** `@dicebear/collection` ships all 30 styles. Importing one
-  named export should let Metro drop the rest, but that needs measuring rather
-  than assuming.
-- **Attribution.** If a CC BY style is chosen, a credit line goes in Settings
-  in the same change.
-- **Plate colour.** The prototype's blue plate is louder than the app's palette
-  wants; a slate plate with a soft key reads better against the glass cards.
+- **Bundle size.** Settled rather than assumed: the app imports
+  `@dicebear/avataaars` (308 KB) directly instead of `@dicebear/collection`,
+  which is a barrel re-exporting all 30 styles (~6 MB on disk). Relying on
+  Metro to shake 29 unused styles out of a release build was not a bet worth
+  taking. The barrel is now a devDependency, used only by the evaluation
+  scripts.
+- **Attribution.** Not needed — avataaars requires none.
+- **Plate colour.** Muted slate (`#465875` → `#1A2334`), not the prototype's
+  blue, which was louder than the app's glass cards want.
+- **Jest.** `@dicebear` is ESM-only. Two changes were required, and the second
+  is the non-obvious one: adding it to `transformIgnorePatterns` does nothing
+  on its own, because `transform` only had a `.ts/.tsx` rule — the ignore list
+  decides WHAT is offered to a transform, not whether one exists for the
+  extension. A `babel-jest` rule for `.js` was needed too.
+- **`lib/` stays pure.** The art package is imported only by
+  `components/avatar/VectorAvatar.tsx`; `lib/avatar/style.ts` holds catalogs
+  and option-building with no dependency on it, so all of it is testable
+  without the ESM runtime.
+
+## Still open
+
+- **Curation is a standing job.** The shipped subsets drop `vomit`,
+  `screamOpen`, `grimace`, `eating`, `tongue`, `xDizzy`, `cry` and `eyepatch`,
+  and pin `clothingGraphic` (unpinned, background NPCs turned up in skull
+  tees). A test asserts the exclusions. Anything added later needs the same eye.
+- **NPC surfaces** still read the old portrait pool — see `tasks/todo.md`.

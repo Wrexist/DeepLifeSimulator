@@ -384,12 +384,16 @@ including the crash screen.
   `__tests__/gameMode/batchEquivalence.test.ts` pins that equivalence and is
   the test to run before touching the batch.
 - **v39 adds `userProfile.avatar`** — the encoded `AvatarConfig` behind the
-  rebuilt character creator. Faces are now assembled from authored vector
-  geometry (`lib/avatar/`, rendered by `components/avatar/VectorAvatar.tsx`)
+  rebuilt character creator. Faces are now assembled from illustrator-drawn
+  modular art (avataaars via DiceBear, curated in `lib/avatar/style.ts`,
+  rendered under a 2.5D lit plate by `components/avatar/VectorAvatar.tsx`)
   rather than picked from a pool of pre-rendered portraits, so appearance is a
   set of parameters that AGES with the character instead of a PNG swapped for a
   different person's face at each age band — the "my character turned into
   someone else" class of report documented at length in `utils/facePool.ts`.
+  The first attempt hand-authored the facial geometry as bezier path data and
+  had to be thrown away; `docs/avatar-art-direction-research.md` records why
+  that pipeline could never have worked and how the alternatives were measured.
   Default `undefined`, so it is a CARVE-OUT: version bumped, NO backfill and no
   `repairGameState` mirror. Two independent reasons, either sufficient. First,
   absence already resolves: `resolveAvatar` (`lib/avatar/resolve.ts`) derives a

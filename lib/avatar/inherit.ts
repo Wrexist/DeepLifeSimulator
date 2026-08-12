@@ -10,9 +10,9 @@
  * Deterministic in the child's id, so a child looks the same on every load and
  * nothing has to be stored per child.
  */
-import { EYE_COLORS, HAIR_COLORS, SKIN_TONES } from './palette';
-import { avatarFromSeed, hashSeed, normalizeAvatar } from './random';
-import { FACIAL_HAIR, CATALOG_SIZES } from './features';
+import { HAIR_COLORS, SKIN_TONES } from './palette';
+import { avatarFromSeed, hashSeed, makeRng, normalizeAvatar } from './random';
+import { CATALOG_SIZES, FACIAL_HAIR } from './style';
 import type { AvatarConfig, AvatarSex } from './types';
 
 /**
@@ -39,15 +39,7 @@ export function inheritAvatar(
   const mother = motherConfig ?? fatherConfig!;
   const father = fatherConfig ?? motherConfig!;
 
-  let s = hashSeed(childSeed) || 1;
-  const rng = () => {
-    s ^= s << 13;
-    s >>>= 0;
-    s ^= s >> 17;
-    s ^= s << 5;
-    s >>>= 0;
-    return s / 0x100000000;
-  };
+  const rng = makeRng(hashSeed(childSeed));
 
   /** Picks one parent's value outright. */
   const either = (a: number, b: number) => (rng() < 0.5 ? a : b);
@@ -73,22 +65,27 @@ export function inheritAvatar(
     return Math.min(len - 1, Math.max(0, Math.round(lo + (hi - lo) * t)));
   };
 
+  const seeded = avatarFromSeed(childSeed, childSex);
+
   const child: AvatarConfig = {
     skinTone: blend(mother.skinTone, father.skinTone, SKIN_TONES.length, 1),
-    faceShape: either(mother.faceShape, father.faceShape),
-    hairStyle: avatarFromSeed(childSeed, childSex).hairStyle,
+    // Hair STYLE is a haircut, not a trait — a child does not inherit their
+    // parent's bob. Colour is the heritable half.
+    hairStyle: seeded.hairStyle,
     hairColor: dominantDark(mother.hairColor, father.hairColor, HAIR_COLORS.length),
     browShape: either(mother.browShape, father.browShape),
     eyeShape: either(mother.eyeShape, father.eyeShape),
-    eyeColor: dominantDark(mother.eyeColor, father.eyeColor, EYE_COLORS.length),
-    noseShape: either(mother.noseShape, father.noseShape),
     mouthShape: either(mother.mouthShape, father.mouthShape),
     // Facial hair is a grooming choice, not a trait — never inherited. It is
     // also suppressed on feminine faces and on children by the renderer.
     facialHair: childSex === 'male' && rng() < 0.4 ? 1 + Math.floor(rng() * (FACIAL_HAIR.length - 1)) : 0,
+    // Clothing is not heritable either; it belongs to the character's own life.
+    clothing: seeded.clothing,
+    clothingColor: seeded.clothingColor,
     // Glasses likewise are not inherited, but short-sightedness is heritable
     // enough that a child of two glasses-wearers wearing them reads as right.
     accessory: inheritAccessory(mother.accessory, father.accessory, rng),
+    headwear: seeded.headwear,
   };
 
   return normalizeAvatar(child);

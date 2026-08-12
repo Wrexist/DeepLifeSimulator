@@ -92,3 +92,52 @@ stable seeded face. Doing that sweep in the same commit would have mixed a
 17-file mechanical change into the creator rebuild, so it is left as a
 follow-up. `assets/images/Face/` stays until then, and can be deleted with it
 (~3.5 MB).
+
+
+## Round 2 — the art was wrong, and got replaced
+
+The hand-authored geometry shipped in the first pass looked amateur. The
+pipeline was the problem, not the tuning: bezier path data typed by hand and
+adjusted by squinting at contact sheets is not how character art gets made.
+
+Replaced with illustrator-drawn modular art (avataaars via DiceBear), curated,
+under the same 2.5D treatment re-expressed as a LIT PLATE behind the art rather
+than hand-modelled volume inside it. `docs/avatar-art-direction-research.md`
+has the evaluation of all 13 human styles and why this one won.
+
+Kept unchanged: `types.ts`, `encode.ts`, `resolve.ts`, `inherit.ts`,
+`pickers.ts`, the v39 migration and carve-out reasoning, and the rebuilt
+`Customize.tsx`. Replaced: `features.ts` (deleted) → `style.ts`, and the
+renderer.
+
+Corrections made along the way, all found by rendering rather than review:
+
+- **adventurer was the wrong first pick.** It has 45 hairstyles and no facial
+  hair at all — unusable for a game where you play men from 18 to 80.
+- **Grey hair on six-year-olds.** Random generation could reach the grey and
+  white entries. `NATURAL_HAIR_COUNT` now stops before them; they stay
+  available to the player, and ageing reaches white from any starting colour.
+- **Skull-graphic tees on background NPCs.** `clothingGraphic` was unpinned, so
+  the generator chose freely from a set including a skull and a "resist"
+  slogan.
+- **Half of every crowd looked miserable.** Expression was a flat roll across a
+  catalog that includes sad, concerned and disbelief. Now weighted 82% toward
+  the pleasant prefix, with the ordering pinned by a test.
+- **`SvgXml` was missing from the jest mock**, so every screen carrying an
+  avatar crashed with "Element type is invalid".
+- **`transformIgnorePatterns` alone does nothing** for an ESM package when
+  `transform` has no rule for the extension. `.js` needed `babel-jest`.
+
+Verification (2026-08-12):
+
+- `npm test` — 534 suites, 6762 passed, 1 skipped, 0 failed
+- `npm run type-check`, `type-check:tests:ratchet`, `lint:errors`,
+  `check:routes` — all clean
+
+Bundle: the app imports `@dicebear/avataaars` (308 KB) directly rather than
+`@dicebear/collection`, which is a barrel over all 30 styles (~6 MB on disk).
+The barrel is now a devDependency used only by the evaluation scripts.
+
+Known limitation, not hidden: **children look like small adults.** The style
+has no age geometry. Every candidate shares this; fixing it means commissioning
+a child art set.

@@ -24,16 +24,16 @@ const PREFIX = 'a1.';
  */
 export const FIELD_ORDER: (keyof AvatarConfig)[] = [
   'skinTone',
-  'faceShape',
   'hairStyle',
   'hairColor',
-  'browShape',
-  'eyeShape',
-  'eyeColor',
-  'noseShape',
-  'mouthShape',
   'facialHair',
+  'eyeShape',
+  'browShape',
+  'mouthShape',
+  'clothing',
+  'clothingColor',
   'accessory',
+  'headwear',
 ];
 
 /** The largest index base-36 can hold in one character. */

@@ -7,18 +7,19 @@
  */
 import {
   ACCESSORIES,
-  ANCHORS,
   BROW_SHAPES,
   CATALOG_SIZES,
+  CLOTHING,
   EYE_SHAPES,
-  FACE_SHAPES,
   FACIAL_HAIR,
   HAIR_STYLES,
+  HEADWEAR,
   MOUTH_SHAPES,
-  NOSE_SHAPES,
-} from '@/lib/avatar/features';
-import { EYE_COLORS, HAIR_COLORS, SKIN_TONES, CLOTHING, greyRamp } from '@/lib/avatar/palette';
-import { ageEffects, recessionOffset } from '@/lib/avatar/aging';
+  buildStyleOptions,
+  greyedHairHex,
+} from '@/lib/avatar/style';
+import { CLOTHING_COLORS, HAIR_COLORS, SKIN_TONES } from '@/lib/avatar/palette';
+import { ageEffects, FACIAL_HAIR_MIN_AGE } from '@/lib/avatar/aging';
 import { avatarFromSeed, cycleField, normalizeAvatar, PICKER_LENGTHS, randomAvatar } from '@/lib/avatar/random';
 import { CODEC_MAX_INDEX, codecFitsCatalogs, decodeAvatar, encodeAvatar, FIELD_ORDER } from '@/lib/avatar/encode';
 import { inheritAvatar } from '@/lib/avatar/inherit';
@@ -28,82 +29,88 @@ import type { AvatarConfig } from '@/lib/avatar/types';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-describe('geometry catalogs', () => {
-  it('keeps the landmark anchors the catalogs are authored against', () => {
-    // Every catalog is drawn to these coordinates. Moving one without redrawing
-    // the shapes misaligns eyes against brows, glasses against eyes, and so on.
-    expect(ANCHORS.eyeLeft).toEqual({ x: 78, y: 96 });
-    expect(ANCHORS.eyeRight).toEqual({ x: 122, y: 96 });
-    expect(ANCHORS.mouth).toEqual({ x: 100, y: 132 });
-    // The eyes must stay symmetric about the centre line, or a mirrored right
-    // eye lands off-centre.
-    expect(ANCHORS.eyeLeft.x + ANCHORS.eyeRight.x).toBe(2 * ANCHORS.noseCenter);
-    expect(ANCHORS.earLeft.x + ANCHORS.earRight.x).toBe(2 * ANCHORS.noseCenter);
+const luma = (hex: string) => {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+};
+
+describe('catalogs', () => {
+  it('reserves index 0 for "none" on every optional catalog', () => {
+    // The renderer treats 0 as absent, so a real value at index 0 would put a
+    // beard on every clean-shaven face and glasses on everyone.
+    expect(FACIAL_HAIR[0].value).toBeNull();
+    expect(ACCESSORIES[0].value).toBeNull();
+    expect(HEADWEAR[0].value).toBeNull();
+    // Index 0 of hair is bald, which is also expressed as "no layer".
+    expect(HAIR_STYLES[0].value).toBeNull();
   });
 
-  it('gives every shape a drawable path', () => {
-    const withPaths = [
-      ...FACE_SHAPES.map((e) => e.path),
-      ...BROW_SHAPES.map((e) => e.path),
-      ...EYE_SHAPES.map((e) => e.path),
-      ...NOSE_SHAPES.flatMap((e) => [e.shade, e.light, e.nostrils]),
-      ...MOUTH_SHAPES.flatMap((e) => [e.upper, e.lower]),
-    ];
-    for (const path of withPaths) {
-      expect(typeof path).toBe('string');
-      expect(path.trim().startsWith('M')).toBe(true);
+  it('gives every other entry a real style value and a human label', () => {
+    for (const list of [HAIR_STYLES, FACIAL_HAIR, ACCESSORIES, HEADWEAR, EYE_SHAPES, BROW_SHAPES, MOUTH_SHAPES, CLOTHING]) {
+      for (const entry of list) {
+        expect(typeof entry.name).toBe('string');
+        expect(entry.name.length).toBeGreaterThan(0);
+        expect(entry.value === null || typeof entry.value === 'string').toBe(true);
+      }
     }
   });
 
-  it('leaves index 0 empty for the optional catalogs', () => {
-    // The renderer treats 0 as "none" without consulting the entry, so a
-    // non-empty path at index 0 would draw a beard on every clean-shaven face.
-    expect(FACIAL_HAIR[0].path).toBe('');
-    expect(ACCESSORIES[0].path).toBe('');
-  });
-
-  it('has at least one hair style with no front mass, and one with back mass', () => {
-    expect(HAIR_STYLES.some((h) => !h.front)).toBe(true);
-    expect(HAIR_STYLES.some((h) => h.back)).toBe(true);
+  it('excludes the expressions a life sim must never show', () => {
+    // The style ships `vomit`, `screamOpen`, `grimace`, `xDizzy` and an
+    // eyepatch. Curation is the point — an unconstrained randomize button
+    // eventually hands the player a vomiting face on the creation screen.
+    const banned = ['vomit', 'screamOpen', 'grimace', 'eating', 'tongue'];
+    const mouths = MOUTH_SHAPES.map((m) => m.value);
+    for (const bad of banned) expect(mouths).not.toContain(bad);
+    expect(EYE_SHAPES.map((e) => e.value)).not.toContain('xDizzy');
+    expect(EYE_SHAPES.map((e) => e.value)).not.toContain('cry');
+    expect(ACCESSORIES.map((a) => a.value)).not.toContain('eyepatch');
+    expect(BROW_SHAPES.map((b) => b.value)).not.toContain('unibrowNatural');
   });
 
   it('reports catalog sizes that match the catalogs', () => {
-    expect(CATALOG_SIZES.faceShape).toBe(FACE_SHAPES.length);
     expect(CATALOG_SIZES.hairStyle).toBe(HAIR_STYLES.length);
     expect(CATALOG_SIZES.facialHair).toBe(FACIAL_HAIR.length);
     expect(CATALOG_SIZES.accessory).toBe(ACCESSORIES.length);
+    expect(CATALOG_SIZES.headwear).toBe(HEADWEAR.length);
+    expect(CATALOG_SIZES.clothing).toBe(CLOTHING.length);
+  });
+
+  it('orders mouths pleasant-first, which the generator weighting relies on', () => {
+    // `random.ts` treats the first four as the neutral-to-positive prefix. If
+    // this ordering changes, generated crowds start looking miserable.
+    expect(MOUTH_SHAPES.slice(0, 4).map((m) => m.value)).toEqual([
+      'default',
+      'smile',
+      'serious',
+      'twinkle',
+    ]);
+  });
+
+  it('offers enough hair to feel like a choice', () => {
+    // Bald plus 27 styles. The pool this replaces offered twelve whole faces.
+    expect(HAIR_STYLES.length).toBeGreaterThanOrEqual(20);
   });
 });
 
 describe('palette', () => {
-  it('gives every ramp three valid hex stops', () => {
-    for (const ramp of [...SKIN_TONES, ...HAIR_COLORS, ...EYE_COLORS, ...CLOTHING]) {
-      expect(ramp.base).toMatch(HEX);
-      expect(ramp.shadow).toMatch(HEX);
-      expect(ramp.light).toMatch(HEX);
-    }
+  const HEXES = [...SKIN_TONES, ...HAIR_COLORS, ...CLOTHING_COLORS];
+
+  it('is all valid hex', () => {
+    for (const hex of HEXES) expect(hex).toMatch(HEX);
   });
 
   it('spans a genuinely wide skin range', () => {
     // The pool this replaces had almost no range, which was a specific
     // complaint. Guard the span rather than the exact values.
-    const luma = (hex: string) => {
-      const n = parseInt(hex.slice(1), 16);
-      return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
-    };
-    const values = SKIN_TONES.map((r) => luma(r.base));
+    const values = SKIN_TONES.map(luma);
     expect(Math.max(...values) - Math.min(...values)).toBeGreaterThan(120);
   });
 
   it('greys hair monotonically toward white', () => {
-    const black = HAIR_COLORS[0];
-    const luma = (hex: string) => {
-      const n = parseInt(hex.slice(1), 16);
-      return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
-    };
-    let previous = luma(greyRamp(black, 0).base);
+    let previous = luma(greyedHairHex(0, 0));
     for (const amount of [0.25, 0.5, 0.75, 1]) {
-      const next = luma(greyRamp(black, amount).base);
+      const next = luma(greyedHairHex(0, amount));
       expect(next).toBeGreaterThanOrEqual(previous);
       previous = next;
     }
@@ -118,35 +125,33 @@ describe('ageing', () => {
     for (let age = 1; age <= 100; age++) {
       const current = ageEffects(age, 'male');
       expect(current.greying).toBeGreaterThanOrEqual(last.greying);
-      expect(current.wrinkles).toBeGreaterThanOrEqual(last.wrinkles);
-      expect(current.recession).toBeGreaterThanOrEqual(last.recession);
-      expect(current.headScale).toBeLessThanOrEqual(last.headScale + 1e-9);
+      expect(current.hairProbability).toBeLessThanOrEqual(last.hairProbability);
+      expect(current.glassesProbability).toBeGreaterThanOrEqual(last.glassesProbability);
       last = current;
     }
   });
 
   it('leaves a young adult unaged', () => {
-    const young = ageEffects(22, 'female');
+    const young = ageEffects(25, 'female');
     expect(young.greying).toBe(0);
-    expect(young.wrinkles).toBe(0);
-    expect(young.babyness).toBe(0);
-    expect(young.headScale).toBe(1);
+    expect(young.hairProbability).toBe(100);
+    expect(young.glassesProbability).toBe(0);
+    expect(young.suppressFacialHair).toBe(false);
   });
 
-  it('does not recede a feminine hairline', () => {
-    expect(ageEffects(80, 'female').recession).toBe(0);
-    expect(ageEffects(80, 'male').recession).toBeGreaterThan(0);
+  it('does not thin a feminine hairline', () => {
+    // Thinning on a feminine face reads as an art bug, not as ageing.
+    expect(ageEffects(85, 'female').hairProbability).toBe(100);
+    expect(ageEffects(85, 'male').hairProbability).toBeLessThan(100);
   });
 
-  it('gives children larger heads', () => {
-    expect(ageEffects(1, 'male').headScale).toBeGreaterThan(ageEffects(20, 'male').headScale);
-    expect(ageEffects(3, 'female').babyness).toBeGreaterThan(0);
+  it('suppresses facial hair on children', () => {
+    expect(ageEffects(FACIAL_HAIR_MIN_AGE - 1, 'male').suppressFacialHair).toBe(true);
+    expect(ageEffects(FACIAL_HAIR_MIN_AGE, 'male').suppressFacialHair).toBe(false);
   });
 
-  it('suppresses recession for styles that cannot recede', () => {
-    const old = ageEffects(85, 'male');
-    expect(recessionOffset(old, 0.5, true)).toBe(0);
-    expect(recessionOffset(old, 0.5, false)).toBeGreaterThan(0);
+  it('greys substantially by old age', () => {
+    expect(ageEffects(80, 'male').greying).toBeGreaterThan(0.9);
   });
 
   it('handles a nonsense age without throwing', () => {
@@ -156,16 +161,84 @@ describe('ageing', () => {
   });
 });
 
+describe('style options handed to the generator', () => {
+  const base = avatarFromSeed('options', 'male');
+
+  it('never sends facial hair for a feminine face', () => {
+    const o = buildStyleOptions({ ...base, facialHair: 3 }, 'female', ageEffects(40, 'female'));
+    expect(o.facialHair).toEqual([]);
+    expect(o.facialHairProbability).toBe(0);
+  });
+
+  it('never sends facial hair for a child', () => {
+    const o = buildStyleOptions({ ...base, facialHair: 3 }, 'male', ageEffects(10, 'male'));
+    expect(o.facialHair).toEqual([]);
+  });
+
+  it('greys the beard with the hair', () => {
+    // A grey-haired man with a jet-black beard is a specific, very noticeable
+    // wrongness, so the two must come from the same value.
+    const o = buildStyleOptions({ ...base, facialHair: 2 }, 'male', ageEffects(80, 'male'));
+    expect(o.facialHairColor).toEqual(o.hairColor);
+  });
+
+  it('drops the hair layer entirely when bald is chosen', () => {
+    const o = buildStyleOptions({ ...base, hairStyle: 0, headwear: 0 }, 'male', ageEffects(30, 'male'));
+    expect(o.top).toEqual([]);
+    expect(o.topProbability).toBe(0);
+  });
+
+  it('lets headwear win the shared top slot', () => {
+    const o = buildStyleOptions({ ...base, hairStyle: 5, headwear: 1 }, 'male', ageEffects(30, 'male'));
+    expect(o.top).toEqual([HEADWEAR[1].value]);
+  });
+
+  it('forces chosen glasses to always render, and only guesses when none chosen', () => {
+    const chosen = buildStyleOptions({ ...base, accessory: 2 }, 'male', ageEffects(30, 'male'));
+    expect(chosen.accessoriesProbability).toBe(100);
+    const none = buildStyleOptions({ ...base, accessory: 0 }, 'male', ageEffects(75, 'male'));
+    expect(none.accessoriesProbability).toBeGreaterThan(0);
+    expect(none.accessoriesProbability).toBeLessThan(100);
+  });
+
+  it('sends colours without the leading hash', () => {
+    // DiceBear rejects '#rrggbb'; it wants bare hex.
+    const o = buildStyleOptions(base, 'male', ageEffects(30, 'male'));
+    for (const key of ['skinColor', 'hairColor', 'clothesColor']) {
+      const value = (o as Record<string, string[]>)[key];
+      expect(value[0]).not.toContain('#');
+      expect(value[0]).toMatch(/^[0-9a-fA-F]{6}$/);
+    }
+  });
+
+  it('keeps the background transparent so our plate shows', () => {
+    expect(buildStyleOptions(base, 'male', ageEffects(30, 'male')).backgroundColor).toEqual(['transparent']);
+  });
+});
+
 describe('generation', () => {
   it('is deterministic for a seed', () => {
     expect(avatarFromSeed('ada lovelace', 'female')).toEqual(avatarFromSeed('ada lovelace', 'female'));
     expect(avatarFromSeed('a', 'male')).not.toEqual(avatarFromSeed('b', 'male'));
   });
 
+  it('mostly generates pleasant expressions', () => {
+    // Not a hard rule — sad faces exist on purpose — but a flat roll made
+    // roughly half of every crowd look miserable, which read as bad art.
+    const sample = Array.from({ length: 400 }, (_, i) => avatarFromSeed(`mood-${i}`, 'female'));
+    const pleasant = sample.filter((c) => c.mouthShape < 4).length;
+    expect(pleasant / sample.length).toBeGreaterThan(0.7);
+  });
+
   it('never gives a feminine face facial hair', () => {
     for (let i = 0; i < 200; i++) {
       expect(avatarFromSeed(`f-${i}`, 'female').facialHair).toBe(0);
     }
+  });
+
+  it('never puts a beard on a child-age render regardless of config', () => {
+    const config = { ...avatarFromSeed('bearded', 'male'), facialHair: 4 };
+    expect(buildStyleOptions(config, 'male', ageEffects(8, 'male')).facialHair).toEqual([]);
   });
 
   it('produces only in-range indices', () => {
@@ -190,13 +263,13 @@ describe('generation', () => {
   it('clamps anything out of range rather than throwing', () => {
     const broken = {
       skinTone: 999,
-      faceShape: -3,
+      clothing: -3,
       hairStyle: Number.NaN,
       hairColor: 1.7,
     } as unknown as Partial<AvatarConfig>;
     const fixed = normalizeAvatar(broken);
     expect(fixed.skinTone).toBe(SKIN_TONES.length - 1);
-    expect(fixed.faceShape).toBe(0);
+    expect(fixed.clothing).toBe(0);
     expect(fixed.hairStyle).toBe(0);
     expect(fixed.hairColor).toBe(1);
     expect(normalizeAvatar(undefined).skinTone).toBe(0);
@@ -243,8 +316,8 @@ describe('save codec', () => {
     const decoded = decodeAvatar('a1.012');
     expect(decoded).toBeDefined();
     expect(decoded!.skinTone).toBe(0);
-    expect(decoded!.faceShape).toBe(1);
-    expect(decoded!.hairStyle).toBe(2);
+    expect(decoded!.hairStyle).toBe(1);
+    expect(decoded!.hairColor).toBe(2);
     // The absent tail defaults rather than failing the whole decode.
     expect(decoded!.accessory).toBe(0);
   });
@@ -277,8 +350,8 @@ describe('inheritance', () => {
   it('takes discrete features from one parent or the other', () => {
     for (let i = 0; i < 100; i++) {
       const child = inheritAvatar(mother, father, `kid-${i}`, 'female');
-      expect([mother.faceShape, father.faceShape]).toContain(child.faceShape);
-      expect([mother.noseShape, father.noseShape]).toContain(child.noseShape);
+      expect([mother.browShape, father.browShape]).toContain(child.browShape);
+      expect([mother.mouthShape, father.mouthShape]).toContain(child.mouthShape);
       expect([mother.eyeShape, father.eyeShape]).toContain(child.eyeShape);
     }
   });

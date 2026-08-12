@@ -6,8 +6,8 @@
  * string. Same seed always yields the same face, which is what lets a face be
  * recomputed on demand instead of stored on every NPC in the save.
  */
-import { CATALOG_SIZES, FACIAL_HAIR, HAIR_STYLES } from './features';
-import { EYE_COLORS, HAIR_COLORS, SKIN_TONES } from './palette';
+import { CATALOG_SIZES, FACIAL_HAIR, HAIR_STYLES } from './style';
+import { CLOTHING_COLORS, HAIR_COLORS, NATURAL_HAIR_COUNT, SKIN_TONES } from './palette';
 import type { AvatarConfig, AvatarSex } from './types';
 
 /** FNV-1a. Stable across platforms and JS engines, unlike anything using `Math.random`. */
@@ -22,7 +22,7 @@ export function hashSeed(seed: string): number {
 }
 
 /** A small deterministic PRNG seeded from a hash. */
-function makeRng(seedNum: number): () => number {
+export function makeRng(seedNum: number): () => number {
   let s = seedNum || 1;
   return () => {
     // xorshift32
@@ -36,10 +36,10 @@ function makeRng(seedNum: number): () => number {
 }
 
 /**
- * Natural hair colours are the first 13 entries; the dyed ones after that
- * should be rare for NPCs but freely available to the player in the picker.
+ * How many entries at the head of MOUTH_SHAPES read as neutral-to-positive.
+ * The catalog is ordered deliberately so this is a prefix.
  */
-const NATURAL_HAIR_COUNT = 13;
+const PLEASANT_MOUTHS = 4;
 
 function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
   const pick = (n: number) => Math.floor(rng() * n) % Math.max(1, n);
@@ -54,18 +54,24 @@ function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
 
   return {
     skinTone: pick(SKIN_TONES.length),
-    faceShape: pick(CATALOG_SIZES.faceShape),
-    hairStyle: pick(CATALOG_SIZES.hairStyle),
+    // Index 0 is bald; only reach it deliberately, or a twelfth of every crowd
+    // is bald regardless of age.
+    hairStyle: 1 + pick(HAIR_STYLES.length - 1),
     hairColor,
-    browShape: pick(CATALOG_SIZES.browShape),
+    facialHair: sex === 'male' && rng() < 0.45 ? 1 + pick(FACIAL_HAIR.length - 1) : 0,
     eyeShape: pick(CATALOG_SIZES.eyeShape),
-    eyeColor: pick(EYE_COLORS.length),
-    noseShape: pick(CATALOG_SIZES.noseShape),
-    mouthShape: pick(CATALOG_SIZES.mouthShape),
-    // Facial hair only on masculine faces, and only about half the time.
-    facialHair: sex === 'male' && rng() < 0.5 ? 1 + pick(FACIAL_HAIR.length - 1) : 0,
+    browShape: pick(CATALOG_SIZES.browShape),
+    // Expression is weighted, not uniform. The catalogs are ordered pleasant
+    // first, and a flat roll makes roughly half of every generated crowd look
+    // sad or worried — which reads as the art being bad rather than as the
+    // character having a mood. The player can still pick any of them.
+    mouthShape: rng() < 0.82 ? pick(PLEASANT_MOUTHS) : PLEASANT_MOUTHS + pick(CATALOG_SIZES.mouthShape - PLEASANT_MOUTHS),
+    clothing: pick(CATALOG_SIZES.clothing),
+    clothingColor: pick(CLOTHING_COLORS.length),
     // Glasses on about one face in five, matching roughly how common they are.
     accessory: rng() < 0.2 ? 1 + pick(CATALOG_SIZES.accessory - 1) : 0,
+    // Headwear is rare — it is a statement, and it hides the hair underneath.
+    headwear: rng() < 0.06 ? 1 + pick(CATALOG_SIZES.headwear - 1) : 0,
   };
 }
 
@@ -78,6 +84,21 @@ export function avatarFromSeed(seed: string, sex: AvatarSex): AvatarConfig {
 export function randomAvatar(sex: AvatarSex): AvatarConfig {
   return buildConfig(() => Math.random(), sex);
 }
+
+/** The catalog each field indexes into, for building the customization UI. */
+export const PICKER_LENGTHS: Record<keyof AvatarConfig, number> = {
+  skinTone: CATALOG_SIZES.skinTone,
+  hairStyle: CATALOG_SIZES.hairStyle,
+  hairColor: CATALOG_SIZES.hairColor,
+  facialHair: CATALOG_SIZES.facialHair,
+  eyeShape: CATALOG_SIZES.eyeShape,
+  browShape: CATALOG_SIZES.browShape,
+  mouthShape: CATALOG_SIZES.mouthShape,
+  clothing: CATALOG_SIZES.clothing,
+  clothingColor: CATALOG_SIZES.clothingColor,
+  accessory: CATALOG_SIZES.accessory,
+  headwear: CATALOG_SIZES.headwear,
+};
 
 /**
  * Clamps every field into its catalog. A save written when a catalog was
@@ -92,40 +113,27 @@ export function normalizeAvatar(config: Partial<AvatarConfig> | null | undefined
     return n >= len ? len - 1 : n;
   };
   return {
-    skinTone: idx(c.skinTone, SKIN_TONES.length),
-    faceShape: idx(c.faceShape, CATALOG_SIZES.faceShape),
-    hairStyle: idx(c.hairStyle, CATALOG_SIZES.hairStyle),
-    hairColor: idx(c.hairColor, HAIR_COLORS.length),
-    browShape: idx(c.browShape, CATALOG_SIZES.browShape),
-    eyeShape: idx(c.eyeShape, CATALOG_SIZES.eyeShape),
-    eyeColor: idx(c.eyeColor, EYE_COLORS.length),
-    noseShape: idx(c.noseShape, CATALOG_SIZES.noseShape),
-    mouthShape: idx(c.mouthShape, CATALOG_SIZES.mouthShape),
-    facialHair: idx(c.facialHair, FACIAL_HAIR.length),
-    accessory: idx(c.accessory, CATALOG_SIZES.accessory),
+    skinTone: idx(c.skinTone, PICKER_LENGTHS.skinTone),
+    hairStyle: idx(c.hairStyle, PICKER_LENGTHS.hairStyle),
+    hairColor: idx(c.hairColor, PICKER_LENGTHS.hairColor),
+    facialHair: idx(c.facialHair, PICKER_LENGTHS.facialHair),
+    eyeShape: idx(c.eyeShape, PICKER_LENGTHS.eyeShape),
+    browShape: idx(c.browShape, PICKER_LENGTHS.browShape),
+    mouthShape: idx(c.mouthShape, PICKER_LENGTHS.mouthShape),
+    clothing: idx(c.clothing, PICKER_LENGTHS.clothing),
+    clothingColor: idx(c.clothingColor, PICKER_LENGTHS.clothingColor),
+    accessory: idx(c.accessory, PICKER_LENGTHS.accessory),
+    headwear: idx(c.headwear, PICKER_LENGTHS.headwear),
   };
 }
 
-/** The catalog a picker field maps to, for building the customization UI. */
-export const PICKER_LENGTHS: Record<keyof AvatarConfig, number> = {
-  skinTone: SKIN_TONES.length,
-  faceShape: CATALOG_SIZES.faceShape,
-  hairStyle: CATALOG_SIZES.hairStyle,
-  hairColor: HAIR_COLORS.length,
-  browShape: CATALOG_SIZES.browShape,
-  eyeShape: CATALOG_SIZES.eyeShape,
-  eyeColor: EYE_COLORS.length,
-  noseShape: CATALOG_SIZES.noseShape,
-  mouthShape: CATALOG_SIZES.mouthShape,
-  facialHair: FACIAL_HAIR.length,
-  accessory: CATALOG_SIZES.accessory,
-};
-
-/** Steps a field by `delta`, wrapping at both ends. Used by the arrow pickers. */
-export function cycleField(config: AvatarConfig, field: keyof AvatarConfig, delta: number): AvatarConfig {
+/** Steps a field by `delta`, wrapping at both ends. */
+export function cycleField(
+  config: AvatarConfig,
+  field: keyof AvatarConfig,
+  delta: number
+): AvatarConfig {
   const len = PICKER_LENGTHS[field];
   const next = (((config[field] + delta) % len) + len) % len;
   return { ...config, [field]: next };
 }
-
-export { HAIR_STYLES, NATURAL_HAIR_COUNT };

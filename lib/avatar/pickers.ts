@@ -11,14 +11,14 @@
 import {
   ACCESSORIES,
   BROW_SHAPES,
+  CLOTHING,
   EYE_SHAPES,
-  FACE_SHAPES,
   FACIAL_HAIR,
   HAIR_STYLES,
+  HEADWEAR,
   MOUTH_SHAPES,
-  NOSE_SHAPES,
-} from './features';
-import { EYE_COLORS, HAIR_COLORS, SKIN_TONES } from './palette';
+} from './style';
+import { CLOTHING_COLORS, HAIR_COLORS, SKIN_TONES } from './palette';
 import type { AvatarConfig, AvatarSex } from './types';
 
 export interface PickerOption {
@@ -37,23 +37,23 @@ export interface PickerCategory {
 }
 
 const named = (list: { name: string }[]): PickerOption[] => list.map((e) => ({ label: e.name }));
-const swatches = (list: { base: string }[]): PickerOption[] =>
-  list.map((ramp, i) => ({ label: `${i + 1}`, color: ramp.base }));
+const swatches = (list: string[]): PickerOption[] =>
+  list.map((color, i) => ({ label: `${i + 1}`, color }));
 
 export const AVATAR_PICKERS: PickerCategory[] = [
   { field: 'skinTone', label: 'Skin', kind: 'color', options: swatches(SKIN_TONES) },
   { field: 'hairStyle', label: 'Hair', kind: 'shape', options: named(HAIR_STYLES) },
   { field: 'hairColor', label: 'Hair colour', kind: 'color', options: swatches(HAIR_COLORS) },
-  { field: 'faceShape', label: 'Face', kind: 'shape', options: named(FACE_SHAPES) },
-  { field: 'eyeShape', label: 'Eyes', kind: 'shape', options: named(EYE_SHAPES) },
-  { field: 'eyeColor', label: 'Eye colour', kind: 'color', options: swatches(EYE_COLORS) },
-  { field: 'browShape', label: 'Brows', kind: 'shape', options: named(BROW_SHAPES) },
-  { field: 'noseShape', label: 'Nose', kind: 'shape', options: named(NOSE_SHAPES) },
-  { field: 'mouthShape', label: 'Mouth', kind: 'shape', options: named(MOUTH_SHAPES) },
   // Facial hair is only drawn on masculine faces, so offering it on a feminine
   // one would be a control with no visible effect.
   { field: 'facialHair', label: 'Facial hair', kind: 'shape', options: named(FACIAL_HAIR), sex: 'male' },
+  { field: 'eyeShape', label: 'Eyes', kind: 'shape', options: named(EYE_SHAPES) },
+  { field: 'browShape', label: 'Brows', kind: 'shape', options: named(BROW_SHAPES) },
+  { field: 'mouthShape', label: 'Mouth', kind: 'shape', options: named(MOUTH_SHAPES) },
   { field: 'accessory', label: 'Glasses', kind: 'shape', options: named(ACCESSORIES) },
+  { field: 'clothing', label: 'Outfit', kind: 'shape', options: named(CLOTHING) },
+  { field: 'clothingColor', label: 'Outfit colour', kind: 'color', options: swatches(CLOTHING_COLORS) },
+  { field: 'headwear', label: 'Headwear', kind: 'shape', options: named(HEADWEAR) },
 ];
 
 /** The categories that apply to a given sex. */
