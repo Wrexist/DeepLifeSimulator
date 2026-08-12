@@ -249,9 +249,28 @@ export function redeemFavor(
      * or not a tick has run.
      */
     const nowWeek = prev.weeksLived ?? 0;
-    if (fresh.expiresWeek !== undefined && nowWeek >= fresh.expiresWeek) {
-      log.info(`Favor ${favorId} is past its expiry (week ${fresh.expiresWeek})`);
-      return prev;
+    if (fresh.expiresWeek !== undefined) {
+      // A non-finite bound does not compare: `nowWeek >= NaN` is false, so a
+      // corrupt `expiresWeek` would sail past the gate rather than trip it —
+      // the deadline would silently stop existing on exactly the saves whose
+      // data is least trustworthy. Refuse instead, matching how the money path
+      // below treats an unusable `value`.
+      if (
+        typeof fresh.expiresWeek !== 'number' ||
+        !isFinite(fresh.expiresWeek) ||
+        !isFinite(nowWeek)
+      ) {
+        log.warn(`Cannot redeem favor with an unusable expiry`, {
+          favorId,
+          expiresWeek: fresh.expiresWeek,
+          nowWeek,
+        });
+        return prev;
+      }
+      if (nowWeek >= fresh.expiresWeek) {
+        log.info(`Favor ${favorId} is past its expiry (week ${fresh.expiresWeek})`);
+        return prev;
+      }
     }
 
     // Cash IOU owed-to-player → validate the amount BEFORE flipping. If the
@@ -295,7 +314,14 @@ export function redeemFavor(
      * it open would let the player farm the same IOU until the state happened
      * to move.
      */
-    const withEffect = applyNonMoneyFavor(prev, fresh) ?? prev;
+    const effect = resolveNonMoneyFavor(prev, fresh);
+    // Refused → leave the favor OPEN. A no-op still closes it (see the type doc
+    // on `FavorEffect`); a refusal means the player is still owed something.
+    if (effect.outcome === 'rejected') {
+      log.warn(`Favor payout refused, leaving it open`, { favorId, kind: fresh.kind });
+      return prev;
+    }
+    const withEffect = effect.outcome === 'applied' ? effect.state : prev;
     redeemed = true;
     return {
       ...withEffect,
@@ -489,13 +515,13 @@ export function askNetworkFavor(
     };
   }
 
-  const week = gameState.weeksLived ?? 0;
+  // Snapshot pre-check, for immediate UI feedback only. The authoritative
+  // version runs against `prev` inside the updater below.
   const ledger = ledgerOf(gameState);
   if (ledger.favors.some((f) => f.contactId === contact.id && f.status === 'open')) {
     return { success: false, message: `${contact.name} already owes you one.` };
   }
 
-  const id = networkFavorId(contact.id, week);
   // Pessimistic capture: the authoritative checks are re-run against `prev`
   // inside the updater, so a second tap in the same React batch reports the
   // refusal rather than a success it did not get (C-9).
@@ -504,18 +530,28 @@ export function askNetworkFavor(
   setGameState((prev) => {
     if (prev.showDeathPopup) return prev;
     const prevLedger = ledgerOf(prev);
+    const prevWeek = prev.weeksLived ?? 0;
+    // The id is derived from `prev`, NOT from the snapshot read above. It encodes
+    // the week deliberately — that encoding is half the double-tap guard — so
+    // building it from a stale snapshot would let a favor carry an id saying one
+    // week while `createdWeek` and `expiresWeek` said the next, if a tick landed
+    // between render and commit. Worse, the stale id could collide with a
+    // already-closed favor from that earlier week and refuse a legitimate ask.
+    const id = networkFavorId(contact.id, prevWeek);
     if (prevLedger.favors.some((f) => f.id === id)) return prev;
     if (prevLedger.favors.some((f) => f.contactId === contact.id && f.status === 'open')) {
       return prev;
     }
-    const prevWeek = prev.weeksLived ?? 0;
     const favor: Omit<Favor, 'status'> = {
       id,
       contactId: contact.id,
       direction: 'owed-to-player',
       kind,
       // Scales with standing, so a stronger contact is worth more to know.
-      value: Math.max(1, Math.round(contact.strength)),
+      // Clamped to the 0..100 the `strength` field documents: every producer in
+      // `lib/contacts/aggregator.ts` already clamps, but this function is
+      // exported and a future caller has no such guarantee.
+      value: Math.max(1, Math.min(100, Math.round(contact.strength))),
       createdWeek: prevWeek,
       expiresWeek: prevWeek + NETWORK_FAVOR_EXPIRY_WEEKS,
       note: `${contact.name} owes you a ${kind}`,
@@ -524,17 +560,40 @@ export function askNetworkFavor(
     return { ...prev, favorLedger: addFavorPure(prevLedger, favor) } as GameState;
   });
 
-  if (outcome.success) log.info(`Network favor asked: ${id} (${kind})`);
+  if (outcome.success) log.info(`Network favor asked: ${outcome.favorId} (${kind})`);
   return outcome;
 }
 
 /**
+ * What a non-money favor's payoff did.
+ *
+ * THREE outcomes, not two. `applyNonMoneyFavor` originally answered with
+ * `GameState | null`, and `null` had to mean both "the effect was a genuine
+ * no-op" (reputation already at the cap, no heat to clear, an intro already
+ * made) and "the payout was REFUSED". Those want opposite handling: a no-op
+ * still closes the favor, because the contact has done the thing and leaving it
+ * open would let the player farm the same IOU until the state moved — but a
+ * refusal must leave it open, or the player loses the favor and gets nothing.
+ *
+ * Only the `discount` branch can refuse, and only via `applyMoneyDelta`. That
+ * path is not reachable today: `favorPayout` returns a finite non-negative
+ * number, and `applyMoneyDelta` refuses only a non-finite amount or an
+ * overdrafting debit — at `MONEY_CEILING` it CLAMPS and succeeds. So this is a
+ * latent conflation rather than a live bug. It is separated anyway, because
+ * "safe only because a helper three calls away happens to never produce NaN" is
+ * exactly the kind of coupling that stops being true without anyone noticing.
+ */
+export type FavorEffect =
+  | { outcome: 'applied'; state: GameState }
+  | { outcome: 'noop' }
+  | { outcome: 'rejected' };
+
+/**
  * The payoff for a non-money favor.
  *
- * Returns the state delta a redemption should apply, or `null` for kinds with
- * no effect. Pure and exported so the redeem path and any preview read ONE
- * definition — the thing that keeps a button's promise and its result from
- * drifting (the lesson from the acquisition modal).
+ * Pure and exported so the redeem path and any preview read ONE definition —
+ * the thing that keeps a button's promise and its result from drifting (the
+ * lesson from the acquisition modal).
  *
  *   influence → reputation. A political ask cashed in as standing.
  *   safety    → dark-web heat relief. Protection, which is what `safety` means.
@@ -544,31 +603,55 @@ export function askNetworkFavor(
  *               only honest reading, and relationship creation already exists
  *               (X-3's `promoteMatchToFriend` built the same shape).
  */
+export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect {
+  const applied = applyNonMoneyFavorInner(prev, favor);
+  return applied;
+}
+
+/**
+ * Back-compat view of the above: the state delta, or `null` for anything that
+ * did not apply. Fine for a PREVIEW, which only needs to know whether a payoff
+ * would land — the redeem path uses `resolveNonMoneyFavor` because it is the
+ * one caller that must tell a refusal from a no-op.
+ */
 export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | null {
+  const effect = resolveNonMoneyFavor(prev, favor);
+  return effect.outcome === 'applied' ? effect.state : null;
+}
+
+function applyNonMoneyFavorInner(prev: GameState, favor: Favor): FavorEffect {
   switch (favor.kind) {
     case 'influence': {
       const current = prev.stats?.reputation ?? 0;
       const next = clampStatByKey('reputation', current + INFLUENCE_FAVOR_REPUTATION);
-      if (next === current) return null;
-      return { ...prev, stats: { ...prev.stats, reputation: next } };
+      if (next === current) return { outcome: 'noop' };
+      return { outcome: 'applied', state: { ...prev, stats: { ...prev.stats, reputation: next } } };
     }
     case 'safety': {
       const dw = prev.darkWeb;
-      if (!dw) return null;
+      if (!dw) return { outcome: 'noop' };
       const heat = typeof dw.heat === 'number' && isFinite(dw.heat) ? dw.heat : 0;
       const next = Math.max(0, heat - SAFETY_FAVOR_HEAT_RELIEF);
-      if (next === heat) return null;
-      return { ...prev, darkWeb: { ...dw, heat: next } };
+      if (next === heat) return { outcome: 'noop' };
+      return { outcome: 'applied', state: { ...prev, darkWeb: { ...dw, heat: next } } };
     }
     case 'discount': {
       // Routed through applyMoneyDelta so it respects MONEY_CEILING and lands
       // in dailySummary like every other credit.
-      const credit = applyMoneyDelta(prev, favorPayout(favor), `Vendor discount from ${favor.contactId}`);
-      return credit ? { ...prev, ...credit } : null;
+      const payout = favorPayout(favor);
+      // A malformed stored value prices at 0 — nothing is owed, so the favor is
+      // spent rather than refused. Refusing would leave an unredeemable entry
+      // open on the board forever.
+      if (payout <= 0) return { outcome: 'noop' };
+      const credit = applyMoneyDelta(prev, payout, `Vendor discount from ${favor.contactId}`);
+      // Refused, NOT a no-op: the player is owed this money, so the favor stays
+      // open for another attempt.
+      if (!credit) return { outcome: 'rejected' };
+      return { outcome: 'applied', state: { ...prev, ...credit } };
     }
     case 'intro': {
       const id = `intro-${favor.contactId}-${favor.createdWeek}`;
-      if ((prev.relationships ?? []).some((r) => r.id === id)) return null;
+      if ((prev.relationships ?? []).some((r) => r.id === id)) return { outcome: 'noop' };
       /**
        * A COMPLETE record. The first cut supplied four fields and reached for
        * `as Relationship` to silence the rest — but `personality`, `gender` and
@@ -594,10 +677,10 @@ export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | n
         // A professional introduction is a working adult, not a classmate.
         age: 28 + (seed % 22),
       };
-      return { ...prev, relationships: [...(prev.relationships ?? []), introduced] };
+      return { outcome: 'applied', state: { ...prev, relationships: [...(prev.relationships ?? []), introduced] } };
     }
     default:
-      return null;
+      return { outcome: 'noop' };
   }
 }
 

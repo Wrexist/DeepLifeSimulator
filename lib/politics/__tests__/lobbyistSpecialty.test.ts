@@ -173,10 +173,25 @@ describe('the label the three UI sites print', () => {
   });
 
   it('does not claim universal coverage for a missing catalogue entry', () => {
-    // The roster row used to read `cat?.specialty ?? 'all'` — an unknown
-    // lobbyist defaulted to the STRONGEST possible claim. It is now the same
-    // honest default everywhere, and every caller goes through one helper.
-    expect(describeSpecialties(undefined)).toBe('all policies');
-    expect(describeSpecialties([])).toBe('all policies');
+    /**
+     * The roster row used to read `cat?.specialty ?? 'all'` — an unknown
+     * lobbyist defaulted to the STRONGEST possible claim. Centralising the
+     * three call sites in one helper did not fix that on its own: the helper
+     * returned `'all policies'` for `undefined` too, so the defect simply moved
+     * inside the function written to remove it.
+     *
+     * `LobbyistRow` passes `cat?.specialties`, so a hired id with no catalogue
+     * entry — a retired lobbyist still sitting on an old save — lands here.
+     * Absent must read as absent.
+     */
+    expect(describeSpecialties(undefined)).not.toBe('all policies');
+    expect(describeSpecialties([])).not.toBe('all policies');
+    expect(describeSpecialties(undefined)).toBe(describeSpecialties([]));
+  });
+
+  it('still says "all policies" for an actual generalist (the control)', () => {
+    // The distinction only means something if the real wildcard still reads as
+    // the wildcard.
+    expect(describeSpecialties(['all'])).toBe('all policies');
   });
 });

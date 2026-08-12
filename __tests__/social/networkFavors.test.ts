@@ -29,6 +29,7 @@ import {
   askNetworkFavor,
   redeemFavor,
   applyNonMoneyFavor,
+  resolveNonMoneyFavor,
   FAVOR_KIND_BY_CONTACT,
   NETWORK_FAVOR_MIN_STRENGTH,
   NETWORK_FAVOR_EXPIRY_WEEKS,
@@ -283,5 +284,99 @@ describe('the payoff degrades instead of throwing', () => {
     const once = applyNonMoneyFavor(base(), favorOf('intro'));
     expect(once).not.toBeNull();
     expect(applyNonMoneyFavor(once!, favorOf('intro'))).toBeNull();
+  });
+});
+
+describe('review round: a refusal is not a no-op', () => {
+  /**
+   * `applyNonMoneyFavor` used to answer `GameState | null`, and `null` had to
+   * mean both "the effect was a genuine no-op" and "the payout was REFUSED".
+   * Those want opposite handling: a no-op still closes the favour, a refusal
+   * must leave it open or the player loses the IOU and gets nothing.
+   *
+   * Not reachable today — `favorPayout` cannot produce a non-finite number and
+   * `applyMoneyDelta` CLAMPS at `MONEY_CEILING` rather than refusing — so this
+   * pins the distinction rather than a live bug.
+   */
+  it('a no-op reports noop, not rejected', () => {
+    const capped = base({ stats: { money: 10_000, reputation: 100 } });
+    expect(resolveNonMoneyFavor(capped, favorOf('influence')).outcome).toBe('noop');
+  });
+
+  it('a real payoff reports applied', () => {
+    expect(resolveNonMoneyFavor(base(), favorOf('influence')).outcome).toBe('applied');
+  });
+
+  it('a discount worth nothing is a no-op — the favour is spent, not stuck', () => {
+    // Refusing here would leave an unredeemable entry open on the board forever.
+    for (const bad of [NaN, Infinity, -50, 0]) {
+      const r = resolveNonMoneyFavor(base(), favorOf('discount', { value: bad as number }));
+      expect(`${String(bad)} → ${r.outcome}`).toBe(`${String(bad)} → noop`);
+    }
+  });
+
+  it('the money ceiling CLAMPS rather than refusing, so it is not a refusal', () => {
+    // Worth pinning because the reviewed claim was the opposite. If
+    // `applyMoneyDelta` ever starts refusing at the ceiling, the discount favour
+    // must start staying open — and this test is what will say so.
+    const rich = base({ stats: { money: Number.MAX_SAFE_INTEGER, reputation: 50 } });
+    expect(resolveNonMoneyFavor(rich, favorOf('discount')).outcome).not.toBe('rejected');
+  });
+});
+
+describe('review round: the expiry gate cannot be walked past', () => {
+  it('a non-finite expiry refuses instead of sailing through', () => {
+    // `nowWeek >= NaN` is false, so a corrupt bound would silently mean "no
+    // deadline" on exactly the saves whose data is least trustworthy.
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const start = base({
+        favorLedger: { favors: [favorOf('influence', { expiresWeek: bad as number })] },
+      });
+      const stub = createSetGameStateStub(start);
+      const r = redeemFavor(start, stub.setGameState, 'f-influence');
+
+      expect(`${String(bad)} → success ${r.success}`).toBe(`${String(bad)} → success false`);
+      expect(`${String(bad)} → still open ${openFavors(stub.current().favorLedger!).length}`)
+        .toBe(`${String(bad)} → still open 1`);
+    }
+  });
+
+  it('a finite expiry in the future still redeems (the control)', () => {
+    const start = base({
+      weeksLived: 105,
+      favorLedger: { favors: [favorOf('influence', { expiresWeek: 112 })] },
+    });
+    const stub = createSetGameStateStub(start);
+    expect(redeemFavor(start, stub.setGameState, 'f-influence').success).toBe(true);
+  });
+});
+
+describe('review round: the favour id comes from the committed week', () => {
+  it('the id agrees with the createdWeek it is stored beside', () => {
+    /**
+     * The id ENCODES the week — that encoding is half the double-tap guard — so
+     * building it from the stale snapshot could store an id naming one week next
+     * to a `createdWeek` naming the next, if a tick landed between render and
+     * commit. It could also collide with a closed favour from that earlier week
+     * and refuse a legitimate ask.
+     */
+    const snapshot = base({ weeksLived: 100 });
+    const stub = createSetGameStateStub(base({ weeksLived: 101 })); // a tick landed
+    const r = askNetworkFavor(snapshot, stub.setGameState, LOBBYIST);
+
+    expect(r.success).toBe(true);
+    const [booked] = openFavors(stub.current().favorLedger!);
+    expect(booked.createdWeek).toBe(101);
+    expect(booked.id).toContain('101');
+    expect(r.favorId).toBe(booked.id);
+  });
+
+  it('caps the stored value at the documented 0..100 standing', () => {
+    // Every producer in the aggregator clamps, but this function is exported and
+    // a future caller carries no such guarantee.
+    const stub = createSetGameStateStub(base());
+    askNetworkFavor(base(), stub.setGameState, { ...LOBBYIST, strength: 5_000 });
+
+    expect(openFavors(stub.current().favorLedger!)[0].value).toBe(100);
   });
 });

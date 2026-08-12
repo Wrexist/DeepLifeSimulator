@@ -54,7 +54,7 @@ export interface Lobbyist {
  * the same dead end this change exists to remove.
  *
  * INVARIANT: every member of `PolicyType` is covered by at least one entry.
- * `lobbyistCatalogue.test.ts` enforces it, which is what stops the catalogue and
+ * `lobbyistSpecialty.test.ts` enforces it, which is what stops the catalogue and
  * the policy list drifting apart again.
  */
 export const AVAILABLE_LOBBYISTS: Lobbyist[] = [
@@ -227,6 +227,9 @@ const SPECIALTY_LABELS: Record<LobbyistSpecialty, string> = {
   transportation: 'transport',
 };
 
+/** Shown for a hired id with no catalogue entry — claims nothing. */
+const MISSING_SPECIALTY_LABEL = 'specialty unknown';
+
 /**
  * The specialty line the roster, the picker and the detail screen all print.
  *
@@ -238,7 +241,15 @@ const SPECIALTY_LABELS: Record<LobbyistSpecialty, string> = {
 export function describeSpecialties(specialties: readonly LobbyistSpecialty[] | undefined): string {
   // `!specialties` rather than `Array.isArray` — the latter narrows a
   // `readonly T[]` to `any[]`, which would silently make the index below `any`.
-  if (!specialties || specialties.length === 0) return SPECIALTY_LABELS.all;
+  //
+  // Absent is NOT the same as `['all']`, and this used to return the same label
+  // for both — reproducing, inside the shared helper, the exact defect it was
+  // written to remove. `LobbyistRow` passes `cat?.specialties`, so a hired id
+  // with no catalogue entry (a retired lobbyist still on an old save) reaches
+  // here as `undefined`. Answering "all policies" tells the player that unknown
+  // retainer covers everything, which is the strongest possible claim and the
+  // one least likely to be true.
+  if (!specialties || specialties.length === 0) return MISSING_SPECIALTY_LABEL;
   if (specialties.includes('all')) return SPECIALTY_LABELS.all;
   return specialties.map((s) => SPECIALTY_LABELS[s] ?? s).join(' · ');
 }

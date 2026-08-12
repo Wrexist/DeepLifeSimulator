@@ -4,11 +4,17 @@
 
 Three facts, each re-verified:
 
-1. `calculateTotalLobbyistInfluence` (`lib/politics/lobbyists.ts:153`) is the only
-   reader of `Lobbyist.specialty` in the repo, and it has **zero call sites**.
+Line references below are given as **pre-change → post-change**, because this
+document is both the plan and the record: the pre-change numbers are what the
+finding was verified against, and the post-change ones are where a reader looks
+today.
+
+1. `calculateTotalLobbyistInfluence` (`lib/politics/lobbyists.ts:153` → `:276`)
+   is the only reader of `Lobbyist.specialty` in the repo, and it has **zero call
+   sites**.
 2. `PoliticalApp.tsx` advertises the specialty three times (`:887`, `:936`,
-   `:1373`), so the player picks a lobbyist on a distinction the game does not
-   implement.
+   `:1373` → `:912`, `:962`, `:1399`), so the player picks a lobbyist on a
+   distinction the game does not implement.
 3. `PolicyType` is declared **twice** and they diverge — 5 members in
    `lobbyists.ts`, 11 in `policies.ts`. That divergence is *why* the targeting
    was never wired: 7 of the 11 policy types have no possible specialist.
@@ -23,7 +29,7 @@ away from it would re-open that exact hole.
 
 So the targeted discount **stacks on top** rather than replacing:
 
-```
+```text
 base     = min(0.25, policyInfluence / 100)          // unchanged, every existing source
 targeted = min(0.15, matchedLobbyistInfluence / 100) // NEW: only lobbyists who match
 discount = min(0.35, base + targeted)
@@ -62,7 +68,7 @@ persisted and existing saves work untouched.
 
 ## Verification
 
-```
+```sh
 npm run type-check && npm run type-check:tests
 npx jest __tests__/politics lib/politics __tests__/economy/gateThenGrantAtomicity.test.ts \
          __tests__/stress/legacyPulsePoliticsFlow.stress.test.ts \
