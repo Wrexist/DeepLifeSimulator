@@ -35,7 +35,7 @@ import SparkProfileEditModal from './modals/SparkProfileEditModal';
 import MatchBanner from './components/MatchBanner';
 import { type DatingProfile, getDatingProfileImage } from '@/lib/dating/datingProfiles';
 import { scorePlayerProfile } from '@/lib/dating/sparkLogic';
-import { getAvatarPortrait } from '@/utils/facePool';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 
 const LinearGradient = Gradient;
 
@@ -315,7 +315,13 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
                 onError={() => setSparkProfileAvatarErrored(true)}
               />
             ) : profile.gender ? (
-              <Image source={getAvatarPortrait(profile.avatarId, gameState.date?.age ?? 25, profile.name ?? profile.displayName, profile.gender)} style={styles.profileAvatarImg} />
+              <CharacterAvatar
+                source={profile}
+                seed={profile.name ?? profile.displayName}
+                sex={profile.gender}
+                age={gameState.date?.age ?? 25}
+                size={scale(96)}
+              />
             ) : (
               <Text style={styles.profileAvatarInitial}>
                 {(profile.displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}

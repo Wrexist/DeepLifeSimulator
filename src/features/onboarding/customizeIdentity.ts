@@ -7,6 +7,8 @@ export interface OnboardingIdentityStateShape {
   sex: IdentitySex;
   sexuality: IdentitySexuality;
   avatarId?: string;
+  /** Encoded AvatarConfig (lib/avatar/encode). Undefined on a legacy draft. */
+  avatar?: string;
 }
 
 interface SexChangeRegenerationArgs {

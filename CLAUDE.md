@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 38`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 39`
 - **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
@@ -246,7 +246,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 38`** — single source of truth in
+- **Canonical `STATE_VERSION = 39`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -383,6 +383,27 @@ including the crash screen.
   interest, arrears, bills and market movement are identical in both modes.
   `__tests__/gameMode/batchEquivalence.test.ts` pins that equivalence and is
   the test to run before touching the batch.
+- **v39 adds `userProfile.avatar`** — the encoded `AvatarConfig` behind the
+  rebuilt character creator. Faces are now assembled from authored vector
+  geometry (`lib/avatar/`, rendered by `components/avatar/VectorAvatar.tsx`)
+  rather than picked from a pool of pre-rendered portraits, so appearance is a
+  set of parameters that AGES with the character instead of a PNG swapped for a
+  different person's face at each age band — the "my character turned into
+  someone else" class of report documented at length in `utils/facePool.ts`.
+  Default `undefined`, so it is a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror. Two independent reasons, either sufficient. First,
+  absence already resolves: `resolveAvatar` (`lib/avatar/resolve.ts`) derives a
+  face deterministically from the character's name and their legacy `avatarId`,
+  so an existing save loads with a stable face reflecting the portrait they had
+  picked — the same one on every load. Second, writing a value would be actively
+  harmful: a stored config is a set of INDICES into the catalogs in
+  `lib/avatar/features.ts`, so stamping today's indices would freeze this
+  catalog order into every save, and appending one hair style later would
+  silently re-roll every character that had been stamped. `avatarId` is
+  deliberately left in place rather than translated — it still carries the
+  player's original pick, which is what seeds the derived face.
+  **Catalog order is part of the save format**: appending to a catalog is safe,
+  reordering or removing an entry changes the face of every character using it.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

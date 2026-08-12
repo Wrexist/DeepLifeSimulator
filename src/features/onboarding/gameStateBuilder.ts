@@ -43,6 +43,8 @@ export interface BuildGameStateParams {
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
   avatarId?: string;
+  /** Encoded AvatarConfig (lib/avatar/encode). */
+  avatar?: string;
   scenario: OnboardingScenario;
   challengeScenarioId?: string;
   selectedPerks: string[];
@@ -162,6 +164,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     permanentPerks,
     selectedMindset,
     avatarId,
+    avatar,
     ambitionId,
   } = params;
 
@@ -261,6 +264,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       sex: resolvedSex,
       sexuality,
       avatarId,
+      avatar,
       gender: resolvedSex,
       seekingGender,
     },

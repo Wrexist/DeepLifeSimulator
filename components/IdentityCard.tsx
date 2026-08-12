@@ -31,7 +31,7 @@ import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getAvatarPortrait } from '@/utils/facePool';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
@@ -470,7 +470,6 @@ function IdentityCard() {
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
-  const avatar = getAvatarPortrait(userProfile?.avatarId, date?.age ?? 0, name, sex);
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Equipped Legacy Pass cosmetics: frame → avatar ring color, theme → glow tint.
@@ -490,10 +489,19 @@ function IdentityCard() {
         style={styles.card}
       >
         <View style={styles.avatarContainer}>
-          <Image
-            source={avatar}
+          {/* The ring lives on a wrapper: the avatar is an SVG, so a border on
+              the element itself would not follow the circular clip. */}
+          <View
             style={[styles.avatar, equippedFrame ? { borderColor: equippedFrame.color } : null]}
-          />
+          >
+            <CharacterAvatar
+              source={userProfile}
+              seed={name}
+              sex={sex}
+              age={date?.age ?? 0}
+              size={74}
+            />
+          </View>
           <View
             style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
