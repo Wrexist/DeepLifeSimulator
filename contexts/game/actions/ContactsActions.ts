@@ -604,22 +604,6 @@ export type FavorEffect =
  *               (X-3's `promoteMatchToFriend` built the same shape).
  */
 export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect {
-  const applied = applyNonMoneyFavorInner(prev, favor);
-  return applied;
-}
-
-/**
- * Back-compat view of the above: the state delta, or `null` for anything that
- * did not apply. Fine for a PREVIEW, which only needs to know whether a payoff
- * would land — the redeem path uses `resolveNonMoneyFavor` because it is the
- * one caller that must tell a refusal from a no-op.
- */
-export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | null {
-  const effect = resolveNonMoneyFavor(prev, favor);
-  return effect.outcome === 'applied' ? effect.state : null;
-}
-
-function applyNonMoneyFavorInner(prev: GameState, favor: Favor): FavorEffect {
   switch (favor.kind) {
     case 'influence': {
       const current = prev.stats?.reputation ?? 0;
@@ -682,6 +666,18 @@ function applyNonMoneyFavorInner(prev: GameState, favor: Favor): FavorEffect {
     default:
       return { outcome: 'noop' };
   }
+}
+
+/**
+ * The state delta alone, or `null` for anything that did not apply.
+ *
+ * Fine for a PREVIEW, which only needs to know whether a payoff would land. The
+ * redeem path calls `resolveNonMoneyFavor` directly, because it is the one
+ * caller that has to tell a refusal from a no-op.
+ */
+export function applyNonMoneyFavor(prev: GameState, favor: Favor): GameState | null {
+  const effect = resolveNonMoneyFavor(prev, favor);
+  return effect.outcome === 'applied' ? effect.state : null;
 }
 
 /** Personalities an introduced contact can have. Indexed deterministically. */
