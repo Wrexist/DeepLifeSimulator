@@ -1,3 +1,8 @@
+> **SUPERSEDED.** This is the proposal that chose parameters over PNGs. The portrait pool it describes, and
+> the assets under `assets/images/Face/`, were deleted when faces moved to
+> the parameterised system in `lib/avatar/`. Kept for the record of what
+> was tried and why. Start at `docs/avatar-art-direction-research.md`.
+
 # Avatar / Character Creation Redesign — Research & Proposal
 
 The current Create Identity screen offers a horizontal strip of AI-generated

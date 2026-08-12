@@ -16,7 +16,7 @@ in sync across all three when they change.
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
 - **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 39`
-- **Binary version:** `package.json` `version` (currently `2.5.13`) — see §9
+- **Binary version:** `package.json` `version` (currently `2.8.0`) — see §9
 
 Codebase size: ~350 files in `lib/`, ~245 components, ~330 test files.
 

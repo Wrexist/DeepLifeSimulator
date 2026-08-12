@@ -314,7 +314,10 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
                 style={styles.profileAvatarImg}
                 onError={() => setSparkProfileAvatarErrored(true)}
               />
-            ) : profile.gender ? (
+            ) : (
+              /* No `profile.gender` guard: it used to drop the player to a
+                 letter whenever gender was unset, and `toAvatarSex` already
+                 has a safe default. A face is always better than an initial. */
               <CharacterAvatar
                 source={profile}
                 seed={profile.name ?? profile.displayName}
@@ -322,10 +325,6 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
                 age={gameState.date?.age ?? 25}
                 size={scale(96)}
               />
-            ) : (
-              <Text style={styles.profileAvatarInitial}>
-                {(profile.displayName || profile.name || 'Y').slice(0, 1).toUpperCase()}
-              </Text>
             )}
           </LinearGradient>
           <Text style={[styles.profileName, { color: theme.text }]}>

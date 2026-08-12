@@ -107,6 +107,9 @@ function PostCard({
         <ImageWithFallback
           uri={authorPhoto}
           fallback={authorHandle}
+          // Seeded from the handle so the same author keeps one face down the
+          // whole feed. Without this the feed is a column of grey letters.
+          face={{ seed: authorHandle, size: scale(34) }}
           style={styles.avatar}
           placeholderColor={PULSE_COLORS.tierCelebrity}
           placeholderTextColor="#FFFFFF"
