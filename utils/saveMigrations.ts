@@ -986,7 +986,7 @@ const migrations: Record<number, (state: any) => any> = {
   //      and the same one on every subsequent load.
   //
   //   2. Writing a value would be actively harmful. A stored config is a set
-  //      of INDICES into the catalogs in `lib/avatar/features.ts`. Stamping
+  //      of INDICES into the catalogs in `lib/avatar/style.ts`. Stamping
   //      today's indices into every save would freeze this catalog order into
   //      them permanently, and appending a single hair style later would then
   //      silently re-roll the face of every character that had been stamped.

@@ -2277,6 +2277,123 @@ whether it duplicated a rule rather than centralising one, because a fixer
 optimises for the file it was pointed at and cannot see that two files now
 disagree.
 
+## 2026-08-12 — Wiring up a dead feature promotes its dead ends too
+
+X-2 asked for one button: network contacts in the Contacts app had no action at
+all. The button was the easy half. `favors.ts` had declared `influence`,
+`discount`, `safety` and `intro` for exactly these contacts, and `redeemFavor`
+handled every non-money kind by flipping the ledger entry and doing **nothing
+else**. Nothing produced those kinds, so the no-op had never been reachable.
+
+Shipping the ask alone would have produced a Redeem button that changes a label
+and no state — a brand-new instance of the defect the whole audit was about,
+created by fixing a different instance of it.
+
+**Rule.** Before giving dead code a caller, read what happens AFTER the call,
+not just at it. This is the same lesson as C-1/R-2 (`buyDarkWebItem` had a
+latent gate-then-grant that only mattered once the Gear tab existed), one level
+further out: there, wiring exposed a bug in the callee; here, wiring would have
+exposed a *hole* in the callee's downstream. A dormant path's guarantees have
+never been tested by anything. Check the whole chain the feature will light up.
+
+Corollary that saved this one: when a type declares variants "for" a feature,
+assert the mapping in BOTH directions — every consumer kind has a producer, and
+every declared kind has a producer. One-directional coverage is how four favor
+kinds sat in the type system for months with no way to create them.
+
+## 2026-08-12 — A ratchet anchored on byte distance is not a ratchet
+
+The C-9 detector selected its search region with `body.slice(-900)`. Three
+functions belonged to the class it counts and were invisible: one because its
+success return was a ternary rather than a statement, two because a long
+trailing comment pushed their success return past the 900th character from the
+end. The count read 62 for months and the truth was 65.
+
+Membership that changes with how much prose follows a function is noise. The
+fix was to anchor on MEANING — everything after the last `setGameState(` call,
+which is precisely "what this returns once the updater is handed off", the shape
+being counted.
+
+**Rule.** Fixed-size windows and `indexOf` slices are the recurring way a guard
+in this repo comes to test nothing (this is the third: `updaterResultRatchet`'s
+6000-char control, `crimeToolsReachable`'s unguarded `indexOf`, now this).
+Anchor on a construct, assert the anchor was found, and prefer a semantic
+boundary over a byte count.
+
+And when a widened detector finds MORE, that is the detector improving, not a
+regression — but say so explicitly at the constant, or the next reader reads a
+raised ratchet as someone getting a build unstuck.
+
+## 2026-08-12 — The canonical context file can lie, and it lies loudest
+
+`CLAUDE.md` §7's v38 entry described story mode as a live feature: a batching
+interaction, `resolveGameMode` in `lib/gameMode/mode.ts`, and
+`__tests__/gameMode/batchEquivalence.test.ts` — "the test to run before touching
+the batch". Story mode was removed after playtesting. None of those three files
+exist. The only true part was that the save field survives, and
+`contexts/game/types.ts` already said so, correctly, in a comment nobody had
+cross-checked against the doc.
+
+That file opens with "Canonical project context for AI assistants… this document
+wins". So the one artifact an assistant is told to trust above all others was
+sending readers to look for code that is not there, and instructing them to run
+a test that cannot pass because it does not exist.
+
+**Rule.** Documentation is code with no compiler. When a feature is removed,
+grep the docs for it in the same change — `CLAUDE.md`, `DEV.md`, `WORKFLOW.md`
+and any dated report that names it. And when a doc names a FILE, that reference
+is checkable: a `ls` on the paths CLAUDE.md cites is a thirty-second audit that
+would have caught this the week it broke.
+
+Same session, same shape as the UI defects: a statement of behaviour the code
+does not have. It does not matter whether the statement is rendered to a player
+or read by the next engineer — both act on it.
+
+---
+
+## 2026-08-12 — Two declarations of one type kept a whole mechanic dead
+
+**What went wrong.** `Lobbyist.specialty` was rendered in three places in
+`PoliticalApp` and read by exactly one function,
+`calculateTotalLobbyistInfluence`, which had **zero call sites**. Every player
+who ever compared the Environmental Advocate against the Criminal Justice Expert
+was choosing on a distinction the game did not implement.
+
+**The pattern — and it is the interesting part.** The reason nobody wired it up
+was structural, not lazy: `PolicyType` was declared **twice**, five members in
+`lib/politics/lobbyists.ts` and eleven in `lib/politics/policies.ts`. Seven
+policy types could not even be *named* as a specialty, so any attempt to wire
+the targeting would have left `stock`, `realestate`, `education`, `crypto`,
+`technology`, `healthcare` and `transportation` with no possible specialist. The
+duplicate type didn't just permit the drift — it made the correct fix look
+impossible, so the dead function sat there for years while the UI kept
+advertising it.
+
+Three of the fifteen catalogue entries had descriptions that *already* promised
+multi-type coverage ("Great for social and economic policies") that the singular
+`specialty` field could not represent. The prose knew what the data could not
+say. **When copy and schema disagree, the copy is often the older, truer spec.**
+
+**The rule.** A domain type gets **one** declaration; a second copy in a
+neighbouring module is a bug even while the members happen to agree, because the
+narrower copy silently becomes a ceiling on what the feature can express. When
+you find a reader with no call sites, check whether something upstream made
+calling it impossible before assuming it was merely forgotten.
+
+**The guard.** `lib/politics/__tests__/lobbyistSpecialty.test.ts` asserts in both
+directions: every `PolicyType` in the policy catalogue has at least one
+specialist, and no lobbyist claims a specialty that is not a real policy type. A
+new policy type now fails a test instead of quietly becoming the eighth orphan.
+
+**Also worth keeping.** The fix stacked a new targeted discount on top of the
+existing `policyInfluence` one instead of replacing it. Replacing would have
+been cleaner to read and would have (a) re-opened the dead-stat hole a previous
+fix had just closed for `policyInfluence`, and (b) silently cut the discount of
+every save whose influence came from enacting policies rather than retainers.
+**A refactor that moves a mechanic off a stat is a nerf to everyone already
+holding that stat.** No `STATE_VERSION` bump was needed: specialties are
+catalogue data keyed by lobbyist id, so nothing new is persisted.
+
 ## 2026-08-13 — A whitelist merge on load ate every "carve-out" field
 
 The rebuilt character creator saved the designed face correctly and the game

@@ -1473,7 +1473,6 @@ export type SparkSwipeDirection = 'left' | 'right' | 'super';
 export type SparkPremiumTier = 'free' | 'plus' | 'ultra';
 export type SparkCatfishOutcome = 'exposed' | 'ignored' | 'fell_for_it';
 export type SparkJealousyOutcome = 'caught_cheating' | 'denied' | 'admitted' | 'confronted' | 'dismissed';
-export type SparkDateMood = 'amazing' | 'great' | 'good' | 'awkward' | 'disaster';
 
 export interface SparkSwipe {
   profileId: string;
