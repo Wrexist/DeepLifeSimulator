@@ -294,6 +294,31 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
   const tierOfChapter = (chapterId: string): number =>
     LIFE_CHAPTERS.findIndex((c) => c.id === chapterId) + 1;
 
+  /**
+   * The map is hand-authored against two tables it does not own, so BOTH of its
+   * key spaces can rot silently and leave the guard below passing vacuously:
+   *
+   *   - a renamed GOAL id stops matching, and the walk simply skips it;
+   *   - a renamed APP id stops resolving, and an unresolved id would otherwise
+   *     read as tier 0 — permanently "reachable".
+   *
+   * A guard that quietly stops guarding is worse than no guard, so both are
+   * asserted before the walk runs.
+   */
+  it('the map itself still refers to real goals and real apps', () => {
+    const everyGoalId = LIFE_CHAPTERS.flatMap((c) => c.goals.map((g) => g.id));
+
+    for (const goalId of Object.keys(GOAL_REQUIRES_APP)) {
+      expect(`${goalId} is a real goal: ${everyGoalId.includes(goalId)}`)
+        .toBe(`${goalId} is a real goal: true`);
+    }
+
+    for (const appId of Object.values(GOAL_REQUIRES_APP).flat()) {
+      expect(`${appId} is registered: ${FEATURE_UNLOCKS.some((f) => f.id === appId)}`)
+        .toBe(`${appId} is registered: true`);
+    }
+  });
+
   it('every such app is open at least one tier below its chapter', () => {
     for (const chapter of LIFE_CHAPTERS) {
       for (const goal of chapter.goals) {
@@ -304,9 +329,13 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
         // own completion tier, minus one.
         const workingTier = tierOfChapter(chapter.id) - 1;
         // A goal satisfiable by any ONE of several apps only needs one of them.
-        const reachable = needed.filter(
-          (id) => (FEATURE_UNLOCKS.find((f) => f.id === id)?.tier ?? 0) <= workingTier,
-        );
+        // An id that does not resolve is NOT treated as tier 0 — that would let
+        // a typo pass as reachable. The test above proves they all resolve; this
+        // keeps the property local so the two cannot drift apart.
+        const reachable = needed.filter((id) => {
+          const feature = FEATURE_UNLOCKS.find((f) => f.id === id);
+          return feature !== undefined && feature.tier <= workingTier;
+        });
 
         expect(`${goal.id} (working at tier ${workingTier}) reachable: ${reachable.length > 0}`)
           .toBe(`${goal.id} (working at tier ${workingTier}) reachable: true`);

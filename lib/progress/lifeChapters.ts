@@ -11,9 +11,13 @@
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
+import { logger } from '@/utils/logger';
 
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+
+/** One log line per session for a throwing `netWorth` — see `wealthMark`. */
+let netWorthFailureLogged = false;
 
 /**
  * The wealth figure the chapter goals and the unlock tiers both read.
@@ -51,10 +55,20 @@ export function wealthMark(state: GameState | undefined | null): number {
   // `netWorth` walks holdings, property, luxury and debt. It is pure, but this
   // runs on the app-grid render path, where a throw would blank the grid rather
   // than degrade one number.
+  //
+  // Degrading is not the same as hiding. A throw here silently lowers chapter
+  // progress and the unlock tier, which is indistinguishable from a player who
+  // simply has less money — the exact class of bug this whole change exists to
+  // fix — so it is logged. Once per session: the caller runs on every render of
+  // the app grid, and a state that throws would throw every time.
   let live = 0;
   try {
     live = num(netWorth(state));
-  } catch {
+  } catch (err) {
+    if (!netWorthFailureLogged) {
+      netWorthFailureLogged = true;
+      logger.error('[wealthMark] netWorth threw; treating live wealth as 0', err);
+    }
     live = 0;
   }
 
