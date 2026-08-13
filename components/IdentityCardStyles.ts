@@ -40,6 +40,11 @@ export const styles = StyleSheet.create({
     borderRadius: 40,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    // Now wraps an SVG rather than being an <Image>: centre and clip the child
+    // so the ring stays a ring.
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
     // Light mode: subtle shadow for the avatar
     ...Platform.select({
       web: { boxShadow: '0px 2px 6px rgba(59, 130, 246, 0.2)' } as any,

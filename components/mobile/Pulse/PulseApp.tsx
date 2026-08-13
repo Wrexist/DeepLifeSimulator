@@ -16,6 +16,7 @@ import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { areAdsRemoved } from '@/lib/ads/rewardedAd';
 import { useTheme } from '@/hooks/useTheme';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getTabBarSafePadding } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { PULSE_GRADIENT } from './styles/pulseTheme';
@@ -227,6 +228,17 @@ export default function PulseApp({ onBack }: PulseAppProps) {
               source={{ uri: profile.profilePhoto }}
               style={styles.headerAvatar}
               onError={() => setHeaderAvatarErrored(true)}
+            />
+          ) : profile.name ? (
+            /* The player's own face. This was a gradient disc with their
+               initial in it, which is the one place in the app where they
+               could not see themselves. */
+            <CharacterAvatar
+              source={profile}
+              seed={profile.name}
+              sex={profile.sex}
+              age={gameState.date?.age ?? 25}
+              size={scale(32)}
             />
           ) : (
             <LinearGradient

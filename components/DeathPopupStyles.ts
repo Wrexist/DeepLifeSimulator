@@ -567,6 +567,9 @@ export function createStyles(darkMode: boolean) {
       marginBottom: scale(12),
     },
     childImage: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
       width: scale(56),
       height: scale(56),
       borderRadius: scale(28),

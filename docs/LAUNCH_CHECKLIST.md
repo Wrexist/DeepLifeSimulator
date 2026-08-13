@@ -8,14 +8,28 @@ they're left as boxes for you.
 > Secrets/keystore setup lives in [`RELEASE_SECRETS.md`](./RELEASE_SECRETS.md).
 > Build steps live in the two workflows under `.github/workflows/`.
 
-## 🚀 Releasing v2.7.0 (Story Mode) — the exact remaining steps
+## 🚀 Releasing v2.8.0 (character revamp) — the exact remaining steps
 
-Everything in the repo is done: the suite is green (6 511 tests), the weekly
-audit is clean, the store copy is written with verified character counts, and
-the full preflight chain exits 0 — **once the two secrets in step 1 exist**.
-Without them preflight fails on save signing and receipt verification, by
-design: those two checks are the reason a build cannot ship unconfigured. What
-is left needs credentials or hardware that do not live in the repository.
+Repo-side state, verified 2026-08-12:
+
+| Gate | Result |
+|---|---|
+| `npm test` | 534 suites, **6 742 passed**, 1 skipped, 0 failed |
+| `npm run type-check` | clean |
+| `type-check:tests:ratchet` | 0 errors, baseline 0 |
+| `lint:ratchet` | 0 errors, 1 191 warnings (ceiling 1 193) |
+| `check:routes` | 17 routes, no conflicts |
+| **Real iOS production bundle** | **`expo export:embed` succeeds — 3 901 modules, 8.97 MB** |
+| `npm run preflight` | fails on §8 and §9 **only**, and only because the two secrets in step 1 are absent here |
+
+The bundle line matters more than usual this release. Preflight §4 is a syntax
+check that explicitly defers real bundling, and this repo has shipped a
+production-only bundle crash before (the `React.lazy` incident, CLAUDE.md §5).
+The avatar rewrite added a new runtime dependency, so the full export was run
+rather than trusted — including a check that only `@dicebear/avataaars` is in
+the bundle and not the 30-style barrel.
+
+What is left needs credentials or hardware that do not live in the repository.
 In order:
 
 **1. Set the two EAS secrets** (~2 min) — without these the build refuses every
@@ -50,9 +64,11 @@ happened during v2.7.0 development and went unnoticed for several commits. Only
 already in `eas.json` production, so this release ships with a working funnel
 and no server to run.
 
-**3. Build and submit** (~40 min, mostly waiting) — trigger the EAS production
-build. `package.json` is already at `2.7.0`; the iOS build number comes from
-`BUILD_NUMBER` at build time, so no code change is needed.
+**3. Bump the version, then build and submit** (~40 min, mostly waiting).
+`package.json` is at `2.8.0`. Per CLAUDE.md §9 the binary version must climb
+before every TestFlight build, so raise it if `2.8.0` has already been uploaded.
+The iOS build number comes from `BUILD_NUMBER` at build time, so nothing else
+in code changes.
 
 > ⚠️ **If you build LOCALLY (`eas build --local`), clear the Metro cache first.**
 > Metro caches the *transformed* module, `EXPO_PUBLIC_*` inlining included. A
@@ -75,19 +91,29 @@ build. `package.json` is already at `2.7.0`; the iOS build number comes from
 > One matching file = inlined. No match = you are about to ship a build that
 > cannot save.
 
-**4. Paste the store metadata** (~10 min) — every field is final, with counts
-verified, in [`../marketing/aso-v2.7.0-paste-ready.md`](../marketing/aso-v2.7.0-paste-ready.md):
-subtitle, keyword field, promotional text, screenshot order with captions.
+**4. Paste the store metadata** (~10 min) — fields and verified counts are in
+[`../marketing/aso-v2.7.0-paste-ready.md`](../marketing/aso-v2.7.0-paste-ready.md).
+Re-read it first: it was written for v2.7.0 and its screenshot captions describe
+Story Mode, which has since been retired.
 
 > The subtitle change is the highest-value item on this list. It is **indexed
 > for search**, and the current one contains zero searchable keywords. The
 > funnel data says taps run at 2.4× the Games benchmark while the page converts
 > at 0.6× — fixing the page is worth roughly **+65% installs at flat spend**.
 
-**5. Capture screenshots and the app preview on a device** (~30 min) — shot list
-is in the same file. These need a real device or simulator: the web build runs a
-weekly tick ~700× slower than native, so a 52-week Story Mode year takes over an
-hour there and cannot be filmed.
+**5. Recapture EVERY screenshot and the app preview on a device** (~30 min).
+
+> **This is a release blocker for v2.8.0, not the usual nice-to-have.** Every
+> character face in the app changed. The screenshots currently on the store
+> show the old rendered portraits, which no build will ever produce again —
+> that is a direct **App Store Guideline 2.3.3** violation ("screenshots must
+> accurately reflect the current version"), and it is the kind Apple actually
+> rejects for, because the difference is obvious at a glance.
+>
+> Both stores need it: App Store Connect and Google Play.
+
+Shot list is in the same file. These need a real device or simulator — the web
+build runs a weekly tick far slower than native.
 
 **6. Replace the placeholder social preview image** in App Store Connect (~2 min)
 — every share of the App Store link currently renders an Apple placeholder.

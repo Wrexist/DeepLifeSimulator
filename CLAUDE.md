@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 38`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 39`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -247,7 +247,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 38`** — single source of truth in
+- **Canonical `STATE_VERSION = 39`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -385,9 +385,48 @@ including the crash screen.
   "save is newer than the app" warning in `saveMigrations.ts`. The cost of
   leaving it is one unread optional key. The reasoning lives next to
   `GameMode` in `contexts/game/types.ts`; keep the two in step.
+- **v39 adds `userProfile.avatar`** — the encoded `AvatarConfig` behind the
+  rebuilt character creator. Faces are now assembled from illustrator-drawn
+  modular art (avataaars via DiceBear, curated in `lib/avatar/style.ts`,
+  rendered under a 2.5D lit plate by `components/avatar/VectorAvatar.tsx`)
+  rather than picked from a pool of pre-rendered portraits, so appearance is a
+  set of parameters that AGES with the character instead of a PNG swapped for a
+  different person's face at each age band. The old pool assigned a bucket slot
+  per age band, so crossing a band swapped the character for a DIFFERENT
+  rendered person at the same index — the "my character turned into someone
+  else" class of report. `docs/avatar-art-direction-research.md` records the
+  mechanism; `utils/facePool.ts` and its 3.5 MB of portraits are deleted.
+  The first attempt hand-authored the facial geometry as bezier path data and
+  had to be thrown away; `docs/avatar-art-direction-research.md` records why
+  that pipeline could never have worked and how the alternatives were measured.
+  Default `undefined`, so it is a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror. Two independent reasons, either sufficient. First,
+  absence already resolves: `resolveAvatar` (`lib/avatar/resolve.ts`) derives a
+  face deterministically from the character's name and their legacy `avatarId`,
+  so an existing save loads with a stable face reflecting the portrait they had
+  picked — the same one on every load. Second, writing a value would be actively
+  harmful: a stored config is a set of INDICES into the catalogs in
+  `lib/avatar/style.ts`, so stamping today's indices would freeze this
+  catalog order into every save, and appending one hair style later would
+  silently re-roll every character that had been stamped. `avatarId` is
+  deliberately left in place rather than translated — it still carries the
+  player's original pick, which is what seeds the derived face.
+  **Catalog order is part of the save format**: appending to a catalog is safe,
+  reordering or removing an entry changes the face of every character using it.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
+- **A carve-out still has to survive the LOAD.** "No backfill needed" is a claim
+  about the save FORMAT; it says nothing about the round trip. `loadGame` merges
+  `stats`, `date`, `settings` and `userProfile` key-by-key, and that merge used to
+  iterate `initialGameState`'s keys — a whitelist, which by construction excludes
+  every field a carve-out deliberately leaves out of `initialGameState`. The whole
+  category was written to disk correctly and erased on the way back in, silently:
+  `userProfile.avatar` (v39) showed the player a different face than the one they
+  built, and `settings.lastNoFillGrantWeek` (v28) reopened the very restart-farm
+  exploit it was added to close. The merge is now `utils/loadedStateMerge.ts` and
+  keeps the saved object's own keys. After adding a field, load a save that has it
+  and assert it is still there.
 - When adding a repair, it **must set `repaired = true`**: the repaired clone is only
   written back onto the caller's object when that flag is set, so a backfill without
   it is computed and then silently discarded.

@@ -38,7 +38,10 @@ describe('a v38 save written by the story-mode build still loads', () => {
     const result = runMigrations(v38StoryModeSave());
     expect(result.versionFromFuture).toBeFalsy();
     expect(result.errors).toEqual([]);
-    expect(result.state.version).toBe(38);
+    // Tracks the head of the chain rather than a literal: 38 was the head when
+    // this was written, and later bumps legitimately carry the save forward.
+    // What matters is that it arrives cleanly, not that it stands still.
+    expect(result.state.version).toBe(CURRENT_STATE_VERSION);
   });
 
   it('applies no migration, because 38 is a registered no-op', () => {
@@ -73,13 +76,14 @@ describe('a v38 save written by the story-mode build still loads', () => {
     delete save.gameMode;
     const result = runMigrations(save);
     expect(result.errors).toEqual([]);
-    expect(result.state.version).toBe(38);
+    expect(result.state.version).toBe(CURRENT_STATE_VERSION);
   });
 
-  it('is still the version this build writes', () => {
-    // If this ever fails, 38 stopped being the head of the chain and the
-    // no-op registration above needs re-reading rather than re-baselining.
+  it('keeps 38 reachable as the chain grows past it', () => {
+    // 38 is no longer the head — v39 added the vector-avatar config — but it
+    // must stay a covered link, or a device still on 38 halts on load.
     expect(STATE_VERSION).toBe(CURRENT_STATE_VERSION);
     expect(CURRENT_STATE_VERSION).toBeGreaterThanOrEqual(38);
+    expect(isMigrationVersionCovered(38)).toBe(true);
   });
 });

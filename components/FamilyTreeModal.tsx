@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { scale } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+import { Modal, View, Text, SectionList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { FamilyTree, FamilyMemberNode } from '@/lib/legacy/familyTree';
 import Gradient from '@/components/ui/Gradient';
 import { X } from 'lucide-react-native';
-import { getCharacterImage } from '@/utils/characterImages';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 const LinearGradient = Gradient;
 
@@ -63,19 +63,15 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
         onPress={() => setSelectedMemberId(isSelected ? null : member.id)}
       >
         <View style={styles.avatarContainer}>
-          {member.deathYear ? (
-            // Calculate age at death for image
-            <Image
-              source={getCharacterImage(member.deathYear - member.birthYear, member.gender, member.id)}
-              style={styles.avatarImage}
-            />
-          ) : (
-            // Use current age if still alive
-            <Image
-              source={getCharacterImage(25, member.gender, member.id)}
-              style={styles.avatarImage}
-            />
-          )}
+          {/* A dead ancestor is drawn at the age they died; the living at a
+              default adult age. One component either way — the branch is only
+              about which age to pass. */}
+          <CharacterAvatar
+            seed={member.id}
+            sex={member.gender}
+            age={member.deathYear ? member.deathYear - member.birthYear : 25}
+            size={40}
+          />
         </View>
         <View style={styles.nodeInfo}>
           <Text style={[styles.nodeName, settings.darkMode && styles.textDark]}>

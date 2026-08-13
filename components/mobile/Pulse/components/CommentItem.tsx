@@ -40,6 +40,7 @@ export default function CommentItem({ comment, currentWeeksLived, depth = 0 }: C
       <ImageWithFallback
         uri={comment.authorPhoto}
         fallback={comment.authorHandle || '?'}
+        face={comment.authorHandle ? { seed: comment.authorHandle, size: scale(26) } : undefined}
         style={styles.avatar}
         placeholderColor={accentColor}
         placeholderTextColor="#FFFFFF"

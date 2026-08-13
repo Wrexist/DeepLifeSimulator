@@ -9,6 +9,11 @@ module.exports = {
         tsconfig: '<rootDir>/tsconfig.jest.json',
       },
     ],
+    // Plain JS needs a transform too, or nothing in `node_modules` can be
+    // converted from ESM however permissive `transformIgnorePatterns` is —
+    // the ignore list only decides WHAT is offered to a transform, not whether
+    // one exists for the extension.
+    '^.+\\.(js|jsx|mjs)$': 'babel-jest',
   },
   moduleNameMapper: {
     '^@/(.*\\.(png|jpg|jpeg|gif|svg|webp))$': '<rootDir>/__mocks__/fileMock.ts',
@@ -77,6 +82,9 @@ module.exports = {
   maxWorkers: process.env.CI === 'true' ? 2 : '50%',
   verbose: true,
   transformIgnorePatterns: [
-    'node_modules/(?!(expo|@expo|react-native|@react-native|@react-navigation)/)',
+    // @dicebear ships ESM only, so it has to be transformed rather than
+    // required raw — without it every suite that touches the avatar system
+    // dies on "Cannot use import statement outside a module".
+    'node_modules/(?!(expo|@expo|react-native|@react-native|@react-navigation|@dicebear)/)',
   ],
 };

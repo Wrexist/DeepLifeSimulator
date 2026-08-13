@@ -8,8 +8,8 @@
  * The drag/swipe gesture is handled by the parent (SwipeScreen) — this card
  * just renders.
  */
-import React, { useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { MapPin, Briefcase, GraduationCap, AlertCircle } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useTheme } from '@/hooks/useTheme';
@@ -17,7 +17,7 @@ import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/u
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { SPARK_COLORS, SPARK_GRADIENT } from '../styles/sparkTheme';
 import type { DatingProfile } from '@/lib/dating/datingProfiles';
-import { getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 
 const LinearGradient = Gradient;
 
@@ -55,7 +55,6 @@ export default function ProfileCard({
   profile, likeOpacity = 0, nopeOpacity = 0, superOpacity = 0, catfishSuspected,
 }: ProfileCardProps) {
   const { theme, isDark } = useTheme();
-  const photo = useMemo(() => getDatingProfileImage(profile), [profile.id, profile.age, profile.gender]);
 
   return (
     // Anatomy: outer carries the L2 glass shadow + radius + border + solid fill;
@@ -71,7 +70,17 @@ export default function ProfileCard({
       ]}
     >
       <View style={styles.cardInner}>
-        <Image source={photo} style={styles.photo} resizeMode="cover" />
+        {/* The card used to be a full-bleed portrait. A vector face is square
+            and circular, so it is centred on the card's own field instead of
+            stretched to fill — and sits high enough to clear the text scrim. */}
+        <View style={styles.photo}>
+          <CharacterAvatar
+            seed={profile.id}
+            sex={profile.gender}
+            age={profile.age}
+            size={scale(196)}
+          />
+        </View>
 
         {/* Bottom scrim so identity text stays legible on any photo. The gradient
             fallback only renders colors[0], so the fade is faked with stacked
@@ -181,6 +190,10 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
+    alignItems: 'center',
+    // Sits above centre so the identity text and its scrim do not cover the face.
+    justifyContent: 'flex-start',
+    paddingTop: '14%',
   },
   // Stacked scrim layers (fallback gradient renders flat, so we fake the fade).
   scrimStep: {

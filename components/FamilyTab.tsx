@@ -17,16 +17,7 @@
  * pairs were dead branches. Colours come from `lib/config/theme.ts`.
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import {
- View,
- Text,
- StyleSheet,
- ScrollView,
- TouchableOpacity,
- Alert,
- Image,
- Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Gradient from '@/components/ui/Gradient';
@@ -70,7 +61,8 @@ import { useGame } from '@/contexts/GameContext';
 import { householdPartnerIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { scale, fontScale } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { getCharacterImage, getRelationshipImage } from '@/utils/characterImages';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import { childParentSources } from '@/lib/avatar/family';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
 import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
@@ -251,6 +243,12 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  const partner = gameState.relationships?.find(r => r.type === 'partner');
  const spouse = gameState.family?.spouse;
+ // Whose faces the children inherit. Memoized because it is passed to every
+ // child avatar, and a fresh object each render would defeat their memoization.
+ const parentSources = useMemo(
+ () => childParentSources(gameState),
+ [gameState]
+ );
  // Memoized because the `|| []` fallback allocates a NEW empty array on every
  // render, which would make the householdMood memo below re-run every time.
  const children = useMemo(() => gameState.family?.children || [], [gameState.family?.children]);
@@ -481,10 +479,14 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return (
  <View style={styles.cardHeader}>
  <View style={styles.avatarContainer}>
- <Image
- source={getRelationshipImage(person.age || 25, person.gender || 'female', kind, person.id)}
- style={styles.avatar}
+ <View style={styles.avatar}>
+ <CharacterAvatar
+ seed={person.id}
+ sex={person.gender || 'female'}
+ age={person.age || 25}
+ size={scale(56)}
  />
+ </View>
  {kind === 'spouse' && (
  <View style={styles.statusBadge}>
  <Ring size={scale(11)} color={accent.gold} />
@@ -689,10 +691,15 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  accessibilityLabel={`${child.name}, age ${childAge}`}
  >
  <View style={styles.childAvatarContainer}>
- <Image
- source={getCharacterImage(childAge, child.gender || 'male', child.id)}
- style={styles.childAvatar}
+ <View style={styles.childAvatar}>
+ <CharacterAvatar
+ seed={child.id}
+ sex={child.gender || 'male'}
+ age={childAge}
+ size={scale(46)}
+ parents={parentSources}
  />
+ </View>
  {isAdult && (
  <View style={styles.adultBadge}>
  <Star size={scale(11)} color={accent.gold} fill={accent.gold} />
@@ -839,10 +846,15 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
  <View style={styles.childProfileHeader}>
- <Image
- source={getCharacterImage(childAge, child.gender || 'male', child.id)}
- style={styles.childProfileAvatar}
+ <View style={styles.childProfileAvatar}>
+ <CharacterAvatar
+ seed={child.id}
+ sex={child.gender || 'male'}
+ age={childAge}
+ size={scale(68)}
+ parents={parentSources}
  />
+ </View>
  <View style={styles.childProfileInfo}>
  <Text style={styles.childProfileName} numberOfLines={1}>{child.name}</Text>
  <Text style={styles.childProfileAge}>
@@ -1188,6 +1200,9 @@ const styles = StyleSheet.create({
  position: 'relative',
  },
  avatar: {
+ alignItems: 'center',
+ justifyContent: 'center',
+ overflow: 'hidden',
  width: scale(60),
  height: scale(60),
  borderRadius: scale(30),
@@ -1327,6 +1342,9 @@ const styles = StyleSheet.create({
  position: 'relative',
  },
  childAvatar: {
+ alignItems: 'center',
+ justifyContent: 'center',
+ overflow: 'hidden',
  width: scale(46),
  height: scale(46),
  borderRadius: scale(23),
@@ -1513,6 +1531,9 @@ const styles = StyleSheet.create({
  marginBottom: scale(18),
  },
  childProfileAvatar: {
+ alignItems: 'center',
+ justifyContent: 'center',
+ overflow: 'hidden',
  width: scale(72),
  height: scale(72),
  borderRadius: scale(36),

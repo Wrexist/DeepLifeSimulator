@@ -4,18 +4,11 @@
  * Shared dating profiles that can be used across the app
  * for social media posts and other features
  */
-import { getPortrait } from '@/utils/facePool';
-
 /**
- * Get a stable, unique Face image for a dating profile.
- * Seeded by the profile id so each person keeps their own face, while people of
- * the same age+gender still look different (was: 1 face per gender for everyone).
- * @param profile - Profile (needs id, age, gender)
- * @returns Image source for the profile
+ * Profiles carry no portrait. A face is derived from `id` at render time by
+ * `CharacterAvatar`, so the same profile always looks the same without any
+ * image being stored or bundled.
  */
-export function getDatingProfileImage(profile: Pick<DatingProfile, 'id' | 'age' | 'gender'>) {
- return getPortrait(profile.id, profile.age, profile.gender);
-}
 
 export interface DatingProfile {
  id: string;

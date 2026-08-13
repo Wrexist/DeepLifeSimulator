@@ -231,6 +231,13 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
       <ImageWithFallback
         uri={avatar}
         fallback={handle}
+        // The player's own face, so composing a post shows who is posting.
+        face={{
+          seed: gameState.userProfile?.name ?? handle,
+          sex: gameState.userProfile?.sex,
+          age: gameState.date?.age,
+          size: scale(34),
+        }}
         style={styles.composerAvatar}
         placeholderColor={PULSE_COLORS.tierCelebrity}
         placeholderTextColor="#FFFFFF"

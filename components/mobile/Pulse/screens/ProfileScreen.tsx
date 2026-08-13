@@ -136,6 +136,12 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
             <ImageWithFallback
               uri={profile.profilePhoto}
               fallback={displayName}
+              face={{
+                seed: profile.name ?? displayName,
+                sex: profile.sex,
+                age: gameState.date?.age,
+                size: scale(72),
+              }}
               style={styles.avatar}
             />
           ) : (
