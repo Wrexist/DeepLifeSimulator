@@ -32,30 +32,58 @@
 export const ART_VIEWBOX = 280;
 
 /**
+ * Where the head actually is in the art, measured rather than guessed.
+ *
+ * The style draws each character with headroom suited to a SQUARE crop, so the
+ * head does NOT sit at the middle of the 280 box — it sits well above it, and
+ * the space below is shoulders. Shown in a circle, that puts the face high and
+ * off-centre while dead space collects at the bottom.
+ *
+ * These two numbers come from pixel-measuring the rendered art
+ * (`screenshots/avatar-centering.png` is the comparison):
+ *
+ *   - the bare skull, isolated by rendering with no hair layer at all, so a
+ *     tall style could not drag the top of the measurement up with it;
+ *   - the chin, found by walking down the skin mask and taking the row where
+ *     the jaw stops narrowing — a naive bounding box runs to y=226 because it
+ *     includes the neck, which is what an earlier attempt at this measured.
+ *
+ * Skull top 36 → chin 173, so the head's centre is y=104.5, a full 35.5px
+ * above the frame's own centre of 140.
+ */
+export const HEAD_CENTER_Y = 104.5;
+
+/**
  * How much the art is scaled up inside its own frame.
  *
- * The style draws each character with headroom suited to a SQUARE crop. Shown
- * in a circle that headroom becomes dead space above the head, and the
- * character reads as small and far away.
+ * 1.10 is the measured ceiling, not a taste call. What binds it CHANGED when
+ * the framing was centred: the old anchor sat below centre and so pushed the
+ * head upward, which made the crown the constraint (tall tops like `bigHair`,
+ * `frida`'s flower crown and `winterHat02` started losing their tops at 1.16).
+ * Centring moves the art DOWN and hands that headroom back — no top clips at
+ * the crown at 1.10 now, and `bigHair` survives past 1.2.
  *
- * 1.10 is the measured ceiling, not a taste call: the tallest tops (`bigHair`,
- * `frida`'s flower crown, `winterHat02`) start losing their tops at 1.16 and
- * are clearly clipped at 1.22. Cropping a player's hair is worse than a little
- * headroom. `screenshots/avatar-zoom-safety.png` is the comparison.
+ * The binding case is instead `froBand`, whose afro is simply wider than the
+ * circle at its equator: it starts shaving at 1.12, where the crown also
+ * begins to touch. So the number is unchanged and the reason for it is not.
+ * Cropping a player's hair is worse than a little headroom.
  */
 export const ART_ZOOM = 1.1;
 
 /**
- * Scales the art about a point below centre, which crops headroom rather than
- * the shoulders. Returns the input unchanged if it is not an SVG.
+ * Puts the head at the centre of the frame and scales about that point.
+ *
+ * Runs even at `zoom === 1`, because the translation is the point — centring
+ * is a reposition, not a side effect of scaling. Returns the input unchanged
+ * if it is not an SVG.
  */
 export function frameArt(svg: string, zoom: number = ART_ZOOM): string {
-  if (typeof svg !== 'string' || !svg.includes('</svg>') || zoom === 1) return svg;
-  const anchorX = ART_VIEWBOX / 2;
-  // Below centre: growth then pushes the head UP into the dead space.
-  const anchorY = ART_VIEWBOX * 0.54;
+  if (typeof svg !== 'string' || !svg.includes('</svg>')) return svg;
+  const centre = ART_VIEWBOX / 2;
+  // Scale about the head, then move the head to the middle of the window.
+  const transform = `translate(${centre} ${centre}) scale(${zoom}) translate(-${centre} -${HEAD_CENTER_Y})`;
   return svg
-    .replace(/(<svg[^>]*>)/, `$1<g transform="translate(${anchorX} ${anchorY}) scale(${zoom}) translate(-${anchorX} -${anchorY})">`)
+    .replace(/(<svg[^>]*>)/, `$1<g transform="${transform}">`)
     .replace('</svg>', '</g></svg>');
 }
 
@@ -75,11 +103,19 @@ export function addDepth(svg: string, uid: string): string {
   const defs =
     `<defs>` +
     // Form shadow. Starts at 0.40 so the lit half of the face is untouched.
-    `<radialGradient id="${id('avFs')}" cx="34%" cy="26%" r="78%">` +
+    //
+    // The vertical centres here follow the HEAD, not the frame. They were
+    // originally 26% and 19%, aimed at where the head sat under the old
+    // off-centre framing; centring the head moved it ~40px down the window,
+    // and leaving the light behind lit the hair while flattening the face.
+    // The head now always lands at 50%, so these read as offsets from it:
+    // the shadow's lit pole 10pp above the head, the key bloom 17pp above —
+    // both consistent with the upper-left source the plate itself uses.
+    `<radialGradient id="${id('avFs')}" cx="34%" cy="40%" r="78%">` +
     `<stop offset="0.40" stop-color="#0E0A1E" stop-opacity="0"/>` +
     `<stop offset="1" stop-color="#0E0A1E" stop-opacity="0.40"/>` +
     `</radialGradient>` +
-    `<radialGradient id="${id('avKl')}" cx="31%" cy="19%" r="44%">` +
+    `<radialGradient id="${id('avKl')}" cx="31%" cy="33%" r="44%">` +
     `<stop offset="0" stop-color="#FFF3E0" stop-opacity="0.28"/>` +
     `<stop offset="1" stop-color="#FFF3E0" stop-opacity="0"/>` +
     `</radialGradient>` +

@@ -29,7 +29,9 @@ import { inheritAvatar } from '@/lib/avatar/inherit';
 import { avatarSeedFor, resolveAvatar, resolveNpcAvatar, toAvatarSex } from '@/lib/avatar/resolve';
 import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
 import { childParentSources, resolveChildAvatar } from '@/lib/avatar/family';
-import { addDepth, ART_VIEWBOX, ART_ZOOM, BLINK, frameArt, nextBlinkDelay } from '@/lib/avatar/depth';
+import {
+  addDepth, ART_VIEWBOX, ART_ZOOM, BLINK, frameArt, HEAD_CENTER_Y, nextBlinkDelay,
+} from '@/lib/avatar/depth';
 import type { AvatarConfig } from '@/lib/avatar/types';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -613,6 +615,21 @@ describe('depth overlays', () => {
     expect(b).toContain('avFstwo');
   });
 
+  it('aims the key light and form shadow at the head, not at the frame', () => {
+    // `frameArt` puts the head at 50% of the window. Both radials are lit from
+    // the upper left of THAT, so their centres belong just above the midline.
+    // They used to sit at 19% and 26%, aimed at where the head was before it
+    // was centred — high enough to light the hair and leave the face flat.
+    const out = addDepth(svg, 'x');
+    for (const layer of ['avFs', 'avKl']) {
+      const cy = Number(/cy="([\d.]+)%"/.exec(
+        new RegExp(`<radialGradient id="${layer}x"[^>]*>`).exec(out)![0],
+      )![1]);
+      expect(cy).toBeLessThan(50);
+      expect(cy).toBeGreaterThan(25);
+    }
+  });
+
   it('uses no filter and no blend mode', () => {
     // Support for both is uneven across iOS, Android and web.
     const out = addDepth(svg, 'x');
@@ -669,21 +686,41 @@ describe('art framing', () => {
     expect(out.endsWith('</g></svg>')).toBe(true);
   });
 
-  it('anchors below centre so headroom is cropped, not the shoulders', () => {
-    const out = frameArt(svg, 1.2);
-    const anchorY = Number(/translate\(140 ([\d.]+)\)/.exec(out)![1]);
-    expect(anchorY).toBeGreaterThan(ART_VIEWBOX / 2);
+  it('puts the head at the centre of the window at any zoom', () => {
+    // The art draws the head ABOVE the middle of its own box and fills the
+    // space below with shoulders, so a plain scale-about-centre leaves the
+    // face riding high. Whatever the zoom, the head has to land at 140.
+    for (const zoom of [1, 1.1, 1.4]) {
+      const out = frameArt(svg, zoom);
+      const [, originY, scaled, anchorY] =
+        /translate\(140 ([\d.]+)\) scale\(([\d.]+)\) translate\(-140 -([\d.]+)\)/.exec(out)!;
+      expect(Number(anchorY)).toBe(HEAD_CENTER_Y);
+      expect(Number(scaled)).toBe(zoom);
+      // y' = originY + (y - anchorY) * zoom, so the head maps to the centre.
+      expect(Number(originY) + (HEAD_CENTER_Y - Number(anchorY)) * zoom).toBe(ART_VIEWBOX / 2);
+    }
+  });
+
+  it('measures the head above the middle of the art', () => {
+    // If this ever stops holding, the framing is a no-op and the constant was
+    // pasted rather than measured.
+    expect(HEAD_CENTER_Y).toBeLessThan(ART_VIEWBOX / 2);
   });
 
   it('stays within the measured safe zoom', () => {
-    // The tallest tops clip at 1.16 and are plainly cut at 1.22 — see
-    // screenshots/avatar-zoom-safety.png. Raising this crops players' hair.
+    // Centring hands the crown its headroom back, so what binds the zoom is
+    // now `froBand` — an afro simply wider than the circle at its equator,
+    // which starts shaving at 1.12. See screenshots/avatar-centering.png.
+    // Raising this crops players' hair.
     expect(ART_ZOOM).toBeGreaterThan(1);
-    expect(ART_ZOOM).toBeLessThanOrEqual(1.12);
+    expect(ART_ZOOM).toBeLessThanOrEqual(1.1);
   });
 
-  it('is a no-op at zoom 1, and safe on junk', () => {
-    expect(frameArt(svg, 1)).toBe(svg);
+  it('still repositions at zoom 1, and is safe on junk', () => {
+    // Centring is a translation. Skipping it when the zoom happens to be 1 —
+    // which the first version did — would leave the head high.
+    expect(frameArt(svg, 1)).not.toBe(svg);
+    expect(frameArt(svg, 1)).toContain(`translate(-140 -${HEAD_CENTER_Y})`);
     expect(frameArt('nope', 1.1)).toBe('nope');
   });
 });

@@ -10,6 +10,7 @@ import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { AppState, AppStateStatus } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isLifeAutosaveSuspended, lifeAutosaveSuspendReason, resumeLifeAutosave } from '@/utils/autosaveSuspension';
+import { mergeLoadedSlice } from '@/utils/loadedStateMerge';
 import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -4436,19 +4437,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // But log the errors for debugging
  }
 
- // Merge with initialGameState to ensure all required properties exist
- // CRITICAL: parsed values must override initial values to preserve save data
- // CRITICAL FIX: Filter out null values to prevent them from overriding defaults
- const filterNullValues = <T extends Record<string, any>>(obj: T, defaults: T): T => {
- const filtered: any = {};
- for (const key in defaults) {
- const parsedValue = obj?.[key];
- // Use parsed value if it's not null/undefined, otherwise use default
- filtered[key] = (parsedValue!== null && parsedValue!== undefined) ? parsedValue: defaults[key];
- }
- return filtered as T;
- };
-
  // CRITICAL: Extract children from relationships first (before merging)
  // This ensures children created during onboarding are preserved
  const parsedRelationships = Array.isArray(parsed.relationships) ? parsed.relationships: [];
@@ -4532,11 +4520,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...initialGameState,
 ...parsed,
  // Deep merge for nested objects - parsed values override initial values, but null values are filtered out
- stats: parsed.stats ? filterNullValues(parsed.stats, initialGameState.stats): initialGameState.stats,
- date: parsed.date ? filterNullValues(parsed.date, initialGameState.date): initialGameState.date,
- settings: parsed.settings ? filterNullValues(parsed.settings, initialGameState.settings): initialGameState.settings,
+ // Merged with initialGameState so every required property exists. Parsed
+ // values override the defaults, a null in the save does NOT, and a key the
+ // save has survives even when the defaults object has none — that last rule
+ // is `loadedStateMerge.ts`, and the fields it was quietly eating are listed
+ // there.
+ stats: parsed.stats ? mergeLoadedSlice(parsed.stats, initialGameState.stats): initialGameState.stats,
+ date: parsed.date ? mergeLoadedSlice(parsed.date, initialGameState.date): initialGameState.date,
+ settings: parsed.settings ? mergeLoadedSlice(parsed.settings, initialGameState.settings): initialGameState.settings,
  // CRITICAL FIX: Ensure userProfile is properly merged and null values are filtered
- userProfile: parsed.userProfile ? filterNullValues(parsed.userProfile, initialGameState.userProfile): initialGameState.userProfile,
+ userProfile: parsed.userProfile ? mergeLoadedSlice(parsed.userProfile, initialGameState.userProfile): initialGameState.userProfile,
  };
 
  // CRITICAL: Override family and relationships AFTER all spreads to ensure our synced arrays are used

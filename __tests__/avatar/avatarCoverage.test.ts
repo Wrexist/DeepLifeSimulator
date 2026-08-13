@@ -8,7 +8,7 @@
  * partial migration produces.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '../..');
@@ -100,5 +100,26 @@ describe('faces render through the avatar components', () => {
     for (const file of importers) {
       expect(file.startsWith('lib/')).toBe(false);
     }
+  });
+});
+
+describe('the designed face survives onboarding', () => {
+  it('hands the encoded config to the state builder', () => {
+    // The one wiring step with no type error to catch it: every field
+    // `buildNewGameState` reads is optional, so omitting `avatar` compiled
+    // cleanly and shipped a game where the character who walked out of the
+    // creator was a DIFFERENT PERSON from the one on the screen — the derived
+    // fallback in `resolveAvatar`, seeded from the name. Nothing crashes and
+    // nothing logs; the whole creator is simply thrown away at the last step.
+    const source = readFileSync(resolve(ROOT, 'app/(onboarding)/Perks.tsx'), 'utf8');
+    const call = /buildNewGameState\(\{([\s\S]*?)\n {6}\}\)/.exec(source);
+    expect(call).toBeTruthy();
+    expect(call![1]).toMatch(/\bavatar:\s*state\.avatar\b/);
+  });
+
+  it('has no other route building a life, which would need the same wiring', () => {
+    // If this list grows, the new caller needs `avatar` passed through too.
+    const callers = grepRepo('buildNewGameState\\(\\{').filter((f) => !f.includes('__tests__/'));
+    expect(callers).toEqual(['app/(onboarding)/Perks.tsx']);
   });
 });

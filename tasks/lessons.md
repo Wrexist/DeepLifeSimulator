@@ -2276,3 +2276,50 @@ right without ego — the stale-closure fix was better than mine. And check
 whether it duplicated a rule rather than centralising one, because a fixer
 optimises for the file it was pointed at and cannot see that two files now
 disagree.
+
+## 2026-08-13 — A whitelist merge on load ate every "carve-out" field
+
+The rebuilt character creator saved the designed face correctly and the game
+showed a **different person**. Everything on the way in was right: the config
+was encoded, `buildNewGameState` put it on `userProfile`, the save on disk held
+`"avatar":"a1.5n804631300"`, and `resolveAvatar` prefers a stored config over
+its derived fallback. The face still came out wrong on every single load.
+
+Two independent bugs stacked, and the second is the one worth remembering.
+
+**One.** `app/(onboarding)/Perks.tsx` never passed `avatar` to
+`buildNewGameState`. Every field that builder reads is optional, so omitting one
+compiles cleanly and the only symptom is a wrong face. (This one was mine —
+the wiring was written and the last hop was missed.)
+
+**Two, the real lesson.** `loadGame` merges four sub-objects (`stats`, `date`,
+`settings`, `userProfile`) key-by-key with what was a
+`for (const key in defaults)` loop. That is a **whitelist keyed on
+`initialGameState`** — and a field whose stored default is `undefined` is, by
+the §7 carve-out rule, deliberately NOT written into `initialGameState` at all.
+So the entire carve-out category was being written to disk correctly and erased
+on the way back in. Silently: no throw, no log, no failing test. The field is
+simply gone, and every consumer's "absent means the default" fallback dutifully
+does the right thing with the wrong data.
+
+`userProfile.avatar` (v39) was the visible one. `settings.lastNoFillGrantWeek`
+(v28) was the expensive one — it exists *because* the module-level boolean it
+replaced reset on restart and made the ad orb's courtesy grant farmable, and
+dropping it on load reopened that exploit through a different door.
+`settings.quickActionWeeks` (v26) and `userProfile.avatarId` were going the same
+way.
+
+**Rules.**
+
+- A merge that iterates the DEFAULTS is a whitelist. If the schema has optional
+  fields, iterate the union — the saved object's own keys have to survive too.
+  Now `utils/loadedStateMerge.ts`, extracted out of the component precisely so
+  it could be tested.
+- "No backfill needed, absence already resolves" is a claim about the SAVE
+  FORMAT. It says nothing about whether the key survives a round trip, and §7
+  reasoning stops one step short of checking that. Add the field, then load a
+  save that has it and assert it is still there.
+- The end-to-end check has to compare the two ends. Reading the save file and
+  seeing the value there proves the write half and looks like proof of both.
+  What caught this was diffing the fills of the SVG the creator rendered
+  against the SVG the game rendered, in one run of the real app.

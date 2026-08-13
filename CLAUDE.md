@@ -414,6 +414,17 @@ including the crash screen.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
+- **A carve-out still has to survive the LOAD.** "No backfill needed" is a claim
+  about the save FORMAT; it says nothing about the round trip. `loadGame` merges
+  `stats`, `date`, `settings` and `userProfile` key-by-key, and that merge used to
+  iterate `initialGameState`'s keys — a whitelist, which by construction excludes
+  every field a carve-out deliberately leaves out of `initialGameState`. The whole
+  category was written to disk correctly and erased on the way back in, silently:
+  `userProfile.avatar` (v39) showed the player a different face than the one they
+  built, and `settings.lastNoFillGrantWeek` (v28) reopened the very restart-farm
+  exploit it was added to close. The merge is now `utils/loadedStateMerge.ts` and
+  keeps the saved object's own keys. After adding a field, load a save that has it
+  and assert it is still there.
 - When adding a repair, it **must set `repaired = true`**: the repaired clone is only
   written back onto the caller's object when that flag is set, so a backfill without
   it is computed and then silently discarded.
