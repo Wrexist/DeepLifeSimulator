@@ -7,7 +7,6 @@
 
 import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import type { MindsetId } from '@/lib/mindset/config';
-import { avatarSexFromId } from '@/utils/facePool';
 import { perks as perksCatalog } from './perksData';
 import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
 
@@ -43,6 +42,8 @@ export interface BuildGameStateParams {
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
   avatarId?: string;
+  /** Encoded AvatarConfig (lib/avatar/encode). */
+  avatar?: string;
   scenario: OnboardingScenario;
   challengeScenarioId?: string;
   selectedPerks: string[];
@@ -148,6 +149,22 @@ export function buildChildForSingleParent(childAge: number): any {
  * This is a pure function (aside from random child/sex generation).
  * All dependencies are injected via params.
  */
+/**
+ * The sex encoded in a LEGACY starter-face id (`m3`, `f11`).
+ *
+ * The character creator no longer writes `avatarId` — a new life carries a
+ * concrete sex and an encoded avatar config instead. This survives only for
+ * onboarding drafts persisted by an older build, which can still be sitting in
+ * AsyncStorage when a player updates mid-flow. Inlined here rather than
+ * imported, because `utils/facePool` and its portrait assets are gone.
+ */
+function sexFromLegacyAvatarId(avatarId: string | undefined | null): 'male' | 'female' | undefined {
+  if (typeof avatarId !== 'string') return undefined;
+  const match = /^([mf])\d+$/.exec(avatarId.trim().toLowerCase());
+  if (!match) return undefined;
+  return match[1] === 'f' ? 'female' : 'male';
+}
+
 export function buildNewGameState(params: BuildGameStateParams): any {
   const {
     initialGameState,
@@ -162,11 +179,12 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     permanentPerks,
     selectedMindset,
     avatarId,
+    avatar,
     ambitionId,
   } = params;
 
   // A picked avatar's sex wins over "random" so appearance and gameplay agree.
-  const resolvedSex = avatarSexFromId(avatarId) ?? resolveRandomSex(sex);
+  const resolvedSex = sexFromLegacyAvatarId(avatarId) ?? resolveRandomSex(sex);
   const seekingGender = computeSeekingGender(resolvedSex, sexuality);
   const scenarioItems = scenario.start.items || [];
   const mappedItemIds = mapScenarioItemIds(scenarioItems);
@@ -261,6 +279,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       sex: resolvedSex,
       sexuality,
       avatarId,
+      avatar,
       gender: resolvedSex,
       seekingGender,
     },

@@ -13,7 +13,7 @@
  * for the upgrade economy — Hustle layers premium systems on top.
  */
 import React, { useCallback, useMemo } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   AlertTriangle, ArrowLeft, Award, Briefcase, Building2, ChevronRight, Crown,
   DollarSign, FileText, FlaskConical, Gem, History, Megaphone, Package, Rocket, Star, TrendingUp,
@@ -44,16 +44,9 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 import { generateBoardSeats, generateSuppliers } from '@/lib/business/hustleLogic';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import { companyIncomeFactors } from '@/lib/business/hustleLogic';
-import { getPortrait } from '@/utils/facePool';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 
 const LinearGradient = Gradient;
-
-// Face art for named hires — a stable, unique adult face per hire id, drawn
-// from the seeded pool (utils/facePool). Sex derives from the id so it stays
-// consistent for a given employee.
-function faceFor(id: string) {
-  return getPortrait(id, 30, 'random');
-}
 
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const CAMPAIGN_LABEL: Record<string, string> = {
@@ -414,7 +407,11 @@ export default function CompanyDetailScreen({
               const tenure = Math.max(0, weeksLived - (h.hiredWeek ?? weeksLived));
               return (
                 <View key={h.candidateId} style={[styles.rosterRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                  <Image source={faceFor(h.candidateId)} style={[styles.avatar, { borderColor: theme.border }]} resizeMode="cover" />
+                  {/* Seeded from the candidate id, so a given hire keeps the
+                      same face across renders and sessions. */}
+                  <View style={[styles.avatar, { borderColor: theme.border }]}>
+                    <CharacterAvatar seed={h.candidateId} age={30} size={scale(38)} />
+                  </View>
                   <View style={styles.rosterText}>
                     <Text style={[styles.rosterName, { color: theme.text }]} numberOfLines={1}>
                       {cap(h.role)} · ${h.salary.toLocaleString()}/wk
@@ -1365,6 +1362,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
   },
   avatar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
     width: scale(40),
     height: scale(40),
     borderRadius: scale(20),

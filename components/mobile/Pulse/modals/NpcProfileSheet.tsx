@@ -91,6 +91,7 @@ export default function NpcProfileSheet({ visible, npc, onDismiss }: NpcProfileS
           <ImageWithFallback
             uri={npc.profilePicture}
             fallback={name}
+            face={{ seed: npc.id, size: scale(74) }}
             style={styles.avatar}
             placeholderColor={PULSE_COLORS.tierCelebrity}
             placeholderTextColor="#FFFFFF"

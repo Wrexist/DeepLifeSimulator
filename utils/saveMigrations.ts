@@ -967,6 +967,38 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 38;
     return state;
   },
+
+  // Version 39: `userProfile.avatar` — the encoded `AvatarConfig` behind the
+  // rebuilt character creator (`lib/avatar/`). Faces are now assembled from
+  // authored vector geometry rather than picked from a pool of pre-rendered
+  // portraits, so a character's appearance is a set of parameters that ages
+  // with them instead of a PNG that gets swapped for a different person's face
+  // at every age band.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+  // and no `repairGameState` mirror. Two independent reasons, either of which
+  // is sufficient:
+  //
+  //   1. Absence already resolves correctly. `resolveAvatar`
+  //      (`lib/avatar/resolve.ts`) derives a face deterministically from the
+  //      character's name and their legacy `avatarId`, so an existing save
+  //      loads with a stable face that reflects the portrait they had picked —
+  //      and the same one on every subsequent load.
+  //
+  //   2. Writing a value would be actively harmful. A stored config is a set
+  //      of INDICES into the catalogs in `lib/avatar/style.ts`. Stamping
+  //      today's indices into every save would freeze this catalog order into
+  //      them permanently, and appending a single hair style later would then
+  //      silently re-roll the face of every character that had been stamped.
+  //      Deriving on read has no such coupling.
+  //
+  // `avatarId` is deliberately left in place rather than translated. It still
+  // carries the player's original pick, which is exactly what seeds the
+  // derived face — rewriting it would lose that.
+  39: (state) => {
+    state.version = 39;
+    return state;
+  },
 };
 
 /**

@@ -46,6 +46,7 @@
     "check:content": "node scripts/check-content-quality.js"
   },
   "dependencies": {
+    "@dicebear/avataaars": "^9.2.2",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-firebase/analytics": "^23.8.8",

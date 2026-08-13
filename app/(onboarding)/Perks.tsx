@@ -489,6 +489,12 @@ export default function Perks() {
         sex: state.sex,
         sexuality: state.sexuality,
         avatarId: state.avatarId,
+        // The face the player actually built. Omitting this dropped the whole
+        // creator on the floor: `buildNewGameState` left `userProfile.avatar`
+        // undefined, `resolveAvatar` fell back to deriving a face from the
+        // name, and the character who walked into the game was a different
+        // person from the one on the creation screen.
+        avatar: state.avatar,
         scenario: {
           id: state.scenario!.id,
           start: state.scenario!.start,

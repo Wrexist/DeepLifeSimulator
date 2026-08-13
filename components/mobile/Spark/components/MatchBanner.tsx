@@ -6,10 +6,11 @@
  * after 1.6s or on tap.
  */
 import React, { useEffect, useRef } from 'react';
-import { Animated, Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Flame, MessageCircle, X } from 'lucide-react-native';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import Gradient from '@/components/ui/Gradient';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
@@ -23,17 +24,18 @@ interface MatchBannerProps {
   partnerName: string;
   /** Remote URI for the partner's photo (degrades to an initial on load fail). */
   partnerPhoto?: string;
-  /** Local image source (e.g. from getDatingProfileImage) — takes precedence
-   *  over `partnerPhoto` since dating profiles use bundled portrait assets, not
-   *  URIs. */
-  partnerPhotoSource?: ImageSourcePropType;
+  /**
+   * The dating profile behind the match. Takes precedence over `partnerPhoto`:
+   * profiles no longer carry a photo URI, their face is derived from the id.
+   */
+  partnerFace?: { id: string; gender?: string; age?: number };
   playerPhoto?: string;
   onMessage: () => void;
   onDismiss: () => void;
 }
 
 export default function MatchBanner({
-  visible, partnerName, partnerPhoto, partnerPhotoSource, playerPhoto, onMessage, onDismiss,
+  visible, partnerName, partnerPhoto, partnerFace, playerPhoto, onMessage, onDismiss,
 }: MatchBannerProps) {
   const { theme } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -95,8 +97,13 @@ export default function MatchBanner({
         </Animated.View>
 
         <View style={styles.avatarWrap}>
-          {partnerPhotoSource ? (
-            <Image source={partnerPhotoSource} style={styles.avatar} />
+          {partnerFace ? (
+            <CharacterAvatar
+              seed={partnerFace.id}
+              sex={partnerFace.gender}
+              age={partnerFace.age ?? 25}
+              size={AVATAR_SIZE}
+            />
           ) : (
             <ImageWithFallback uri={partnerPhoto} fallback={partnerName} style={styles.avatar} />
           )}

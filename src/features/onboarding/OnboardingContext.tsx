@@ -18,7 +18,8 @@ interface OnboardingState {
   lastName: string;
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
-  avatarId?: string; // Chosen starter face (utils/facePool listStarterAvatars id)
+  avatarId?: string; // Legacy starter-face pick (utils/facePool). New lives leave this unset.
+  avatar?: string; // Encoded AvatarConfig (lib/avatar/encode) — the customized face.
   perks: string[];
   ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional — skippable.
 }
@@ -61,6 +62,7 @@ const isPristineDraft = (s: OnboardingState): boolean =>
   !s.firstName &&
   !s.lastName &&
   !s.avatarId &&
+  !s.avatar &&
   !s.ambitionId &&
   s.perks.length === 0;
 

@@ -122,6 +122,12 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
             <ImageWithFallback
               uri={gameState.userProfile?.profilePhoto}
               fallback={handle}
+              face={{
+                seed: gameState.userProfile?.name ?? handle,
+                sex: gameState.userProfile?.sex,
+                age: gameState.date?.age,
+                size: scale(42),
+              }}
               style={styles.avatar}
               placeholderColor={PULSE_COLORS.tierCelebrity}
               placeholderTextColor="#FFFFFF"
