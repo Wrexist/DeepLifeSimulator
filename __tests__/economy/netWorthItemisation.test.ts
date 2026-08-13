@@ -17,6 +17,7 @@
 import { createTestGameState } from '../helpers/createTestGameState';
 import { initialGameState } from '@/contexts/game/initialState';
 import { buildNetWorthItemisation, NET_WORTH_GROUPS } from '@/utils/netWorthItemisation';
+import { computeNetWorth } from '@/utils/netWorth';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { LUXURY_CATALOG } from '@/lib/luxury';
 import type {
@@ -269,7 +270,10 @@ describe('the itemised headline equals the canonical net worth', () => {
   // `liquidState` holds one of every class the canonical figure counts — but no
   // company miners and no generic `items`, which the modal itemises and the
   // canonical figure does NOT (a known scope gap, asserted separately below).
-  function liquidState(): GameState {
+  // `extra` merges through `createTestGameState` (Hard Rule #3 — never hand-build
+  // or cast a GameState), so a caller can add e.g. companies/items on top of the
+  // liquid baseline without spreading a raw state object.
+  function liquidState(extra: Parameters<typeof createTestGameState>[0] = {}): GameState {
     const luxuryId = LUXURY_CATALOG[0].id;
     return createTestGameState({
       stats: { money: 12_500 },
@@ -295,6 +299,7 @@ describe('the itemised headline equals the canonical net worth', () => {
       realEstate: [HOUSE],
       vehicles: [SEDAN],
       loans: [LOAN],
+      ...extra,
     });
   }
 
@@ -313,15 +318,31 @@ describe('the itemised headline equals the canonical net worth', () => {
     // divergence (a re-introduced fee, a dropped term) cannot hide behind it.
     // If net worth should include hardware/inventory, that is a canonical change
     // for the owner to make — not something the modal decides on its own.
-    const base = liquidState();
-    const withHardware: GameState = {
-      ...base,
+    const withHardware = liquidState({
       companies: [ACME], // 2 basic miners @ 2,500 = 5,000, income already in canonical
       items: [LAPTOP], // 1,200, no resale path in the canonical figure
-    };
+    });
     const modal = buildNetWorthItemisation(withHardware).breakdown.netWorth;
     const canonical = canonicalNetWorth(withHardware);
     expect(modal - canonical).toBe(2 * 2_500 + 1_200);
+  });
+});
+
+describe('computeNetWorth guards the transaction-fee option', () => {
+  const assets = [{ id: 'a', type: 'cash', baseValue: 1_000 }];
+
+  it('a non-finite fee falls back to the default instead of returning NaN', () => {
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const { netWorth } = computeNetWorth(assets, [], { transactionFee: bad });
+      expect(isFinite(netWorth)).toBe(true);
+      // Fell back to the 1% default: 1000 × (1 − 0.01) = 990.
+      expect(netWorth).toBe(990);
+    }
+  });
+
+  it('a finite fee outside [0,1] is clamped, not applied raw', () => {
+    expect(computeNetWorth(assets, [], { transactionFee: 5 }).netWorth).toBe(0); // clamps to 1 → full haircut
+    expect(computeNetWorth(assets, [], { transactionFee: -1 }).netWorth).toBe(1_000); // clamps to 0 → no haircut
   });
 });
 
