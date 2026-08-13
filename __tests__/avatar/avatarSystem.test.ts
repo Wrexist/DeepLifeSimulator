@@ -17,6 +17,9 @@ import {
   MOUTH_SHAPES,
   buildStyleOptions,
   greyedHairHex,
+  hairIndicesFor,
+  MASCULINE_HAIR_IDS,
+  FEMININE_HAIR_IDS,
 } from '@/lib/avatar/style';
 import { CLOTHING_COLORS, HAIR_COLORS, NATURAL_HAIR_COUNT, SKIN_TONES } from '@/lib/avatar/palette';
 import { ageEffects, FACIAL_HAIR_MIN_AGE } from '@/lib/avatar/aging';
@@ -54,6 +57,32 @@ describe('catalogs', () => {
         expect(entry.value === null || typeof entry.value === 'string').toBe(true);
       }
     }
+  });
+
+  it('offers no graphic tee', () => {
+    // It stamps a logo across the chest — every available graphic is a skull,
+    // a slogan or a pizza, which reads as a game icon rather than clothing.
+    expect(CLOTHING.map((c) => c.value)).not.toContain('graphicShirt');
+  });
+
+  it('never generates headwear', () => {
+    // A hat hides the hair and flattens the ageing preview. Deliberate only.
+    for (let i = 0; i < 200; i++) {
+      expect(avatarFromSeed(`hat-${i}`, i % 2 ? 'male' : 'female').headwear).toBe(0);
+    }
+    // ...but the player can still pick one.
+    expect(HEADWEAR.length).toBeGreaterThan(1);
+  });
+
+  it('offers no distressed brow as a permanent face', () => {
+    // Same principle as the mouths: a downturned brow reads as distress, and
+    // with this style's large eyes it made generated characters look stricken.
+    const brows = BROW_SHAPES.map((b) => b.value);
+    for (const bad of ['sadConcerned', 'sadConcernedNatural', 'frownNatural', 'unibrowNatural']) {
+      expect(brows).not.toContain(bad);
+    }
+    // A STERN brow is a different thing and stays.
+    expect(brows).toContain('angry');
   });
 
   it('excludes the expressions a life sim must never show', () => {
@@ -524,5 +553,40 @@ describe('family faces', () => {
   it('falls back to a seeded face when neither parent is known', () => {
     expect(resolveChildAvatar('orphan', 'male', undefined)).toEqual(avatarFromSeed('orphan', 'male'));
     expect(resolveChildAvatar('orphan', 'male', {})).toEqual(avatarFromSeed('orphan', 'male'));
+  });
+});
+
+describe('hair leaning', () => {
+  it('keeps every style available in the picker', () => {
+    // The bias is a GENERATION weighting, not a gate. A player who wants a man
+    // with a bob must still be able to pick one.
+    const picker = AVATAR_PICKERS.find((c) => c.field === 'hairStyle')!;
+    expect(picker.options.length).toBe(HAIR_STYLES.length);
+    expect(pickersFor('male').find((c) => c.field === 'hairStyle')!.options.length).toBe(
+      HAIR_STYLES.length
+    );
+  });
+
+  it('never generates bald by accident', () => {
+    // Index 0 is bald. Reaching it by chance makes a slice of every crowd bald
+    // regardless of age; ageing thins hair on its own.
+    expect(hairIndicesFor('male')).not.toContain(0);
+    expect(hairIndicesFor('female')).not.toContain(0);
+    for (let i = 0; i < 200; i++) {
+      expect(avatarFromSeed(`bald-${i}`, i % 2 ? 'male' : 'female').hairStyle).not.toBe(0);
+    }
+  });
+
+  it('keeps the strongly-gendered styles out of the other sex\'s pool', () => {
+    const masc = hairIndicesFor('male').map((i) => HAIR_STYLES[i].value);
+    const fem = hairIndicesFor('female').map((i) => HAIR_STYLES[i].value);
+    for (const id of FEMININE_HAIR_IDS) expect(masc).not.toContain(id);
+    for (const id of MASCULINE_HAIR_IDS) expect(fem).not.toContain(id);
+  });
+
+  it('still leaves both sexes a wide choice', () => {
+    // A bias that collapsed to three styles would be worse than no bias.
+    expect(hairIndicesFor('male').length).toBeGreaterThanOrEqual(12);
+    expect(hairIndicesFor('female').length).toBeGreaterThanOrEqual(12);
   });
 });

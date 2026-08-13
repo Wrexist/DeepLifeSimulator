@@ -40,6 +40,7 @@ export interface Named {
   name: string;
 }
 
+
 /**
  * Hair. `top` in the underlying style mixes hair and headwear into one list;
  * they are split here because a player choosing a hairstyle and a player
@@ -74,8 +75,47 @@ export const HAIR_STYLES: Named[] = [
   { value: 'dreads', name: 'Dreads' },
   { value: 'dreads01', name: 'Dreads short' },
   { value: 'dreads02', name: 'Dreads long' },
-  { value: 'frida', name: 'Braided crown' },
+  { value: 'frida', name: 'Flower crown' },
 ];
+
+/**
+ * Which styles read masculine or feminine at a glance.
+ *
+ * The picker offers ALL of these to everyone — gating a hairstyle by sex is
+ * the uniformity this system exists to avoid, and a player who wants a man
+ * with a bob should get one. This list only biases RANDOM GENERATION, because
+ * an unweighted roll gave a character called Andrew a long blonde bob on the
+ * creation screen, which reads as the generator being broken rather than as a
+ * choice anyone made.
+ *
+ * Anything not listed is neutral and can go to either.
+ */
+export const MASCULINE_HAIR_IDS = [
+  'shortFlat', 'shortRound', 'shortWaved', 'shortCurly', 'theCaesar',
+  'theCaesarAndSidePart', 'sides', 'shavedSides', 'shaggy', 'shaggyMullet',
+  'dreads01',
+];
+
+export const FEMININE_HAIR_IDS = [
+  'curvy', 'straight01', 'straight02', 'straightAndStrand', 'longButNotTooLong',
+  'miaWallace', 'bob', 'bun', 'bigHair', 'froBand', 'dreads02', 'frida',
+];
+
+/** Indices into HAIR_STYLES that generation should favour for a sex. */
+export function hairIndicesFor(sex: AvatarSex): number[] {
+  const wanted = sex === 'male' ? MASCULINE_HAIR_IDS : FEMININE_HAIR_IDS;
+  const other = sex === 'male' ? FEMININE_HAIR_IDS : MASCULINE_HAIR_IDS;
+  const indices: number[] = [];
+  HAIR_STYLES.forEach((entry, i) => {
+    // Skip bald (index 0) — reaching it by chance makes a twelfth of every
+    // crowd bald regardless of age. Ageing thins hair on its own.
+    if (i === 0) return;
+    const id = entry.value;
+    if (!id) return;
+    if (wanted.includes(id) || !other.includes(id)) indices.push(i);
+  });
+  return indices;
+}
 
 export const HEADWEAR: Named[] = [
   { value: null, name: 'None' },
@@ -108,7 +148,16 @@ export const EYE_SHAPES: Named[] = [
   { value: 'surprised', name: 'Surprised' },
 ];
 
-/** Curated: `unibrowNatural` is dropped. */
+/**
+ * Curated on the same principle as MOUTH_SHAPES: this is the character's
+ * PERMANENT face.
+ *
+ * `unibrowNatural` is dropped as obviously wrong. So are `sadConcerned`,
+ * `sadConcernedNatural` and `frownNatural` — a downturned brow reads as
+ * distress, and combined with this style's large eyes it made randomly
+ * generated characters look stricken. A STERN brow is a different thing and a
+ * legitimate permanent look, so `angry` and `angryNatural` stay.
+ */
 export const BROW_SHAPES: Named[] = [
   { value: 'default', name: 'Default' },
   { value: 'defaultNatural', name: 'Natural' },
@@ -117,11 +166,8 @@ export const BROW_SHAPES: Named[] = [
   { value: 'raisedExcitedNatural', name: 'Raised soft' },
   { value: 'upDown', name: 'Up-down' },
   { value: 'upDownNatural', name: 'Up-down soft' },
-  { value: 'angry', name: 'Angry' },
-  { value: 'angryNatural', name: 'Angry soft' },
-  { value: 'sadConcerned', name: 'Concerned' },
-  { value: 'sadConcernedNatural', name: 'Worried' },
-  { value: 'frownNatural', name: 'Frown' },
+  { value: 'angry', name: 'Stern' },
+  { value: 'angryNatural', name: 'Stern soft' },
 ];
 
 /**
@@ -161,7 +207,11 @@ export const CLOTHING: Named[] = [
   { value: 'blazerAndSweater', name: 'Blazer + sweater' },
   { value: 'hoodie', name: 'Hoodie' },
   { value: 'overall', name: 'Overalls' },
-  { value: 'graphicShirt', name: 'Graphic tee' },
+  // `graphicShirt` is deliberately absent. It renders whatever
+  // `clothingGraphic` is set to across the whole chest, and every available
+  // graphic is a logo or slogan — a skull, "resist", a pizza. Pinned to the
+  // tamest one it still read as a game icon stamped on the character rather
+  // than as clothing.
 ];
 
 /** Every catalog length, so a picker can be sized without importing each one. */
@@ -232,9 +282,10 @@ export function buildStyleOptions(
 
     clothing: [CLOTHING[config.clothing]?.value ?? 'shirtCrewNeck'],
     clothesColor: [bare(CLOTHING_COLORS[config.clothingColor] ?? CLOTHING_COLORS[0])],
-    // Pinned rather than left to the generator. Unset, it randomises across a
-    // set that includes a skull and a "resist" slogan, so background NPCs
-    // turned up in graphic tees nobody chose and the game did not mean.
+    // No shipped outfit uses this — `graphicShirt` is not in CLOTHING. Kept
+    // pinned as a guard: unset, it randomises across a set including a skull
+    // and a "resist" slogan, so re-adding the graphic tee later would quietly
+    // put those on background NPCs.
     clothingGraphic: ['diamond'],
 
     // Glasses the player did not choose can still appear with age — reading

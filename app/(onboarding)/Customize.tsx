@@ -235,7 +235,7 @@ export default function Customize() {
       }
     >
       <OnboardingGlassHeader
-        title="Create Your Character"
+        title="Create Character"
         onBack={handleBack}
         onInfo={() =>
           Alert.alert(

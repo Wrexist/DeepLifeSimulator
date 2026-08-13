@@ -196,3 +196,50 @@ Verification:
 - `npm test` — 534 suites, 6742 passed, 1 skipped, 0 failed
 - `type-check`, `type-check:tests:ratchet`, `check:routes` — clean
 - `lint:ratchet` — 1191 warnings against a 1193 ceiling (2 fewer than before)
+
+
+## Round 4 — verified in the running app, and the defects that found
+
+Everything before this was verified by tests and by HTML mocks. This round
+launched the real Expo build and drove it with Playwright, which is the only
+thing that finds presentation bugs. Screenshots are in `screenshots/app/`.
+
+Six defects, none of which any test would have caught:
+
+1. **The creator's title was truncated** — "Create Your Chara…". The shared
+   `OnboardingGlassHeader` clamps to one line, and every other onboarding
+   screen uses a two-word title. Renamed to "Create Character".
+2. **Randomize gave men long feminine hair.** `hairIndicesFor` now biases
+   GENERATION toward styles that read as the character's sex. The picker still
+   offers all 27 to everyone — gating a hairstyle by sex is the uniformity this
+   system exists to avoid. Verified: 0/400 generated male faces get a feminine
+   style.
+3. **Headwear flattened the ageing preview.** A beanie on the first face a
+   player sees hides the hair, so the 20/45/75 strip showed three identical
+   faces. Never generated now; still fully available in the picker.
+4. **Distressed brows.** `sadConcerned`, `sadConcernedNatural` and
+   `frownNatural` made generated characters look stricken — the same argument
+   already applied to the mouths. A STERN brow is a different thing and stays.
+5. **"Braided crown" is a FLOWER crown.** Renamed to what it renders.
+6. **The graphic tee stamped a logo across the chest.** Every available graphic
+   is a skull, a slogan or a pizza; pinned to the tamest it still read as a
+   game icon rather than clothing. Removed from the catalog — eight outfits
+   remain. `clothingGraphic` stays pinned as a guard against a future re-add.
+
+Also measured rather than assumed: avatar generation costs **0.4-0.6 ms and
+~6 KB per face**, so a 30-avatar contacts list is ~18 ms of work.
+
+Verification:
+
+- Real iOS production bundle — `expo export:embed --dev false` succeeds,
+  3 901 modules, **8.97 MB**, and none of the 29 unused DiceBear styles leaked
+- `npm test` — 534 suites, **6 749 passed**, 1 skipped, 0 failed
+- type-check, test-type ratchet, check:routes — clean
+- lint:ratchet — 1 191 warnings against a 1 193 ceiling
+
+## Not verified on a real device
+
+The web build was driven, not a simulator or hardware. Family-with-children,
+Contacts and the Pulse feed were not reached: they need a phone purchase and
+several game weeks, and a URL reload restarts the life. Those screens were
+swapped and unit-tested but have not been seen running.

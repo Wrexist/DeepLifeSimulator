@@ -6,7 +6,7 @@
  * string. Same seed always yields the same face, which is what lets a face be
  * recomputed on demand instead of stored on every NPC in the save.
  */
-import { CATALOG_SIZES, FACIAL_HAIR, HAIR_STYLES } from './style';
+import { CATALOG_SIZES, FACIAL_HAIR, hairIndicesFor } from './style';
 import { CLOTHING_COLORS, HAIR_COLORS, NATURAL_HAIR_COUNT, SKIN_TONES } from './palette';
 import type { AvatarConfig, AvatarSex } from './types';
 
@@ -37,6 +37,7 @@ export function makeRng(seedNum: number): () => number {
 
 function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
   const pick = (n: number) => Math.floor(rng() * n) % Math.max(1, n);
+  const hairPool = hairIndicesFor(sex);
 
   // Dyed hair on roughly one face in twelve keeps it a statement rather than
   // noise — a crowd where a third of people have blue hair reads as random
@@ -48,9 +49,11 @@ function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
 
   return {
     skinTone: pick(SKIN_TONES.length),
-    // Index 0 is bald; only reach it deliberately, or a twelfth of every crowd
-    // is bald regardless of age.
-    hairStyle: 1 + pick(HAIR_STYLES.length - 1),
+    // Weighted toward styles that read as the character's sex, and never bald
+    // by accident. Every style stays available in the picker — this only stops
+    // the generator handing a man called Andrew a long blonde bob, which reads
+    // as a broken generator rather than as anyone's choice.
+    hairStyle: hairPool[pick(hairPool.length)],
     hairColor,
     facialHair: sex === 'male' && rng() < 0.45 ? 1 + pick(FACIAL_HAIR.length - 1) : 0,
     eyeShape: pick(CATALOG_SIZES.eyeShape),
@@ -63,8 +66,12 @@ function buildConfig(rng: () => number, sex: AvatarSex): AvatarConfig {
     clothingColor: pick(CLOTHING_COLORS.length),
     // Glasses on about one face in five, matching roughly how common they are.
     accessory: rng() < 0.2 ? 1 + pick(CATALOG_SIZES.accessory - 1) : 0,
-    // Headwear is rare — it is a statement, and it hides the hair underneath.
-    headwear: rng() < 0.06 ? 1 + pick(CATALOG_SIZES.headwear - 1) : 0,
+    // Never generated. A hat hides the hair — which is the deepest axis the
+    // creator offers — and on the creation screen it flattened the whole
+    // 20/45/75 ageing preview into three identical faces, because greying
+    // cannot show under a beanie. It stays fully available in the picker as a
+    // deliberate choice.
+    headwear: 0,
   };
 }
 
