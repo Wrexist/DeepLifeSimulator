@@ -155,6 +155,32 @@ async function shot(page, name) {
   console.log('  📸', name, idx >= 0 ? `(#${idx})` : '(debug)');
 }
 
+/**
+ * Scrolls the app's main list. Pass 0 to jump back to the top.
+ *
+ * `page.mouse.wheel` does NOTHING here — react-native-web's ScrollView is an
+ * overflow div that Playwright's synthetic wheel never reaches, so every
+ * `wheel()` in this script was a silent no-op and shots meant to be "the same
+ * screen, scrolled" were byte-identical duplicates of the unscrolled one.
+ *
+ * The scrolling that DID happen was accidental: `clickText` calls
+ * `scrollIntoViewIfNeeded`, so clicking the decision pill left Home parked
+ * halfway down, and the hero capture of an avatar release contained no face.
+ */
+async function scrollMain(page, dy) {
+  await page.evaluate((amount) => {
+    const scrollers = [...document.querySelectorAll('*')].filter(
+      (e) => e.scrollHeight > e.clientHeight + 40 && e.clientHeight > 200
+    );
+    if (!scrollers.length) return;
+    // The biggest one is the screen's own list; the rest are modals and rails.
+    scrollers.sort((a, b) => b.clientHeight * b.clientWidth - a.clientHeight * a.clientWidth);
+    const el = scrollers[0];
+    el.scrollTop = amount === 0 ? 0 : el.scrollTop + amount;
+  }, dy);
+  await sleep(900);
+}
+
 async function waitFor(page, needle, timeout = 45000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
@@ -327,26 +353,35 @@ async function main() {
 
   // ---- Captures — 4 tabs: Home Work Apps Life, click by coordinates
   const VW = VIEWPORT.width, TAB_Y = VIEWPORT.height - 25;
-  const goTab = async (idx) => { await page.mouse.click(Math.round((VW * (idx + 0.5)) / 4), TAB_Y); await sleep(2600); await chewLifeMoments(page); };
+  // Scrolls back to the top after switching. Without this a tab is
+  // photographed wherever the PREVIOUS interaction left it — emptying the
+  // decision inbox scrolled Home past the identity card, so the hero shot of
+  // an avatar release contained no face at all.
+  const goTab = async (idx) => {
+    await page.mouse.click(Math.round((VW * (idx + 0.5)) / 4), TAB_Y);
+    await sleep(2600);
+    await scrollMain(page, 0);
+    await chewLifeMoments(page);
+  };
 
   await goTab(0); await shot(page, 'home');
   // scroll down on home for goals/ambition card
-  await page.mouse.wheel(0, 900); await sleep(1200); await shot(page, 'home-goals');
+  await scrollMain(page, 900); await sleep(1200); await shot(page, 'home-goals');
   await goTab(1); await shot(page, 'work');
   await goTab(2); await shot(page, 'apps');
   console.log('APPS FULL:', JSON.stringify((await text(page)).slice(0, 2000)));
   // second page of the apps grid
-  await page.mouse.wheel(0, 1000); await sleep(1200); await shot(page, 'apps-2');
+  await scrollMain(page, 1000); await sleep(1200); await shot(page, 'apps-2');
   console.log('APPS2:', JSON.stringify((await text(page)).slice(0, 1600)));
-  await page.mouse.wheel(0, -2000); await sleep(1000);
+  await scrollMain(page, -2000); await sleep(1000);
   // Enter key phone apps
   const apps = ['Spark', 'Pulse', 'Stocks', 'Bank', 'Contacts', 'Education'];
   for (const app of apps) {
     await goTab(2);
-    await page.mouse.wheel(0, -2400); await sleep(900);
+    await scrollMain(page, -2400); await sleep(900);
     let opened = await clickText(page, app, { exact: true, wait: 2800 });
     if (!opened) { // maybe on the grid's second page
-      await page.mouse.wheel(0, 1000); await sleep(800);
+      await scrollMain(page, 1000); await sleep(800);
       opened = await clickText(page, app, { exact: true, wait: 2800 });
     }
     if (opened) {
@@ -356,12 +391,12 @@ async function main() {
     }
   }
   await goTab(3); await shot(page, 'life');
-  await page.mouse.wheel(0, 900); await sleep(1200); await shot(page, 'life-2');
+  await scrollMain(page, 900); await sleep(1200); await shot(page, 'life-2');
 
   // ---- Life tab sections: Market (buy a Computer → unlocks desktop launcher),
   // Family, Stats
   await goTab(3);
-  await page.mouse.wheel(0, -3000); await sleep(800);
+  await scrollMain(page, -3000); await sleep(800);
   await clickText(page, 'Market', { exact: true, wait: 2500 });
   await shot(page, 'life-market');
   console.log('MARKET:', JSON.stringify((await text(page)).slice(0, 1200)));
@@ -408,7 +443,7 @@ async function main() {
 
   // ---- Desktop launcher (Apps tab after owning a computer)
   await goTab(2); await sleep(1500);
-  await page.mouse.wheel(0, -3000); await sleep(800);
+  await scrollMain(page, -3000); await sleep(800);
   await shot(page, 'desktop');
   console.log('DESKTOP:', JSON.stringify((await text(page)).slice(0, 1600)));
 
@@ -421,9 +456,9 @@ async function main() {
   // 2.3.3 problem the recapture exists to fix, reintroduced by the tool meant
   // to fix it. `Dark Web` is the check because it is desktop-only; Hustle and
   // Crypto also exist on the phone, so finding them proves nothing.
-  await page.mouse.wheel(0, 1100); await sleep(700);
+  await scrollMain(page, 1100); await sleep(700);
   const launcherUp = (await allText(page)).includes('Dark Web');
-  await page.mouse.wheel(0, -3000); await sleep(700);
+  await scrollMain(page, -3000); await sleep(700);
   if (!launcherUp) {
     throw new Error(
       'Desktop launcher missing — the computer purchase did not land, so 6 shots '
@@ -438,10 +473,10 @@ async function main() {
   ];
   for (const [label, name] of desktopApps) {
     await goTab(2);
-    await page.mouse.wheel(0, -3000); await sleep(700);
+    await scrollMain(page, -3000); await sleep(700);
     let ok = await clickText(page, label, { exact: true, wait: 3200 });
-    if (!ok) { await page.mouse.wheel(0, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
-    if (!ok) { await page.mouse.wheel(0, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
+    if (!ok) { await scrollMain(page, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
+    if (!ok) { await scrollMain(page, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
     if (ok) {
       await shot(page, 'x-' + name);
       // leave via back arrow (top-left) then fall back to tab bar

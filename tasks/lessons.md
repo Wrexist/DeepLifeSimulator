@@ -2440,3 +2440,51 @@ way.
   seeing the value there proves the write half and looks like proof of both.
   What caught this was diffing the fills of the SVG the creator rendered
   against the SVG the game rendered, in one run of the real app.
+
+## 2026-08-13 — A screenshot tool that fails silently is worse than one that crashes
+
+Recapturing the store screenshots after the avatar revamp took four runs, and
+every failure had the same shape: **the tool carried on and produced output.**
+
+`scripts/capture-rich-state.mjs` drives the real app with Playwright and writes
+28 numbered PNGs. It is label-driven, so it goes stale whenever the UI is
+reworded — and when it goes stale it does not stop. A missed label just means a
+shot is never written, and **the previous run's file stays on disk**. The set
+then rebuilds from a mix of new and stale captures, with nothing red anywhere.
+That is precisely the App Store Guideline 2.3.3 problem the recapture exists to
+fix, reintroduced by the tool meant to fix it.
+
+Four distinct faults, none of which announced itself:
+
+1. It waited for `New Game` on the main menu — a label that only exists once a
+   save EXISTS. A fresh capture profile shows `Play` / `Custom life`. Every run
+   hung to its 120-second timeout first.
+2. It waited for `Create Identity`, since renamed `Create Character`.
+3. It matched the market's Computer row on `$5000`, the item's BASE price,
+   while the market applies inflation — the card reads $5,300 by then. So the
+   computer was never bought, the desktop launcher never opened, and six shots
+   silently kept their old files. Fixing that by matching the description then
+   failed AGAIN on capitalisation (`Unlocks Desktop Apps`, not `unlocks desktop
+   apps`), which cost a whole extra run.
+4. **`page.mouse.wheel` does nothing at all** on react-native-web's ScrollView —
+   it is an overflow div that Playwright's synthetic wheel never reaches. Every
+   `wheel()` in the script was a no-op, so shots meant to be "the same screen,
+   scrolled down" were byte-identical duplicates. Confirmed by `md5sum`:
+   `00-home.png` and `01-home-goals.png` were the same file.
+
+The scrolling that DID happen was accidental — `clickText` calls
+`scrollIntoViewIfNeeded`, so clicking the decision pill left Home parked
+halfway down, and the hero image of an avatar-art release contained no face.
+
+**Rules.**
+
+- A capture step must ASSERT the screen it meant to reach, not photograph
+  whatever is in front of it. The script now throws when the desktop launcher
+  is missing rather than continuing.
+- Never leave stale outputs in place for a tool that writes files
+  incrementally. "The file exists" is not "the file is current".
+- Verify a browser interaction actually moved something before building on it.
+  Two md5sums would have caught the dead `wheel()` at any point in the last
+  several months.
+- Match on stable text, case-insensitively, and never on a number the game is
+  free to change. Inflation moves prices; that is the whole point of inflation.

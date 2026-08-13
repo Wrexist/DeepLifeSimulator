@@ -126,17 +126,28 @@ Dev Tools to a rich late-game save) → `generate-appstore-2026-set.mjs` (iPhone
       being rebuilt from a mix of new and stale captures with nothing red
       anywhere: the exact Guideline 2.3.3 problem, reintroduced by the tool
       meant to fix it. The script now throws if the launcher is missing.
-- [ ] Re-run the rich capture, iPhone and iPad
-- [ ] Regenerate all three output sets
-- [ ] Look at every regenerated frame before claiming it is done — a capture
-      that silently landed on the wrong screen is the failure mode here
+- [x] **Fix the scrolling, which never worked at all.** `page.mouse.wheel` does
+      nothing to react-native-web's ScrollView, so every `wheel()` in the
+      script was a no-op and shots meant to be "the same screen, scrolled" were
+      byte-identical duplicates — `md5sum` on `00-home.png` and
+      `01-home-goals.png` proved it. The only scrolling that ever happened was
+      accidental, via `clickText`'s `scrollIntoViewIfNeeded`, which is what
+      parked Home halfway down and left the hero frame of an AVATAR release
+      with no face in it. Replaced with a DOM helper, verified moving.
+- [x] Re-run the rich capture, iPhone and iPad (28/28 each)
+- [x] Regenerate all three output sets
+- [x] Look at every regenerated frame — contact sheets of both sets, all 20
+      frames checked. Hero shows the identity card and face, the Dark Web and
+      Garage frames are back, and the "12 decisions waiting" pill is gone from
+      every phone (it had been baked into all three devices per frame, and on
+      Home it overlapped the daily-gems banner).
 
 ---
 
 ## Gates before pushing
 
-- [ ] `npx jest --ci`
-- [ ] `npm run type-check` + `type-check:tests:ratchet`
-- [ ] `node scripts/check-lint.js`
-- [ ] `npm run check:routes`
-- [ ] `npx expo export:embed` (production bundle)
+- [x] `npx jest --ci` — 6876 pass, 1 pre-existing skip
+- [x] `npm run type-check` + `type-check:tests:ratchet` — clean, ratchet at 0
+- [x] `node scripts/check-lint.js` — 0 errors, 1190 warnings under the 1193 ceiling
+- [x] `npm run check:routes` — 17 routes, no conflicts
+- [x] `npx expo export:embed` — production bundle builds, 3904 modules

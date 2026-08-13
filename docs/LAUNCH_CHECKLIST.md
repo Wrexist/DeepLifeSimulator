@@ -101,19 +101,35 @@ Story Mode, which has since been retired.
 > funnel data says taps run at 2.4× the Games benchmark while the page converts
 > at 0.6× — fixing the page is worth roughly **+65% installs at flat spend**.
 
-**5. Recapture EVERY screenshot and the app preview on a device** (~30 min).
+**5. Upload the recaptured screenshots** (~10 min), and record the app preview
+video separately.
 
-> **This is a release blocker for v2.8.0, not the usual nice-to-have.** Every
-> character face in the app changed. The screenshots currently on the store
-> show the old rendered portraits, which no build will ever produce again —
-> that is a direct **App Store Guideline 2.3.3** violation ("screenshots must
-> accurately reflect the current version"), and it is the kind Apple actually
-> rejects for, because the difference is obvious at a glance.
->
-> Both stores need it: App Store Connect and Google Play.
+> **Why this was a blocker.** Every character face in the app changed. The
+> screenshots on the store show the old rendered portraits, which no build will
+> ever produce again — a direct **App Store Guideline 2.3.3** violation
+> ("screenshots must accurately reflect the current version"), and the kind
+> Apple actually rejects for, because the difference is obvious at a glance.
 
-Shot list is in the same file. These need a real device or simulator — the web
-build runs a weekly tick far slower than native.
+**The image sets are DONE and in the repo**, regenerated from the current build:
+
+| Set | Path | Size |
+|---|---|---|
+| iPhone 6.9" (primary) | `screenshots/appstore-2026/iphone-6.9/` | 1320×2868 |
+| iPhone 6.5" | `screenshots/appstore-2026/iphone-6.5/` | 1284×2778 |
+| iPad Pro 13" | `screenshots/appstore-2026/ipad-13/` | 2064×2752 |
+
+Ten frames each, numbered in upload order; `01` is the hero. They are built
+from 28 fresh gameplay captures of the shipping UI — not mock-ups — so they
+carry the new faces everywhere, including the family and contacts screens.
+`screenshots/appstore-2026/README.md` has the pipeline if they need rebuilding.
+
+**Still outstanding here:**
+
+- [ ] Upload all three sets to App Store Connect, and the iPhone set to Google
+      Play.
+- [ ] **The app preview VIDEO is not done** and still needs a device or
+      simulator. The web build runs a weekly tick far slower than native, so it
+      is no good for a video even though it is fine for stills.
 
 **6. Replace the placeholder social preview image** in App Store Connect (~2 min)
 — every share of the App Store link currently renders an Apple placeholder.
