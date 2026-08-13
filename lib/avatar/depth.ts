@@ -32,6 +32,34 @@
 export const ART_VIEWBOX = 280;
 
 /**
+ * How much the art is scaled up inside its own frame.
+ *
+ * The style draws each character with headroom suited to a SQUARE crop. Shown
+ * in a circle that headroom becomes dead space above the head, and the
+ * character reads as small and far away.
+ *
+ * 1.10 is the measured ceiling, not a taste call: the tallest tops (`bigHair`,
+ * `frida`'s flower crown, `winterHat02`) start losing their tops at 1.16 and
+ * are clearly clipped at 1.22. Cropping a player's hair is worse than a little
+ * headroom. `screenshots/avatar-zoom-safety.png` is the comparison.
+ */
+export const ART_ZOOM = 1.1;
+
+/**
+ * Scales the art about a point below centre, which crops headroom rather than
+ * the shoulders. Returns the input unchanged if it is not an SVG.
+ */
+export function frameArt(svg: string, zoom: number = ART_ZOOM): string {
+  if (typeof svg !== 'string' || !svg.includes('</svg>') || zoom === 1) return svg;
+  const anchorX = ART_VIEWBOX / 2;
+  // Below centre: growth then pushes the head UP into the dead space.
+  const anchorY = ART_VIEWBOX * 0.54;
+  return svg
+    .replace(/(<svg[^>]*>)/, `$1<g transform="translate(${anchorX} ${anchorY}) scale(${zoom}) translate(-${anchorX} -${anchorY})">`)
+    .replace('</svg>', '</g></svg>');
+}
+
+/**
  * Adds the lighting overlays to a generated avatar SVG.
  *
  * `uid` must be unique per rendered instance. Returns the input unchanged if

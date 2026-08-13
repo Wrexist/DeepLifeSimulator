@@ -281,3 +281,35 @@ pin both halves.
 Verification: 534 suites / **6 756 passed**, type-check, test-type ratchet,
 routes clean, lint 1 191 vs 1 193, and the real iOS production bundle still
 succeeds at 8.97 MB.
+
+
+## Round 6 — framing and motion
+
+**Framing.** The art is drawn with headroom for a SQUARE crop; in a circle that
+headroom is dead space above the head, and the character reads as small and far
+away. `frameArt` scales the art about a point below centre, so the growth eats
+the headroom rather than the shoulders.
+
+The zoom is measured, not chosen by taste. `screenshots/avatar-zoom-safety.png`
+renders the eight tallest tops at four zooms: `bigHair`, `frida`'s flower crown
+and `winterHat02` start losing their tops at **1.16** and are plainly cut at
+**1.22**. Shipping **1.10** — cropping a player's hair is worse than a little
+headroom. A test pins the ceiling so nobody raises it without re-rendering.
+
+**Motion**, all on the native driver:
+
+| What | Where | Why |
+|---|---|---|
+| Entrance — fade + scale from 0.9 | hero avatar | the screen used to appear fully formed and inert |
+| Stagger — age checkpoints rise in sequence | 20/45/75 strip | reads as a life unrolling |
+| Pop — spring on any config change | hero avatar | a picker tap swapped the art instantly with no feedback that it landed |
+| Blink + breathe | hero, identity card | from round 5 |
+| `activeOpacity` 0.75 | all 7 controls | the RN default of 0.2 is a hard flash |
+
+One crash, caught by the suite rather than by eye: `Animated.multiply` is not
+part of the React Native surface the render tests mock, so the creator's whole
+tree died inside a ProviderBoundary. Two stacked `scale` transforms compose the
+same way with no dependency on it.
+
+Verification: 534 suites / **6 760 passed**, type-check, test-type ratchet,
+routes clean, lint 1 191 vs 1 193, real iOS production bundle 8.97 MB.

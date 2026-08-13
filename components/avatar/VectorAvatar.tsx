@@ -35,7 +35,7 @@ import { createAvatar } from '@dicebear/core';
 // bet worth taking. This pulls one 308 KB package.
 import * as avataaars from '@dicebear/avataaars';
 import { buildStyleOptions } from '@/lib/avatar/style';
-import { addDepth, BLINK, nextBlinkDelay } from '@/lib/avatar/depth';
+import { addDepth, BLINK, frameArt, nextBlinkDelay } from '@/lib/avatar/depth';
 import { ageEffects } from '@/lib/avatar/aging';
 import { normalizeAvatar } from '@/lib/avatar/random';
 import type { AvatarConfig, AvatarSex } from '@/lib/avatar/types';
@@ -85,7 +85,7 @@ function VectorAvatarImpl({
     const effects = ageEffects(age, sex);
     const options = buildStyleOptions(safe, sex, effects);
     const build = (extra?: Record<string, unknown>) =>
-      addDepth(createAvatar(avataaars, { size, ...options, ...extra }).toString(), uid);
+      addDepth(frameArt(createAvatar(avataaars, { size, ...options, ...extra }).toString()), uid);
     return {
       open: build(),
       // Built once alongside the open frame rather than on each blink, so a

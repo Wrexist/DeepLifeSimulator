@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Easing,
   Platform,
   ScrollView,
   StyleSheet,
@@ -111,6 +113,40 @@ export default function Customize() {
     const start = Math.max(1, Math.round(scenarioAge));
     return [start, Math.max(start + 12, 45), Math.max(start + 24, 75)];
   }, [scenarioAge]);
+
+  /**
+   * The hero pops whenever the face changes — a randomize, or any picker tap.
+   * Without it a tap swaps the art instantly and the screen feels inert; the
+   * pop is what makes an edit feel like it landed.
+   */
+  const pop = useRef(new Animated.Value(1)).current;
+  const entrance = useRef(new Animated.Value(0)).current;
+  const avatarKey = useMemo(() => encodeAvatar(avatar) + sex, [avatar, sex]);
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    Animated.timing(entrance, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [entrance]);
+
+  useEffect(() => {
+    // Skip the mount, or the entrance and the pop fight each other.
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    pop.setValue(0.94);
+    Animated.spring(pop, {
+      toValue: 1,
+      friction: 5,
+      tension: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [avatarKey, pop]);
 
   useEffect(() => {
     if (!shouldGenerateInitialIdentityName(firstName, lastName)) return;
@@ -262,7 +298,21 @@ export default function Customize() {
               end={{ x: 1, y: 1 }}
               style={styles.heroCard}
             >
-              <View style={styles.avatarRing}>
+              <Animated.View
+                style={[
+                  styles.avatarRing,
+                  {
+                    opacity: entrance,
+                    // Two stacked scales rather than Animated.multiply: they
+                    // compose the same way, and multiply is not part of the
+                    // React Native surface the render tests mock.
+                    transform: [
+                      { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
+                      { scale: pop },
+                    ],
+                  },
+                ]}
+              >
                 <VectorAvatar
                   config={avatar}
                   sex={sex}
@@ -271,7 +321,7 @@ export default function Customize() {
                   circular
                   alive
                 />
-              </View>
+              </Animated.View>
 
               <Text style={styles.heroName} numberOfLines={1}>
                 {fullName}
@@ -282,8 +332,26 @@ export default function Customize() {
                   three ages — this is the whole reason the face is parameters
                   rather than a picked portrait, so showing it beats saying it. */}
               <View style={styles.ageStrip}>
-                {agePreview.map((previewAge) => (
-                  <View key={previewAge} style={styles.agePreview}>
+                {agePreview.map((previewAge, index) => (
+                  <Animated.View
+                    key={previewAge}
+                    style={[
+                      styles.agePreview,
+                      {
+                        opacity: entrance,
+                        // Staggered: each checkpoint settles a beat after the
+                        // one before, which reads as a life unrolling.
+                        transform: [
+                          {
+                            translateY: entrance.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [10 + index * 5, 0],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
                     <VectorAvatar
                       config={avatar}
                       sex={sex}
@@ -292,12 +360,13 @@ export default function Customize() {
                       circular
                     />
                     <Text style={styles.ageLabel}>{previewAge}</Text>
-                  </View>
+                  </Animated.View>
                 ))}
               </View>
 
               <View style={styles.heroActions}>
                 <TouchableOpacity
+                  activeOpacity={0.75}
                   accessibilityRole="button"
                   accessibilityLabel="Randomize appearance"
                   onPress={handleRandomizeFace}
@@ -308,6 +377,7 @@ export default function Customize() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  activeOpacity={0.75}
                   accessibilityRole="button"
                   accessibilityLabel="Shuffle name"
                   onPress={handleShuffleName}
@@ -341,6 +411,7 @@ export default function Customize() {
                   const isSelected = entry.field === category.field;
                   return (
                     <TouchableOpacity
+                      activeOpacity={0.75}
                       key={entry.field}
                       accessibilityRole="button"
                       accessibilityLabel={`${entry.label} options`}
@@ -369,6 +440,7 @@ export default function Customize() {
                   if (category.kind === 'color') {
                     return (
                       <TouchableOpacity
+                        activeOpacity={0.75}
                         key={`${category.field}-${index}`}
                         accessibilityRole="button"
                         accessibilityLabel={label}
@@ -383,6 +455,7 @@ export default function Customize() {
 
                   return (
                     <TouchableOpacity
+                      activeOpacity={0.75}
                       key={`${category.field}-${index}`}
                       accessibilityRole="button"
                       accessibilityLabel={label}
@@ -449,6 +522,7 @@ export default function Customize() {
                   const isSelected = sex === option.value;
                   return (
                     <TouchableOpacity
+                      activeOpacity={0.75}
                       key={option.value}
                       accessibilityRole="button"
                       accessibilityLabel={`${option.label} sex`}
@@ -470,6 +544,7 @@ export default function Customize() {
                   const isSelected = sexuality === option.value;
                   return (
                     <TouchableOpacity
+                      activeOpacity={0.75}
                       key={option.value}
                       accessibilityRole="button"
                       accessibilityLabel={`${option.label} sexuality`}

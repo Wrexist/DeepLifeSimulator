@@ -29,7 +29,7 @@ import { inheritAvatar } from '@/lib/avatar/inherit';
 import { avatarSeedFor, resolveAvatar, resolveNpcAvatar, toAvatarSex } from '@/lib/avatar/resolve';
 import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
 import { childParentSources, resolveChildAvatar } from '@/lib/avatar/family';
-import { addDepth, BLINK, nextBlinkDelay } from '@/lib/avatar/depth';
+import { addDepth, ART_VIEWBOX, ART_ZOOM, BLINK, frameArt, nextBlinkDelay } from '@/lib/avatar/depth';
 import type { AvatarConfig } from '@/lib/avatar/types';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -656,5 +656,34 @@ describe('depth overlay seams', () => {
     const rect = /<rect x="0" y="(\d+)" width="280" height="(\d+)" fill="url\(#avOccz\)"\/>/.exec(out);
     expect(rect).toBeTruthy();
     expect(Number(rect![1]) + Number(rect![2])).toBe(280);
+  });
+});
+
+describe('art framing', () => {
+  const svg = '<svg viewBox="0 0 280 280"><g id="art"/></svg>';
+
+  it('wraps the art in a scaling group', () => {
+    const out = frameArt(svg, 1.1);
+    expect(out).toContain('scale(1.1)');
+    expect(out).toContain('<g id="art"/>');
+    expect(out.endsWith('</g></svg>')).toBe(true);
+  });
+
+  it('anchors below centre so headroom is cropped, not the shoulders', () => {
+    const out = frameArt(svg, 1.2);
+    const anchorY = Number(/translate\(140 ([\d.]+)\)/.exec(out)![1]);
+    expect(anchorY).toBeGreaterThan(ART_VIEWBOX / 2);
+  });
+
+  it('stays within the measured safe zoom', () => {
+    // The tallest tops clip at 1.16 and are plainly cut at 1.22 — see
+    // screenshots/avatar-zoom-safety.png. Raising this crops players' hair.
+    expect(ART_ZOOM).toBeGreaterThan(1);
+    expect(ART_ZOOM).toBeLessThanOrEqual(1.12);
+  });
+
+  it('is a no-op at zoom 1, and safe on junk', () => {
+    expect(frameArt(svg, 1)).toBe(svg);
+    expect(frameArt('nope', 1.1)).toBe('nope');
   });
 });
