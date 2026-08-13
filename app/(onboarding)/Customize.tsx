@@ -263,7 +263,14 @@ export default function Customize() {
               style={styles.heroCard}
             >
               <View style={styles.avatarRing}>
-                <VectorAvatar config={avatar} sex={sex} age={scenarioAge} size={scale(168)} circular />
+                <VectorAvatar
+                  config={avatar}
+                  sex={sex}
+                  age={scenarioAge}
+                  size={scale(168)}
+                  circular
+                  alive
+                />
               </View>
 
               <Text style={styles.heroName} numberOfLines={1}>

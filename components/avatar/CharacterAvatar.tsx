@@ -36,6 +36,8 @@ export interface CharacterAvatarProps {
    * each other. Ignored when `source` carries a stored config.
    */
   parents?: ParentSources;
+  /** Blink and breathe. Hero surfaces only — see VectorAvatar. */
+  alive?: boolean;
 }
 
 function CharacterAvatarImpl({
@@ -48,6 +50,7 @@ function CharacterAvatarImpl({
   circular = true,
   fallbackSex = 'male',
   parents,
+  alive = false,
 }: CharacterAvatarProps) {
   const drawnSex = toAvatarSex(source?.sex ?? sex, fallbackSex);
   const config = useMemo(() => {
@@ -67,6 +70,7 @@ function CharacterAvatarImpl({
       size={size}
       backdrop={backdrop}
       circular={circular}
+      alive={alive}
     />
   );
 }

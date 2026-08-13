@@ -25,8 +25,8 @@
  * gets made. `docs/avatar-art-direction-research.md` has the full reasoning
  * and the measured comparison of the alternatives.
  */
-import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, RadialGradient, Stop, SvgXml } from 'react-native-svg';
 import { createAvatar } from '@dicebear/core';
 // Imported from its OWN package, not from `@dicebear/collection`. The
@@ -35,6 +35,7 @@ import { createAvatar } from '@dicebear/core';
 // bet worth taking. This pulls one 308 KB package.
 import * as avataaars from '@dicebear/avataaars';
 import { buildStyleOptions } from '@/lib/avatar/style';
+import { addDepth, BLINK, nextBlinkDelay } from '@/lib/avatar/depth';
 import { ageEffects } from '@/lib/avatar/aging';
 import { normalizeAvatar } from '@/lib/avatar/random';
 import type { AvatarConfig, AvatarSex } from '@/lib/avatar/types';
@@ -50,6 +51,15 @@ export interface VectorAvatarProps {
   backdrop?: boolean;
   /** Clips the art to a circle. The plate is circular either way. */
   circular?: boolean;
+  /**
+   * Blink and breathe.
+   *
+   * OFF by default, and that is deliberate: a contacts list or a family tree
+   * mounts dozens of avatars, and dozens of independent timers is a battery
+   * and jank cost for motion nobody is looking at. Turn it on for the one
+   * avatar a screen is ABOUT — the creator's hero, the identity card.
+   */
+  alive?: boolean;
 }
 
 /** The slate plate. Muted on purpose — the face is the subject, not the disc. */
@@ -63,17 +73,65 @@ function VectorAvatarImpl({
   size = 120,
   backdrop = true,
   circular = true,
+  alive = false,
 }: VectorAvatarProps) {
-  const xml = useMemo(() => {
+  // Namespaces the injected gradient ids. Without this, two avatars on the web
+  // target share one document scope and the second silently uses the first's
+  // gradients.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+
+  const render = useMemo(() => {
     const safe = normalizeAvatar(config);
     const effects = ageEffects(age, sex);
-    return createAvatar(avataaars, {
-      size,
-      ...buildStyleOptions(safe, sex, effects),
-    }).toString();
-  }, [config, sex, age, size]);
+    const options = buildStyleOptions(safe, sex, effects);
+    const build = (extra?: Record<string, unknown>) =>
+      addDepth(createAvatar(avataaars, { size, ...options, ...extra }).toString(), uid);
+    return {
+      open: build(),
+      // Built once alongside the open frame rather than on each blink, so a
+      // blink is a string swap and not a regeneration.
+      closed: alive ? build({ eyes: ['closed'] }) : null,
+    };
+  }, [config, sex, age, size, alive, uid]);
 
+  const [blinking, setBlinking] = useState(false);
+  useEffect(() => {
+    if (!alive) return;
+    let openTimer: ReturnType<typeof setTimeout>;
+    let closeTimer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      openTimer = setTimeout(() => {
+        setBlinking(true);
+        closeTimer = setTimeout(() => {
+          setBlinking(false);
+          schedule();
+        }, BLINK.closedMs);
+      }, nextBlinkDelay());
+    };
+    schedule();
+    return () => {
+      clearTimeout(openTimer);
+      clearTimeout(closeTimer);
+    };
+  }, [alive]);
+
+  // A slow breath. Native-driven, so it costs nothing on the JS thread.
+  const breath = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!alive) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, { toValue: 1, duration: 1900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(breath, { toValue: 0, duration: 1900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [alive, breath]);
+
+  const xml = blinking && render.closed ? render.closed : render.open;
   const radius = size / 2;
+  const scale = breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] });
 
   return (
     <View style={[styles.root, { width: size, height: size }]}>
@@ -105,9 +163,15 @@ function VectorAvatarImpl({
         </>
       ) : null}
 
-      <View style={[styles.art, circular ? { borderRadius: radius, overflow: 'hidden' } : null]}>
+      <Animated.View
+        style={[
+          styles.art,
+          circular ? { borderRadius: radius, overflow: 'hidden' } : null,
+          alive ? { transform: [{ scale }] } : null,
+        ]}
+      >
         <SvgXml xml={xml} width={size} height={size} />
-      </View>
+      </Animated.View>
 
       {backdrop ? (
         <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">

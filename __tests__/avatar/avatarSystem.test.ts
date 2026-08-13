@@ -29,6 +29,7 @@ import { inheritAvatar } from '@/lib/avatar/inherit';
 import { avatarSeedFor, resolveAvatar, resolveNpcAvatar, toAvatarSex } from '@/lib/avatar/resolve';
 import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
 import { childParentSources, resolveChildAvatar } from '@/lib/avatar/family';
+import { addDepth, BLINK, nextBlinkDelay } from '@/lib/avatar/depth';
 import type { AvatarConfig } from '@/lib/avatar/types';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -588,5 +589,72 @@ describe('hair leaning', () => {
     // A bias that collapsed to three styles would be worse than no bias.
     expect(hairIndicesFor('male').length).toBeGreaterThanOrEqual(12);
     expect(hairIndicesFor('female').length).toBeGreaterThanOrEqual(12);
+  });
+});
+
+describe('depth overlays', () => {
+  const svg = '<svg viewBox="0 0 280 280"><g/></svg>';
+
+  it('injects the four lighting layers', () => {
+    const out = addDepth(svg, 'abc');
+    for (const layer of ['avFs', 'avKl', 'avRim', 'avOcc']) {
+      expect(out).toContain(`${layer}abc`);
+    }
+    expect(out.endsWith('</svg>')).toBe(true);
+  });
+
+  it('namespaces every id per instance', () => {
+    // Two avatars sharing a gradient id land in one document scope on web, and
+    // the second silently renders with the first's lighting.
+    const a = addDepth(svg, 'one');
+    const b = addDepth(svg, 'two');
+    expect(a).toContain('avFsone');
+    expect(a).not.toContain('avFstwo');
+    expect(b).toContain('avFstwo');
+  });
+
+  it('uses no filter and no blend mode', () => {
+    // Support for both is uneven across iOS, Android and web.
+    const out = addDepth(svg, 'x');
+    expect(out).not.toMatch(/filter|mix-blend|feGaussian/i);
+  });
+
+  it('degrades to the input rather than to a blank frame', () => {
+    expect(addDepth('not an svg', 'x')).toBe('not an svg');
+    expect(addDepth('', 'x')).toBe('');
+  });
+
+  it('keeps blink timing in its authored range', () => {
+    expect(nextBlinkDelay(() => 0)).toBe(BLINK.minGapMs);
+    expect(nextBlinkDelay(() => 0.999)).toBeLessThan(BLINK.maxGapMs);
+    for (let i = 0; i < 50; i++) {
+      const d = nextBlinkDelay();
+      expect(d).toBeGreaterThanOrEqual(BLINK.minGapMs);
+      expect(d).toBeLessThan(BLINK.maxGapMs);
+    }
+    // A blink the player can actually perceive, but not a wink.
+    expect(BLINK.closedMs).toBeGreaterThan(60);
+    expect(BLINK.closedMs).toBeLessThan(250);
+  });
+});
+
+describe('depth overlay seams', () => {
+  it('fades the contact occlusion IN from the top', () => {
+    // Running it dark-to-transparent downward put a hard horizontal line across
+    // every character's chest, and faded out exactly where the shadow belonged.
+    const out = addDepth('<svg viewBox="0 0 280 280"></svg>', 'z');
+    const occ = /<linearGradient id="avOccz"[^>]*>(.*?)<\/linearGradient>/s.exec(out)?.[1] ?? '';
+    const stops = [...occ.matchAll(/stop-opacity="([\d.]+)"/g)].map((m) => Number(m[1]));
+    expect(stops.length).toBeGreaterThanOrEqual(2);
+    expect(stops[0]).toBe(0);
+    expect(stops[stops.length - 1]).toBeGreaterThan(0);
+  });
+
+  it('runs the occlusion rect to the bottom edge', () => {
+    // Stopping short leaves a visible line where the rect ends.
+    const out = addDepth('<svg viewBox="0 0 280 280"></svg>', 'z');
+    const rect = /<rect x="0" y="(\d+)" width="280" height="(\d+)" fill="url\(#avOccz\)"\/>/.exec(out);
+    expect(rect).toBeTruthy();
+    expect(Number(rect![1]) + Number(rect![2])).toBe(280);
   });
 });

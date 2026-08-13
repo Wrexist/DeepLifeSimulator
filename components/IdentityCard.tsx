@@ -500,6 +500,7 @@ function IdentityCard() {
               sex={sex}
               age={date?.age ?? 0}
               size={74}
+              alive
             />
           </View>
           <View

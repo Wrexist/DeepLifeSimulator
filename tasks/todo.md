@@ -243,3 +243,41 @@ The web build was driven, not a simulator or hardware. Family-with-children,
 Contacts and the Pulse feed were not reached: they need a phone purchase and
 several game weeks, and a URL reload restarts the life. Those screens were
 swapped and unit-tested but have not been seen running.
+
+
+## Round 5 — depth and life
+
+The faces were professionally drawn but read as stickers, because the
+generated SVG contains **no gradient at all** — it is 100% flat fills. The
+plate behind the character had depth and the character did not, so the two
+never looked like they were in the same scene.
+
+`lib/avatar/depth.ts` injects four lighting overlays into the generated SVG,
+all serving the same upper-left key the plate already uses: a form shadow (what
+makes a head read as a sphere), a warm key bloom, a cool rim opposite it, and a
+contact occlusion so the character sits INTO the plate. No filters and no blend
+modes — `react-native-svg` support for both is uneven across iOS/Android/web,
+so every layer is a plain alpha gradient.
+
+Four treatments were rendered and compared before picking
+(`screenshots/avatar-depth-options.png`); the full set won clearly.
+
+"Alive" is two things, both opt-in via `alive` and OFF by default:
+
+- **Blink** — the same config re-rendered with `eyes: ['closed']`, held 120 ms
+  every 3.8-7.2 s. Both frames are built once, so a blink is a string swap.
+- **Breathe** — a 1.8% scale loop on the native driver.
+
+Default off matters: a contacts list mounts dozens of avatars, and dozens of
+timers is a battery and jank cost for motion nobody is looking at. It is on for
+the creator's hero and the identity card — the two avatars a screen is ABOUT.
+
+One bug, caught by looking at the render rather than by any test: the occlusion
+gradient ran dark-to-transparent DOWNWARD, which put a hard horizontal line
+across every character's chest and faded out exactly where the contact shadow
+belonged. It now fades in from the top and runs to the bottom edge. Two tests
+pin both halves.
+
+Verification: 534 suites / **6 756 passed**, type-check, test-type ratchet,
+routes clean, lint 1 191 vs 1 193, and the real iOS production bundle still
+succeeds at 8.97 MB.
