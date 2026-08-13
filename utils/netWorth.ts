@@ -75,8 +75,13 @@ export function applyLiquidationAdjustments(
 
 export function computeNetWorth(
   assets: Asset[],
-  liabilities: Liability[]
+  liabilities: Liability[],
+  options: { transactionFee?: number } = {}
 ): NetWorthBreakdown {
+  // Callers that must agree with the canonical `netWorth()` (which applies no
+  // liquidation fee) pass `transactionFee: 0`. The default preserves the
+  // fire-sale haircut for any caller genuinely pricing a liquidation.
+  const transactionFee = options.transactionFee ?? DEFAULT_TRANSACTION_FEE;
   let totalAssets = 0;
   const byAssetType: Record<string, number> = {};
   const perAsset: number[] = [];
@@ -105,7 +110,8 @@ export function computeNetWorth(
     value = applyLiquidationAdjustments(
       value,
       asset.condition,
-      asset.illiquidity
+      asset.illiquidity,
+      transactionFee
     );
 
     value = Math.max(0, value);
