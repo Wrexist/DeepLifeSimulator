@@ -1,315 +1,142 @@
-# Character creation revamp — procedural 2.5D vector avatars
-
-## Why
-
-Players call the current portraits AI slop, and the evidence is in the assets.
-All 77 WebPs in `assets/images/Face/pool/` carry the same generator
-fingerprints: a floating heart emoji and sparkle particles baked into the
-background, an identical orange radial glow that fights the app's dark navy
-palette, a "modern Pixar" render pastiche (see
-`docs/avatar-portraits-prompts-modern-pixar.md`), and no range at all — same
-3/4 framing, same closed-mouth smirk, same black t-shirt on every character.
-
-The structural problem is worse than the art. `Customize.tsx` is not a
-character creator, it is a gallery: a 60px horizontal strip where you tap one
-of ~12 pre-baked PNGs. There is no ownership of the face, so the screen feels
-cheap no matter how good the art gets.
-
-## Direction
-
-Replace the PNG pool with a face built from parameters and rendered as layered
-SVG through `react-native-svg` (already a dependency at 15.12.1 — no new native
-module, so no repeat of the Hard Rule #4 / lazy-import class of build risk).
-
-Art direction is **2.5D**: flat authored geometry given real volume by gradient
-shading with a consistent light from the upper left, explicit contact shadows
-where layers meet, and a rim light on the opposite edge. No SVG filters —
-`react-native-svg` support for them is uneven across iOS/Android/web, so
-softness comes from gradient stops fading to transparent instead.
-
-## Plan
-
-- [x] 1. `lib/avatar/types.ts` — `AvatarConfig` (all-numeric feature indices)
-- [x] 2. `lib/avatar/palette.ts` — skin / hair / eye ramps, each authored as a
-      base + shadow + light triple so shading is data, not guesswork
-- [x] 3. `lib/avatar/features.ts` — the geometry catalogs (face, hair, brows,
-      eyes, nose, mouth, facial hair, accessories)
-- [x] 4. `lib/avatar/random.ts` — seeded generation + `randomizeAvatar`
-- [x] 5. `lib/avatar/aging.ts` — age → derived layer modifiers (greying,
-      hairline recession, wrinkles). Player choices persist underneath.
-- [x] 6. `lib/avatar/inherit.ts` — child face from two parent faces
-- [x] 7. `lib/avatar/encode.ts` — compact string codec for the save
-- [x] 8. `components/avatar/VectorAvatar.tsx` — the renderer
-- [x] 9. Rebuild `app/(onboarding)/Customize.tsx` — large live preview,
-      Randomize-first, real pickers
-- [x] 10. Bridge the consumers behind `CharacterAvatar` + `resolveAvatar`, and
-      switch every surface showing the PLAYER'S OWN face (`IdentityCard`,
-      `PrestigeModal`, the Spark profile header). NPC surfaces still read the
-      portrait pool — see "Not in this change" below
-- [x] 11. Save: add `userProfile.avatar` as a CARVE-OUT field and bump
-      `STATE_VERSION` 38 → 39. No `createTestGameState` entry: its default is
-      `undefined`, matching every other carve-out (`ambitionId`, `rental`,
-      `lastLoginRewardWeek`), none of which appear there either
-- [x] 12. Tests: geometry validity, determinism, aging monotonicity,
-      inheritance, codec round-trip, migration
-- [x] 13. `npm run type-check`, `npm test`, `npm run preflight:quick`
-
-## Save-format note (§7)
-
-`userProfile.avatar` defaults to `undefined`, so it is a CARVE-OUT: version
-bumped, NO backfill and no `repairGameState` mirror. Absence is load-bearing
-rather than merely harmless — `resolveAvatar` derives a deterministic face from
-the existing name seed, sex and legacy `avatarId`, so every save that predates
-this loads with a face consistent with the character it already had. Writing a
-config at migration time would freeze a face chosen by today's catalog order
-into saves forever, and any later change to the catalogs would silently
-re-roll every one of those characters.
-
-## Status — complete
-
-All 13 items done. Verification run on 2026-08-12:
-
-- `npm test` — 534 suites, 6751 passed, 1 skipped, 0 failed
-- `npm run type-check` — clean
-- `npm run type-check:tests:ratchet` — holding at 0
-- `npm run lint:errors` — clean
-- `npm run check:routes` — 17 routes, no conflicts
-
-`__tests__/save/storyModeRetirement.test.ts` needed two assertions updated: it
-pinned `version).toBe(38)` as the head of the migration chain. Its intent — a
-v38 save still loads cleanly and 38 stays a covered link — is unchanged and now
-tracks `CURRENT_STATE_VERSION` instead of a literal, so the next bump does not
-re-break it.
-
-## Not in this change
-
-The player's own face is now vector everywhere it appears (`IdentityCard`,
-`PrestigeModal`, the Spark profile header). NPC faces — family tree, contacts,
-dating cards, company screens — still render from the portrait pool via
-`utils/characterImages.ts`. They resolve correctly through `CharacterAvatar`
-whenever they are switched over; `resolveNpcAvatar` already gives every NPC a
-stable seeded face. Doing that sweep in the same commit would have mixed a
-17-file mechanical change into the creator rebuild, so it is left as a
-follow-up. `assets/images/Face/` stays until then, and can be deleted with it
-(~3.5 MB).
-
-
-## Round 2 — the art was wrong, and got replaced
-
-The hand-authored geometry shipped in the first pass looked amateur. The
-pipeline was the problem, not the tuning: bezier path data typed by hand and
-adjusted by squinting at contact sheets is not how character art gets made.
-
-Replaced with illustrator-drawn modular art (avataaars via DiceBear), curated,
-under the same 2.5D treatment re-expressed as a LIT PLATE behind the art rather
-than hand-modelled volume inside it. `docs/avatar-art-direction-research.md`
-has the evaluation of all 13 human styles and why this one won.
-
-Kept unchanged: `types.ts`, `encode.ts`, `resolve.ts`, `inherit.ts`,
-`pickers.ts`, the v39 migration and carve-out reasoning, and the rebuilt
-`Customize.tsx`. Replaced: `features.ts` (deleted) → `style.ts`, and the
-renderer.
-
-Corrections made along the way, all found by rendering rather than review:
-
-- **adventurer was the wrong first pick.** It has 45 hairstyles and no facial
-  hair at all — unusable for a game where you play men from 18 to 80.
-- **Grey hair on six-year-olds.** Random generation could reach the grey and
-  white entries. `NATURAL_HAIR_COUNT` now stops before them; they stay
-  available to the player, and ageing reaches white from any starting colour.
-- **Skull-graphic tees on background NPCs.** `clothingGraphic` was unpinned, so
-  the generator chose freely from a set including a skull and a "resist"
-  slogan.
-- **Half of every crowd looked miserable.** Expression was a flat roll across a
-  catalog that includes sad, concerned and disbelief. Now weighted 82% toward
-  the pleasant prefix, with the ordering pinned by a test.
-- **`SvgXml` was missing from the jest mock**, so every screen carrying an
-  avatar crashed with "Element type is invalid".
-- **`transformIgnorePatterns` alone does nothing** for an ESM package when
-  `transform` has no rule for the extension. `.js` needed `babel-jest`.
-
-Verification (2026-08-12):
-
-- `npm test` — 534 suites, 6762 passed, 1 skipped, 0 failed
-- `npm run type-check`, `type-check:tests:ratchet`, `lint:errors`,
-  `check:routes` — all clean
-
-Bundle: the app imports `@dicebear/avataaars` (308 KB) directly rather than
-`@dicebear/collection`, which is a barrel over all 30 styles (~6 MB on disk).
-The barrel is now a devDependency used only by the evaluation scripts.
-
-Known limitation, not hidden: **children look like small adults.** The style
-has no age geometry. Every candidate shares this; fixing it means commissioning
-a child art set.
-
-
-## Round 3 — finish the migration and polish the experience
-
-Every remaining face in the app now comes from the avatar system. Previously
-the player had a vector face while everyone else still had an AI portrait,
-which is worse than either option alone: two illustration styles side by side
-read as a broken app.
-
-Swept: `FamilyTab`, `FamilyTreeModal`, `DeathPopup`, `PrestigeModal`,
-`ContactsApp`, `CompanyDetailScreen`, and the whole Spark dating app
-(`ProfileCard`, `MatchBanner`, `MatchesScreen`, `LikesScreen`, `ChatScreen`,
-`PartnerProfileScreen`).
-
-Deleted: `utils/facePool.ts`, `utils/characterImages.ts`, its test, and
-`assets/images/Face/` — 3.5 MB of the portraits players objected to.
-`__tests__/avatar/avatarCoverage.test.ts` fails the build if any of it returns.
-
-Inheritance now actually reaches the screen. `lib/avatar/family.ts` works out
-which two people a child descends from (player + spouse, spouse preferred over
-partner), so children and grandchildren visibly resemble their parents rather
-than being seeded strangers.
-
-UX changes beyond the sweep:
-
-- **Age preview on the creator.** Three checkpoints under the hero avatar
-  showing the same face at three ages. The screen claims "ages with you";
-  this makes the claim checkable instead of asking players to trust it.
-- **No despondent expressions.** `sad`, `concerned` and `disbelief` are gone
-  from the catalog. This is the character's PERMANENT face, and sadness is a
-  state, not an identity — the old set produced characters who looked stricken
-  at their own wedding. Removing them also deleted the weighting hack that
-  existed to make them rare.
-- **The paywalled "who liked you" rail.** Its scrim was tuned to tint an
-  already-blurred image; `blurRadius` does nothing to an SVG, so at 0.18 alpha
-  the paywalled identity was legible. Now 0.82.
-- **Near-white blonde removed** from the generator range. Anything that pale
-  reads as grey at 44px, which breaks the one signal ageing has.
-
-Two bugs worth remembering, both caught by rendering:
-
-- `NATURAL_HAIR_COUNT` is an index count, so removing one pale blonde ABOVE it
-  silently pulled grey into the generator's range — the exact bug it exists to
-  prevent, reintroduced while fixing something else. The test now asserts the
-  property (no light desaturated colour is reachable) rather than the number.
-  Its first version also wrongly flagged near-black hair, which is legitimately
-  desaturated; greyness only reads as grey when it is also light.
-- `ContactView` carries an opaque `raw`, so contact faces read sex and age
-  through a type guard rather than a cast (Hard Rule #2).
-
-Verification:
-
-- `npm test` — 534 suites, 6742 passed, 1 skipped, 0 failed
-- `type-check`, `type-check:tests:ratchet`, `check:routes` — clean
-- `lint:ratchet` — 1191 warnings against a 1193 ceiling (2 fewer than before)
-
-
-## Round 4 — verified in the running app, and the defects that found
-
-Everything before this was verified by tests and by HTML mocks. This round
-launched the real Expo build and drove it with Playwright, which is the only
-thing that finds presentation bugs. Screenshots are in `screenshots/app/`.
-
-Six defects, none of which any test would have caught:
-
-1. **The creator's title was truncated** — "Create Your Chara…". The shared
-   `OnboardingGlassHeader` clamps to one line, and every other onboarding
-   screen uses a two-word title. Renamed to "Create Character".
-2. **Randomize gave men long feminine hair.** `hairIndicesFor` now biases
-   GENERATION toward styles that read as the character's sex. The picker still
-   offers all 27 to everyone — gating a hairstyle by sex is the uniformity this
-   system exists to avoid. Verified: 0/400 generated male faces get a feminine
-   style.
-3. **Headwear flattened the ageing preview.** A beanie on the first face a
-   player sees hides the hair, so the 20/45/75 strip showed three identical
-   faces. Never generated now; still fully available in the picker.
-4. **Distressed brows.** `sadConcerned`, `sadConcernedNatural` and
-   `frownNatural` made generated characters look stricken — the same argument
-   already applied to the mouths. A STERN brow is a different thing and stays.
-5. **"Braided crown" is a FLOWER crown.** Renamed to what it renders.
-6. **The graphic tee stamped a logo across the chest.** Every available graphic
-   is a skull, a slogan or a pizza; pinned to the tamest it still read as a
-   game icon rather than clothing. Removed from the catalog — eight outfits
-   remain. `clothingGraphic` stays pinned as a guard against a future re-add.
-
-Also measured rather than assumed: avatar generation costs **0.4-0.6 ms and
-~6 KB per face**, so a 30-avatar contacts list is ~18 ms of work.
-
-Verification:
-
-- Real iOS production bundle — `expo export:embed --dev false` succeeds,
-  3 901 modules, **8.97 MB**, and none of the 29 unused DiceBear styles leaked
-- `npm test` — 534 suites, **6 749 passed**, 1 skipped, 0 failed
-- type-check, test-type ratchet, check:routes — clean
-- lint:ratchet — 1 191 warnings against a 1 193 ceiling
-
-## Not verified on a real device
-
-The web build was driven, not a simulator or hardware. Family-with-children,
-Contacts and the Pulse feed were not reached: they need a phone purchase and
-several game weeks, and a URL reload restarts the life. Those screens were
-swapped and unit-tested but have not been seen running.
-
-
-## Round 5 — depth and life
-
-The faces were professionally drawn but read as stickers, because the
-generated SVG contains **no gradient at all** — it is 100% flat fills. The
-plate behind the character had depth and the character did not, so the two
-never looked like they were in the same scene.
-
-`lib/avatar/depth.ts` injects four lighting overlays into the generated SVG,
-all serving the same upper-left key the plate already uses: a form shadow (what
-makes a head read as a sphere), a warm key bloom, a cool rim opposite it, and a
-contact occlusion so the character sits INTO the plate. No filters and no blend
-modes — `react-native-svg` support for both is uneven across iOS/Android/web,
-so every layer is a plain alpha gradient.
-
-Four treatments were rendered and compared before picking
-(`screenshots/avatar-depth-options.png`); the full set won clearly.
-
-"Alive" is two things, both opt-in via `alive` and OFF by default:
-
-- **Blink** — the same config re-rendered with `eyes: ['closed']`, held 120 ms
-  every 3.8-7.2 s. Both frames are built once, so a blink is a string swap.
-- **Breathe** — a 1.8% scale loop on the native driver.
-
-Default off matters: a contacts list mounts dozens of avatars, and dozens of
-timers is a battery and jank cost for motion nobody is looking at. It is on for
-the creator's hero and the identity card — the two avatars a screen is ABOUT.
-
-One bug, caught by looking at the render rather than by any test: the occlusion
-gradient ran dark-to-transparent DOWNWARD, which put a hard horizontal line
-across every character's chest and faded out exactly where the contact shadow
-belonged. It now fades in from the top and runs to the bottom edge. Two tests
-pin both halves.
-
-Verification: 534 suites / **6 756 passed**, type-check, test-type ratchet,
-routes clean, lint 1 191 vs 1 193, and the real iOS production bundle still
-succeeds at 8.97 MB.
-
-
-## Round 6 — framing and motion
-
-**Framing.** The art is drawn with headroom for a SQUARE crop; in a circle that
-headroom is dead space above the head, and the character reads as small and far
-away. `frameArt` scales the art about a point below centre, so the growth eats
-the headroom rather than the shoulders.
-
-The zoom is measured, not chosen by taste. `screenshots/avatar-zoom-safety.png`
-renders the eight tallest tops at four zooms: `bigHair`, `frida`'s flower crown
-and `winterHat02` start losing their tops at **1.16** and are plainly cut at
-**1.22**. Shipping **1.10** — cropping a player's hair is worse than a little
-headroom. A test pins the ceiling so nobody raises it without re-rendering.
-
-**Motion**, all on the native driver:
-
-| What | Where | Why |
-|---|---|---|
-| Entrance — fade + scale from 0.9 | hero avatar | the screen used to appear fully formed and inert |
-| Stagger — age checkpoints rise in sequence | 20/45/75 strip | reads as a life unrolling |
-| Pop — spring on any config change | hero avatar | a picker tap swapped the art instantly with no feedback that it landed |
-| Blink + breathe | hero, identity card | from round 5 |
-| `activeOpacity` 0.75 | all 7 controls | the RN default of 0.2 is a hard flash |
-
-One crash, caught by the suite rather than by eye: `Animated.multiply` is not
-part of the React Native surface the render tests mock, so the creator's whole
-tree died inside a ProviderBoundary. Two stacked `scale` transforms compose the
-same way with no dependency on it.
-
-Verification: 534 suites / **6 760 passed**, type-check, test-type ratchet,
-routes clean, lint 1 191 vs 1 193, real iOS production bundle 8.97 MB.
+# Plan — child proportions, release secrets, store screenshots
+
+Three asks. They have one ordering dependency: **children change what faces look
+like, so the store screenshots have to be recaptured after that lands**, not
+before. So the screenshots go last.
+
+(The avatar-revamp plan that lived here shipped in #122.)
+
+---
+
+## 1. Children read as small adults
+
+### What is actually true
+
+The previous note said this "needs a commissioned child art set, not code".
+That is right about the ceiling and wrong about the floor — there IS real
+headroom in code, and it was never measured. Two findings from probing the
+generated art:
+
+- **The art's layer groups are stable.** Every configuration tested — nine of
+  them, across clothing, hats, long hair, beards, glasses and bald — emits the
+  same eight top-level groups with byte-identical transforms:
+  `translate(0 170)` body, `translate(78 134)` mouth, `translate(104 122)` nose,
+  `translate(76 90)` eyes, `translate(76 82)` brows, then facial hair, hair and
+  accessories. So the features can be moved as layers without touching a path.
+- **The body is irrelevant.** At the shipped crop (head centred, zoom 1.10) the
+  shoulders are almost entirely outside the circle, so head-to-shoulder ratio —
+  the textbook child cue — buys nothing here. Every usable cue is in the head.
+
+### The lever
+
+Cranial ratio, expressed as **where the eye line sits**. Adult eyes sit at the
+vertical middle of the head; an infant's sit far lower, because the cranium
+above them is huge relative to the face. Measured: skull top 36, chin 173, so
+the adult eye line is 104.5 and an infant's is ~120.
+
+- [x] Probe the art's group structure and confirm it is stable
+- [x] Render today vs three strengths across ages 1/4/8/12/16/30 and pick one
+      (`screenshots/avatar-child-proportions.png` — C reads youngest with no
+      distortion: eye line 120, feature cluster 0.80, eyes +20%)
+- [x] `lib/avatar/proportions.ts` — pure, no art import, degrades to the input
+      unchanged when a group is not found
+- [x] Wire into `VectorAvatar` before `frameArt`
+- [x] Tests: the ramp, monotonicity, the no-op at adult ages, graceful
+      degradation — plus one test that pins the group offsets against the REAL
+      generated art, so a DiceBear bump fails loudly instead of silently
+      turning the effect off
+- [x] Verify in the running app on a family with children
+
+### Two bugs the verification turned up, both fixed
+
+Neither was the ask. Both are "a child renders wrong", found by looking at the
+real app rather than at the module.
+
+- [x] **Grey hair on a newborn, third occurrence.** `HAIR_COLORS` is only a
+      continuous ramp for its first nine entries — naturals 0-8, then GREY (9)
+      and WHITE (10), then four dyed. `inherit.ts` blended across that boundary,
+      so a brown-haired parent (3) and a green-haired one (13) produced a child
+      at 9 or 10. Inheritance now reads only the parents' NATURAL colours. Dye
+      is not heritable, which the file already argued for facial hair and
+      clothing. Asserted as a property over all 225 parent pairings, because
+      the two previous fixes for this image were both defeated by a later
+      change to the numbers.
+- [x] **One child, two faces.** `CharacterAvatar` falls back to a seeded face
+      when `parents` is absent, and `ContactsApp` never passed it — so the same
+      child was green-haired in Contacts and blonde on the Family tab, in one
+      save, in one session. That is the "my character turned into someone else"
+      defect the revamp exists to kill, across screens instead of across ages.
+      Wired, plus a coverage test over all four screens that render children.
+      **`FamilyTreeModal` deliberately left alone**: it renders a whole lineage
+      keyed by its own ids, so handing every node the CURRENT player's parents
+      would be wrong for all but one generation.
+
+**Stated plainly in the deliverable:** this is proportion, not new art. It makes
+a child read as a child; it does not give the style baby geometry. The ceiling
+is still a commissioned child set.
+
+---
+
+## 2. `EXPO_PUBLIC_RC_IOS_KEY` and `EXPO_PUBLIC_SAVE_HMAC_KEY`
+
+Not a code change — a runbook. The two keys are opposite in kind and that is
+the thing worth being explicit about:
+
+- **`EXPO_PUBLIC_RC_IOS_KEY`** is *fetched* from RevenueCat. It is a publishable
+  key that ships inside the binary.
+- **`EXPO_PUBLIC_SAVE_HMAC_KEY`** is *generated* by us and must never be
+  regenerated once saves are signed with it, or every existing save fails its
+  signature.
+
+- [x] Read what the code actually does with each before writing a word about them
+      (`services/RevenueCatService.ts` `apiKey()`, `utils/saveSigningConfig.ts`,
+      `scripts/preflightSaveSigning.js`, preflight §8/§9)
+- [x] Write the step-by-step into `docs/RELEASE_SECRETS.md`
+- [x] Check the preflight sections that gate on them so the doc matches the
+      failure messages a build actually produces. Two things worth recording
+      that came out of reading rather than assuming: preflight only checks the
+      HMAC key is PRESENT, not that it is strong (a value of `x` passes, so the
+      `openssl rand` step is what makes it real); and the screenshot-capture
+      env vars are themselves hard §8 failures, so running preflight in the
+      same shell fails with a message that names the variable, not the shell.
+
+---
+
+## 3. Recapture the store screenshots
+
+Guideline 2.3.3 — the screenshots must depict the app as it now is, and every
+face in every shot changed.
+
+Pipeline is already documented in `screenshots/appstore-2026/README.md`:
+web export → serve → `capture-rich-state.mjs` (28 real gameplay captures, via
+Dev Tools to a rich late-game save) → `generate-appstore-2026-set.mjs` (iPhone
+6.9" + 6.5") → `generate-appstore-2026-ipad.mjs` (13" iPad).
+
+- [x] Export the web build with devtools enabled
+- [x] **Fix the capture script, which was stale in three places.** It waited for
+      `New Game` on the menu — a label that only exists once a save EXISTS; a
+      fresh profile shows `Play` / `Custom life`, so every run hung to its 120s
+      timeout. It waited for `Create Identity`, since renamed `Create Character`.
+      And it matched the market's Computer row on `$5000`, the item's BASE
+      price, while the market applies inflation — by that point in a rich run
+      the card reads $5,300.
+- [x] **Make the silent failure loud.** The market miss meant the computer was
+      never bought, so the desktop launcher never appeared, so six shots were
+      never written — and the PREVIOUS run's files stayed on disk. The set was
+      being rebuilt from a mix of new and stale captures with nothing red
+      anywhere: the exact Guideline 2.3.3 problem, reintroduced by the tool
+      meant to fix it. The script now throws if the launcher is missing.
+- [ ] Re-run the rich capture, iPhone and iPad
+- [ ] Regenerate all three output sets
+- [ ] Look at every regenerated frame before claiming it is done — a capture
+      that silently landed on the wrong screen is the failure mode here
+
+---
+
+## Gates before pushing
+
+- [ ] `npx jest --ci`
+- [ ] `npm run type-check` + `type-check:tests:ratchet`
+- [ ] `node scripts/check-lint.js`
+- [ ] `npm run check:routes`
+- [ ] `npx expo export:embed` (production bundle)

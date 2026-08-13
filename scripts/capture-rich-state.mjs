@@ -102,6 +102,44 @@ const SHOT_ORDER = [
   'x-company', 'x-darkweb', 'x-crypto', 'x-realestate', 'x-garage', 'x-luxury',
   'x-politics', 'x-travel', 'x-streaming', 'x-youvideo', 'home-final',
 ];
+/**
+ * Empties the weekly-decision inbox.
+ *
+ * The 104 weeks of skipping that build the rich state also queue ~12 events,
+ * and the tab layout floats a "12 decisions waiting" pill until they are dealt
+ * with. It is not transient: it sat in EVERY capture, so the composed store
+ * frames showed it on all three phones at once, and on the Home tab it landed
+ * on top of the daily-gems banner with the two texts overlapping.
+ *
+ * Resolved the way a player would — open the pill, take a choice, repeat —
+ * rather than hidden from the DOM. A store screenshot has to be a state the
+ * app can actually be in.
+ */
+async function clearDecisions(page) {
+  for (let round = 0; round < 40; round++) {
+    const t = await allText(page);
+    const pill = /(\d+ decisions waiting|A decision is waiting)/.exec(t);
+    if (!pill) break;
+    if (!(await clickText(page, pill[1], { wait: 1200 }))) break;
+    // Take a choice. Any choice resolves the event, so this picks the LOWEST
+    // button on screen — the choice list sits at the bottom of the sheet,
+    // below the effects preview.
+    const took = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll('[role="button"]')]
+        .map((el) => ({ el, r: el.getBoundingClientRect() }))
+        .filter(({ el, r }) => r.width > 80 && r.height > 20 && (el.getAttribute('aria-label') || '').length > 2);
+      if (!buttons.length) return false;
+      buttons.sort((a, b) => b.r.top - a.r.top);
+      buttons[0].el.click();
+      return true;
+    });
+    if (!took) break;
+    await sleep(1100);
+  }
+  const left = /(\d+ decisions waiting|A decision is waiting)/.test(await allText(page));
+  console.log('decisions cleared?', !left);
+}
+
 async function shot(page, name) {
   await chewLifeMoments(page);
   // dismiss the ad-reward orb if it floated back in
@@ -156,21 +194,29 @@ async function main() {
   page.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 250)));
   console.log('Loading', URL);
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 180000 });
-  if (!(await waitFor(page, 'New Game', 120000))) throw new Error('menu never appeared');
+  // A FRESH profile has no save, so the menu reads "Play" (primary, skips
+  // setup) + "Custom life" (secondary, the full flow we want). "New Game" is
+  // the label the secondary card takes only once a save EXISTS — waiting for
+  // it here hung until the 120s timeout on every run.
+  if (!(await waitFor(page, 'Custom life', 120000))) throw new Error('menu never appeared');
   await sleep(2000);
 
   // ---- Onboarding
-  await clickText(page, 'New Game', { wait: 2000 });
+  await clickText(page, 'Custom life', { wait: 2000 });
   await waitFor(page, 'Choose Scenario', 45000);
   await sleep(2500);
   let inIdentity = false;
   for (let i = 0; i < 5 && !inIdentity; i++) {
     await clickText(page, 'Food Courier');
     await clickText(page, 'Continue To Identity', { wait: 2000 });
-    inIdentity = await waitFor(page, 'Create Identity', 6000);
+    // The screen's title, which the rebuilt creator shortened from
+    // "Create Your Character" (the shared header clamps to one line).
+    inIdentity = await waitFor(page, 'Create Character', 6000);
   }
   if (!inIdentity) throw new Error('stuck on scenario');
-  await clickText(page, 'Shuffle');
+  // Rebuilt creator: the dice button is "Randomize" and it rolls the whole
+  // face, not just the name. "New name" is the name-only shuffle.
+  await clickText(page, 'Randomize');
   await clickText(page, 'Continue To Ambitions', { wait: 2200 });
   await clickText(page, 'Build a Business Empire', { wait: 1000 });
   await clickText(page, 'Continue To Perks', { wait: 2200 });
@@ -252,7 +298,10 @@ async function main() {
 
   // Clean exit from all modals: reload and continue from the saved slot
   await page.goto(URL + '/', { waitUntil: 'domcontentloaded' });
-  await waitFor(page, 'New Game', 60000);
+  // The badge on the Continue card. A better signal than any menu label: it
+  // only renders once the menu has actually READ the save, which is the thing
+  // the next click depends on.
+  if (!(await waitFor(page, 'SAVED PROGRESS', 60000))) throw new Error('menu never saw the save');
   await sleep(2500);
   console.log('MENU:', JSON.stringify((await text(page)).slice(0, 300)));
   await clickText(page, 'Continue', { exact: true, wait: 5000 });
@@ -267,6 +316,10 @@ async function main() {
   }
   await dismissPopups(page);
   console.log('STATE:', JSON.stringify((await text(page)).slice(0, 300)));
+
+  // Empty the decision inbox before anything is photographed — see
+  // `clearDecisions`. Must run BEFORE the first shot, not after.
+  await clearDecisions(page);
 
   // Dismiss the ad-reward orb and let toasts/reward chips fade
   await clickAriaLast(page, 'Dismiss', { wait: 800 });
@@ -312,12 +365,22 @@ async function main() {
   await clickText(page, 'Market', { exact: true, wait: 2500 });
   await shot(page, 'life-market');
   console.log('MARKET:', JSON.stringify((await text(page)).slice(0, 1200)));
-  // buy the computer: find the market row containing "Computer" + "$5000" and
-  // click the Buy button inside that row
+  // Buy the computer: find its market row and click the Buy button inside it.
+  //
+  // Matched on the DESCRIPTION, case-insensitively, and never on the price.
+  // The original matcher looked for "$5000", the item's BASE price — but the
+  // market applies inflation, so by this point in a rich-state run the card
+  // reads $5,300 and nothing matches. The whole desktop-launcher half of the
+  // capture then silently fell back to photographing the phone's app grid.
+  //
+  // The row reads: "Recommended Unlocks Features Computer Unlocks Desktop
+  // Apps, Crypto, Real Estate, Gaming $5000 Buy" — note the capitals, which
+  // cost a second run on their own.
   const bought = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('div')].filter(d => {
       const t = d.textContent || '';
-      return t.includes('Computer') && t.includes('$5000') && t.includes('Buy') && t.length < 400;
+      return /computer/i.test(t) && /unlocks desktop apps/i.test(t)
+        && t.includes('Buy') && t.length < 400;
     });
     // smallest matching container = the row card
     rows.sort((a, b) => (a.textContent || '').length - (b.textContent || '').length);
@@ -348,6 +411,25 @@ async function main() {
   await page.mouse.wheel(0, -3000); await sleep(800);
   await shot(page, 'desktop');
   console.log('DESKTOP:', JSON.stringify((await text(page)).slice(0, 1600)));
+
+  // Fail loudly if the launcher never appeared.
+  //
+  // Without this the run "succeeds": every desktop-only app logs NOT FOUND, the
+  // six shots that need them are simply never written, and the PREVIOUS run's
+  // files stay on disk — so the marketing set is rebuilt from a mix of new and
+  // stale captures with nothing red anywhere. That is precisely the Guideline
+  // 2.3.3 problem the recapture exists to fix, reintroduced by the tool meant
+  // to fix it. `Dark Web` is the check because it is desktop-only; Hustle and
+  // Crypto also exist on the phone, so finding them proves nothing.
+  await page.mouse.wheel(0, 1100); await sleep(700);
+  const launcherUp = (await allText(page)).includes('Dark Web');
+  await page.mouse.wheel(0, -3000); await sleep(700);
+  if (!launcherUp) {
+    throw new Error(
+      'Desktop launcher missing — the computer purchase did not land, so 6 shots '
+      + 'would silently keep their stale files. Check the market row matcher.'
+    );
+  }
   const desktopApps = [
     ['Hustle', 'company'], ['Dark Web', 'darkweb'], ['Crypto', 'crypto'],
     ['Real Estate', 'realestate'], ['Garage', 'garage'], ['Luxury', 'luxury'],

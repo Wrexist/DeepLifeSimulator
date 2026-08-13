@@ -28,7 +28,15 @@ export const SKIN_TONES: string[] = [
   '#4A2B15',
 ];
 
-/** 16 hair colours: naturals first (0-11), then dyed. */
+/**
+ * 15 hair colours in three runs, and the boundaries matter more than the count:
+ * **naturals 0-8**, then **grey (9) and white (10)**, then **four dyed (11-14)**.
+ *
+ * Only the first run is a continuous ramp. Blending two indices is meaningful
+ * inside it and meaningless across it — halfway between brown and green is
+ * grey, which is how a newborn ended up grey-haired via `inherit.ts`. Anything
+ * that interpolates here must clamp to `NATURAL_HAIR_COUNT` first.
+ */
 export const HAIR_COLORS: string[] = [
   '#2C1B18',
   '#4A312C',

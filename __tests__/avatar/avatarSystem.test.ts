@@ -388,6 +388,69 @@ describe('inheritance', () => {
     );
   });
 
+  it('never gives a child grey, white or dyed hair', () => {
+    // The palette runs naturals 0-8, then GREY (9) and WHITE (10), then four
+    // dyed colours — so it is only a continuous ramp inside the first run.
+    // Blending across the boundary is what put grey hair on a NEWBORN: a
+    // brown-haired parent (3) and a green-haired one (13) blended toward a
+    // "dominant dark" midpoint land on 9 or 10. Third occurrence of that image
+    // in this repo, third distinct cause. Asserted as a PROPERTY over every
+    // parent pairing rather than against a fixed index, because the previous
+    // two fixes were both defeated by a later change to the numbers.
+    for (let a = 0; a < HAIR_COLORS.length; a++) {
+      for (let b = 0; b < HAIR_COLORS.length; b++) {
+        const mum = { ...mother, hairColor: a };
+        const dad = { ...father, hairColor: b };
+        for (let i = 0; i < 6; i++) {
+          const child = inheritAvatar(mum, dad, `pair-${a}-${b}-${i}`, i % 2 ? 'male' : 'female');
+          expect(child.hairColor).toBeLessThan(NATURAL_HAIR_COUNT);
+        }
+      }
+    }
+  });
+
+  it('takes the natural parent\'s colour when the other is dyed', () => {
+    // One dyed parent carries no heritable colour, so the other parent's is
+    // the whole of the evidence — inventing a midpoint between them is what
+    // reached grey.
+    for (let dyed = NATURAL_HAIR_COUNT; dyed < HAIR_COLORS.length; dyed++) {
+      const child = inheritAvatar(
+        { ...mother, hairColor: 2 },
+        { ...father, hairColor: dyed },
+        `dyed-${dyed}`,
+        'female'
+      );
+      expect(child.hairColor).toBe(2);
+    }
+  });
+
+  it('still blends normally when both parents are natural', () => {
+    // The fix must not flatten ordinary inheritance to one parent's value.
+    const seen = new Set<number>();
+    for (let i = 0; i < 60; i++) {
+      seen.add(inheritAvatar(
+        { ...mother, hairColor: 1 },
+        { ...father, hairColor: 7 },
+        `blend-${i}`,
+        'female'
+      ).hairColor);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+    for (const value of seen) {
+      expect(value).toBeGreaterThanOrEqual(1);
+      expect(value).toBeLessThanOrEqual(7);
+    }
+  });
+
+  it('keeps a parentless child out of the dyed range too', () => {
+    // This branch returns a seeded face, and `avatarFromSeed` rolls dye on ~8%
+    // of faces — right for an adult picking a look, wrong for a five-year-old.
+    for (let i = 0; i < 200; i++) {
+      const child = inheritAvatar(undefined, undefined, `orphan-${i}`, i % 2 ? 'male' : 'female');
+      expect(child.hairColor).toBeLessThan(NATURAL_HAIR_COUNT);
+    }
+  });
+
   it('keeps skin tone between the parents', () => {
     const low = Math.min(mother.skinTone, father.skinTone);
     const high = Math.max(mother.skinTone, father.skinTone);

@@ -10,7 +10,7 @@
  * Deterministic in the child's id, so a child looks the same on every load and
  * nothing has to be stored per child.
  */
-import { HAIR_COLORS, SKIN_TONES } from './palette';
+import { NATURAL_HAIR_COUNT, SKIN_TONES } from './palette';
 import { avatarFromSeed, hashSeed, makeRng, normalizeAvatar } from './random';
 import { CATALOG_SIZES, FACIAL_HAIR } from './style';
 import type { AvatarConfig, AvatarSex } from './types';
@@ -33,7 +33,14 @@ export function inheritAvatar(
   // With no parent on record there is nothing to inherit from; a seeded face
   // is the honest answer and still stable for that child.
   if (!motherConfig && !fatherConfig) {
-    return avatarFromSeed(childSeed, childSex);
+    const seededOnly = avatarFromSeed(childSeed, childSex);
+    // `avatarFromSeed` rolls a dyed colour on ~8% of faces, which is right for
+    // an adult picking a look and wrong for a five-year-old. Folding it back
+    // into the naturals keeps the face deterministic in the same seed.
+    if (seededOnly.hairColor >= NATURAL_HAIR_COUNT) {
+      seededOnly.hairColor %= NATURAL_HAIR_COUNT;
+    }
+    return seededOnly;
   }
 
   const mother = motherConfig ?? fatherConfig!;
@@ -72,7 +79,7 @@ export function inheritAvatar(
     // Hair STYLE is a haircut, not a trait — a child does not inherit their
     // parent's bob. Colour is the heritable half.
     hairStyle: seeded.hairStyle,
-    hairColor: dominantDark(mother.hairColor, father.hairColor, HAIR_COLORS.length),
+    hairColor: inheritHairColor(mother.hairColor, father.hairColor, seeded.hairColor, rng, dominantDark),
     browShape: either(mother.browShape, father.browShape),
     eyeShape: either(mother.eyeShape, father.eyeShape),
     mouthShape: either(mother.mouthShape, father.mouthShape),
@@ -89,6 +96,46 @@ export function inheritAvatar(
   };
 
   return normalizeAvatar(child);
+}
+
+/**
+ * Hair colour, kept inside the NATURAL half of the palette.
+ *
+ * Dye is not heritable — it is a grooming choice, like the facial hair and the
+ * clothing this file already refuses to pass down. But the bug this actually
+ * closes is worse than a dyed baby.
+ *
+ * `HAIR_COLORS` runs naturals 0-8, then GREY (9) and WHITE (10), then four
+ * dyed colours. Blending an index toward the midpoint is only meaningful while
+ * both ends are on the same ramp, and this one crossed it: a brown-haired
+ * parent (3) and a green-haired parent (13) blended to a "dominant dark"
+ * midpoint land on 9 or 10 — grey or white hair on a NEWBORN. That is the same
+ * image this repo has already shipped twice from two different causes
+ * (`tasks/lessons.md`), arriving here through a third door.
+ *
+ * So: read only the parents' natural colours, and blend only between those.
+ */
+function inheritHairColor(
+  motherHair: number,
+  fatherHair: number,
+  seededHair: number,
+  rng: () => number,
+  dominantDark: (a: number, b: number, len: number) => number
+): number {
+  const natural = [motherHair, fatherHair].filter((index) => index < NATURAL_HAIR_COUNT);
+
+  // Both ends on the ramp — the blend means what it says.
+  if (natural.length === 2) return dominantDark(natural[0], natural[1], NATURAL_HAIR_COUNT);
+
+  // One dyed parent carries no heritable colour, so the other parent's is the
+  // whole of the evidence. Taking it outright beats inventing a midpoint.
+  if (natural.length === 1) return natural[0];
+
+  // Both dyed: nothing to read at all. Fall back to the child's own seed so
+  // the face stays deterministic, folded into the naturals.
+  return seededHair < NATURAL_HAIR_COUNT
+    ? seededHair
+    : Math.floor(rng() * NATURAL_HAIR_COUNT) % NATURAL_HAIR_COUNT;
 }
 
 function inheritAccessory(a: number, b: number, rng: () => number): number {
