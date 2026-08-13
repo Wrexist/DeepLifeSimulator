@@ -2393,3 +2393,51 @@ every save whose influence came from enacting policies rather than retainers.
 **A refactor that moves a mechanic off a stat is a nerf to everyone already
 holding that stat.** No `STATE_VERSION` bump was needed: specialties are
 catalogue data keyed by lobbyist id, so nothing new is persisted.
+
+---
+
+## 2026-08-13 — A gate can be a deadlock, and "monotonic" is a claim you have to test
+
+**Report.** A player 52 weeks in, $3,000, employed: "Cannot redeem weekly
+reward, can't use features of smartphone and PC." Save validated clean, zero
+error logs. Nothing had crashed — the save was simply parked at unlock tier 2
+with twelve of the phone/PC apps padlocked, and the weekly challenge showing a
+reward whose objectives that tier gave no route to.
+
+**What went wrong.** Two separate faults in `lib/progress/featureUnlocks.ts`
+and `lib/progress/lifeChapters.ts`, either of which alone would have been
+survivable.
+
+1. **The progression spine was circular.** Chapter 3's goal is "buy your first
+   stock or property" while `app:stocks` and `app:realestate` were tier 3 —
+   *finish chapter 3*. Chapter 4's is "own a company" while `app:company` was
+   tier 4. Neither chapter could be completed through the chapter path at all.
+2. **The one escape route slid backwards.** `unlockTier`'s milestone fallback
+   read `stats.money + bankSavings`, the current LIQUID balance, so spending
+   lowered the tier. Buying a $200k property re-locked the Real Estate app that
+   manages it. The file's own header said "NOTHING IS EVER TAKEN AWAY —
+   `unlockTier` is monotonic in progress". It was not, and no test asserted it:
+   the nearest one ("losing money never takes a tab away") pinned the *chapter*
+   axis while leaving the milestone axis untested.
+
+**The patterns.**
+
+- **A comment asserting an invariant is a TODO for a test.** Rule 2 had been
+  written down, believed and quoted for months. The property is one assertion
+  wide — `unlockTier(after) >= unlockTier(before)` across a spend — and nobody
+  wrote it, so the claim aged into documentation of something false.
+- **Derived-not-stored does not mean derived-from-anything.** Deriving unlock
+  state from live state was the right call (no migration can guess what a save
+  already had). But a derived value inherits its source's shape: derive a
+  monotonic property from a balance and you get a non-monotonic property. The
+  fix keeps it derived and swaps the source for one that is already monotonic
+  and already persisted — `lifetimeStatistics.peakNetWorth`, maintained every
+  tick by `applyLifetimeStatistics`. No new field, no migration, no guess.
+- **Check gates for cycles the moment a goal names a surface.** "Complete X to
+  unlock Y" plus "Y is how you do X" is invisible in either table on its own;
+  it only shows up when you read them together. The guard is now a test that
+  walks the goal table and fails if any goal's required app is gated at or
+  above that goal's own chapter tier.
+- **A clean validation report is a finding, not a dead end.** Valid save, no
+  errors, no warnings — which ruled out corruption and pointed straight at
+  logic that was working exactly as written.

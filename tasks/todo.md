@@ -97,3 +97,48 @@ New coverage: `lib/politics/__tests__/lobbyistSpecialty.test.ts` (18) and
 Left deliberately untouched: `VoteCard` still prints the sticker price, because
 it renders bills that are ALREADY enacted — a discount quote on a historical
 purchase would be noise.
+
+---
+
+## Player report 2026-08-13 — "cannot redeem weekly reward, can't use features of smartphone and PC"
+
+Save: week 1 / weeksLived 52, age 19, job `graphic_designer`, money $3,000,
+bank $0, prestige 0, generation 1, edu 0. Validation clean, no error logs — so
+nothing crashed. The player is *gated*, not broken.
+
+`unlockTier` (`lib/progress/featureUnlocks.ts`) puts that save at tier 2:
+no chapter flags past 2, `weeksLived` 52 < the 120-week veteran hatch, and the
+milestone fallback reads `stats.money + bankSavings` = $3,000. At tier 2 the
+app grid padlocks Stocks, Real Estate, Bitcoin, Vehicle, Travel, Company,
+Gaming, Streaming, Statistics, Onion, Political and Luxury — twelve of the
+phone/PC apps. That is the second complaint verbatim, and the weekly-challenge
+card is the first: its objectives are wealth/asset gated, so a player parked at
+tier 2 watches a reward they have no route to.
+
+Three defects behind it:
+
+- [x] **A. The chapter spine is circular.** `ch3_invest` requires owning a stock
+      or a property, but `app:stocks` / `app:realestate` are tier 3 = "Finish
+      Chapter 3". `ch4_business` requires a company, but `app:company` is
+      tier 4 = "Finish Chapter 4". Neither chapter can be completed through the
+      chapter path; the only escape is the cash milestone.
+- [x] **B. `unlockTier` is not monotonic**, despite Rule 2 in its own header
+      promising nothing is ever taken away. The milestone axis reads current
+      liquid cash, so spending re-locks apps — buy a $200k property at tier 3
+      and the Real Estate app that manages it padlocks itself. Assets do not
+      count at all.
+- [x] **C. Chapter money goals are balance snapshots**, not the cumulative
+      figures their titles claim ("Earn $500", "Net Worth $50K" both read
+      `money + bankSavings`). `applyChapterProgress` needs every goal true in
+      the SAME tick, so a player who spends as they earn can miss a chapter
+      permanently.
+
+Fix:
+- [x] `wealthMark()` in `lifeChapters.ts` — max of liquid, live net worth and
+      `lifetimeStatistics.peakNetWorth` (already persisted, already monotonic,
+      already written every tick). Derived, no new field, no migration.
+- [x] Both the chapter money goals and `unlockTier`'s milestones read it.
+- [x] Re-tier `app:stocks` / `app:realestate` 3 → 2 and `app:company` 4 → 3, so
+      the app a chapter goal needs is open one tier below that chapter.
+- [x] Regression tests, including a table-driven guard that no chapter goal can
+      require an app gated at or above that chapter's own tier.
