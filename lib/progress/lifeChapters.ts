@@ -11,6 +11,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
+import { outstandingDebt } from '@/lib/progress/wealthRatchet';
 import { logger } from '@/utils/logger';
 
 const num = (v: unknown): number =>
@@ -40,8 +41,14 @@ let netWorthFailureLogged = false;
  * persisted and already `max(previous, thisWeek)` in `applyLifetimeStatistics`,
  * so this stays DERIVED, with no new field and no migration. Live net worth is
  * folded in so a purchase made this week counts before the next tick stamps the
- * peak, and the raw liquid balance is kept so a save whose statistics have not
- * been written yet still tiers up.
+ * peak, and the liquid balance is kept so a save whose statistics have not been
+ * written yet still tiers up.
+ *
+ * All three terms are net of outstanding loans. They did not use to be: the
+ * liquid one was a raw balance, and `LoanActions` credits the whole principal to
+ * `stats.money`, so borrowing read as getting richer. It satisfied "Save $2,000"
+ * outright and bought unlock tiers — and once the ratchet made the mark
+ * permanent, it bought them for good.
  *
  * Note what the `max` does and does not give you. Only the `peak` term is
  * monotonic, so the result is monotonic only DOWN TO `peak` — while a live term
@@ -58,7 +65,13 @@ let netWorthFailureLogged = false;
 export function wealthMark(state: GameState | undefined | null): number {
   if (!state) return 0;
 
-  const liquid = num(state.stats?.money) + num(state.bankSavings);
+  // Net of outstanding loans. `LoanActions` credits the full principal to
+  // `stats.money`, so a raw balance counted borrowed cash as progress: a loan
+  // satisfied "Save $2,000" and bought unlock tiers outright. The other two
+  // terms were already debt-adjusted — `netWorth` subtracts the same
+  // `remaining ?? principal` figure, and the ratchet now does too — so this was
+  // the last place borrowed money read as wealth.
+  const liquid = Math.max(0, num(state.stats?.money) + num(state.bankSavings) - outstandingDebt(state));
   const peak = num(state.lifetimeStatistics?.peakNetWorth);
 
   // `netWorth` walks holdings, property, luxury and debt. It is pure, but this
@@ -157,7 +170,7 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
       {
         id: 'ch2_save_2k',
         title: 'Save $2,000',
-        description: 'Have $2,000 in cash or savings',
+        description: 'Have $2,000 more than you owe',
         checkComplete: (s) => wealthMark(s) >= 2000,
         checkProgress: (s) => Math.min(1, wealthMark(s) / 2000),
       },
@@ -171,6 +184,27 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
       {
         id: 'ch2_make_friend',
         title: 'Make a Friend',
+        /**
+         * Counts EVERY relationship, including the Mom and Dad `initialState`
+         * seeds — so this reads as complete on a brand-new life. That looks
+         * like a bug, and the sibling ambition system tightened the equivalent
+         * check for exactly that reason (`lib/ambitions/catalog.ts`: "Exclude
+         * the starting parents ... so 'Make a Connection' doesn't auto-complete
+         * at birth"). Do not copy it here.
+         *
+         * The permissive count is LOAD-BEARING. A chosen relationship comes
+         * from Spark (tier 2) or a network-favour introduction, and
+         * `FAVOR_KIND_BY_CONTACT` only offers an intro on a `business` contact
+         * — personal kinds are excluded on purpose. A player working on chapter
+         * 2 is at tier 1 with two parents and no business contacts, so Spark is
+         * the only route, and finishing chapter 2 is what UNLOCKS Spark.
+         * Tightening this deadlocks the chapter: rule 3 in `featureUnlocks.ts`,
+         * and the trap a player was stranded in on 2026-08-13.
+         *
+         * Making it a real goal means shipping a visible tier-1 way to meet
+         * someone in the same change. Pinned by
+         * `__tests__/onboarding/wealthRatchet.test.ts`.
+         */
         description: 'Start a relationship with someone',
         checkComplete: (s) => (s.relationships?.length || 0) > 0,
         checkProgress: (s) => (s.relationships?.length || 0) > 0 ? 1 : 0,

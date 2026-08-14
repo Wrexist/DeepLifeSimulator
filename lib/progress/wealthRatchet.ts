@@ -33,13 +33,13 @@
  *
  * ── Why liquid only ───────────────────────────────────────────────────────
  *
- * This runs on EVERY state write, so it has to be O(1). `stats.money +
- * bankSavings` is two field reads; walking holdings, property, vehicles, luxury
- * and debt is not, and the memo in `achievements.netWorth` is keyed on object
+ * This runs on EVERY state write, so it has to stay cheap. `stats.money +
+ * bankSavings` is two field reads and the loan subtraction below is a walk over
+ * a list that is empty or tiny; walking holdings, property, vehicles, luxury and
+ * card debt is not, and the memo in `achievements.netWorth` is keyed on object
  * identity, so a state write misses it by construction. The asset side is
  * already covered once a week by `applyLifetimeStatistics`, which stamps the
- * full `calculateNetWorth`. Between them the mark tracks both, and the term this
- * one contributes is exactly the `liquid` term `wealthMark` reads.
+ * full `calculateNetWorth`. Between them the mark tracks both.
  *
  * ── Why it reads only the NEW state ───────────────────────────────────────
  *
@@ -56,6 +56,51 @@ const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
 
 /**
+ * What is still owed on outstanding loans.
+ *
+ * Subtracted from the balance below, because `LoanActions` credits the FULL
+ * principal to `stats.money` when a loan is taken. Without this, borrowing
+ * stamped a wealth high the player had not earned — and because the mark is
+ * permanent, so was the unlock tier it bought. Loan size is capped by a 43%
+ * debt-to-income rule rather than a flat limit, so a newly-employed character
+ * can carry roughly $10k of principal: enough to bank tier 3 in week 5 and skip
+ * three chapters of progressive disclosure for good. Before the mark existed
+ * that unlock was self-correcting (spend the principal and it went away), so
+ * this is a regression the ratchet introduced and has to close.
+ *
+ * Credit-card balances are deliberately NOT counted. Card spending never
+ * credits `stats.money`, so a card cannot inflate the mark in the first place,
+ * and subtracting the balance would suppress a legitimate mark for a player who
+ * simply pays with a card and clears it.
+ *
+ * `remaining` is the live figure; `principal` is the fallback for a loan written
+ * before `remaining` was populated — the same pair `achievements.netWorth`
+ * subtracts, and now with the same NULLISH boundary it uses. Exported so
+ * `wealthMark` reads this one definition rather than growing a second copy.
+ */
+export const outstandingDebt = (state: GameState): number => {
+  const loans = state.loans;
+  if (!Array.isArray(loans)) return 0;
+  let total = 0;
+  for (const loan of loans) {
+    if (!loan) continue;
+    // `remaining` is authoritative WHENEVER IT IS A NUMBER, including 0.
+    // Falling back on a falsy check — which is what this did — reads a fully
+    // repaid loan still sitting in the array as its whole original principal,
+    // permanently suppressing the mark and the unlock tier it holds up. The
+    // comment above claimed this matched `achievements.netWorth`; it did not.
+    // That one uses `remaining ?? principal`, and `??` and a truthiness test
+    // differ at exactly one value: zero. Caught in review.
+    if (typeof loan.remaining === 'number' && Number.isFinite(loan.remaining)) {
+      total += Math.max(0, loan.remaining);
+    } else {
+      total += num(loan.principal);
+    }
+  }
+  return total;
+};
+
+/**
  * Raise `lifetimeStatistics.peakNetWorth` to the liquid balance when the balance
  * is higher. Returns the SAME object when there is nothing to raise, so the
  * common path allocates nothing and callers can keep their identity checks.
@@ -68,7 +113,12 @@ export function ratchetWealthPeak(next: GameState): GameState {
   const stats = next?.lifetimeStatistics;
   if (!stats) return next;
 
-  const liquid = num(next.stats?.money) + num(next.bankSavings);
+  // Net of what is owed — see `outstandingDebt`. Floored at 0 so a player
+  // deep in debt records no mark rather than a negative one.
+  const liquid = Math.max(
+    0,
+    num(next.stats?.money) + num(next.bankSavings) - outstandingDebt(next),
+  );
   if (!(liquid > num(stats.peakNetWorth))) return next;
 
   return {

@@ -100,6 +100,16 @@ function politicsEducationPerks(state: GameState): {
 }
 
 /**
+ * The unspent tuition credit on a save, bounded like every other persisted
+ * money-ish field read here — a corrupt or hand-edited value must not buy a
+ * $180k doctorate. Absent means none, which is every save before v41.
+ */
+function tuitionWaiver(state: GameState): number {
+  const n = Number(state.tuitionWaiverUSD);
+  return Number.isFinite(n) ? Math.max(0, Math.min(MAX_POLICY_SCHOLARSHIP_USD, n)) : 0;
+}
+
+/**
  * Quote what enrolling in a program would cost, including scholarship + loan options.
  * Pure read; doesn't touch state.
  */
@@ -110,6 +120,10 @@ export function quoteEnrollment(
   cost: number;
   netCost: number;
   scholarship: ReturnType<typeof quoteScholarship>;
+  /** Credit consumed by this enrolment. */
+  waiverSpentUSD: number;
+  /** Credit left over afterwards. */
+  waiverRemainingUSD: number;
   /** Cash on hand. */
   cash: number;
   /** Can the player pay up-front? */
@@ -126,11 +140,16 @@ export function quoteEnrollment(
     tuitionCost: template.cost,
     politicsScholarshipUSD: perks.scholarshipAmount,
     politicsCostReduction: perks.costReduction,
+    // The poverty-recovery scholarship, if one is banked and unspent.
+    awardScholarshipUSD: tuitionWaiver(state),
   });
   return {
     cost: template.cost,
     netCost: scholarship.netCostUSD,
     scholarship,
+    /** What the enrolment should deduct from the banked credit. */
+    waiverSpentUSD: scholarship.breakdown.awardUSD,
+    waiverRemainingUSD: Math.max(0, tuitionWaiver(state) - scholarship.breakdown.awardUSD),
     cash,
     canAffordCash: cash >= scholarship.netCostUSD,
     suggestedLoanAmount: scholarship.netCostUSD,
@@ -256,6 +275,14 @@ export const enrollInProgram = (
       stats: { ...prev.stats, money: newMoney },
       educations: result.educations,
       loans: newLoans,
+      // Spend the tuition credit in the SAME updater that enrols (§4.4). The
+      // quote above was computed from `prev`, so a second tap in the same React
+      // batch re-quotes against the already-decremented credit and cannot spend
+      // it twice. Only the part that actually paid tuition is deducted — see
+      // `quoteScholarship`'s `awardUSD`.
+      ...(quote.waiverSpentUSD > 0
+        ? { tuitionWaiverUSD: quote.waiverRemainingUSD > 0 ? quote.waiverRemainingUSD : undefined }
+        : {}),
       // A student loan is debt. See `debtProgress`.
       ...debtProgress(prev, newLoans.length > (prev.loans ?? []).length),
     };

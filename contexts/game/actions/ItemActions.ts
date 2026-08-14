@@ -9,6 +9,7 @@ import { trackBudgetSpend } from '@/lib/banking/operations';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { rejectIfBlocked } from './_guards';
+import { ITEM_SELL_RATE } from '@/lib/config/gameConstants';
 
 const log = logger.scope('ItemActions');
 
@@ -219,7 +220,9 @@ export const sellItem = (
   const basePrice = typeof item.price === 'number' && isFinite(item.price) && item.price >= 0 ? item.price : 0;
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
   
-  const sellPrice = getInflatedPrice(basePrice, priceIndex) * 0.5; // Sell for 50% of purchase price
+  // ITEM_SELL_RATE, not a literal 0.5: the constant existed with ZERO code
+  // consumers, so tuning it there was a silent no-op.
+  const sellPrice = getInflatedPrice(basePrice, priceIndex) * ITEM_SELL_RATE;
   
   // CRITICAL: Validate calculated price before use
   if (!isFinite(sellPrice) || sellPrice < 0) {

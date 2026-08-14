@@ -235,8 +235,13 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 300, delay: index * 50 }}
       >
-        <TouchableOpacity
-          activeOpacity={0.7}
+        {/* A View, not a TouchableOpacity. It was the latter — with
+            `activeOpacity={0.7}` and no `onPress`, so every achievement card
+            dimmed under your finger and then did nothing. That is the same dead
+            tap reported on the home screen's reward banners (2026-08-14): press
+            feedback is a promise, and there is nothing here to open. Give a card
+            a handler before making it pressable again. */}
+        <View
           style={[
             styles.achievementCard,
             darkMode && styles.achievementCardDark,
@@ -310,7 +315,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
               )}
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </MotiView>
     );
   };

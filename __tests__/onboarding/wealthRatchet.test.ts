@@ -24,10 +24,12 @@
  * (2026-08-13, 2026-08-14).
  */
 import { ratchetWealthPeak } from '@/lib/progress/wealthRatchet';
-import { isFeatureUnlocked, unlockTier } from '@/lib/progress/featureUnlocks';
+import { FEATURE_UNLOCKS, isFeatureUnlocked, unlockTier } from '@/lib/progress/featureUnlocks';
 import { LIFE_CHAPTERS, wealthMark } from '@/lib/progress/lifeChapters';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * The default statistics slice, as a COMPLETE `LifetimeStatistics`.
@@ -160,6 +162,152 @@ describe('the tier is monotonic under spending', () => {
   });
 });
 
+describe('borrowed money is not a wealth high', () => {
+  /**
+   * `LoanActions` credits the FULL principal to `stats.money`, so without the
+   * debt subtraction the mark stamped borrowed cash — and because the mark is
+   * permanent, so was the tier it bought. A 43% debt-to-income cap rather than
+   * a flat limit means a newly-employed character can carry ~$10k of principal:
+   * tier 3 in week 5, three chapters of disclosure skipped for good. Before the
+   * mark existed that unlock at least went away when the principal was spent,
+   * so this is a regression the ratchet itself introduced.
+   */
+  const withLoan = (cash: number, remaining: number): GameState =>
+    ratchetWealthPeak(withMoney(cash, {
+      loans: [{
+        id: 'loan-personal-1', name: 'Personal loan', principal: remaining,
+        remaining, rateAPR: 0.12, termWeeks: 260, weeklyPayment: 60,
+        startWeek: 4, autoPay: true, type: 'personal', weeksRemaining: 260,
+        interestRate: 0.12,
+      }],
+    }));
+
+  it('a $10k loan does not bank a tier', () => {
+    const borrowed = withLoan(10_200, 10_000);
+    expect(borrowed.lifetimeStatistics?.peakNetWorth).toBe(200);
+  });
+
+  it('and spending the principal leaves no permanent unlock behind', () => {
+    const spent = spend(withLoan(10_200, 10_000), 10_000);
+    expect(unlockTier(spent)).toBe(1);
+    expect(isFeatureUnlocked(spent, 'app:bitcoin')).toBe(false);
+  });
+
+  it('but money earned on top of a loan still marks', () => {
+    // The subtraction must not punish a borrower who genuinely gets ahead.
+    const ahead = withLoan(13_000, 10_000);
+    expect(ahead.lifetimeStatistics?.peakNetWorth).toBe(3_000);
+    expect(unlockTier(ahead)).toBe(2);
+  });
+
+  it('and the borrowed cash does not buy a tier even while it is in hand', () => {
+    // The half-fix: subtracting debt in the ratchet alone still left
+    // `wealthMark`'s own liquid term reading the raw balance, so a $10k loan
+    // bought tier 3 for as long as the principal sat in the account. All three
+    // of its terms are net now, so borrowing moves nothing at all.
+    const borrowed = withLoan(10_200, 10_000);
+
+    expect(wealthMark(borrowed)).toBe(200);
+    expect(unlockTier(borrowed)).toBe(1);
+  });
+
+  it('repaying a loan raises the mark rather than lowering it', () => {
+    const owing = withLoan(5_000, 4_000);
+    const repaid = write(owing, { loans: [] });
+
+    expect(owing.lifetimeStatistics?.peakNetWorth).toBe(1_000);
+    expect(repaid.lifetimeStatistics?.peakNetWorth).toBe(5_000);
+  });
+
+  it('debt deeper than the balance records no mark, not a negative one', () => {
+    const underwater = withLoan(500, 40_000);
+    expect(underwater.lifetimeStatistics?.peakNetWorth).toBe(0);
+  });
+
+  it('a repaid loan still in the array is NOT counted', () => {
+    // `remaining: 0` with the record retained. The first version fell back to
+    // `principal` on any falsy `remaining`, so a paid-off loan was subtracted at
+    // its full original value — permanently suppressing the mark and the tier it
+    // holds up. `??` and a truthiness test differ at exactly one value, and this
+    // is it. Caught by review, not by the tests above.
+    const repaid = withLoan(6_000, 0);
+
+    expect(repaid.lifetimeStatistics?.peakNetWorth).toBe(6_000);
+    expect(unlockTier(repaid)).toBe(2);
+  });
+
+  it('a loan with no `remaining` at all still falls back to principal', () => {
+    // The legacy-save path the fallback exists for must survive the fix.
+    const legacy = ratchetWealthPeak(withMoney(9_000, {
+      loans: [{
+        id: 'loan-legacy', name: 'Old loan', principal: 8_000,
+        rateAPR: 0.1, termWeeks: 100, weeklyPayment: 100, startWeek: 1,
+        autoPay: true, type: 'personal', weeksRemaining: 100, interestRate: 0.1,
+      } as never],
+    }));
+
+    expect(legacy.lifetimeStatistics?.peakNetWorth).toBe(1_000);
+  });
+
+  it('no loans is identical to before the subtraction (the control)', () => {
+    expect(ratchetWealthPeak(withMoney(2_522)).lifetimeStatistics?.peakNetWorth)
+      .toBe(2_522);
+  });
+});
+
+describe('losing a job does not take the tier back', () => {
+  /**
+   * `currentJob` was the last input to `unlockTier` that could go backwards. A
+   * life starts with $200, so a player hired in week 1 who leaves before week 4
+   * had nothing else holding tier 1 up — and lost the Progression tab, Contacts
+   * and Bank with it.
+   */
+  const employed = (): GameState => ratchetWealthPeak(withMoney(300, {
+    weeksLived: 2,
+    currentJob: 'retail_associate',
+    lifetimeStatistics: { ...baseLifetimeStatistics(), totalWeeksWorked: 1 },
+  }));
+
+  it('is tier 1 while employed', () => {
+    expect(unlockTier(employed())).toBe(1);
+  });
+
+  it('and still tier 1 after quitting', () => {
+    const quit = write(employed(), { currentJob: undefined });
+
+    expect(unlockTier(quit)).toBe(1);
+    for (const id of ['tab:progression', 'app:contacts', 'app:bank']) {
+      expect(`${id} after quitting: ${isFeatureUnlocked(quit, id)}`)
+        .toBe(`${id} after quitting: true`);
+    }
+  });
+
+  it('career history alone is enough to hold it', () => {
+    // A politician accrues careerHistory; `totalWeeksWorked` gates on salary.
+    const exPolitician = ratchetWealthPeak(withMoney(300, {
+      weeksLived: 2,
+      currentJob: undefined,
+      lifetimeStatistics: {
+        ...baseLifetimeStatistics(),
+        totalWeeksWorked: 0,
+        careerHistory: [{ job: 'political', weeks: 3, earnings: 900, startWeek: 1 }],
+      },
+    }));
+
+    expect(unlockTier(exPolitician)).toBe(1);
+  });
+
+  it('someone who never worked at all is still tier 0 (the control)', () => {
+    const neverWorked = ratchetWealthPeak(withMoney(200, {
+      weeksLived: 2,
+      currentJob: undefined,
+      lifetimeStatistics: { ...baseLifetimeStatistics(), totalWeeksWorked: 0 },
+    }));
+
+    expect(unlockTier(neverWorked)).toBe(0);
+  });
+});
+
 describe('ratchetWealthPeak', () => {
   it('raises the mark to the liquid balance', () => {
     const stamped = ratchetWealthPeak(withMoney(2_522));
@@ -225,8 +373,6 @@ describe('ratchetWealthPeak', () => {
 });
 
 describe('the mark is taken where every writer passes through', () => {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const read = (rel: string) =>
     fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
@@ -254,8 +400,6 @@ describe('the mark is taken where every writer passes through', () => {
 });
 
 describe('the completed chapter no longer renders a button that does nothing', () => {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const CARD = fs.readFileSync(
     path.join(__dirname, '..', '..', 'components/LifeChapterCard.tsx'), 'utf8',
   );
@@ -276,5 +420,109 @@ describe('the completed chapter no longer renders a button that does nothing', (
 
   it('it says when the reward actually lands', () => {
     expect(CARD).toMatch(/arrive when you end the week/);
+  });
+});
+
+describe('every app in both launchers is registered in the table', () => {
+  /**
+   * `isFeatureUnlocked` returns TRUE for an id it does not recognise. That
+   * default is deliberate and right — forgetting to register a new app should
+   * make it visible, not invisible — but it means a typo or a new app added to
+   * a grid without a row here is silently ungated, and an ungated app is a bug
+   * nobody reports. The two grids and the table are three hand-maintained lists
+   * that have to agree, so the agreement is checked rather than assumed.
+   */
+  const idsIn = (rel: string): string[] => {
+    const src = fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
+    return [...src.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((m) => m[1]);
+  };
+
+  it.each([
+    ['app/(tabs)/computer.tsx', 19],
+    ['app/(tabs)/mobile.tsx', 9],
+  ])('%s — every id resolves to a row', (file, expectedCount) => {
+    const ids = idsIn(file);
+    // Guard the guard: a refactor that renames the field or reshapes the list
+    // would otherwise leave this walking an empty array and passing vacuously.
+    expect(`${file} app count: ${ids.length}`).toBe(`${file} app count: ${expectedCount}`);
+
+    for (const id of ids) {
+      const registered = FEATURE_UNLOCKS.some((f) => f.id === `app:${id}`);
+      expect(`app:${id} registered: ${registered}`).toBe(`app:${id} registered: true`);
+    }
+  });
+});
+
+describe('the ambition reward reads as status too, not as a button', () => {
+  /**
+   * The card directly BELOW LifeChapterCard on the home screen, carrying the
+   * largest reward in the game, had the identical defect: a solid-amber
+   * full-width bar with bold dark text, on a `View` with no handler. Fixing one
+   * and leaving the other is how the same ticket comes back.
+   */
+  const CARD = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'components/AmbitionCard.tsx'), 'utf8',
+  );
+
+  it('the fulfilled state is not a solid CTA', () => {
+    expect(CARD).not.toMatch(/backgroundColor: '#FBBF24'/);
+    expect(CARD).toMatch(/completeBanner/);
+  });
+
+  it('and still has no handler (the control)', () => {
+    // Read-only is the point: this card once held the ONLY call to
+    // `grantAmbitionPayout` in the app, behind a button, so the payout went
+    // unpaid for anyone who never scrolled to it.
+    expect(CARD).not.toMatch(/onPress=\{/);
+    expect(CARD).not.toMatch(/<TouchableOpacity/);
+  });
+
+  it('it says when the reward actually lands', () => {
+    expect(CARD).toMatch(/arrives when you end the week/);
+  });
+});
+
+describe('chapter 2 stays completable at tier 1 — do not "fix" the friend goal', () => {
+  /**
+   * `ch2_make_friend` is `relationships.length > 0`, and `initialState` seeds Mom
+   * and Dad, so it reads as already complete on a brand-new life. That looks
+   * exactly like a bug worth tightening — the sibling ambition system tightened
+   * the equivalent check for precisely this reason, with a comment saying so
+   * (`lib/ambitions/catalog.ts`: "Exclude the starting parents ... so 'Make a
+   * Connection' doesn't auto-complete at birth").
+   *
+   * Tightening it HERE would deadlock chapter 2. A chosen (non-family)
+   * relationship has two sources: Spark, which is tier 2, and a network-favour
+   * introduction, which `FAVOR_KIND_BY_CONTACT` only offers on a `business`
+   * contact — personal kinds are excluded on purpose. A player working on
+   * chapter 2 is at tier 1 with two parents and no business contacts, so Spark
+   * would be the only route, and chapter 2 is what UNLOCKS Spark.
+   *
+   * That is rule 3 in `featureUnlocks.ts` — "a chapter's goal must not need an
+   * app that chapter unlocks" — and it is the deadlock a player was stranded in
+   * on 2026-08-13. The permissive check is load-bearing. This test exists to
+   * make the next reader stop.
+   */
+  const friendGoal = LIFE_CHAPTERS
+    .find((c) => c.id === 'ch2_settling_in')!.goals
+    .find((g) => g.id === 'ch2_make_friend')!;
+
+  it('a fresh life satisfies it from the family it starts with', () => {
+    const fresh = createTestGameState({ weeksLived: 1 });
+
+    expect((fresh.relationships ?? []).length).toBeGreaterThan(0);
+    expect(friendGoal.checkComplete(fresh)).toBe(true);
+  });
+
+  it('and the tier-1 player working on chapter 2 cannot reach Spark', () => {
+    // The other half of the argument: if the goal were tightened, THIS is the
+    // state that would have to satisfy it, and it cannot.
+    const workingOnChapter2 = ratchetWealthPeak(withMoney(1_200, {
+      weeksLived: 8,
+      completedChapters: ['ch1_fresh_start'],
+    }));
+
+    expect(unlockTier(workingOnChapter2)).toBe(1);
+    expect(isFeatureUnlocked(workingOnChapter2, 'app:tinder')).toBe(false);
   });
 });

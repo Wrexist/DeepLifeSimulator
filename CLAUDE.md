@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 40`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 41`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -247,7 +247,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 40`** — single source of truth in
+- **Canonical `STATE_VERSION = 41`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -427,6 +427,23 @@ including the crash screen.
   stamping the current week onto an existing save would deny the player their next
   legitimate claim (the v28 `lastNoFillGrantWeek` reasoning). It still has to
   survive the load round-trip, which `loadedStateMerge` guarantees.
+- **v41 adds `tuitionWaiverUSD`** — an unspent tuition credit, granted by the
+  poverty-recovery scholarship event and consumed at the next enrolment. The
+  event (`scholarship_opportunity`) had been unreachable for its entire life:
+  its condition reads `weeksInPoverty >= 12` and NOTHING wrote that field.
+  Making it fire exposed the other half — its `grant_free_education` effect
+  granted +10 reputation under a choice reading "Accept the scholarship (Free
+  education!)". This field is what makes the promise real. A CREDIT rather than
+  cash on purpose: the event fires for a player under $500 and programmes cost
+  $12k–$180k, so paying it out as money would be a life-changing injection from
+  one random roll, and it is not what the event promises anyway. Default
+  `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror. Absent already means "no credit", and writing a
+  value would hand every existing save a scholarship nobody earned — the mirror
+  image of the v27/v28 reasoning, where stamping a value would have DENIED
+  something instead. Consumed inside the same updater that enrols (§4.4), and
+  only for the part that actually paid tuition, so a 4.0 student whose merit
+  award already covers 80% keeps the rest of the credit.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

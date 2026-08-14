@@ -213,7 +213,18 @@ export function unlockTier(state: GameState | undefined | null): UnlockTier {
   // this axis can only ever climb (rule 2 in the header).
   const wealth = wealthMark(state);
   let byMilestone = 0;
-  if (state.currentJob || wealth >= 500 || weeksLived >= 4) byMilestone = 1;
+  // `currentJob` alone was the last input to this function that could go
+  // BACKWARDS. Quit or get fired and it becomes undefined, so a player hired in
+  // week 1 who left the job before week 4 — still under $500, since a life
+  // starts with $200 — dropped from tier 1 to tier 0 and lost the Progression
+  // tab, Contacts and Bank. Same class as the 2026-08-14 report: the tier went
+  // down. `totalWeeksWorked` and `careerHistory` are append-only records of
+  // having held a job, so employment now leaves a mark that quitting cannot
+  // erase; `currentJob` stays so the tier still lands the moment you are hired.
+  const everEmployed =
+    num(state.lifetimeStatistics?.totalWeeksWorked) > 0
+    || (state.lifetimeStatistics?.careerHistory?.length ?? 0) > 0;
+  if (state.currentJob || everEmployed || wealth >= 500 || weeksLived >= 4) byMilestone = 1;
   if (wealth >= 2_000) byMilestone = 2;
   if (wealth >= 10_000) byMilestone = 3;
   if (wealth >= 50_000) byMilestone = 4;

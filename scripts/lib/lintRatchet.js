@@ -40,8 +40,8 @@
 const MAX_ERRORS = 0;
 
 /**
- * Warning ceiling. Measured 1 188 over the whole repo on 2026-08-10
- * (was 1 235 on 2026-08-04, ceiling 1 240).
+ * Warning ceiling. Measured 1 191 over the whole repo on 2026-08-14
+ * (1 188 on 2026-08-10, ceiling 1 193; was 1 235 on 2026-08-04, ceiling 1 240).
  *
  * A small margin above the measurement so the gate does not trip on noise from
  * an unrelated file landing — the same reasoning as the coverage floors. A gate
@@ -59,7 +59,7 @@ const MAX_ERRORS = 0;
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 1193;
+const MAX_WARNINGS = 1191;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;
