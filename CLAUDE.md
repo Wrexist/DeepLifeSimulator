@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 41`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 42`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -254,7 +254,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 41`** — single source of truth in
+- **Canonical `STATE_VERSION = 42`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -451,6 +451,18 @@ including the crash screen.
   something instead. Consumed inside the same updater that enrols (§4.4), and
   only for the part that actually paid tuition, so a 4.0 student whose merit
   award already covers 80% keeps the rest of the credit.
+- **v42 adds `title` on `CareerHistoryEntry`** — the job title as of the most
+  recent paid week, stamped by the weekly tick. The obituary derived a title
+  from the LIVE career record, and the political exit deliberately resets
+  `careers.political.level` to 0 (so lifestyle costs and the "in office?" UI
+  stop treating a voted-out player as a sitting official), so a president who
+  left office was eulogised as whatever level 0 is called. Recording the title
+  while it is TRUE, rather than reconstructing it later, makes the history
+  independent of anything an exit path does to `careers` — including paths that
+  do not exist yet. Default `undefined`, so a CARVE-OUT: version bumped, NO
+  backfill and no `repairGameState` mirror. Entries written before this cannot
+  grow one (the week they were worked is gone) and readers fall back to deriving
+  from `careers`, which is correct for every career except the political one.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

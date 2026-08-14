@@ -159,6 +159,42 @@ describe('and it names a job they no longer held when they died', () => {
     expect(asText(generateObituary(state)).text).toContain('Surgeon');
   });
 
+  it('uses the RECORDED title over the live career — the political case', () => {
+    /**
+     * The one exit path that resets `level`. A forced resignation or lost
+     * election sets `careers.political.level = 0` on purpose, so lifestyle
+     * costs and the "in office?" UI stop treating a voted-out player as a
+     * sitting official. Deriving from the live career afterwards eulogised a
+     * president as whatever level 0 is called. The tick stamps the title while
+     * it is true, so the record survives the reset.
+     */
+    const base = createTestGameState();
+    const stats = base.lifetimeStatistics;
+    if (!stats) throw new Error('createTestGameState must carry lifetimeStatistics');
+
+    const votedOut = createTestGameState({
+      weeksLived: 400,
+      deathReason: 'health',
+      careers: [career({
+        id: 'political',
+        levels: [{ name: 'City Council Candidate', salary: 100 }, { name: 'President', salary: 90_000 }],
+        level: 0,          // reset by the political exit
+        accepted: false,
+      })],
+      lifetimeStatistics: {
+        ...stats,
+        careerHistory: [{
+          job: 'political', weeks: 200, earnings: 9_000_000,
+          startWeek: 100, endWeek: 300, title: 'President',
+        }],
+      },
+    });
+
+    const { text } = asText(generateObituary(votedOut));
+    expect(text).toContain('President');
+    expect(text).not.toContain('City Council Candidate');
+  });
+
   it('still says SOMETHING for a history naming a career the catalogue lost', () => {
     // They demonstrably worked; the ladder just is not there to name.
     const state = diedUnemployed([], ['a_career_that_was_removed']);

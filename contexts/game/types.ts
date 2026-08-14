@@ -3497,6 +3497,22 @@ export interface CareerHistoryEntry {
   earnings: number;
   startWeek: number;
   endWeek?: number;
+  /**
+   * The job TITLE as of the most recent paid week (STATE_VERSION 42).
+   *
+   * Stamped by the weekly tick rather than at exit, which is what makes it
+   * robust: the record does not depend on career state that later paths mutate.
+   * The political exit deliberately resets `careers.political.level` to 0 (so
+   * lifestyle costs and the "in office?" UI stop treating a voted-out player as
+   * a sitting official), so deriving a title from the live career afterwards
+   * eulogised a president as whatever level 0 is called. Caught in review of
+   * #130 after two other exit paths had already been checked and found safe.
+   *
+   * Absent on every entry written before v42, and on any job that never drew a
+   * paycheck. Readers fall back to deriving from `careers`, which is correct
+   * for every career except the political one.
+   */
+  title?: string;
 }
 
 export interface NetWorthSnapshot {

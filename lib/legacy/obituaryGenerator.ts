@@ -193,6 +193,11 @@ function lastJobTitle(state: GameState): string {
   const history = state.lifetimeStatistics?.careerHistory;
   if (Array.isArray(history) && history.length > 0) {
     const last = history[history.length - 1];
+    // The RECORDED title first. The political exit resets
+    // `careers.political.level` to 0 on purpose, so deriving from the live
+    // career would eulogise a president as whatever level 0 is called; the
+    // stamped title is immune to anything an exit path does afterwards.
+    if (last?.title) return last.title;
     const title = titleOf(last?.job);
     if (title) return title;
     // A history entry naming a career the catalogue no longer has still tells
