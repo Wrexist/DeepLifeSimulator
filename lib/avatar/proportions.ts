@@ -97,12 +97,19 @@ function wrapGroup(svg: string, transform: string, extra: string): string {
   if (start < 0) return svg;
 
   // Walk to the matching close tag; the groups nest.
-  const tag = /<(\/?)g\b[^>]*>/g;
+  //
+  // A self-closing `<g … />` opens and closes in one tag, so counting it as an
+  // opener would leave `depth` permanently above zero and this function would
+  // return the art unchanged — proportions silently off, no error anywhere.
+  // Today's art emits none (11 groups, 0 self-closing), but this walk exists to
+  // survive an art-package upgrade, which is the one moment that could change.
+  const tag = /<(\/?)g\b[^>]*?(\/?)>/g;
   tag.lastIndex = start + open.length;
   let depth = 1;
   let end = -1;
   let match: RegExpExecArray | null;
   while ((match = tag.exec(svg))) {
+    if (match[2] === '/') continue;
     depth += match[1] === '/' ? -1 : 1;
     if (depth === 0) {
       end = match.index + match[0].length;

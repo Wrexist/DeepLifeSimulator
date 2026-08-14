@@ -165,6 +165,11 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
       ],
     },
     'en-GB': {
+      // Reference only — NOT a localisation to create in App Store Connect.
+      // `check:aso --emit` skips unshipped locales for exactly this reason: a
+      // paste-ready block is an instruction, and pasting this one would create
+      // a listing identical to the one those storefronts already fall back to.
+      shipped: false,
       subtitle: 'Careers, crime, crypto, heirs',
       keywords: [
         'billionaire', 'dynasty', 'mafia', 'prison', 'stock', 'invest', 'property',

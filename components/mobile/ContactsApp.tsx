@@ -190,7 +190,16 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   // Whose faces the children inherit. Memoized because it is passed to every
   // child avatar, and a fresh object each render would defeat their memoization.
-  const parentSources = useMemo(() => childParentSources(gameState), [gameState]);
+  //
+  // Narrowed to the two fields `childParentSources` actually reads. Keyed on
+  // the whole `gameState` it would return a new object on every stat tick, so
+  // every child avatar would rebuild its SVG each week — the exact cost this
+  // memo exists to avoid.
+  const parentSources = useMemo(
+    () => childParentSources(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gameState.userProfile, gameState.relationships]
+  );
 
   // aggregateContacts walks 5+ arrays. Only re-run when the underlying source
   // arrays actually change — not on every gameState mutation (e.g., stat ticks).

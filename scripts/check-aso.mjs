@@ -171,7 +171,9 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
   }
   // A keyword field in a language the rest of the listing does not speak is a
   // bad experience for everyone it reaches. Ship the whole localisation or none.
-  if (locale !== 'en-GB') {
+  // `shipped: false` marks a locale kept for reference rather than created in
+  // App Store Connect, so the completeness rule does not apply to it.
+  if (loc.shipped !== false) {
     if (!loc.description) fail(`${locale} has keywords but no translated description — that is a keyword grab, not a localisation.`);
     else checkLimit(`${locale} description`, loc.description, LIMITS.appleDescription);
     if (loc.promotionalText) checkLimit(`${locale} promotional text`, loc.promotionalText, LIMITS.applePromo);
@@ -222,8 +224,19 @@ if (process.argv.includes('--emit')) {
   console.log(`\n[Apple · Keywords ${kwLen}/100]\n${keywordField}`);
   console.log(`\n[Apple · Promotional text ${len(APPLE.promotionalText)}/170]\n${APPLE.promotionalText}`);
   console.log(`\n[Apple · Description ${len(APPLE.description)}/4000]\n${APPLE.description}`);
-  // Emit localized fields
+  // Emit localized fields.
+  //
+  // A PASTE-READY block is an instruction to a release operator, so a locale
+  // that is deliberately NOT created in App Store Connect must not appear here
+  // — printing en-GB would tell the operator to build a listing identical to
+  // the one those storefronts already fall back to, contradicting Part 7 of
+  // the runbook. `shipped: false` in the metadata is the single place that
+  // decision lives.
   for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
+    if (loc.shipped === false) {
+      console.log(`\n[Apple · ${locale}] reference only — not created in App Store Connect. See RELEASE_RUNBOOK Part 7.`);
+      continue;
+    }
     console.log(`\n[Apple · ${locale} · Subtitle ${len(loc.subtitle)}/30]\n${loc.subtitle}`);
     const locKeywordField = loc.keywords.join(',');
     console.log(`\n[Apple · ${locale} · Keywords ${len(locKeywordField)}/100]\n${locKeywordField}`);
