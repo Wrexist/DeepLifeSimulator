@@ -155,7 +155,8 @@ jobs:
       # resolve it here: scripts/next-build-number.mjs returns one HIGHER than
       # App Store Connect's current highest build (when the ASC_* secrets below
       # are set), else a monotonic epoch fallback. app.config.js bakes it into
-      # ios.buildNumber / android.versionCode (eas.json appVersionSource: local).
+      # ios.buildNumber / android.versionCode. (eas.json is appVersionSource
+      # "remote"; BUILD_NUMBER is still what gets baked — see eas-build-local-ios.yml.)
       - name: Compute unique build number (CFBundleVersion)
         run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
         env:
@@ -188,7 +189,7 @@ jobs:
           # Same fingerprint crash as eas-build.yml — see comment there.
           EAS_SKIP_AUTO_FINGERPRINT: '1'
           # Consumed by app.config.js → ios.buildNumber / android.versionCode.
-          # eas.json appVersionSource is "local", so this value is what gets
+          # eas.json is appVersionSource "remote", but this value is still what gets
           # baked into the binary's CFBundleVersion.
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'

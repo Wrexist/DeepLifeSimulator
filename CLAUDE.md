@@ -578,6 +578,16 @@ The `version` input on both local-build workflows sets the **binary** version
 the current value** — typing the App Store Connect version record (the 1.x line)
 there would silently downgrade the binary. See §9 for why the two numbers differ.
 
+The check rejects only a *lower* version, not an equal one, and the two cases
+mean different things. A **new release** must go **higher** — that is §9's "bump
+it for every build" rule, and it is what keeps TestFlight and crash reports
+orderable. **Re-running the same version is the deliberate exception**, for
+rebuilding an unchanged marketing version after a failed submit or an infra
+flake: `BUILD_NUMBER` is minted fresh per run, so the rebuild still carries a
+unique `CFBundleVersion` / `versionCode` and the store accepts it. The guard
+cannot tell the two apart from the input alone, so it enforces the floor and
+leaves the bump to you.
+
 ---
 
 ## 10. CI / GitHub

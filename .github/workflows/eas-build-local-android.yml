@@ -126,13 +126,47 @@ jobs:
           echo "::error::force_banner is a QA-only flag that shows the upsell to premium accounts — it must not be uploaded to Play. Untick Submit (build the .aab and sideload/internal-test it), or untick force_banner for a real release."
           exit 1
 
-      # Fail fast if Submit is ticked but the Play service-account key is missing,
-      # so we don't spend a whole build only to fail at the upload step.
+      # Fail fast if Submit is ticked but the Play service-account key is missing
+      # OR malformed, so we don't spend a whole build only to fail at the upload
+      # step. Checking non-empty is not enough: a truncated paste or the wrong
+      # JSON file is non-empty, so it would clear this guard, burn the ~40-minute
+      # native build, and only then die at "Write Play service-account key". Both
+      # the JSON parse and the service-account shape check therefore run HERE;
+      # the parse near the submit step stays as a second check on what actually
+      # lands on disk.
       - name: Require Play service-account key when submitting
         if: ${{ inputs.submit }}
         run: |
           if [ -z "$SA_JSON" ]; then
             echo "::error::Submit is ticked but the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret is not set. Either untick Submit (the .aab is still built and uploaded as an artifact you can upload by hand), or add the secret: Play Console > Users & permissions > invite a service account with 'Release apps to testing tracks'; Google Cloud Console > that service account > Keys > Add key > JSON; paste the whole file into GitHub > Settings > Secrets and variables > Actions > New repository secret named GOOGLE_PLAY_SERVICE_ACCOUNT_JSON. See docs/RELEASE_SECRETS.md. Note Google requires this app's FIRST .aab to be uploaded manually in the Play Console before API uploads are allowed."
+            exit 1
+          fi
+          # Validate without echoing the secret: node reads it from the env, and
+          # every diagnostic below names only the FIELD at fault, never a value.
+          if ! node -e '
+            const raw = process.env.SA_JSON;
+            let key;
+            try {
+              key = JSON.parse(raw);
+            } catch {
+              // Deliberately NOT reporting the parser message: node embeds a
+              // snippet of the offending input in it ("Unexpected token h, \"hello
+              // world\" is not valid JSON"), which for a credential would print a
+              // fragment of the key into the log. Actions masks only the exact
+              // secret string, so a fragment would survive masking.
+              console.log("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not valid JSON. Paste the ENTIRE downloaded key file, including the opening and closing braces. (Parser detail withheld — it would echo part of the key.)");
+              process.exit(1);
+            }
+            const missing = ["type", "client_email", "private_key"].filter((f) => !key[f]);
+            if (missing.length) {
+              console.log("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON parses as JSON but is missing: " + missing.join(", ") + ". That usually means the wrong file was pasted — this must be the SERVICE ACCOUNT key from Google Cloud Console (Keys > Add key > JSON), not an OAuth client, a Firebase config, or google-services.json.");
+              process.exit(1);
+            }
+            if (key.type !== "service_account") {
+              console.log("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON has type \"" + key.type + "\", expected \"service_account\".");
+              process.exit(1);
+            }
+          '; then
             exit 1
           fi
         env:
@@ -265,7 +299,8 @@ jobs:
           # The inner double quotes matter: gradlew word-splits GRADLE_OPTS (via
           # xargs), so they keep the multi-flag jvmargs value one property.
           GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"'
-          # Consumed by app.config.js → android.versionCode (appVersionSource local).
+          # Consumed by app.config.js → android.versionCode. (eas.json is
+          # appVersionSource "remote"; see the note on the versionCode step above.)
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
           # QA flag (see the force_banner input): when true, Metro inlines it so
           # the DeepLife+ upsell renders for members too. Empty on real releases.
