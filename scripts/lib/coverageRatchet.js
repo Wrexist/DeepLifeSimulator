@@ -66,12 +66,19 @@ const COVERAGE_GOAL = 70;
  *    `utils/goalSystem.ts`, the dead design tokens and `LinearGradientFallback`.
  *    Both effects push the same way: the deleted code was uncovered, and
  *    deleting uncovered code is a real coverage gain, not an accounting one.
+ *
+ * 5. Raised again on 2026-08-14. `utils/stateInvariants.ts` sat at 5.2%
+ *    branches with NO test file at all, and reading its uncovered branches is
+ *    what turned up the false-positive money check (see the file's own
+ *    comment). Testing it moved it to 26.1% branches and every headline metric
+ *    up — which is the argument for this whole item: the untested branch is
+ *    reliably the one nobody has read.
  */
 const COVERAGE_FLOORS = {
-  statements: 50.7,
-  branches: 33.2,
-  functions: 42.3,
-  lines: 52.0,
+  statements: 51.4,
+  branches: 33.5,
+  functions: 42.6,
+  lines: 52.7,
 };
 
 /**
@@ -96,10 +103,10 @@ const COVERAGE_FLOORS = {
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 51.12,
-  branches: 33.68,
-  functions: 42.76,
-  lines: 52.38,
+  statements: 51.90,
+  branches: 34.01,
+  functions: 43.08,
+  lines: 53.22,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];
