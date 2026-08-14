@@ -272,32 +272,10 @@ export function validateMoneyInvariants(
     errors.push(`finalMoney is invalid: ${finalMoney}`);
   }
 
-  // Check calculation consistency.
-  //
-  // The caller (`MoneyActionsContext.updateMoney`) computes
-  // `Math.max(0, money + amount)`, so a spend larger than the balance lands on
-  // 0 by design. Comparing against the UNCLAMPED sum reported a mismatch every
-  // single time that happened — a guaranteed false positive that filled the one
-  // channel a real arithmetic error would have come through. A check that
-  // always fires is a check nobody reads.
-  //
-  // The clamp is still worth surfacing: §4.4 says affordability belongs in the
-  // same updater as the charge, so reaching here means a caller did not refuse
-  // a spend it should have. That is a warning about the CALLER, not evidence
-  // the state is corrupt — hence `warnings`, which leaves `valid` true.
+  // Check calculation consistency
   const expectedFinal = currentMoney + moneyChange;
   if (errors.length === 0 && Math.abs(finalMoney - expectedFinal) > 0.01) {
-    // A clamp can only ever produce exactly 0 (`Math.max` returns the bound
-    // itself), so this stays narrow: any other unexpected value is still an
-    // error, including a negative expectation that landed somewhere else.
-    if (expectedFinal < 0 && finalMoney === 0) {
-      warnings.push(
-        `Spend clamped at zero: ${currentMoney} + (${moneyChange}) = ${expectedFinal}, ` +
-          `short by ${Math.abs(expectedFinal)} — the caller should have refused this (CLAUDE.md §4.4)`,
-      );
-    } else {
-      errors.push(`Money calculation mismatch: expected ${expectedFinal}, got ${finalMoney}`);
-    }
+    errors.push(`Money calculation mismatch: expected ${expectedFinal}, got ${finalMoney}`);
   }
 
   // Check final money is non-negative

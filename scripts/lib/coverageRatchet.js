@@ -70,9 +70,12 @@ const COVERAGE_GOAL = 70;
  * 5. Raised again on 2026-08-14. `utils/stateInvariants.ts` sat at 5.2%
  *    branches with NO test file at all, and reading its uncovered branches is
  *    what turned up the false-positive money check (see the file's own
- *    comment). Testing it moved it to 26.1% branches and every headline metric
+ *    comment). Testing it moved it to 25.5% branches and every headline metric
  *    up — which is the argument for this whole item: the untested branch is
- *    reliably the one nobody has read.
+ *    reliably the one nobody has read. Note what the reading actually found:
+ *    NOT a bug. The false positive it looked like is unreachable, because the
+ *    caller rejects an overdraft twenty lines above the clamp. The tests
+ *    document that instead.
  */
 const COVERAGE_FLOORS = {
   statements: 51.4,
@@ -103,10 +106,10 @@ const COVERAGE_FLOORS = {
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 51.90,
+  statements: 51.91,
   branches: 34.01,
-  functions: 43.08,
-  lines: 53.22,
+  functions: 43.06,
+  lines: 53.23,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];

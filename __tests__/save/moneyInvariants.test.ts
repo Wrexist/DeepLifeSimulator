@@ -1,91 +1,133 @@
 /**
- * `validateMoneyInvariants` — the money-path check that cried wolf.
+ * `utils/stateInvariants.ts` — the money-path checks, which had no tests at all.
  *
- * `MoneyActionsContext.updateMoney` computes the new balance as
+ * Found via branch coverage: this file sat at 5.2% branches / 9.6% statements
+ * while `validateMoneyInvariants` is wired into `MoneyActionsContext.updateMoney`.
  *
- *     const newMoney = Math.max(0, prevState.stats.money + amount);
+ * ── One thing worth recording, because the first version of this file got it
+ *    wrong ──────────────────────────────────────────────────────────────────
  *
- * and then hands that CLAMPED value to `validateMoneyInvariants`, whose
- * expectation is the UNCLAMPED `currentMoney + moneyChange`. So every spend
- * larger than the balance reported `Money calculation mismatch` and logged
- * `Money update violated invariants` — not because anything was wrong, but
- * because the checker did not know about the clamp its own caller applies.
+ * `updateMoney` ends with `Math.max(0, prevState.stats.money + amount)`, and
+ * hands that CLAMPED value to a validator whose expectation is the UNCLAMPED
+ * `currentMoney + moneyChange`. Read from the clamp downward, that looks like a
+ * guaranteed false positive on every overdraft.
  *
- * That is worse than having no check. The one channel that would report a real
- * arithmetic error was full of guaranteed false positives, which is the same
- * failure the coverage ratchet was rewritten to avoid: a signal that always
- * fires trains you to stop reading it.
+ * It is not, because of the twenty lines ABOVE the clamp: `updateMoney` already
+ * rejects an overdraft and returns `prevState` unchanged when
+ * `money + amount < -0.01`. So the only inputs that could produce a mismatch
+ * never reach the check. The clamp is a pure backstop for the sub-cent window
+ * the guard allows through, and in that window `|finalMoney - expectedFinal|`
+ * is at most 0.01 — exactly the tolerance the validator already permits.
  *
- * The two situations are genuinely different and the result now says which:
- *   - clamped at zero  → a WARNING. The arithmetic is right; a caller charged
- *     more than the player had, which §4.4 says should have been refused
- *     upstream. Worth surfacing, not worth calling the state invalid.
- *   - anything else     → an ERROR, as before.
- *
- * Found by branch coverage: `utils/stateInvariants.ts` was at 5.2% branches
- * and had no test file at all.
+ * The mismatch branch is therefore unreachable from production, and it should
+ * stay an ERROR: `validateMoneyInvariants` has no way to know a clamp happened,
+ * so relaxing it for `finalMoney === 0` would let a genuinely corrupt zero pass.
+ * Caught in review of #133. The tests below model the REAL caller — guard and
+ * all — so they cannot re-confirm that mistake.
  */
 import {
   validateMoneyInvariants,
   validateStatsInvariants,
   validateStatChanges,
 } from '@/utils/stateInvariants';
+import type { InvariantCheckResult } from '@/utils/stateInvariants';
 
-/** Exactly what `updateMoney` does, so the test tracks the real caller. */
-const updateMoney = (money: number, amount: number) => {
+/**
+ * A discriminated union rather than an optional `check`: when the guard refuses
+ * the spend there is no validation to report, and `rejected` is what says so.
+ */
+type MoneyUpdateResult =
+  | { rejected: true; newMoney: number; check: null }
+  | { rejected: false; newMoney: number; check: InvariantCheckResult };
+
+/**
+ * `updateMoney`'s money arithmetic, both halves, verbatim from
+ * `contexts/game/MoneyActionsContext.tsx`. The guard is the point — a helper
+ * with only the clamp models a caller that does not exist.
+ */
+const updateMoney = (money: number, amount: number): MoneyUpdateResult => {
+  if (amount < 0 && money + amount < -0.01) {
+    return { rejected: true, newMoney: money, check: null };
+  }
   const newMoney = Math.max(0, money + amount);
-  return { newMoney, check: validateMoneyInvariants(money, amount, newMoney) };
+  return {
+    rejected: false,
+    newMoney,
+    check: validateMoneyInvariants(money, amount, newMoney),
+  };
 };
 
-describe('an overdrafting spend is not an invariant violation', () => {
-  it('does not report an error when the balance clamps at zero', () => {
-    // The regression. $500 spending $1,000 lands at $0 by design.
-    const { newMoney, check } = updateMoney(500, -1_000);
+describe('updateMoney refuses an overdraft instead of clamping it', () => {
+  it('leaves the balance untouched when the spend exceeds it', () => {
+    // §4.4: the affordability test lives in the same updater as the charge, so
+    // the state is returned unchanged rather than nudged to zero.
+    const result = updateMoney(500, -1_000);
 
-    expect(newMoney).toBe(0);
-    expect(check.errors).toEqual([]);
-    expect(check.valid).toBe(true);
+    expect(result.rejected).toBe(true);
+    expect(result.newMoney).toBe(500);
   });
 
-  it('but it does say so, because the caller should have refused it', () => {
-    // The information is real — §4.4 puts affordability in the same updater as
-    // the charge — so it is kept, as the warning it always was.
-    const { check } = updateMoney(500, -1_000);
-
-    expect(check.warnings).toHaveLength(1);
-    expect(check.warnings[0]).toMatch(/clamp/i);
-    expect(check.warnings[0]).toContain('500'); // the shortfall, not just a flag
+  it('so the validator never sees a clamped-away shortfall', () => {
+    // The reason the mismatch branch stays an error: it is unreachable here.
+    expect(updateMoney(500, -1_000).check).toBeNull();
   });
 
-  it('spending exactly the balance is silent (the boundary)', () => {
-    const { newMoney, check } = updateMoney(500, -500);
+  it('spending the exact balance is allowed and lands on zero', () => {
+    const result = updateMoney(500, -500);
 
-    expect(newMoney).toBe(0);
-    expect(check.valid).toBe(true);
-    expect(check.warnings).toEqual([]);
+    expect(result.rejected).toBe(false);
+    expect(result.newMoney).toBe(0);
+    expect(result.check?.valid).toBe(true);
+  });
+
+  it('the sub-cent window the guard allows through stays within tolerance', () => {
+    // The only inputs that reach the clamp at all: a shortfall smaller than a
+    // cent. It lands on 0, and the validator accepts it on its 0.01 tolerance
+    // rather than on any special-casing of zero — which is why that tolerance
+    // is load-bearing and not decoration.
+    //
+    // A half-cent, not a full one: `1 - 1.01` is -0.010000000000000009 in
+    // binary floating point, which IS below the `-0.01` bound, so the guard
+    // rejects it. The window is open, but narrower than it reads.
+    const result = updateMoney(1, -1.005);
+
+    expect(result.rejected).toBe(false);
+    expect(result.newMoney).toBe(0);
+    expect(result.check?.valid).toBe(true);
+  });
+
+  it('and a one-cent shortfall is already outside it (the float boundary)', () => {
+    expect(updateMoney(1, -1.01).rejected).toBe(true);
+  });
+
+  it('an ordinary earn is unremarkable (the control)', () => {
+    const result = updateMoney(1_000, 250);
+
+    expect(result.newMoney).toBe(1_250);
+    expect(result.check?.valid).toBe(true);
+    expect(result.check?.warnings).toEqual([]);
   });
 });
 
-describe('and a genuine mismatch is still an error', () => {
+describe('validateMoneyInvariants rejects what it is there to reject', () => {
   it('catches a final balance that does not match the arithmetic', () => {
-    // The case the check exists for: 100 + 50 should be 150, not 999.
     const check = validateMoneyInvariants(100, 50, 999);
 
     expect(check.valid).toBe(false);
     expect(check.errors.join(' ')).toMatch(/mismatch/i);
   });
 
-  it('does not let the clamp excuse a wrong non-zero result', () => {
-    // A clamp can only ever produce 0. A negative expectation landing on some
-    // other number is still arithmetic that does not add up, and treating the
-    // clamp as a blanket exemption would have hidden exactly this.
-    const check = validateMoneyInvariants(500, -1_000, 250);
+  it('still errors when a negative expectation lands on zero', () => {
+    // The validator cannot see whether a caller clamped, so a zero that does
+    // not follow from the arithmetic is indistinguishable from corruption and
+    // is treated as such. Relaxing this was proposed and rejected in #133.
+    const check = validateMoneyInvariants(500, -1_000, 0);
 
     expect(check.valid).toBe(false);
     expect(check.errors.join(' ')).toMatch(/mismatch/i);
   });
 
-  it('still rejects a negative final balance', () => {
+  it('rejects a negative final balance', () => {
     const check = validateMoneyInvariants(100, -500, -400);
 
     expect(check.valid).toBe(false);
@@ -100,25 +142,22 @@ describe('and a genuine mismatch is still an error', () => {
     expect(validateMoneyInvariants(10, -Infinity, 10).valid).toBe(false);
   });
 
-  it('does not also cry mismatch when an input is already NaN', () => {
-    // `NaN !== NaN`, so the arithmetic comparison would fire a second, useless
-    // error on top of the real one. One cause should produce one message.
+  it('reports one error per bad input, not a cascade', () => {
+    // `NaN !== NaN`, so the arithmetic comparison would pile a useless second
+    // error on top of the real one — the `errors.length === 0` guard is what
+    // stops that, and this pins it.
     const check = validateMoneyInvariants(NaN, 10, 10);
 
     expect(check.errors).toHaveLength(1);
     expect(check.errors[0]).toMatch(/currentMoney/);
   });
 
-  it('accepts an ordinary earn (the control)', () => {
-    const { newMoney, check } = updateMoney(1_000, 250);
-
-    expect(newMoney).toBe(1_250);
-    expect(check.valid).toBe(true);
-    expect(check.warnings).toEqual([]);
+  it('accepts a correct calculation within its 0.01 tolerance', () => {
+    expect(validateMoneyInvariants(100, 50, 150.005).valid).toBe(true);
   });
 });
 
-describe('the sibling checks this file had no tests for at all', () => {
+describe('the sibling checks, which also had no tests', () => {
   it('flags an out-of-range stat but allows the bounds themselves', () => {
     expect(validateStatsInvariants({ health: 101 }).valid).toBe(false);
     expect(validateStatsInvariants({ health: -1 }).valid).toBe(false);
@@ -131,8 +170,15 @@ describe('the sibling checks this file had no tests for at all', () => {
     expect(validateStatsInvariants({ gems: -1 }).valid).toBe(false);
   });
 
+  it('warns rather than errors on an implausibly large gem balance', () => {
+    const check = validateStatsInvariants({ gems: 1_000_000_000 });
+
+    expect(check.valid).toBe(true);
+    expect(check.warnings).toHaveLength(1);
+  });
+
   it('treats an absent stat as fine, not as zero', () => {
-    // Every check is guarded on `!== undefined`; a partial object is the
+    // Every check is guarded on `!== undefined`, and a partial object is the
     // normal input here, so an empty one must be valid rather than 0-valued.
     expect(validateStatsInvariants({}).valid).toBe(true);
   });
@@ -148,7 +194,7 @@ describe('the sibling checks this file had no tests for at all', () => {
     expect(validateStatChanges({ energy: NaN }).valid).toBe(false);
   });
 
-  it('skips null and undefined changes without complaining', () => {
+  it('skips undefined changes without complaining', () => {
     expect(validateStatChanges({ energy: undefined }).valid).toBe(true);
   });
 });
