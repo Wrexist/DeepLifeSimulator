@@ -74,8 +74,8 @@ const careerAtTop = (s: GameState, id: string): boolean => {
 const bestCareerLevel = (s: GameState): number => {
   let best = 0;
   for (const c of s.careers ?? []) {
-    if ((c as any)?.accepted === true || (c as any)?.id === s.currentJob) {
-      best = Math.max(best, (c as any)?.level ?? 0);
+    if (c?.accepted === true || c?.id === s.currentJob) {
+      best = Math.max(best, c?.level ?? 0);
     }
   }
   return best;

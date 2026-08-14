@@ -211,10 +211,41 @@ export const radii = {
 // Shadows
 // ---------------------------------------------------------------------------
 
+/**
+ * A react-native-web box-shadow, as a typed style fragment.
+ *
+ * `boxShadow` is a react-native-web property that React Native's own
+ * `ViewStyle` does not declare, which is why the four shadow tiers below each
+ * carried an `as any` — and why `no-restricted-syntax`'s own message names this
+ * exact case ("for RN-web style shadows, use a typed helper"). This is that
+ * helper: one named shape, declared once, instead of four anonymous escapes
+ * from the type system.
+ */
+interface WebBoxShadow {
+  boxShadow: string;
+}
+
+/** The native side of the same tier — RN's own elevation-shadow props. */
+interface NativeBoxShadow {
+  shadowColor: string;
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+}
+
+/**
+ * `Platform.select` infers its generic from the FIRST branch it sees, so a
+ * web-only return type makes the native branch a type error. Naming the union
+ * explicitly is what lets both branches be checked instead of silenced.
+ */
+type PlatformShadow = WebBoxShadow | NativeBoxShadow;
+
+const webBoxShadow = (value: string): WebBoxShadow => ({ boxShadow: value });
+
 export const shadows = {
   sm: {
-    ...Platform.select({
-      web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)' } as any,
+    ...Platform.select<PlatformShadow>({
+      web: webBoxShadow('0px 1px 2px rgba(0, 0, 0, 0.1)'),
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -225,8 +256,8 @@ export const shadows = {
     elevation: 2,
   },
   md: {
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.15)' } as any,
+    ...Platform.select<PlatformShadow>({
+      web: webBoxShadow('0px 2px 4px rgba(0, 0, 0, 0.15)'),
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -237,8 +268,8 @@ export const shadows = {
     elevation: 4,
   },
   lg: {
-    ...Platform.select({
-      web: { boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)' } as any,
+    ...Platform.select<PlatformShadow>({
+      web: webBoxShadow('0px 4px 8px rgba(0, 0, 0, 0.2)'),
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -249,8 +280,8 @@ export const shadows = {
     elevation: 8,
   },
   xl: {
-    ...Platform.select({
-      web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.25)' } as any,
+    ...Platform.select<PlatformShadow>({
+      web: webBoxShadow('0px 8px 16px rgba(0, 0, 0, 0.25)'),
       default: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },

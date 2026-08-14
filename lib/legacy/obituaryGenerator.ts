@@ -29,10 +29,19 @@ export function generateObituary(state: GameState): Obituary {
 
   // Career
   const careers = state.careers || [];
-  const acceptedCareers = careers.filter((c: any) => c?.accepted);
+  const acceptedCareers = careers.filter((c) => c?.accepted);
   if (acceptedCareers.length > 0) {
     const lastCareer = acceptedCareers[acceptedCareers.length - 1];
-    facts.push((lastCareer as any).name || (lastCareer as any).title || 'employed');
+    /**
+     * `Career` has no `name` and no `title` — the job title lives in
+     * `levels[level].name`. This read them through `as any` and so silently fell
+     * through to the 'employed' fallback on EVERY obituary, for every player who
+     * ever held a job. The cast is what hid it: without it this would not have
+     * compiled. Same derivation as `getCareerName` in `lib/events/careerEvents`.
+     */
+    const levels = Array.isArray(lastCareer.levels) ? lastCareer.levels : [];
+    const safeLevel = Math.max(0, Math.min(lastCareer.level ?? 0, levels.length - 1));
+    facts.push(levels[safeLevel]?.name || 'employed');
   }
 
   // Education

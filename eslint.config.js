@@ -80,10 +80,42 @@ module.exports = [
     },
   },
   {
-    // Ratchet: lib/travel is fully clean of `as any` / internal require()
-    // (Round 11 §1.1). Enforce at 'error' so it can never regress. Add more
-    // directories here as the burndown clears them.
-    files: ["lib/travel/**/*.{ts,tsx}"],
+    /**
+     * Ratchet: these directories are fully clean of `as any` and internal
+     * `require()`. Enforced at 'error' so they can never regress.
+     *
+     * `lib/travel` was the first (Round 11 §1.1) and sat alone for months. On
+     * 2026-08-14 a count showed 48 of lib's 58 directories were ALREADY clean
+     * and simply unprotected — the burndown had been happening as a side effect
+     * of ordinary work, and nothing was locking it in. Four more
+     * (`ambitions`, `config`, `legacy`, `notifications`) were cleared in the
+     * same change to join them.
+     *
+     * Add directories here as the burndown clears them. The remaining six —
+     * economy, events, prestige, simulation, social, timeMachine — are held
+     * back by internal `require()` calls, several of which look like deliberate
+     * cycle-breakers and need reading one at a time rather than a sweep.
+     */
+    files: [
+      "lib/ads/**/*.{ts,tsx}", "lib/ambitions/**/*.{ts,tsx}", "lib/analytics/**/*.{ts,tsx}",
+      "lib/avatar/**/*.{ts,tsx}", "lib/banking/**/*.{ts,tsx}", "lib/business/**/*.{ts,tsx}",
+      "lib/careers/**/*.{ts,tsx}", "lib/challenges/**/*.{ts,tsx}", "lib/commitments/**/*.{ts,tsx}",
+      "lib/config/**/*.{ts,tsx}", "lib/contacts/**/*.{ts,tsx}", "lib/content/**/*.{ts,tsx}",
+      "lib/cosmetics/**/*.{ts,tsx}", "lib/crime/**/*.{ts,tsx}", "lib/crypto/**/*.{ts,tsx}",
+      "lib/darkweb/**/*.{ts,tsx}", "lib/dating/**/*.{ts,tsx}", "lib/depth/**/*.{ts,tsx}",
+      "lib/devtools/**/*.{ts,tsx}", "lib/diseases/**/*.{ts,tsx}", "lib/dynasty/**/*.{ts,tsx}",
+      "lib/education/**/*.{ts,tsx}", "lib/gameLogic/**/*.{ts,tsx}", "lib/karma/**/*.{ts,tsx}",
+      "lib/legacy/**/*.{ts,tsx}", "lib/legacyPass/**/*.{ts,tsx}", "lib/lifeMoments/**/*.{ts,tsx}",
+      "lib/luxury/**/*.{ts,tsx}", "lib/mail/**/*.{ts,tsx}", "lib/mindset/**/*.{ts,tsx}",
+      "lib/notifications/**/*.{ts,tsx}", "lib/parenting/**/*.{ts,tsx}", "lib/pets/**/*.{ts,tsx}",
+      "lib/politics/**/*.{ts,tsx}", "lib/progress/**/*.{ts,tsx}", "lib/pursuits/**/*.{ts,tsx}",
+      "lib/randomness/**/*.{ts,tsx}", "lib/rd/**/*.{ts,tsx}", "lib/realEstate/**/*.{ts,tsx}",
+      "lib/reputation/**/*.{ts,tsx}", "lib/retirement/**/*.{ts,tsx}", "lib/scenarios/**/*.{ts,tsx}",
+      "lib/shop/**/*.{ts,tsx}", "lib/skillTrees/**/*.{ts,tsx}", "lib/statistics/**/*.{ts,tsx}",
+      "lib/stocks/**/*.{ts,tsx}", "lib/subscription/**/*.{ts,tsx}", "lib/travel/**/*.{ts,tsx}",
+      "lib/types/**/*.{ts,tsx}", "lib/utils/**/*.{ts,tsx}", "lib/validation/**/*.{ts,tsx}",
+      "lib/vehicles/**/*.{ts,tsx}",
+    ],
     rules: {
       'no-restricted-syntax': ['error',
         {

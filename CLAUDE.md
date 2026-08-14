@@ -189,8 +189,15 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   the router resolves through a lookup map at module top.
 - **Logging:** `utils/logger.ts`, not `console.*`.
 - **Lint guardrails** (`eslint.config.js`), which encode the hard rules:
-  - `as any` → warn app-wide, **error in `lib/travel/**`** (the first fully clean
-    directory; add directories to that block as the burndown clears them).
+  - `as any` → warn app-wide, **error in 52 of `lib/`'s 58 directories** — every
+    one that is fully clean of `as any` and internal `require()`. `lib/travel`
+    was the first and sat alone for months; a count on 2026-08-14 found 48 more
+    were ALREADY clean and simply unprotected, so the burndown had been
+    happening as a side effect of ordinary work with nothing locking it in. Add
+    directories to that block as the burndown clears them — the remaining six
+    (economy, events, prestige, simulation, social, timeMachine) are held back
+    by internal `require()` calls, several of which look like deliberate
+    cycle-breakers and need reading one at a time.
   - `require('@/lib|utils|contexts…')` for internal modules → warn (degrades types
     to `any`/`never`); use static `import` or `import type` + a typed lazy getter.
   - `@ts-ignore` / `@ts-nocheck` banned; `@ts-expect-error` needs a ≥5-char description.
