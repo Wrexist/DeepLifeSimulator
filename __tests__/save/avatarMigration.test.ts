@@ -24,17 +24,22 @@ function preAvatarSave(): Record<string, unknown> {
 }
 
 describe('v39 adds the vector-avatar config as a carve-out', () => {
-  it('is the version this build writes, and is a covered link', () => {
-    expect(STATE_VERSION).toBe(39);
-    expect(CURRENT_STATE_VERSION).toBe(39);
+  it('is a covered migration link that still leads to the current tip', () => {
+    // v39 is no longer necessarily the newest version (a later bump can sit on top
+    // of it), so this asserts the invariants that stay true regardless: v39 is a
+    // covered link, and the current tip is at least 39 with no code/alias fork. The
+    // absolute "initialState.version === STATE_VERSION" pin lives in
+    // saveMigrationAudit.stress.test.ts.
     expect(isMigrationVersionCovered(39)).toBe(true);
+    expect(STATE_VERSION).toBeGreaterThanOrEqual(39);
+    expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
   });
 
   it('carries an older save forward without errors', () => {
     const result = runMigrations(preAvatarSave());
     expect(result.errors).toEqual([]);
     expect(result.versionFromFuture).toBeFalsy();
-    expect(result.state.version).toBe(39);
+    expect(result.state.version).toBe(CURRENT_STATE_VERSION);
   });
 
   it('does NOT write an avatar onto an existing save', () => {

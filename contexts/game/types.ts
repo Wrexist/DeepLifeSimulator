@@ -1841,6 +1841,7 @@ export interface GameSettings {
   deepLifePlusLastGemClaim?: string; // UTC day key of the last daily gem-drop claim (members-only)
   deepLifePlusGemClaimDays?: string[]; // Recent UTC day keys claimed (pruned) — powers the weekly streak strip
   deepLifePlusLastGemClaimAt?: number; // Monotonic epoch-ms high-water mark of the last claim — blocks backward-clock farming
+  deepLifePlusLastGemClaimWeek?: number; // `weeksLived` of the last claim — the game-week gate that blocks FORWARD-clock farming (the two above only refuse a rewind). v40 carve-out; mirrors `lastLoginRewardWeek` on the sibling login faucet.
   // Absolute `weeksLived` of the last Bank sponsored-bonus claim. Optional with
   // an undefined default (the sanctioned pattern — an absent key already equals
   // "never claimed"), so no migration or STATE_VERSION bump is owed. Keyed on

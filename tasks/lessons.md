@@ -2538,3 +2538,38 @@ survivable.
 - **A clean validation report is a finding, not a dead end.** Valid save, no
   errors, no warnings — which ruled out corruption and pointed straight at
   logic that was working exactly as written.
+
+---
+
+## 2026-08-14 — A clock-farm fix that closes one faucet has siblings
+
+Weekly audit. The daily-login gem reward (`home.tsx`) was hardened against a
+forward-clock scrub in the 2026-07-24 ECON-1 fix: it gained a `weeksLived`
+game-week gate (`lastLoginRewardWeek`, v31) on top of the UTC day-key + epoch
+guards, because those two only refuse a REWOUND clock — advancing the device
+date a day at a time sailed straight through both.
+
+**The sibling faucet was left open.** `SubscriptionActions.claimDailyGems`
+(surfaced by `DailyGemClaim`, shown to ALL players) is the OTHER daily-gem
+faucet, and it still passed only the day-key + epoch to `canClaimDailyGemsFor`.
+The `gameWeek` gate was already a parameter of that shared helper — the fix had
+built the mechanism and wired it into one of the two callers. Forward-scrubbing
+minted 20 gems/day (free) with no play; gems are IAP currency.
+
+**Rules.**
+
+- When you close a device-clock farm, grep for every caller of the same
+  predicate. A shared guard with an optional hardening argument is a trap: the
+  call site that omits the argument looks identical to one that can't need it.
+  `git grep canClaimDailyGemsFor` would have found both callers in one line.
+- The fix is per-tier where the GRACE is per-tier. The free tier has no
+  daily-check-in grace, so it gets the game-week gate unconditionally. The
+  DeepLife+ drop has a deliberate, separately-tested grace (claim on any new
+  calendar day without playing), so gating paying members is a retention
+  decision, not a bug fix — left to the owner, not changed unattended. Correct
+  fixes still respect a documented product choice; flag it, don't overwrite it.
+- §7 has drifted in practice. `lastAdCashBonusWeek` shipped as an
+  undefined-default settings marker with a comment asserting "no migration or
+  STATE_VERSION bump is owed" — which contradicts §7's "still bump the version"
+  and the v31 `lastLoginRewardWeek` precedent. Both are functionally correct for
+  a pure carve-out; the canonical rule (bump) is what this change followed.

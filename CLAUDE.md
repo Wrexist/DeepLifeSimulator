@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 39`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 40`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -247,7 +247,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 39`** — single source of truth in
+- **Canonical `STATE_VERSION = 40`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -413,6 +413,20 @@ including the crash screen.
   player's original pick, which is what seeds the derived face.
   **Catalog order is part of the save format**: appending to a catalog is safe,
   reordering or removing an entry changes the face of every character using it.
+- **v40 adds `settings.deepLifePlusLastGemClaimWeek`** — the `weeksLived` marker
+  that gates the FREE-tier daily-gem faucet (`SubscriptionActions.claimDailyGems`,
+  surfaced by `DailyGemClaim`). That faucet was gated only on a UTC day-key and an
+  epoch high-water mark, both of which only refuse a REWOUND clock — advancing the
+  device date a day at a time farmed gems (20/day) with no play. It closes the same
+  way the sibling login faucet did with `lastLoginRewardWeek` (v31): `weeksLived`
+  only advances by playing. The DeepLife+ member drop (250/day) keeps its
+  deliberate day-key grace (claim on any new calendar day without playing a week —
+  guarded by its own test) and is intentionally NOT gated — extending the gate to
+  paying members is a retention decision left to the owner. Default `undefined`,
+  so a CARVE-OUT: version bumped, NO backfill and no `repairGameState` mirror —
+  stamping the current week onto an existing save would deny the player their next
+  legitimate claim (the v28 `lastNoFillGrantWeek` reasoning). It still has to
+  survive the load round-trip, which `loadedStateMerge` guarantees.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
