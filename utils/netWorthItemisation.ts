@@ -21,7 +21,7 @@
  */
 import type { GameState } from '@/contexts/game/types';
 import { Asset, Liability, NetWorthBreakdown, computeNetWorth } from '@/utils/netWorth';
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { MIRRORED_ACCOUNT_IDS, totalCreditCardDebt } from '@/lib/banking/operations';
 import { getOwnedLuxuryItems, getLuxuryHoldingValue } from '@/lib/luxury';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -76,6 +76,23 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
       rowName: 'Savings Account',
     });
   }
+
+  // Savings goals are money the player still owns, so the canonical `netWorth()`
+  // adds each goal's `currentAmount` on top of cash and savings. The modal used
+  // to omit them, so tapping the headline showed a total BELOW the card that
+  // opened it. Same strict guard as canonical (`typeof === 'number'`, > 0), and
+  // each goal gets its own named row under the same Savings group.
+  (gameState.banking?.savingsGoals ?? []).forEach((goal, i) => {
+    const amount = goal?.currentAmount;
+    if (typeof amount !== 'number' || !isFinite(amount) || amount <= 0) return;
+    assets.push({
+      id: `savings_goal_${goal?.id ?? i}`,
+      type: 'cash',
+      baseValue: amount,
+      group: 'savings',
+      rowName: goal?.name ? `Goal: ${goal.name}` : 'Savings Goal',
+    });
+  });
 
   // Accounts the player opened themselves. `MIRRORED_ACCOUNT_IDS` are skipped
   // because those two rows ARE the cash and savings above — 1:1 mirrors of
@@ -273,12 +290,29 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     .filter((l) => (l?.remaining || 0) > 0)
     .map((l) => ({ id: l.id, type: 'loan', principal: l.remaining }));
 
-  const breakdown = computeNetWorth(assets, liabilities);
+  // Revolving credit-card debt, which the canonical `netWorth()` subtracts and
+  // the modal used to ignore — so a player carrying a balance saw a headline
+  // ABOVE the card that opened it. Same helper canonical uses, guarded because a
+  // partial save can carry `banking` without a `creditCards` array.
+  const creditCardDebt = totalCreditCardDebt({
+    ...(gameState.banking ?? {}),
+    creditCards: gameState.banking?.creditCards ?? [],
+  } as never);
+  if (isFinite(creditCardDebt) && creditCardDebt > 0) {
+    liabilities.push({ id: 'credit-card-debt', type: 'creditCard', principal: creditCardDebt });
+  }
+
+  // `transactionFee: 0` — this breakdown exists to EXPLAIN the canonical
+  // `netWorth()` shown on the card that opens it, and that figure applies no
+  // liquidation haircut. Passing the default fee shaved ~1% off every asset, so
+  // the modal total sat just below the card. With the fee off, `perAsset`
+  // equals each asset's valued contribution exactly, so the folded rows below
+  // sum to the headline with no rounding drift beyond the display round.
+  const breakdown = computeNetWorth(assets, liabilities, { transactionFee: 0 });
 
   // Fold the per-asset values back into display groups. Reading `perAsset`
-  // rather than the inputs is what keeps the rows honest: `computeNetWorth`
-  // applies a transaction-fee haircut to every asset, so quoting the raw input
-  // here would print rows that sum to MORE than the total above them.
+  // rather than the inputs keeps the rows honest: it is the exact per-asset
+  // contribution `computeNetWorth` summed into the headline.
   const totals = new Map<NetWorthGroup, { value: number; items: { name: string; value: number }[] }>();
   assets.forEach((asset, i) => {
     const value = breakdown.perAsset[i] ?? 0;

@@ -2394,6 +2394,56 @@ every save whose influence came from enacting policies rather than retainers.
 holding that stat.** No `STATE_VERSION` bump was needed: specialties are
 catalogue data keyed by lobbyist id, so nothing new is persisted.
 
+---
+
+## 2026-08-13 — The explainer that didn't equal the thing it explained (weekly audit)
+
+**Symptom.** The Net Worth card (`IdentityCard`) shows the canonical `netWorth()`
+(`lib/progress/achievements.ts`) — the figure prestige, achievements and the
+leaderboard all use. Tapping it opened `NetWorthBreakdownModal`, whose total came
+from a *second* engine (`buildNetWorthItemisation` → `computeNetWorth`,
+`utils/netWorth.ts`). The two numbers disagreed, on the one screen whose entire
+job is to explain the first with the second. This cycle's refactor added crypto,
+bank and laundered-BTC rows and its doc comments *claimed* parity — but claiming
+it is not testing it, and it wasn't there.
+
+**Four divergences, only three of which a static/read pass caught:**
+1. The itemisation ran every asset through a 1% liquidation fee
+   (`DEFAULT_TRANSACTION_FEE`) that the canonical figure never applies.
+2. It omitted savings goals (canonical adds each goal's `currentAmount`).
+3. It omitted credit-card debt (canonical subtracts `totalCreditCardDebt`).
+4. It **counts company miners and generic `items`; canonical counts neither.**
+
+The fourth only surfaced by asserting `modal === canonical` on a seeded portfolio
+and reading the exact residual — 2 basic miners (2×2500) + a laptop (1200) = 6200,
+to the dollar. **A subagent's "the three reasons it diverges" list was right about
+three and blind to the fourth; the arithmetic wasn't.** When two engines are meant
+to agree, the invariant to test is `A === B` on a fully-populated fixture, not "do
+the rows I can see add up" — the latter passed the whole time the headline was
+wrong.
+
+**The fix, and where its blast radius stops.** Fixes 1–3 are unambiguous and live
+entirely in the modal's display path: `computeNetWorth` gained a
+`{ transactionFee }` option (default unchanged, so no other caller moves), the
+itemisation passes `0`, and it now itemises savings goals and card debt. Canonical
+`netWorth()` — the one prestige/achievements/leaderboard read — is **untouched**,
+so the change cannot move a prestige gate. The miners/items scope gap (#4) is a
+genuine design call — *should* owned hardware and inventory count toward net worth?
+— that belongs to the owner, not to a modal deciding on its own, so it is filed,
+not silently forced by either hiding real assets or editing the canonical figure.
+
+**The guard.** `__tests__/economy/netWorthItemisation.test.ts` now asserts
+`buildNetWorthItemisation(state).breakdown.netWorth === netWorth(state)` on a
+portfolio holding one of every class both engines count, and separately pins the
+miners+items residual to the exact dollar — so a re-introduced fee or a dropped
+term can't hide behind the known gap.
+
+**The rule.** Two calculations that must agree need a test that says they agree,
+on real data. A "rows sum to my own headline" invariant proves internal
+consistency and nothing about whether the headline is the *right number*.
+
+---
+
 ## 2026-08-13 — A whitelist merge on load ate every "carve-out" field
 
 The rebuilt character creator saved the designed face correctly and the game
