@@ -29,9 +29,17 @@ const LIMITS = {
   iapName: 30,
 };
 
-/** Words Apple will not index or that waste characters. */
+/**
+ * Words Apple will not index or that waste characters.
+ *
+ * 'game'/'games' were here on the usual advice that the Games category makes
+ * them redundant. The category is not an indexed keyword, and Apple's own
+ * popularity panel rates "games" and the "offline games" / "no wifi games"
+ * phrases 4/5, so the term was worthless only for as long as it went unused.
+ * Removed deliberately — see the keywords comment in metadata.mjs.
+ */
 const WASTED = new Set([
-  'app', 'apps', 'game', 'games', 'free', 'best', 'top', 'new', 'the', 'a', 'an',
+  'app', 'apps', 'free', 'best', 'top', 'new', 'the', 'a', 'an',
   'and', 'or', 'for', 'with', 'your', 'my', 'to', 'of', 'in', 'on', 'simulation',
 ]);
 

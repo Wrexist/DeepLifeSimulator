@@ -218,15 +218,23 @@ therefore already indexed.
 
 ### 5c · Keywords 🔴
 
-- [ ] Paste exactly, including the lack of spaces:
+- [ ] Copy the `[Apple · Keywords]` block from `npm run aso`, exactly, including
+      the lack of spaces after the commas.
 
-```
-billionaire,dynasty,mafia,prison,stock,invest,property,empire,wealth,dating,family,story,rich,money
-```
+Read from the generated block rather than pasted here, because this field
+changes whenever a term is re-priced and a hand-copied duplicate goes stale
+silently — which it already did once, between the first version of this runbook
+and the popularity data that replaced five of its terms.
 
-`99/100`. A space after a comma costs a character and buys nothing. No term here
-repeats the name or subtitle — Apple matches **across** those fields, so a second
-copy of a word is a slot thrown away.
+A space after a comma costs a character and buys nothing. No term repeats the
+name or subtitle — Apple matches **across** those fields, so a second copy of a
+word is a slot thrown away.
+
+> 🟡 The field deliberately runs **under** 100 characters. The unspent room is
+> there because every term in it now has a measured popularity score, and
+> filling the remainder with unpriced guesses is what put five dead terms in the
+> previous version. Price the next candidates in Apple Ads first — the comment
+> above `keywords` in `marketing/aso/metadata.mjs` lists them.
 
 > 🟡 `bitlife` is deliberately absent. It is the obvious high-volume term and it
 > is a competitor trademark: App Store Review 5.2.5, and a takedown risk on Play.

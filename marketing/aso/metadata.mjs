@@ -41,10 +41,38 @@ export const APPLE = {
   /**
    * 100 chars. Comma-separated, NO spaces after the commas (a space costs a
    * character and buys nothing), singular forms only (Apple stems plurals).
+   *
+   * MEASURED, not reasoned. The first version of this field was chosen by
+   * argument about the game, and Apple Ads' keyword popularity index (the
+   * 5-dot scale in the Add Keywords panel, ads.apple.com) said five of the
+   * fourteen picks were 1/5 — effectively unsearched:
+   *
+   *   billionaire 1 · dynasty 1 · property 1 · wealth 1 · rich 1
+   *   mafia 3 · prison 3 · stock 3 · invest 3 · empire 3 · family 3 · story 3
+   *   dating 4 · money 4
+   *
+   * That is 41 of 99 characters — 41% of the highest-leverage field there is —
+   * ranking for terms nobody types. `dynasty` had been argued for as "winnable";
+   * it is winnable because there is nothing there to win. Volume is not a thing
+   * to have opinions about when the console reports it for free.
+   *
+   * `offline`, `wifi` and `games` are the additions, and they are the one place
+   * a measured term also happens to be a true product claim: Apple rates the
+   * phrases "offline games" and "no wifi games" 4/5, and this game genuinely
+   * runs with no network (see CLAIMS). Ranking for a phrase needs every token
+   * in it indexed, which is why `games` had to come off the wasted list.
+   *
+   * 16 characters are deliberately left unspent rather than filled with more
+   * guesses — that is the habit that produced the five dead terms. Next
+   * candidates to price in the same panel before spending them: business,
+   * tycoon, gangster, jail, casino, boss.
+   *
+   * Popularity is a moving number. Re-check it at each release; treat these
+   * scores as of 2026-08-14, US storefront.
    */
   keywords: [
-    'billionaire', 'dynasty', 'mafia', 'prison', 'stock', 'invest', 'property',
-    'empire', 'wealth', 'dating', 'family', 'story', 'rich', 'money',
+    'mafia', 'prison', 'stock', 'invest', 'empire', 'dating', 'family',
+    'story', 'money', 'offline', 'wifi', 'games', 'avatar',
   ],
 
   /** 170 chars. The ONLY field that updates without a review cycle. */
@@ -171,9 +199,11 @@ Una vida dura décadas y cada semana es una decisión tuya. Casi nadie se queda 
       // a listing identical to the one those storefronts already fall back to.
       shipped: false,
       subtitle: 'Careers, crime, crypto, heirs',
+      // Mirrors en-US exactly — that identity is the entire reason this locale
+      // is not worth creating, so it has to be kept in step when en-US moves.
       keywords: [
-        'billionaire', 'dynasty', 'mafia', 'prison', 'stock', 'invest', 'property',
-        'empire', 'wealth', 'dating', 'family', 'story', 'rich', 'money',
+        'mafia', 'prison', 'stock', 'invest', 'empire', 'dating', 'family',
+        'story', 'money', 'offline', 'wifi', 'games', 'avatar',
       ],
     },
   },
@@ -229,11 +259,12 @@ Most life simulators resolve a choice with a dice roll and a line of text. This 
 You can be a surgeon who never breaks the law, or a courier who ends up running a dark web operation from a rented room. Both are real routes through the same economy.
 
 HOW IT TREATS YOU
-• Plays offline — your save lives on your device
+• Plays offline — no wifi needed, your save lives on your device
 • Full-screen ads only at year-end breaks, never in your first two in-game years, and one purchase removes them permanently
 • No real-time energy bar between you and the next week
+• Build your character: an avatar you design, who ages with you and whose face your children inherit
 
-If you like life simulators, tycoon games, business simulators, dating sims or story games where your choices actually compound, this one is built for you.
+If you like offline games, life simulators, tycoon games, business simulators, dating sims or story games where your choices actually compound, this one is built for you.
 
 A life runs for decades and every week is a decision you make. Most people start a second one.`,
 };
@@ -282,7 +313,12 @@ export const EXCLUSIONS = [
   { term: 'bitlife', reason: 'Competitor trademark. App Store Review 5.2.5 / Play policy — a known rejection and takedown risk, for traffic that would arrive expecting a different game.' },
   { term: 'idle', reason: 'Not an idle game. It would rank, then convert badly and drag the conversion rate that ranking depends on.' },
   { term: 'simulation', reason: 'The category is indexed automatically. Spending characters on it buys nothing.' },
-  { term: 'game', reason: 'Every app in Games is already in Games. Wasted characters.' },
+  // 'game' / 'games' used to sit here on the standard advice that the category
+  // makes it redundant. Apple does not index the category as a keyword, and its
+  // own popularity panel rates "games", "offline games" and "no wifi games" 4/5
+  // — so the word was buying nothing only because it was never bought. `games`
+  // is now in the field to complete the offline phrases, which are also true of
+  // the build. Kept here as a record so the advice is not re-applied blindly.
   { term: 'free', reason: 'Apple explicitly indexes price separately; also a rejection trigger in names.' },
   { term: 'best/new/top', reason: 'Superlatives are not searched and read as spam.' },
 ];
