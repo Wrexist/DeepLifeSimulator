@@ -167,7 +167,15 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   // (a forward-clock scrub), and tapping it would silently no-op. Free tier only —
   // members keep the day-key grace, exactly as the reducer does.
   const weekGate = entitled ? undefined : { current: weeksLived, lastClaim: lastClaimWeek };
-  const claimSettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, Date.now(), weekGate);
+  const now = Date.now();
+  const claimSettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, now, weekGate);
+  // Distinguish the two reasons a claim is settled, so the chip doesn't tell a
+  // free player to "come back tomorrow" when tomorrow won't help — only playing a
+  // game week will. It's blocked BY THE WEEK GATE precisely when the day-key/epoch
+  // guards alone would allow the claim but the full check (with the gate) refuses.
+  // Derived from the same predicate the reducer uses, so it can't drift from it.
+  const daySettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, now);
+  const blockedByGameWeek = claimSettled && !daySettled;
   const week = buildDeepLifePlusWeekStatus(claimDays, new Date());
   // Everyone gets a daily drop; the amount is tiered (members 250, free 20).
   const amount = active ? DEEP_LIFE_PLUS_DAILY_GEMS : DAILY_GEMS_BASE;
@@ -237,7 +245,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
         >
           <Check size={fontScale(15)} color={light ? AMBER_DEEP : GOLD_SOFT} />
           <Text style={[styles.claimDoneText, light && styles.claimDoneTextLight]}>
-            Daily gems claimed · back tomorrow
+            {blockedByGameWeek ? 'Daily gems claimed · play a week to claim again' : 'Daily gems claimed · back tomorrow'}
           </Text>
         </Animated.View>
       ) : (

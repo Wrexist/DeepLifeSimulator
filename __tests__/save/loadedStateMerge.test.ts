@@ -79,11 +79,21 @@ describe('the carve-out fields survive a load', () => {
     // `lastNoFillGrantWeek` (v28) replaced a module-level boolean BECAUSE that
     // reset on restart and made the ad orb's courtesy grant farmable. Dropping
     // it on load reopened the same exploit through a different door.
+    // `deepLifePlusLastGemClaimWeek` (v40) is the same shape: the game-week gate
+    // on the free daily-gem faucet. If the load erased it, the forward-clock farm
+    // it closes would reopen on the next app launch.
+    expect('deepLifePlusLastGemClaimWeek' in initialGameState.settings).toBe(false);
     const out = mergeLoadedSlice(
-      { ...initialGameState.settings, lastNoFillGrantWeek: 41, quickActionWeeks: { hustle: 41 } },
+      {
+        ...initialGameState.settings,
+        lastNoFillGrantWeek: 41,
+        quickActionWeeks: { hustle: 41 },
+        deepLifePlusLastGemClaimWeek: 41,
+      },
       initialGameState.settings
     );
     expect((out as { lastNoFillGrantWeek?: number }).lastNoFillGrantWeek).toBe(41);
     expect((out as { quickActionWeeks?: unknown }).quickActionWeeks).toEqual({ hustle: 41 });
+    expect((out as { deepLifePlusLastGemClaimWeek?: number }).deepLifePlusLastGemClaimWeek).toBe(41);
   });
 });
