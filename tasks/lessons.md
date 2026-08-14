@@ -2683,3 +2683,94 @@ minted 20 gems/day (free) with no play; gems are IAP currency.
   is to remove the affordance, not to add the handler. A correct architectural
   decision still has to be legible in the pixels, or the field reports it as a
   bug.
+
+### 2026-08-14 (later) — auditing the fix: the sibling card, and the exploit the fix created
+
+Follow-up audit of the progression spine after the wealth-ratchet fix. The
+static layer (`npm run audit:weekly`) was clean across all five domains, which
+is the useful part of the lesson: none of what follows is visible to a grep.
+
+**1. The fix had a twin one card down.** `LifeChapterCard`'s fake CTA was fixed
+from a bug report. `AmbitionCard` — directly below it on the same screen,
+carrying the largest reward in the game — had the identical solid-amber
+button-shaped `View` with no handler. The reporter's own screenshot showed both
+cards stacked.
+
+- Pattern: the same rule as the 2026-08-13 daily-gem lesson, in a different
+  material. When a defect is a PATTERN rather than a typo, fixing the reported
+  instance is half the job; the other half is grepping for the pattern. There
+  the shared thing was a predicate with an optional argument, here a style
+  block, and neither shows up as a duplicate of the other.
+- Rule: after fixing a UI affordance defect, grep the styles, not just the
+  logic. `backgroundColor: '#FBBF24'` found the twin in one line.
+
+**2. A monotonicity fix is only as monotonic as its weakest input.** `unlockTier`
+takes `max(byChapters, byMilestone)`, and the ratchet made the wealth term
+monotonic — but `byMilestone`'s tier-1 condition also read `state.currentJob`,
+which goes to `undefined` on quitting or being fired. A player hired in week 1
+who left before week 4, still under $500 (a life starts with $200), dropped
+tier 1 → 0 and lost the Progression tab, Contacts and Bank.
+
+- Pattern: I fixed the input the bug report pointed at and did not enumerate the
+  others. A function claiming a monotonicity property needs EVERY input checked
+  against it, not the one that was reported.
+- Rule: when fixing "X can go backwards", list every term feeding X and mark
+  each monotonic or not. It is a five-minute exercise and it found this.
+
+**3. The fix created an exploit — and half-fixing it was worse than not.**
+`LoanActions` credits the whole loan principal to `stats.money`. Before the
+ratchet, borrowing bought unlock tiers TEMPORARILY (spend the principal, lose
+them). Making the mark permanent made the purchase permanent: ~$10k of principal
+is within a 43% debt-to-income cap for a newly-employed character, which banks
+tier 3 in week 5 and skips three chapters of disclosure for good.
+
+The first attempt subtracted debt in the ratchet only. That closed the permanent
+case and left the temporary one, because `wealthMark`'s own liquid term still
+read the raw balance — and a test written to assert the intended behaviour
+FAILED against the half-fix, which is the only reason it was caught rather than
+shipped as done. Both `netWorth` and the ratchet were already debt-adjusted;
+the raw balance was the last place borrowed money read as wealth.
+
+- Pattern: a "sticky" mechanism makes every pre-existing inflation of the
+  underlying value permanent too. Adding memory to a value converts its
+  transient bugs into permanent ones — the audit question is not "is this value
+  right now" but "was it ever briefly wrong".
+- Rule: write the assertion for the behaviour you INTEND, not for the behaviour
+  you just implemented. The failing expectation is the whole value of the test.
+- Rule: when several terms feed one figure, they must all be adjusted the same
+  way. Two of three were net of debt and the third was not, which is exactly the
+  kind of disagreement that reads as correct in every individual diff.
+
+**4. The most convincing finding of the audit was wrong, and tracing it saved
+the bug.** `ch2_make_friend` is `relationships.length > 0` and `initialState`
+seeds Mom and Dad, so chapter 2's fourth goal is ticked at week 0. It looked
+open-and-shut, and the sibling ambition system had ALREADY made the tightening
+with a comment justifying it ("Exclude the starting parents ... so 'Make a
+Connection' doesn't auto-complete at birth"). A precedent in the same repo,
+solving the same problem, in a file one directory away.
+
+Tracing the routes to a non-family relationship inverted it. Spark is tier 2,
+and a network-favour introduction needs a `business` contact —
+`FAVOR_KIND_BY_CONTACT` excludes personal kinds on purpose. A player working on
+chapter 2 is at tier 1 with two parents and no business contacts, so Spark is
+the only route, and chapter 2 is what unlocks Spark. Tightening it deadlocks the
+chapter — rule 3, the same trap a player was stranded in on 2026-08-13. The
+permissive check is load-bearing.
+
+- Pattern: a precedent proves the fix is REASONABLE, never that it is SAFE here.
+  The ambition milestone is not gated behind the thing it requires; the chapter
+  goal is. Same predicate, different position in the dependency graph, opposite
+  correct answer.
+- Rule: before tightening a check that gates progression, enumerate the routes
+  to satisfying it AND the tier each route is gated at. If every route sits at or
+  above the tier the check itself unlocks, that is a deadlock, not a fix.
+- Rule: when a permissive-looking check turns out to be load-bearing, the
+  deliverable is the guard, not the change — a comment at the site and a test
+  that spells out the argument. The next reader will find this exactly as
+  convincing as I did.
+
+**5. One thing deliberately NOT fixed**, in `tasks/todo.md` with the numbers: the
+chapter ladder re-pays ~$42,500 and ~700 gems on every prestige (defensible as
+designed, but note `legacyContracts` resetting the same way WAS treated as a bug
+in v36). That removes a reward players currently receive on a reading of intent
+— an owner call, not an audit call.
