@@ -79,6 +79,16 @@ jobs:
       # Fail fast if the requested marketing version isn't a full
       # MAJOR.MINOR.PATCH string — `npm version` (used to stamp package.json
       # below) rejects two-part inputs like "2.5".
+      # It also refuses a version LOWER than package.json's current one. That is
+      # not pedantry: run #5 was dispatched with "1.4.1" while package.json was
+      # "2.8.0". 1.4.x is the APP STORE CONNECT version record, a deliberately
+      # different number from the binary version (see CLAUDE.md §9) — but this
+      # input stamps package.json, i.e. the BINARY version. Accepting it would
+      # have shipped a build that reports itself OLDER than the previous one, so
+      # TestFlight/Play/crash reports order it wrong and the "builds must stay
+      # distinguishable" rule silently breaks. Equal is allowed (`npm version`
+      # runs with --allow-same-version) so you can rebuild the same marketing
+      # version with a fresh versionCode.
       - name: Validate marketing version input
         env:
           VERSION: ${{ inputs.version }}
@@ -88,6 +98,18 @@ jobs:
             exit 1
           fi
           CURRENT=$(node -p "require('./package.json').version")
+          CURRENT="$CURRENT" node -e '
+            const cmp = (a, b) => {
+              const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+              for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+              return 0;
+            };
+            const next = process.env.VERSION, current = process.env.CURRENT;
+            if (cmp(next, current) < 0) {
+              console.log(`::error::Version ${next} is LOWER than package.json current ${current}. This input sets the BINARY version (Android versionName / CFBundleShortVersionString), which must never go backwards. If you meant the App Store Connect version record (the 1.x line shown on the store page), that is a DIFFERENT number and is not set here — see CLAUDE.md section 9. Pick ${current} or higher.`);
+              process.exit(1);
+            }
+          '
           echo "::notice::Building marketing version $VERSION (package.json currently: $CURRENT)"
 
       # Fail fast if EAS auth is missing, before any dependency install / build.
@@ -108,7 +130,11 @@ jobs:
       # so we don't spend a whole build only to fail at the upload step.
       - name: Require Play service-account key when submitting
         if: ${{ inputs.submit }}
-        run: test -n "$SA_JSON" || { echo "::error::Submit is ticked but GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret is not set — add it or untick Submit"; exit 1; }
+        run: |
+          if [ -z "$SA_JSON" ]; then
+            echo "::error::Submit is ticked but the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret is not set. Either untick Submit (the .aab is still built and uploaded as an artifact you can upload by hand), or add the secret: Play Console > Users & permissions > invite a service account with 'Release apps to testing tracks'; Google Cloud Console > that service account > Keys > Add key > JSON; paste the whole file into GitHub > Settings > Secrets and variables > Actions > New repository secret named GOOGLE_PLAY_SERVICE_ACCOUNT_JSON. See docs/RELEASE_SECRETS.md. Note Google requires this app's FIRST .aab to be uploaded manually in the Play Console before API uploads are allowed."
+            exit 1
+          fi
         env:
           SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
 
@@ -183,8 +209,18 @@ jobs:
       # would reject it. Without ASC creds the script uses epoch seconds — strictly
       # monotonic, always higher than any small historical versionCode, and under
       # Google's 2.1B ceiling — which is exactly what Android wants. app.config.js
-      # bakes it into android.versionCode (eas.json appVersionSource: local via
-      # BUILD_NUMBER).
+      # bakes it into android.versionCode.
+      #
+      # NOTE: eas.json sets `cli.appVersionSource: "remote"`, NOT "local" — earlier
+      # revisions of this comment claimed "local" and were simply wrong. Do not
+      # "correct" eas.json to match: the cloud workflow (eas-build.yml) has no
+      # BUILD_NUMBER step and depends on remote + autoIncrement, so flipping it to
+      # local would make every cloud build bake app.config.js's "99" fallback.
+      # The remote setting does NOT block this path in practice — the iOS sibling
+      # submits to TestFlight on this same eas.json and Apple accepts each build,
+      # which it would not if BUILD_NUMBER were being ignored and CFBundleVersion
+      # repeated. tasks/lessons.md (2026-06-11) prescribes "local"; that specific
+      # remedy is stale — the fix that actually stuck was next-build-number.mjs.
       - name: Compute unique versionCode
         run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
 

@@ -565,7 +565,18 @@ plugin options that become purpose strings at prebuild time, so add a row to its
 
 `production` (ads/IAP/ATT/RevenueCat on, Boring Build off, `autoIncrement`) ·
 `preview` (internal, devtools on) · `development` (dev client).
-`cli.appVersionSource: "remote"`.
+`cli.appVersionSource: "remote"` — and it must stay that way. The cloud workflow
+(`eas-build.yml`) has no `BUILD_NUMBER` step and relies on remote +
+`autoIncrement`; flipping it to `"local"` would bake app.config.js's `"99"`
+fallback into every cloud build. The `--local` workflows are unaffected: they
+mint their own number via `scripts/next-build-number.mjs` and app.config.js bakes
+it, which TestFlight has accepted repeatedly. `tasks/lessons.md` (2026-06-11)
+prescribes `"local"`; that half of the rule is stale and annotated in place.
+
+The `version` input on both local-build workflows sets the **binary** version
+(`package.json`). It is validated to be MAJOR.MINOR.PATCH **and not lower than
+the current value** — typing the App Store Connect version record (the 1.x line)
+there would silently downgrade the binary. See §9 for why the two numbers differ.
 
 ---
 

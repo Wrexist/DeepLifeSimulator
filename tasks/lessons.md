@@ -592,6 +592,7 @@
 - What went wrong: `eas submit` for iOS failed with "You've already submitted this build of the app." `eas.json` had `cli.appVersionSource: "remote"` but **no** `autoIncrement` on any profile, and the failing pipeline (`.github/workflows/eas-build-local-ios.yml`) builds with `eas build --local`. Remote versioning made EAS ignore `app.config.js`'s existing `BUILD_NUMBER` hook, AND `--local` builds do not run the remote auto-increment (that only happens on EAS *cloud* builds) — so every local build baked the SAME `CFBundleVersion` and Apple rejected the duplicate.
 - Pattern: `appVersionSource: "remote"` silently disables the local `ios.buildNumber` / `android.versionCode` values (remote becomes the source of truth), and the remote `autoIncrement` flag is a *cloud-build-only* feature. A `--local` + `remote` combination therefore has NO working increment path — it ships the same build number forever, and the failure only surfaces at submit time, not build time.
 - Rule: any pipeline that uses `eas build --local` must manage the build number itself. Set `cli.appVersionSource: "local"` and compute a unique, monotonic `BUILD_NUMBER` (`scripts/next-build-number.mjs`: returns one higher than App Store Connect's latest build when `ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8` are present, else `date +%s` epoch seconds — which also stays under Android's ~2.1e9 `versionCode` cap) so `app.config.js` bakes a fresh `CFBundleVersion` into each binary. Reserve `remote` + `autoIncrement` for the *cloud* `eas build` path only. After a failed submit you must REBUILD with a new number — the already-built `.ipa` can never be re-submitted as-is.
+- **AMENDED 2026-08-14 — do NOT act on the `appVersionSource: "local"` half of this rule.** It was never applied (`eas.json` has always been `"remote"`), and applying it now would break the cloud path: `eas-build.yml` has no `BUILD_NUMBER` step and depends on remote + `autoIncrement`, so `"local"` would bake app.config.js's `"99"` fallback into every cloud build. The part of this lesson that fixed the bug and still holds is `scripts/next-build-number.mjs` + `app.config.js` minting the number locally; that works *with* `"remote"` — `eas-build-local-ios.yml`'s `submit-ios` job has been accepted by TestFlight repeatedly (verified 2026-08-12), which could not happen if `CFBundleVersion` were being ignored and repeated. See the 2026-08-14 entry at the end of this file.
 
 ### 2026-06-26 - Weekly audit reported a false 🟠 high: perf jest suite "failed" in a fresh routine container
 
@@ -2573,3 +2574,60 @@ minted 20 gems/day (free) with no play; gems are IAP currency.
   STATE_VERSION bump is owed" — which contradicts §7's "still bump the version"
   and the v31 `lastLoginRewardWeek` precedent. Both are functionally correct for
   a pure carve-out; the canonical rule (bump) is what this change followed.
+
+### 2026-08-14 - Android local build: the "failure" was a working guard, and the real bug was next to it
+
+- What went wrong: the Android Play Store local build (run #5) failed in two
+  seconds with "Submit is ticked but GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret
+  is not set". This was reported as a build failure to fix in code. It is not:
+  the secret is genuinely absent from the repo, and the step exists precisely to
+  refuse that combination BEFORE spending a ~40-minute native build on an upload
+  that cannot happen. Nothing in the repo could have made that run pass — only
+  the owner adding the secret (or unticking Submit) can.
+- Pattern: a fail-fast guard reports as a red job identical in shape to a real
+  break. The tell is the timing and the message: a job that dies in seconds on a
+  step whose whole body is a `test -n`/`exit 1` is a precondition being enforced,
+  not a regression. Read the failing step before changing anything, and check
+  whether the missing input is something the repo can even supply — a repo secret
+  is an owner action, not a code change.
+- Rule: when a CI failure names a missing secret, do NOT weaken or delete the
+  guard to get green. Confirm the secret is unset (the log prints the env var as
+  empty rather than `***`), tell the owner exactly how to set it, and spend the
+  investigation on the code paths the failing run exposed instead.
+
+- Second finding, the one that mattered: that same run was dispatched with
+  version `1.4.1` while `package.json` was `2.8.0`. The workflow validated the
+  version's FORMAT but never its ORDERING, so it would have stamped the binary
+  version DOWN by more than a full major. This is exactly the confusion CLAUDE.md
+  §9 documents — 1.4.x is the App Store Connect version RECORD (what users see on
+  the store page), a deliberately different number from the binary version — but
+  §9 only explains the split, it never stopped the wrong number being typed into
+  the field that sets the binary one. Both local workflows now refuse a version
+  lower than `package.json`'s current value (equal still allowed, so a rebuild at
+  the same marketing version with a fresh build number works).
+- Pattern: documenting that two numbers are different does not stop them being
+  swapped at the one input where it matters. A `workflow_dispatch` string input
+  is an unvalidated hand-typed value on the release path; format validation reads
+  like validation while leaving the failure mode wide open.
+- Rule: any release input that stamps a monotonic value must be checked against
+  the current value, not just its shape. Compare numerically, not as strings
+  (`2.10.0` must beat `2.8.0`).
+
+- Third finding: both local workflows carried comments asserting `eas.json` sets
+  `cli.appVersionSource: "local"`. It does not and never has (`git log -S` finds
+  no such commit) — it is `"remote"`. The 2026-06-11 lesson below prescribes
+  flipping it to `"local"`, and acting on that today would BREAK the working
+  cloud path: `eas-build.yml` has no BUILD_NUMBER step and relies on remote +
+  `autoIncrement`, so `"local"` would bake app.config.js's `"99"` fallback into
+  every cloud build. The remote setting is not blocking `--local` builds in
+  practice: `eas-build-local-ios.yml`'s `submit-ios` job succeeds against
+  TestFlight (verified 2026-08-12), which Apple would refuse if BUILD_NUMBER were
+  ignored and CFBundleVersion repeated. The comments are corrected; the stale
+  remedy is annotated rather than deleted.
+- Pattern: a lesson's RULE can outlive the behavior that motivated it (eas-cli
+  changed), while the diagnosis stays true. A remedy that was never applied and
+  is contradicted by months of green submits is a trap for the next reader, who
+  finds config "disagreeing with the documented rule" and helpfully aligns it.
+- Rule: before aligning config to a documented rule, check whether the current
+  config is actually failing. Evidence of the pipeline working beats a written
+  rule; when they conflict, annotate the rule with the evidence and the date.
