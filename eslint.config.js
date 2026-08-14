@@ -91,18 +91,25 @@ module.exports = [
      * (`ambitions`, `config`, `legacy`, `notifications`) were cleared in the
      * same change to join them.
      *
-     * Three of the six that were held back — `economy`, `social`, `timeMachine`
-     * — joined on 2026-08-14. Their ten lazy `require()` calls were checked one
-     * at a time against the STATIC import graph, asking of each "does the target
-     * already reach this file?". None did: not one was a cycle-breaker. The
-     * modules they pulled in were also confirmed side-effect-free at top level,
-     * so making them eager changes nothing at startup — a lazy require defers
-     * module EVALUATION, not just typing, and that half is invisible to a type
-     * checker.
+     * Five of the six that were held back — `economy`, `social`, `timeMachine`,
+     * `events`, `prestige` — joined on 2026-08-14. All thirty of their lazy
+     * `require()` calls were checked one at a time against the STATIC import
+     * graph, asking of each "does the target already reach this file?".
+     * Twenty-nine did not: they were not cycle-breakers, and the reason given
+     * for holding these directories back was never true. The modules they
+     * pulled in were also confirmed side-effect-free at top level, since a lazy
+     * require defers module EVALUATION and not just typing — the half a type
+     * checker cannot see.
      *
-     * Add directories here as the burndown clears them. The remaining three —
-     * events, prestige, simulation — are still held back by internal
-     * `require()`, and are the ones where a cycle is actually plausible.
+     * The thirtieth (`lib/prestige/prestigeTypes.ts`) is genuine and stays,
+     * with a line-level disable and the measurements behind it in a comment.
+     * It is a weight argument, not a cycle, and it was already typed.
+     *
+     * Only `lib/simulation` remains. Its requires are not a cycle either — they
+     * reach into `contexts/game/*`, so making them static would bake a
+     * lib → contexts inversion into the module graph, and it is ~10k LOC of
+     * dev/QA tooling already dead-code-eliminated from release bundles by the
+     * `__DEV__`-folded require in SettingsModal. A boundary, not a knot.
      */
     files: [
       "lib/ads/**/*.{ts,tsx}", "lib/ambitions/**/*.{ts,tsx}", "lib/analytics/**/*.{ts,tsx}",
@@ -113,11 +120,13 @@ module.exports = [
       "lib/darkweb/**/*.{ts,tsx}", "lib/dating/**/*.{ts,tsx}", "lib/depth/**/*.{ts,tsx}",
       "lib/devtools/**/*.{ts,tsx}", "lib/diseases/**/*.{ts,tsx}", "lib/dynasty/**/*.{ts,tsx}",
       "lib/economy/**/*.{ts,tsx}",
-      "lib/education/**/*.{ts,tsx}", "lib/gameLogic/**/*.{ts,tsx}", "lib/karma/**/*.{ts,tsx}",
+      "lib/education/**/*.{ts,tsx}", "lib/events/**/*.{ts,tsx}",
+      "lib/gameLogic/**/*.{ts,tsx}", "lib/karma/**/*.{ts,tsx}",
       "lib/legacy/**/*.{ts,tsx}", "lib/legacyPass/**/*.{ts,tsx}", "lib/lifeMoments/**/*.{ts,tsx}",
       "lib/luxury/**/*.{ts,tsx}", "lib/mail/**/*.{ts,tsx}", "lib/mindset/**/*.{ts,tsx}",
       "lib/notifications/**/*.{ts,tsx}", "lib/parenting/**/*.{ts,tsx}", "lib/pets/**/*.{ts,tsx}",
-      "lib/politics/**/*.{ts,tsx}", "lib/progress/**/*.{ts,tsx}", "lib/pursuits/**/*.{ts,tsx}",
+      "lib/politics/**/*.{ts,tsx}", "lib/prestige/**/*.{ts,tsx}",
+      "lib/progress/**/*.{ts,tsx}", "lib/pursuits/**/*.{ts,tsx}",
       "lib/randomness/**/*.{ts,tsx}", "lib/rd/**/*.{ts,tsx}", "lib/realEstate/**/*.{ts,tsx}",
       "lib/reputation/**/*.{ts,tsx}", "lib/retirement/**/*.{ts,tsx}", "lib/scenarios/**/*.{ts,tsx}",
       "lib/shop/**/*.{ts,tsx}", "lib/skillTrees/**/*.{ts,tsx}", "lib/social/**/*.{ts,tsx}",

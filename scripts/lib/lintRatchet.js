@@ -40,9 +40,16 @@
 const MAX_ERRORS = 0;
 
 /**
- * Warning ceiling. Measured 909 over the whole repo on 2026-08-14 (920 earlier
- * the same day, down from 1 191 (1 188 on 2026-08-10, ceiling 1 193; 1 235 on 2026-08-04,
- * ceiling 1 240).
+ * Warning ceiling. Measured 867 over the whole repo on 2026-08-14 (895, 909 and
+ * 920 earlier the same day, down from 1 191 (1 188 on 2026-08-10, ceiling 1 193;
+ * 1 235 on 2026-08-04, ceiling 1 240).
+ *
+ * ── The 42 that came off in the `require()` burndown ──────────────────────
+ * 909 → 867, by converting 29 lazy internal `require()` calls to static
+ * imports across economy, social, timeMachine, events and prestige — the last
+ * directories held out of the `no-restricted-syntax` error block. Each one
+ * also removes the `import/first` and `no-require-imports` warnings that rode
+ * along with it, which is why the drop is larger than the require count.
  *
  * A small margin above the measurement so the gate does not trip on noise from
  * an unrelated file landing — the same reasoning as the coverage floors. A gate
@@ -77,7 +84,7 @@ const MAX_ERRORS = 0;
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 895;
+const MAX_WARNINGS = 867;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

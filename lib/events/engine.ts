@@ -30,6 +30,9 @@ import {
 } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { netWorth } from '@/lib/progress/achievements';
+import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker';
+import { PITY_THRESHOLD_WEEKLY_EVENTS } from '@/lib/randomness/randomnessConstants';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
 
 export interface EventChoiceEffects {
@@ -1543,7 +1546,6 @@ const investmentTip: EventTemplate = {
     // At low net worth: Use fixed amounts ($1K/$5K)
     // At high net worth: Scale to 0.1-0.5% of net worth
     // Cap at $25K/$50K to prevent excessive risk/reward
-    const { netWorth } = require('@/lib/progress/achievements');
     const currentNetWorth = netWorth(state);
 
     // Small investment: 0.1-0.2% of net worth, floor $1K, cap $25K
@@ -1581,7 +1583,6 @@ const businessPartnership: EventTemplate = {
     // At low net worth: Floor ensures minimum $10K (same as before)
     // At high net worth: Cap ensures maximum $100K (prevents excessive rewards)
     // Scales proportionally: 2-5% of net worth (maintains usefulness at all levels)
-    const { netWorth } = require('@/lib/progress/achievements');
     const currentNetWorth = netWorth(state);
     const percentage = 0.02 + (Math.random() * 0.03); // 2-5% of net worth
     const baseOffer = Math.floor(currentNetWorth * percentage);
@@ -1611,7 +1612,6 @@ const distantRelativeInheritance: EventTemplate = {
     // At low net worth: Floor ensures minimum $5K (same as before)
     // At high net worth: Cap ensures maximum $50K (prevents excessive rewards)
     // Scales proportionally: 0.1-0.3% of net worth (maintains usefulness at all levels)
-    const { netWorth } = require('@/lib/progress/achievements');
     const currentNetWorth = netWorth(state);
     const percentage = 0.001 + (Math.random() * 0.002); // 0.1-0.3% of net worth
     const baseInheritance = Math.floor(currentNetWorth * percentage);
@@ -3601,7 +3601,6 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   }
 
   // Get consequence state (NEW - integrates with existing system)
-  const { initializeConsequenceState } = require('@/lib/lifeMoments/consequenceTracker');
   const consequenceState = initializeConsequenceState(state);
 
   // Filter event templates based on consequences (NEW)
@@ -3625,7 +3624,6 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // This prevents immediate guaranteed event on first load of old saves
   // PRIORITY 2 FIX: Use constant from randomnessConstants
   // TIME PROGRESSION FIX: Use weeksLived for pity calculation to handle year boundaries correctly
-  const { PITY_THRESHOLD_WEEKLY_EVENTS } = require('@/lib/randomness/randomnessConstants');
   const currentWeeksLived = state.weeksLived || 0;
   const lastEventWeeksLived = state.lastEventWeeksLived !== undefined
     ? state.lastEventWeeksLived
