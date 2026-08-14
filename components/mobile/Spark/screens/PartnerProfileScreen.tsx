@@ -16,7 +16,7 @@
  * SocialActionsContext via the Family tab.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, AlertTriangle, Briefcase, DollarSign, GraduationCap, Heart, MapPin, MessageCircle, ShieldCheck, Sparkles, UserX } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
@@ -24,7 +24,8 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getGlassButton } from '@/utils/glassmorphismStyles';
-import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { unmatch, reportProfile, exposeCatfish, fallForCatfish } from '@/contexts/game/actions/SparkActions';
 import { isCatfish } from '@/lib/dating/sparkLogic';
 import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
@@ -190,7 +191,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
               end={{ x: 1, y: 1 }}
               style={styles.avatarRing}
             >
-              <Image source={getDatingProfileImage(profile)} style={styles.avatar} />
+              <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={scale(108)} />
             </LinearGradient>
             <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
               {profile.name}, {profile.age}

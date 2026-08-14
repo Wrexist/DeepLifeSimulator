@@ -90,11 +90,23 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
                 end={{ x: 1, y: 1 }}
                 style={styles.ringInner}
               >
-                <Avatar uri={gameState.userProfile?.profilePhoto} fallback="Y" />
+                <Avatar
+                  uri={gameState.userProfile?.profilePhoto}
+                  fallback="Y"
+                  seed={gameState.userProfile?.name}
+                  sex={gameState.userProfile?.sex}
+                  age={gameState.date?.age}
+                />
               </LinearGradient>
             ) : (
               <View style={[styles.ringInnerStatic, { borderColor: theme.border }]}>
-                <Avatar uri={gameState.userProfile?.profilePhoto} fallback="Y" />
+                <Avatar
+                  uri={gameState.userProfile?.profilePhoto}
+                  fallback="Y"
+                  seed={gameState.userProfile?.name}
+                  sex={gameState.userProfile?.sex}
+                  age={gameState.date?.age}
+                />
                 <View style={[styles.plusBadge, { backgroundColor: PULSE_GRADIENT[0] }]}>
                   <Plus size={fontScale(12)} color="#FFFFFF" strokeWidth={3} />
                 </View>
@@ -123,7 +135,11 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
             style={styles.item}
           >
             <View style={[styles.ringInnerStatic, { borderColor: PULSE_GRADIENT[0] }]}>
-              <Avatar uri={npc.profilePicture} fallback={npc.name.slice(0, 1).toUpperCase()} />
+              <Avatar
+                uri={npc.profilePicture}
+                fallback={npc.name.slice(0, 1).toUpperCase()}
+                seed={npc.id}
+              />
             </View>
             <Text style={[styles.label, { color: theme.text }]} numberOfLines={1}>
               {npc.name.split(' ')[0]}
@@ -135,11 +151,26 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
   );
 }
 
-function Avatar({ uri, fallback }: { uri?: string; fallback: string }) {
-  if (uri) {
-    // R6 H-12: ImageWithFallback degrades to a colored placeholder on broken
-    // URI / 404 / network failure instead of leaving a transparent gap.
-    return <ImageWithFallback uri={uri} fallback={fallback} style={styles.avatar} />;
+function Avatar({ uri, fallback, seed, sex, age }: {
+  uri?: string;
+  fallback: string;
+  /** Identity for the generated face shown when there is no photo. */
+  seed?: string;
+  sex?: string | null;
+  age?: number;
+}) {
+  if (uri || seed) {
+    // R6 H-12: ImageWithFallback degrades rather than leaving a transparent gap
+    // on a broken URI / 404 / network failure. It now degrades to the
+    // character's face rather than to a letter, when we know who this is.
+    return (
+      <ImageWithFallback
+        uri={uri}
+        fallback={fallback}
+        face={seed ? { seed, sex, age, size: BUBBLE - 8 } : undefined}
+        style={styles.avatar}
+      />
+    );
   }
   return (
     <LinearGradient

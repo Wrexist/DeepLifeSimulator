@@ -181,6 +181,10 @@ jest.mock('react-native-svg', () => {
     'Svg', 'Path', 'Defs', 'LinearGradient', 'RadialGradient', 'Stop', 'Circle',
     'Rect', 'G', 'Line', 'Polygon', 'Polyline', 'Ellipse', 'Text', 'TSpan',
     'TextPath', 'ClipPath', 'Mask', 'Use', 'Symbol', 'Pattern', 'Image', 'ForeignObject',
+    // SvgXml renders a parsed SVG STRING, which is how the avatar art reaches
+    // the tree. Leaving it out made every screen carrying an avatar crash with
+    // "Element type is invalid" — undefined is not a component.
+    'SvgXml', 'SvgCss', 'SvgFromXml',
   ];
   const mock = { __esModule: true, default: 'Svg' };
   for (const t of tags) mock[t] = t;

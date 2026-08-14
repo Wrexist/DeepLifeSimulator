@@ -1,3 +1,8 @@
+> **SUPERSEDED.** This is the first approach survey. The portrait pool it describes, and
+> the assets under `assets/images/Face/`, were deleted when faces moved to
+> the parameterised system in `lib/avatar/`. Kept for the record of what
+> was tried and why. Start at `docs/avatar-art-direction-research.md`.
+
 # DeepLife — How to make the characters 2.5D / 3D (research brief)
 
 Research into the real options for giving DeepLife's people (player, Spark, Pulse,

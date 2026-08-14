@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Image, Alert, Share, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Alert, Share, Dimensions } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
@@ -10,7 +10,8 @@ import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { getProductConfig, IAP_PRODUCTS } from '@/utils/iapConfig';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
 import { Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem, ChevronRight } from 'lucide-react-native';
-import { getCharacterImage } from '@/utils/characterImages';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import { childParentSources } from '@/lib/avatar/family';
 import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
@@ -651,9 +652,12 @@ function DeathPopup() {
                 `characterName` is the one resolver, shared with mail. */}
             <View style={styles.identityCard}>
               <View style={styles.identityAvatarRing}>
-                <Image
-                  source={getCharacterImage(age, safeUserProfile(gameState).sex || 'male', displayName)}
-                  style={styles.identityAvatar}
+                <CharacterAvatar
+                  source={safeUserProfile(gameState)}
+                  seed={displayName}
+                  sex={safeUserProfile(gameState).sex || 'male'}
+                  age={age}
+                  size={scale(54)}
                 />
               </View>
               <View style={styles.identityText}>
@@ -1274,10 +1278,15 @@ function DeathPopup() {
                                 activeOpacity={0.8}
                               >
                                 <View style={styles.childCardHeader}>
-                                  <Image
-                                    source={getCharacterImage(age, child.gender, child.id)}
-                                    style={styles.childImage}
-                                  />
+                                  <View style={styles.childImage}>
+                                    <CharacterAvatar
+                                      seed={child.id}
+                                      sex={child.gender}
+                                      age={age}
+                                      size={scale(56)}
+                                      parents={childParentSources(gameState)}
+                                    />
+                                  </View>
                                   <View style={styles.childInfo}>
                                     <Text style={styles.childName}>{child.name}</Text>
                                     <Text style={styles.childDetails}>

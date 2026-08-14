@@ -6,14 +6,15 @@
  * open ChatScreen.
  */
 import React, { useCallback, useMemo } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { Star } from 'lucide-react-native';
-import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import EmptyState from '../components/EmptyState';
 import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
 import { formatRelativeRealTime } from '@/components/mobile/Pulse/utils/formatRelativeTime';
@@ -99,7 +100,9 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
                     style={styles.freshItem}
                   >
                     <View style={[styles.avatarRing, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}>
-                      <Image source={getDatingProfileImage(profile)} style={styles.avatar} />
+                      <View style={styles.avatar}>
+                        <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={FRESH_AVATAR - 4} />
+                      </View>
                     </View>
                     {match.superLiked ? (
                       <View style={styles.superBadge}>
@@ -141,10 +144,9 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
                   { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
                 ]}
               >
-                <Image
-                  source={getDatingProfileImage(profile)}
-                  style={[styles.convoAvatar, { borderColor: theme.glassBorder }]}
-                />
+                <View style={[styles.convoAvatar, { borderColor: theme.glassBorder }]}>
+                  <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={scale(46)} />
+                </View>
                 <View style={styles.convoBody}>
                   <View style={styles.convoNameRow}>
                     <Text style={[styles.convoName, { color: theme.text }]} numberOfLines={1}>

@@ -1216,7 +1216,12 @@ export interface UserProfile {
   lastName?: string;
   sex?: 'male' | 'female';
   sexuality?: 'straight' | 'gay' | 'bi';
-  avatarId?: string; // Chosen starter face id (`<m|f><index>`, utils/facePool)
+  avatarId?: string; // Legacy starter-face id (`<m|f><index>`, utils/facePool)
+  // Encoded AvatarConfig (lib/avatar/encode) — the customized vector face.
+  // Absent on every save written before v39; `resolveAvatar` derives a stable
+  // face from the name + legacy avatarId in that case, which is why this needs
+  // no backfill. See lib/avatar/resolve.ts and CLAUDE.md §7.
+  avatar?: string;
   // Enhanced profile fields for X.com-style social
   profilePhoto?: string; // Base64 or URI from gallery
   headerPhoto?: string; // Cover/banner photo

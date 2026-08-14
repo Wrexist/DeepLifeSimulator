@@ -25,7 +25,7 @@ import {
   unlockTier,
   featuresUnlockedAtTier,
 } from '@/lib/progress/featureUnlocks';
-import { LIFE_CHAPTERS } from '@/lib/progress/lifeChapters';
+import { LIFE_CHAPTERS, getChapterProgress } from '@/lib/progress/lifeChapters';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -95,9 +95,19 @@ describe('finishing a chapter opens the next layer', () => {
     }
   });
 
-  it('chapter 3 brings investing, which chapter 2 did not', () => {
-    expect(isFeatureUnlocked(withChapters(2), 'app:stocks')).toBe(false);
-    expect(isFeatureUnlocked(withChapters(3), 'app:stocks')).toBe(true);
+  it('chapter 2 brings investing — chapter 3 is what investing is FOR', () => {
+    // Stocks and Real Estate deliberately open one tier below the chapter
+    // whose goal requires them. See "no chapter needs an app it unlocks".
+    expect(isFeatureUnlocked(withChapters(1), 'app:stocks')).toBe(false);
+    expect(isFeatureUnlocked(withChapters(2), 'app:stocks')).toBe(true);
+    expect(isFeatureUnlocked(withChapters(2), 'app:realestate')).toBe(true);
+  });
+
+  it('chapter 3 brings crypto, travel and the company desk', () => {
+    for (const id of ['app:bitcoin', 'app:travel', 'app:vehicle', 'app:company']) {
+      expect(`${id} at 2: ${isFeatureUnlocked(withChapters(2), id)}`).toBe(`${id} at 2: false`);
+      expect(`${id} at 3: ${isFeatureUnlocked(withChapters(3), id)}`).toBe(`${id} at 3: true`);
+    }
   });
 
   it('the last chapter opens everything', () => {
@@ -250,6 +260,184 @@ describe('the table itself', () => {
       stats: { ...createTestGameState().stats, money: NaN },
     });
     expect(unlockTier(corrupt)).toBe(0);
+  });
+});
+
+/**
+ * The deadlock a player walked into on 2026-08-13: 52 weeks lived, $3,000, and
+ * most of the phone and PC grid padlocked with no route to open it.
+ *
+ * Chapter 3's goal is "buy your first stock or property" and chapter 4's is
+ * "own a company" — but Stocks, Real Estate and Company were gated on
+ * FINISHING those very chapters. The chapter spine could not advance through
+ * its own gate. The only way past was the cash milestone, which is why the
+ * non-monotonic balance read below mattered so much: it was carrying the
+ * entire progression, and it slid backwards every time the player spent.
+ */
+describe('no chapter goal needs an app that chapter unlocks', () => {
+  /**
+   * Which app a goal cannot be completed without. Hand-authored, because the
+   * dependency lives in `checkComplete`'s closure and cannot be read off the
+   * table — which is exactly how it went unnoticed.
+   *
+   * Only goals with a HARD single-surface dependency are listed. `ch2_save_2k`
+   * is not here: cash counts as well as bank savings, so the Bank app is not
+   * required. `ch2_buy_phone` is not here: the Market tab is tier 0.
+   */
+  const GOAL_REQUIRES_APP: Record<string, string[]> = {
+    // Market rents homes but does not sell them, and sells no securities.
+    ch3_invest: ['app:stocks', 'app:realestate'],
+    ch4_business: ['app:company'],
+    ch4_education: ['app:education'],
+  };
+
+  const tierOfChapter = (chapterId: string): number =>
+    LIFE_CHAPTERS.findIndex((c) => c.id === chapterId) + 1;
+
+  /**
+   * The map is hand-authored against two tables it does not own, so BOTH of its
+   * key spaces can rot silently and leave the guard below passing vacuously:
+   *
+   *   - a renamed GOAL id stops matching, and the walk simply skips it;
+   *   - a renamed APP id stops resolving, and an unresolved id would otherwise
+   *     read as tier 0 — permanently "reachable".
+   *
+   * A guard that quietly stops guarding is worse than no guard, so both are
+   * asserted before the walk runs.
+   */
+  it('the map itself still refers to real goals and real apps', () => {
+    const everyGoalId = LIFE_CHAPTERS.flatMap((c) => c.goals.map((g) => g.id));
+
+    for (const goalId of Object.keys(GOAL_REQUIRES_APP)) {
+      expect(`${goalId} is a real goal: ${everyGoalId.includes(goalId)}`)
+        .toBe(`${goalId} is a real goal: true`);
+    }
+
+    for (const appId of Object.values(GOAL_REQUIRES_APP).flat()) {
+      expect(`${appId} is registered: ${FEATURE_UNLOCKS.some((f) => f.id === appId)}`)
+        .toBe(`${appId} is registered: true`);
+    }
+  });
+
+  it('every such app is open at least one tier below its chapter', () => {
+    for (const chapter of LIFE_CHAPTERS) {
+      for (const goal of chapter.goals) {
+        const needed = GOAL_REQUIRES_APP[goal.id];
+        if (!needed) continue;
+
+        // The tier a player is at while WORKING on this chapter: the chapter's
+        // own completion tier, minus one.
+        const workingTier = tierOfChapter(chapter.id) - 1;
+        // A goal satisfiable by any ONE of several apps only needs one of them.
+        // An id that does not resolve is NOT treated as tier 0 — that would let
+        // a typo pass as reachable. The test above proves they all resolve; this
+        // keeps the property local so the two cannot drift apart.
+        const reachable = needed.filter((id) => {
+          const feature = FEATURE_UNLOCKS.find((f) => f.id === id);
+          return feature !== undefined && feature.tier <= workingTier;
+        });
+
+        expect(`${goal.id} (working at tier ${workingTier}) reachable: ${reachable.length > 0}`)
+          .toBe(`${goal.id} (working at tier ${workingTier}) reachable: true`);
+      }
+    }
+  });
+
+  it('the reported save can actually finish chapter 3 — the regression', () => {
+    // Week 52, $3,000, employed, no chapter flags past 2. Before the fix this
+    // save sat at tier 2 with Stocks and Real Estate padlocked, so `ch3_invest`
+    // was unsatisfiable and tier 2 was terminal short of saving $10,000.
+    const stuck = createTestGameState({
+      ...fresh(),
+      weeksLived: 52,
+      currentJob: 'graphic_designer',
+      stats: { ...createTestGameState().stats, money: 3_000 },
+      bankSavings: 0,
+    });
+
+    expect(unlockTier(stuck)).toBe(2);
+    expect(isFeatureUnlocked(stuck, 'app:stocks')).toBe(true);
+    expect(isFeatureUnlocked(stuck, 'app:realestate')).toBe(true);
+  });
+});
+
+describe('spending money never takes an app away', () => {
+  const at = (money: number, extra: Partial<GameState> = {}): GameState =>
+    createTestGameState({
+      ...fresh(),
+      weeksLived: 40,
+      currentJob: 'job-1',
+      stats: { ...createTestGameState().stats, money },
+      bankSavings: 0,
+      ...extra,
+    });
+
+  it('a player who converts cash into net worth keeps their tier', () => {
+    // The acute case: buy a property and the Real Estate app that manages it
+    // used to padlock itself, because the tier read the current balance.
+    const beforePurchase = at(60_000);
+    const afterPurchase = at(1_000, {
+      lifetimeStatistics: {
+        ...createTestGameState().lifetimeStatistics!,
+        peakNetWorth: 60_000,
+      },
+    });
+
+    expect(unlockTier(beforePurchase)).toBeGreaterThanOrEqual(4);
+    expect(unlockTier(afterPurchase)).toBe(unlockTier(beforePurchase));
+    expect(isFeatureUnlocked(afterPurchase, 'app:company')).toBe(true);
+  });
+
+  it('and a player who simply goes broke keeps it too', () => {
+    const wasRich = at(0, {
+      lifetimeStatistics: {
+        ...createTestGameState().lifetimeStatistics!,
+        peakNetWorth: 250_000,
+      },
+    });
+
+    expect(unlockTier(wasRich)).toBe(5);
+  });
+
+  it('the peak is only a FLOOR — it never outranks live wealth (the control)', () => {
+    const climbing = at(250_000, {
+      lifetimeStatistics: {
+        ...createTestGameState().lifetimeStatistics!,
+        peakNetWorth: 0,
+      },
+    });
+
+    expect(unlockTier(climbing)).toBe(5);
+  });
+
+  it('a corrupt peak cannot poison the signal', () => {
+    // `Math.max` propagates NaN, so each term is sanitised independently.
+    const corruptPeak = at(60_000, {
+      lifetimeStatistics: {
+        ...createTestGameState().lifetimeStatistics!,
+        peakNetWorth: NaN,
+      },
+    });
+
+    expect(unlockTier(corruptPeak)).toBeGreaterThanOrEqual(4);
+  });
+
+  it('and a chapter goal reads the same high-water mark', () => {
+    // `applyChapterProgress` needs every goal true in the SAME tick. With a
+    // balance read, a player who spends as they earn passes each money goal in
+    // a different week and completes the chapter in none of them.
+    const [chapterOne] = LIFE_CHAPTERS;
+    const earnedThenSpent = at(0, {
+      weeksLived: 6,
+      lifetimeStatistics: {
+        ...createTestGameState().lifetimeStatistics!,
+        peakNetWorth: 900,
+      },
+    });
+
+    const earn500 = chapterOne.goals.find((g) => g.id === 'ch1_earn_500')!;
+    expect(earn500.checkComplete(earnedThenSpent)).toBe(true);
+    expect(getChapterProgress(chapterOne, earnedThenSpent).isComplete).toBe(true);
   });
 });
 

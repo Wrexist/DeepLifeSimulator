@@ -2441,3 +2441,100 @@ term can't hide behind the known gap.
 **The rule.** Two calculations that must agree need a test that says they agree,
 on real data. A "rows sum to my own headline" invariant proves internal
 consistency and nothing about whether the headline is the *right number*.
+
+---
+
+## 2026-08-13 — A whitelist merge on load ate every "carve-out" field
+
+The rebuilt character creator saved the designed face correctly and the game
+showed a **different person**. Everything on the way in was right: the config
+was encoded, `buildNewGameState` put it on `userProfile`, the save on disk held
+`"avatar":"a1.5n804631300"`, and `resolveAvatar` prefers a stored config over
+its derived fallback. The face still came out wrong on every single load.
+
+Two independent bugs stacked, and the second is the one worth remembering.
+
+**One.** `app/(onboarding)/Perks.tsx` never passed `avatar` to
+`buildNewGameState`. Every field that builder reads is optional, so omitting one
+compiles cleanly and the only symptom is a wrong face. (This one was mine —
+the wiring was written and the last hop was missed.)
+
+**Two, the real lesson.** `loadGame` merges four sub-objects (`stats`, `date`,
+`settings`, `userProfile`) key-by-key with what was a
+`for (const key in defaults)` loop. That is a **whitelist keyed on
+`initialGameState`** — and a field whose stored default is `undefined` is, by
+the §7 carve-out rule, deliberately NOT written into `initialGameState` at all.
+So the entire carve-out category was being written to disk correctly and erased
+on the way back in. Silently: no throw, no log, no failing test. The field is
+simply gone, and every consumer's "absent means the default" fallback dutifully
+does the right thing with the wrong data.
+
+`userProfile.avatar` (v39) was the visible one. `settings.lastNoFillGrantWeek`
+(v28) was the expensive one — it exists *because* the module-level boolean it
+replaced reset on restart and made the ad orb's courtesy grant farmable, and
+dropping it on load reopened that exploit through a different door.
+`settings.quickActionWeeks` (v26) and `userProfile.avatarId` were going the same
+way.
+
+**Rules.**
+
+- A merge that iterates the DEFAULTS is a whitelist. If the schema has optional
+  fields, iterate the union — the saved object's own keys have to survive too.
+  Now `utils/loadedStateMerge.ts`, extracted out of the component precisely so
+  it could be tested.
+- "No backfill needed, absence already resolves" is a claim about the SAVE
+  FORMAT. It says nothing about whether the key survives a round trip, and §7
+  reasoning stops one step short of checking that. Add the field, then load a
+  save that has it and assert it is still there.
+- The end-to-end check has to compare the two ends. Reading the save file and
+  seeing the value there proves the write half and looks like proof of both.
+  What caught this was diffing the fills of the SVG the creator rendered
+  against the SVG the game rendered, in one run of the real app.
+
+---
+
+## 2026-08-13 — A gate can be a deadlock, and "monotonic" is a claim you have to test
+
+**Report.** A player 52 weeks in, $3,000, employed: "Cannot redeem weekly
+reward, can't use features of smartphone and PC." Save validated clean, zero
+error logs. Nothing had crashed — the save was simply parked at unlock tier 2
+with twelve of the phone/PC apps padlocked, and the weekly challenge showing a
+reward whose objectives that tier gave no route to.
+
+**What went wrong.** Two separate faults in `lib/progress/featureUnlocks.ts`
+and `lib/progress/lifeChapters.ts`, either of which alone would have been
+survivable.
+
+1. **The progression spine was circular.** Chapter 3's goal is "buy your first
+   stock or property" while `app:stocks` and `app:realestate` were tier 3 —
+   *finish chapter 3*. Chapter 4's is "own a company" while `app:company` was
+   tier 4. Neither chapter could be completed through the chapter path at all.
+2. **The one escape route slid backwards.** `unlockTier`'s milestone fallback
+   read `stats.money + bankSavings`, the current LIQUID balance, so spending
+   lowered the tier. Buying a $200k property re-locked the Real Estate app that
+   manages it. The file's own header said "NOTHING IS EVER TAKEN AWAY —
+   `unlockTier` is monotonic in progress". It was not, and no test asserted it:
+   the nearest one ("losing money never takes a tab away") pinned the *chapter*
+   axis while leaving the milestone axis untested.
+
+**The patterns.**
+
+- **A comment asserting an invariant is a TODO for a test.** Rule 2 had been
+  written down, believed and quoted for months. The property is one assertion
+  wide — `unlockTier(after) >= unlockTier(before)` across a spend — and nobody
+  wrote it, so the claim aged into documentation of something false.
+- **Derived-not-stored does not mean derived-from-anything.** Deriving unlock
+  state from live state was the right call (no migration can guess what a save
+  already had). But a derived value inherits its source's shape: derive a
+  monotonic property from a balance and you get a non-monotonic property. The
+  fix keeps it derived and swaps the source for one that is already monotonic
+  and already persisted — `lifetimeStatistics.peakNetWorth`, maintained every
+  tick by `applyLifetimeStatistics`. No new field, no migration, no guess.
+- **Check gates for cycles the moment a goal names a surface.** "Complete X to
+  unlock Y" plus "Y is how you do X" is invisible in either table on its own;
+  it only shows up when you read them together. The guard is now a test that
+  walks the goal table and fails if any goal's required app is gated at or
+  above that goal's own chapter tier.
+- **A clean validation report is a finding, not a dead end.** Valid save, no
+  errors, no warnings — which ruled out corruption and pointed straight at
+  logic that was working exactly as written.

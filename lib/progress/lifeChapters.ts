@@ -11,6 +11,69 @@
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
+import { logger } from '@/utils/logger';
+
+const num = (v: unknown): number =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+
+/** One log line per session for a throwing `netWorth` — see `wealthMark`. */
+let netWorthFailureLogged = false;
+
+/**
+ * The wealth figure the chapter goals and the unlock tiers both read.
+ *
+ * Every money goal here used to be `stats.money + bankSavings` — the CURRENT
+ * liquid balance — under a title that promised something cumulative ("Earn
+ * $500", "Net Worth $50K"). Two things went wrong with that:
+ *
+ *   1. It is not monotonic. `applyChapterProgress` completes a chapter only
+ *      when EVERY goal is true in the same tick, so a player who spends as
+ *      they earn can pass each goal in a different week and never complete the
+ *      chapter. The same figure feeds `unlockTier`'s milestone fallback, where
+ *      the consequence is worse: buying a $200k property drops the balance and
+ *      PADLOCKS the Real Estate app that manages it, which is exactly the
+ *      takeaway `featureUnlocks.ts` Rule 2 says can never happen.
+ *   2. It ignores assets outright. A player holding $1M in stocks with an empty
+ *      current account read as broke.
+ *
+ * The high-water mark fixes both. `lifetimeStatistics.peakNetWorth` is already
+ * persisted, already `max(previous, thisWeek)` in `applyLifetimeStatistics`,
+ * and already written on every tick — so this stays DERIVED, with no new field
+ * and no migration. Live net worth is folded in so a purchase made this week
+ * counts before the next tick stamps the peak, and the raw liquid balance is
+ * kept so a save whose statistics have not been written yet still tiers up.
+ *
+ * Each term is sanitised independently: `Math.max` propagates NaN, and a single
+ * corrupt field must not zero the whole signal.
+ */
+export function wealthMark(state: GameState | undefined | null): number {
+  if (!state) return 0;
+
+  const liquid = num(state.stats?.money) + num(state.bankSavings);
+  const peak = num(state.lifetimeStatistics?.peakNetWorth);
+
+  // `netWorth` walks holdings, property, luxury and debt. It is pure, but this
+  // runs on the app-grid render path, where a throw would blank the grid rather
+  // than degrade one number.
+  //
+  // Degrading is not the same as hiding. A throw here silently lowers chapter
+  // progress and the unlock tier, which is indistinguishable from a player who
+  // simply has less money — the exact class of bug this whole change exists to
+  // fix — so it is logged. Once per session: the caller runs on every render of
+  // the app grid, and a state that throws would throw every time.
+  let live = 0;
+  try {
+    live = num(netWorth(state));
+  } catch (err) {
+    if (!netWorthFailureLogged) {
+      netWorthFailureLogged = true;
+      logger.error('[wealthMark] netWorth threw; treating live wealth as 0', err);
+    }
+    live = 0;
+  }
+
+  return Math.max(liquid, live, peak);
+}
 
 export interface ChapterGoal {
   id: string;
@@ -41,8 +104,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch1_earn_500',
         title: 'Earn $500',
         description: 'Accumulate $500 total',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 500,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 500),
+        checkComplete: (s) => wealthMark(s) >= 500,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 500),
       },
       {
         id: 'ch1_get_job',
@@ -86,8 +149,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch2_save_2k',
         title: 'Save $2,000',
         description: 'Have $2,000 in cash or savings',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 2000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 2000),
+        checkComplete: (s) => wealthMark(s) >= 2000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 2000),
       },
       {
         id: 'ch2_buy_phone',
@@ -117,8 +180,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch3_save_10k',
         title: 'Save $10,000',
         description: 'Accumulate $10,000 in wealth',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 10000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 10000),
+        checkComplete: (s) => wealthMark(s) >= 10000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 10000),
       },
       {
         id: 'ch3_partner',
@@ -163,8 +226,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch4_net_50k',
         title: 'Net Worth $50K',
         description: 'Reach $50,000 net worth',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 50000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 50000),
+        checkComplete: (s) => wealthMark(s) >= 50000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 50000),
       },
       {
         id: 'ch4_business',
@@ -214,8 +277,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch5_net_200k',
         title: 'Net Worth $200K',
         description: 'Reach $200,000 net worth',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 200000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 200000),
+        checkComplete: (s) => wealthMark(s) >= 200000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 200000),
       },
       {
         id: 'ch5_max_stat',

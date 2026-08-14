@@ -1,3 +1,8 @@
+> **SUPERSEDED.** This is the original rendered-portrait prompt sheet. The portrait pool it describes, and
+> the assets under `assets/images/Face/`, were deleted when faces moved to
+> the parameterised system in `lib/avatar/`. Kept for the record of what
+> was tried and why. Start at `docs/avatar-art-direction-research.md`.
+
 # DeepLife — Complete Character Face Library (copy‑paste prompts)
 
 > **SUPERSEDED** — the amber-background style below was replaced by the

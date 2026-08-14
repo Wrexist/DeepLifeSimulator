@@ -8,14 +8,15 @@
  *   hidden), so the accruing `likedYou` state stops being invisible.
  */
 import React, { useCallback } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Heart, Star, X, Crown } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
-import { DATING_PROFILES, getDatingProfileImage } from '@/lib/dating/datingProfiles';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { likeBackFromLikedYou, dismissLikedYou } from '@/contexts/game/actions/SparkActions';
 import EmptyState from '../components/EmptyState';
 import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/sparkTheme';
@@ -113,10 +114,15 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
                 if (!profile) return null;
                 return (
                   <View key={entry.profileId} style={[styles.blurAvatarRing, { borderColor: theme.glassBorder }]}>
-                    <Image
-                      source={getDatingProfileImage(profile)}
-                      style={styles.blurAvatar}
-                      blurRadius={18}
+                    {/* The face is deliberately obscured — this rail teases who
+                        liked you behind the paywall. `blurRadius` is an Image-only
+                        prop and does nothing to an SVG, so the identity is hidden
+                        by the scrim over it rather than by a blur. */}
+                    <CharacterAvatar
+                      seed={profile.id}
+                      sex={profile.gender}
+                      age={profile.age}
+                      size={scale(48)}
                     />
                     <View style={styles.blurScrim} />
                   </View>
@@ -165,10 +171,14 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
             ]}
           >
             <View style={styles.likeAvatarWrap}>
-              <Image
-                source={getDatingProfileImage(profile)}
-                style={[styles.likeAvatar, { borderColor: theme.glassBorder }]}
-              />
+              <View style={[styles.likeAvatar, { borderColor: theme.glassBorder }]}>
+                <CharacterAvatar
+                  seed={profile.id}
+                  sex={profile.gender}
+                  age={profile.age}
+                  size={scale(50)}
+                />
+              </View>
               {entry.superLiked ? (
                 <View style={styles.superBadge}>
                   <Star size={fontScale(10)} color="#FFFFFF" fill="#FFFFFF" />
@@ -345,7 +355,10 @@ const styles = StyleSheet.create({
   },
   blurScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(244,63,94,0.18)',
+    // Raised from 0.18: this used to sit over an already-blurred Image and only
+    // needed to tint it. It is now the ONLY thing hiding the face, so it has to
+    // actually obscure — at 0.18 the paywalled identity was legible.
+    backgroundColor: 'rgba(136,32,66,0.82)',
   },
   upsellCta: {
     alignSelf: 'stretch',
