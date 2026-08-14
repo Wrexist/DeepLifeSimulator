@@ -28,21 +28,8 @@ export function generateObituary(state: GameState): Obituary {
   const facts: string[] = [];
 
   // Career
-  const careers = state.careers || [];
-  const acceptedCareers = careers.filter((c) => c?.accepted);
-  if (acceptedCareers.length > 0) {
-    const lastCareer = acceptedCareers[acceptedCareers.length - 1];
-    /**
-     * `Career` has no `name` and no `title` — the job title lives in
-     * `levels[level].name`. This read them through `as any` and so silently fell
-     * through to the 'employed' fallback on EVERY obituary, for every player who
-     * ever held a job. The cast is what hid it: without it this would not have
-     * compiled. Same derivation as `getCareerName` in `lib/events/careerEvents`.
-     */
-    const levels = Array.isArray(lastCareer.levels) ? lastCareer.levels : [];
-    const safeLevel = Math.max(0, Math.min(lastCareer.level ?? 0, levels.length - 1));
-    facts.push(levels[safeLevel]?.name || 'employed');
-  }
+  const careerTitle = lastJobTitle(state);
+  if (careerTitle) facts.push(careerTitle);
 
   // Education
   const educations = state.educations || [];
@@ -150,4 +137,68 @@ export function generateObituary(state: GameState): Obituary {
   ].join('\n');
 
   return { headline, body, shareText };
+}
+
+/**
+ * The job title to put in an obituary, or '' if they never worked.
+ *
+ * ── Two bugs, one line ────────────────────────────────────────────────────
+ *
+ * This used to read `career.name || career.title` through `as any`, and
+ * `Career` has NEITHER — the title lives in `levels[level].name`. So it
+ * evaluated to `undefined || undefined` and fell through to the literal
+ * 'employed' on every obituary ever shown. The cast is what hid it; without it
+ * the expression would not have compiled.
+ *
+ * Fixing that exposed the second one. The filter was `accepted`, and `accepted`
+ * means "employed RIGHT NOW", not "was ever employed" — both `quitJob` and the
+ * firing path set it false. So a character who retired, quit, or was fired
+ * before dying still got no career named, which is most of the people whose
+ * working life is worth a sentence. Caught in review of #130.
+ *
+ * So: the job held at death if there is one, else the last job ever held,
+ * recovered from `lifetimeStatistics.careerHistory` — which already records
+ * every job with a `startWeek` and a closing `endWeek`.
+ *
+ * The LEVEL is read from `state.careers`, which is safe because neither the
+ * quit path nor the firing path resets it: they clear `accepted`, `applied`,
+ * `progress`, `performance` and `warningsReceived`, and leave the ladder
+ * position alone. Deliberately NOT "the highest level ever reached" — no such
+ * record exists, and inventing one from the ladder length would eulogise a
+ * promotion the character never got.
+ */
+function lastJobTitle(state: GameState): string {
+  const careers = Array.isArray(state.careers) ? state.careers : [];
+
+  const titleOf = (careerId: string | undefined): string => {
+    if (!careerId) return '';
+    const career = careers.find((c) => c?.id === careerId);
+    const levels = Array.isArray(career?.levels) ? career.levels : [];
+    if (levels.length === 0) return '';
+    const safeLevel = Math.max(0, Math.min(career?.level ?? 0, levels.length - 1));
+    return levels[safeLevel]?.name ?? '';
+  };
+
+  // 1. The job they held when they died. `currentJob` is the canonical answer —
+  //    the same one `getCareerName` uses — and only falls back to scanning for
+  //    an accepted flag if it is unset. Scanning is a LAST match, not a first:
+  //    a save should only ever have one accepted career, but if it somehow has
+  //    two, the later one is the one they moved to.
+  const held =
+    careers.find((c) => c?.id === state.currentJob && c?.accepted)
+    ?? [...careers].reverse().find((c) => c?.accepted);
+  if (held) return titleOf(held.id) || 'employed';
+
+  // 2. Otherwise the last one they ever held.
+  const history = state.lifetimeStatistics?.careerHistory;
+  if (Array.isArray(history) && history.length > 0) {
+    const last = history[history.length - 1];
+    const title = titleOf(last?.job);
+    if (title) return title;
+    // A history entry naming a career the catalogue no longer has still tells
+    // us they worked, which is more than nothing to say about a life.
+    if (last?.job) return 'employed';
+  }
+
+  return '';
 }

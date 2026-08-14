@@ -35,6 +35,24 @@ const career = (over: Partial<Career> = {}): Career => ({
 const died = (careers: Career[]): GameState =>
   createTestGameState({ weeksLived: 400, careers, deathReason: 'health' });
 
+/** Died out of work, with `careerHistory` remembering the jobs they held. */
+const diedUnemployed = (careers: Career[], jobIds: string[]): GameState => {
+  const base = createTestGameState();
+  const stats = base.lifetimeStatistics;
+  if (!stats) throw new Error('createTestGameState must carry lifetimeStatistics');
+  return createTestGameState({
+    weeksLived: 400,
+    deathReason: 'health',
+    careers: careers.map((c) => ({ ...c, accepted: false })),
+    lifetimeStatistics: {
+      ...stats,
+      careerHistory: jobIds.map((job, i) => ({
+        job, weeks: 40, earnings: 50_000, startWeek: i * 40, endWeek: (i + 1) * 40,
+      })),
+    },
+  });
+};
+
 describe('the obituary names the job, not the word "employed"', () => {
   it('uses the title of the level the character reached', () => {
     const { text } = asText(generateObituary(died([career()])));
@@ -51,7 +69,24 @@ describe('the obituary names the job, not the word "employed"', () => {
     expect(text).toContain('Engineering Lead');
   });
 
-  it('names the LAST accepted career, not the first', () => {
+  it('uses `currentJob` to pick which career they held', () => {
+    // The canonical answer, and the one `getCareerName` uses. A save should
+    // only ever carry one accepted career; picking by flag alone left it to
+    // array order, which is not a decision anyone made.
+    const state = createTestGameState({
+      weeksLived: 400,
+      deathReason: 'health',
+      currentJob: 'barista',
+      careers: [
+        career({ id: 'barista', levels: [{ name: 'Barista', salary: 300 }], level: 0 }),
+        career({ id: 'surgeon', levels: [{ name: 'Surgeon', salary: 9_000 }], level: 0 }),
+      ],
+    });
+
+    expect(asText(generateObituary(state)).text).toContain('Barista');
+  });
+
+  it('falls back to the LAST accepted career when currentJob is unset', () => {
     const { text } = asText(generateObituary(died([
       career({ id: 'barista', levels: [{ name: 'Barista', salary: 300 }], level: 0 }),
       career({ id: 'surgeon', levels: [{ name: 'Surgeon', salary: 9_000 }], level: 0 }),
@@ -75,10 +110,60 @@ describe('the obituary names the job, not the word "employed"', () => {
     expect(text).toContain('Engineering Lead');
   });
 
-  it('says nothing about a career the character never accepted (the control)', () => {
-    const { text } = asText(generateObituary(died([career({ accepted: false })])));
+  it('says nothing about someone who never worked at all (the control)', () => {
+    const neverWorked = createTestGameState({ weeksLived: 400, careers: [], deathReason: 'health' });
 
-    expect(text).not.toContain('Senior Developer');
+    expect(asText(generateObituary(neverWorked)).text).not.toContain('employed');
+  });
+});
+
+describe('and it names a job they no longer held when they died', () => {
+  /**
+   * `accepted` means "employed RIGHT NOW" — both `quitJob` and the firing path
+   * set it false. Filtering on it named a career only for someone who died
+   * still on the payroll, which excludes everyone who retired, quit or was
+   * fired. Caught in review of #130, after the first fix.
+   *
+   * `level` is safe to read afterwards because neither path resets it: they
+   * clear `accepted`, `applied`, `progress`, `performance` and
+   * `warningsReceived` and leave the ladder position alone.
+   */
+  it('recovers the title from careerHistory after a quit', () => {
+    const { text } = asText(generateObituary(diedUnemployed([career()], ['software_engineer'])));
+
+    expect(text).toContain('Senior Developer');
+  });
+
+  it('names the LAST job in the history, not the first', () => {
+    const state = diedUnemployed(
+      [
+        career({ id: 'barista', levels: [{ name: 'Barista', salary: 300 }], level: 0 }),
+        career({ id: 'surgeon', levels: [{ name: 'Surgeon', salary: 9_000 }], level: 0 }),
+      ],
+      ['barista', 'surgeon'],
+    );
+
+    expect(asText(generateObituary(state)).text).toContain('Surgeon');
+  });
+
+  it('prefers the job held at death over the history', () => {
+    const state = createTestGameState({
+      weeksLived: 400,
+      deathReason: 'health',
+      careers: [
+        career({ id: 'barista', levels: [{ name: 'Barista', salary: 300 }], level: 0, accepted: false }),
+        career({ id: 'surgeon', levels: [{ name: 'Surgeon', salary: 9_000 }], level: 0, accepted: true }),
+      ],
+    });
+
+    expect(asText(generateObituary(state)).text).toContain('Surgeon');
+  });
+
+  it('still says SOMETHING for a history naming a career the catalogue lost', () => {
+    // They demonstrably worked; the ladder just is not there to name.
+    const state = diedUnemployed([], ['a_career_that_was_removed']);
+
+    expect(asText(generateObituary(state)).text).toContain('employed');
   });
 });
 
