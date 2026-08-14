@@ -565,7 +565,28 @@ plugin options that become purpose strings at prebuild time, so add a row to its
 
 `production` (ads/IAP/ATT/RevenueCat on, Boring Build off, `autoIncrement`) ·
 `preview` (internal, devtools on) · `development` (dev client).
-`cli.appVersionSource: "remote"`.
+`cli.appVersionSource: "remote"` — and it must stay that way. The cloud workflow
+(`eas-build.yml`) has no `BUILD_NUMBER` step and relies on remote +
+`autoIncrement`; flipping it to `"local"` would bake app.config.js's `"99"`
+fallback into every cloud build. The `--local` workflows are unaffected: they
+mint their own number via `scripts/next-build-number.mjs` and app.config.js bakes
+it, which TestFlight has accepted repeatedly. `tasks/lessons.md` (2026-06-11)
+prescribes `"local"`; that half of the rule is stale and annotated in place.
+
+The `version` input on both local-build workflows sets the **binary** version
+(`package.json`). It is validated to be MAJOR.MINOR.PATCH **and not lower than
+the current value** — typing the App Store Connect version record (the 1.x line)
+there would silently downgrade the binary. See §9 for why the two numbers differ.
+
+The check rejects only a *lower* version, not an equal one, and the two cases
+mean different things. A **new release** must go **higher** — that is §9's "bump
+it for every build" rule, and it is what keeps TestFlight and crash reports
+orderable. **Re-running the same version is the deliberate exception**, for
+rebuilding an unchanged marketing version after a failed submit or an infra
+flake: `BUILD_NUMBER` is minted fresh per run, so the rebuild still carries a
+unique `CFBundleVersion` / `versionCode` and the store accepts it. The guard
+cannot tell the two apart from the input alone, so it enforces the floor and
+leaves the bump to you.
 
 ---
 

@@ -83,7 +83,9 @@ already pass on this branch as of this runbook.
 # higher than App Store Connect's latest build when the ASC_* env vars are set
 # (see "Accurate build numbers" below), otherwise a monotonic epoch fallback.
 # `--ask` lets you confirm/override the number (auto-skipped when non-interactive).
-# eas.json uses appVersionSource:"local", so app.config.js reads BUILD_NUMBER
+# eas.json uses appVersionSource:"remote", but app.config.js still reads BUILD_NUMBER
+# and that is what gets baked (verified: TestFlight accepts each local build).
+# Do not flip eas.json to "local" — the cloud workflow depends on remote+autoIncrement.
 # into ios.buildNumber / android.versionCode.
 BUILD_NUMBER=$(node scripts/next-build-number.mjs --ask) eas build --platform ios --profile production --local
 ```

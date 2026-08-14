@@ -79,6 +79,16 @@ jobs:
       # Fail fast if the requested marketing version isn't a full
       # MAJOR.MINOR.PATCH string — `npm version` (used to stamp package.json
       # below) rejects two-part inputs like "2.5".
+      # It also refuses a version LOWER than package.json's current one. That is
+      # not pedantry: run #5 was dispatched with "1.4.1" while package.json was
+      # "2.8.0". 1.4.x is the APP STORE CONNECT version record, a deliberately
+      # different number from the binary version (see CLAUDE.md §9) — but this
+      # input stamps package.json, i.e. the BINARY version. Accepting it would
+      # have shipped a build that reports itself OLDER than the previous one, so
+      # TestFlight/Play/crash reports order it wrong and the "builds must stay
+      # distinguishable" rule silently breaks. Equal is allowed (`npm version`
+      # runs with --allow-same-version) so you can rebuild the same marketing
+      # version with a fresh versionCode.
       - name: Validate marketing version input
         env:
           VERSION: ${{ inputs.version }}
@@ -88,6 +98,18 @@ jobs:
             exit 1
           fi
           CURRENT=$(node -p "require('./package.json').version")
+          CURRENT="$CURRENT" node -e '
+            const cmp = (a, b) => {
+              const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+              for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+              return 0;
+            };
+            const next = process.env.VERSION, current = process.env.CURRENT;
+            if (cmp(next, current) < 0) {
+              console.log(`::error::Version ${next} is LOWER than package.json current ${current}. This input sets the BINARY version (Android versionName / CFBundleShortVersionString), which must never go backwards. If you meant the App Store Connect version record (the 1.x line shown on the store page), that is a DIFFERENT number and is not set here — see CLAUDE.md section 9. Pick ${current} or higher.`);
+              process.exit(1);
+            }
+          '
           echo "::notice::Building marketing version $VERSION (package.json currently: $CURRENT)"
 
       # Fail fast if EAS auth is missing, before any dependency install / build.
@@ -104,11 +126,49 @@ jobs:
           echo "::error::force_banner is a QA-only flag that shows the upsell to premium accounts — it must not be uploaded to Play. Untick Submit (build the .aab and sideload/internal-test it), or untick force_banner for a real release."
           exit 1
 
-      # Fail fast if Submit is ticked but the Play service-account key is missing,
-      # so we don't spend a whole build only to fail at the upload step.
+      # Fail fast if Submit is ticked but the Play service-account key is missing
+      # OR malformed, so we don't spend a whole build only to fail at the upload
+      # step. Checking non-empty is not enough: a truncated paste or the wrong
+      # JSON file is non-empty, so it would clear this guard, burn the ~40-minute
+      # native build, and only then die at "Write Play service-account key". Both
+      # the JSON parse and the service-account shape check therefore run HERE;
+      # the parse near the submit step stays as a second check on what actually
+      # lands on disk.
       - name: Require Play service-account key when submitting
         if: ${{ inputs.submit }}
-        run: test -n "$SA_JSON" || { echo "::error::Submit is ticked but GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret is not set — add it or untick Submit"; exit 1; }
+        run: |
+          if [ -z "$SA_JSON" ]; then
+            echo "::error::Submit is ticked but the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret is not set. Either untick Submit (the .aab is still built and uploaded as an artifact you can upload by hand), or add the secret: Play Console > Users & permissions > invite a service account with 'Release apps to testing tracks'; Google Cloud Console > that service account > Keys > Add key > JSON; paste the whole file into GitHub > Settings > Secrets and variables > Actions > New repository secret named GOOGLE_PLAY_SERVICE_ACCOUNT_JSON. See docs/RELEASE_SECRETS.md. Note Google requires this app's FIRST .aab to be uploaded manually in the Play Console before API uploads are allowed."
+            exit 1
+          fi
+          # Validate without echoing the secret: node reads it from the env, and
+          # every diagnostic below names only the FIELD at fault, never a value.
+          if ! node -e '
+            const raw = process.env.SA_JSON;
+            let key;
+            try {
+              key = JSON.parse(raw);
+            } catch {
+              // Deliberately NOT reporting the parser message: node embeds a
+              // snippet of the offending input in it ("Unexpected token h, \"hello
+              // world\" is not valid JSON"), which for a credential would print a
+              // fragment of the key into the log. Actions masks only the exact
+              // secret string, so a fragment would survive masking.
+              console.log("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not valid JSON. Paste the ENTIRE downloaded key file, including the opening and closing braces. (Parser detail withheld — it would echo part of the key.)");
+              process.exit(1);
+            }
+            const missing = ["type", "client_email", "private_key"].filter((f) => !key[f]);
+            if (missing.length) {
+              console.log("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON parses as JSON but is missing: " + missing.join(", ") + ". That usually means the wrong file was pasted — this must be the SERVICE ACCOUNT key from Google Cloud Console (Keys > Add key > JSON), not an OAuth client, a Firebase config, or google-services.json.");
+              process.exit(1);
+            }
+            if (key.type !== "service_account") {
+              console.log("::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON has type \"" + key.type + "\", expected \"service_account\".");
+              process.exit(1);
+            }
+          '; then
+            exit 1
+          fi
         env:
           SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
 
@@ -183,8 +243,18 @@ jobs:
       # would reject it. Without ASC creds the script uses epoch seconds — strictly
       # monotonic, always higher than any small historical versionCode, and under
       # Google's 2.1B ceiling — which is exactly what Android wants. app.config.js
-      # bakes it into android.versionCode (eas.json appVersionSource: local via
-      # BUILD_NUMBER).
+      # bakes it into android.versionCode.
+      #
+      # NOTE: eas.json sets `cli.appVersionSource: "remote"`, NOT "local" — earlier
+      # revisions of this comment claimed "local" and were simply wrong. Do not
+      # "correct" eas.json to match: the cloud workflow (eas-build.yml) has no
+      # BUILD_NUMBER step and depends on remote + autoIncrement, so flipping it to
+      # local would make every cloud build bake app.config.js's "99" fallback.
+      # The remote setting does NOT block this path in practice — the iOS sibling
+      # submits to TestFlight on this same eas.json and Apple accepts each build,
+      # which it would not if BUILD_NUMBER were being ignored and CFBundleVersion
+      # repeated. tasks/lessons.md (2026-06-11) prescribes "local"; that specific
+      # remedy is stale — the fix that actually stuck was next-build-number.mjs.
       - name: Compute unique versionCode
         run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
 
@@ -229,7 +299,8 @@ jobs:
           # The inner double quotes matter: gradlew word-splits GRADLE_OPTS (via
           # xargs), so they keep the multi-flag jvmargs value one property.
           GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"'
-          # Consumed by app.config.js → android.versionCode (appVersionSource local).
+          # Consumed by app.config.js → android.versionCode. (eas.json is
+          # appVersionSource "remote"; see the note on the versionCode step above.)
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
           # QA flag (see the force_banner input): when true, Metro inlines it so
           # the DeepLife+ upsell renders for members too. Empty on real releases.

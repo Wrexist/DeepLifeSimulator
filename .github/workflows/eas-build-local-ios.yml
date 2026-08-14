@@ -66,6 +66,18 @@ jobs:
             exit 1
           fi
           CURRENT=$(node -p "require('./package.json').version")
+          CURRENT="$CURRENT" node -e '
+            const cmp = (a, b) => {
+              const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+              for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+              return 0;
+            };
+            const next = process.env.VERSION, current = process.env.CURRENT;
+            if (cmp(next, current) < 0) {
+              console.log(`::error::Version ${next} is LOWER than package.json current ${current}. This input sets the BINARY version (CFBundleShortVersionString), which must never go backwards — Apple orders TestFlight builds by it. If you meant the App Store Connect version record (the 1.x line shown on the store page), that is a DIFFERENT number and is not set here — see CLAUDE.md section 9. Pick ${current} or higher.`);
+              process.exit(1);
+            }
+          '
           echo "::notice::Building marketing version $VERSION (package.json currently: $CURRENT)"
 
       - uses: actions/setup-node@v4
@@ -137,8 +149,13 @@ jobs:
       # --local` can resolve EAS project secrets while logged in. NOTE: the build
       # number is NOT taken from EAS here — see the "Compute unique build number"
       # step below. Remote autoIncrement only runs on EAS *cloud* builds, never
-      # on --local, so the version is minted locally (eas.json appVersionSource
-      # is "local").
+      # on --local, so the version is minted locally via BUILD_NUMBER.
+      # NOTE: eas.json actually sets `cli.appVersionSource: "remote"`, not
+      # "local" — earlier revisions of this comment said "local" and were wrong.
+      # Do not "correct" eas.json: eas-build.yml (cloud) depends on remote +
+      # autoIncrement. The remote setting demonstrably does not block this path —
+      # this workflow's submit-ios job succeeds against TestFlight, which Apple
+      # would refuse if BUILD_NUMBER were ignored and CFBundleVersion repeated.
       - name: Expo/EAS login
         uses: expo/expo-github-action@v8
         with:
@@ -163,7 +180,7 @@ jobs:
       # resolve it here: scripts/next-build-number.mjs returns one HIGHER than
       # App Store Connect's current highest build (when the ASC_* secrets below
       # are set), else a monotonic epoch fallback. app.config.js bakes it into
-      # ios.buildNumber / android.versionCode (eas.json appVersionSource: local).
+      # ios.buildNumber / android.versionCode.
       - name: Compute unique build number (CFBundleVersion)
         run: echo "BUILD_NUMBER=$(node scripts/next-build-number.mjs)" >> "$GITHUB_ENV"
         env:
@@ -195,9 +212,8 @@ jobs:
         env:
           # Same fingerprint crash as eas-build.yml — see comment there.
           EAS_SKIP_AUTO_FINGERPRINT: '1'
-          # Consumed by app.config.js → ios.buildNumber / android.versionCode.
-          # eas.json appVersionSource is "local", so this value is what gets
-          # baked into the binary's CFBundleVersion.
+          # Consumed by app.config.js → ios.buildNumber / android.versionCode,
+          # and this value is what gets baked into the binary's CFBundleVersion.
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
           EXPO_PUBLIC_ENABLE_ADMOB: 'true'
           EXPO_PUBLIC_ENABLE_IAP: 'true'
