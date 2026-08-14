@@ -20,12 +20,11 @@ import {
   Award,
   X,
   Star,
-} from 'lucide-react-native';
+ ChevronRight } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
 import { getDiscoveryProgress, getAllDiscoverableSystems, getSystemUnlockRequirements } from '@/lib/depth/discoverySystem';
 import { routeForSystem } from '@/lib/depth/systemRoutes';
 import { useRouter } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
 import { scale, fontScale, responsivePadding, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 const LinearGradient = Gradient;
 

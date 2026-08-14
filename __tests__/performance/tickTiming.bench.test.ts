@@ -16,6 +16,12 @@
  * save-cost note in the plan.
  */
 
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState } from '@/contexts/game/types';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -28,12 +34,6 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState } from '@/contexts/game/types';
 
 // Below the imports on purpose — see the note in batchEquivalence.test.ts.
 // eslint-disable-next-line @typescript-eslint/no-require-imports

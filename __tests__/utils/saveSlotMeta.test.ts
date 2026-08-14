@@ -10,6 +10,18 @@
 // Stateful in-memory AsyncStorage: the shared jest.setup mock is a no-op that
 // can't round-trip. This lets writeSaveSlotMeta/readSaveSlotMeta persist AND the
 // real double-buffer save/load path (used by ensureSaveSlotMeta's backfill) work.
+import {
+  extractSaveSlotMeta,
+  saveSlotMetaKey,
+  writeSaveSlotMeta,
+  readSaveSlotMeta,
+  deleteSaveSlotMeta,
+  ensureSaveSlotMeta,
+  probeSaveSlotBlob,
+  type SaveSlotMeta,
+} from '@/utils/saveSlotMeta';
+import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
+
 jest.mock('@react-native-async-storage/async-storage', () => {
   const store = new Map<string, string>();
   const mock = {
@@ -41,18 +53,6 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   };
   return { __esModule: true, default: mock, ...mock };
 });
-
-import {
-  extractSaveSlotMeta,
-  saveSlotMetaKey,
-  writeSaveSlotMeta,
-  readSaveSlotMeta,
-  deleteSaveSlotMeta,
-  ensureSaveSlotMeta,
-  probeSaveSlotBlob,
-  type SaveSlotMeta,
-} from '@/utils/saveSlotMeta';
-import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AsyncStorageMock = require('@react-native-async-storage/async-storage').default;
 

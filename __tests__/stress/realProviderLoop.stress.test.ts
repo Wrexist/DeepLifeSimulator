@@ -17,6 +17,18 @@
 // for a 500-tick run. The save path itself is exhaustively covered by
 // longRunSaveLoad.stress.test.ts. Here we focus on whether the real `nextWeek`
 // produces a valid state across 500 invocations.
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState } from '@/contexts/game/types';
+import {
+  createSaveData,
+  parseSaveData,
+  validateGameState,
+} from '@/utils/saveValidation';
+import { STATE_VERSION } from '@/contexts/game/initialState';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -29,20 +41,8 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState } from '@/contexts/game/types';
-import {
-  createSaveData,
-  parseSaveData,
-  validateGameState,
-} from '@/utils/saveValidation';
-import { STATE_VERSION } from '@/contexts/game/initialState';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AsyncStorageMock = require('@react-native-async-storage/async-storage').default;
 

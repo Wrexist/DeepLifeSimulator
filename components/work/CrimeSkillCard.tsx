@@ -3,9 +3,9 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { Crown } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
+import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = Gradient;
-import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
 interface CrimeSkillCardProps {
   /** Lucide icon component, e.g. `Eye`, `Brain`, `Target`. */

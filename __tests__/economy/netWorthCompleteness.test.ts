@@ -20,7 +20,37 @@
 import { netWorth } from '@/lib/progress/achievements';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { makeBankAccount, makeCrypto, makeLoan } from '../helpers/makeFinance';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState , BankAccount } from '@/contexts/game/types';
+
+/**
+ * R4 correction to R3-M4 — the two things the R3 fix got wrong.
+ *
+ * 1. **Mirror double-count.** `banking.accounts` always contains
+ *    `checking-default` and `savings-default`, which the weekly tick's
+ *    `mirrorAccountsFromLegacy` overwrites with `stats.money` and `bankSavings`
+ *    on step 1 of every week. R3-M4 added a raw sum of ALL account balances on
+ *    top of `money + bankSavings`, so both legacy pools were counted twice —
+ *    roughly DOUBLING reported net worth for any cash-holding player. That
+ *    figure gates prestige availability and the prestige points award, the
+ *    $10M achievement, ambition goals, life chapters, the leaderboard, the
+ *    >$10M passive-income soft cap, bail cost and ad-reward scaling.
+ *
+ *    The repo already shipped the guard: `nonMirrorDeposits`, whose doc comment
+ *    says verbatim that anything also counting the legacy fields must exclude
+ *    the mirrors. The suite above missed it because its fixtures used ids like
+ *    `chk`/`hysa` and left both mirrors at 0 — the fixtures avoided the inputs
+ *    that break.
+ *
+ * 2. **Credit-card debt.** R3-M4's own finding text said `netWorth` "ignores
+ *    credit-card debt", and it shipped without the term. R3-M8 then made card
+ *    balances compound weekly with no minimum payment, so an unpaid card grows
+ *    without bound while staying invisible on the balance sheet.
+ *
+ * The identical mirror bug was in `prestigeExecution`'s scenario projection,
+ * where the evaluator computes `stats.money + bankSavings + …` — covered by
+ * `prestigeScenarioNetWorth.test.ts`. 2026-07-31 audit round 4.
+ */
+import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
 
 /**
  * Each case gets a distinct money value so the memo cache — keyed on `money`
@@ -220,37 +250,6 @@ describe('the memo cache sees the new asset classes', () => {
     expect(netWorth(after)).toBe(money + 1_000);
   });
 });
-
-/**
- * R4 correction to R3-M4 — the two things the R3 fix got wrong.
- *
- * 1. **Mirror double-count.** `banking.accounts` always contains
- *    `checking-default` and `savings-default`, which the weekly tick's
- *    `mirrorAccountsFromLegacy` overwrites with `stats.money` and `bankSavings`
- *    on step 1 of every week. R3-M4 added a raw sum of ALL account balances on
- *    top of `money + bankSavings`, so both legacy pools were counted twice —
- *    roughly DOUBLING reported net worth for any cash-holding player. That
- *    figure gates prestige availability and the prestige points award, the
- *    $10M achievement, ambition goals, life chapters, the leaderboard, the
- *    >$10M passive-income soft cap, bail cost and ad-reward scaling.
- *
- *    The repo already shipped the guard: `nonMirrorDeposits`, whose doc comment
- *    says verbatim that anything also counting the legacy fields must exclude
- *    the mirrors. The suite above missed it because its fixtures used ids like
- *    `chk`/`hysa` and left both mirrors at 0 — the fixtures avoided the inputs
- *    that break.
- *
- * 2. **Credit-card debt.** R3-M4's own finding text said `netWorth` "ignores
- *    credit-card debt", and it shipped without the term. R3-M8 then made card
- *    balances compound weekly with no minimum payment, so an unpaid card grows
- *    without bound while staying invisible on the balance sheet.
- *
- * The identical mirror bug was in `prestigeExecution`'s scenario projection,
- * where the evaluator computes `stats.money + bankSavings + …` — covered by
- * `prestigeScenarioNetWorth.test.ts`. 2026-07-31 audit round 4.
- */
-import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
-import type { BankAccount } from '@/contexts/game/types';
 
 /**
  * A save as the weekly tick leaves it: both mirror accounts present and

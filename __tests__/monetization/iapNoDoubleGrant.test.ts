@@ -20,6 +20,10 @@
 
 // In-memory "disk" the mocked save pipeline reads/writes. `mock`-prefixed so the
 // hoisted jest.mock factories may reference it.
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
+import { initialGameState } from '@/contexts/game/initialState';
+
 const mockDisk: { state: any } = { state: null };
 
 jest.mock('@/utils/safeStorage', () => ({
@@ -44,10 +48,6 @@ jest.mock('@/utils/saveValidation', () => ({
   })),
   shouldAllowUnsignedLegacySaves: jest.fn(() => true),
 }));
-
-import { iapService } from '@/services/IAPService';
-import { IAP_PRODUCTS, getProductConfig } from '@/utils/iapConfig';
-import { initialGameState } from '@/contexts/game/initialState';
 
 const GEMS_500 = IAP_PRODUCTS.GEMS_500;
 

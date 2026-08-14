@@ -15,6 +15,16 @@
  * read at all. Two intact multi-megabyte saves, reported as "no data".
  * 2026-07-29 audit SAVE-OW-3.
  */
+import {
+  doubleBufferSave,
+  doubleBufferLoad,
+  readSaveSlotDetailed,
+  createSaveEnvelope,
+  decodePersistedSaveEnvelope,
+} from '@/utils/saveValidation';
+import { validateSaveSlot } from '@/utils/gameEntryValidation';
+import { purgeSlotIfPhantom } from '@/utils/phantomSaveCleanup';
+
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-slot-read-outcomes';
 
 const store = new Map<string, string>();
@@ -37,16 +47,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     getAllKeys: jest.fn(async () => Array.from(store.keys())),
   },
 }));
-
-import {
-  doubleBufferSave,
-  doubleBufferLoad,
-  readSaveSlotDetailed,
-  createSaveEnvelope,
-  decodePersistedSaveEnvelope,
-} from '@/utils/saveValidation';
-import { validateSaveSlot } from '@/utils/gameEntryValidation';
-import { purgeSlotIfPhantom } from '@/utils/phantomSaveCleanup';
 
 const SLOT_KEY = 'save_slot_1';
 const envelope = (name: string) =>

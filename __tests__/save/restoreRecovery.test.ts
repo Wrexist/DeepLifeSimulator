@@ -19,6 +19,10 @@
  * A restore was also itself irreversible: it read the outgoing save only to
  * feed the exploit check, then overwrote it without keeping a copy (BRC-14).
  */
+import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
+import { canRestoreBackup, createBackup, restoreFromBackup, listBackups } from '@/utils/saveBackup';
+import { describeRestorePoint, relativeTime } from '@/components/onboarding/RestoreBackupSheet';
+
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-restore-recovery';
 
 const store = new Map<string, string>();
@@ -39,10 +43,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     getAllKeys: jest.fn(async () => Array.from(store.keys())),
   },
 }));
-
-import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
-import { canRestoreBackup, createBackup, restoreFromBackup, listBackups } from '@/utils/saveBackup';
-import { describeRestorePoint, relativeTime } from '@/components/onboarding/RestoreBackupSheet';
 
 const SLOT = 1;
 const SLOT_KEY = `save_slot_${SLOT}`;

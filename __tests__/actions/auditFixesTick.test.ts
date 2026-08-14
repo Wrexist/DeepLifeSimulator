@@ -16,6 +16,14 @@
  */
 
 // Bypass the heavy SaveQueue pipeline (HMAC over ~100KB) — irrelevant here.
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState, Relationship } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -28,16 +36,8 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState, Relationship } from '@/contexts/game/types';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-import { getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 
 const { act } = TestRenderer;
 const h = React.createElement;

@@ -1,6 +1,11 @@
 /**
  * Frequency-cap / breakpoint logic for the interstitial helper.
  */
+import {
+  maybeShowInterstitialForWeek,
+  __resetInterstitialCadence,
+} from '@/lib/ads/interstitial';
+
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 jest.mock('@/lib/config/featureFlags', () => ({
   isFeatureEnabled: (flag: string) => flag === 'adMob',
@@ -10,11 +15,6 @@ const showInterstitialAd = jest.fn().mockResolvedValue(true);
 jest.mock('@/services/AdMobService', () => ({
   adMobService: { showInterstitialAd },
 }));
-
-import {
-  maybeShowInterstitialForWeek,
-  __resetInterstitialCadence,
-} from '@/lib/ads/interstitial';
 
 // WEEKS_PER_YEAR = 52 → grace ends at 104 weeks; boundaries are multiples of 52.
 const BOUNDARY = 104; // first year boundary past the 2-year grace

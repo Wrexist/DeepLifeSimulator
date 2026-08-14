@@ -26,6 +26,22 @@ import { applyProductBenefitsToState } from '@/services/IAPService';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
+/**
+ * The restore half, found by an adversarial pass over the fix above.
+ *
+ * The expansion put permanent entitlements on a product that is (correctly) a
+ * CONSUMABLE — `GEMS_MEGA` grants 40,000 gems, and a restore must never
+ * re-credit currency. Both restore loops therefore skipped it wholesale, which
+ * was right while consumables carried nothing but quantities and stopped being
+ * right the moment this product started carrying unlocks.
+ *
+ * Net effect before this: buy the $99.99 Mega Pack, reinstall, tap Restore
+ * Purchases — nothing comes back. Buy the same entitlements a la carte for
+ * $28 and they restore fine. Skipping the whole product was the wrong
+ * granularity; the product is mixed, so the restore has to be too.
+ */
+import { hasPermanentEntitlements, isConsumableProduct } from '@/utils/iapConfig';
+
 /** Every entitlement the store sells separately and the bundle claims to include. */
 const SEPARATELY_SOLD = [
   { flag: 'premiumCreditCard', product: IAP_PRODUCTS.PREMIUM_CREDIT_CARD },
@@ -124,22 +140,6 @@ describe('buying the Mega Pack grants what the config promises', () => {
     expect(state.settings?.everythingUnlocked).toBeFalsy();
   });
 });
-
-/**
- * The restore half, found by an adversarial pass over the fix above.
- *
- * The expansion put permanent entitlements on a product that is (correctly) a
- * CONSUMABLE — `GEMS_MEGA` grants 40,000 gems, and a restore must never
- * re-credit currency. Both restore loops therefore skipped it wholesale, which
- * was right while consumables carried nothing but quantities and stopped being
- * right the moment this product started carrying unlocks.
- *
- * Net effect before this: buy the $99.99 Mega Pack, reinstall, tap Restore
- * Purchases — nothing comes back. Buy the same entitlements a la carte for
- * $28 and they restore fine. Skipping the whole product was the wrong
- * granularity; the product is mixed, so the restore has to be too.
- */
-import { hasPermanentEntitlements, isConsumableProduct } from '@/utils/iapConfig';
 
 describe('a mixed product restores its permanent half and nothing else', () => {
   it('the Mega Pack really is a consumable (the premise)', () => {

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Crypto, GameState } from '../types';
+import { Crypto, GameState , CryptoOrderSide, CryptoOrderType } from '../types';
 import { initialGameState } from '../initialState';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta } from './MoneyActions';
@@ -17,7 +17,6 @@ import {
   recordDCAExecution,
   removeDCARule,
 } from '@/lib/crypto/operations';
-import { CryptoOrderSide, CryptoOrderType } from '../types';
 
 const log = logger.scope('CryptoTradingActions');
 

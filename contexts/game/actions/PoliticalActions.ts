@@ -16,6 +16,18 @@ import { getNextElectionWeek } from '@/lib/politics/elections';
 import type { Dispatch, SetStateAction } from 'react';
 import { CAMPAIGN_MINIMUM_AMOUNT } from '@/lib/config/gameConstants';
 
+// ---------------------------------------------------------------------------
+// PoliticalApp Remake 5: PAC fundraising + scandal management
+// ---------------------------------------------------------------------------
+import {
+  applySuppression,
+  ensurePoliticsHasNewFields,
+  pacRaiseClean,
+  pacRaiseDirty,
+  pacSpend,
+} from '@/lib/politics/operations';
+import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
+
 const log = logger.scope('PoliticalActions');
 
 /**
@@ -969,18 +981,6 @@ export const fireLobbyist = (
 
 // Export calculateActivePolicyEffects for use in GameActionsContext
 export { calculateActivePolicyEffects };
-
-// ---------------------------------------------------------------------------
-// PoliticalApp Remake 5: PAC fundraising + scandal management
-// ---------------------------------------------------------------------------
-import {
-  applySuppression,
-  ensurePoliticsHasNewFields,
-  pacRaiseClean,
-  pacRaiseDirty,
-  pacSpend,
-} from '@/lib/politics/operations';
-import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
 
 /**
  * Raise PAC funds from the player's cash. 100% conversion.

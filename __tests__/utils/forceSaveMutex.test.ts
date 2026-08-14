@@ -13,6 +13,8 @@
  * callers). saveGame passes false because it already owns the lock.
  */
 
+import { saveQueue, forceSave } from '@/utils/saveQueue';
+
 const acquire = jest.fn().mockResolvedValue(undefined);
 const release = jest.fn();
 
@@ -34,8 +36,6 @@ jest.mock('@/utils/saveValidation', () => ({
   isSaveSigningConfigError: () => false,
   SAVE_SIGNING_CONFIG_ERROR_CODE: 'SAVE_SIGNING_CONFIG_ERROR',
 }));
-
-import { saveQueue, forceSave } from '@/utils/saveQueue';
 
 const sampleData = { stats: { money: 0, gems: 0 }, version: 19 };
 

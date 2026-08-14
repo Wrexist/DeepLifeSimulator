@@ -6,7 +6,7 @@
  * History shows completed/failed/breached deals.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View , Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -16,7 +16,6 @@ import EmptyState from '../components/EmptyState';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { acceptBrandDeal, brandDealBreachPenalty, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import type { PulseBrandOffer, PulseActiveBrandDeal, PulseDealHistoryEntry, PulseRecentPost } from '@/contexts/game/types';
-import { Alert } from 'react-native';
 
 const LinearGradient = Gradient;
 

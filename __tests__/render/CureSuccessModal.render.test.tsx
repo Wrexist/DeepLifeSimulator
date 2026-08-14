@@ -1,6 +1,8 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
+import CureSuccessModal from '@/components/CureSuccessModal';
+
 /**
  * Render smoke test for the redesigned (Liquid Glass) "Treatment Successful"
  * modal. Context-driven, so `useGame` + the feedback hook are mocked to inject
@@ -18,8 +20,6 @@ jest.mock('@/contexts/game', () => ({
 jest.mock('@/utils/feedbackSystem', () => ({
   useFeedback: () => ({ buttonPress: jest.fn(), haptic: jest.fn() }),
 }));
-
-import CureSuccessModal from '@/components/CureSuccessModal';
 
 describe('render — CureSuccessModal (Liquid Glass)', () => {
   beforeEach(() => {
