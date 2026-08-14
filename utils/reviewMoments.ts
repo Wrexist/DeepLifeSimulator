@@ -195,6 +195,16 @@ export function detectSourMoment(
 
   if (!prev.showDeathPopup && next.showDeathPopup) return true;
   if (!prev.bankruptcyTriggered && next.bankruptcyTriggered) return true;
+  // Falling behind on the bills. `bankruptcyTriggered` above has NO writer
+  // anywhere in the repo — `types.ts` says as much ("`BANKRUPTCY_FLOOR` names a
+  // bankruptcy the game cannot reach") — so on its own that line has never
+  // fired, and the money axis had no failure state here at all. `overdueBalance`
+  // (STATE_VERSION 31) is the one it actually got: unpayable weekly bills accrue
+  // there instead of being silently forgiven. Owing money you could not pay is
+  // the definition of a bad week, and the worst possible moment to ask for five
+  // stars. The flag check stays — it costs nothing and starts working the day
+  // something writes it.
+  if (num(next.overdueBalance) > num(prev.overdueBalance)) return true;
   if (num(next.jailWeeks) > num(prev.jailWeeks)) return true;
 
   // A sharp health collapse (illness, injury, neglect) reads as a bad week
@@ -225,6 +235,10 @@ export function isCalmEnoughToAsk(state: GameState | null | undefined): boolean 
   if (!state) return false;
   if (state.showDeathPopup) return false;
   if (state.bankruptcyTriggered) return false;
+  // Same reasoning as `detectSourMoment`: this is the arrears state that exists,
+  // where the flag above is one nothing writes. A player carrying unpaid bills
+  // is not in a five-star mood.
+  if (num(state.overdueBalance) > 0) return false;
   if (num(state.jailWeeks) > 0) return false;
   const pending = state.pendingEvents;
   if (Array.isArray(pending) && pending.length > 0) return false;

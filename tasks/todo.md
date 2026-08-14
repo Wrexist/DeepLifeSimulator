@@ -125,3 +125,104 @@ reset the same way and that WAS treated as a bug in v36, because the ladder was
 re-claimable. The difference is that contracts are explicitly multi-life and
 chapters are per-life. Your call — I did not want to remove a reward players
 currently receive on a reading of intent.
+
+
+---
+
+# Audit round 2 — 2026-08-14, four passes beyond the progression spine
+
+Three scripted sweeps plus a read. `npm run audit:weekly` was clean before and
+after; none of the below is something its analyzers look for.
+
+## Pass 1 — dead GameState fields (185 top-level fields walked)
+
+Script: extract every top-level field from the `GameState` interface, then count
+references outside the save/type plumbing. Two categories are interesting — a
+field nothing writes, and a field nothing reads.
+
+**FOUND: `weeksInPoverty` has no writer, and one whole feature depended on it.**
+
+`scholarshipOpportunity` is the game's safety net for a stuck player: under the
+poverty line, no education, no way out. It is registered in `eventTemplates`,
+its `grant_free_education` special effect is handled in the week loop and has a
+stress test — and it **could never fire**, because its condition reads
+`weeksInPoverty >= 12` and nothing in the repo had ever written that field. The
+rescue was dead for exactly the player it was written for.
+
+What makes it worth the write-up: the field HAD been reviewed.
+`__tests__/progression/invisibleStateP2.test.ts` triages it in a list of twelve
+under "logic, no UI", noting "gates one event at >= 12 weeks". That review asked
+whether the player needs to SEE the number and correctly said no. It never asked
+whether the number moves — and a recorded no-change against one question reads
+as clearance against every other one.
+
+Fixed with `applyPovertyTracking` in the week tick (consecutive weeks under
+`POVERTY_MONEY_THRESHOLD`, reset on solvency, guarded per §4.3, folded into the
+returned state, verified reachable by AST). No migration: the field is already
+on `GameState`, absent from `initialGameState`, and every reader treats absent
+as 0 — a §7 carve-out that stays one.
+
+Cleared as false positives (the script misses `x.f = v` assignments):
+`timeMachineUsesThisLife`, `dynastyStats`, `familyTreeData`, `socialPosts`,
+`seasonalEvents`, `retiredAtWeek`. `lastEventWeek` is genuinely unused but is
+marked DEPRECATED in favour of `lastEventWeeksLived`, which is written.
+`gameMode` is the documented retired field (§7 v38).
+
+## Pass 2 — constants that exist as the single source of truth and are not used
+
+**FOUND: seven duplicated magic numbers, including the death threshold.**
+
+`ZERO_STAT_DEATH_WEEKS = 4` had ZERO code consumers — both death checks in the
+week loop used a bare `4` — while `lib/realEstate/rentals.ts` cited the constant
+BY NAME in its own reasoning, as though it were authoritative. Tuning the most
+consequential number in the game would have done nothing. Same shape:
+`ITEM_SELL_RATE`, `WEDDING_DEPOSIT_RATE`, `WEDDING_REMAINDER_RATE`,
+`DIVORCE_SETTLEMENT_BASE`, `STUDENT_LOAN_APR`, `BASE_LIFE_EXPECTANCY`.
+
+Every value matched its literal, so wiring them is behaviour-neutral; the point
+is that editing the named copy is now not a silent no-op. `JobActions` already
+carries the warning for this exact failure mode ("two copies of this number
+would let one path call a bluff the other path rewarded").
+
+`ZERO_STAT_WARNING_WEEKS = [1, 3]` is retired rather than wired: it scheduled a
+popup that was removed from the week advance, and had no consumer anywhere.
+
+The suite caught its own pin — `weeklyModifiersHonesty.test.ts` asserted the
+literal `>= 4`. It now asserts the loop reads the constant AND that the constant
+is 4, which is strictly stronger than either half.
+
+## Pass 3 — dead taps (every pressable element in the app)
+
+Script: parse every `TouchableOpacity` / `Pressable` / `TouchableHighlight`
+opening tag and flag those with no handler. Three hits, two intentional (the
+standard stop-propagation wrappers in `BaseModal` and `MailApp`, both commented
+as such).
+
+**FOUND: `ProgressOverview` achievement cards.** Every card was wrapped in a
+`TouchableOpacity` with `activeOpacity={0.7}` and no `onPress` — it dimmed under
+your finger and did nothing. The same defect class as the reward banners in the
+original report: press feedback is a promise. Now a `View`; give it a handler
+before making it pressable again.
+
+## Pass 4 — read: the App Store review guard
+
+**FOUND: the money arm of the sour-moment guard was dead.**
+`reviewMoments.ts` avoids asking for a rating just after something bad — death,
+jail, bankruptcy. The bankruptcy arm reads `bankruptcyTriggered`, which nothing
+writes; `types.ts` says so outright ("`BANKRUPTCY_FLOOR` names a bankruptcy the
+game cannot reach"). So the money axis had no guard here at all, and a player
+who had just fallen behind on their bills could be asked for five stars.
+
+`overdueBalance` (v31) is the failure state the money axis actually got. Both
+`detectSourMoment` and `isCalmEnoughToAsk` now read it. The flag check stays —
+it costs nothing and starts working the day something writes it.
+
+## Noted, not changed
+
+- `settings.musicEnabled` has no reader and no writer. Removing a field from
+  `initialState` is a save-format change (§7) for a dead boolean — not worth a
+  STATE_VERSION bump. Recorded so the next audit can tell "looked at" from
+  "not looked at".
+- `bankruptcyTriggered` itself still has no writer. Whether the game should have
+  a reachable bankruptcy state is a design question, not a defect; the arrears
+  system covers the player-facing consequence today.

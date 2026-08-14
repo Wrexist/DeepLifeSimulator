@@ -2774,3 +2774,65 @@ chapter ladder re-pays ~$42,500 and ~700 gems on every prestige (defensible as
 designed, but note `legacyContracts` resetting the same way WAS treated as a bug
 in v36). That removes a reward players currently receive on a reading of intent
 — an owner call, not an audit call.
+
+### 2026-08-14 (round 2) — three scripted sweeps, and the review that cleared a dead field
+
+Four audit passes past the progression spine. `npm run audit:weekly` was clean
+before and after all of it, which is the standing lesson about what static
+analyzers can and cannot see.
+
+**1. A triage note answers the question it was written for, and no other.**
+`weeksInPoverty` gates `scholarshipOpportunity`, the game's safety net for a
+player who is broke with no education. The event is registered, its special
+effect is handled in the week loop and stress-tested — and it could never fire,
+because nothing in the repo ever wrote the field. One counter, and the whole
+rescue was dead for exactly the player it was for.
+
+The field had been reviewed. `invisibleStateP2.test.ts` triages it under
+"logic, no UI" with the note "gates one event at >= 12 weeks", and that review
+was CORRECT: the player does not need to see the number. It just never asked
+whether the number moves.
+
+- Pattern: a recorded "deliberately unchanged" is scoped to one question and
+  reads as clearance against all of them. It is worse than no note, because the
+  next reader sees a name that has already been looked at and moves on.
+- Rule: when recording a deliberate no-change, write down WHICH question was
+  asked. "Needs no UI" and "works" are different findings.
+- Rule: for any field that gates content, check the writer before the reader. A
+  gate with no writer is not a subtle bug — it is a feature that does not exist,
+  and it looks identical to one that does in every diff and every grep of the
+  reader.
+
+**2. A constant with no consumer is worse than a magic number.** A bare `4` at
+least tells you where the behaviour is. `ZERO_STAT_DEATH_WEEKS = 4` sat in
+`gameConstants.ts` with zero code consumers while both death checks used the
+literal — and `lib/realEstate/rentals.ts` cited the CONSTANT by name in its own
+reasoning, treating it as authoritative. Tuning the most consequential number in
+the game there would have changed nothing. Six more of the same shape.
+
+- Pattern: the named copy is the one a maintainer will edit, because it lives in
+  the file called "constants". The literal is the one that runs.
+- Rule: a constant is either used or deleted. `grep -c` for its own name is a
+  five-second check and it found seven.
+- Rule: a test that pins a literal (`toMatch(/>= 4/)`) blocks the fix and proves
+  nothing about the named copy. Pin BOTH — that the code reads the constant, and
+  that the constant holds the value.
+
+**3. Press feedback is a promise.** A scripted sweep of every pressable element
+found `ProgressOverview`'s achievement cards wrapping content in a
+`TouchableOpacity` with `activeOpacity={0.7}` and no handler: it dimmed under a
+finger and did nothing. Same class as the reward banners from the report earlier
+today, found by script rather than by another support email.
+
+- Rule: after fixing an interaction defect by hand, write the sweep. The two
+  banners were found by reading; this one would not have been.
+
+**4. When a guard reads a field nothing writes, look for the state that
+replaced it.** `reviewMoments` avoids asking for an App Store rating right after
+something bad, and its money arm read `bankruptcyTriggered` — which nothing
+writes, as `types.ts` itself says. So a player who had just fallen behind on
+their bills could be asked for five stars. `overdueBalance` (v31) is the failure
+state the money axis actually got, and the guard now reads it.
+
+- Pattern: a system gets a new failure state and the old flag is left behind. The
+  guard still compiles, still reads sensibly, and silently guards nothing.

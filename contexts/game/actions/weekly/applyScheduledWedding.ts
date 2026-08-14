@@ -32,7 +32,7 @@
 
 import type { Relationship } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { WEEKS_PER_YEAR, WEDDING_REMAINDER_RATE } from '@/lib/config/gameConstants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import type { WeekContext } from './weekContext';
@@ -75,7 +75,7 @@ export function applyScheduledWedding(
     // ANTI-EXPLOIT: Deduct remaining 75% of wedding budget on auto-execution
     // Prevents exploit where player plans wedding (pays 25% deposit) but gets married for free
     const weddingBudget = rel.weddingPlanned.budget || 0;
-    const remainingBalance = Math.floor(weddingBudget * 0.75);
+    const remainingBalance = Math.floor(weddingBudget * WEDDING_REMAINDER_RATE);
     if (ctx.newStats.money >= remainingBalance) {
       ctx.newStats.money -= remainingBalance;
       logger.info(

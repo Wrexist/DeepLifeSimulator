@@ -11,6 +11,7 @@
 
 import { Education, EducationClass } from '@/contexts/game/types';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
+import { STUDENT_LOAN_APR } from '@/lib/config/gameConstants';
 
 // ─── Class Definitions ────────────────────────────────────────────────────
 
@@ -577,7 +578,7 @@ export interface StudentLoanOffer {
  */
 export function calculateStudentLoan(educationCost: number): StudentLoanOffer {
   const amount = Math.max(0, educationCost); // Full coverage
-  const annualRate = 0.045; // 4.5% annual interest
+  const annualRate = STUDENT_LOAN_APR; // 4.5% annual interest
   const termWeeks = 260; // ~5 years to repay
   const weeklyPayment = Math.ceil(calculatePeriodicPayment(amount, annualRate, termWeeks));
 

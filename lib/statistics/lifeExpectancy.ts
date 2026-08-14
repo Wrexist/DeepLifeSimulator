@@ -1,5 +1,5 @@
 import type { GameState } from '@/contexts/game/types';
-import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { ADULTHOOD_AGE, BASE_LIFE_EXPECTANCY } from '@/lib/config/gameConstants';
 
 /**
  * Calculate life expectancy based on health, happiness, and lifestyle
@@ -18,7 +18,7 @@ export interface LifeExpectancyResult {
  * Calculate life expectancy
  */
 export function calculateLifeExpectancy(state: GameState): LifeExpectancyResult {
-  const baseAge = 80; // Base life expectancy
+  const baseAge = BASE_LIFE_EXPECTANCY;
   // BUGFIX: `||` treats health/happiness 0 as falsy and falls back to 100,
   // making a dying player look perfectly healthy in the life-expectancy UI.
   const health = state.stats?.health ?? 100;

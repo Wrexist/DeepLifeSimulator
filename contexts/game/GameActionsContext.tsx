@@ -87,8 +87,7 @@ import {
  VEHICLE_WEEKLY_MILEAGE,
  VEHICLE_WEEKLY_CONDITION_DECAY,
  VEHICLE_ACCIDENT_BASE_CHANCE,
- VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE,
-} from '@/lib/config/gameConstants';
+ VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE, ZERO_STAT_DEATH_WEEKS } from '@/lib/config/gameConstants';
 // R7 Phase 2 step 2.1: pre-tick helpers extracted from the inline updater.
 // `calculateNetWorth`, `computeDecayInputs`, and `buildPreRolls` were
 // previously defined here at lines 92-212 / 388-420 / 451-478. Moving them
@@ -130,6 +129,7 @@ import { resolveTenancyStep } from '@/lib/realEstate/rentals';
 import { applySavingsGoals } from './actions/weekly/applySavingsGoals';
 import { applyContentMemberships } from './actions/weekly/applyContentMemberships';
 import { applyChapterProgress } from './actions/weekly/applyChapterProgress';
+import { applyPovertyTracking } from './actions/weekly/applyPovertyTracking';
 import { applyAmbitionPayout } from './actions/weekly/applyAmbitionPayout';
 import { applyMail } from './actions/weekly/applyMail';
 import { applyMailLapse } from './actions/weekly/applyMailLapse';
@@ -1233,7 +1233,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // instead of interrupting the Next Week flow. Death tracking continues.
 
  // Death after 4 weeks at zero
- if (newHealthZeroWeeks >= 4) {
+ if (newHealthZeroWeeks >= ZERO_STAT_DEATH_WEEKS) {
  newShowDeathPopup = true;
  newDeathReason = 'health';
  // CRITICAL: Hide zero stat popup when death occurs
@@ -1263,7 +1263,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // player card (IdentityCard "Health Issues") instead. Death tracking continues.
 
  // Death after 4 weeks at zero
- if (newHappinessZeroWeeks >= 4) {
+ if (newHappinessZeroWeeks >= ZERO_STAT_DEATH_WEEKS) {
  newShowDeathPopup = true;
  newDeathReason = 'happiness';
  // CRITICAL: Hide zero stat popup when death occurs
@@ -2680,6 +2680,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    logger.error('[CHAPTER TICK] failed:', chapterErr);
  }
 
+ /**
+  * Consecutive weeks spent broke — feeds the `scholarshipOpportunity` recovery
+  * event, whose condition reads `weeksInPoverty >= 12`. That field had NO
+  * writer anywhere in the repo, so the event could never fire for the stuck
+  * player it exists to rescue. See `actions/weekly/applyPovertyTracking.ts`.
+  *
+  * Placed here for the same reason as the chapter block above: it reads the
+  * balance AFTER every subsystem has moved money, so a week that ends solvent
+  * does not count. Guarded like every other subsystem (§4.3).
+  */
+ let nextWeeksInPoverty = prevState.weeksInPoverty;
+ try {
+   nextWeeksInPoverty = applyPovertyTracking({
+     money: newStats.money,
+     bankSavings: newBankSavings,
+     previous: prevState.weeksInPoverty,
+   });
+ } catch (povertyErr) {
+   logger.error('[POVERTY TICK] failed:', povertyErr);
+ }
+
  // ── Year-to-date tax ledger ───────────────────────────────────────────────
  //
  // `banking.taxDueThisYear` shipped with two readers (the desktop statement's
@@ -3098,6 +3119,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  playStreak: updatedPlayStreak,
  weekResult,
  legacyPoints: newLegacyPoints,
+ // Consecutive weeks under the poverty line — gates the scholarship recovery
+ // event. Nothing wrote this field before 2026-08-14.
+ weeksInPoverty: nextWeeksInPoverty,
  // Progressive disclosure: chapter completions drive what the player can see.
  completedChapters: newlyCompletedChapters.length > 0
    ? [...(prevState.completedChapters ?? []), ...newlyCompletedChapters]

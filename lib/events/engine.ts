@@ -1,4 +1,5 @@
 import type { GameState, GameStats } from '@/contexts/game/types';
+import { POVERTY_MONEY_THRESHOLD } from '@/lib/config/gameConstants';
 import { marketCrash, sideGig, earningsReport } from './economy';
 import { getSeasonalEvents } from './seasonalEvents';
 import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEvent, getCurrentEconomicState } from './economyEvents';
@@ -1838,8 +1839,11 @@ const scholarshipOpportunity: EventTemplate = {
   condition: state => {
     // Only trigger if player has been in poverty (low money) for extended period
     // STABILITY FIX: Reduced from 20 weeks to 12 weeks for faster recovery
+    // `weeksInPoverty` is written by `applyPovertyTracking` in the week tick.
+    // It had NO writer anywhere until 2026-08-14, so this condition was never
+    // satisfiable and the whole recovery path was dead — see that module.
     const weeksInPoverty = 'weeksInPoverty' in state && typeof state.weeksInPoverty === 'number' ? state.weeksInPoverty : 0;
-    const hasLowMoney = state.stats.money < 500;
+    const hasLowMoney = state.stats.money < POVERTY_MONEY_THRESHOLD;
     const hasNoEducation = !state.educations?.some(e => e.completed);
     return weeksInPoverty >= 12 && hasLowMoney && hasNoEducation; // Reduced from 20 to 12 weeks
   },
