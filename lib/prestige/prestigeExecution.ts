@@ -14,6 +14,10 @@ import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { heirStartingBonuses } from '@/lib/legacy/legacyShop';
 import { applyDynastyTransition } from '@/lib/dynasty/transition';
+import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBonuses';
+import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
+import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
+import { computeInheritance } from '@/lib/legacy/inheritance';
 
 
 /**
@@ -328,7 +332,6 @@ function createResetGameState(
     }
   } else {
     // Initialize empty family tree if none exists
-    const { FamilyTree } = require('@/lib/legacy/familyTree');
     const familyTree = new FamilyTree(newState.lineageId);
     newState.familyTreeData = familyTree.toJSON();
   }
@@ -428,8 +431,6 @@ function createResetGameState(
   };
 
   // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state
-  const { applyStartingBonuses, applyLegacyBonuses } = require('@/lib/prestige/applyBonuses');
-  const { applyUnlockBonuses } = require('@/lib/prestige/applyUnlocks');
   const unlockedBonuses = prestigeData.unlockedBonuses || [];
   let finalState = applyStartingBonuses(newState, unlockedBonuses);
   finalState = applyUnlockBonuses(finalState, unlockedBonuses);
@@ -679,7 +680,6 @@ function createChildGameState(
   newState.familyTreeData = familyTree.toJSON();
 
   // Preserve memories and add child-specific memories
-  const { generateChildMemories } = require('./childStats');
   const childMemories = generateChildMemories(selectedChild, oldState, newState.generationNumber);
   newState.memories = [...(oldState.memories || []), ...childMemories];
 
@@ -728,8 +728,6 @@ function createChildGameState(
 
   // Calculate inheritance using computeInheritance for proper calculation
   // This includes heirloom bonuses and proper net worth calculation
-  const { computeInheritance } = require('@/lib/legacy/inheritance');
-  const { calculateChildInheritance } = require('./childStats');
   const inheritanceSummary = computeInheritance(oldState);
   
   // CRITICAL FIX: Use inheritanceSummary.totalNetWorth instead of currentNetWorth
@@ -830,7 +828,6 @@ function createChildGameState(
 
   // BUG FIX: Use calculateChildStats for proper stat calculation with percentages
   // This ensures stats are calculated properly and can be displayed with %
-  const { calculateChildStats } = require('./childStats');
   const childStats = calculateChildStats(selectedChild, oldState, prestigeData);
   
   // Apply calculated child stats (includes parent influence, age bonus, prestige bonus)
@@ -841,10 +838,6 @@ function createChildGameState(
   };
 
   // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state (child path)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { applyStartingBonuses, applyLegacyBonuses } = require('@/lib/prestige/applyBonuses');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { applyUnlockBonuses } = require('@/lib/prestige/applyUnlocks');
   const unlockedBonuses = prestigeData.unlockedBonuses || [];
   let finalState = applyStartingBonuses(newState, unlockedBonuses);
   finalState = applyUnlockBonuses(finalState, unlockedBonuses);

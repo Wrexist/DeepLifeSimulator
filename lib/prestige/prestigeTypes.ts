@@ -152,9 +152,25 @@ export function isPrestigeAvailable(state: {
   prestige?: { prestigeLevel?: number };
 }): boolean {
   if (state?.prestigeAvailable === true) return true;
-  // Lazy require: achievements imports luxury, and prestigeTypes is imported by
-  // low-level modules that must stay cheap.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // The one lazy require in this directory that stays, and the only one of the
+  // thirty across the six held-back directories that turned out to be doing a
+  // job. Measured 2026-08-14 rather than assumed:
+  //
+  //   this module's static closure          1 module  /   161 LOC
+  //   @/lib/progress/achievements           9 modules / 5,949 LOC (pulls @/lib/luxury)
+  //
+  // and `prestigeTypes` is imported for `defaultPrestigeData` by
+  // `contexts/game/initialState.ts` — about the lowest-level module there is —
+  // plus `lib/progress/lifeChapters` and six components. A static import here
+  // would drag ~6k LOC into initialState's module-init graph to serve one
+  // function that most importers never call.
+  //
+  // Note what it is NOT: this is not a cycle-breaker (achievements does not
+  // reach prestigeTypes), and it does not degrade types — the
+  // `as typeof import(...)` keeps `netWorth` fully typed, which is exactly the
+  // "typed lazy getter" CLAUDE.md §5 asks for. The rule is off for this line
+  // only, on those grounds.
+  // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-require-imports
   const { netWorth } = require('@/lib/progress/achievements') as typeof import('@/lib/progress/achievements');
   return netWorth(state as never) >= getPrestigeThreshold(state?.prestige?.prestigeLevel ?? 0);
 }

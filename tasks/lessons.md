@@ -2926,3 +2926,90 @@ halfway down, and the hero image of an avatar-art release contained no face.
   several months.
 - Match on stable text, case-insensitively, and never on a number the game is
   free to change. Inflation moves prices; that is the whole point of inflation.
+
+**5. A cast erases the check that would have caught a fabricated property.**
+Two directories were cleared of `as any` and internal `require()` by hand on
+2026-08-14. Both turned up a real player-facing bug, and they were the same bug:
+
+| where | read | actual type | result |
+|---|---|---|---|
+| `lib/legacy/obituaryGenerator.ts` | `career.name \|\| career.title` | `Career` has neither (title is `levels[level].name`) | every obituary said `'employed'` |
+| `lib/prestige/applyBonuses.ts` | `stockInfo.currentPrice` | `StockData` is `{ price, dividendYield }` | the 8,000-point "Investment Portfolio" granted an empty portfolio |
+
+- Pattern: a property that does not exist evaluates to `undefined`, and
+  `undefined` is falsy. `undefined || undefined` fell through to a literal;
+  `undefined > 0` was false for every symbol. Neither threw, neither logged,
+  neither failed a test. A wrong name in an untyped expression does not produce
+  an error — it produces silence.
+- Pattern: both names were plausible because they exist SOMEWHERE nearby.
+  `title` is a real field on `CareerHistoryEntry`; `currentPrice` is a real
+  field on the stock HOLDING. Neither line looks wrong on review.
+- Rule: clearing an `as any`/`require()` backlog is bug-hunting, not tidying.
+  Budget for the bugs and write the test — the conversion is the cheap part.
+- Rule: when you fix a gate that was never passing, read the code it was
+  guarding as if it were new. It has never run. The portfolio's blend-average
+  branch was wrong in both numerator and denominator, and fixing the gate is
+  what would have shipped it.
+
+**6. "It's a cycle-breaker" is a claim, and it propagates.** Six `lib/`
+directories sat outside the lint error block for months, documented in CLAUDE.md
+as "held back by internal `require()` calls, several of which look like
+deliberate cycle-breakers." Checked against the actual import graph: 29 of the
+30 were not cycle-breakers. Nobody had verified it; the sentence had been copied
+forward from directory to directory.
+
+- Rule: `import type` is ERASED by tsc and emits no runtime require, so it
+  cannot participate in a runtime cycle. A cycle checker that counts type-only
+  imports reports cycles that do not exist — mine reported four, all routed
+  through `contexts/game/types.ts`, whose every import is type-only. **A pure
+  types file appearing on a dependency cycle is the tell that the tool is
+  wrong.**
+- Rule: a lazy require defers module EVALUATION, not just typing. Before making
+  one eager, check the target for top-level side effects — that half is
+  invisible to a type checker and to the lint rule.
+- Rule: the two reasons that DO survive checking are weight and boundary, and
+  both need a number in the comment, not an adjective.
+
+**7. A lint rule can be wrong for a codebase, and "burn it down" can be the
+regression.** `react-hooks/exhaustive-deps` had 98 warnings, annotated in
+`scripts/lib/lintRatchet.js` as sitting "in an app with known stale-closure
+bugs". Nobody had read them. All 98 were read on 2026-08-14 and **none was a
+stale-closure bug.** They fall into four groups, and satisfying the rule would
+make three of them worse:
+
+1. **Narrow deps on a helper call** — `useMemo(() => activeLegacyBuffs(gameState),
+   [gameState.legacyBuffs, gameState.weeksLived])`. The rule cannot see inside
+   `activeLegacyBuffs`, whose signature is literally
+   `Pick<GameState, 'legacyBuffs' | 'weeksLived'>` — the deps are provably
+   exactly right. Adding `gameState` would recompute on every tick and every
+   money change, which is the perf regression CLAUDE.md §4.1 documents.
+2. **The `?? []` alias** — `const holdings = stocks?.holdings ?? []`, with the
+   memo depending on `gameState.stocks?.holdings`. The alias is a NEW array only
+   when the underlying value is absent, and in that case the memo body reduces
+   over nothing. Depending on the alias instead would break the memo in the
+   common case to fix it in the trivial one.
+3. **Stable-by-construction values** — `useRef`, `Animated.Value`, `setGameState`
+   from `useState`. React guarantees the identity; the rule does not model that.
+4. **Genuinely fixable (1 of 98, and it was worth 4 warnings)** — `datingDeps`,
+   an object literal built inside
+   `SocialActionsProvider` from two module imports, so a fresh identity every
+   render. Adding it to the four deps arrays would have rebuilt all four
+   callbacks on every render. Hoisting it to module scope removed the warnings
+   AND the allocation, leaving **94**.
+
+- Rule: a count in a comment is a measurement with a date, not a fact. Say when
+  it was taken and how to retake it. Fixing four of these left the ratchet's own
+  header claiming 102 and this entry claiming 98, with the truth at 94 — caught
+  in review of #130, and only because two adjacent numbers disagreed. The whole
+  snapshot in `lintRatchet.js` had rotted the same way and nobody had noticed,
+  because a single stale number contradicts nothing.
+
+- Pattern: the same one as §6. An unverified characterisation in a comment
+  ("known stale-closure bugs", "deliberate cycle-breakers") gets treated as
+  established and shapes what everyone does next. Both were wrong; both had sat
+  for months; both took under an hour to check.
+- Rule: before burning down a rule's backlog, read enough of it to know which of
+  the four groups above you are in. A count is not a diagnosis.
+- Rule: when a rule is wrong for the codebase, write that down NEXT TO THE
+  COUNT — not in a commit message. The next person to see "98 warnings" will
+  reach for the autofix.

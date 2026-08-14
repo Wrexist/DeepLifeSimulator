@@ -4,17 +4,39 @@
  *
  * ── The problem ───────────────────────────────────────────────────────────
  *
- * `npx eslint .` reports 0 errors and 1 234 warnings, and `npm run lint:errors`
- * runs with `--quiet`, so it passes no matter how far the backlog grows. Every
- * rule that encodes this project's own hard rules is set to `warn`:
+ * `npm run lint:errors` runs with `--quiet`, so it passes no matter how far the
+ * warning backlog grows — and every rule that encodes this project's own hard
+ * rules is set to `warn`. When this gate was written the count was 1 234:
  *
- *     321  import/first
- *     255  no-restricted-syntax        <- CLAUDE.md §5, the repo's OWN rules
- *     245  @typescript-eslint/no-unused-vars
- *     157  @typescript-eslint/no-require-imports
- *     102  react-hooks/exhaustive-deps <- in an app with known stale-closure bugs
+ *                      2026-08-04    now
+ *     import/first            321     36
+ *     no-restricted-syntax    255    211   <- CLAUDE.md §5, the repo's OWN rules
+ *     no-unused-vars          245    248
+ *     no-require-imports      157    153
+ *     exhaustive-deps         102     94   <- see below: these are NOT bugs
+ *                          ------   ----
+ *     all rules             1 234    862
+ *
+ * BOTH columns, because one number alone reads as current and silently rots.
+ * The right-hand one is a measurement, not a promise — re-measure with
+ * `npx eslint . --format json` rather than trusting it; it is a comment, and
+ * the gate below is what actually enforces anything. (An earlier revision
+ * printed only the left column with no date, so the numbers read as today's
+ * and every one of them was wrong.)
  *
  * A rule nobody enforces is a comment with extra steps.
+ *
+ * ── One of these is not like the others ───────────────────────────────────
+ *
+ * DO NOT bulk-fix `react-hooks/exhaustive-deps`. All 98 that existed on
+ * 2026-08-14 were read that day; four were fixed (see below) and the 94 left
+ * are dominated by the narrow-subscription idiom CLAUDE.md §4.1 REQUIRES —
+ * satisfying the rule would be a performance regression, not a cleanup. The
+ * header line above used to read "in an app with known stale-closure bugs";
+ * nobody had checked, and it is wrong. Details in `tasks/lessons.md` §7.
+ *
+ * The other rules here are safe to burn down; this one needs a case-by-case
+ * argument per warning, and the honest answer is usually "leave it".
  *
  * ── Why not just promote them to `error`? ─────────────────────────────────
  *
@@ -40,9 +62,16 @@
 const MAX_ERRORS = 0;
 
 /**
- * Warning ceiling. Measured 920 over the whole repo on 2026-08-14, down from
- * 1 191 the same day (1 188 on 2026-08-10, ceiling 1 193; 1 235 on 2026-08-04,
- * ceiling 1 240).
+ * Warning ceiling. Measured 867 over the whole repo on 2026-08-14 (895, 909 and
+ * 920 earlier the same day, down from 1 191 (1 188 on 2026-08-10, ceiling 1 193;
+ * 1 235 on 2026-08-04, ceiling 1 240).
+ *
+ * ── The 42 that came off in the `require()` burndown ──────────────────────
+ * 909 → 867, by converting 29 lazy internal `require()` calls to static
+ * imports across economy, social, timeMachine, events and prestige — the last
+ * directories held out of the `no-restricted-syntax` error block. Each one
+ * also removes the `import/first` and `no-require-imports` warnings that rode
+ * along with it, which is why the drop is larger than the require count.
  *
  * A small margin above the measurement so the gate does not trip on noise from
  * an unrelated file landing — the same reasoning as the coverage floors. A gate
@@ -77,7 +106,7 @@ const MAX_ERRORS = 0;
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 920;
+const MAX_WARNINGS = 862;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

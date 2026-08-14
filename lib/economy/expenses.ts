@@ -2,6 +2,7 @@ import { GameState } from '@/contexts/game/types';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
+import { logger } from '@/utils/logger';
 
 // Type guard helpers for Loan properties. Field-only intersections (not `Loan & ...`)
 // so the FALSE branch doesn't narrow to `never` — Loan declares these fields
@@ -275,7 +276,6 @@ export function calcWeeklyExpenses(
     };
   } catch (error) {
     // CRITICAL: If any error occurs, return safe defaults to prevent crash
-    const logger = require('@/utils/logger').logger;
     logger.error('[calcWeeklyExpenses] Error calculating expenses:', error);
     return {
       total: 0,

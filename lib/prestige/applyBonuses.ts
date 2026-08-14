@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/game/types';
+import { getStockInfo } from '@/lib/economy/stockMarket';
 import { getBonusLevel } from './prestigeBonuses';
 
 /**
@@ -77,25 +78,38 @@ export function applyStartingBonuses(
     };
     newState.stocks = stocks;
     // Add diversified stock holdings (simplified - add to a few major stocks)
-    const { getStockInfo } = require('@/lib/economy/stockMarket');
     const majorStocks = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA'];
-    const sharesPerStock = Math.floor(portfolioValue / majorStocks.length / 100); // Rough estimate
-    
+
+    // `getStockInfo` returns `StockData`, whose price field is `price`. This
+    // read was `stockInfo.currentPrice` — a field StockData does not have — so
+    // the gate below was `undefined > 0`, i.e. false for every symbol, and this
+    // 8,000-point bonus granted an EMPTY portfolio to everyone who bought it.
+    // `currentPrice` is real, but on the HOLDING, which is where the confusion
+    // came from. The lazy `require` of stockMarket typed `stockInfo` as `any`,
+    // so it compiled; converting to a static import is what surfaced it.
+    const perStockBudget = portfolioValue / majorStocks.length;
+
     majorStocks.forEach(symbol => {
-      const stockInfo = getStockInfo(symbol);
-      if (stockInfo && stockInfo.currentPrice > 0) {
-        const shares = Math.floor(portfolioValue / majorStocks.length / stockInfo.currentPrice);
+      const price = getStockInfo(symbol)?.price ?? 0;
+      if (price > 0) {
+        const shares = Math.floor(perStockBudget / price);
         if (shares > 0) {
           const existingHolding = stocks.holdings.find(h => h.symbol === symbol);
           if (existingHolding) {
-            existingHolding.shares += shares;
-            existingHolding.averagePrice = (existingHolding.averagePrice * existingHolding.shares + stockInfo.currentPrice * shares) / (existingHolding.shares + shares);
+            // Weight the blended average by the PRIOR share count, before the
+            // new shares are added — reading `existingHolding.shares` after the
+            // `+=` counted the new shares on both sides of the average.
+            const priorShares = existingHolding.shares;
+            const totalShares = priorShares + shares;
+            existingHolding.averagePrice =
+              (existingHolding.averagePrice * priorShares + price * shares) / totalShares;
+            existingHolding.shares = totalShares;
           } else {
             stocks.holdings.push({
               symbol,
               shares,
-              averagePrice: stockInfo.currentPrice,
-              currentPrice: stockInfo.currentPrice,
+              averagePrice: price,
+              currentPrice: price,
             });
           }
         }
