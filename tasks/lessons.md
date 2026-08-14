@@ -2900,11 +2900,19 @@ make three of them worse:
    common case to fix it in the trivial one.
 3. **Stable-by-construction values** — `useRef`, `Animated.Value`, `setGameState`
    from `useState`. React guarantees the identity; the rule does not model that.
-4. **Genuinely fixable (1 of 98)** — `datingDeps`, an object literal built inside
+4. **Genuinely fixable (1 of 98, and it was worth 4 warnings)** — `datingDeps`,
+   an object literal built inside
    `SocialActionsProvider` from two module imports, so a fresh identity every
    render. Adding it to the four deps arrays would have rebuilt all four
-   callbacks on every render. Hoisting it to module scope removed the warning
-   AND the allocation.
+   callbacks on every render. Hoisting it to module scope removed the warnings
+   AND the allocation, leaving **94**.
+
+- Rule: a count in a comment is a measurement with a date, not a fact. Say when
+  it was taken and how to retake it. Fixing four of these left the ratchet's own
+  header claiming 102 and this entry claiming 98, with the truth at 94 — caught
+  in review of #130, and only because two adjacent numbers disagreed. The whole
+  snapshot in `lintRatchet.js` had rotted the same way and nobody had noticed,
+  because a single stale number contradicts nothing.
 
 - Pattern: the same one as §6. An unverified characterisation in a comment
   ("known stale-closure bugs", "deliberate cycle-breakers") gets treated as
