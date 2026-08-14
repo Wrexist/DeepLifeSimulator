@@ -212,12 +212,28 @@ if (unbacked.length) fail(`Claims with no real evidence: ${unbacked.map((c) => c
 if (unbacked.length) { unbacked.forEach((c) => console.log(`  ✗ unbacked claim: ${c.claim}`)); process.exit(1); }
 
 if (process.argv.includes('--emit')) {
+  if (problems.length) {
+    // Do not emit when problems exist — only print for valid metadata
+    process.exit(1);
+  }
   console.log('─'.repeat(60) + '\nPASTE-READY\n' + '─'.repeat(60));
   console.log(`\n[Apple · Name ${len(APPLE.name)}/30]\n${APPLE.name}`);
   console.log(`\n[Apple · Subtitle ${len(APPLE.subtitle)}/30]\n${APPLE.subtitle}`);
   console.log(`\n[Apple · Keywords ${kwLen}/100]\n${keywordField}`);
   console.log(`\n[Apple · Promotional text ${len(APPLE.promotionalText)}/170]\n${APPLE.promotionalText}`);
   console.log(`\n[Apple · Description ${len(APPLE.description)}/4000]\n${APPLE.description}`);
+  // Emit localized fields
+  for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
+    console.log(`\n[Apple · ${locale} · Subtitle ${len(loc.subtitle)}/30]\n${loc.subtitle}`);
+    const locKeywordField = loc.keywords.join(',');
+    console.log(`\n[Apple · ${locale} · Keywords ${len(locKeywordField)}/100]\n${locKeywordField}`);
+    if (loc.promotionalText) {
+      console.log(`\n[Apple · ${locale} · Promotional text ${len(loc.promotionalText)}/170]\n${loc.promotionalText}`);
+    }
+    if (loc.description) {
+      console.log(`\n[Apple · ${locale} · Description ${len(loc.description)}/4000]\n${loc.description}`);
+    }
+  }
   console.log(`\n[Play · Title ${len(PLAY.title)}/30]\n${PLAY.title}`);
   console.log(`\n[Play · Short ${len(PLAY.shortDescription)}/80]\n${PLAY.shortDescription}`);
   console.log(`\n[Play · Long ${len(PLAY.longDescription)}/4000]\n${PLAY.longDescription}`);

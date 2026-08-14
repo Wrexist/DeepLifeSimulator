@@ -138,6 +138,9 @@ async function clearDecisions(page) {
   }
   const left = /(\d+ decisions waiting|A decision is waiting)/.test(await allText(page));
   console.log('decisions cleared?', !left);
+  if (left) {
+    throw new Error('Failed to clear decision inbox — UI states unavailable for capture');
+  }
 }
 
 async function shot(page, name) {
@@ -482,7 +485,7 @@ async function main() {
       // leave via back arrow (top-left) then fall back to tab bar
       await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1500);
     } else {
-      console.log(name, 'NOT FOUND on desktop grid');
+      throw new Error(`Desktop app "${label}" could not be opened — required UI state unavailable for capture`);
     }
   }
   await goTab(0); await shot(page, 'home-final');

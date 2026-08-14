@@ -18,7 +18,13 @@ createServer(async (req, res) => {
     const s = await stat(file);
     if (s.isDirectory()) file = join(file, 'index.html');
   } catch {
-    file = join(ROOT, 'index.html'); // SPA fallback
+    // SPA fallback only for extensionless routes; missing assets with extensions return 404
+    const hasExtension = extname(path) !== '';
+    if (hasExtension) {
+      res.writeHead(404).end('not found');
+      return;
+    }
+    file = join(ROOT, 'index.html');
   }
   try {
     const body = await readFile(file);

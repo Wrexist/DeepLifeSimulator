@@ -77,7 +77,7 @@ older direction and is superseded.
 
 ## The 10-image narrative (as shipped)
 
-Matches the `FRAMES` array in `lib/storeFrameSystem.mjs`. One real screen each.
+Matches the `FRAMES` array in `scripts/lib/storeFrameSystem.mjs`. One real screen each.
 
 | # | Headline | Screen |
 |---|----------|--------|
