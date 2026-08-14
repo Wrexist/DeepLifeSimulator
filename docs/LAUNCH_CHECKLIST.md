@@ -91,10 +91,23 @@ in code changes.
 > One matching file = inlined. No match = you are about to ship a build that
 > cannot save.
 
-**4. Paste the store metadata** (~10 min) — fields and verified counts are in
-[`../marketing/aso-v2.7.0-paste-ready.md`](../marketing/aso-v2.7.0-paste-ready.md).
-Re-read it first: it was written for v2.7.0 and its screenshot captions describe
-Story Mode, which has since been retired.
+**4. Paste the store metadata** (~10 min).
+
+```bash
+npm run aso     # prints every field with its measured character count
+```
+
+Copy lives in [`../marketing/aso/metadata.mjs`](../marketing/aso/metadata.mjs);
+[`../marketing/aso/README.md`](../marketing/aso/README.md) explains each choice.
+`aso-v2.7.0-paste-ready.md` is superseded — it duplicated "life" and "sim"
+between the name and subtitle, and claimed "no forced ads" and "no pay-to-win",
+neither of which is true of this build.
+
+Two decisions need a human before pasting: whether to rename the app to
+**Deep Life Simulator: Tycoon** (a review cycle, and it dilutes a brand that
+already ranks for "deep life"), and whether to add the **es-MX** localisation,
+which the US storefront indexes alongside en-US and is effectively a second
+100-character keyword field.
 
 > The subtitle change is the highest-value item on this list. It is **indexed
 > for search**, and the current one contains zero searchable keywords. The
