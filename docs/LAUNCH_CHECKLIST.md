@@ -120,8 +120,14 @@ video separately.
 
 Ten frames each, numbered in upload order; `01` is the hero. They are built
 from 28 fresh gameplay captures of the shipping UI — not mock-ups — so they
-carry the new faces everywhere, including the family and contacts screens.
-`screenshots/appstore-2026/README.md` has the pipeline if they need rebuilding.
+carry the new faces everywhere, including the contacts screen.
+
+The composition was rebuilt too, because the previous set read as
+machine-generated: 40 emoji stickers, gradient headline type, a different
+palette on every frame, and three skewed phones that shrank the product to a
+third of the image. It is now one device per frame, one palette, one type
+system. `docs/store-screenshot-design.md` itemises what was removed and why;
+`screenshots/appstore-2026/README.md` has the pipeline for rebuilding.
 
 **Still outstanding here:**
 

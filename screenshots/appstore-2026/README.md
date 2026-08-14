@@ -43,39 +43,60 @@ capture of the shipping UI.
      Dark Web, Crypto, Real Estate, Garage, Luxury, Politics, Travel, …)
    - re-run with `VIEW_W=1024 VIEW_H=1366 DSF=2 OUT=<...>/rich-captures-ipad`
      for the native tablet layouts (2048×2732)
-4. `node scripts/generate-appstore-2026-samples.mjs` → `style-samples/`
-   (three 1320×2868 style candidates for image #1 — used once to pick a style)
-5. `node scripts/generate-appstore-2026-set.mjs` → `iphone-6.9/` (1320×2868) and
-   `iphone-6.5/` (1284×2778) — the final iPhone set (style C, "Life in Motion")
-6. `node scripts/generate-appstore-2026-ipad.mjs` → `ipad-13/` (2064×2752), from
+4. `node scripts/generate-appstore-2026-set.mjs` → `iphone-6.9/` (1320×2868)
+   and `iphone-6.5/` (1284×2778)
+5. `node scripts/generate-appstore-2026-ipad.mjs` → `ipad-13/` (2064×2752), from
    `rich-captures-ipad/`
 
-## The 3 style candidates (`style-samples/`)
+Steps 4 and 5 share `scripts/lib/storeFrameSystem.mjs` — change the design
+there, never in one generator.
 
-| Sample | Style | Idea |
-|--------|-------|------|
-| `sample-A-cinematic` | **Aurora Stage** | Straight-on titanium phone on an ambient aurora backdrop, big headline, floating glass "live" chips ($11M · Married · +2.75% · Level 6) popping off the device |
-| `sample-B-fullbleed` | **Inside the Game** | The real screenshot fills the entire canvas edge-to-edge, cinematic scrim + huge type — feels like standing inside the app |
-| `sample-C-collage` | **Life in Motion** | Three overlapping angled phones (Home + Spark + Stocks), vivid gradient, emoji stickers and a net-worth badge — playful, content-rich |
+## The design system
+
+`scripts/lib/storeFrameSystem.mjs` holds the palette, the type scale and the
+frame list; both generators import it, so the iPhone and iPad sets cannot drift
+apart. One rule runs through all of it: **the screenshot is the subject.**
+
+- one device per frame, straight on, centred, fully contained
+- one palette across all ten frames — the set reads as a series because it is
+- one type size, weight, colour and position; the accent word is a single
+  colour, never a gradient
+- one proof-point pill per frame, same place, no rotation
+- nothing decorative that is not doing work
+
+The type block is anchored by its BOTTOM edge, so a headline that wraps grows
+upward into the top margin and the device stays at exactly the same height in
+every frame.
+
+`docs/store-screenshot-design.md` records what the previous version did instead
+— 40 emoji stickers, three-stop gradient type, a different palette per frame,
+fake star dust, a halo ring, three skewed phones, a rotated gradient badge and a
+gloss sweep over the UI — and why the result read as machine-made.
+`generate-appstore-2026-samples.mjs` produced the style candidates for that
+older direction and is superseded.
 
 ## The 10-image narrative (as shipped)
 
-Matches the `FRAMES` array in `generate-appstore-2026-set.mjs` /
-`generate-appstore-2026-ipad.mjs`. Each frame is a three-phone collage: a main
-(hero) screen plus two angled side screens.
+Matches the `FRAMES` array in `lib/storeFrameSystem.mjs`. One real screen each.
 
-| # | Headline | Main screen | Accent |
-|---|----------|-------------|--------|
-| 01 | Live any **life.** | Home / identity ($11M, married, Icon standing) | pink→cyan |
-| 02 | Find your **person.** | Spark (dating swipe card) | pink |
-| 03 | Build the **empire.** | Hustle / companies (empire dashboard) | indigo |
-| 04 | Ride the **bull run.** | Crypto (market + BTC holdings) | emerald→gold |
-| 05 | Go **viral.** | Pulse (social feed) | magenta |
-| 06 | Enter the **dark web.** | Onion darknet terminal (heat / opsec) | green→violet |
-| 07 | A phone full of **lives.** | Apps grid (Spark/Contacts/Pulse/Stocks/Bank/Education…) | cyan |
-| 08 | Train your **mind.** | Education (degrees & skills) | teal |
-| 09 | Live the **luxury.** | Garage dealership (+ Luxury collectibles) | gold→orange |
-| 10 | Your story, your **rules.** | Home goals / ambition milestones (+ Family) | violet |
+| # | Headline | Screen |
+|---|----------|--------|
+| 01 | Live any **life.** | Home / identity card |
+| 02 | Find your **person.** | Spark (dating profile) |
+| 03 | Build an **empire.** | Hustle / companies |
+| 04 | Ride the **bull run.** | Crypto markets |
+| 05 | Go **viral.** | Pulse (social feed) |
+| 06 | Enter the **dark web.** | Onion darknet terminal |
+| 07 | A phone full of **lives.** | Apps grid |
+| 08 | Train your **mind.** | Education |
+| 09 | Live the **luxury.** | Luxury & collectibles |
+| 10 | Raise a **family.** | Contacts (parents, spouse, both children) |
+
+Two frames deliberately do NOT use the obvious capture. Shown large and alone,
+the Garage opens on an economy sedan behind a "Pay $500" licence prompt, and
+the Family tab is an EMPTY STATE — "No partner yet" over a pink call to action,
+a dev-tools artifact. Luxury and Contacts carry the same ideas with full
+screens.
 
 Order 01→10 is the upload order (01 is the primary hero). Output sizes:
 **1320×2868** (iPhone 6.9", Apple's current primary), **1284×2778** (iPhone
