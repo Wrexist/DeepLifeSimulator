@@ -1,4 +1,5 @@
 import type { GameState } from '@/contexts/game/types';
+import { getCombinedPerkEffects } from '@/lib/politics/perks';
 
 export type InfluenceLevel = 'novice' | 'rising' | 'popular' | 'influencer' | 'celebrity';
 export type ContentType = 'text' | 'photo' | 'video' | 'story' | 'live';
@@ -416,7 +417,6 @@ export function getSocialMediaData(state: GameState): SocialMediaData & {
   // Apply political perk bonus to followers
   let followers = socialMedia.followers;
   if (state.politics && state.politics.careerLevel > 0) {
-    const { getCombinedPerkEffects } = require('@/lib/politics/perks');
     const perkEffects = getCombinedPerkEffects(state.politics.careerLevel);
     if (perkEffects.socialMediaFollowerBonus > 0) {
       const bonus = Math.round(followers * (perkEffects.socialMediaFollowerBonus / 100));

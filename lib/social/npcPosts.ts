@@ -7,6 +7,8 @@
 
 import { Relationship, SocialPost, GameState } from '@/contexts/game/types';
 import { MS_PER_WEEK } from '@/lib/config/gameConstants';
+import { generateRandomProfilePosts } from '@/lib/social/randomProfiles';
+import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 
 // Post templates by personality type
 const POST_TEMPLATES: Record<string, string[]> = {
@@ -239,8 +241,6 @@ export function generateWeeklyNPCPosts(
  // Add random profile posts (from profiles with no relationship to player)
  if (includeRandom) {
  try {
- // eslint-disable-next-line @typescript-eslint/no-require-imports
- const { generateRandomProfilePosts } = require('@/lib/social/randomProfiles');
  // Generate 3-7 random posts from unknown profiles (default behavior)
  const randomPosts = generateRandomProfilePosts(week);
  if (randomPosts && randomPosts.length > 0) {
@@ -273,11 +273,9 @@ export function getAvailableDatingProfiles(
  playerSeekingGender?: 'male' | 'female'
 ): { name: string; id: string; bio?: string; interests?: string[] }[] {
  try {
- // eslint-disable-next-line @typescript-eslint/no-require-imports
- const { DATING_PROFILES } = require('@/lib/dating/datingProfiles');
  
  if (!playerGender || !playerSeekingGender) {
- return DATING_PROFILES.map((p: any) => ({
+ return DATING_PROFILES.map((p) => ({
  name: p.name,
  id: p.id,
  bio: p.bio,
@@ -287,11 +285,11 @@ export function getAvailableDatingProfiles(
  
  // Filter profiles that match player's preferences
  return DATING_PROFILES
- .filter((profile: any) => 
+ .filter((profile) =>
  profile.gender === playerSeekingGender && 
  profile.seekingGender === playerGender
  )
- .map((p: any) => ({
+ .map((p) => ({
  name: p.name,
  id: p.id,
  bio: p.bio,
