@@ -15,7 +15,8 @@
  * never asking whether it moves.
  */
 import { applyPovertyTracking } from '@/contexts/game/actions/weekly/applyPovertyTracking';
-import { POVERTY_MONEY_THRESHOLD } from '@/lib/config/gameConstants';
+import { POVERTY_MONEY_THRESHOLD, SCHOLARSHIP_AWARD_USD } from '@/lib/config/gameConstants';
+import { quoteScholarship } from '@/lib/education/scholarships';
 import { eventTemplates } from '@/lib/events/engine';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
@@ -202,5 +203,101 @@ describe('the review prompt respects the money failure state that exists', () =>
   it('clearing arrears is not itself a sour moment (the control)', () => {
     const behind = createTestGameState({ ...solvent(), overdueBalance: 400 });
     expect(detectSourMoment(behind, solvent())).toBe(false);
+  });
+});
+
+describe('the scholarship covers tuition, which is what it promises', () => {
+  /**
+   * Making the event reachable exposed the other half of the same defect: its
+   * `grant_free_education` effect granted +10 reputation, under a choice reading
+   * "Accept the scholarship (Free education!)" and a description promising an
+   * organisation will "cover your education costs". Nobody had noticed because
+   * the event could not fire, so the empty promise had never been shown to a
+   * player. A dead feature hides its own bugs.
+   */
+  const gpaLess = { bestGpa: 0 };
+
+  it('a certificate is covered outright', () => {
+    // Legal Studies at $18,000 is the most expensive certificate, and the award
+    // is sized to it. Police Academy ($12k) is covered with change left over.
+    const quote = quoteScholarship({
+      ...gpaLess,
+      tuitionCost: 18_000,
+      awardScholarshipUSD: SCHOLARSHIP_AWARD_USD,
+    });
+
+    expect(quote.netCostUSD).toBe(0);
+    expect(quote.breakdown.awardUSD).toBe(18_000);
+    expect(quote.eligibility).toBe('full');
+  });
+
+  it('a degree is discounted, not bought', () => {
+    // The ceiling is the point: this fires for a broke character, and it should
+    // open the first door rather than hand over a $150k medical degree.
+    const quote = quoteScholarship({
+      ...gpaLess,
+      tuitionCost: 150_000,
+      awardScholarshipUSD: SCHOLARSHIP_AWARD_USD,
+    });
+
+    expect(quote.netCostUSD).toBe(132_000);
+    expect(quote.eligibility).toBe('partial');
+  });
+
+  it('only the part that actually paid tuition is spent', () => {
+    // A 4.0 student already has 80% covered. Charging the whole credit for a
+    // bill it did not pay would be the same class of defect as a reward that
+    // never arrives — quieter, and in the other direction.
+    const quote = quoteScholarship({
+      bestGpa: 4.0,
+      tuitionCost: 12_000,
+      awardScholarshipUSD: SCHOLARSHIP_AWARD_USD,
+    });
+
+    expect(quote.breakdown.meritUSD).toBeCloseTo(9_600, 5);
+    expect(quote.breakdown.awardUSD).toBeCloseTo(2_400, 5);
+    expect(quote.netCostUSD).toBe(0);
+  });
+
+  it('never exceeds the tuition it is applied to', () => {
+    const quote = quoteScholarship({
+      ...gpaLess,
+      tuitionCost: 5_000,
+      awardScholarshipUSD: SCHOLARSHIP_AWARD_USD,
+    });
+
+    expect(quote.totalUSD).toBe(5_000);
+    expect(quote.breakdown.awardUSD).toBe(5_000);
+  });
+
+  it('no award behaves exactly as before (the control)', () => {
+    // Every save before v41 is in this state, and every player who never sees
+    // the event stays in it.
+    const quote = quoteScholarship({ ...gpaLess, tuitionCost: 18_000 });
+
+    expect(quote.netCostUSD).toBe(18_000);
+    expect(quote.breakdown.awardUSD).toBe(0);
+  });
+
+  it('the event effect grants the credit rather than reputation alone', () => {
+    const loop = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'contexts/game/GameActionsContext.tsx'), 'utf8');
+
+    expect(loop).toMatch(/nextTuitionWaiverUSD = Math\.max\(/);
+    expect(loop).toMatch(/SCHOLARSHIP_AWARD_USD,/);
+    // `Math.max`, not `+=`: the event needs no completed education, so it can be
+    // seen twice before enrolling. Taking the higher refuses to stack a windfall
+    // while never reducing a credit the player already holds.
+    expect(loop).not.toMatch(/tuitionWaiverUSD\s*\+=/);
+  });
+
+  it('and the enrolment spends it in the same updater that enrols', () => {
+    // §4.4. The quote is computed from `prev`, so a second tap in one React
+    // batch re-quotes against the decremented credit and cannot spend it twice.
+    const actions = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'contexts/game/actions/EducationActions.ts'), 'utf8');
+
+    expect(actions).toMatch(/awardScholarshipUSD: tuitionWaiver\(state\)/);
+    expect(actions).toMatch(/quote\.waiverSpentUSD > 0/);
   });
 });

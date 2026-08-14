@@ -60,6 +60,22 @@ export const BANKRUPTCY_FLOOR = 500; // Minimum cash before bankruptcy triggers
  */
 export const POVERTY_MONEY_THRESHOLD = 500;
 
+/**
+ * What the poverty-recovery scholarship covers, as a tuition credit in USD.
+ *
+ * $18,000 is the price of Legal Studies, the most expensive CERTIFICATE in the
+ * catalogue — so the award covers any certificate outright (Police Academy is
+ * $12k) and takes a real bite out of an undergraduate degree ($30k-$72k)
+ * without paying for one outright.
+ *
+ * That ceiling is the point. The event fires for a player under
+ * `POVERTY_MONEY_THRESHOLD` with no education, and its job is to open the first
+ * door out, not to hand a broke character a $150k medical degree from one
+ * random roll. A credit rather than cash for the same reason — see
+ * `GameState.tuitionWaiverUSD`.
+ */
+export const SCHOLARSHIP_AWARD_USD = 18_000;
+
 // ── Real Estate Rent ────────────────────────────────────
 /**
  * Canonical weekly rent, as a fraction of property value. Used for BOTH

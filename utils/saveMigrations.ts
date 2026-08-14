@@ -1021,6 +1021,31 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 40;
     return state;
   },
+
+  // Version 41: `tuitionWaiverUSD` — an unspent tuition credit, granted by the
+  // poverty-recovery scholarship event and consumed at the next enrolment.
+  //
+  // The event (`scholarship_opportunity`) had been unreachable for its whole
+  // life: its condition reads `weeksInPoverty >= 12` and nothing wrote that
+  // field. Making it fire exposed the other half — its `grant_free_education`
+  // effect granted +10 reputation while the choice text says "Accept the
+  // scholarship (Free education!)". This is the field that makes the promise
+  // real.
+  //
+  // A CREDIT, not cash: the event fires for a player under $500 and programmes
+  // cost $12k-$180k, so paying it out as money would be a life-changing
+  // injection from one random event, and it is not what the event promises
+  // anyway.
+  //
+  // Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  // `repairGameState` mirror. Absent already means "no credit", and writing a
+  // value would hand every existing save a scholarship nobody earned — the
+  // mirror image of the v27/v28 reasoning, where stamping a value would have
+  // DENIED something instead.
+  41: (state) => {
+    state.version = 41;
+    return state;
+  },
 };
 
 /**

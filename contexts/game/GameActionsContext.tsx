@@ -87,7 +87,8 @@ import {
  VEHICLE_WEEKLY_MILEAGE,
  VEHICLE_WEEKLY_CONDITION_DECAY,
  VEHICLE_ACCIDENT_BASE_CHANCE,
- VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE, ZERO_STAT_DEATH_WEEKS } from '@/lib/config/gameConstants';
+ VEHICLE_ACCIDENT_POOR_CONDITION_CHANCE, ZERO_STAT_DEATH_WEEKS,
+ SCHOLARSHIP_AWARD_USD } from '@/lib/config/gameConstants';
 // R7 Phase 2 step 2.1: pre-tick helpers extracted from the inline updater.
 // `calculateNetWorth`, `computeDecayInputs`, and `buildPreRolls` were
 // previously defined here at lines 92-212 / 388-420 / 451-478. Moving them
@@ -3597,6 +3598,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // prevState.diseases would mutate the previous snapshot (StrictMode double-
  // invoke then sees the disease already present and silently skips it).
  let updatedDiseases = [...(prevState.diseases || [])];
+ // Tuition credit granted by `grant_free_education`; undefined = unchanged.
+ let nextTuitionWaiverUSD: number | undefined;
  // Preserved as-is (never force-opened) — the health popup is opt-in only.
  const showSicknessModal = prevState.showSicknessModal;
  let updatedDiseaseHistory = prevState.diseaseHistory || {
@@ -3609,9 +3612,33 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (choice.special) {
  // Handle special effects like 'grant_free_education'
  if (choice.special === 'grant_free_education') {
- // Grant the player a reputation bonus for education opportunity
+ /**
+  * The scholarship actually covers tuition now.
+  *
+  * It used to grant +10 reputation and nothing else, under a choice that reads
+  * "Accept the scholarship (Free education!)" and a description promising an
+  * organisation will "cover your education costs". That went unnoticed because
+  * the event could not fire at all — its condition reads `weeksInPoverty`, and
+  * nothing wrote that field until 2026-08-14. Making the event reachable is
+  * what exposed the empty promise.
+  *
+  * A CREDIT, not cash: this fires for a player under $500, and paying out
+  * enough to cover tuition would be a life-changing cash injection from one
+  * random event. `SCHOLARSHIP_AWARD_USD` covers any certificate outright and
+  * discounts a degree.
+  *
+  * `Math.max`, not `+=`: the event requires no completed education, so a player
+  * could in principle see it twice before enrolling. Taking the higher of the
+  * two refuses to stack a windfall while never reducing a credit they hold.
+  */
  updatedStats.reputation = Math.min(100, (updatedStats.reputation || 0) + 10);
- logger.info('Free education bonus granted');
+ nextTuitionWaiverUSD = Math.max(
+   typeof prevState.tuitionWaiverUSD === 'number' && isFinite(prevState.tuitionWaiverUSD)
+     ? prevState.tuitionWaiverUSD
+     : 0,
+   SCHOLARSHIP_AWARD_USD,
+ );
+ logger.info(`Scholarship granted: $${SCHOLARSHIP_AWARD_USD} tuition credit`);
  }
 
  // Handle disease addition from events
@@ -3862,6 +3889,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 ...(updatedMemories && { memories: updatedMemories }), // Add memories if created
 ...(updatedKarma && { karma: updatedKarma }), // Update karma if changed
 ...(updatedPolitics && { politics: updatedPolitics }), // Approval/influence event effects
+...(nextTuitionWaiverUSD !== undefined && { tuitionWaiverUSD: nextTuitionWaiverUSD }),
  diseases: updatedDiseases, // Update diseases if event triggered one
  showSicknessModal: showSicknessModal, // Show modal if new disease
  diseaseHistory: updatedDiseaseHistory, // Update disease history
