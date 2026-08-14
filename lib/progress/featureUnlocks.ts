@@ -28,16 +28,28 @@
  *    completed chapters only accumulate, and the fallbacks below only ever
  *    raise the tier. A player cannot lose a tab by losing money.
  *
- *    This was a claim before it was true. The milestone fallback read
- *    `stats.money + bankSavings` — the current liquid balance — so spending
- *    LOWERED the tier and padlocked apps the player already had. Buying a
- *    $200k property at tier 3 re-locked the Real Estate app that manages it;
- *    a player holding $1M in stocks with an empty current account read as
- *    broke. It now reads `wealthMark()`, a high-water mark over
- *    `lifetimeStatistics.peakNetWorth` (persisted, already monotonic) plus
- *    live net worth and the raw balance, so the rule holds by construction.
- *    Reported by a player on 2026-08-13, 52 weeks in and locked out of most
- *    of the phone and PC app grid.
+ *    This was a claim before it was true, and it took two reports to make it
+ *    true. The milestone fallback read `stats.money + bankSavings` — the
+ *    current liquid balance — so spending LOWERED the tier and padlocked apps
+ *    the player already had. Buying a $200k property at tier 3 re-locked the
+ *    Real Estate app that manages it; a player holding $1M in stocks with an
+ *    empty current account read as broke. Reported 2026-08-13, 52 weeks in.
+ *
+ *    The first fix pointed this at `wealthMark()` — `max(liquid, live, peak)`,
+ *    where `peak` is the persisted `lifetimeStatistics.peakNetWorth` — and
+ *    declared the rule held by construction. It did not. A `max()` containing
+ *    two non-monotonic terms is not monotonic; the floor only stops the fall
+ *    going below `peak`, and `peak` was stamped once per week tick from the
+ *    balance at the START of the tick, so it never saw money earned and spent
+ *    between two Next Week presses. Reported again 2026-08-14 by a player who
+ *    bought a computer and watched the grid padlock behind them.
+ *
+ *    `peak` is now stamped on every state write (`lib/progress/wealthRatchet.ts`,
+ *    applied in `GameStateContext.wrappedSetGameState`), so it tracks the
+ *    balance rather than sampling it, and the floor is real. The property is
+ *    tested as a WALK of earns and spends in
+ *    `__tests__/onboarding/wealthRatchet.test.ts` — a table of tiers at fixed
+ *    states passes under every broken version of this code.
  *
  * 3. A CHAPTER'S GOAL MUST NOT NEED AN APP THAT CHAPTER UNLOCKS. Chapter 3's
  *    goal is "buy your first stock or property" while Stocks and Real Estate

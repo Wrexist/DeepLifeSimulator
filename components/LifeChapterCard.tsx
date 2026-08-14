@@ -92,15 +92,21 @@ function LifeChapterCard() {
         * this card and tapping a button meant the unlock spine depended on a
         * screen they might never open.
         *
-        * So this is a status line, not a button. It shows on the tick where
-        * the goals are all met and the tick has not yet run; the reward
-        * arrives on Next Week with a notification naming what it unlocked.
+        * So this is a status line, not a button — and it has to LOOK like one.
+        * It used to render as a solid amber full-width bar with bold dark text,
+        * i.e. pixel-for-pixel the app's primary CTA, on a `View` with no
+        * `onPress`. Players tapped it and nothing happened; a dead tap reads as
+        * a bug, and it was reported as exactly that ("can't claim reward",
+        * 2026-08-14). Adding the handler back is not the fix — that is the
+        * second granting path the tick was built to remove. Looking like what
+        * it is, is: a tinted status banner that says when the reward lands.
         */}
       {progress.isComplete ? (
-        <View style={styles.claimBtn}>
-          <Gift size={scale(15)} color="#0F172A" />
-          <Text style={styles.claimText}>
-            Complete! +${reward.money.toLocaleString()} · +{reward.gems} gems next week
+        <View style={styles.completeBanner}>
+          <Gift size={scale(15)} color="#FBBF24" />
+          <Text style={styles.completeText}>
+            All goals complete — +${reward.money.toLocaleString()} and +{reward.gems} gems
+            arrive when you end the week.
           </Text>
         </View>
       ) : (
@@ -150,12 +156,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148, 163, 184, 0.2)', overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#A855F7' },
-  claimBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(8),
-    paddingVertical: scale(11), borderRadius: responsiveBorderRadius.md,
-    backgroundColor: '#FBBF24',
+  // Status, not a call to action: tinted fill and a full 1px border on all four
+  // sides (Hard Rule #7 bans one-sided accent bars), amber text rather than the
+  // solid amber fill + bold dark text the app's real buttons use.
+  completeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: scale(8),
+    paddingVertical: scale(10), paddingHorizontal: scale(11),
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.4)',
   },
-  claimText: { fontSize: fontScale(13.5), fontWeight: '800', color: '#0F172A' },
+  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: '#FBBF24' },
   rewardHint: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
   rewardHintText: { fontSize: fontScale(11.5), color: '#94A3B8', fontWeight: '600' },
 });

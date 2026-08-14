@@ -2631,3 +2631,55 @@ minted 20 gems/day (free) with no play; gems are IAP currency.
 - Rule: before aligning config to a documented rule, check whether the current
   config is actually failing. Evidence of the pipeline working beats a written
   rule; when they conflict, annotate the rule with the evidence and the date.
+
+### 2026-08-14 — "Can't access apps": a high-water mark that only the week tick ever stamped
+
+- What happened: a player reported "Can't access apps, can't claim reward" with
+  three screenshots. The timestamps carry the diagnosis: 23:04 home screen,
+  $2,522; 23:05 app grid, $1,747 and a desktop launcher. They bought a computer
+  in between, and in the later grid exactly two apps are open — Contacts and
+  Bank, the only tier-1 rows in `FEATURE_UNLOCKS`. At $2,522 the save was tier 2.
+  **Spending money took the app grid away**, which `featureUnlocks.ts` rule 2
+  says cannot happen ("NOTHING IS EVER TAKEN AWAY... the rule holds by
+  construction").
+- Root cause: `wealthMark` is `Math.max(liquid, liveNetWorth, peakNetWorth)`.
+  Only the last term is monotonic, and **`Math.max` of a monotonic term and two
+  non-monotonic ones is not monotonic** — whenever a live term is the maximum,
+  which is exactly when the player is at a new high, spending lowers the result.
+  The floor only holds if `peakNetWorth` keeps up, and it was written in one
+  place: `applyLifetimeStatistics`, once per week tick, from the balance at the
+  START of that tick. Money earned and spent between two Next Week presses was
+  never sampled at all — and early play is mostly that kind of money.
+- Pattern, and the reason this is the SECOND report of the same bug (2026-08-13,
+  2026-08-14): the first fix added a monotonic term to a `max()` and the header
+  comment then claimed monotonicity "by construction". Adding a floor to a
+  maximum does not make the maximum monotonic; it only raises the level below
+  which it cannot fall. The property was asserted in prose and never tested as a
+  property — the suite checked tiers at fixed states, which every version of this
+  code passes.
+- Rule: when a value is documented as monotonic, test it as a WALK — a sequence
+  of increases and decreases, asserting the derived quantity never decreases —
+  not as a table of endpoints. `__tests__/onboarding/wealthRatchet.test.ts` does
+  that now.
+- Rule: a high-water mark sampled on a schedule is not a high-water mark, it is a
+  sample. If the quantity it tracks can move between samples, the mark has to be
+  taken where the quantity moves.
+- Where the fix went, and why not MoneyActions: CLAUDE.md §4.4 makes
+  `updateMoney`/`applyMoneyDelta`/`batchUpdateMoney` the documented way to move
+  money, which makes them look like the choke point. They are not — `buyItem`,
+  `sellItem` and many other actions write `stats.money` inside their own updater,
+  correctly, for the atomicity §4.4 itself demands. The purchase in this very bug
+  report goes through `buyItem`, so a hook there would have missed it. The one
+  place every writer passes through is `GameStateContext.wrappedSetGameState`,
+  where `updatedAt` is already stamped. It is liquid-only so it stays O(1) on the
+  state-write path; the tick keeps stamping the asset-inclusive figure weekly.
+- Second, smaller finding, and the other half of the report: `LifeChapterCard`'s
+  completed state rendered a full-width solid-amber bar with bold dark text —
+  pixel-for-pixel the app's primary CTA — on a `View` with no handler. The
+  read-only design is right (the week tick owns granting; a second path in the
+  card is one re-wire from paying twice) but the STYLING contradicted it, so the
+  bar got tapped and did nothing. "Can't claim reward."
+- Rule: when a component is deliberately non-interactive, the fix for a dead tap
+  is to remove the affordance, not to add the handler. A correct architectural
+  decision still has to be legible in the pixels, or the field reports it as a
+  bug.

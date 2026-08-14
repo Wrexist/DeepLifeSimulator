@@ -4,6 +4,7 @@ import { logger } from '@/utils/logger';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { safeSetItem } from '@/utils/safeStorage';
 import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
+import { ratchetWealthPeak } from '@/lib/progress/wealthRatchet';
 import { GameStoreContext, GameStore } from './useGameSelector';
 
 interface GameStateContextType {
@@ -83,6 +84,14 @@ export function GameStateProvider({
   // Wrapper for setGameState — respects user's dark mode preference (no longer forced).
   // CRITICAL: short-circuit on identity. Actions use `return prev` to mean "no change"
   // (e.g. rejecting an overdraw); bumping updatedAt on no-ops cascades whole-app re-renders.
+  //
+  // It is also where the wealth high-water mark is taken. That belongs here and
+  // nowhere else: `peakNetWorth` is the floor under progressive disclosure
+  // (`wealthMark` → `unlockTier`), it was previously stamped only by the week
+  // tick, and money moves through hundreds of updaters that never touch
+  // MoneyActions — so this is the one point every writer passes through. See
+  // `lib/progress/wealthRatchet.ts` for why it is liquid-only and O(1). It runs
+  // AFTER the identity short-circuit so a `return prev` no-op stays a no-op.
   const wrappedSetGameState = React.useCallback<React.Dispatch<React.SetStateAction<GameState>>>(
     (update) => {
       setGameState(prev => {
@@ -90,10 +99,10 @@ export function GameStateProvider({
         if (newState === prev) return prev;
         const now = Date.now();
         const nextUpdatedAt = Math.max(now, (prev.updatedAt || 0) + 1);
-        return {
+        return ratchetWealthPeak({
           ...newState,
           updatedAt: nextUpdatedAt,
-        };
+        });
       });
     },
     []
