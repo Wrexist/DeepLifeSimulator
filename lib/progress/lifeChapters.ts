@@ -37,11 +37,20 @@ let netWorthFailureLogged = false;
  *      current account read as broke.
  *
  * The high-water mark fixes both. `lifetimeStatistics.peakNetWorth` is already
- * persisted, already `max(previous, thisWeek)` in `applyLifetimeStatistics`,
- * and already written on every tick — so this stays DERIVED, with no new field
- * and no migration. Live net worth is folded in so a purchase made this week
- * counts before the next tick stamps the peak, and the raw liquid balance is
- * kept so a save whose statistics have not been written yet still tiers up.
+ * persisted and already `max(previous, thisWeek)` in `applyLifetimeStatistics`,
+ * so this stays DERIVED, with no new field and no migration. Live net worth is
+ * folded in so a purchase made this week counts before the next tick stamps the
+ * peak, and the raw liquid balance is kept so a save whose statistics have not
+ * been written yet still tiers up.
+ *
+ * Note what the `max` does and does not give you. Only the `peak` term is
+ * monotonic, so the result is monotonic only DOWN TO `peak` — while a live term
+ * is the maximum, spending still lowers this figure. That was the whole of the
+ * 2026-08-14 report: the tick stamped `peak` once a week from the balance at the
+ * start of the tick, so money earned and spent in between was never marked, and
+ * a player who bought a computer dropped a tier. `peak` is now also stamped on
+ * every state write by `lib/progress/wealthRatchet.ts`, which is what makes the
+ * floor track the balance instead of sampling it.
  *
  * Each term is sanitised independently: `Math.max` propagates NaN, and a single
  * corrupt field must not zero the whole signal.
