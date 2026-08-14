@@ -2836,3 +2836,46 @@ state the money axis actually got, and the guard now reads it.
 
 - Pattern: a system gets a new failure state and the old flag is left behind. The
   guard still compiles, still reads sensibly, and silently guards nothing.
+
+**5. A cast erases the check that would have caught a fabricated property.**
+Two directories were cleared of `as any` and internal `require()` by hand on
+2026-08-14. Both turned up a real player-facing bug, and they were the same bug:
+
+| where | read | actual type | result |
+|---|---|---|---|
+| `lib/legacy/obituaryGenerator.ts` | `career.name \|\| career.title` | `Career` has neither (title is `levels[level].name`) | every obituary said `'employed'` |
+| `lib/prestige/applyBonuses.ts` | `stockInfo.currentPrice` | `StockData` is `{ price, dividendYield }` | the 8,000-point "Investment Portfolio" granted an empty portfolio |
+
+- Pattern: a property that does not exist evaluates to `undefined`, and
+  `undefined` is falsy. `undefined || undefined` fell through to a literal;
+  `undefined > 0` was false for every symbol. Neither threw, neither logged,
+  neither failed a test. A wrong name in an untyped expression does not produce
+  an error — it produces silence.
+- Pattern: both names were plausible because they exist SOMEWHERE nearby.
+  `title` is a real field on `CareerHistoryEntry`; `currentPrice` is a real
+  field on the stock HOLDING. Neither line looks wrong on review.
+- Rule: clearing an `as any`/`require()` backlog is bug-hunting, not tidying.
+  Budget for the bugs and write the test — the conversion is the cheap part.
+- Rule: when you fix a gate that was never passing, read the code it was
+  guarding as if it were new. It has never run. The portfolio's blend-average
+  branch was wrong in both numerator and denominator, and fixing the gate is
+  what would have shipped it.
+
+**6. "It's a cycle-breaker" is a claim, and it propagates.** Six `lib/`
+directories sat outside the lint error block for months, documented in CLAUDE.md
+as "held back by internal `require()` calls, several of which look like
+deliberate cycle-breakers." Checked against the actual import graph: 29 of the
+30 were not cycle-breakers. Nobody had verified it; the sentence had been copied
+forward from directory to directory.
+
+- Rule: `import type` is ERASED by tsc and emits no runtime require, so it
+  cannot participate in a runtime cycle. A cycle checker that counts type-only
+  imports reports cycles that do not exist — mine reported four, all routed
+  through `contexts/game/types.ts`, whose every import is type-only. **A pure
+  types file appearing on a dependency cycle is the tell that the tool is
+  wrong.**
+- Rule: a lazy require defers module EVALUATION, not just typing. Before making
+  one eager, check the target for top-level side effects — that half is
+  invisible to a type checker and to the lint rule.
+- Rule: the two reasons that DO survive checking are weight and boundary, and
+  both need a number in the comment, not an adjective.

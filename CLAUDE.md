@@ -189,15 +189,36 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   the router resolves through a lookup map at module top.
 - **Logging:** `utils/logger.ts`, not `console.*`.
 - **Lint guardrails** (`eslint.config.js`), which encode the hard rules:
-  - `as any` → warn app-wide, **error in 52 of `lib/`'s 58 directories** — every
+  - `as any` → warn app-wide, **error in 57 of `lib/`'s 58 directories** — every
     one that is fully clean of `as any` and internal `require()`. `lib/travel`
     was the first and sat alone for months; a count on 2026-08-14 found 48 more
     were ALREADY clean and simply unprotected, so the burndown had been
-    happening as a side effect of ordinary work with nothing locking it in. Add
-    directories to that block as the burndown clears them — the remaining six
-    (economy, events, prestige, simulation, social, timeMachine) are held back
-    by internal `require()` calls, several of which look like deliberate
-    cycle-breakers and need reading one at a time.
+    happening as a side effect of ordinary work with nothing locking it in.
+    **The rule earns its keep: each of the two directories cleared by hand so
+    far turned up a real player-facing bug** — the obituary naming no job
+    (`career.name`, which `Career` does not have) and the 8,000-point
+    Investment Portfolio granting nothing (`stockInfo.currentPrice`, which
+    `StockData` does not have). Both were fabricated property names that a
+    `require()`-erased type let compile, then silently `undefined` inside a
+    falsy gate. Treat clearing a directory as bug-hunting, not tidying.
+  - **"It's a cycle-breaker" is a claim to check, not to inherit.** All 30 lazy
+    requires in the six long-held-back directories were tested against the
+    static import graph on 2026-08-14: 29 were not cycle-breakers, and the
+    justification had simply been copied forward. Ask of each one *does the
+    target already reach this file?* — and exclude `import type` edges, which
+    tsc erases and which therefore cannot form a runtime cycle (four false
+    positives all routed through `contexts/game/types.ts`, whose every import
+    is type-only; a types file on a cycle is the tell). Also check what a type
+    checker cannot: a lazy require defers module EVALUATION, so confirm the
+    target has no top-level side effects before making it eager.
+  - Two legitimate reasons to keep one, both requiring a measurement in the
+    comment: **weight** (`lib/prestige/prestigeTypes.ts` — a 161-LOC leaf that
+    `contexts/game/initialState.ts` imports, pulling 5 949 LOC if made static;
+    already typed via `as typeof import(...)`, so it degrades nothing) and
+    **boundary** (`lib/simulation`, the last unenforced directory — ~10k LOC of
+    dev tooling already dead-code-eliminated by the `__DEV__`-folded require in
+    `SettingsModal.tsx`, whose requires reach into `contexts/game/*` and would
+    bake a lib → contexts inversion into the graph).
   - `require('@/lib|utils|contexts…')` for internal modules → warn (degrades types
     to `any`/`never`); use static `import` or `import type` + a typed lazy getter.
   - `@ts-ignore` / `@ts-nocheck` banned; `@ts-expect-error` needs a ≥5-char description.
