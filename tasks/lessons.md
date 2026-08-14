@@ -4,6 +4,48 @@
 
 ## Patterns to Watch For
 
+### 2026-08-14 - The instrument was built and never plugged in, and I twice nearly reported a bug that wasn't
+
+- **A declared event with no emitter is the analytics form of dead code, and it
+  is invisible.** `lib/analytics/events.ts` names the events its own docstring
+  says exist to measure "retention (D1/D7/D30) … and churn points". Three of
+  them — `onboarding_step`, `tutorial_step`, `session_end` — were emitted by
+  nothing. Nothing failed, nothing threw, and the local half looked healthy:
+  `onboardingAnalytics.ts` recorded every step view and completion faithfully
+  and sent them to `logger`, where they died at the device boundary. This is the
+  same shape as `scholarship_opportunity` (condition read a field nothing wrote)
+  and `revivalPack` (a stored default read by nothing): a system built, then not
+  connected. **When a catalogue of names exists, grep for an emitter of each
+  one** — the catalogue is not the wiring.
+- **The cost was a measurement you cannot backfill.** "Play" cut a first-time
+  player's route to a live game from six taps to two, aimed squarely at a Day-1
+  retention figure below the 25th percentile of the peer set — and there was no
+  way to tell whether it worked. Retention data is not retroactive; a week that
+  went unmeasured is gone.
+- **Check the DATE of the data against the date of the fix.** The retention
+  numbers under investigation were for the week of Jul 13–19; Quick Start landed
+  Aug 10. The data described a build that no longer existed in the repo. I was
+  one step from "fixing" an onboarding gauntlet that had already been fixed four
+  weeks earlier — the most expensive kind of work there is, because it looks
+  productive and undoes something deliberate.
+- **A narrow grep is a false negative generator, and I hit it twice in one
+  session.** Searching `app/ components/` for `ReviewPromptHandler` omitted
+  `contexts/`, where it is in fact mounted, and I was seconds from reporting the
+  review prompt as dead. Then `trackEvent(` found nothing and I concluded
+  analytics was unwired — the real API is `track(`, called from eight files.
+  **Before reporting something as absent, search the whole repo for the symbol,
+  not the directories you expect it in.** §8's rule about not trusting a finding
+  without re-reading the source applies to your own findings first.
+- **Emit outside the `setState` updater — the §4.4 rule is not only about
+  money.** The tutorial's abandonment step is read from a ref precisely so the
+  `track()` call sits outside the updater. React may invoke an updater more than
+  once per commit, which would report one player quitting as two, and a
+  double-counted denominator is a wrong decision rather than a crash.
+- **`inactive` is not the end of a session.** iOS raises it for a notification
+  shade pull or an incoming call. Ending the session there would cut the
+  measured length of every session that survives one — understating the exact
+  number being investigated. Only `background` ends it; `active` re-arms it.
+
 ### 2026-08-05 - Feature round: a test that pins a version number is a tripwire, and three caps that had to be proven to bind
 
 - **A test that hard-pins `STATE_VERSION` fails on every correct future bump.**

@@ -1,153 +1,74 @@
-# Plan — child proportions, release secrets, store screenshots
+# Active plan — first-session instrumentation (D1 retention)
 
-Three asks. They have one ordering dependency: **children change what faces look
-like, so the store screenshots have to be recaptured after that lands**, not
-before. So the screenshots go last.
+## Why
 
-(The avatar-revamp plan that lived here shipped in #122.)
+App Store Connect benchmarks (Simulation peer set, week of Jul 13–19 2026):
 
----
+| Metric | Us | Percentile |
+|---|---|---|
+| Conversion rate | 6.28% | **above 75th** ✅ |
+| Proceeds per paying user | $5.94 | 25th–50th 🟡 |
+| Day 1 retention | 24.78% | **below 25th** 🔴 |
+| Day 7 retention | 2.86% | **below 25th** (median 7.14%) 🔴 |
 
-## 1. Children read as small adults
+Acquisition is the healthy part of this business. Retention is the ceiling:
+of every 100 installs about 3 open the app a week later.
 
-### What is actually true
+## What is NOT the problem (checked, do not redo)
 
-The previous note said this "needs a commissioned child art set, not code".
-That is right about the ceiling and wrong about the floor — there IS real
-headroom in code, and it was never measured. Two findings from probing the
-generated art:
+- **Onboarding length.** Already fixed on 2026-08-10 (`7bbf717`): "Play" is the
+  primary card for a first-time player at 2 taps / 12.3s, against New Game's
+  6 taps / 21.4s. The measured retention week PREDATES that commit by four
+  weeks, so those numbers describe a build that no longer exists here.
+- **The tutorial never firing.** It fires: `showWelcomePopup` defaults true in
+  `initialState`, survives `buildNewGameState`, and `home.tsx` starts the
+  tutorial on `weeksLived <= 1`.
+- **Crashes.** Apple reports insufficient data to benchmark the crash rate,
+  i.e. the volume is low.
+- **Analytics being off.** `EXPO_PUBLIC_ENABLE_FIREBASE=true` in the production
+  EAS profile, and `track()` is genuinely wired into IAP, ads, paywalls,
+  week ticks, death and prestige.
 
-- **The art's layer groups are stable.** Every configuration tested — nine of
-  them, across clothing, hats, long hair, beards, glasses and bald — emits the
-  same eight top-level groups with byte-identical transforms:
-  `translate(0 170)` body, `translate(78 134)` mouth, `translate(104 122)` nose,
-  `translate(76 90)` eyes, `translate(76 82)` brows, then facial hair, hair and
-  accessories. So the features can be moved as layers without touching a path.
-- **The body is irrelevant.** At the shipped crop (head centred, zoom 1.10) the
-  shoulders are almost entirely outside the circle, so head-to-shoulder ratio —
-  the textbook child cue — buys nothing here. Every usable cue is in the head.
+## What IS the problem
 
-### The lever
+Quick Start has shipped, and **there is no instrument that can tell you whether
+it worked.** Three events are declared in `lib/analytics/events.ts` — the file
+whose own docstring says it exists to measure "retention (D1/D7/D30) … and
+churn points" — and never emitted by anything:
 
-Cranial ratio, expressed as **where the eye line sits**. Adult eyes sit at the
-vertical middle of the head; an infant's sit far lower, because the cranium
-above them is huge relative to the face. Measured: skull top 36, chin 173, so
-the adult eye line is 104.5 and an infant's is ~120.
+- `onboarding_step` — the six-screen funnel. `src/features/onboarding/
+  onboardingAnalytics.ts` records every step view, completion and validation
+  error, and sends them to `logger` only, so they never leave the device.
+  (`screen_view` gives a partial view-only picture by route; it cannot show
+  completions, and it cannot show WHY someone stopped.)
+- `tutorial_step` — the tutorial is the first thing a new player meets and its
+  progress is entirely unmeasured.
+- `session_end` — declared, never emitted, so **session length is not
+  measurable**. For a 24.78% D1 that is the single most diagnostic number
+  there is. The transport is a plain-JS batcher, not the Firebase SDK, so
+  nothing supplies this automatically.
 
-- [x] Probe the art's group structure and confirm it is stable
-- [x] Render today vs three strengths across ages 1/4/8/12/16/30 and pick one
-      (`screenshots/avatar-child-proportions.png` — C reads youngest with no
-      distortion: eye line 120, feature cluster 0.80, eyes +20%)
-- [x] `lib/avatar/proportions.ts` — pure, no art import, degrades to the input
-      unchanged when a group is not found
-- [x] Wire into `VectorAvatar` before `frameArt`
-- [x] Tests: the ramp, monotonicity, the no-op at adult ages, graceful
-      degradation — plus one test that pins the group offsets against the REAL
-      generated art, so a DiceBear bump fails loudly instead of silently
-      turning the effect off
-- [x] Verify in the running app on a family with children
+This is the same defect class as the scholarship event that never fired and
+`weeksInPoverty` that nothing wrote — a system built, then not connected.
 
-### Two bugs the verification turned up, both fixed
+## Tasks
 
-Neither was the ask. Both are "a child renders wrong", found by looking at the
-real app rather than at the module.
+- [x] Trace the cold-start path and count taps to first playable week
+- [x] Confirm the tutorial actually triggers for a new game
+- [x] Confirm production analytics flags and real `track()` call sites
+- [x] Establish that the retention data predates the Quick Start fix
+- [x] Emit `onboarding_step` from `onboardingAnalytics` (one choke point, all
+      six screens, no call-site churn)
+- [x] Emit `tutorial_step` on view / complete / skip
+- [x] Emit `session_end` with duration on background
+- [x] Tests for all three
+- [x] Full suite, type-check, lint ratchet, routes
 
-- [x] **Grey hair on a newborn, third occurrence.** `HAIR_COLORS` is only a
-      continuous ramp for its first nine entries — naturals 0-8, then GREY (9)
-      and WHITE (10), then four dyed. `inherit.ts` blended across that boundary,
-      so a brown-haired parent (3) and a green-haired one (13) produced a child
-      at 9 or 10. Inheritance now reads only the parents' NATURAL colours. Dye
-      is not heritable, which the file already argued for facial hair and
-      clothing. Asserted as a property over all 225 parent pairings, because
-      the two previous fixes for this image were both defeated by a later
-      change to the numbers.
-- [x] **One child, two faces.** `CharacterAvatar` falls back to a seeded face
-      when `parents` is absent, and `ContactsApp` never passed it — so the same
-      child was green-haired in Contacts and blonde on the Family tab, in one
-      save, in one session. That is the "my character turned into someone else"
-      defect the revamp exists to kill, across screens instead of across ages.
-      Wired, plus a coverage test over all four screens that render children.
-      **`FamilyTreeModal` deliberately left alone**: it renders a whole lineage
-      keyed by its own ids, so handing every node the CURRENT player's parents
-      would be wrong for all but one generation.
+## Deliberately not done
 
-**Stated plainly in the deliverable:** this is proportion, not new art. It makes
-a child read as a child; it does not give the style baby geometry. The ceiling
-is still a commissioned child set.
-
----
-
-## 2. `EXPO_PUBLIC_RC_IOS_KEY` and `EXPO_PUBLIC_SAVE_HMAC_KEY`
-
-Not a code change — a runbook. The two keys are opposite in kind and that is
-the thing worth being explicit about:
-
-- **`EXPO_PUBLIC_RC_IOS_KEY`** is *fetched* from RevenueCat. It is a publishable
-  key that ships inside the binary.
-- **`EXPO_PUBLIC_SAVE_HMAC_KEY`** is *generated* by us and must never be
-  regenerated once saves are signed with it, or every existing save fails its
-  signature.
-
-- [x] Read what the code actually does with each before writing a word about them
-      (`services/RevenueCatService.ts` `apiKey()`, `utils/saveSigningConfig.ts`,
-      `scripts/preflightSaveSigning.js`, preflight §8/§9)
-- [x] Write the step-by-step into `docs/RELEASE_SECRETS.md`
-- [x] Check the preflight sections that gate on them so the doc matches the
-      failure messages a build actually produces. Two things worth recording
-      that came out of reading rather than assuming: preflight only checks the
-      HMAC key is PRESENT, not that it is strong (a value of `x` passes, so the
-      `openssl rand` step is what makes it real); and the screenshot-capture
-      env vars are themselves hard §8 failures, so running preflight in the
-      same shell fails with a message that names the variable, not the shell.
-
----
-
-## 3. Recapture the store screenshots
-
-Guideline 2.3.3 — the screenshots must depict the app as it now is, and every
-face in every shot changed.
-
-Pipeline is already documented in `screenshots/appstore-2026/README.md`:
-web export → serve → `capture-rich-state.mjs` (28 real gameplay captures, via
-Dev Tools to a rich late-game save) → `generate-appstore-2026-set.mjs` (iPhone
-6.9" + 6.5") → `generate-appstore-2026-ipad.mjs` (13" iPad).
-
-- [x] Export the web build with devtools enabled
-- [x] **Fix the capture script, which was stale in three places.** It waited for
-      `New Game` on the menu — a label that only exists once a save EXISTS; a
-      fresh profile shows `Play` / `Custom life`, so every run hung to its 120s
-      timeout. It waited for `Create Identity`, since renamed `Create Character`.
-      And it matched the market's Computer row on `$5000`, the item's BASE
-      price, while the market applies inflation — by that point in a rich run
-      the card reads $5,300.
-- [x] **Make the silent failure loud.** The market miss meant the computer was
-      never bought, so the desktop launcher never appeared, so six shots were
-      never written — and the PREVIOUS run's files stayed on disk. The set was
-      being rebuilt from a mix of new and stale captures with nothing red
-      anywhere: the exact Guideline 2.3.3 problem, reintroduced by the tool
-      meant to fix it. The script now throws if the launcher is missing.
-- [x] **Fix the scrolling, which never worked at all.** `page.mouse.wheel` does
-      nothing to react-native-web's ScrollView, so every `wheel()` in the
-      script was a no-op and shots meant to be "the same screen, scrolled" were
-      byte-identical duplicates — `md5sum` on `00-home.png` and
-      `01-home-goals.png` proved it. The only scrolling that ever happened was
-      accidental, via `clickText`'s `scrollIntoViewIfNeeded`, which is what
-      parked Home halfway down and left the hero frame of an AVATAR release
-      with no face in it. Replaced with a DOM helper, verified moving.
-- [x] Re-run the rich capture, iPhone and iPad (28/28 each)
-- [x] Regenerate all three output sets
-- [x] Look at every regenerated frame — contact sheets of both sets, all 20
-      frames checked. Hero shows the identity card and face, the Dark Web and
-      Garage frames are back, and the "12 decisions waiting" pill is gone from
-      every phone (it had been baked into all three devices per frame, and on
-      Home it overlapped the daily-gems banner).
-
----
-
-## Gates before pushing
-
-- [x] `npx jest --ci` — 6876 pass, 1 pre-existing skip
-- [x] `npm run type-check` + `type-check:tests:ratchet` — clean, ratchet at 0
-- [x] `node scripts/check-lint.js` — 0 errors, 1190 warnings under the 1193 ceiling
-- [x] `npm run check:routes` — 17 routes, no conflicts
-- [x] `npx expo export:embed` — production bundle builds, 3904 modules
+- Redesigning the first session on a hunch. The instrument comes first; with
+  three weeks of `onboarding_step` and `session_end` data the change to make is
+  a fact rather than a guess.
+- Any change to the ad grace or paywall timing. Both are already gated well
+  clear of a first session, and moving them without data is how the two false
+  store claims happened.

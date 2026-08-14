@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo, useRef } from 'react';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { TutorialStep, EnhancedTutorialStep } from '@/types/tutorial';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
+import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
 
 interface LoadingState {
@@ -105,6 +106,20 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     hasCompletedTutorial: false,
   });
 
+  /**
+   * Mirrors the tutorial's position for analytics only.
+   *
+   * `completeTutorial` and `skipTutorial` are `useCallback([])`, so the only
+   * in-callback route to the current step is the `setState` updater — and
+   * emitting from inside an updater is the double-fire bug this codebase keeps
+   * relearning (§4.4): React may invoke it more than once per commit, so one
+   * abandonment would report as two. A ref reads the same value from outside.
+   *
+   * The step number is the whole point: "they quit the tutorial" is not
+   * actionable, "62% of them quit on step 3" names the screen to rewrite.
+   */
+  const tutorialProgress = useRef({ step: 0, total: 0 });
+
   // Check if tutorial was completed on mount
   React.useEffect(() => {
     checkTutorialStatus();
@@ -194,6 +209,8 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     if (__DEV__) {
       logger.debug('[UIUXContext] startTutorial called with', { stepsCount: steps.length, firstStep: steps[0] });
     }
+    tutorialProgress.current = { step: 0, total: steps.length };
+    track('tutorial_step', { action: 'start', step: 0, total: steps.length, context: context ?? 'game' });
     setState(prev => {
       const newState = {
         ...prev,
@@ -214,6 +231,13 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
   }, [startTutorial]);
 
   const completeTutorial = useCallback(async () => {
+    // Emitted before the await: the write can throw, and a player who reached
+    // the end of the tutorial did so whether or not the flag persisted.
+    track('tutorial_step', {
+      action: 'complete',
+      step: tutorialProgress.current.step,
+      total: tutorialProgress.current.total,
+    });
     try {
       await AsyncStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
       setState(prev => ({
@@ -229,6 +253,11 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const skipTutorial = useCallback(async () => {
+    track('tutorial_step', {
+      action: 'skip',
+      step: tutorialProgress.current.step,
+      total: tutorialProgress.current.total,
+    });
     try {
       await AsyncStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
       setState(prev => ({
@@ -244,6 +273,8 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setTutorialStep = useCallback((step: number) => {
+    tutorialProgress.current = { ...tutorialProgress.current, step };
+    track('tutorial_step', { action: 'advance', step, total: tutorialProgress.current.total });
     setState(prev => ({
       ...prev,
       currentTutorialStep: step,
