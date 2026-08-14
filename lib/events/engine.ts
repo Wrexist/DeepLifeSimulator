@@ -1,5 +1,4 @@
 import type { GameState, GameStats } from '@/contexts/game/types';
-import { POVERTY_MONEY_THRESHOLD } from '@/lib/config/gameConstants';
 import { marketCrash, sideGig, earningsReport } from './economy';
 import { getSeasonalEvents } from './seasonalEvents';
 import { economyEventTemplates, shouldTriggerEconomicEvent, generateEconomicEvent, getCurrentEconomicState } from './economyEvents';
@@ -27,6 +26,7 @@ import {
   EARLY_GAME_THRESHOLD_WEEKS,
   EARLY_GAME_PITY_THRESHOLD,
   EARLY_GAME_EVENT_CHANCE,
+  POVERTY_MONEY_THRESHOLD,
 } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
 import { makeWeeklyRoll } from '@/utils/seededRoll';

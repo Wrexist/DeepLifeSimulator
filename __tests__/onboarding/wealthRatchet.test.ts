@@ -28,6 +28,8 @@ import { FEATURE_UNLOCKS, isFeatureUnlocked, unlockTier } from '@/lib/progress/f
 import { LIFE_CHAPTERS, wealthMark } from '@/lib/progress/lifeChapters';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState, LifetimeStatistics } from '@/contexts/game/types';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * The default statistics slice, as a COMPLETE `LifetimeStatistics`.
@@ -346,8 +348,6 @@ describe('ratchetWealthPeak', () => {
 });
 
 describe('the mark is taken where every writer passes through', () => {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const read = (rel: string) =>
     fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
@@ -375,8 +375,6 @@ describe('the mark is taken where every writer passes through', () => {
 });
 
 describe('the completed chapter no longer renders a button that does nothing', () => {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const CARD = fs.readFileSync(
     path.join(__dirname, '..', '..', 'components/LifeChapterCard.tsx'), 'utf8',
   );
@@ -409,8 +407,6 @@ describe('every app in both launchers is registered in the table', () => {
    * nobody reports. The two grids and the table are three hand-maintained lists
    * that have to agree, so the agreement is checked rather than assumed.
    */
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const idsIn = (rel: string): string[] => {
     const src = fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
     return [...src.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((m) => m[1]);
@@ -439,8 +435,6 @@ describe('the ambition reward reads as status too, not as a button', () => {
    * full-width bar with bold dark text, on a `View` with no handler. Fixing one
    * and leaving the other is how the same ticket comes back.
    */
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const CARD = fs.readFileSync(
     path.join(__dirname, '..', '..', 'components/AmbitionCard.tsx'), 'utf8',
   );

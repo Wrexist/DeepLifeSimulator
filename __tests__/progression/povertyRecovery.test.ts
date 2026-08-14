@@ -19,6 +19,9 @@ import { POVERTY_MONEY_THRESHOLD } from '@/lib/config/gameConstants';
 import { eventTemplates } from '@/lib/events/engine';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import fs from 'fs';
+import path from 'path';
+import { detectSourMoment, isCalmEnoughToAsk } from '@/utils/reviewMoments';
 
 const BROKE = POVERTY_MONEY_THRESHOLD - 100;
 
@@ -133,8 +136,6 @@ describe('the counter and the gate read one threshold', () => {
   it('the event condition uses the shared constant, not a literal', () => {
     // The counter and the gate disagreeing would be invisible: the event would
     // simply never fire, which is the exact state this path was already in.
-    const fs = require('fs') as typeof import('fs');
-    const path = require('path') as typeof import('path');
     const src = fs.readFileSync(
       path.join(__dirname, '..', '..', 'lib/events/engine.ts'), 'utf8');
 
@@ -143,8 +144,6 @@ describe('the counter and the gate read one threshold', () => {
 });
 
 describe('the week tick writes it', () => {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
   const LOOP = fs.readFileSync(
     path.join(__dirname, '..', '..', 'contexts/game/GameActionsContext.tsx'), 'utf8');
 
@@ -175,8 +174,6 @@ describe('the review prompt respects the money failure state that exists', () =>
    * so the money axis had no guard at all here. `overdueBalance` (v31) is the
    * failure state it actually got.
    */
-  const { detectSourMoment, isCalmEnoughToAsk } =
-    require('@/utils/reviewMoments') as typeof import('@/utils/reviewMoments');
 
   const solvent = (): GameState => createTestGameState({
     jailWeeks: 0,

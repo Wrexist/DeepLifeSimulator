@@ -16,9 +16,9 @@
  */
 import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
 import { ART_ZOOM } from '@/lib/avatar/depth';
+import fs from 'fs';
+import path from 'path';
 
-const fs = require('fs') as typeof import('fs');
-const path = require('path') as typeof import('path');
 const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
 /**
