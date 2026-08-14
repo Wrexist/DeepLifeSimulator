@@ -43,6 +43,12 @@ import { formatMoney } from '@/utils/moneyFormatting';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 
+// What's New popup is a leaf component (changelog data + RN primitives only, no
+// context graph), so a static import is safe and cheap here — it doesn't drag
+// the heavy Settings graph into MainMenu's module init the way SettingsModal did.
+import WhatsNewModal from '@/components/WhatsNewModal';
+import { hasUnseenWhatsNew } from '@/utils/whatsNewSeen';
+
 // SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
 // imports MainMenu (so this isn't a require cycle) — but a failed module-eval of
 // that heavy graph in the production Hermes bytecode left MainMenu's own default
@@ -50,12 +56,6 @@ import { haptic } from '@/utils/haptics';
 // Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
 // when the user actually opens Settings.
 const SettingsModal = lazy(() => import('@/components/SettingsModal'));
-
-// What's New popup is a leaf component (changelog data + RN primitives only, no
-// context graph), so a static import is safe and cheap here — it doesn't drag
-// the heavy Settings graph into MainMenu's module init the way SettingsModal did.
-import WhatsNewModal from '@/components/WhatsNewModal';
-import { hasUnseenWhatsNew } from '@/utils/whatsNewSeen';
 
 // One flat, near-black base matched to the in-game home screen (#020617) so the
 // menu reads as one aesthetic with the game. NO gradients: the app-wide

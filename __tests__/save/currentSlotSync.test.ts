@@ -13,6 +13,14 @@
 
 // Capture the slot argument that saveGame routes to. The factory may only close
 // over identifiers prefixed with `mock`.
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState } from '@/contexts/game/types';
+import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
+import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
+
 const mockQueueSave = jest.fn().mockResolvedValue(undefined);
 const mockForceSave = jest.fn().mockResolvedValue(undefined);
 
@@ -69,16 +77,8 @@ jest.mock('@/utils/saveBackup', () => ({
   ...jest.requireActual('@/utils/saveBackup'),
   createBackupFromState: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState } from '@/contexts/game/types';
-import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
-import { createSaveEnvelope, doubleBufferSave } from '@/utils/saveValidation';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AsyncStorageMock = require('@react-native-async-storage/async-storage').default;
 

@@ -1,5 +1,4 @@
-import { GameState } from '@/contexts/game/types';
-import { RealEstate, Company, Heirloom, DynastyStats } from '@/contexts/game/types';
+import { GameState , RealEstate, Company, Heirloom, DynastyStats } from '@/contexts/game/types';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { Memory, MEMORY_TEMPLATES, generateMemoryId } from './memories';
 import {

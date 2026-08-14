@@ -36,7 +36,7 @@ import {
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation , useIsFocused } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -86,7 +86,6 @@ import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
-import { useIsFocused } from '@react-navigation/native';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ClaimableBadge } from '@/components/ClaimableBadge';

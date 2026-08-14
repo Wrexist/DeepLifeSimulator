@@ -32,6 +32,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { colors, typography, radii, shadows } from '@/lib/config/theme';
 import { responsiveSpacing, scale } from '@/utils/scaling';
+import { useTheme } from '@/hooks/useTheme';
 
 /**
  * Spacing, mapped off the theme scale BY VALUE.
@@ -56,7 +57,6 @@ const sp = {
   lg: responsiveSpacing.md,      // scale(16) — was raw 16
   xl: scale(20),                 // was raw 20, no token at this step
 } as const;
-import { useTheme } from '@/hooks/useTheme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

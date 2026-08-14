@@ -17,6 +17,10 @@
  * That is the mechanism that carried a pristine boot state across an app kill,
  * and it stayed open for any device updating while carrying a persisted queue.
  */
+import { isWritableSlot } from '@/utils/slotNumber';
+import { queueSave, forceSave, saveQueue } from '@/utils/saveQueue';
+import { initialGameState } from '@/contexts/game/initialState';
+
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-queue-replay';
 
 const store = new Map<string, string>();
@@ -35,10 +39,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     getAllKeys: jest.fn(async () => Array.from(store.keys())),
   },
 }));
-
-import { isWritableSlot } from '@/utils/slotNumber';
-import { queueSave, forceSave, saveQueue } from '@/utils/saveQueue';
-import { initialGameState } from '@/contexts/game/initialState';
 
 const played = (weeksLived: number) => ({
   ...initialGameState,

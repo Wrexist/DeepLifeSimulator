@@ -1,6 +1,28 @@
 import { transportationMods } from '../transportation';
 import { GameState } from '@/contexts/game/types';
 
+/**
+ * R4-X3 — the politics transport effects are PERCENTS, and were read as
+ * fractions.
+ *
+ * `Math.min(1, travelCostReduction)` turned the catalogue's `25`/`30`/`35`
+ * into `1`, and the `* 100` after it into `100%`. So one enacted transport
+ * policy — a single one-off $100,000–$300,000 bill, reachable at career level
+ * 2 — set `costMultiplier` to 0 and made every destination in the game free
+ * forever. Travel pays out happiness, intelligence and reputation, so that
+ * converted a paid system into an unlimited stat farm.
+ *
+ * `commuteTimeReduction` had the same shape: `20` clamped to `1` pinned
+ * `durationMultiplier` at its 0.25 floor.
+ *
+ * These drive the REAL catalogue through the REAL aggregator rather than a
+ * hand-written fixture, because the fraction/percent mismatch only exists
+ * between those two files. 2026-07-31 audit round 4.
+ */
+import { calculateActivePolicyEffects } from '@/contexts/game/actions/PoliticalActions';
+import { POLICIES } from '@/lib/politics/policies';
+import { quoteTrip } from '../operations';
+
 function base(): GameState {
   return {
     stats: { money: 1000, happiness: 50 } as any,
@@ -63,28 +85,6 @@ describe('transportationMods', () => {
     expect(r.durationMultiplier).toBeGreaterThanOrEqual(0.25);
   });
 });
-
-/**
- * R4-X3 — the politics transport effects are PERCENTS, and were read as
- * fractions.
- *
- * `Math.min(1, travelCostReduction)` turned the catalogue's `25`/`30`/`35`
- * into `1`, and the `* 100` after it into `100%`. So one enacted transport
- * policy — a single one-off $100,000–$300,000 bill, reachable at career level
- * 2 — set `costMultiplier` to 0 and made every destination in the game free
- * forever. Travel pays out happiness, intelligence and reputation, so that
- * converted a paid system into an unlimited stat farm.
- *
- * `commuteTimeReduction` had the same shape: `20` clamped to `1` pinned
- * `durationMultiplier` at its 0.25 floor.
- *
- * These drive the REAL catalogue through the REAL aggregator rather than a
- * hand-written fixture, because the fraction/percent mismatch only exists
- * between those two files. 2026-07-31 audit round 4.
- */
-import { calculateActivePolicyEffects } from '@/contexts/game/actions/PoliticalActions';
-import { POLICIES } from '@/lib/politics/policies';
-import { quoteTrip } from '../operations';
 
 /** Every transport policy the catalogue ships, by id. */
 const TRANSPORT_POLICY_IDS = POLICIES.filter((p) => p.type === 'transportation').map((p) => p.id);

@@ -18,6 +18,10 @@
  * recreate MON-6 — a purchase that applied nothing sitting in the ledger as
  * fulfilled, suppressing every retry, leaving the player charged with nothing.
  */
+import { iapService } from '@/services/IAPService';
+import { IAP_PRODUCTS, SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
+import { createTestGameState } from '../helpers/createTestGameState';
+
 const mockDisk: { state: unknown } = { state: null };
 
 /** Must match IAPService's PROCESSED_IAP_TRANSACTIONS_KEY. */
@@ -59,10 +63,6 @@ jest.mock('@/utils/saveValidation', () => ({
   })),
   shouldAllowUnsignedLegacySaves: jest.fn(() => true),
 }));
-
-import { iapService } from '@/services/IAPService';
-import { IAP_PRODUCTS, SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
-import { createTestGameState } from '../helpers/createTestGameState';
 
 /** `applyBenefit` is private; drive it the way the purchase paths do. */
 const applyBenefit = (productId: string, transactionId: string): Promise<boolean> =>

@@ -18,9 +18,9 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
-import { getTotalLuxuryYield, getLoanIncome } from '@/lib/luxury';
+import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
-import { getStatDecayMultiplier } from '@/lib/prestige/applyBonuses';
+import { getStatDecayMultiplier , getEnergyRegenMultiplier, getExperienceMultiplier , hasImmortality } from '@/lib/prestige/applyBonuses';
 import { calcWeeklyPassiveIncome, getPoliticalWeeklySalary } from '@/lib/economy/passiveIncome';
 import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
@@ -57,12 +57,10 @@ import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 import { getStockInfo, restoreStockPrices, resetStockPrices, getAllStockSymbols, adjustStockPrice, policyAdjustedYield } from '@/lib/economy/stockMarket';
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
-import { getEnergyRegenMultiplier, getExperienceMultiplier } from '@/lib/prestige/applyBonuses';
-import { shouldAutoRest } from '@/lib/prestige/applyQOLBonuses';
-import { hasImmortality } from '@/lib/prestige/applyBonuses';
+import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 
-import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { getLifeSkillModifiers , applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
 import { processSparkWeeklyTick } from '@/lib/dating/sparkTick';
 import { processHustleWeeklyTick } from '@/lib/business/hustleTick';
@@ -74,7 +72,6 @@ import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents'
 import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import { applyKarmaChange, getKarmaModifiers, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
-import { applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import {
  MINER_PRICES,
  calculateIncomeTax,
@@ -112,12 +109,10 @@ import {
 import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
-import { isLuxuryLifeComplete } from '@/lib/luxury';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
 import { computeWeeklyIncome } from './actions/weekly/applyIncome';
 import { getRetirementIncomeWeekly } from '@/lib/retirement';
 import { applyAutoReinvest } from './actions/weekly/applyAutoReinvest';
-import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { applyRentAndHousing } from './actions/weekly/applyRentAndHousing';
 import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';

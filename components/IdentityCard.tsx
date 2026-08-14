@@ -10,11 +10,6 @@ import DailyGemClaim from '@/components/DailyGemClaim';
 import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
-// Rarely-opened modals — lazy-loaded and only mounted when open, so their
-// code + element tree isn't built on every home-tab render.
-const YouthPillModal = lazy(() => import('./YouthPillModal'));
-const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
-const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 import {
   responsiveSpacing,
   scale,
@@ -24,7 +19,7 @@ import { styles } from '@/components/IdentityCardStyles';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState , Loan } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
@@ -36,7 +31,11 @@ import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
-import type { Loan } from '@/contexts/game/types';
+// Rarely-opened modals — lazy-loaded and only mounted when open, so their
+// code + element tree isn't built on every home-tab render.
+const YouthPillModal = lazy(() => import('./YouthPillModal'));
+const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
+const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 const LinearGradient = Gradient;
 
 // Type guard helpers for Loan properties

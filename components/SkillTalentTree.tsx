@@ -13,8 +13,6 @@ import {
   View,
 } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
-// expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
-const LinearGradient = Gradient;
 import {
   AlertCircle,
   Brain,
@@ -34,6 +32,8 @@ import {
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useGame, CrimeSkillId } from '@/contexts/GameContext';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+// expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
+const LinearGradient = Gradient;
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.78);

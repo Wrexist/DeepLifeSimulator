@@ -16,6 +16,15 @@
  * This test drives the real storage layer (an in-memory AsyncStorage) rather
  * than mocks, because the bug lived entirely in WHICH KEY was written.
  */
+import {
+  doubleBufferSave,
+  doubleBufferLoad,
+  createSaveEnvelope,
+  decodePersistedSaveEnvelope,
+  shouldAllowUnsignedLegacySaves,
+} from '@/utils/saveValidation';
+import { createBackup, restoreFromBackup, listBackups } from '@/utils/saveBackup';
+
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-backup-round-trip';
 
 const store = new Map<string, string>();
@@ -36,15 +45,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     getAllKeys: jest.fn(async () => Array.from(store.keys())),
   },
 }));
-
-import {
-  doubleBufferSave,
-  doubleBufferLoad,
-  createSaveEnvelope,
-  decodePersistedSaveEnvelope,
-  shouldAllowUnsignedLegacySaves,
-} from '@/utils/saveValidation';
-import { createBackup, restoreFromBackup, listBackups } from '@/utils/saveBackup';
 
 const SLOT = 2;
 const SLOT_KEY = `save_slot_${SLOT}`;

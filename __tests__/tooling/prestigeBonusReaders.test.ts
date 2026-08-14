@@ -34,6 +34,8 @@
  */
 import { PRESTIGE_BONUSES, INERT_BONUS_IDS as UNSOLD_BONUS_IDS } from '@/lib/prestige/prestigeBonuses';
 import { INERT_BONUS_IDS } from '@/lib/prestige/inertBonuses';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * There are TWO registries called `INERT_BONUS_IDS`, and they mean different
@@ -54,8 +56,6 @@ import { INERT_BONUS_IDS } from '@/lib/prestige/inertBonuses';
  * deletion is exactly what the withholding anticipated.
  */
 const DECLARED_INERT = new Set<string>([...INERT_BONUS_IDS, ...UNSOLD_BONUS_IDS]);
-import fs from 'fs';
-import path from 'path';
 
 const repoRoot = path.join(__dirname, '..', '..');
 const SKIP_DIRS = new Set(['node_modules', '.git', '__tests__', 'tasks', 'docs', 'marketing', 'assets', 'android', 'ios']);

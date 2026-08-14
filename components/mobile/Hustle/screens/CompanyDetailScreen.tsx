@@ -41,9 +41,8 @@ import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competition
 import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { getInflatedPrice } from '@/lib/economy/inflation';
-import { generateBoardSeats, generateSuppliers } from '@/lib/business/hustleLogic';
+import { generateBoardSeats, generateSuppliers , companyIncomeFactors } from '@/lib/business/hustleLogic';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
-import { companyIncomeFactors } from '@/lib/business/hustleLogic';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 
 const LinearGradient = Gradient;

@@ -13,6 +13,9 @@
  * the slot — up to five, each holding a complete save envelope — to look at one
  * number. 2026-07-30 audit PERF-1.
  */
+import { createBackup, createBackupFromState, listBackups } from '@/utils/saveBackup';
+import { createSaveEnvelope } from '@/utils/saveValidation';
+
 process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-backup-throttle';
 
 const store = new Map<string, string>();
@@ -37,9 +40,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     getAllKeys: jest.fn(async () => Array.from(store.keys())),
   },
 }));
-
-import { createBackup, createBackupFromState, listBackups } from '@/utils/saveBackup';
-import { createSaveEnvelope } from '@/utils/saveValidation';
 
 const SLOT = 3;
 

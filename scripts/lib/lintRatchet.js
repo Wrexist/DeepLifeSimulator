@@ -40,13 +40,31 @@
 const MAX_ERRORS = 0;
 
 /**
- * Warning ceiling. Measured 1 191 over the whole repo on 2026-08-14
- * (1 188 on 2026-08-10, ceiling 1 193; was 1 235 on 2026-08-04, ceiling 1 240).
+ * Warning ceiling. Measured 920 over the whole repo on 2026-08-14, down from
+ * 1 191 the same day (1 188 on 2026-08-10, ceiling 1 193; 1 235 on 2026-08-04,
+ * ceiling 1 240).
  *
  * A small margin above the measurement so the gate does not trip on noise from
  * an unrelated file landing — the same reasoning as the coverage floors. A gate
  * that fails on nothing is one people learn to re-run until it passes; a gate
  * with a 100-warning cushion is one that catches nothing.
+ *
+ * ── The 271 that came off on 2026-08-14 ───────────────────────────────────
+ * `import/first` (264 → 36) and `import/no-duplicates` (55 → 0), by autofix,
+ * and the cause was the same one described below at larger scale: a statement
+ * sitting between imports makes every import after it a warning. Three
+ * `lazy()` consts in `IdentityCard.tsx` alone accounted for 18.
+ *
+ * Two traps if you repeat this, both hit on the way:
+ *
+ *   1. `--fix` under a SCOPED config strips every `eslint-disable` comment
+ *      naming a rule that config does not define — they read as unused
+ *      directives. Set `linterOptions.reportUnusedDisableDirectives: 'off'`.
+ *   2. It will happily move a `jest.mock()` call below the imports. Babel
+ *      re-hoists it, but that is not a bet worth taking for cosmetics; the
+ *      twelve files where a `jest.mock` or a `require` would have moved were
+ *      reverted and still carry their warnings. That is what the residual 36
+ *      `import/first` are.
  *
  * ── How the count FELL by 47 while features were being added ──────────────
  * Almost all of it was one line. `AUTO_REST_TARGET_ENERGY` sat between two
@@ -59,7 +77,7 @@ const MAX_ERRORS = 0;
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 1191;
+const MAX_WARNINGS = 920;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

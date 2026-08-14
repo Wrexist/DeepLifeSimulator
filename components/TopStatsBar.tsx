@@ -47,6 +47,13 @@ import {
  ArrowDown,
  AlertTriangle,
 } from 'lucide-react-native';
+// SicknessModal is rendered once at the root in app/_layout.tsx — no second mount here.
+import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import SeasonalIndicator from './SeasonalIndicator';
+import usePressableScale from '@/hooks/usePressableScale';
+import { useFeedback } from '@/utils/feedbackSystem';
+import { usePerformanceMonitor, useMemoryCleanup } from '@/utils/performanceOptimization';
+import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
 // Rarely-opened modals — lazy-loaded and only mounted when open, so they no
 // longer sit permanently mounted with visible={false} (which kept their trees
 // built on every TopStatsBar render).
@@ -62,13 +69,6 @@ const HealthBreakdownModal = React.lazy(() => import('./HealthBreakdownModal'));
 const MoneyBreakdownModal = React.lazy(() => import('./MoneyBreakdownModal'));
 const BankBreakdownModal = React.lazy(() => import('./BankBreakdownModal'));
 const GemsBreakdownModal = React.lazy(() => import('./GemsBreakdownModal'));
-// SicknessModal is rendered once at the root in app/_layout.tsx — no second mount here.
-import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
-import SeasonalIndicator from './SeasonalIndicator';
-import usePressableScale from '@/hooks/usePressableScale';
-import { useFeedback } from '@/utils/feedbackSystem';
-import { usePerformanceMonitor, useMemoryCleanup } from '@/utils/performanceOptimization';
-import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
 
 const LinearGradient = Gradient;
 

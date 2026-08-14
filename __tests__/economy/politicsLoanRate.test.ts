@@ -24,6 +24,21 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import { initialGameState } from '@/contexts/game/initialState';
 import type { GameState } from '@/contexts/game/types';
 
+/**
+ * R4 completion of R3-M2 — the two call sites the original fix missed.
+ *
+ * `VehicleActions.quoteVehiclePurchase` and `EducationActions.enrollInProgram`
+ * both read `politicsAprReduction` and neither floored it, so a high-office
+ * player financed a car and a degree at the 2.5% hard minimum. A student loan
+ * does not hand the player cash, but it frees the cash that would have paid
+ * tuition — so it is the same 5.5%-CD carry, just one step removed.
+ *
+ * These assert the RATE, not the source text: the file-scan above is a
+ * completeness net, this is the thing it is a net for. 2026-07-31 audit round 4.
+ */
+import { quoteVehiclePurchase } from '@/contexts/game/actions/VehicleActions';
+import { enrollInProgram } from '@/contexts/game/actions/EducationActions';
+
 function atOffice(careerLevel: number): GameState {
   const base = createTestGameState();
   return createTestGameState({
@@ -186,21 +201,6 @@ describe('the floor is passed at every quote site', () => {
     expect(source).toMatch(/newAPR = Math\.max\(\s*floor,/);
   });
 });
-
-/**
- * R4 completion of R3-M2 — the two call sites the original fix missed.
- *
- * `VehicleActions.quoteVehiclePurchase` and `EducationActions.enrollInProgram`
- * both read `politicsAprReduction` and neither floored it, so a high-office
- * player financed a car and a degree at the 2.5% hard minimum. A student loan
- * does not hand the player cash, but it frees the cash that would have paid
- * tuition — so it is the same 5.5%-CD carry, just one step removed.
- *
- * These assert the RATE, not the source text: the file-scan above is a
- * completeness net, this is the thing it is a net for. 2026-07-31 audit round 4.
- */
-import { quoteVehiclePurchase } from '@/contexts/game/actions/VehicleActions';
-import { enrollInProgram } from '@/contexts/game/actions/EducationActions';
 
 describe('R4 — the floor reaches the vehicle and education quote sites', () => {
   /** `atOffice` leaves the starting cash, which is under the down payment. */

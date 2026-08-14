@@ -15,6 +15,17 @@
  *   - Cross-system: 50 nextWeek ticks with achievement counters live
  */
 
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState, Relationship } from '@/contexts/game/types';
+import { initialGameState } from '@/contexts/game/initialState';
+import { netWorth, evaluateAchievements } from '@/lib/progress/achievements';
+import { achievements } from '@/src/features/onboarding/achievementsData';
+import { validateGameState } from '@/utils/saveValidation';
+import { makeRealEstate } from '../helpers/makeRealEstate';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -27,19 +38,8 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState, Relationship } from '@/contexts/game/types';
-import { initialGameState } from '@/contexts/game/initialState';
-import { netWorth, evaluateAchievements } from '@/lib/progress/achievements';
-import { achievements } from '@/src/features/onboarding/achievementsData';
-import { validateGameState } from '@/utils/saveValidation';
-import { makeRealEstate } from '../helpers/makeRealEstate';
 
 const { act } = TestRenderer;
 const h = React.createElement;

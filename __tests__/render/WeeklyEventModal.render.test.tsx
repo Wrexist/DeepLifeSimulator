@@ -1,6 +1,8 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
+import WeeklyEventModal from '@/components/WeeklyEventModal';
+
 /**
  * Render smoke test for the redesigned (Liquid Glass) weekly "Heads Up" event
  * modal. The component is context-driven (no props), so the two game hooks are
@@ -21,8 +23,6 @@ jest.mock('@/contexts/GameContext', () => ({
   useGameState: () => ({ gameState: mockGameState, setGameState: mockSetGameState }),
   useGameActions: () => ({ resolveEvent: mockResolveEvent, saveGame: mockSaveGame }),
 }));
-
-import WeeklyEventModal from '@/components/WeeklyEventModal';
 
 describe('render — WeeklyEventModal (Liquid Glass)', () => {
   beforeEach(() => {
