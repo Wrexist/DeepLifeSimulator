@@ -123,3 +123,27 @@ describe('the designed face survives onboarding', () => {
     expect(callers).toEqual(['app/(onboarding)/Perks.tsx']);
   });
 });
+
+describe("a child's face is inherited on every screen that shows one", () => {
+  it('passes `parents` wherever a child avatar is rendered', () => {
+    // `CharacterAvatar` falls back to a face seeded from the id when `parents`
+    // is absent, so a screen that forgets it shows a DIFFERENT PERSON than the
+    // one the Family tab shows for the same child. That is the "my character
+    // turned into someone else" defect the whole revamp exists to remove,
+    // reappearing across screens instead of across ages — and Contacts shipped
+    // it: a child was green-haired there and blonde on the Family tab, in the
+    // same save, in the same session.
+    const screens = [
+      'components/FamilyTab.tsx',
+      'components/mobile/ContactsApp.tsx',
+      'components/PrestigeModal.tsx',
+      'components/DeathPopup.tsx',
+    ];
+    for (const file of screens) {
+      const source = readFileSync(resolve(ROOT, file), 'utf8');
+      expect(`${file} resolves parents: ${/parents=\{/.test(source)}`).toBe(`${file} resolves parents: true`);
+      expect(`${file} imports childParentSources: ${source.includes('childParentSources')}`)
+        .toBe(`${file} imports childParentSources: true`);
+    }
+  });
+});

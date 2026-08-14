@@ -714,7 +714,9 @@ replaced with review checklists.
 | `tasks/todo.md` | Active plan |
 | `tasks/*-audit-*.md` | Dated audit reports (incl. `weekly-audit-<date>.md`) |
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |
-| `docs/LAUNCH_CHECKLIST.md`, `docs/LAUNCH_PLAN.md`, `docs/STORE_LISTING.md`, `docs/DATA_SAFETY.md` | Store/release |
+| **`docs/RELEASE_RUNBOOK.md`** | **The step-by-step release procedure — follow it top to bottom** |
+| `docs/LAUNCH_CHECKLIST.md`, `docs/LAUNCH_PLAN.md`, `docs/STORE_LISTING.md`, `docs/DATA_SAFETY.md` | Store/release reference |
+| `marketing/aso/` | Store metadata as data + `npm run check:aso`. `docs/store-screenshot-design.md` covers the screenshot system |
 | `marketing/apple-ads/` | Apple Ads (App Store Ads) program — campaign structure, keyword + negative-keyword CSVs, CPP briefs, LTV→max-CPA model, optimization playbook. Start at its `README.md` |
 | `docs/RELEASE_SECRETS.md`, `tasks/leaked-key-rotation-runbook.md` | Secret handling |
 | `RELEASE_NOTES.md`, `WHATS_NEW.md` | Player-facing release copy |

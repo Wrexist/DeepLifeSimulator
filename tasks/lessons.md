@@ -4,6 +4,48 @@
 
 ## Patterns to Watch For
 
+### 2026-08-14 - The instrument was built and never plugged in, and I twice nearly reported a bug that wasn't
+
+- **A declared event with no emitter is the analytics form of dead code, and it
+  is invisible.** `lib/analytics/events.ts` names the events its own docstring
+  says exist to measure "retention (D1/D7/D30) … and churn points". Three of
+  them — `onboarding_step`, `tutorial_step`, `session_end` — were emitted by
+  nothing. Nothing failed, nothing threw, and the local half looked healthy:
+  `onboardingAnalytics.ts` recorded every step view and completion faithfully
+  and sent them to `logger`, where they died at the device boundary. This is the
+  same shape as `scholarship_opportunity` (condition read a field nothing wrote)
+  and `revivalPack` (a stored default read by nothing): a system built, then not
+  connected. **When a catalogue of names exists, grep for an emitter of each
+  one** — the catalogue is not the wiring.
+- **The cost was a measurement you cannot backfill.** "Play" cut a first-time
+  player's route to a live game from six taps to two, aimed squarely at a Day-1
+  retention figure below the 25th percentile of the peer set — and there was no
+  way to tell whether it worked. Retention data is not retroactive; a week that
+  went unmeasured is gone.
+- **Check the DATE of the data against the date of the fix.** The retention
+  numbers under investigation were for the week of Jul 13–19; Quick Start landed
+  Aug 10. The data described a build that no longer existed in the repo. I was
+  one step from "fixing" an onboarding gauntlet that had already been fixed four
+  weeks earlier — the most expensive kind of work there is, because it looks
+  productive and undoes something deliberate.
+- **A narrow grep is a false negative generator, and I hit it twice in one
+  session.** Searching `app/ components/` for `ReviewPromptHandler` omitted
+  `contexts/`, where it is in fact mounted, and I was seconds from reporting the
+  review prompt as dead. Then `trackEvent(` found nothing and I concluded
+  analytics was unwired — the real API is `track(`, called from eight files.
+  **Before reporting something as absent, search the whole repo for the symbol,
+  not the directories you expect it in.** §8's rule about not trusting a finding
+  without re-reading the source applies to your own findings first.
+- **Emit outside the `setState` updater — the §4.4 rule is not only about
+  money.** The tutorial's abandonment step is read from a ref precisely so the
+  `track()` call sits outside the updater. React may invoke an updater more than
+  once per commit, which would report one player quitting as two, and a
+  double-counted denominator is a wrong decision rather than a crash.
+- **`inactive` is not the end of a session.** iOS raises it for a notification
+  shade pull or an incoming call. Ending the session there would cut the
+  measured length of every session that survives one — understating the exact
+  number being investigated. Only `background` ends it; `active` re-arms it.
+
 ### 2026-08-05 - Feature round: a test that pins a version number is a tripwire, and three caps that had to be proven to bind
 
 - **A test that hard-pins `STATE_VERSION` fails on every correct future bump.**
@@ -2836,6 +2878,54 @@ state the money axis actually got, and the guard now reads it.
 
 - Pattern: a system gets a new failure state and the old flag is left behind. The
   guard still compiles, still reads sensibly, and silently guards nothing.
+
+## 2026-08-14 — A screenshot tool that fails silently is worse than one that crashes
+
+Recapturing the store screenshots after the avatar revamp took four runs, and
+every failure had the same shape: **the tool carried on and produced output.**
+
+`scripts/capture-rich-state.mjs` drives the real app with Playwright and writes
+28 numbered PNGs. It is label-driven, so it goes stale whenever the UI is
+reworded — and when it goes stale it does not stop. A missed label just means a
+shot is never written, and **the previous run's file stays on disk**. The set
+then rebuilds from a mix of new and stale captures, with nothing red anywhere.
+That is precisely the App Store Guideline 2.3.3 problem the recapture exists to
+fix, reintroduced by the tool meant to fix it.
+
+Four distinct faults, none of which announced itself:
+
+1. It waited for `New Game` on the main menu — a label that only exists once a
+   save EXISTS. A fresh capture profile shows `Play` / `Custom life`. Every run
+   hung to its 120-second timeout first.
+2. It waited for `Create Identity`, since renamed `Create Character`.
+3. It matched the market's Computer row on `$5000`, the item's BASE price,
+   while the market applies inflation — the card reads $5,300 by then. So the
+   computer was never bought, the desktop launcher never opened, and six shots
+   silently kept their old files. Fixing that by matching the description then
+   failed AGAIN on capitalisation (`Unlocks Desktop Apps`, not `unlocks desktop
+   apps`), which cost a whole extra run.
+4. **`page.mouse.wheel` does nothing at all** on react-native-web's ScrollView —
+   it is an overflow div that Playwright's synthetic wheel never reaches. Every
+   `wheel()` in the script was a no-op, so shots meant to be "the same screen,
+   scrolled down" were byte-identical duplicates. Confirmed by `md5sum`:
+   `00-home.png` and `01-home-goals.png` were the same file.
+
+The scrolling that DID happen was accidental — `clickText` calls
+`scrollIntoViewIfNeeded`, so clicking the decision pill left Home parked
+halfway down, and the hero image of an avatar-art release contained no face.
+
+**Rules.**
+
+- A capture step must ASSERT the screen it meant to reach, not photograph
+  whatever is in front of it. The script now throws when the desktop launcher
+  is missing rather than continuing.
+- Never leave stale outputs in place for a tool that writes files
+  incrementally. "The file exists" is not "the file is current".
+- Verify a browser interaction actually moved something before building on it.
+  Two md5sums would have caught the dead `wheel()` at any point in the last
+  several months.
+- Match on stable text, case-insensitively, and never on a number the game is
+  free to change. Inflation moves prices; that is the whole point of inflation.
 
 **5. A cast erases the check that would have caught a fabricated property.**
 Two directories were cleared of `as any` and internal `require()` by hand on
