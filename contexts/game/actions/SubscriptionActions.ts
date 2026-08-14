@@ -16,6 +16,7 @@ import {
   DEEP_LIFE_PLUS_WELCOME_GEMS,
   DEEP_LIFE_PLUS_PERFECT_WEEK_BONUS,
   dailyGemAmount,
+  hasDeepLifePlusEntitlement,
   weekKeysForDayKey,
 } from '@/lib/subscription/deepLifePlus';
 
@@ -150,11 +151,27 @@ export function canClaimDailyGemsFor(
  * `canClaimDailyGemsFor` (see it for the anti-clock-manipulation guards).
  */
 export function canClaimDailyGems(state: GameState, todayKey: string, nowMs?: number): boolean {
+  // The day-key and epoch guards only refuse a REWOUND clock; advancing the device
+  // date a day at a time passes both, minting gems with no play. The game-week gate
+  // is the one a scrubber cannot beat — `weeksLived` advances only by playing — so
+  // it closes that farm exactly the way the sibling login faucet does in home.tsx
+  // (audit ECON-1). `undefined` lastClaim ("never claimed") never blocks a first
+  // claim; a same-UTC-day repeat is still refused by the day-key guard.
+  //
+  // Applied to the FREE tier only. The DeepLife+ daily drop is a deliberate,
+  // separately-tested subscriber grace (claim on any new calendar day without
+  // having to play a week — see the "alternating-adjacent-day" test), so gating it
+  // is a paid-retention decision left to the owner (see the weekly-audit PR). The
+  // free tier has no such grace, so the gate applies unconditionally there.
+  const gameWeek = hasDeepLifePlusEntitlement(state.settings)
+    ? undefined
+    : { current: state.weeksLived, lastClaim: state.settings?.deepLifePlusLastGemClaimWeek };
   return canClaimDailyGemsFor(
     state.settings?.deepLifePlusLastGemClaim,
     state.settings?.deepLifePlusLastGemClaimAt,
     todayKey,
     nowMs,
+    gameWeek,
   );
 }
 
@@ -209,6 +226,9 @@ export function claimDailyGems(state: GameState, todayKey: string, nowMs?: numbe
       deepLifePlusLastGemClaim: todayKey,
       deepLifePlusGemClaimDays: nextDays,
       ...(nextAt !== undefined ? { deepLifePlusLastGemClaimAt: nextAt } : {}),
+      // Stamp the game-week marker in the SAME updater as the gem credit, so the
+      // gate and the grant are always persisted together (see canClaimDailyGems).
+      deepLifePlusLastGemClaimWeek: state.weeksLived,
     },
     stats: {
       ...state.stats,

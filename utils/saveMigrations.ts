@@ -999,6 +999,28 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 39;
     return state;
   },
+
+  // Version 40: `settings.deepLifePlusLastGemClaimWeek` — the `weeksLived` marker
+  // that gates the FREE-tier daily-gem faucet (`SubscriptionActions.claimDailyGems`,
+  // surfaced by `DailyGemClaim`). The faucet was gated only on the UTC day-key and
+  // an epoch high-water mark, both of which only refuse a REWOUND clock; advancing
+  // the device date a day at a time farmed gems (20/day) with no play. This closes
+  // it the same way the sibling login faucet was closed (`lastLoginRewardWeek`,
+  // v31): `weeksLived` is the one clock a scrubber cannot move. The DeepLife+ member
+  // drop (250/day) keeps its deliberate day-key grace and is intentionally NOT
+  // gated here — a paid-retention decision left to the owner.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill and no
+  // `repairGameState` mirror. An absent key means "never claimed via the week
+  // gate", which is the only safe value — stamping the current week onto an
+  // existing save would deny the player their next legitimate claim (exactly the
+  // reasoning behind the v28 `lastNoFillGrantWeek` carve-out). The key still has to
+  // survive the load round-trip, which `loadedStateMerge` now guarantees by keeping
+  // the saved object's own keys.
+  40: (state) => {
+    state.version = 40;
+    return state;
+  },
 };
 
 /**

@@ -159,6 +159,60 @@ describe('claimDailyGems (tiered daily gem drop)', () => {
   });
 });
 
+describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () => {
+  const TODAY = '2026-07-23';
+  const YESTERDAY = '2026-07-22';
+  // A free player who already claimed yesterday, at game-week `week`, with the
+  // marker recorded. The two clock guards below only refuse a REWIND; the game
+  // week is what a forward-scrub cannot beat.
+  const freeClaimed = (week: number, lastClaimWeek: number): GameState =>
+    createTestGameState({
+      stats: { gems: 0 },
+      weeksLived: week,
+      settings: { deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimWeek: lastClaimWeek },
+    });
+
+  it('BLOCKS a free player who scrubs the clock forward without playing a week', () => {
+    // Same game week as the last claim → no play happened → refuse, no gems mint.
+    const s = freeClaimed(10, 10);
+    expect(canClaimDailyGems(s, TODAY)).toBe(false);
+    expect(claimDailyGems(s, TODAY)).toBe(s);
+  });
+
+  it('ALLOWS a free player once a game week has actually passed', () => {
+    const s = freeClaimed(11, 10); // one week played since the last claim
+    expect(canClaimDailyGems(s, TODAY)).toBe(true);
+    const next = claimDailyGems(s, TODAY);
+    expect(next.stats.gems).toBe(DAILY_GEMS_BASE);
+    expect(next.settings.deepLifePlusLastGemClaimWeek).toBe(11); // marker re-stamped to now
+  });
+
+  it('never blocks a free player\'s FIRST claim (no marker yet)', () => {
+    const s = createTestGameState({ stats: { gems: 0 }, weeksLived: 5, settings: {} });
+    expect(canClaimDailyGems(s, TODAY)).toBe(true);
+    const next = claimDailyGems(s, TODAY);
+    expect(next.stats.gems).toBe(DAILY_GEMS_BASE);
+    expect(next.settings.deepLifePlusLastGemClaimWeek).toBe(5);
+  });
+
+  it('does NOT gate a DeepLife+ member — the daily-check-in grace is preserved', () => {
+    // Same frozen game week as the last claim, but a member: still claimable on a
+    // new calendar day (the deliberate subscriber grace, guarded here so a future
+    // change to gate members is a conscious one).
+    const m = createTestGameState({
+      stats: { gems: 0 },
+      weeksLived: 10,
+      settings: {
+        deepLifePlusActivated: true,
+        deepLifePlusLastGemClaim: YESTERDAY,
+        deepLifePlusLastGemClaimWeek: 10,
+      },
+    });
+    expect(canClaimDailyGems(m, TODAY)).toBe(true);
+    expect(claimDailyGems(m, TODAY).stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+  });
+});
+
 describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)', () => {
   const TODAY = '2026-07-23';
   const YESTERDAY = '2026-07-22';
