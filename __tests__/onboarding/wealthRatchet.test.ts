@@ -224,6 +224,31 @@ describe('borrowed money is not a wealth high', () => {
     expect(underwater.lifetimeStatistics?.peakNetWorth).toBe(0);
   });
 
+  it('a repaid loan still in the array is NOT counted', () => {
+    // `remaining: 0` with the record retained. The first version fell back to
+    // `principal` on any falsy `remaining`, so a paid-off loan was subtracted at
+    // its full original value — permanently suppressing the mark and the tier it
+    // holds up. `??` and a truthiness test differ at exactly one value, and this
+    // is it. Caught by review, not by the tests above.
+    const repaid = withLoan(6_000, 0);
+
+    expect(repaid.lifetimeStatistics?.peakNetWorth).toBe(6_000);
+    expect(unlockTier(repaid)).toBe(2);
+  });
+
+  it('a loan with no `remaining` at all still falls back to principal', () => {
+    // The legacy-save path the fallback exists for must survive the fix.
+    const legacy = ratchetWealthPeak(withMoney(9_000, {
+      loans: [{
+        id: 'loan-legacy', name: 'Old loan', principal: 8_000,
+        rateAPR: 0.1, termWeeks: 100, weeklyPayment: 100, startWeek: 1,
+        autoPay: true, type: 'personal', weeksRemaining: 100, interestRate: 0.1,
+      } as never],
+    }));
+
+    expect(legacy.lifetimeStatistics?.peakNetWorth).toBe(1_000);
+  });
+
   it('no loans is identical to before the subtraction (the control)', () => {
     expect(ratchetWealthPeak(withMoney(2_522)).lifetimeStatistics?.peakNetWorth)
       .toBe(2_522);

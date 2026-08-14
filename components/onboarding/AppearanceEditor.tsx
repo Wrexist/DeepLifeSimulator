@@ -126,6 +126,17 @@ function AppearanceEditorImpl({
   const selected = (avatar[category.field] as number) ?? 0;
 
   /**
+   * The avatar WITHOUT the field currently being edited, as a stable key.
+   * See `previewConfigs` — this is what stops a selection change rebuilding
+   * every preview in the rail.
+   */
+  const avatarRest = useMemo(() => {
+    const rest: Record<string, unknown> = { ...avatar };
+    delete rest[category.field];
+    return JSON.stringify(rest);
+  }, [avatar, category.field]);
+
+  /**
    * Bring the current choice into view when the category changes.
    *
    * Without this, opening a category you have already edited starts at option 1
@@ -149,9 +160,11 @@ function AppearanceEditorImpl({
     [onChangeCategory]
   );
 
+  // No haptic here: `Customize.handleSelectOption` already fires one, and two
+  // owners for one piece of feedback is two buzzes per tap. Category changes
+  // keep theirs above, because the screen has no handler of its own for those.
   const handleOption = useCallback(
     (index: number) => {
-      haptic.selection();
       onSelectOption(index);
     },
     [onSelectOption]
@@ -165,7 +178,14 @@ function AppearanceEditorImpl({
   const previewConfigs = useMemo(() => {
     if (category.kind === 'color') return null;
     return category.options.map((_, index) => ({ ...avatar, [category.field]: index }));
-  }, [avatar, category]);
+    // `avatarRest`, not `avatar`. Every config here OVERRIDES `category.field`,
+    // so picking a different option produces value-identical previews — but a
+    // new `avatar` object each time, which rebuilt the array, broke
+    // `OptionFace`'s memo and regenerated all 28 SVGs on every tap. Depending on
+    // the fields that actually appear in the output keeps them stable, so a tap
+    // re-renders two rings instead of the whole rail. Caught in review.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatarRest, category]);
 
   return (
     <View style={styles.root}>

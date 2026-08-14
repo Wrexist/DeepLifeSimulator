@@ -73,10 +73,10 @@ const num = (v: unknown): number =>
  * and subtracting the balance would suppress a legitimate mark for a player who
  * simply pays with a card and clears it.
  *
- * `remaining` is the live figure; `principal` is the fallback for a loan
- * written before `remaining` was populated — the same pair, in the same order,
- * that `achievements.netWorth` subtracts. Exported so `wealthMark` reads this
- * one definition rather than growing a second copy that can drift from it.
+ * `remaining` is the live figure; `principal` is the fallback for a loan written
+ * before `remaining` was populated — the same pair `achievements.netWorth`
+ * subtracts, and now with the same NULLISH boundary it uses. Exported so
+ * `wealthMark` reads this one definition rather than growing a second copy.
  */
 export const outstandingDebt = (state: GameState): number => {
   const loans = state.loans;
@@ -84,8 +84,18 @@ export const outstandingDebt = (state: GameState): number => {
   let total = 0;
   for (const loan of loans) {
     if (!loan) continue;
-    const remaining = num(loan.remaining);
-    total += remaining > 0 ? remaining : num(loan.principal);
+    // `remaining` is authoritative WHENEVER IT IS A NUMBER, including 0.
+    // Falling back on a falsy check — which is what this did — reads a fully
+    // repaid loan still sitting in the array as its whole original principal,
+    // permanently suppressing the mark and the unlock tier it holds up. The
+    // comment above claimed this matched `achievements.netWorth`; it did not.
+    // That one uses `remaining ?? principal`, and `??` and a truthiness test
+    // differ at exactly one value: zero. Caught in review.
+    if (typeof loan.remaining === 'number' && Number.isFinite(loan.remaining)) {
+      total += Math.max(0, loan.remaining);
+    } else {
+      total += num(loan.principal);
+    }
   }
   return total;
 };

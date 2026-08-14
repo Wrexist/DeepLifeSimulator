@@ -100,6 +100,31 @@ describe('outfit previews pull back far enough to show the outfit', () => {
   });
 });
 
+describe('one owner for feedback, and previews that survive a tap', () => {
+  /** Both found in review, both invisible to every test above. */
+  it('the editor does not fire its own selection haptic', () => {
+    // `Customize.handleSelectOption` already fires one. Two owners for one piece
+    // of feedback is two buzzes per tap.
+    expect(EDITOR).not.toMatch(/haptic\.selection\(\);\s*\n\s*onSelectOption/);
+  });
+
+  it('but the category chips keep theirs (the control)', () => {
+    // The screen has no handler of its own for a category change, so this one
+    // has no second owner to collide with.
+    expect(EDITOR).toMatch(/haptic\.selection\(\);\s*\n\s*onChangeCategory/);
+  });
+
+  it('picking an option does not rebuild every preview in the rail', () => {
+    // Every config here OVERRIDES `category.field`, so a selection change
+    // produces value-identical previews — but depending on `avatar` rebuilt the
+    // array anyway, broke `OptionFace`'s memo and regenerated all 28 SVGs on
+    // every tap. The memo depends on the fields that actually reach the output.
+    expect(EDITOR).toMatch(/\}, \[avatarRest, category\]\);/);
+    expect(EDITOR).toMatch(/const avatarRest = useMemo/);
+    expect(EDITOR).toMatch(/delete rest\[category\.field\]/);
+  });
+});
+
 describe('no category is hidden', () => {
   it('the category chips wrap instead of scrolling sideways', () => {
     // They were a horizontal ScrollView. You cannot navigate a list whose
