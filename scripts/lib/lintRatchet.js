@@ -12,9 +12,21 @@
  *     255  no-restricted-syntax        <- CLAUDE.md §5, the repo's OWN rules
  *     245  @typescript-eslint/no-unused-vars
  *     157  @typescript-eslint/no-require-imports
- *     102  react-hooks/exhaustive-deps <- in an app with known stale-closure bugs
+ *     102  react-hooks/exhaustive-deps <- but see the warning below: NOT bugs
  *
  * A rule nobody enforces is a comment with extra steps.
+ *
+ * ── One of these is not like the others ───────────────────────────────────
+ *
+ * DO NOT bulk-fix `react-hooks/exhaustive-deps`. All 98 remaining were read on
+ * 2026-08-14 and they are dominated by the narrow-subscription idiom CLAUDE.md
+ * §4.1 REQUIRES — satisfying the rule would be a performance regression, not a
+ * cleanup. The header line above used to read "in an app with known
+ * stale-closure bugs"; nobody had checked, and it is wrong. Details in
+ * `tasks/lessons.md` §7.
+ *
+ * The other rules here are safe to burn down; this one needs a case-by-case
+ * argument per warning, and the honest answer is usually "leave it".
  *
  * ── Why not just promote them to `error`? ─────────────────────────────────
  *
@@ -84,7 +96,7 @@ const MAX_ERRORS = 0;
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 867;
+const MAX_WARNINGS = 862;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

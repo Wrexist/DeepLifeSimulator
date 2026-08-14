@@ -33,6 +33,28 @@ interface SocialActionsContextType {
   divorce: () => void;
 }
 
+/**
+ * Deps bundle for DatingActions, which take the MODULE form
+ * `updateMoney(setGameState, amount, reason)` — see CLAUDE.md Hard Rule #5.
+ *
+ * Module scope, not component scope. Both members are imports, so the object
+ * never varies between renders; building it inside the provider allocated a
+ * fresh one on every render and made `react-hooks/exhaustive-deps` flag four
+ * callbacks for omitting it. Adding it to those deps would have been the wrong
+ * fix — a new identity each render would rebuild all four callbacks every time,
+ * which is the opposite of what the rule is for. Hoisting removes the warning
+ * and the allocation at once, and puts the invariance in the type system's
+ * hands rather than a comment's.
+ */
+const DATING_DEPS = { updateMoney: rawUpdateMoney, updateStats: rawUpdateStats } as const;
+
+/** The gift kinds `DatingActions.giveGift` accepts. */
+const GIFT_TYPES = ['flowers', 'jewelry', 'trip', 'surprise', 'luxury'] as const;
+type GiftType = typeof GIFT_TYPES[number];
+
+const isGiftType = (id: string): id is GiftType =>
+  (GIFT_TYPES as readonly string[]).includes(id);
+
 const SocialActionsContext = createContext<SocialActionsContextType | undefined>(undefined);
 
 export function useSocialActions() {
@@ -55,16 +77,13 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   const stateRef = useRef(gameState);
   useEffect(() => { stateRef.current = gameState; }, [gameState]);
 
-  // Deps bundle for DatingActions (uses raw functions that take setGameState as first arg)
-  const datingDeps = { updateMoney: rawUpdateMoney, updateStats: rawUpdateStats };
-
   // --- Dating & Relationships Actions ---
 
   const executeWeddingAction = useCallback((partnerId: string) => {
     const state = stateRef.current;
     if (!state) return;
 
-    const result = executeWedding(state, setGameState, partnerId, datingDeps);
+    const result = executeWedding(state, setGameState, partnerId, DATING_DEPS);
     if (result?.success) {
       haptic.heavy(); // Wedding — major life event!
       showInfoBanner('Wedding Success', result.message || 'You got married!');
@@ -144,7 +163,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     const state = stateRef.current;
     if (!state) return;
 
-    const result = goOnDateAction(state, setGameState, characterId, 'casual', datingDeps);
+    const result = goOnDateAction(state, setGameState, characterId, 'casual', DATING_DEPS);
     if (result?.success) {
       showInfoBanner('Date', result.message || 'You had a great date!');
     } else {
@@ -181,11 +200,14 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     const state = stateRef.current;
     if (!state) return;
 
-    // Map giftId to DatingActions gift types; default to 'flowers'
-    const validGiftTypes = ['flowers', 'jewelry', 'trip', 'surprise', 'luxury'] as const;
-    const giftType = validGiftTypes.includes(giftId as any) ? (giftId as typeof validGiftTypes[number]) : 'flowers';
+    // Map giftId to DatingActions gift types; default to 'flowers'.
+    // `isGiftType` narrows instead of casting: `includes` wants its argument to
+    // already BE the union, which is what the old `giftId as any` was working
+    // around — and that cast also silenced the second one on the result. A
+    // predicate does the same job with the narrowing the compiler can check.
+    const giftType = isGiftType(giftId) ? giftId : 'flowers';
 
-    const result = giveGiftAction(state, setGameState, characterId, giftType, datingDeps);
+    const result = giveGiftAction(state, setGameState, characterId, giftType, DATING_DEPS);
     if (result?.success) {
       showInfoBanner('Gift', result.message || 'Your gift was appreciated!');
     } else {
@@ -367,7 +389,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
       return;
     }
 
-    const result = fileDivorceAction(state, setGameState, spouse.id, datingDeps);
+    const result = fileDivorceAction(state, setGameState, spouse.id, DATING_DEPS);
     if (result?.success) {
       showInfoBanner('Divorce', result.message || 'The divorce was finalized.');
     } else {

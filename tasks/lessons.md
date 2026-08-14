@@ -2879,3 +2879,39 @@ forward from directory to directory.
   invisible to a type checker and to the lint rule.
 - Rule: the two reasons that DO survive checking are weight and boundary, and
   both need a number in the comment, not an adjective.
+
+**7. A lint rule can be wrong for a codebase, and "burn it down" can be the
+regression.** `react-hooks/exhaustive-deps` had 98 warnings, annotated in
+`scripts/lib/lintRatchet.js` as sitting "in an app with known stale-closure
+bugs". Nobody had read them. All 98 were read on 2026-08-14 and **none was a
+stale-closure bug.** They fall into four groups, and satisfying the rule would
+make three of them worse:
+
+1. **Narrow deps on a helper call** — `useMemo(() => activeLegacyBuffs(gameState),
+   [gameState.legacyBuffs, gameState.weeksLived])`. The rule cannot see inside
+   `activeLegacyBuffs`, whose signature is literally
+   `Pick<GameState, 'legacyBuffs' | 'weeksLived'>` — the deps are provably
+   exactly right. Adding `gameState` would recompute on every tick and every
+   money change, which is the perf regression CLAUDE.md §4.1 documents.
+2. **The `?? []` alias** — `const holdings = stocks?.holdings ?? []`, with the
+   memo depending on `gameState.stocks?.holdings`. The alias is a NEW array only
+   when the underlying value is absent, and in that case the memo body reduces
+   over nothing. Depending on the alias instead would break the memo in the
+   common case to fix it in the trivial one.
+3. **Stable-by-construction values** — `useRef`, `Animated.Value`, `setGameState`
+   from `useState`. React guarantees the identity; the rule does not model that.
+4. **Genuinely fixable (1 of 98)** — `datingDeps`, an object literal built inside
+   `SocialActionsProvider` from two module imports, so a fresh identity every
+   render. Adding it to the four deps arrays would have rebuilt all four
+   callbacks on every render. Hoisting it to module scope removed the warning
+   AND the allocation.
+
+- Pattern: the same one as §6. An unverified characterisation in a comment
+  ("known stale-closure bugs", "deliberate cycle-breakers") gets treated as
+  established and shapes what everyone does next. Both were wrong; both had sat
+  for months; both took under an hour to check.
+- Rule: before burning down a rule's backlog, read enough of it to know which of
+  the four groups above you are in. A count is not a diagnosis.
+- Rule: when a rule is wrong for the codebase, write that down NEXT TO THE
+  COUNT — not in a commit message. The next person to see "98 warnings" will
+  reach for the autofix.
