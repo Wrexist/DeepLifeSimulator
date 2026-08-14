@@ -69,6 +69,7 @@ import {
 } from '@/contexts/game/actions/ContactsActions';
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import { childParentSources } from '@/lib/avatar/family';
 import { getMoodLabel, getMoodEmoji } from '@/lib/social/npcDepth';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import {
@@ -186,6 +187,19 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   // list → detail routing: the network/ally ContactView shown on its own page.
   const [networkDetailId, setNetworkDetailId] = useState<string | null>(null);
   const [showSettled, setShowSettled] = useState(false);
+
+  // Whose faces the children inherit. Memoized because it is passed to every
+  // child avatar, and a fresh object each render would defeat their memoization.
+  //
+  // Narrowed to the two fields `childParentSources` actually reads. Keyed on
+  // the whole `gameState` it would return a new object on every stat tick, so
+  // every child avatar would rebuild its SVG each week — the exact cost this
+  // memo exists to avoid.
+  const parentSources = useMemo(
+    () => childParentSources(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gameState.userProfile, gameState.relationships]
+  );
 
   // aggregateContacts walks 5+ arrays. Only re-run when the underlying source
   // arrays actually change — not on every gameState mutation (e.g., stat ticks).
@@ -575,6 +589,12 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 seed={r.id}
                 sex={r.gender || 'male'}
                 age={r.age || 25}
+                // A child's face is INHERITED, and this screen was resolving it
+                // from the seed alone — so the same child had one face here and
+                // a different one on the Family tab, which passes this. One
+                // person with two faces depending on the screen is the exact
+                // defect the parameterised avatar exists to remove.
+                parents={r.type === 'child' ? parentSources : undefined}
                 size={scale(46)}
               />
             </View>
@@ -1099,6 +1119,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                             seed={c.id}
                             sex={faceTraitsOf(c.raw).sex}
                             age={faceTraitsOf(c.raw).age ?? 30}
+                            parents={rr?.type === 'child' ? parentSources : undefined}
                             size={scale(34)}
                           />
                         </View>

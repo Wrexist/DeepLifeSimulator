@@ -81,15 +81,47 @@ export function AnalyticsTracker(): null {
     prevGeneration.current = generation;
   }, [generation, weeksLived, ready]);
 
-  // Flush queued events when the app backgrounds so a kill doesn't drop them
-  // (the interval flush alone can lose the tail of a session).
+  // session_end + flush when the app backgrounds.
+  //
+  // `session_end` was in the event catalogue from the start and emitted by
+  // nothing, which left SESSION LENGTH unmeasurable — and for a Day-1
+  // retention figure below the 25th percentile of the peer set, how long a
+  // first session lasts is the most diagnostic number there is. Nothing
+  // supplies it for free either: the transport here is a plain-JS batcher, not
+  // the Firebase SDK.
+  //
+  // It fires on the same background edge as the flush and strictly BEFORE it,
+  // so the event makes the batch it belongs to instead of waiting for a next
+  // launch that may never come.
+  //
+  // `foreground → background` only. iOS raises `inactive` for a notification
+  // shade pull or an incoming call, and treating that as the end of a session
+  // would cut the measured length of every session that survives one.
+  const sessionStart = useRef(Date.now());
+  const sessionEnded = useRef(false);
   useEffect(() => {
     const onChange = (next: AppStateStatus) => {
-      if (next === 'background' || next === 'inactive') void analytics.flush();
+      if (next === 'background') {
+        if (!sessionEnded.current) {
+          sessionEnded.current = true;
+          track('session_end', {
+            durationSec: Math.round((Date.now() - sessionStart.current) / 1000),
+            weeksLived,
+          });
+        }
+        void analytics.flush();
+      } else if (next === 'active' && sessionEnded.current) {
+        // Resumed. Start a fresh clock rather than counting the time the app
+        // spent backgrounded as play.
+        sessionEnded.current = false;
+        sessionStart.current = Date.now();
+      } else if (next === 'inactive') {
+        void analytics.flush();
+      }
     };
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
-  }, []);
+  }, [weeksLived]);
 
   return null;
 }

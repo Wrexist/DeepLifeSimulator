@@ -43,7 +43,9 @@
     "postinstall": "node scripts/fix-podspec.js",
     "android": "expo run:android",
     "lint:ratchet": "node scripts/check-lint.js",
-    "check:content": "node scripts/check-content-quality.js"
+    "check:content": "node scripts/check-content-quality.js",
+    "check:aso": "node scripts/check-aso.mjs",
+    "aso": "node scripts/check-aso.mjs --emit"
   },
   "dependencies": {
     "@dicebear/avataaars": "^9.2.2",

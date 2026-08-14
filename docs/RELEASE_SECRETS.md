@@ -26,30 +26,107 @@ The route-conflict guard (`npm run check:routes`) runs first and needs no secret
 | `EXPO_PUBLIC_ADMOB_BANNER_IOS` / `_INTERSTITIAL_IOS` / `_REWARDED_IOS` (+ android) | Real ad unit IDs | Google **test** unit IDs → zero ad revenue |
 | Save-signing / HMAC key (see `evaluateSaveSigningEnv`) | Tamper-evident saves | Unsigned saves / weakened integrity |
 
-## The two that block preflight today — exact commands
+## The two that block preflight today — step by step
 
-A fresh clone fails `npm run preflight` on §9 and §8 with these two absent. Both
-are environment, not code: `eas.json`'s production profile already sets
+A fresh clone fails `npm run preflight` on §9 and §8 with these two absent.
+Both are environment, not code: `eas.json`'s production profile already sets
 `EXPO_PUBLIC_USE_REVENUECAT=true`, and neither key may be committed.
 
-```bash
-# 1. RevenueCat iOS public SDK key — satisfies preflight §9 (receipt verification).
-#    This is RevenueCat's *public* app key (starts `appl_`), not the secret API
-#    key. Copy it from RevenueCat → Project → API keys → App-specific.
-eas env:create --scope project \
-  --name EXPO_PUBLIC_RC_IOS_KEY --value appl_XXXXXXXXXXXX \
-  --environment production --visibility sensitive
+They are **opposite in kind**, and that is the thing to hold on to:
 
-# 2. Save-signing HMAC key — satisfies preflight §8 (signed saves).
-#    Generate a fresh one; never reuse a key that has been in a repo or a chat.
-#    openssl rand -hex 32
-eas env:create --scope project \
-  --name EXPO_PUBLIC_SAVE_HMAC_KEY --value <64-hex-chars> \
-  --environment production --visibility sensitive
-```
+| | `EXPO_PUBLIC_RC_IOS_KEY` | `EXPO_PUBLIC_SAVE_HMAC_KEY` |
+|---|---|---|
+| Where it comes from | **Fetched** from RevenueCat's dashboard | **Generated** by you, once, from nothing |
+| Can it be re-fetched if lost? | Yes — it is always on that page | **No.** Losing it is unrecoverable; see the rotation warning below |
+| Is it secret? | No. It is publishable and ships inside the app binary | Also ships in the binary (it is `EXPO_PUBLIC_*`), but treat it as secret anyway — see below |
+| Cost of getting it wrong | Every purchase refused | Every existing save fails its signature |
 
-**Verify locally without storing anything** — supply them for one command only,
-so nothing lands in a shell profile or a `.env`:
+---
+
+### 1 · `EXPO_PUBLIC_RC_IOS_KEY` — fetch it from RevenueCat
+
+This is RevenueCat's **public SDK key** for the iOS app. It begins `appl_`. It
+is *not* the secret API key (`sk_...`), which must never go near the app.
+
+RevenueCat reorganises its dashboard from time to time, so treat the **`appl_`
+prefix** as the identifying feature rather than the menu path below.
+
+1. Sign in at <https://app.revenuecat.com>.
+2. Pick the project for DeepLife Simulator in the project switcher (top left).
+   If there is no project yet, `docs/REVENUECAT-SETUP.md` covers creating one
+   and attaching the App Store app — do that first, because the key does not
+   exist until an app is attached.
+3. In the left sidebar open **Project settings → API keys**.
+4. Find the **App specific keys** table. Each row is one platform's app.
+5. Copy the key on the **App Store** row. It starts `appl_`.
+   - The row labelled *secret* (`sk_...`) is the server key. Do not use it.
+   - If you also ship Android, the Play Store row gives you
+     `EXPO_PUBLIC_RC_ANDROID_KEY`, which `apiKey()` in
+     `services/RevenueCatService.ts` selects per platform.
+6. Store it on EAS:
+
+   ```bash
+   eas env:create --scope project \
+     --name EXPO_PUBLIC_RC_IOS_KEY --value appl_XXXXXXXXXXXX \
+     --environment production --visibility sensitive
+   ```
+
+**Why preflight blocks without it.** `revenueCatService.isEnabled()` requires a
+key. With `EXPO_PUBLIC_USE_REVENUECAT=true` and no key it returns false, so the
+build silently falls back to the self-hosted verification path — where a
+missing `EXPO_PUBLIC_IAP_VERIFY_URL` makes `verifyReceiptWithServer` return
+`false` and **every purchase is refused**. Paying players would receive nothing,
+with no error anywhere. That is why §9 is a hard failure rather than a warning.
+
+---
+
+### 2 · `EXPO_PUBLIC_SAVE_HMAC_KEY` — generate it yourself
+
+Nobody issues this one. It is the secret the app signs its own save files with,
+so a tampered save can be detected on load. Any sufficiently long random string
+works; what matters is that it is generated once and then **never changes**.
+
+1. Generate 32 random bytes as hex:
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+   That is 64 hex characters. `head -c 32 /dev/urandom | xxd -p -c 64` works
+   the same if `openssl` is unavailable.
+
+2. Put it somewhere you will still have it in two years — a password manager
+   entry for the project, not a note and not a chat message. If this key is
+   lost, it cannot be recovered or re-derived, and see step 4 for why that
+   matters.
+
+3. Store it on EAS:
+
+   ```bash
+   eas env:create --scope project \
+     --name EXPO_PUBLIC_SAVE_HMAC_KEY --value <the 64 hex chars> \
+     --environment production --visibility sensitive
+   ```
+
+4. **Never rotate it on a live app without a plan.** Every save already on a
+   player's device is signed with the old key. Change it and each of those saves
+   fails verification on the next load. `utils/saveSigningConfig.ts` decides
+   what happens then, and `tasks/leaked-key-rotation-runbook.md` is the
+   procedure if the key ever leaks and rotation is forced.
+
+**A caveat worth knowing.** Because the variable is `EXPO_PUBLIC_*`, Metro
+inlines it into the JS bundle — so it is extractable from a shipped app by
+anyone who looks. It raises the cost of casual save editing; it is not a
+defence against a determined attacker, and it should not be reused for anything
+else. Preflight §8 also only checks that the key is **present**, not that it is
+strong: a value of `x` passes. The generator above is what makes it real.
+
+---
+
+### Verify locally without storing anything
+
+Supply both for a single command, so nothing lands in a shell profile or a
+`.env`:
 
 ```bash
 EXPO_PUBLIC_USE_REVENUECAT=true \
@@ -58,15 +135,26 @@ EXPO_PUBLIC_SAVE_HMAC_KEY=placeholder_not_a_real_key \
   npm run preflight
 ```
 
-That run is a check of the *gate logic*, not of the real keys — it proves
-preflight passes once the environment is populated. The build itself must use
-the real values from EAS.
+That run checks the *gate logic*, not the real keys — it proves preflight passes
+once the environment is populated. The build itself must use the real values
+from EAS.
 
-> **Rotating `EXPO_PUBLIC_SAVE_HMAC_KEY` invalidates the signature on every save
-> already in the field.** Confirm the load path's behaviour for an
-> unverifiable-but-uncorrupted save before rotating on a live app; see
-> `utils/saveSigningConfig.ts` and `tasks/leaked-key-rotation-runbook.md`.
+> **Do not run preflight in a shell that still has the screenshot-capture
+> variables exported.** `EXPO_PUBLIC_ALLOW_WEAK_SAVE_MIGRATION=true` and
+> `EXPO_PUBLIC_ALLOW_UNSIGNED_LEGACY_SAVES=true` (see
+> `screenshots/appstore-2026/README.md`) are hard §8 failures, and the message
+> names the variable rather than the shell, which is a confusing five minutes.
 
+### Confirming they took
+
+```bash
+eas env:list --environment production
+```
+
+Sensitive values are masked, so this confirms the NAME exists — it cannot
+confirm the value is right. The real confirmation for RevenueCat is a sandbox
+purchase completing on a TestFlight build; for the HMAC key it is a save
+written by that build re-loading cleanly.
 
 ## Must be UNSET (or false) for production
 | Variable | Why |

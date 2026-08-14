@@ -1,3 +1,29 @@
+> # ⚠ SUPERSEDED — do not paste from this file
+>
+> Replaced by **`marketing/aso/`**, where the copy lives in `metadata.mjs` as
+> data and every character count is measured by `scripts/check-aso.mjs` at the
+> moment it prints, instead of being written by hand next to the copy.
+>
+> ```bash
+> npm run aso        # audit, then print every field ready to paste
+> npm run check:aso  # audit only
+> ```
+>
+> Two defects in this document are why it was replaced, and both are the kind
+> prose cannot catch:
+>
+> 1. Its subtitle, `Rags to riches money life sim`, spent eight of thirty
+>    characters re-indexing **life** and **sim** — both already in the app name
+>    *Deep Life Simulator*, therefore already indexed — under a heading in this
+>    same file that says never to do that.
+> 2. Its description claimed **no forced ads** and **no pay-to-win**. Neither is
+>    true of this build: `lib/ads/interstitial.ts` shows full-screen ads at
+>    in-game year boundaries, and `utils/iapConfig.ts` sells permanent earnings
+>    multipliers for money.
+>
+> The sections below on screenshots, the preview video and the version-number
+> rule are still accurate and were carried across.
+
 # App Store Connect — v2.7.0, paste-ready
 
 Every field below is final copy with a **verified** character count. Nothing here

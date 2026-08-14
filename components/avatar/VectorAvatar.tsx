@@ -36,6 +36,7 @@ import { createAvatar } from '@dicebear/core';
 import * as avataaars from '@dicebear/avataaars';
 import { buildStyleOptions } from '@/lib/avatar/style';
 import { addDepth, ART_ZOOM, BLINK, frameArt, nextBlinkDelay } from '@/lib/avatar/depth';
+import { applyChildProportions } from '@/lib/avatar/proportions';
 import { ageEffects } from '@/lib/avatar/aging';
 import { normalizeAvatar } from '@/lib/avatar/random';
 import type { AvatarConfig, AvatarSex } from '@/lib/avatar/types';
@@ -96,8 +97,16 @@ function VectorAvatarImpl({
     const safe = normalizeAvatar(config);
     const effects = ageEffects(age, sex);
     const options = buildStyleOptions(safe, sex, effects);
+    // Proportions run on the RAW art, before framing: they move the art's own
+    // layer groups, which `frameArt` then wraps as a whole.
     const build = (extra?: Record<string, unknown>) =>
-      addDepth(frameArt(createAvatar(avataaars, { size, ...options, ...extra }).toString(), zoom), uid);
+      addDepth(
+        frameArt(
+          applyChildProportions(createAvatar(avataaars, { size, ...options, ...extra }).toString(), age),
+          zoom
+        ),
+        uid
+      );
     return {
       open: build(),
       // Built once alongside the open frame rather than on each blink, so a
