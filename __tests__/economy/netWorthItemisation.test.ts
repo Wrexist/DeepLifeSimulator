@@ -17,6 +17,8 @@
 import { createTestGameState } from '../helpers/createTestGameState';
 import { initialGameState } from '@/contexts/game/initialState';
 import { buildNetWorthItemisation, NET_WORTH_GROUPS } from '@/utils/netWorthItemisation';
+import { computeNetWorth } from '@/utils/netWorth';
+import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { LUXURY_CATALOG } from '@/lib/luxury';
 import type {
   GameState,
@@ -255,6 +257,92 @@ describe('debt still counts against the headline', () => {
     const { breakdown } = buildNetWorthItemisation(richState());
     expect(breakdown.totalLiabilities).toBe(15_000);
     expect(breakdown.netWorth).toBe(breakdown.totalAssets - breakdown.totalLiabilities);
+  });
+});
+
+describe('the itemised headline equals the canonical net worth', () => {
+  // The modal exists to EXPLAIN the number on the card that opens it, and that
+  // card shows the canonical `netWorth()` (lib/progress/achievements). For every
+  // asset class BOTH engines count, the two must agree. They used to drift three
+  // ways: the modal shaved a 1% liquidation fee off every asset, omitted savings
+  // goals, and ignored credit-card debt. All three are now closed.
+  //
+  // `liquidState` holds one of every class the canonical figure counts — but no
+  // company miners and no generic `items`, which the modal itemises and the
+  // canonical figure does NOT (a known scope gap, asserted separately below).
+  // `extra` merges through `createTestGameState` (Hard Rule #3 — never hand-build
+  // or cast a GameState), so a caller can add e.g. companies/items on top of the
+  // liquid baseline without spreading a raw state object.
+  function liquidState(extra: Parameters<typeof createTestGameState>[0] = {}): GameState {
+    const luxuryId = LUXURY_CATALOG[0].id;
+    return createTestGameState({
+      stats: { money: 12_500 },
+      bankSavings: 40_000,
+      banking: {
+        ...BASE_BANKING,
+        accounts: [
+          account({ id: 'checking-default', type: 'checking', name: 'Checking', balance: 12_500 }),
+          account({ id: 'savings-default', type: 'savings', name: 'Savings', balance: 40_000, baseAPR: 0.01 }),
+          account({ id: 'hy-1', type: 'highYieldSavings', name: 'High Yield', balance: 75_000, baseAPR: 0.04, openedWeek: 4 }),
+        ],
+        savingsGoals: [
+          { id: 'goal-1', name: 'Emergency Fund', targetAmount: 20_000, currentAmount: 8_500, category: 'emergency', createdWeek: 0 },
+        ],
+        creditCards: [
+          { id: 'cc-1', name: 'Everyday Card', tier: 'standard', creditLimit: 10_000, balance: 3_200, baseAPR: 0.24, rewardsRate: 0.01, rewardsType: 'cashback', pendingRewards: 0, openedWeek: 0, minCreditScore: 600 },
+        ],
+      },
+      cryptos: [BTC],
+      darkWeb: LAUNDERED,
+      stocks: { ...BASE_STOCKS, holdings: [{ symbol: 'ACME', shares: 100, currentPrice: 42, averagePrice: 30 }] },
+      luxuryItems: [luxuryId],
+      realEstate: [HOUSE],
+      vehicles: [SEDAN],
+      loans: [LOAN],
+      ...extra,
+    });
+  }
+
+  it('matches across every class both engines count (incl. savings goals & card debt)', () => {
+    const state = liquidState();
+    const { breakdown, rows } = buildNetWorthItemisation(state);
+    expect(breakdown.netWorth).toBe(canonicalNetWorth(state));
+    // The savings goal is a visible, named row — not a silent addition to the total.
+    const savings = rows.find((r) => r.group === 'savings');
+    expect(savings?.items.some((i) => /Emergency Fund/.test(i.name))).toBe(true);
+  });
+
+  it('the ONLY remaining gap is miners and generic items, which canonical omits', () => {
+    // The modal itemises company mining hardware and generic owned items;
+    // `netWorth()` counts neither. This locks that as the sole residual so a NEW
+    // divergence (a re-introduced fee, a dropped term) cannot hide behind it.
+    // If net worth should include hardware/inventory, that is a canonical change
+    // for the owner to make — not something the modal decides on its own.
+    const withHardware = liquidState({
+      companies: [ACME], // 2 basic miners @ 2,500 = 5,000, income already in canonical
+      items: [LAPTOP], // 1,200, no resale path in the canonical figure
+    });
+    const modal = buildNetWorthItemisation(withHardware).breakdown.netWorth;
+    const canonical = canonicalNetWorth(withHardware);
+    expect(modal - canonical).toBe(2 * 2_500 + 1_200);
+  });
+});
+
+describe('computeNetWorth guards the transaction-fee option', () => {
+  const assets = [{ id: 'a', type: 'cash', baseValue: 1_000 }];
+
+  it('a non-finite fee falls back to the default instead of returning NaN', () => {
+    for (const bad of [NaN, Infinity, -Infinity]) {
+      const { netWorth } = computeNetWorth(assets, [], { transactionFee: bad });
+      expect(isFinite(netWorth)).toBe(true);
+      // Fell back to the 1% default: 1000 × (1 − 0.01) = 990.
+      expect(netWorth).toBe(990);
+    }
+  });
+
+  it('a finite fee outside [0,1] is clamped, not applied raw', () => {
+    expect(computeNetWorth(assets, [], { transactionFee: 5 }).netWorth).toBe(0); // clamps to 1 → full haircut
+    expect(computeNetWorth(assets, [], { transactionFee: -1 }).netWorth).toBe(1_000); // clamps to 0 → no haircut
   });
 });
 

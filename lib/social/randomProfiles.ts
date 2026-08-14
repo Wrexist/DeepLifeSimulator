@@ -8,6 +8,12 @@
 import { SocialPost } from '@/contexts/game/types';
 import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
+// ─────────────────────────────────────────────────────────────────────
+// Pulse scandal pile-on comments (v13+)
+// ─────────────────────────────────────────────────────────────────────
+
+import type { PulseComment, PulseActiveScandal } from '@/contexts/game/types';
+
 // Random profile names for posts
 const RANDOM_PROFILE_NAMES = [
  'Alex Morgan', 'Jordan Taylor', 'Casey Smith', 'Riley Johnson', 'Morgan Davis',
@@ -176,12 +182,6 @@ export function generateRandomProfilePosts(week: number, count?: number): Social
 
  return posts;
 }
-
-// ─────────────────────────────────────────────────────────────────────
-// Pulse scandal pile-on comments (v13+)
-// ─────────────────────────────────────────────────────────────────────
-
-import type { PulseComment, PulseActiveScandal } from '@/contexts/game/types';
 
 // Hostile comment templates by scandal type. Keep these PG — the game's
 // audience skews mainstream and we want the *consequence* of a scandal to

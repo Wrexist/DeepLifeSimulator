@@ -22,22 +22,7 @@
  * (createSaveData/parseSaveData) directly instead.
  */
 
-jest.mock('@/utils/saveQueue', () => ({
-  saveQueue: {
-    addToQueue: jest.fn().mockResolvedValue(undefined),
-    forceSave: jest.fn().mockResolvedValue(undefined),
-    flushQueue: jest.fn().mockResolvedValue(undefined),
-    restoreOnStartup: jest.fn().mockResolvedValue(undefined),
-    setToastCallback: jest.fn(),
-    getStatus: jest.fn(() => ({ queueLength: 0, isProcessing: false })),
-  },
-  queueSave: jest.fn().mockResolvedValue(undefined),
-  forceSave: jest.fn().mockResolvedValue(undefined),
-}));
-
 import React from 'react';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const TestRenderer = require('react-test-renderer');
 import { GameProvider } from '@/contexts/game/GameProvider';
 import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
@@ -50,6 +35,21 @@ import {
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import { createTestGameState } from '../helpers/createTestGameState';
 import { MAX_SAVE_SIZE } from '@/lib/config/gameConstants';
+
+jest.mock('@/utils/saveQueue', () => ({
+  saveQueue: {
+    addToQueue: jest.fn().mockResolvedValue(undefined),
+    forceSave: jest.fn().mockResolvedValue(undefined),
+    flushQueue: jest.fn().mockResolvedValue(undefined),
+    restoreOnStartup: jest.fn().mockResolvedValue(undefined),
+    setToastCallback: jest.fn(),
+    getStatus: jest.fn(() => ({ queueLength: 0, isProcessing: false })),
+  },
+  queueSave: jest.fn().mockResolvedValue(undefined),
+  forceSave: jest.fn().mockResolvedValue(undefined),
+}));
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TestRenderer = require('react-test-renderer');
 
 const { act } = TestRenderer;
 const h = React.createElement;

@@ -34,10 +34,9 @@
  * loses nothing by the Seat existing.
  */
 
-import type { GameState } from '@/contexts/game/types';
+import type { GameState , DynastyState } from '@/contexts/game/types';
 import { isPrestigeFeatureUnlocked, prestigeUnlockRequirement } from '@/lib/progress/featureUnlocks';
 import { seatWingIds, withDynasty } from './state';
-import type { DynastyState } from '@/contexts/game/types';
 
 /** The prestige capability id gating the whole Seat. */
 export const SEAT_FEATURE = 'feature:dynasty_seat';

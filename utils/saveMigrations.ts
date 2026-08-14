@@ -999,6 +999,53 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 39;
     return state;
   },
+
+  // Version 40: `settings.deepLifePlusLastGemClaimWeek` — the `weeksLived` marker
+  // that gates the FREE-tier daily-gem faucet (`SubscriptionActions.claimDailyGems`,
+  // surfaced by `DailyGemClaim`). The faucet was gated only on the UTC day-key and
+  // an epoch high-water mark, both of which only refuse a REWOUND clock; advancing
+  // the device date a day at a time farmed gems (20/day) with no play. This closes
+  // it the same way the sibling login faucet was closed (`lastLoginRewardWeek`,
+  // v31): `weeksLived` is the one clock a scrubber cannot move. The DeepLife+ member
+  // drop (250/day) keeps its deliberate day-key grace and is intentionally NOT
+  // gated here — a paid-retention decision left to the owner.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill and no
+  // `repairGameState` mirror. An absent key means "never claimed via the week
+  // gate", which is the only safe value — stamping the current week onto an
+  // existing save would deny the player their next legitimate claim (exactly the
+  // reasoning behind the v28 `lastNoFillGrantWeek` carve-out). The key still has to
+  // survive the load round-trip, which `loadedStateMerge` now guarantees by keeping
+  // the saved object's own keys.
+  40: (state) => {
+    state.version = 40;
+    return state;
+  },
+
+  // Version 41: `tuitionWaiverUSD` — an unspent tuition credit, granted by the
+  // poverty-recovery scholarship event and consumed at the next enrolment.
+  //
+  // The event (`scholarship_opportunity`) had been unreachable for its whole
+  // life: its condition reads `weeksInPoverty >= 12` and nothing wrote that
+  // field. Making it fire exposed the other half — its `grant_free_education`
+  // effect granted +10 reputation while the choice text says "Accept the
+  // scholarship (Free education!)". This is the field that makes the promise
+  // real.
+  //
+  // A CREDIT, not cash: the event fires for a player under $500 and programmes
+  // cost $12k-$180k, so paying it out as money would be a life-changing
+  // injection from one random event, and it is not what the event promises
+  // anyway.
+  //
+  // Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  // `repairGameState` mirror. Absent already means "no credit", and writing a
+  // value would hand every existing save a scholarship nobody earned — the
+  // mirror image of the v27/v28 reasoning, where stamping a value would have
+  // DENIED something instead.
+  41: (state) => {
+    state.version = 41;
+    return state;
+  },
 };
 
 /**

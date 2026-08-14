@@ -26,7 +26,7 @@ import {
   Lock,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation , useIsFocused } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
@@ -58,7 +58,6 @@ import { useTopStatsBarHeight } from '@/hooks/useTopStatsBarHeight';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
-import { useIsFocused } from '@react-navigation/native';
 import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 

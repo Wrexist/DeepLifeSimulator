@@ -27,6 +27,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { ZERO_STAT_DEATH_WEEKS } from '@/lib/config/gameConstants';
 
 const ROOT = path.join(__dirname, '..', '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -68,7 +69,14 @@ describe('C-4 — no weekly tick applies a low-health penalty', () => {
     const loop = read('contexts/game/GameActionsContext.tsx');
 
     expect(loop).toMatch(/newStats\.health <= 0/);
-    expect(loop).toMatch(/newHealthZeroWeeks >= 4/);
+    // The threshold moved from a bare `4` to `ZERO_STAT_DEATH_WEEKS`, which had
+    // been sitting in gameConstants with no code consumer while another module
+    // cited it by name as authoritative. Assert BOTH halves: the loop reads the
+    // constant, and the constant is still four. Pinning only the literal let the
+    // named copy drift; pinning only the name would let "four weeks" become ten
+    // without this test noticing.
+    expect(loop).toMatch(/newHealthZeroWeeks >= ZERO_STAT_DEATH_WEEKS/);
+    expect(ZERO_STAT_DEATH_WEEKS).toBe(4);
     // And nothing between 1 and 30 is special.
     expect(/newStats\.health\s*(<=|<)\s*(30|20|25)\b/.test(loop)).toBe(false);
   });

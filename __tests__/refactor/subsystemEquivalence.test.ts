@@ -81,11 +81,8 @@ import { applyDeathRibbon } from '@/contexts/game/actions/weekly/applyDeathRibbo
 import { applyAutoCheckpoint } from '@/contexts/game/actions/weekly/applyAutoCheckpoint';
 import { applyLifetimeStatistics } from '@/contexts/game/actions/weekly/applyLifetimeStatistics';
 import { applyCliffhangerRoll } from '@/contexts/game/actions/weekly/applyCliffhangerRoll';
-import type { Education } from '@/contexts/game/types';
-import type { DietPlan, Career } from '@/contexts/game/types';
+import type { Education , DietPlan, Career , RealEstate , Disease , GameState, GameStats, Loan, Vehicle } from '@/contexts/game/types';
 import type { StockHolding } from '@/lib/stocks/weeklyTick';
-import type { RealEstate } from '@/contexts/game/types';
-import type { Disease } from '@/contexts/game/types';
 // NOT the DOM `Crypto` global — without this import an annotation binds to
 // lib.dom's Crypto and the mismatch reads as nonsense ("Crypto is missing id").
 import type { Crypto } from '@/contexts/game/types';
@@ -93,7 +90,6 @@ import type { WeekContext, WeekNotification } from '@/contexts/game/actions/week
 import type { PreRolls } from '@/contexts/game/actions/weekly/preTick';
 import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
-import type { GameState, GameStats, Loan, Vehicle } from '@/contexts/game/types';
 
 import { deterministicRoll, fixtures, type FixtureName } from './helpers/weekFixtures';
 

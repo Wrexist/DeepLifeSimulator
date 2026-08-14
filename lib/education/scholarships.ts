@@ -24,6 +24,17 @@ export interface ScholarshipInputs {
   politicsScholarshipUSD?: number;
   /** Politics-driven cost reduction (0..1). */
   politicsCostReduction?: number;
+  /**
+   * A one-off tuition award the player has been granted and not yet spent —
+   * today only the poverty scholarship event (`grant_free_education`).
+   *
+   * Separate from `politicsScholarshipUSD` because the two are consumed
+   * differently: the politics figure is a standing policy effect that applies to
+   * every enrolment while the policy is active, and this one is a credit that
+   * is SPENT the moment it is used. Folding them into one number would make the
+   * quote unable to tell the caller how much to deduct.
+   */
+  awardScholarshipUSD?: number;
 }
 
 export interface ScholarshipQuote {
@@ -36,6 +47,8 @@ export interface ScholarshipQuote {
     meritUSD: number;
     politicsUSD: number;
     politicsReductionUSD: number;
+    /** The part of `totalUSD` that came from a one-off award. */
+    awardUSD: number;
   };
   /** Eligibility band for display. */
   eligibility: 'none' | 'partial' | 'half' | 'full';
@@ -63,7 +76,7 @@ export function quoteScholarship(input: ScholarshipInputs): ScholarshipQuote {
     return {
       totalUSD: 0,
       netCostUSD: 0,
-      breakdown: { meritUSD: 0, politicsUSD: 0, politicsReductionUSD: 0 },
+      breakdown: { meritUSD: 0, politicsUSD: 0, politicsReductionUSD: 0, awardUSD: 0 },
       eligibility: 'none',
     };
   }
@@ -72,8 +85,25 @@ export function quoteScholarship(input: ScholarshipInputs): ScholarshipQuote {
   const meritUSD = tuition * rate;
   const politicsReductionUSD = tuition * Math.max(0, Math.min(1, safe(input.politicsCostReduction)));
   const politicsUSD = Math.max(0, safe(input.politicsScholarshipUSD));
+  const awardOffered = Math.max(0, safe(input.awardScholarshipUSD));
 
-  const totalAssistance = Math.min(tuition, meritUSD + politicsUSD + politicsReductionUSD);
+  const totalAssistance = Math.min(
+    tuition,
+    meritUSD + politicsUSD + politicsReductionUSD + awardOffered,
+  );
+  /**
+   * How much of the award is actually SPENT here.
+   *
+   * Only the part still needed after merit and politics have been applied, and
+   * never more than the tuition. A 4.0 student enrolling in a $12k certificate
+   * already has 80% covered, so the award should give up the $2.4k that remains
+   * and keep the rest for next time — charging the whole credit for a bill it
+   * did not pay is the same class of defect as a reward that never arrives.
+   */
+  const awardUSD = Math.max(
+    0,
+    Math.min(awardOffered, tuition - Math.min(tuition, meritUSD + politicsUSD + politicsReductionUSD)),
+  );
   const netCost = Math.max(0, tuition - totalAssistance);
   const coverageRatio = totalAssistance / tuition;
 
@@ -86,6 +116,7 @@ export function quoteScholarship(input: ScholarshipInputs): ScholarshipQuote {
     totalUSD: totalAssistance,
     netCostUSD: netCost,
     breakdown: {
+      awardUSD,
       meritUSD,
       politicsUSD,
       politicsReductionUSD,

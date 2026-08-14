@@ -102,9 +102,20 @@ function AmbitionCard() {
       ) : readyToClaim ? (
         // Every milestone is reached and the tick has not run yet. No button:
         // the payout lands on the next week advance without being asked for.
-        <View style={styles.claimBanner}>
-          <Trophy size={scale(15)} color="#0F172A" />
-          <Text style={styles.claimText}>Fulfilled · {rewardLine} next week</Text>
+        //
+        // And it must not LOOK like one either. This rendered as a full-width
+        // solid-amber bar with bold dark text — the app's primary CTA — on a
+        // `View` with no handler, which is the defect a player reported on the
+        // sibling LifeChapterCard as "can't claim reward" (2026-08-14). Same
+        // pattern, same screen, one card down, and this one carries the biggest
+        // reward in the game. Adding a handler is not the fix: the week tick
+        // owns the payout precisely because this card used to hold the only
+        // call to `grantAmbitionPayout` in the app.
+        <View style={styles.completeBanner}>
+          <Trophy size={scale(15)} color="#FBBF24" />
+          <Text style={styles.completeText}>
+            Fulfilled — {rewardLine} arrives when you end the week.
+          </Text>
         </View>
       ) : (
         <View style={styles.rewardHint}>
@@ -195,16 +206,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#3B82F6' },
-  claimBanner: {
+  // Status, not a call to action — see the comment at the render site. Matches
+  // LifeChapterCard's banner exactly: the two sit together on the home screen,
+  // and the amber tint is the same value `doneBadge` above already uses. Copy
+  // is `title`'s `#F8FAFC` rather than amber, because this card paints its own
+  // background at 0.75 alpha and amber-on-tint falls under AA over a light page.
+  completeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: scale(8),
-    paddingVertical: scale(11),
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(11),
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: '#FBBF24',
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
   },
-  claimText: { fontSize: fontScale(13), fontWeight: '800', color: '#0F172A' },
+  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: '#F8FAFC' },
   rewardHint: { flexDirection: 'row', alignItems: 'center', gap: scale(8) },
   rewardChips: { flexDirection: 'row', alignItems: 'center', gap: scale(6), flexWrap: 'wrap' },
   rewardChip: {

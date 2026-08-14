@@ -31,13 +31,13 @@ Verified on this branch:
 
 | Gate | Result |
 |---|---|
-| `npx jest --ci` | 541 suites (540 passed, 1 skipped), **6 876 tests passed**, 0 failed |
+| `npx jest --ci` | 545 suites (544 passed, 1 skipped), **6 989 tests passed**, 0 failed |
 | `npm run type-check` | clean |
 | `type-check:tests:ratchet` | 0 errors, baseline 0 |
-| `check-lint.js` | 0 errors, 1 191 warnings (ceiling 1 193) |
+| `check-lint.js` | 0 errors, 919 warnings (ceiling 920) |
 | `check:routes` | 17 routes, no conflicts |
 | `check:aso` | all checks pass |
-| **Real iOS production bundle** | `expo export:embed` succeeds — **3 904 modules** |
+| **Real iOS production bundle** | `expo export:embed` succeeds — **3 907 modules** |
 
 > The bundle line matters more than usual. Preflight §4 is a syntax check that
 > explicitly defers real bundling, and this repo has shipped a production-only

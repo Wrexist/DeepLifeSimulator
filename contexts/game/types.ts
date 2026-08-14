@@ -1841,6 +1841,7 @@ export interface GameSettings {
   deepLifePlusLastGemClaim?: string; // UTC day key of the last daily gem-drop claim (members-only)
   deepLifePlusGemClaimDays?: string[]; // Recent UTC day keys claimed (pruned) — powers the weekly streak strip
   deepLifePlusLastGemClaimAt?: number; // Monotonic epoch-ms high-water mark of the last claim — blocks backward-clock farming
+  deepLifePlusLastGemClaimWeek?: number; // `weeksLived` of the last claim — the game-week gate that blocks FORWARD-clock farming (the two above only refuse a rewind). v40 carve-out; mirrors `lastLoginRewardWeek` on the sibling login faucet.
   // Absolute `weeksLived` of the last Bank sponsored-bonus claim. Optional with
   // an undefined default (the sanctioned pattern — an absent key already equals
   // "never claimed"), so no migration or STATE_VERSION bump is owed. Keyed on
@@ -2905,6 +2906,21 @@ export interface GameState {
   weddingPartnerName?: string;
   bankruptcyTriggered?: boolean; // STABILITY FIX: Track if bankruptcy has been triggered
   weeksInPoverty?: number; // STABILITY FIX: Track weeks in poverty for scholarship event
+  /**
+   * An unspent tuition credit, in USD (STATE_VERSION 41).
+   *
+   * Granted by the poverty-recovery scholarship event and consumed at the next
+   * enrolment. A CREDIT rather than cash on purpose: the event fires for a
+   * player under $500 and programmes cost $12k-$180k, so paying it out as money
+   * would be a life-changing cash injection from one random event — and it
+   * would not even be what the event promises, which is that the tuition is
+   * covered.
+   *
+   * Absent means no credit, which is why this is a carve-out with no backfill:
+   * writing a value onto existing saves would hand every player a scholarship
+   * they never earned.
+   */
+  tuitionWaiverUSD?: number;
   showSicknessModal: boolean;
   lastEventWeek?: number; // Track last week an event occurred (for pity system) - DEPRECATED, use lastEventWeeksLived
   lastEventWeeksLived?: number; // TIME PROGRESSION FIX: Track weeksLived for pity system to handle year boundaries correctly

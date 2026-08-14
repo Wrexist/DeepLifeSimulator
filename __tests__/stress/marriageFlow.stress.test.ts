@@ -25,6 +25,18 @@
  * validateGameState.
  */
 
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import {
+  useGameState,
+  useGameActions,
+  useMoneyActions,
+  useSocialActions,
+} from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState, Relationship } from '@/contexts/game/types';
+import { validateGameState } from '@/utils/saveValidation';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -37,20 +49,8 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import {
-  useGameState,
-  useGameActions,
-  useMoneyActions,
-  useSocialActions,
-} from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState, Relationship } from '@/contexts/game/types';
-import { validateGameState } from '@/utils/saveValidation';
 
 const { act } = TestRenderer;
 const h = React.createElement;

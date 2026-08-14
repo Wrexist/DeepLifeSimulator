@@ -35,7 +35,7 @@ import { createAvatar } from '@dicebear/core';
 // bet worth taking. This pulls one 308 KB package.
 import * as avataaars from '@dicebear/avataaars';
 import { buildStyleOptions } from '@/lib/avatar/style';
-import { addDepth, BLINK, frameArt, nextBlinkDelay } from '@/lib/avatar/depth';
+import { addDepth, ART_ZOOM, BLINK, frameArt, nextBlinkDelay } from '@/lib/avatar/depth';
 import { applyChildProportions } from '@/lib/avatar/proportions';
 import { ageEffects } from '@/lib/avatar/aging';
 import { normalizeAvatar } from '@/lib/avatar/random';
@@ -61,6 +61,17 @@ export interface VectorAvatarProps {
    * avatar a screen is ABOUT — the creator's hero, the identity card.
    */
   alive?: boolean;
+  /**
+   * How tightly the art is framed on the head. Defaults to `ART_ZOOM`, the
+   * portrait framing every avatar in the game uses.
+   *
+   * Pulled back only by the appearance editor's OUTFIT previews. The default
+   * framing centres the head, so a circular thumbnail shows a sliver of collar
+   * and nothing else — four different outfits rendered as four identical
+   * headshots, which is the exact "you cannot see what you are choosing"
+   * problem that editor exists to fix. Everything else wants the portrait.
+   */
+  zoom?: number;
 }
 
 /** The slate plate. Muted on purpose — the face is the subject, not the disc. */
@@ -75,6 +86,7 @@ function VectorAvatarImpl({
   backdrop = true,
   circular = true,
   alive = false,
+  zoom = ART_ZOOM,
 }: VectorAvatarProps) {
   // Namespaces the injected gradient ids. Without this, two avatars on the web
   // target share one document scope and the second silently uses the first's
@@ -90,7 +102,8 @@ function VectorAvatarImpl({
     const build = (extra?: Record<string, unknown>) =>
       addDepth(
         frameArt(
-          applyChildProportions(createAvatar(avataaars, { size, ...options, ...extra }).toString(), age)
+          applyChildProportions(createAvatar(avataaars, { size, ...options, ...extra }).toString(), age),
+          zoom
         ),
         uid
       );
@@ -100,7 +113,7 @@ function VectorAvatarImpl({
       // blink is a string swap and not a regeneration.
       closed: alive ? build({ eyes: ['closed'] }) : null,
     };
-  }, [config, sex, age, size, alive, uid]);
+  }, [config, sex, age, size, alive, uid, zoom]);
 
   const [blinking, setBlinking] = useState(false);
   useEffect(() => {

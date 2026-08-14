@@ -44,6 +44,38 @@ export const PREGNANCY_DURATION_WEEKS = 10; // ~2.5 months game time
 // ── Economy ──────────────────────────────────────────────
 export const BANKRUPTCY_FLOOR = 500; // Minimum cash before bankruptcy triggers
 
+/**
+ * The line under which a week counts as spent in poverty.
+ *
+ * Read by BOTH `applyPovertyTracking` (which counts the consecutive weeks) and
+ * `scholarshipOpportunity` (which spends them). Deliberately one constant: the
+ * counter and the gate it feeds disagreeing would be invisible — the event
+ * would simply never fire, which is exactly the state this whole path was in
+ * before the counter existed at all.
+ *
+ * Numerically equal to `BANKRUPTCY_FLOOR` today and kept SEPARATE on purpose.
+ * That one is a soft-lock guard (autopay must not leave you under it); this one
+ * describes a player's situation. Tuning either must not silently move the
+ * other.
+ */
+export const POVERTY_MONEY_THRESHOLD = 500;
+
+/**
+ * What the poverty-recovery scholarship covers, as a tuition credit in USD.
+ *
+ * $18,000 is the price of Legal Studies, the most expensive CERTIFICATE in the
+ * catalogue — so the award covers any certificate outright (Police Academy is
+ * $12k) and takes a real bite out of an undergraduate degree ($30k-$72k)
+ * without paying for one outright.
+ *
+ * That ceiling is the point. The event fires for a player under
+ * `POVERTY_MONEY_THRESHOLD` with no education, and its job is to open the first
+ * door out, not to hand a broke character a $150k medical degree from one
+ * random roll. A credit rather than cash for the same reason — see
+ * `GameState.tuitionWaiverUSD`.
+ */
+export const SCHOLARSHIP_AWARD_USD = 18_000;
+
 // ── Real Estate Rent ────────────────────────────────────
 /**
  * Canonical weekly rent, as a fraction of property value. Used for BOTH
@@ -69,8 +101,23 @@ export const BANKRUPTCY_FLOOR = 500; // Minimum cash before bankruptcy triggers
 export const RENT_INCOME_RATE = 0.0015;
 
 // ── Death & Health ────────────────────────────────────────
+/**
+ * Consecutive weeks at zero health or happiness before the character dies.
+ *
+ * Read by the week loop. It was NOT, until 2026-08-14: both death checks used a
+ * bare `4` while this constant sat here with no code consumer at all, and
+ * `lib/realEstate/rentals.ts` cited it by name as though it were authoritative.
+ * Tuning the most consequential number in the game here would have done
+ * nothing — the silent-no-op trap `RAISE_MIN_PERFORMANCE` in JobActions already
+ * warns about ("two copies of this number would let one path call a bluff the
+ * other path rewarded").
+ */
 export const ZERO_STAT_DEATH_WEEKS = 4;
-export const ZERO_STAT_WARNING_WEEKS = [1, 3] as const;
+// `ZERO_STAT_WARNING_WEEKS = [1, 3]` was deleted here. It scheduled a zero-stat
+// popup on the 1st and 3rd bad week; that popup was removed from the week
+// advance (the warning is now passive, in IdentityCard's "Health Issues" row),
+// so the schedule had no consumer anywhere, tests included. Retired rather than
+// left to read as live tuning.
 export const BASE_LIFE_EXPECTANCY = 80;
 
 // ── Economy ───────────────────────────────────────────────

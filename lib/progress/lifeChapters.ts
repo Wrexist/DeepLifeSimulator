@@ -11,6 +11,91 @@
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
+import { outstandingDebt } from '@/lib/progress/wealthRatchet';
+import { logger } from '@/utils/logger';
+
+const num = (v: unknown): number =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
+
+/** One log line per session for a throwing `netWorth` — see `wealthMark`. */
+let netWorthFailureLogged = false;
+
+/**
+ * The wealth figure the chapter goals and the unlock tiers both read.
+ *
+ * Every money goal here used to be `stats.money + bankSavings` — the CURRENT
+ * liquid balance — under a title that promised something cumulative ("Earn
+ * $500", "Net Worth $50K"). Two things went wrong with that:
+ *
+ *   1. It is not monotonic. `applyChapterProgress` completes a chapter only
+ *      when EVERY goal is true in the same tick, so a player who spends as
+ *      they earn can pass each goal in a different week and never complete the
+ *      chapter. The same figure feeds `unlockTier`'s milestone fallback, where
+ *      the consequence is worse: buying a $200k property drops the balance and
+ *      PADLOCKS the Real Estate app that manages it, which is exactly the
+ *      takeaway `featureUnlocks.ts` Rule 2 says can never happen.
+ *   2. It ignores assets outright. A player holding $1M in stocks with an empty
+ *      current account read as broke.
+ *
+ * The high-water mark fixes both. `lifetimeStatistics.peakNetWorth` is already
+ * persisted and already `max(previous, thisWeek)` in `applyLifetimeStatistics`,
+ * so this stays DERIVED, with no new field and no migration. Live net worth is
+ * folded in so a purchase made this week counts before the next tick stamps the
+ * peak, and the liquid balance is kept so a save whose statistics have not been
+ * written yet still tiers up.
+ *
+ * All three terms are net of outstanding loans. They did not use to be: the
+ * liquid one was a raw balance, and `LoanActions` credits the whole principal to
+ * `stats.money`, so borrowing read as getting richer. It satisfied "Save $2,000"
+ * outright and bought unlock tiers — and once the ratchet made the mark
+ * permanent, it bought them for good.
+ *
+ * Note what the `max` does and does not give you. Only the `peak` term is
+ * monotonic, so the result is monotonic only DOWN TO `peak` — while a live term
+ * is the maximum, spending still lowers this figure. That was the whole of the
+ * 2026-08-14 report: the tick stamped `peak` once a week from the balance at the
+ * start of the tick, so money earned and spent in between was never marked, and
+ * a player who bought a computer dropped a tier. `peak` is now also stamped on
+ * every state write by `lib/progress/wealthRatchet.ts`, which is what makes the
+ * floor track the balance instead of sampling it.
+ *
+ * Each term is sanitised independently: `Math.max` propagates NaN, and a single
+ * corrupt field must not zero the whole signal.
+ */
+export function wealthMark(state: GameState | undefined | null): number {
+  if (!state) return 0;
+
+  // Net of outstanding loans. `LoanActions` credits the full principal to
+  // `stats.money`, so a raw balance counted borrowed cash as progress: a loan
+  // satisfied "Save $2,000" and bought unlock tiers outright. The other two
+  // terms were already debt-adjusted — `netWorth` subtracts the same
+  // `remaining ?? principal` figure, and the ratchet now does too — so this was
+  // the last place borrowed money read as wealth.
+  const liquid = Math.max(0, num(state.stats?.money) + num(state.bankSavings) - outstandingDebt(state));
+  const peak = num(state.lifetimeStatistics?.peakNetWorth);
+
+  // `netWorth` walks holdings, property, luxury and debt. It is pure, but this
+  // runs on the app-grid render path, where a throw would blank the grid rather
+  // than degrade one number.
+  //
+  // Degrading is not the same as hiding. A throw here silently lowers chapter
+  // progress and the unlock tier, which is indistinguishable from a player who
+  // simply has less money — the exact class of bug this whole change exists to
+  // fix — so it is logged. Once per session: the caller runs on every render of
+  // the app grid, and a state that throws would throw every time.
+  let live = 0;
+  try {
+    live = num(netWorth(state));
+  } catch (err) {
+    if (!netWorthFailureLogged) {
+      netWorthFailureLogged = true;
+      logger.error('[wealthMark] netWorth threw; treating live wealth as 0', err);
+    }
+    live = 0;
+  }
+
+  return Math.max(liquid, live, peak);
+}
 
 export interface ChapterGoal {
   id: string;
@@ -41,8 +126,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch1_earn_500',
         title: 'Earn $500',
         description: 'Accumulate $500 total',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 500,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 500),
+        checkComplete: (s) => wealthMark(s) >= 500,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 500),
       },
       {
         id: 'ch1_get_job',
@@ -85,9 +170,9 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
       {
         id: 'ch2_save_2k',
         title: 'Save $2,000',
-        description: 'Have $2,000 in cash or savings',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 2000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 2000),
+        description: 'Have $2,000 more than you owe',
+        checkComplete: (s) => wealthMark(s) >= 2000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 2000),
       },
       {
         id: 'ch2_buy_phone',
@@ -99,6 +184,27 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
       {
         id: 'ch2_make_friend',
         title: 'Make a Friend',
+        /**
+         * Counts EVERY relationship, including the Mom and Dad `initialState`
+         * seeds — so this reads as complete on a brand-new life. That looks
+         * like a bug, and the sibling ambition system tightened the equivalent
+         * check for exactly that reason (`lib/ambitions/catalog.ts`: "Exclude
+         * the starting parents ... so 'Make a Connection' doesn't auto-complete
+         * at birth"). Do not copy it here.
+         *
+         * The permissive count is LOAD-BEARING. A chosen relationship comes
+         * from Spark (tier 2) or a network-favour introduction, and
+         * `FAVOR_KIND_BY_CONTACT` only offers an intro on a `business` contact
+         * — personal kinds are excluded on purpose. A player working on chapter
+         * 2 is at tier 1 with two parents and no business contacts, so Spark is
+         * the only route, and finishing chapter 2 is what UNLOCKS Spark.
+         * Tightening this deadlocks the chapter: rule 3 in `featureUnlocks.ts`,
+         * and the trap a player was stranded in on 2026-08-13.
+         *
+         * Making it a real goal means shipping a visible tier-1 way to meet
+         * someone in the same change. Pinned by
+         * `__tests__/onboarding/wealthRatchet.test.ts`.
+         */
         description: 'Start a relationship with someone',
         checkComplete: (s) => (s.relationships?.length || 0) > 0,
         checkProgress: (s) => (s.relationships?.length || 0) > 0 ? 1 : 0,
@@ -117,8 +223,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch3_save_10k',
         title: 'Save $10,000',
         description: 'Accumulate $10,000 in wealth',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 10000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 10000),
+        checkComplete: (s) => wealthMark(s) >= 10000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 10000),
       },
       {
         id: 'ch3_partner',
@@ -163,8 +269,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch4_net_50k',
         title: 'Net Worth $50K',
         description: 'Reach $50,000 net worth',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 50000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 50000),
+        checkComplete: (s) => wealthMark(s) >= 50000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 50000),
       },
       {
         id: 'ch4_business',
@@ -214,8 +320,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch5_net_200k',
         title: 'Net Worth $200K',
         description: 'Reach $200,000 net worth',
-        checkComplete: (s) => (s.stats?.money || 0) + (s.bankSavings || 0) >= 200000,
-        checkProgress: (s) => Math.min(1, ((s.stats?.money || 0) + (s.bankSavings || 0)) / 200000),
+        checkComplete: (s) => wealthMark(s) >= 200000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 200000),
       },
       {
         id: 'ch5_max_stat',

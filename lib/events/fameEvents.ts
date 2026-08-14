@@ -7,7 +7,24 @@
  * experience, encouraging fame-chasing playstyles.
  */
 import type { EventTemplate } from './engine';
-import type { GameState } from '@/contexts/game/types';
+import type { GameState ,
+  PulseActiveScandal,
+  PulseNotification,
+  PulseScandalType,
+  PulseTrendingHashtag,
+} from '@/contexts/game/types';
+
+// ─── Pulse surfacing (v13+) ──────────────────────────────────────────────
+//
+// When a fame event fires, optionally surface it inside the in-game social
+// platform: push a notification, add a trending hashtag, and (for scandal-
+// surfacing events) seed an `activeScandal`. The Pulse tick consumes these
+// next week through its own decay/rotation passes — this helper just stages
+// the initial entries.
+//
+// Returns a shallow new socialMedia object so the caller can spread it into
+// state (`{ ...prev, socialMedia: applyFameEventToPulse(prev, ev, weeksLived) }`).
+
 
 // Helper: fame tier checks
 const isCelebrity = (s: GameState) =>
@@ -483,24 +500,6 @@ export const fameEventTemplates: EventTemplate[] = [
   exclusiveParty,
   hateComment,
 ];
-
-// ─── Pulse surfacing (v13+) ──────────────────────────────────────────────
-//
-// When a fame event fires, optionally surface it inside the in-game social
-// platform: push a notification, add a trending hashtag, and (for scandal-
-// surfacing events) seed an `activeScandal`. The Pulse tick consumes these
-// next week through its own decay/rotation passes — this helper just stages
-// the initial entries.
-//
-// Returns a shallow new socialMedia object so the caller can spread it into
-// state (`{ ...prev, socialMedia: applyFameEventToPulse(prev, ev, weeksLived) }`).
-
-import type {
-  PulseActiveScandal,
-  PulseNotification,
-  PulseScandalType,
-  PulseTrendingHashtag,
-} from '@/contexts/game/types';
 
 const NOTIFICATION_CAP = 100;
 const TRENDING_CAP = 10;

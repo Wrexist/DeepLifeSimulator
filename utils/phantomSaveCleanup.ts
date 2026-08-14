@@ -14,6 +14,8 @@
  * name before a game can exist. Unreadable/corrupt blobs are never touched.
  */
 import { logger as _loggerForStorage } from '@/utils/logger';
+import { logger } from '@/utils/logger';
+import { readSaveSlotMeta, deleteSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 
 /**
  * LAZY. This was the only static top-level `@react-native-async-storage`
@@ -63,8 +65,6 @@ const AsyncStorage = {
     if (s) await s.multiRemove(keys);
   },
 };
-import { logger } from '@/utils/logger';
-import { readSaveSlotMeta, deleteSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
 
 const log = logger.scope('PhantomSaveCleanup');
 

@@ -592,6 +592,7 @@
 - What went wrong: `eas submit` for iOS failed with "You've already submitted this build of the app." `eas.json` had `cli.appVersionSource: "remote"` but **no** `autoIncrement` on any profile, and the failing pipeline (`.github/workflows/eas-build-local-ios.yml`) builds with `eas build --local`. Remote versioning made EAS ignore `app.config.js`'s existing `BUILD_NUMBER` hook, AND `--local` builds do not run the remote auto-increment (that only happens on EAS *cloud* builds) — so every local build baked the SAME `CFBundleVersion` and Apple rejected the duplicate.
 - Pattern: `appVersionSource: "remote"` silently disables the local `ios.buildNumber` / `android.versionCode` values (remote becomes the source of truth), and the remote `autoIncrement` flag is a *cloud-build-only* feature. A `--local` + `remote` combination therefore has NO working increment path — it ships the same build number forever, and the failure only surfaces at submit time, not build time.
 - Rule: any pipeline that uses `eas build --local` must manage the build number itself. Set `cli.appVersionSource: "local"` and compute a unique, monotonic `BUILD_NUMBER` (`scripts/next-build-number.mjs`: returns one higher than App Store Connect's latest build when `ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8` are present, else `date +%s` epoch seconds — which also stays under Android's ~2.1e9 `versionCode` cap) so `app.config.js` bakes a fresh `CFBundleVersion` into each binary. Reserve `remote` + `autoIncrement` for the *cloud* `eas build` path only. After a failed submit you must REBUILD with a new number — the already-built `.ipa` can never be re-submitted as-is.
+- **AMENDED 2026-08-14 — do NOT act on the `appVersionSource: "local"` half of this rule.** It was never applied (`eas.json` has always been `"remote"`), and applying it now would break the cloud path: `eas-build.yml` has no `BUILD_NUMBER` step and depends on remote + `autoIncrement`, so `"local"` would bake app.config.js's `"99"` fallback into every cloud build. The part of this lesson that fixed the bug and still holds is `scripts/next-build-number.mjs` + `app.config.js` minting the number locally; that works *with* `"remote"` — `eas-build-local-ios.yml`'s `submit-ios` job has been accepted by TestFlight repeatedly (verified 2026-08-12), which could not happen if `CFBundleVersion` were being ignored and repeated. See the 2026-08-14 entry at the end of this file.
 
 ### 2026-06-26 - Weekly audit reported a false 🟠 high: perf jest suite "failed" in a fresh routine container
 
@@ -2394,6 +2395,56 @@ every save whose influence came from enacting policies rather than retainers.
 holding that stat.** No `STATE_VERSION` bump was needed: specialties are
 catalogue data keyed by lobbyist id, so nothing new is persisted.
 
+---
+
+## 2026-08-13 — The explainer that didn't equal the thing it explained (weekly audit)
+
+**Symptom.** The Net Worth card (`IdentityCard`) shows the canonical `netWorth()`
+(`lib/progress/achievements.ts`) — the figure prestige, achievements and the
+leaderboard all use. Tapping it opened `NetWorthBreakdownModal`, whose total came
+from a *second* engine (`buildNetWorthItemisation` → `computeNetWorth`,
+`utils/netWorth.ts`). The two numbers disagreed, on the one screen whose entire
+job is to explain the first with the second. This cycle's refactor added crypto,
+bank and laundered-BTC rows and its doc comments *claimed* parity — but claiming
+it is not testing it, and it wasn't there.
+
+**Four divergences, only three of which a static/read pass caught:**
+1. The itemisation ran every asset through a 1% liquidation fee
+   (`DEFAULT_TRANSACTION_FEE`) that the canonical figure never applies.
+2. It omitted savings goals (canonical adds each goal's `currentAmount`).
+3. It omitted credit-card debt (canonical subtracts `totalCreditCardDebt`).
+4. It **counts company miners and generic `items`; canonical counts neither.**
+
+The fourth only surfaced by asserting `modal === canonical` on a seeded portfolio
+and reading the exact residual — 2 basic miners (2×2500) + a laptop (1200) = 6200,
+to the dollar. **A subagent's "the three reasons it diverges" list was right about
+three and blind to the fourth; the arithmetic wasn't.** When two engines are meant
+to agree, the invariant to test is `A === B` on a fully-populated fixture, not "do
+the rows I can see add up" — the latter passed the whole time the headline was
+wrong.
+
+**The fix, and where its blast radius stops.** Fixes 1–3 are unambiguous and live
+entirely in the modal's display path: `computeNetWorth` gained a
+`{ transactionFee }` option (default unchanged, so no other caller moves), the
+itemisation passes `0`, and it now itemises savings goals and card debt. Canonical
+`netWorth()` — the one prestige/achievements/leaderboard read — is **untouched**,
+so the change cannot move a prestige gate. The miners/items scope gap (#4) is a
+genuine design call — *should* owned hardware and inventory count toward net worth?
+— that belongs to the owner, not to a modal deciding on its own, so it is filed,
+not silently forced by either hiding real assets or editing the canonical figure.
+
+**The guard.** `__tests__/economy/netWorthItemisation.test.ts` now asserts
+`buildNetWorthItemisation(state).breakdown.netWorth === netWorth(state)` on a
+portfolio holding one of every class both engines count, and separately pins the
+miners+items residual to the exact dollar — so a re-introduced fee or a dropped
+term can't hide behind the known gap.
+
+**The rule.** Two calculations that must agree need a test that says they agree,
+on real data. A "rows sum to my own headline" invariant proves internal
+consistency and nothing about whether the headline is the *right number*.
+
+---
+
 ## 2026-08-13 — A whitelist merge on load ate every "carve-out" field
 
 The rebuilt character creator saved the designed face correctly and the game
@@ -2441,7 +2492,352 @@ way.
   What caught this was diffing the fills of the SVG the creator rendered
   against the SVG the game rendered, in one run of the real app.
 
-## 2026-08-13 — A screenshot tool that fails silently is worse than one that crashes
+---
+
+## 2026-08-13 — A gate can be a deadlock, and "monotonic" is a claim you have to test
+
+**Report.** A player 52 weeks in, $3,000, employed: "Cannot redeem weekly
+reward, can't use features of smartphone and PC." Save validated clean, zero
+error logs. Nothing had crashed — the save was simply parked at unlock tier 2
+with twelve of the phone/PC apps padlocked, and the weekly challenge showing a
+reward whose objectives that tier gave no route to.
+
+**What went wrong.** Two separate faults in `lib/progress/featureUnlocks.ts`
+and `lib/progress/lifeChapters.ts`, either of which alone would have been
+survivable.
+
+1. **The progression spine was circular.** Chapter 3's goal is "buy your first
+   stock or property" while `app:stocks` and `app:realestate` were tier 3 —
+   *finish chapter 3*. Chapter 4's is "own a company" while `app:company` was
+   tier 4. Neither chapter could be completed through the chapter path at all.
+2. **The one escape route slid backwards.** `unlockTier`'s milestone fallback
+   read `stats.money + bankSavings`, the current LIQUID balance, so spending
+   lowered the tier. Buying a $200k property re-locked the Real Estate app that
+   manages it. The file's own header said "NOTHING IS EVER TAKEN AWAY —
+   `unlockTier` is monotonic in progress". It was not, and no test asserted it:
+   the nearest one ("losing money never takes a tab away") pinned the *chapter*
+   axis while leaving the milestone axis untested.
+
+**The patterns.**
+
+- **A comment asserting an invariant is a TODO for a test.** Rule 2 had been
+  written down, believed and quoted for months. The property is one assertion
+  wide — `unlockTier(after) >= unlockTier(before)` across a spend — and nobody
+  wrote it, so the claim aged into documentation of something false.
+- **Derived-not-stored does not mean derived-from-anything.** Deriving unlock
+  state from live state was the right call (no migration can guess what a save
+  already had). But a derived value inherits its source's shape: derive a
+  monotonic property from a balance and you get a non-monotonic property. The
+  fix keeps it derived and swaps the source for one that is already monotonic
+  and already persisted — `lifetimeStatistics.peakNetWorth`, maintained every
+  tick by `applyLifetimeStatistics`. No new field, no migration, no guess.
+- **Check gates for cycles the moment a goal names a surface.** "Complete X to
+  unlock Y" plus "Y is how you do X" is invisible in either table on its own;
+  it only shows up when you read them together. The guard is now a test that
+  walks the goal table and fails if any goal's required app is gated at or
+  above that goal's own chapter tier.
+- **A clean validation report is a finding, not a dead end.** Valid save, no
+  errors, no warnings — which ruled out corruption and pointed straight at
+  logic that was working exactly as written.
+
+---
+
+## 2026-08-14 — A clock-farm fix that closes one faucet has siblings
+
+Weekly audit. The daily-login gem reward (`home.tsx`) was hardened against a
+forward-clock scrub in the 2026-07-24 ECON-1 fix: it gained a `weeksLived`
+game-week gate (`lastLoginRewardWeek`, v31) on top of the UTC day-key + epoch
+guards, because those two only refuse a REWOUND clock — advancing the device
+date a day at a time sailed straight through both.
+
+**The sibling faucet was left open.** `SubscriptionActions.claimDailyGems`
+(surfaced by `DailyGemClaim`, shown to ALL players) is the OTHER daily-gem
+faucet, and it still passed only the day-key + epoch to `canClaimDailyGemsFor`.
+The `gameWeek` gate was already a parameter of that shared helper — the fix had
+built the mechanism and wired it into one of the two callers. Forward-scrubbing
+minted 20 gems/day (free) with no play; gems are IAP currency.
+
+**Rules.**
+
+- When you close a device-clock farm, grep for every caller of the same
+  predicate. A shared guard with an optional hardening argument is a trap: the
+  call site that omits the argument looks identical to one that can't need it.
+  `git grep canClaimDailyGemsFor` would have found both callers in one line.
+- The fix is per-tier where the GRACE is per-tier. The free tier has no
+  daily-check-in grace, so it gets the game-week gate unconditionally. The
+  DeepLife+ drop has a deliberate, separately-tested grace (claim on any new
+  calendar day without playing), so gating paying members is a retention
+  decision, not a bug fix — left to the owner, not changed unattended. Correct
+  fixes still respect a documented product choice; flag it, don't overwrite it.
+- §7 has drifted in practice. `lastAdCashBonusWeek` shipped as an
+  undefined-default settings marker with a comment asserting "no migration or
+  STATE_VERSION bump is owed" — which contradicts §7's "still bump the version"
+  and the v31 `lastLoginRewardWeek` precedent. Both are functionally correct for
+  a pure carve-out; the canonical rule (bump) is what this change followed.
+
+### 2026-08-14 - Android local build: the "failure" was a working guard, and the real bug was next to it
+
+- What went wrong: the Android Play Store local build (run #5) failed in two
+  seconds with "Submit is ticked but GOOGLE_PLAY_SERVICE_ACCOUNT_JSON repo secret
+  is not set". This was reported as a build failure to fix in code. It is not:
+  the secret is genuinely absent from the repo, and the step exists precisely to
+  refuse that combination BEFORE spending a ~40-minute native build on an upload
+  that cannot happen. Nothing in the repo could have made that run pass — only
+  the owner adding the secret (or unticking Submit) can.
+- Pattern: a fail-fast guard reports as a red job identical in shape to a real
+  break. The tell is the timing and the message: a job that dies in seconds on a
+  step whose whole body is a `test -n`/`exit 1` is a precondition being enforced,
+  not a regression. Read the failing step before changing anything, and check
+  whether the missing input is something the repo can even supply — a repo secret
+  is an owner action, not a code change.
+- Rule: when a CI failure names a missing secret, do NOT weaken or delete the
+  guard to get green. Confirm the secret is unset (the log prints the env var as
+  empty rather than `***`), tell the owner exactly how to set it, and spend the
+  investigation on the code paths the failing run exposed instead.
+
+- Second finding, the one that mattered: that same run was dispatched with
+  version `1.4.1` while `package.json` was `2.8.0`. The workflow validated the
+  version's FORMAT but never its ORDERING, so it would have stamped the binary
+  version DOWN by more than a full major. This is exactly the confusion CLAUDE.md
+  §9 documents — 1.4.x is the App Store Connect version RECORD (what users see on
+  the store page), a deliberately different number from the binary version — but
+  §9 only explains the split, it never stopped the wrong number being typed into
+  the field that sets the binary one. Both local workflows now refuse a version
+  lower than `package.json`'s current value (equal still allowed, so a rebuild at
+  the same marketing version with a fresh build number works).
+- Pattern: documenting that two numbers are different does not stop them being
+  swapped at the one input where it matters. A `workflow_dispatch` string input
+  is an unvalidated hand-typed value on the release path; format validation reads
+  like validation while leaving the failure mode wide open.
+- Rule: any release input that stamps a monotonic value must be checked against
+  the current value, not just its shape. Compare numerically, not as strings
+  (`2.10.0` must beat `2.8.0`).
+
+- Third finding: both local workflows carried comments asserting `eas.json` sets
+  `cli.appVersionSource: "local"`. It does not and never has (`git log -S` finds
+  no such commit) — it is `"remote"`. The 2026-06-11 lesson below prescribes
+  flipping it to `"local"`, and acting on that today would BREAK the working
+  cloud path: `eas-build.yml` has no BUILD_NUMBER step and relies on remote +
+  `autoIncrement`, so `"local"` would bake app.config.js's `"99"` fallback into
+  every cloud build. The remote setting is not blocking `--local` builds in
+  practice: `eas-build-local-ios.yml`'s `submit-ios` job succeeds against
+  TestFlight (verified 2026-08-12), which Apple would refuse if BUILD_NUMBER were
+  ignored and CFBundleVersion repeated. The comments are corrected; the stale
+  remedy is annotated rather than deleted.
+- Pattern: a lesson's RULE can outlive the behavior that motivated it (eas-cli
+  changed), while the diagnosis stays true. A remedy that was never applied and
+  is contradicted by months of green submits is a trap for the next reader, who
+  finds config "disagreeing with the documented rule" and helpfully aligns it.
+- Rule: before aligning config to a documented rule, check whether the current
+  config is actually failing. Evidence of the pipeline working beats a written
+  rule; when they conflict, annotate the rule with the evidence and the date.
+
+### 2026-08-14 — "Can't access apps": a high-water mark that only the week tick ever stamped
+
+- What happened: a player reported "Can't access apps, can't claim reward" with
+  three screenshots. The timestamps carry the diagnosis: 23:04 home screen,
+  $2,522; 23:05 app grid, $1,747 and a desktop launcher. They bought a computer
+  in between, and in the later grid exactly two apps are open — Contacts and
+  Bank, the only tier-1 rows in `FEATURE_UNLOCKS`. At $2,522 the save was tier 2.
+  **Spending money took the app grid away**, which `featureUnlocks.ts` rule 2
+  says cannot happen ("NOTHING IS EVER TAKEN AWAY... the rule holds by
+  construction").
+- Root cause: `wealthMark` is `Math.max(liquid, liveNetWorth, peakNetWorth)`.
+  Only the last term is monotonic, and **`Math.max` of a monotonic term and two
+  non-monotonic ones is not monotonic** — whenever a live term is the maximum,
+  which is exactly when the player is at a new high, spending lowers the result.
+  The floor only holds if `peakNetWorth` keeps up, and it was written in one
+  place: `applyLifetimeStatistics`, once per week tick, from the balance at the
+  START of that tick. Money earned and spent between two Next Week presses was
+  never sampled at all — and early play is mostly that kind of money.
+- Pattern, and the reason this is the SECOND report of the same bug (2026-08-13,
+  2026-08-14): the first fix added a monotonic term to a `max()` and the header
+  comment then claimed monotonicity "by construction". Adding a floor to a
+  maximum does not make the maximum monotonic; it only raises the level below
+  which it cannot fall. The property was asserted in prose and never tested as a
+  property — the suite checked tiers at fixed states, which every version of this
+  code passes.
+- Rule: when a value is documented as monotonic, test it as a WALK — a sequence
+  of increases and decreases, asserting the derived quantity never decreases —
+  not as a table of endpoints. `__tests__/onboarding/wealthRatchet.test.ts` does
+  that now.
+- Rule: a high-water mark sampled on a schedule is not a high-water mark, it is a
+  sample. If the quantity it tracks can move between samples, the mark has to be
+  taken where the quantity moves.
+- Where the fix went, and why not MoneyActions: CLAUDE.md §4.4 makes
+  `updateMoney`/`applyMoneyDelta`/`batchUpdateMoney` the documented way to move
+  money, which makes them look like the choke point. They are not — `buyItem`,
+  `sellItem` and many other actions write `stats.money` inside their own updater,
+  correctly, for the atomicity §4.4 itself demands. The purchase in this very bug
+  report goes through `buyItem`, so a hook there would have missed it. The one
+  place every writer passes through is `GameStateContext.wrappedSetGameState`,
+  where `updatedAt` is already stamped. It is liquid-only so it stays O(1) on the
+  state-write path; the tick keeps stamping the asset-inclusive figure weekly.
+- Second, smaller finding, and the other half of the report: `LifeChapterCard`'s
+  completed state rendered a full-width solid-amber bar with bold dark text —
+  pixel-for-pixel the app's primary CTA — on a `View` with no handler. The
+  read-only design is right (the week tick owns granting; a second path in the
+  card is one re-wire from paying twice) but the STYLING contradicted it, so the
+  bar got tapped and did nothing. "Can't claim reward."
+- Rule: when a component is deliberately non-interactive, the fix for a dead tap
+  is to remove the affordance, not to add the handler. A correct architectural
+  decision still has to be legible in the pixels, or the field reports it as a
+  bug.
+
+### 2026-08-14 (later) — auditing the fix: the sibling card, and the exploit the fix created
+
+Follow-up audit of the progression spine after the wealth-ratchet fix. The
+static layer (`npm run audit:weekly`) was clean across all five domains, which
+is the useful part of the lesson: none of what follows is visible to a grep.
+
+**1. The fix had a twin one card down.** `LifeChapterCard`'s fake CTA was fixed
+from a bug report. `AmbitionCard` — directly below it on the same screen,
+carrying the largest reward in the game — had the identical solid-amber
+button-shaped `View` with no handler. The reporter's own screenshot showed both
+cards stacked.
+
+- Pattern: the same rule as the 2026-08-13 daily-gem lesson, in a different
+  material. When a defect is a PATTERN rather than a typo, fixing the reported
+  instance is half the job; the other half is grepping for the pattern. There
+  the shared thing was a predicate with an optional argument, here a style
+  block, and neither shows up as a duplicate of the other.
+- Rule: after fixing a UI affordance defect, grep the styles, not just the
+  logic. `backgroundColor: '#FBBF24'` found the twin in one line.
+
+**2. A monotonicity fix is only as monotonic as its weakest input.** `unlockTier`
+takes `max(byChapters, byMilestone)`, and the ratchet made the wealth term
+monotonic — but `byMilestone`'s tier-1 condition also read `state.currentJob`,
+which goes to `undefined` on quitting or being fired. A player hired in week 1
+who left before week 4, still under $500 (a life starts with $200), dropped
+tier 1 → 0 and lost the Progression tab, Contacts and Bank.
+
+- Pattern: I fixed the input the bug report pointed at and did not enumerate the
+  others. A function claiming a monotonicity property needs EVERY input checked
+  against it, not the one that was reported.
+- Rule: when fixing "X can go backwards", list every term feeding X and mark
+  each monotonic or not. It is a five-minute exercise and it found this.
+
+**3. The fix created an exploit — and half-fixing it was worse than not.**
+`LoanActions` credits the whole loan principal to `stats.money`. Before the
+ratchet, borrowing bought unlock tiers TEMPORARILY (spend the principal, lose
+them). Making the mark permanent made the purchase permanent: ~$10k of principal
+is within a 43% debt-to-income cap for a newly-employed character, which banks
+tier 3 in week 5 and skips three chapters of disclosure for good.
+
+The first attempt subtracted debt in the ratchet only. That closed the permanent
+case and left the temporary one, because `wealthMark`'s own liquid term still
+read the raw balance — and a test written to assert the intended behaviour
+FAILED against the half-fix, which is the only reason it was caught rather than
+shipped as done. Both `netWorth` and the ratchet were already debt-adjusted;
+the raw balance was the last place borrowed money read as wealth.
+
+- Pattern: a "sticky" mechanism makes every pre-existing inflation of the
+  underlying value permanent too. Adding memory to a value converts its
+  transient bugs into permanent ones — the audit question is not "is this value
+  right now" but "was it ever briefly wrong".
+- Rule: write the assertion for the behaviour you INTEND, not for the behaviour
+  you just implemented. The failing expectation is the whole value of the test.
+- Rule: when several terms feed one figure, they must all be adjusted the same
+  way. Two of three were net of debt and the third was not, which is exactly the
+  kind of disagreement that reads as correct in every individual diff.
+
+**4. The most convincing finding of the audit was wrong, and tracing it saved
+the bug.** `ch2_make_friend` is `relationships.length > 0` and `initialState`
+seeds Mom and Dad, so chapter 2's fourth goal is ticked at week 0. It looked
+open-and-shut, and the sibling ambition system had ALREADY made the tightening
+with a comment justifying it ("Exclude the starting parents ... so 'Make a
+Connection' doesn't auto-complete at birth"). A precedent in the same repo,
+solving the same problem, in a file one directory away.
+
+Tracing the routes to a non-family relationship inverted it. Spark is tier 2,
+and a network-favour introduction needs a `business` contact —
+`FAVOR_KIND_BY_CONTACT` excludes personal kinds on purpose. A player working on
+chapter 2 is at tier 1 with two parents and no business contacts, so Spark is
+the only route, and chapter 2 is what unlocks Spark. Tightening it deadlocks the
+chapter — rule 3, the same trap a player was stranded in on 2026-08-13. The
+permissive check is load-bearing.
+
+- Pattern: a precedent proves the fix is REASONABLE, never that it is SAFE here.
+  The ambition milestone is not gated behind the thing it requires; the chapter
+  goal is. Same predicate, different position in the dependency graph, opposite
+  correct answer.
+- Rule: before tightening a check that gates progression, enumerate the routes
+  to satisfying it AND the tier each route is gated at. If every route sits at or
+  above the tier the check itself unlocks, that is a deadlock, not a fix.
+- Rule: when a permissive-looking check turns out to be load-bearing, the
+  deliverable is the guard, not the change — a comment at the site and a test
+  that spells out the argument. The next reader will find this exactly as
+  convincing as I did.
+
+**5. One thing deliberately NOT fixed**, in `tasks/todo.md` with the numbers: the
+chapter ladder re-pays ~$42,500 and ~700 gems on every prestige (defensible as
+designed, but note `legacyContracts` resetting the same way WAS treated as a bug
+in v36). That removes a reward players currently receive on a reading of intent
+— an owner call, not an audit call.
+
+### 2026-08-14 (round 2) — three scripted sweeps, and the review that cleared a dead field
+
+Four audit passes past the progression spine. `npm run audit:weekly` was clean
+before and after all of it, which is the standing lesson about what static
+analyzers can and cannot see.
+
+**1. A triage note answers the question it was written for, and no other.**
+`weeksInPoverty` gates `scholarshipOpportunity`, the game's safety net for a
+player who is broke with no education. The event is registered, its special
+effect is handled in the week loop and stress-tested — and it could never fire,
+because nothing in the repo ever wrote the field. One counter, and the whole
+rescue was dead for exactly the player it was for.
+
+The field had been reviewed. `invisibleStateP2.test.ts` triages it under
+"logic, no UI" with the note "gates one event at >= 12 weeks", and that review
+was CORRECT: the player does not need to see the number. It just never asked
+whether the number moves.
+
+- Pattern: a recorded "deliberately unchanged" is scoped to one question and
+  reads as clearance against all of them. It is worse than no note, because the
+  next reader sees a name that has already been looked at and moves on.
+- Rule: when recording a deliberate no-change, write down WHICH question was
+  asked. "Needs no UI" and "works" are different findings.
+- Rule: for any field that gates content, check the writer before the reader. A
+  gate with no writer is not a subtle bug — it is a feature that does not exist,
+  and it looks identical to one that does in every diff and every grep of the
+  reader.
+
+**2. A constant with no consumer is worse than a magic number.** A bare `4` at
+least tells you where the behaviour is. `ZERO_STAT_DEATH_WEEKS = 4` sat in
+`gameConstants.ts` with zero code consumers while both death checks used the
+literal — and `lib/realEstate/rentals.ts` cited the CONSTANT by name in its own
+reasoning, treating it as authoritative. Tuning the most consequential number in
+the game there would have changed nothing. Six more of the same shape.
+
+- Pattern: the named copy is the one a maintainer will edit, because it lives in
+  the file called "constants". The literal is the one that runs.
+- Rule: a constant is either used or deleted. `grep -c` for its own name is a
+  five-second check and it found seven.
+- Rule: a test that pins a literal (`toMatch(/>= 4/)`) blocks the fix and proves
+  nothing about the named copy. Pin BOTH — that the code reads the constant, and
+  that the constant holds the value.
+
+**3. Press feedback is a promise.** A scripted sweep of every pressable element
+found `ProgressOverview`'s achievement cards wrapping content in a
+`TouchableOpacity` with `activeOpacity={0.7}` and no handler: it dimmed under a
+finger and did nothing. Same class as the reward banners from the report earlier
+today, found by script rather than by another support email.
+
+- Rule: after fixing an interaction defect by hand, write the sweep. The two
+  banners were found by reading; this one would not have been.
+
+**4. When a guard reads a field nothing writes, look for the state that
+replaced it.** `reviewMoments` avoids asking for an App Store rating right after
+something bad, and its money arm read `bankruptcyTriggered` — which nothing
+writes, as `types.ts` itself says. So a player who had just fallen behind on
+their bills could be asked for five stars. `overdueBalance` (v31) is the failure
+state the money axis actually got, and the guard now reads it.
+
+- Pattern: a system gets a new failure state and the old flag is left behind. The
+  guard still compiles, still reads sensibly, and silently guards nothing.
+
+## 2026-08-14 — A screenshot tool that fails silently is worse than one that crashes
 
 Recapturing the store screenshots after the avatar revamp took four runs, and
 every failure had the same shape: **the tool carried on and produced output.**

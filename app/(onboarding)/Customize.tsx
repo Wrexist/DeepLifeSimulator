@@ -21,6 +21,7 @@ import OnboardingScreenShellV2 from '@/components/onboarding/OnboardingScreenShe
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import OnboardingStepBar from '@/components/onboarding/OnboardingStepBar';
+import AppearanceEditor from '@/components/onboarding/AppearanceEditor';
 import VectorAvatar from '@/components/avatar/VectorAvatar';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
 import {
@@ -402,77 +403,19 @@ export default function Customize() {
             >
               <Text style={styles.sectionTitle}>Appearance</Text>
 
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryStrip}
-              >
-                {categories.map((entry, index) => {
-                  const isSelected = entry.field === category.field;
-                  return (
-                    <TouchableOpacity
-                      activeOpacity={0.75}
-                      key={entry.field}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${entry.label} options`}
-                      accessibilityState={{ selected: isSelected }}
-                      onPress={() => {
-                        haptic.selection();
-                        setActiveCategory(index);
-                      }}
-                      style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                    >
-                      <Text
-                        style={[styles.categoryLabel, isSelected && styles.categoryLabelSelected]}
-                      >
-                        {entry.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              <View style={styles.optionGrid}>
-                {category.options.map((option, index) => {
-                  const isSelected = avatar[category.field] === index;
-                  const label = `${category.label} ${option.label}`;
-
-                  if (category.kind === 'color') {
-                    return (
-                      <TouchableOpacity
-                        activeOpacity={0.75}
-                        key={`${category.field}-${index}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={label}
-                        accessibilityState={{ selected: isSelected }}
-                        onPress={() => handleSelectOption(index)}
-                        style={[styles.swatch, isSelected && styles.swatchSelected]}
-                      >
-                        <View style={[styles.swatchFill, { backgroundColor: option.color }]} />
-                      </TouchableOpacity>
-                    );
-                  }
-
-                  return (
-                    <TouchableOpacity
-                      activeOpacity={0.75}
-                      key={`${category.field}-${index}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={label}
-                      accessibilityState={{ selected: isSelected }}
-                      onPress={() => handleSelectOption(index)}
-                      style={[styles.optionChip, isSelected && styles.optionChipSelected]}
-                    >
-                      <Text
-                        style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}
-                        numberOfLines={1}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {/* Extracted to `components/onboarding/AppearanceEditor`. It used
+                  to be ~90 lines of inline JSX rendering option NAMES — you
+                  chose a hairstyle by tapping the word "Fro" and looking up at
+                  the avatar to see what happened. See that file for the rest. */}
+              <AppearanceEditor
+                avatar={avatar}
+                sex={sex}
+                age={scenarioAge}
+                categories={categories}
+                activeIndex={activeCategory}
+                onChangeCategory={setActiveCategory}
+                onSelectOption={handleSelectOption}
+              />
             </LinearGradient>
           </BlurView>
         </View>
@@ -696,74 +639,6 @@ const styles = StyleSheet.create({
         textShadowRadius: 3,
       },
     }),
-  },
-  categoryStrip: {
-    gap: responsiveSpacing.xs,
-    paddingRight: responsiveSpacing.sm,
-    paddingVertical: verticalScale(2),
-  },
-  categoryChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: verticalScale(8),
-  },
-  categoryChipSelected: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    borderColor: 'rgba(96, 165, 250, 0.85)',
-  },
-  categoryLabel: {
-    fontSize: fontScale(12),
-    fontWeight: '700',
-    color: '#CBD5E1',
-  },
-  categoryLabelSelected: {
-    color: '#FFFFFF',
-  },
-  optionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: responsiveSpacing.sm,
-  },
-  swatch: {
-    width: scale(42),
-    height: scale(42),
-    borderRadius: scale(21),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    padding: scale(3),
-  },
-  swatchSelected: {
-    borderColor: '#60A5FA',
-    borderWidth: 2,
-  },
-  swatchFill: {
-    flex: 1,
-    borderRadius: scale(18),
-  },
-  optionChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    minWidth: scale(84),
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: verticalScale(10),
-  },
-  optionChipSelected: {
-    backgroundColor: 'rgba(59, 130, 246, 0.18)',
-    borderColor: 'rgba(96, 165, 250, 0.85)',
-  },
-  optionLabel: {
-    fontSize: fontScale(12),
-    fontWeight: '700',
-    color: '#CBD5E1',
-    textAlign: 'center',
-  },
-  optionLabelSelected: {
-    color: '#FFFFFF',
   },
   nameRow: {
     gap: responsiveSpacing.sm,

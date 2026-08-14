@@ -55,7 +55,7 @@ import {
   initializeAndSaveGame,
 } from '@/src/features/onboarding/gameInitializer';
 import { resolveNewLifeSlot } from '@/src/features/onboarding/slotSafety';
-import { snapshotOutgoingSave } from '@/utils/saveBackup';
+import { snapshotOutgoingSave , createBackupFromState } from '@/utils/saveBackup';
 import {
   logOnboardingStepView,
   logOnboardingValidationError,
@@ -74,7 +74,6 @@ import { logger } from '@/utils/logger';
 import { validateOnboardingState, applySafeDefaults } from '@/utils/onboardingValidation';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { forceSave } from '@/utils/saveQueue';
-import { createBackupFromState } from '@/utils/saveBackup';
 import { isSaveSigningConfigError } from '@/utils/saveValidation';
 import { IAPService } from '@/services/IAPService';
 const LinearGradient = Gradient;

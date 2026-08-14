@@ -29,7 +29,7 @@ import {
   calculateWeddingReputationBonus,
 } from '@/lib/dating/weddingVenues';
 import type { Dispatch, SetStateAction } from 'react';
-import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { DIVORCE_LAWYER_BASE_FEE, WEEKS_PER_YEAR, WEDDING_DEPOSIT_RATE, DIVORCE_SETTLEMENT_BASE } from '@/lib/config/gameConstants';
 import { findCommittedPartner } from '@/lib/dating/relationshipGuards';
 import { buildSpouseRecord } from '@/lib/dating/spouseRecord';
 import { bumpSparkLifetimeStat, clearPromotedSparkMatch } from '@/lib/dating/sparkStats';
@@ -638,7 +638,7 @@ export const planWedding = (
   }
 
   // Check if can afford deposit (25% upfront)
-  const deposit = Math.floor(plan.budget * 0.25);
+  const deposit = Math.floor(plan.budget * WEDDING_DEPOSIT_RATE);
   if (gameState.stats.money < deposit) {
     return {
       success: false,
@@ -833,7 +833,7 @@ export const calculateDivorceCosts = (gameState: GameState, spouseId: string): {
   // This ensures preview matches actual divorce
   const spouseForCalc = gameState.relationships?.find(r => r.id === spouseId && r.type === 'spouse');
   const spouseHash = spouseForCalc ? spouseForCalc.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
-  const settlementRatio = 0.15 + ((spouseHash % 20) / 100); // 15-35% of net worth (deterministic)
+  const settlementRatio = DIVORCE_SETTLEMENT_BASE + ((spouseHash % 20) / 100); // 15-35% of net worth (deterministic)
   const settlement = Math.floor(netWorth * settlementRatio);
   const lawyerFees = DIVORCE_LAWYER_BASE_FEE;
   const liquidAssets = safeNumber(gameState.stats.money) + safeNumber(gameState.bankSavings);

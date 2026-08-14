@@ -17,6 +17,14 @@
  *   - Stat clamping: every pet stat stays in [0, 100]
  */
 
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import type { GameState, Pet } from '@/contexts/game/types';
+import { validateGameState } from '@/utils/saveValidation';
+import { PET_LIFESPANS, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -29,16 +37,8 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import type { GameState, Pet } from '@/contexts/game/types';
-import { validateGameState } from '@/utils/saveValidation';
-import { PET_LIFESPANS, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 const { act } = TestRenderer;
 const h = React.createElement;

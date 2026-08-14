@@ -14,7 +14,7 @@ import { getActiveRental, getRentalPlan } from '@/lib/vehicles/scooterRental';
 import { PILOT_LICENSE, isAircraftVehicleId } from '@/lib/vehicles/aircraft';
 import { rejectIfBlocked } from './_guards';
 import { logger } from '@/utils/logger';
-import { trackBudgetSpend } from '@/lib/banking/operations';
+import { trackBudgetSpend , quoteLoan } from '@/lib/banking/operations';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import {
@@ -29,6 +29,21 @@ import {
   AccidentSeverity,
 } from '@/lib/vehicles/vehicles';
 import type { Dispatch, SetStateAction } from 'react';
+
+// ---------------------------------------------------------------------------
+// VehicleApp Remake 8: Auto-loan financing via the banking system.
+// ---------------------------------------------------------------------------
+
+import {
+  AutoDownTier,
+  AutoTerm,
+  AUTO_TERM_WEEKS,
+  autoPreflight,
+  originateAuto,
+} from '@/lib/vehicles/auto';
+import { calculatePeriodicPayment } from '@/lib/banking/amortization';
+import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
+import type { Loan } from '../types';
 
 const log = logger.scope('VehicleActions');
 
@@ -806,22 +821,6 @@ export const getActiveVehicleSpeedBonus = (gameState: GameState): number => {
   if (!vehicle || vehicle.condition < 20 || vehicle.fuelLevel < 10) return 0; // Must be in usable condition
   return vehicle.speedBonus || 0;
 };
-
-// ---------------------------------------------------------------------------
-// VehicleApp Remake 8: Auto-loan financing via the banking system.
-// ---------------------------------------------------------------------------
-
-import {
-  AutoDownTier,
-  AutoTerm,
-  AUTO_TERM_WEEKS,
-  autoPreflight,
-  originateAuto,
-} from '@/lib/vehicles/auto';
-import { quoteLoan } from '@/lib/banking/operations';
-import { calculatePeriodicPayment } from '@/lib/banking/amortization';
-import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
-import type { Loan } from '../types';
 
 const newLoanId = (): string =>
   `loan-auto-${Math.floor(Math.random() * 1e9).toString(36)}`;

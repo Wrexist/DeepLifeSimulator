@@ -15,6 +15,17 @@
  *   6. Edge cases: cheapest scenario, oldest scenario, full perk loadout.
  */
 
+import React from 'react';
+import { GameProvider } from '@/contexts/game/GameProvider';
+import { useGameState, useGameActions } from '@/contexts/game';
+import { UIUXProvider } from '@/contexts/UIUXContext';
+import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
+import type { GameState } from '@/contexts/game/types';
+import { validateGameState } from '@/utils/saveValidation';
+import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
+import { scenarios as LIFE_PATH_SCENARIOS } from '@/src/features/onboarding/scenarioData';
+import { validateOnboardingInputs } from '@/src/features/onboarding/gameInitializer';
+
 jest.mock('@/utils/saveQueue', () => ({
   saveQueue: {
     addToQueue: jest.fn().mockResolvedValue(undefined),
@@ -27,19 +38,8 @@ jest.mock('@/utils/saveQueue', () => ({
   queueSave: jest.fn().mockResolvedValue(undefined),
   forceSave: jest.fn().mockResolvedValue(undefined),
 }));
-
-import React from 'react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TestRenderer = require('react-test-renderer');
-import { GameProvider } from '@/contexts/game/GameProvider';
-import { useGameState, useGameActions } from '@/contexts/game';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
-import type { GameState } from '@/contexts/game/types';
-import { validateGameState } from '@/utils/saveValidation';
-import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
-import { scenarios as LIFE_PATH_SCENARIOS } from '@/src/features/onboarding/scenarioData';
-import { validateOnboardingInputs } from '@/src/features/onboarding/gameInitializer';
 
 const { act } = TestRenderer;
 const h = React.createElement;
