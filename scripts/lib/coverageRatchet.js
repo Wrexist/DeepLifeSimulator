@@ -76,6 +76,12 @@ const COVERAGE_GOAL = 70;
  *    NOT a bug. The false positive it looked like is unreachable, because the
  *    caller rejects an overdraft twenty lines above the clamp. The tests
  *    document that instead.
+ *
+ *    Re-measured after merging #131 (child proportions, store screenshots,
+ *    ASO metadata), which moved every metric again. The floors set here are
+ *    unchanged and still sit 0.55-0.67 under the measurement — the gain is
+ *    shared between that PR and this one, and there is no reason to claim it
+ *    twice.
  */
 const COVERAGE_FLOORS = {
   statements: 51.4,
@@ -106,10 +112,10 @@ const COVERAGE_FLOORS = {
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 51.91,
-  branches: 34.01,
-  functions: 43.06,
-  lines: 53.23,
+  statements: 52.05,
+  branches: 34.05,
+  functions: 43.25,
+  lines: 53.37,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];
