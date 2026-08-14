@@ -28,12 +28,32 @@
  *    completed chapters only accumulate, and the fallbacks below only ever
  *    raise the tier. A player cannot lose a tab by losing money.
  *
+ *    This was a claim before it was true. The milestone fallback read
+ *    `stats.money + bankSavings` — the current liquid balance — so spending
+ *    LOWERED the tier and padlocked apps the player already had. Buying a
+ *    $200k property at tier 3 re-locked the Real Estate app that manages it;
+ *    a player holding $1M in stocks with an empty current account read as
+ *    broke. It now reads `wealthMark()`, a high-water mark over
+ *    `lifetimeStatistics.peakNetWorth` (persisted, already monotonic) plus
+ *    live net worth and the raw balance, so the rule holds by construction.
+ *    Reported by a player on 2026-08-13, 52 weeks in and locked out of most
+ *    of the phone and PC app grid.
+ *
+ * 3. A CHAPTER'S GOAL MUST NOT NEED AN APP THAT CHAPTER UNLOCKS. Chapter 3's
+ *    goal is "buy your first stock or property" while Stocks and Real Estate
+ *    sat at tier 3 = "Finish Chapter 3", and chapter 4's is "own a company"
+ *    while Company sat at tier 4. Neither chapter could be completed through
+ *    the chapter path at all — only the cash milestone let anyone past, which
+ *    is why defect 2 above was load-bearing rather than cosmetic. An app a
+ *    chapter goal depends on belongs one tier BELOW that chapter; the test
+ *    suite enforces it from the goal table.
+ *
  * Locked features are shown with a padlock and their requirement rather than
  * hidden, so the shape of the game is legible from week 1 and the tab bar does
  * not reshuffle underneath the player as things unlock.
  */
 import type { GameState } from '@/contexts/game/types';
-import { LIFE_CHAPTERS } from './lifeChapters';
+import { LIFE_CHAPTERS, wealthMark } from './lifeChapters';
 
 /**
  * Tier 0 is "before you have finished anything" — the state a brand-new
@@ -112,16 +132,22 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'app:education', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:paw', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:pet', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
+  // Stocks and Real Estate are the ONLY ways to satisfy chapter 3's "buy your
+  // first stock or property", so they open at the tier chapter 3 starts from —
+  // see rule 3 in the header. Market sells no securities and rents rather than
+  // sells homes, so there is no third route.
+  { id: 'app:stocks', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
+  { id: 'app:realestate', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
 
   // ── Tier 3 — On The Rise done: $10k, a partner, an investment ───────────
-  { id: 'app:stocks', tier: 3, requirement: 'Finish Chapter 3: On the Rise' },
-  { id: 'app:realestate', tier: 3, requirement: 'Finish Chapter 3: On the Rise' },
   { id: 'app:bitcoin', tier: 3, requirement: 'Finish Chapter 3: On the Rise' },
   { id: 'app:vehicle', tier: 3, requirement: 'Finish Chapter 3: On the Rise' },
   { id: 'app:travel', tier: 3, requirement: 'Finish Chapter 3: On the Rise' },
+  // Same rule: chapter 4's "own a company" needs this app, so it cannot be
+  // gated behind chapter 4's own completion.
+  { id: 'app:company', tier: 3, requirement: 'Finish Chapter 3: On the Rise' },
 
   // ── Tier 4 — Building Empire done: $50k net, a business, a degree ───────
-  { id: 'app:company', tier: 4, requirement: 'Finish Chapter 4: Building an Empire' },
   { id: 'app:gaming', tier: 4, requirement: 'Finish Chapter 4: Building an Empire' },
   { id: 'app:streaming', tier: 4, requirement: 'Finish Chapter 4: Building an Empire' },
   { id: 'app:statistics', tier: 4, requirement: 'Finish Chapter 4: Building an Empire' },
@@ -169,13 +195,17 @@ export function unlockTier(state: GameState | undefined | null): UnlockTier {
   if (prestiged || weeksLived >= 120) return 5;
 
   // Milestone fallbacks, for saves whose chapter flags never got written.
-  const netish = num(state.stats?.money) + num(state.bankSavings);
+  //
+  // The thresholds mirror the money goal of each chapter, and they read the
+  // same `wealthMark` those goals read — a high-water mark, not a balance, so
+  // this axis can only ever climb (rule 2 in the header).
+  const wealth = wealthMark(state);
   let byMilestone = 0;
-  if (state.currentJob || netish >= 500 || weeksLived >= 4) byMilestone = 1;
-  if (netish >= 2_000) byMilestone = 2;
-  if (netish >= 10_000) byMilestone = 3;
-  if (netish >= 50_000) byMilestone = 4;
-  if (netish >= 200_000) byMilestone = 5;
+  if (state.currentJob || wealth >= 500 || weeksLived >= 4) byMilestone = 1;
+  if (wealth >= 2_000) byMilestone = 2;
+  if (wealth >= 10_000) byMilestone = 3;
+  if (wealth >= 50_000) byMilestone = 4;
+  if (wealth >= 200_000) byMilestone = 5;
 
   return Math.min(5, Math.max(byChapters, byMilestone)) as UnlockTier;
 }
