@@ -47,9 +47,17 @@ const baseLifetimeStatistics = (): LifetimeStatistics => {
  * One state write, exactly as `GameStateContext.wrappedSetGameState` performs
  * it: the updater's result, then the mark. Everything the player does — buying,
  * earning, a week tick — is one of these.
+ *
+ * `Pick<GameState, K>` rather than `Partial<GameState>`: spreading a Partial
+ * widens every key it names to `| undefined`, which is what made the first
+ * version of this helper reach for `as GameState` — the cast Hard Rule #3 bans,
+ * and for exactly this reason. Keyed on the fields actually passed, the spread
+ * IS a `GameState` and the compiler checks the fixture instead of being told.
  */
-const write = (state: GameState, patch: Partial<GameState>): GameState =>
-  ratchetWealthPeak({ ...state, ...patch } as GameState);
+const write = <K extends keyof GameState>(
+  state: GameState,
+  patch: Pick<GameState, K>,
+): GameState => ratchetWealthPeak({ ...state, ...patch });
 
 const withMoney = (money: number, overrides: Partial<GameState> = {}): GameState =>
   createTestGameState({

@@ -157,16 +157,25 @@ const styles = StyleSheet.create({
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#A855F7' },
   // Status, not a call to action: tinted fill and a full 1px border on all four
-  // sides (Hard Rule #7 bans one-sided accent bars), amber text rather than the
-  // solid amber fill + bold dark text the app's real buttons use.
+  // sides (Hard Rule #7 bans one-sided accent bars), rather than the solid amber
+  // fill + bold dark text the app's real buttons use. The amber tint is the same
+  // `rgba(251, 191, 36, 0.15)` AmbitionCard uses for its own non-button badge,
+  // directly below this card on the home screen.
+  //
+  // The COPY is `chapterTitle`'s `#F8FAFC`, not amber. The card paints its own
+  // background at 0.75 alpha, so what sits behind the text depends on the page
+  // under it: amber-on-tint measures ~7.6:1 over the dark home surface but
+  // ~3.4:1 over a light one, under AA for text this size. The card's own text
+  // colour clears 5:1 on both. Amber stays as the accent, on the icon and the
+  // border, where a contrast floor does not apply.
   completeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: scale(8),
     paddingVertical: scale(10), paddingHorizontal: scale(11),
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
     borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.4)',
   },
-  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: '#FBBF24' },
+  completeText: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: '#F8FAFC' },
   rewardHint: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
   rewardHintText: { fontSize: fontScale(11.5), color: '#94A3B8', fontWeight: '600' },
 });
