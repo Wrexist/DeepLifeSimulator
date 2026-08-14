@@ -9,6 +9,10 @@ import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { netWorth } from '@/lib/progress/achievements';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { getCombinedPerkEffects } from '@/lib/politics/perks';
+import { calculateGovernmentContractBonus } from '@/lib/politics/governmentContracts';
+import { calcGamingStreamingIncome } from './gamingStreamingIncome';
+import { logger } from '@/utils/logger';
 import { familyBrandIncomeMultiplier, findFamilyBusiness, legacyGenerationIncomeMultiplier } from '@/lib/business/familyBusinessEffects';
 import { 
   PROPERTY_THRESHOLD_1, 
@@ -114,7 +118,6 @@ export function calcWeeklyPassiveIncome(
   // Get political perks for real estate tax breaks
   let realEstateTaxBreak = 0;
   if (state.politics && state.politics.careerLevel > 0) {
-    const { getCombinedPerkEffects } = require('@/lib/politics/perks');
     const perkEffects = getCombinedPerkEffects(state.politics.careerLevel);
     realEstateTaxBreak = perkEffects.realEstateTaxBreak || 0;
   }
@@ -254,8 +257,6 @@ export function calcWeeklyPassiveIncome(
     // Apply political perks (business income bonus)
     if (state.politics && state.politics.careerLevel > 0) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { getCombinedPerkEffects } = require('@/lib/politics/perks');
         const perkEffects = getCombinedPerkEffects(state.politics.careerLevel);
         const businessIncomeBonus = typeof perkEffects?.businessIncomeBonus === 'number' && isFinite(perkEffects.businessIncomeBonus) && perkEffects.businessIncomeBonus > 0 ? perkEffects.businessIncomeBonus : 0;
         if (businessIncomeBonus > 0 && weeklyIncome > 0) {
@@ -271,8 +272,6 @@ export function calcWeeklyPassiveIncome(
     
     // Add government contract bonus
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { calculateGovernmentContractBonus } = require('@/lib/politics/governmentContracts');
       const contractBonus = calculateGovernmentContractBonus(state, company.id);
       if (typeof contractBonus === 'number' && isFinite(contractBonus) && contractBonus > 0) {
         weeklyIncome += contractBonus;
@@ -521,8 +520,6 @@ export function calcWeeklyPassiveIncome(
 
   // Gaming/Streaming passive income (from videos and stream history)
   // LONG-TERM DEGRADATION FIX: Use shared calculation function to avoid duplication
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { calcGamingStreamingIncome } = require('./gamingStreamingIncome');
   // Use weeksLived (absolute counter) — state.week cycles 1-4 and is for display only
   const safeWeeksLived = typeof state.weeksLived === 'number' && !isNaN(state.weeksLived) && isFinite(state.weeksLived) && state.weeksLived >= 0 ? state.weeksLived : 0;
   const gamingStreamingResult = calcGamingStreamingIncome(state.gamingStreaming, safeWeeksLived);
@@ -634,7 +631,6 @@ export function calcWeeklyPassiveIncome(
   };
   } catch (error) {
     // CRITICAL: If any error occurs, return safe defaults to prevent crash
-    const logger = require('@/utils/logger').logger;
     logger.error('[calcWeeklyPassiveIncome] Error calculating passive income:', error);
     return {
       total: 0,

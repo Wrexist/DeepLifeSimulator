@@ -10,6 +10,8 @@
 import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { runMigrations } from '@/utils/saveMigrations';
+import { repairGameState } from '@/utils/saveValidation';
 
 /**
  * How many rewind targets a life keeps.
@@ -286,10 +288,6 @@ export function rewindToCheckpoint(
     // Run the same migration + repair pipeline used on load.
     let migrated: any = rawSnapshot;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { runMigrations } = require('@/utils/saveMigrations');
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { repairGameState } = require('@/utils/saveValidation');
       const migrationResult = runMigrations(migrated);
       migrated = migrationResult?.state ?? migrated;
       repairGameState(migrated);

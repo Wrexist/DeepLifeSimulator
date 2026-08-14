@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 41`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 42`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -189,8 +189,36 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   the router resolves through a lookup map at module top.
 - **Logging:** `utils/logger.ts`, not `console.*`.
 - **Lint guardrails** (`eslint.config.js`), which encode the hard rules:
-  - `as any` → warn app-wide, **error in `lib/travel/**`** (the first fully clean
-    directory; add directories to that block as the burndown clears them).
+  - `as any` → warn app-wide, **error in 57 of `lib/`'s 58 directories** — every
+    one that is fully clean of `as any` and internal `require()`. `lib/travel`
+    was the first and sat alone for months; a count on 2026-08-14 found 48 more
+    were ALREADY clean and simply unprotected, so the burndown had been
+    happening as a side effect of ordinary work with nothing locking it in.
+    **The rule earns its keep: each of the two directories cleared by hand so
+    far turned up a real player-facing bug** — the obituary naming no job
+    (`career.name`, which `Career` does not have) and the 8,000-point
+    Investment Portfolio granting nothing (`stockInfo.currentPrice`, which
+    `StockData` does not have). Both were fabricated property names that a
+    `require()`-erased type let compile, then silently `undefined` inside a
+    falsy gate. Treat clearing a directory as bug-hunting, not tidying.
+  - **"It's a cycle-breaker" is a claim to check, not to inherit.** All 30 lazy
+    requires in the six long-held-back directories were tested against the
+    static import graph on 2026-08-14: 29 were not cycle-breakers, and the
+    justification had simply been copied forward. Ask of each one *does the
+    target already reach this file?* — and exclude `import type` edges, which
+    tsc erases and which therefore cannot form a runtime cycle (four false
+    positives all routed through `contexts/game/types.ts`, whose every import
+    is type-only; a types file on a cycle is the tell). Also check what a type
+    checker cannot: a lazy require defers module EVALUATION, so confirm the
+    target has no top-level side effects before making it eager.
+  - Two legitimate reasons to keep one, both requiring a measurement in the
+    comment: **weight** (`lib/prestige/prestigeTypes.ts` — a 161-LOC leaf that
+    `contexts/game/initialState.ts` imports, pulling 5 949 LOC if made static;
+    already typed via `as typeof import(...)`, so it degrades nothing) and
+    **boundary** (`lib/simulation`, the last unenforced directory — ~10k LOC of
+    dev tooling already dead-code-eliminated by the `__DEV__`-folded require in
+    `SettingsModal.tsx`, whose requires reach into `contexts/game/*` and would
+    bake a lib → contexts inversion into the graph).
   - `require('@/lib|utils|contexts…')` for internal modules → warn (degrades types
     to `any`/`never`); use static `import` or `import type` + a typed lazy getter.
   - `@ts-ignore` / `@ts-nocheck` banned; `@ts-expect-error` needs a ≥5-char description.
@@ -247,7 +275,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 41`** — single source of truth in
+- **Canonical `STATE_VERSION = 42`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -444,6 +472,18 @@ including the crash screen.
   something instead. Consumed inside the same updater that enrols (§4.4), and
   only for the part that actually paid tuition, so a 4.0 student whose merit
   award already covers 80% keeps the rest of the credit.
+- **v42 adds `title` on `CareerHistoryEntry`** — the job title as of the most
+  recent paid week, stamped by the weekly tick. The obituary derived a title
+  from the LIVE career record, and the political exit deliberately resets
+  `careers.political.level` to 0 (so lifestyle costs and the "in office?" UI
+  stop treating a voted-out player as a sitting official), so a president who
+  left office was eulogised as whatever level 0 is called. Recording the title
+  while it is TRUE, rather than reconstructing it later, makes the history
+  independent of anything an exit path does to `careers` — including paths that
+  do not exist yet. Default `undefined`, so a CARVE-OUT: version bumped, NO
+  backfill and no `repairGameState` mirror. Entries written before this cannot
+  grow one (the week they were worked is gone) and readers fall back to deriving
+  from `careers`, which is correct for every career except the political one.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

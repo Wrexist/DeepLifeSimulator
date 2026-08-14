@@ -1,6 +1,7 @@
 import type { GameState } from '@/contexts/game/types';
 import type { EventTemplate } from './engine';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { generateEventDisease } from '@/lib/diseases/diseaseGenerator';
 
 /**
  * Personal crisis events are high-impact events that affect individual players
@@ -94,8 +95,6 @@ export const medicalEmergency: EventTemplate = {
     const cost = isSevere ? 5000 : 2000; // Full price — no health-insurance coverage exists yet
 
     // Generate potential disease from event
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { generateEventDisease } = require('@/lib/diseases/diseaseGenerator');
     const eventDisease = generateEventDisease('medical_emergency', state);
     const diseaseName = eventDisease ? eventDisease.name : null;
     

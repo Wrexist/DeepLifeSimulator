@@ -94,7 +94,7 @@ export function computeInheritance(state: GameState): InheritanceSummary {
   const generation = state.generationNumber ?? 1;
   // BUGFIX: state.userProfile may be undefined on legacy/corrupt saves — direct
   // access crashed the inheritance flow.
-  const userProfile = state.userProfile ?? ({} as any);
+  const userProfile = state.userProfile ?? ({} as Partial<GameState['userProfile']>);
   const ancestorName = userProfile.name || `${userProfile.firstName ?? 'Unknown'} ${userProfile.lastName ?? 'Heir'}`;
 
   // 1. Wealth Memory

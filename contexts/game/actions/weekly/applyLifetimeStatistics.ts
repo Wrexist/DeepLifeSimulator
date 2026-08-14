@@ -99,6 +99,7 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
     ls.careerHistory || [],
     input.prevState.currentJob,
     effectiveSalary,
+    currentJobTitle(input.prevState),
   );
 
   const shouldSampleHistory = input.nextWeeksLived % HISTORY_SAMPLE_INTERVAL_WEEKS === 0;
@@ -161,10 +162,26 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
   };
 }
 
+/**
+ * The title of the job being worked this week, or '' if it cannot be resolved.
+ *
+ * Same derivation as `getCareerName` in `lib/events/careerEvents` — the title
+ * lives in `levels[level].name`, not on the career itself.
+ */
+function currentJobTitle(state: GameState): string {
+  const careers = Array.isArray(state.careers) ? state.careers : [];
+  const career = careers.find((c) => c && c.id === state.currentJob);
+  const levels = Array.isArray(career?.levels) ? career.levels : [];
+  if (levels.length === 0) return '';
+  const safeLevel = Math.max(0, Math.min(career?.level ?? 0, levels.length - 1));
+  return levels[safeLevel]?.name ?? '';
+}
+
 function updateCareerHistory(
   history: NonNullable<LifetimeStatistics['careerHistory']>,
   currentJob: GameState['currentJob'],
   careerSalary: number,
+  title: string,
 ): NonNullable<LifetimeStatistics['careerHistory']> {
   if (!(careerSalary > 0 && currentJob)) {
     return history;
@@ -173,7 +190,15 @@ function updateCareerHistory(
   return history.map((entry) => {
     if (!foundOpen && entry.job === currentJob && entry.endWeek === undefined) {
       foundOpen = true;
-      return { ...entry, earnings: entry.earnings + careerSalary, weeks: entry.weeks + 1 };
+      return {
+        ...entry,
+        earnings: entry.earnings + careerSalary,
+        weeks: entry.weeks + 1,
+        // Stamped every paid week, so the entry always carries the LATEST title
+        // held — a promotion updates it, and whatever an exit path later does to
+        // `careers` cannot reach it. See `CareerHistoryEntry.title`.
+        ...(title ? { title } : {}),
+      };
     }
     return entry;
   });

@@ -12,7 +12,7 @@
 import type { GameState } from '@/contexts/game/types';
 
 export function getAppBadgeCounts(gameState: GameState | undefined | null): Record<string, number> {
-  const g = gameState as any;
+  const g = gameState;
   const counts: Record<string, number> = {};
   if (!g) return counts;
 

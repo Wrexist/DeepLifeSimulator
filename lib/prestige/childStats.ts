@@ -3,6 +3,7 @@ import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { PrestigeData } from './prestigeTypes';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { getNurtureStat, NURTURE_DEFAULT } from '@/lib/parenting';
+import type { Memory } from '@/lib/legacy/memories';
 
 /**
  * Calculate starting stats for a child character
@@ -100,8 +101,13 @@ export function generateChildMemories(
   child: ChildInfo,
   parentState: GameState,
   generation: number
-): { id: string; title: string; description: string; category: string; generation: number; ancestorName: string; date: number; unlocked: boolean; tags: string[] }[] {
-  const memories = [];
+): Memory[] {
+  // Declared as `Memory[]` rather than restating the shape inline. The inline
+  // version widened `category` to `string`, which does not satisfy
+  // `MemoryCategory` — so assigning the result to `GameState.memories` was a
+  // type error that only a lazy `require()` at the call site was hiding. The
+  // values were always valid ('story', 'achievement'); the annotation was not.
+  const memories: Memory[] = [];
   const parentName = parentState.userProfile.name || `${parentState.userProfile.firstName} ${parentState.userProfile.lastName}`;
   const childName = child.name;
   

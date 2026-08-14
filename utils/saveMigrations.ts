@@ -1046,6 +1046,28 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 41;
     return state;
   },
+
+  // Version 42: `title` on `CareerHistoryEntry` — the job title as of the most
+  // recent paid week, stamped by the weekly tick.
+  //
+  // The obituary derived a title from the LIVE career record, and the political
+  // exit deliberately resets `careers.political.level` to 0 (so lifestyle costs
+  // and the "in office?" UI stop treating a voted-out player as a sitting
+  // official). A president who left office was therefore eulogised as whatever
+  // level 0 is called. Recording the title while it is true, rather than
+  // reconstructing it later, makes the history independent of anything an exit
+  // path does to `careers` — including exit paths that do not exist yet.
+  //
+  // Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  // `repairGameState` mirror. Entries written before this have no title and
+  // cannot grow one — the week they were worked is gone — and readers already
+  // fall back to deriving from `careers`, which is correct for every career
+  // except the political one. Inventing a title would put words in a dead
+  // character's obituary.
+  42: (state) => {
+    state.version = 42;
+    return state;
+  },
 };
 
 /**
