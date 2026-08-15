@@ -66,12 +66,28 @@ const COVERAGE_GOAL = 70;
  *    `utils/goalSystem.ts`, the dead design tokens and `LinearGradientFallback`.
  *    Both effects push the same way: the deleted code was uncovered, and
  *    deleting uncovered code is a real coverage gain, not an accounting one.
+ *
+ * 5. Raised again on 2026-08-14. `utils/stateInvariants.ts` sat at 5.2%
+ *    branches with NO test file at all, and reading its uncovered branches is
+ *    what turned up the false-positive money check (see the file's own
+ *    comment). Testing it moved it to 25.5% branches and every headline metric
+ *    up — which is the argument for this whole item: the untested branch is
+ *    reliably the one nobody has read. Note what the reading actually found:
+ *    NOT a bug. The false positive it looked like is unreachable, because the
+ *    caller rejects an overdraft twenty lines above the clamp. The tests
+ *    document that instead.
+ *
+ *    Re-measured after merging #131 (child proportions, store screenshots,
+ *    ASO metadata), which moved every metric again. The floors set here are
+ *    unchanged and still sit 0.55-0.67 under the measurement — the gain is
+ *    shared between that PR and this one, and there is no reason to claim it
+ *    twice.
  */
 const COVERAGE_FLOORS = {
-  statements: 50.7,
-  branches: 33.2,
-  functions: 42.3,
-  lines: 52.0,
+  statements: 51.4,
+  branches: 33.5,
+  functions: 42.6,
+  lines: 52.7,
 };
 
 /**
@@ -96,10 +112,10 @@ const COVERAGE_FLOORS = {
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 51.12,
-  branches: 33.68,
-  functions: 42.76,
-  lines: 52.38,
+  statements: 52.05,
+  branches: 34.05,
+  functions: 43.25,
+  lines: 53.37,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];
