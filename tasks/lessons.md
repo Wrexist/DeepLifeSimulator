@@ -3147,3 +3147,43 @@ failure for an action that worked.
   helper built to route around it. The banner named the correct fix and nobody
   applied it. If a comment explains at length why a return value cannot be
   trusted, that is the ticket.
+
+## 2026-08-15 (round 3) — my own detector's zero was the same lie the ratchet had told
+
+Having removed the cross-updater capture everywhere, I asserted the class was
+extinct and pinned `captureSuspects() === []`. It was not. Widening the detector
+found **nine more**, including `claimAdCashBonus` telling a player who had just
+watched a rewarded ad that the bonus was unavailable while the cash landed.
+
+- Rule: **a detector's zero is only as good as its recall, and a zero is exactly
+  when nobody checks.** Mine matched two initialisers (`= false`, `= {}`) and two
+  read forms (`if (!x)`, `return x;`). The misses were `let lost = 0` read as
+  `onResolved({ lost })`, `let mutualFollow = false` read in a ternary, and
+  `let totalRewardsOut = 0` read in a template string — same defect, different
+  spelling. This is the SECOND time in one day a guard in this repo reported
+  green while the thing it guarded was broken. When a detector reports zero,
+  prove it on fixtures for every shape you claim it covers, and write the
+  fixtures for the shapes you did NOT think of first.
+- Rule: **triage heuristics need both error directions checked.** My first sweep
+  flagged 49 of 92 on token echo; refining to structural categories cut it to 22,
+  and hand-reading all 22 found them mirrored. But the same loosening nearly hid
+  three functions with NO outer guard at all — they surfaced only from a
+  different angle ("which suspects have zero `success: false` returns before the
+  dispatch?"). Ask the question two ways before believing the answer.
+- Rule: an indentation check is not a scope check. `swipeOnProfile` computes
+  `matched` in an ordinary `if` block ABOVE its dispatch — correct code — and a
+  `\n\s{4,}` test flagged it. Match brace ranges, not whitespace.
+- Rule: **`void` returns hide refusals completely.** `maintainProperty` returned
+  nothing and refused inside its updater with a `log.warn`. A player who could
+  not afford maintenance tapped the button and got silence — no error, no
+  change, no clue. An action that can refuse must be able to say so; that is a
+  signature question, not a messaging one.
+- Rule: moving a roll out of an updater is not just about reporting. React 19
+  StrictMode double-invokes updaters, so `Math.random()` inside one can roll
+  differently on the second pass. `followNpc` had that latent alongside its
+  capture; both fixed by rolling once, outside.
+- Rule: when the honest answer is "one left", say WHICH one and pin it by name.
+  `processVehicleWeekly` has no production caller, so it is left as-is and
+  asserted by name in the ratchet — wiring it into the tick trips that test
+  before it can hurt anyone. "Zero except the one we know about" is only a
+  useful statement if the exception is written down.
