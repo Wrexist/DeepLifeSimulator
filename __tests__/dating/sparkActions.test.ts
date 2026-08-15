@@ -313,7 +313,7 @@ describe('boost / catfish / jealousy', () => {
     const state = freshState({ weeksLived: 1 });
     state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
     const { setGameState, getState } = makeHarness(state);
-    reportProfile(setGameState, SAMPLE_ID);
+    reportProfile(getState(), setGameState, SAMPLE_ID);
     expect(getState().sparkApp!.reportedIds).toContain(SAMPLE_ID);
     expect(getState().sparkApp!.matches).toHaveLength(0);
   });

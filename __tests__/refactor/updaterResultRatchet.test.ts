@@ -217,20 +217,57 @@ function suspects(): string[] {
  * difference.
  */
 export function bodyHasCrossUpdaterCapture(body: string): boolean {
-  const dispatch = body.indexOf('setGameState(');
-  if (dispatch === -1) return false;
+  const ranges = dispatchRanges(body);
+  if (!ranges.length) return false;
+  const firstDispatch = ranges[0][0];
+  const tail = body.slice(ranges[ranges.length - 1][1]);
 
-  const captures = [...body.matchAll(/\n {2}let\s+(\w+)\s*(?::[^=\n]+)?=\s*(?:false|\{)/g)];
-  for (const c of captures) {
+  // ANY top-level `let`, not just `= false` / `= {}`. The first version of this
+  // detector matched only those two initialisers AND only two read forms
+  // (`if (!x)` / `return x;`), and so reported ZERO while nine functions still
+  // carried the shape — `let lost = 0` read as `onResolved({ lost })`,
+  // `let mutualFollow = false` read inside a ternary, and so on. A detector
+  // that is narrower than the defect is worse than none, because its zero is
+  // read as proof.
+  for (const c of body.matchAll(/\n {2}let\s+(\w+)\s*(?::[^=\n]+)?=\s*[^;]+;/g)) {
     const v = c[1];
-    if (c.index! > dispatch) continue; // declared after the dispatch → not a capture
-    const assignedInside = new RegExp(`\\n\\s{4,}${v}\\s*=[^=]`).test(body);
-    const readAfter =
-      new RegExp(`if\\s*\\(\\s*!${v}\\s*\\)`).test(body) ||
-      new RegExp(`\\n {0,2}return\\s+${v}\\s*;`).test(body);
-    if (assignedInside && readAfter) return true;
+    if (c.index! > firstDispatch) continue; // declared after the dispatch → not a capture
+
+    // The assignment must sit INSIDE a dispatch, by byte range. Indentation
+    // alone is not enough: `let matched = false` reassigned in an ordinary
+    // `if` block before the dispatch is not a capture, and an earlier version
+    // of this check flagged `swipeOnProfile` for exactly that.
+    const assignedInside = [...body.matchAll(new RegExp(`\\b${v}\\s*=[^=]`, 'g'))]
+      .map((a) => a.index!)
+      .filter((idx) => idx > c.index! + c[0].length)
+      .some((idx) => ranges.some(([a, b]) => idx > a && idx < b));
+    if (!assignedInside) continue;
+
+    // Read ANYWHERE after the last dispatch — a bare reference is enough.
+    if (new RegExp(`\\b${v}\\b`).test(tail)) return true;
   }
   return false;
+}
+
+/** Byte ranges of every `setGameState(...)` call in `body`, by brace matching. */
+function dispatchRanges(body: string): [number, number][] {
+  const out: [number, number][] = [];
+  let i = 0;
+  while ((i = body.indexOf('setGameState(', i)) !== -1) {
+    let depth = 0;
+    let j = body.indexOf('(', i);
+    for (; j < body.length; j++) {
+      if (body[j] === '(') depth++;
+      else if (body[j] === ')') {
+        depth--;
+        if (!depth) break;
+      }
+    }
+    if (j === -1 || j >= body.length) break;
+    out.push([i, j]);
+    i = j;
+  }
+  return out;
 }
 
 export function captureSuspects(): string[] {
@@ -315,7 +352,7 @@ function allSuspects(): string[] {
  * `captureSuspects`, which need a state snapshot to report from (several take
  * only `setGameState` today, so they cannot answer their caller at all).
  */
-const RATCHET = 92;
+const RATCHET = 93;
 
 describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
@@ -323,16 +360,30 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     expect(suspects().length).toBeGreaterThan(0);
   });
 
-  it('the cross-updater capture is EXTINCT in contexts/game/actions', () => {
+  it('the cross-updater capture survives in exactly ONE dead-code site', () => {
     /**
-     * It was the detector's exclusion until 2026-08-15, then its own bucket,
-     * and now it is empty: all 34 members were converted to outer-guard
-     * reporting or to a pure preview/commit resolver.
+     * It was the detector's exclusion until 2026-08-15, then its own bucket.
+     * All 43 live members were converted to outer-guard reporting or to a pure
+     * preview/commit resolver.
      *
-     * A count of 0 is only meaningful if the detector still works, which is
-     * what the fixture tests below establish.
+     * The single survivor is `processVehicleWeekly`, which has NO production
+     * caller — the live weekly path is `weekly/applyVehicles.ts`, whose own
+     * comment calls this "the pre-WeekContext version". Only the stress and
+     * insurance suites reach it, through a synchronous stub. It is pinned here
+     * by name rather than deleted so that wiring it into the tick trips this
+     * assertion first; the function itself carries the same warning.
+     *
+     * ── Why this list was briefly, wrongly, empty ──────────────────────────
+     *
+     * The first version of the detector matched only `let x = false` / `= {}`
+     * initialisers and only two read forms (`if (!x)`, `return x;`). It
+     * reported ZERO while nine functions still carried the shape — `let lost =
+     * 0` read as `onResolved({ lost })`, `let mutualFollow = false` read inside
+     * a ternary, `let totalRewardsOut = 0` read in a template string. A
+     * detector narrower than the defect is worse than none, because its zero
+     * gets quoted as proof.
      */
-    expect(captureSuspects()).toEqual([]);
+    expect(captureSuspects()).toEqual(['VehicleActions.ts::processVehicleWeekly']);
   });
 
   describe('the capture detector still works at zero (fixtures)', () => {
@@ -383,6 +434,42 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
         '    return prev;',
         '  });',
         '  return ok;',
+      ].join('\n')))).toBe(false);
+    });
+
+    it('sees a capture read as an EXPRESSION, not just `if (!x)` / `return x`', () => {
+      // The nine sites the first detector missed all read the capture this way.
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let lost = 0;',
+        '  setGameState((prev) => {',
+        '    lost = amount;',
+        '    return next;',
+        '  });',
+        '  onResolved({ lost });',
+      ].join('\n')))).toBe(true);
+    });
+
+    it('sees a capture read inside a ternary', () => {
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let mutualFollow = false;',
+        '  setGameState((prev) => {',
+        '    mutualFollow = true;',
+        '    return next;',
+        '  });',
+        '  return { message: mutualFollow ? "a" : "b" };',
+      ].join('\n')))).toBe(true);
+    });
+
+    it('does NOT flag a let reassigned BEFORE the dispatch (byte range, not indent)', () => {
+      // `swipeOnProfile` computes `matched` in an ordinary `if` block above the
+      // dispatch. An indentation-only check flagged it; a range check does not.
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let matched = false;',
+        '  if (isLike) {',
+        '    matched = rollMatch(gameState);',
+        '  }',
+        '  setGameState((prev) => next);',
+        '  return { matched };',
       ].join('\n')))).toBe(false);
     });
 

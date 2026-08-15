@@ -15,7 +15,7 @@
  *     no-require-imports      157    153
  *     exhaustive-deps         102     94   <- see below: these are NOT bugs
  *                          ------   ----
- *     all rules             1 234    862
+ *     all rules             1 234    860
  *
  * BOTH columns, because one number alone reads as current and silently rots.
  * The right-hand one is a measurement, not a promise — re-measure with
@@ -62,7 +62,12 @@
 const MAX_ERRORS = 0;
 
 /**
- * Warning ceiling. Measured 867 over the whole repo on 2026-08-14 (895, 909 and
+ * Warning ceiling. 860 on 2026-08-15 (was 862): the read-out-of-updater sweep
+ * dropped an import that had been unused since it was added, and gave five
+ * hooks the dependency they had started genuinely needing. Lowered with the
+ * work rather than left as slack, per this file's own rule.
+ *
+ * Measured 867 over the whole repo on 2026-08-14 (895, 909 and
  * 920 earlier the same day, down from 1 191 (1 188 on 2026-08-10, ceiling 1 193;
  * 1 235 on 2026-08-04, ceiling 1 240).
  *
@@ -106,7 +111,7 @@ const MAX_ERRORS = 0;
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
  */
-const MAX_WARNINGS = 862;
+const MAX_WARNINGS = 860;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

@@ -601,6 +601,69 @@ export function stakeCrypto(
 /**
  * Claim staking rewards
  */
+/**
+ * PURE: the staking claim `state` currently supports.
+ *
+ * Extracted 2026-08-15. The whole calculation used to live inside
+ * `claimStakingRewards`'s updater, with the claimed total reported through a
+ * `let totalRewardsOut` read after the dispatch. That read is only reliable for
+ * the FIRST functional update of a React batch, so a deferred dispatch told the
+ * player "No rewards available yet" for a claim that had just credited their
+ * cryptos. One function now answers both questions.
+ */
+function computeStakingClaim(state: GameState): {
+  totalRewards: number;
+  rewardsByCrypto: Record<string, number>;
+  activePositions: StakingPosition[];
+} {
+  const positions = state.warehouse?.stakingPositions || [];
+  const absoluteWeek = state.weeksLived || 0;
+  let totalRewards = 0;
+  const activePositions: StakingPosition[] = [];
+  const rewardsByCrypto: Record<string, number> = {};
+
+  positions.forEach(position => {
+    const legacyStartWeek = typeof position.startWeek === 'number' ? position.startWeek : 0;
+    const startAbsoluteWeek = position.startAbsoluteWeek
+      ?? Math.min(legacyStartWeek, absoluteWeek);
+    const lastClaimAbsoluteWeek = position.lastClaimAbsoluteWeek ?? startAbsoluteWeek;
+    const weeksPassedTotal = Math.max(0, absoluteWeek - startAbsoluteWeek);
+    const previousClaimedWeeks = Math.min(position.lockWeeks, Math.max(0, lastClaimAbsoluteWeek - startAbsoluteWeek));
+    const totalEarnedWeeks = Math.min(position.lockWeeks, weeksPassedTotal);
+    const claimableWeeks = Math.max(0, totalEarnedWeeks - previousClaimedWeeks);
+
+    if (claimableWeeks <= 0) {
+      activePositions.push({ ...position, startAbsoluteWeek, lastClaimAbsoluteWeek });
+      return;
+    }
+
+    // NaN GUARD: a legacy StakingPosition (pre-rewardRate-retune save) can
+    // lack amount/rewardRate. Unguarded, `undefined * n = NaN` slips past the
+    // `totalRewards === 0` no-op (NaN !== 0) and permanently poisons the
+    // coin's `owned` balance below. Treat missing fields as 0.
+    const safeAmount = typeof position.amount === 'number' && isFinite(position.amount) ? position.amount : 0;
+    const safeRate = typeof position.rewardRate === 'number' && isFinite(position.rewardRate) ? position.rewardRate : 0;
+    const rewardForClaim = safeAmount * safeRate * claimableWeeks;
+    const completedThisClaim = weeksPassedTotal >= position.lockWeeks && previousClaimedWeeks < position.lockWeeks;
+
+    let payout = rewardForClaim;
+    if (completedThisClaim) {
+      payout += safeAmount;
+    } else {
+      activePositions.push({
+        ...position,
+        startAbsoluteWeek,
+        lastClaimAbsoluteWeek: startAbsoluteWeek + totalEarnedWeeks,
+      });
+    }
+
+    totalRewards += payout;
+    rewardsByCrypto[position.cryptoId] = (rewardsByCrypto[position.cryptoId] || 0) + payout;
+  });
+
+  return { totalRewards, rewardsByCrypto, activePositions };
+}
+
 export function claimStakingRewards(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>
@@ -614,77 +677,35 @@ export function claimStakingRewards(
     return { success: false, message: 'No active staking positions' };
   }
 
-  // R4-I: do the reward calculation INSIDE the setGameState updater (against
-  // `prev.warehouse.stakingPositions`) so a same-batch double-tap can't both
-  // read the same outer snapshot and both apply rewards.
-  let totalRewardsOut = 0;
+  const preview = computeStakingClaim(gameState);
+  if (preview.totalRewards === 0) {
+    return { success: false, message: 'No rewards available yet' };
+  }
+
+  // R4-I: the calculation is re-run against `prev` so a same-batch double-tap
+  // cannot both read the same outer snapshot and both apply rewards.
   setGameState(prev => {
     if (!prev.warehouse) return prev;
-    const positions = prev.warehouse.stakingPositions || [];
-    if (positions.length === 0) return prev;
-    const absoluteWeek = prev.weeksLived || 0;
-    let totalRewards = 0;
-    const activePositions: StakingPosition[] = [];
-    const rewardsByCrypto: Record<string, number> = {};
-
-    positions.forEach(position => {
-      const legacyStartWeek = typeof position.startWeek === 'number' ? position.startWeek : 0;
-      const startAbsoluteWeek = position.startAbsoluteWeek
-        ?? Math.min(legacyStartWeek, absoluteWeek);
-      const lastClaimAbsoluteWeek = position.lastClaimAbsoluteWeek ?? startAbsoluteWeek;
-      const weeksPassedTotal = Math.max(0, absoluteWeek - startAbsoluteWeek);
-      const previousClaimedWeeks = Math.min(position.lockWeeks, Math.max(0, lastClaimAbsoluteWeek - startAbsoluteWeek));
-      const totalEarnedWeeks = Math.min(position.lockWeeks, weeksPassedTotal);
-      const claimableWeeks = Math.max(0, totalEarnedWeeks - previousClaimedWeeks);
-
-      if (claimableWeeks <= 0) {
-        activePositions.push({ ...position, startAbsoluteWeek, lastClaimAbsoluteWeek });
-        return;
-      }
-
-      // NaN GUARD: a legacy StakingPosition (pre-rewardRate-retune save) can
-      // lack amount/rewardRate. Unguarded, `undefined * n = NaN` slips past the
-      // `totalRewards === 0` no-op (NaN !== 0) and permanently poisons the
-      // coin's `owned` balance below. Treat missing fields as 0.
-      const safeAmount = typeof position.amount === 'number' && isFinite(position.amount) ? position.amount : 0;
-      const safeRate = typeof position.rewardRate === 'number' && isFinite(position.rewardRate) ? position.rewardRate : 0;
-      const rewardForClaim = safeAmount * safeRate * claimableWeeks;
-      const completedThisClaim = weeksPassedTotal >= position.lockWeeks && previousClaimedWeeks < position.lockWeeks;
-
-      let payout = rewardForClaim;
-      if (completedThisClaim) {
-        payout += safeAmount;
-      } else {
-        activePositions.push({
-          ...position,
-          startAbsoluteWeek,
-          lastClaimAbsoluteWeek: startAbsoluteWeek + totalEarnedWeeks,
-        });
-      }
-
-      totalRewards += payout;
-      rewardsByCrypto[position.cryptoId] = (rewardsByCrypto[position.cryptoId] || 0) + payout;
-    });
-
-    if (totalRewards === 0) return prev; // nothing to claim — no-op
+    const fresh = computeStakingClaim(prev);
+    if (fresh.totalRewards === 0) return prev; // nothing left to claim — no-op
 
     const updatedCryptos = prev.cryptos.map(crypto => {
-      const rewards = rewardsByCrypto[crypto.id] || 0;
+      const rewards = fresh.rewardsByCrypto[crypto.id] || 0;
       return rewards > 0 ? { ...crypto, owned: crypto.owned + rewards } : crypto;
     });
 
-    totalRewardsOut = totalRewards;
     return {
       ...prev,
       cryptos: updatedCryptos,
-      warehouse: { ...prev.warehouse, stakingPositions: activePositions },
+      warehouse: { ...prev.warehouse, stakingPositions: fresh.activePositions },
     };
   });
 
-  if (totalRewardsOut === 0) {
-    return { success: false, message: 'No rewards available yet' };
-  }
-  return { success: true, message: `Claimed ${totalRewardsOut.toFixed(6)} in staking rewards`, rewards: totalRewardsOut };
+  return {
+    success: true,
+    message: `Claimed ${preview.totalRewards.toFixed(6)} in staking rewards`,
+    rewards: preview.totalRewards,
+  };
 }
 
 /**

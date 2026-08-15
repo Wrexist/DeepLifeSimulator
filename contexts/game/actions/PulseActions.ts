@@ -388,10 +388,33 @@ export const commentOnPost = (
 // ─────────────────────────────────────────────────────────────────────
 
 export const followNpc = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   npcId: string,
 ): { success: boolean; message: string; mutualFollow?: boolean } => {
-  let mutualFollow = false;
+  /**
+   * Already following — the OUTER mirror of the updater's guard. Without one,
+   * a second tap said "Following." and did nothing.
+   */
+  if ((gameState.socialMedia?.followGraph?.followingNpcIds ?? []).includes(npcId)) {
+    return { success: false, message: 'You already follow them.', mutualFollow: false };
+  }
+
+  /**
+   * The follow-back roll happens HERE, once, not inside the updater.
+   *
+   * `mutualFollow` used to be assigned inside and read after — only reliable
+   * for the FIRST functional update of a React batch, so a deferred dispatch
+   * always reported the plain "Following." even when they followed back. Rolling
+   * outside also makes the updater pure, which matters because React 19
+   * StrictMode double-invokes updaters: a `Math.random()` in there could roll
+   * differently on the second invocation.
+   */
+  const relForRoll = (gameState.relationships ?? []).find((r) => r.id === npcId);
+  const followBackProb = (relForRoll?.relationshipScore ?? 0) >= 60 ? 0.95 : 0.7;
+  const followsBack = Math.random() < followBackProb;
+  const followerBoost = Math.floor(50 + Math.random() * 150);
+
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     const fg = sm.followGraph ?? { followingNpcIds: [], followedByNpcIds: [], lastUpdatedWeek: prev.weeksLived ?? 0 };
@@ -406,10 +429,8 @@ export const followNpc = (
 
     // Mutual-follow probability
     const rel = (prev.relationships ?? []).find((r) => r.id === npcId);
-    const baseProb = (rel?.relationshipScore ?? 0) >= 60 ? 0.95 : 0.7;
-    if (Math.random() < baseProb && !updated.followedByNpcIds.includes(npcId)) {
+    if (followsBack && !updated.followedByNpcIds.includes(npcId)) {
       updated.followedByNpcIds = [...updated.followedByNpcIds, npcId];
-      mutualFollow = true;
       // ANTI-EXPLOIT: grant the one-time follower boost only the FIRST time this
       // NPC ever follows back. Re-following after an unfollow re-establishes the
       // mutual edge but must NOT re-pay the boost, otherwise a follow/unfollow
@@ -418,7 +439,7 @@ export const followNpc = (
       if (!granted.includes(npcId)) {
         updated.followBackGrantedNpcIds = [...granted, npcId];
         // Followed back → small follower boost from their followers seeing the connection
-        sm.followers = (sm.followers ?? 0) + Math.floor(50 + Math.random() * 150);
+        sm.followers = (sm.followers ?? 0) + followerBoost;
         sm.influenceLevel = getInfluenceLevel(sm.followers);
       }
       pushNotification(
@@ -432,10 +453,11 @@ export const followNpc = (
     sm.followGraph = updated;
     return { ...prev, socialMedia: sm };
   });
+  // Reported from the roll made above, not from the updater.
   return {
     success: true,
-    message: mutualFollow ? 'Followed — they followed back!' : 'Following.',
-    mutualFollow,
+    message: followsBack ? 'Followed — they followed back!' : 'Following.',
+    mutualFollow: followsBack,
   };
 };
 

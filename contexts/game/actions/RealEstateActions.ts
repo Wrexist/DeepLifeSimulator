@@ -402,9 +402,29 @@ export const evictTenant = (
  * and the damage gap.
  */
 export const maintainProperty = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   propertyId: string
-) => {
+): { success: boolean; message: string } => {
+  /**
+   * Both refusals used to be reachable ONLY inside the updater, and the
+   * function returned `void` — so a player who could not afford maintenance
+   * tapped the button and got complete silence, with a `log.warn` nobody sees.
+   * These outer guards make the refusal reportable; the inner copies stay as
+   * the same-batch race protection for state.
+   */
+  const owned = (gameState.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+  if (!owned) {
+    return { success: false, message: 'You must own this property to maintain it.' };
+  }
+  const quotedCost = maintenanceCost(owned);
+  if ((gameState.stats?.money ?? 0) < quotedCost) {
+    return {
+      success: false,
+      message: `Maintenance costs $${Math.round(quotedCost).toLocaleString()} — you have $${Math.round(gameState.stats?.money ?? 0).toLocaleString()}.`,
+    };
+  }
+
   setGameState((prev) => {
     const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
     if (!property) return prev;
@@ -425,6 +445,11 @@ export const maintainProperty = (
       realEstate: updated,
     };
   });
+
+  return {
+    success: true,
+    message: `Maintenance done — $${Math.round(quotedCost).toLocaleString()}.`,
+  };
 };
 
 /**

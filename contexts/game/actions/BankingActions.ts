@@ -840,7 +840,15 @@ export const claimAdCashBonus = (
   }
   const amount = getAdCashBonusAmount(gameState);
 
-  let granted = 0;
+  /**
+   * `amount` above is the reported figure, derived from the caller's snapshot.
+   *
+   * This used to report a `let granted` assigned inside the updater. That read
+   * is only reliable for the FIRST functional update of a React batch, so a
+   * deferred dispatch told a player who had just WATCHED A REWARDED AD that the
+   * "Bonus unavailable right now" — while the cash landed. The updater still
+   * re-derives the amount from `prev`, which is what keeps the payout atomic.
+   */
   setGameState((prev) => {
     // Atomic gate: both taps in a batch read the same stale snapshot above, so
     // this re-check against `prev` is the only thing that stops a double payout.
@@ -848,7 +856,6 @@ export const claimAdCashBonus = (
     const freshAmount = getAdCashBonusAmount(prev);
     const credit = applyMoneyDelta(prev, freshAmount, 'Bank sponsored bonus');
     if (!credit) return prev;
-    granted = freshAmount;
     return {
       ...prev,
       ...credit,
@@ -856,7 +863,7 @@ export const claimAdCashBonus = (
     };
   });
 
-  return granted > 0
-    ? { success: true, message: `The bank credited your account.`, amount: granted }
+  return amount > 0
+    ? { success: true, message: `The bank credited your account.`, amount }
     : { success: false, message: 'Bonus unavailable right now.', amount: 0 };
 };

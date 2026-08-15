@@ -153,7 +153,7 @@ describe('follow graph', () => {
       { id: 'r1', name: 'Alex', type: 'friend', relationshipScore: 70 } as any,
     ];
     const { setGameState, getState } = makeStateHarness(state);
-    followNpc(setGameState, 'r1');
+    followNpc(getState(), setGameState, 'r1');
     expect(getState().socialMedia!.followGraph!.followingNpcIds).toContain('r1');
   });
 

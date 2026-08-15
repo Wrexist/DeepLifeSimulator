@@ -933,9 +933,16 @@ export const boostProfile = (
 // ─────────────────────────────────────────────────────────────────────
 
 export const reportProfile = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   profileId: string,
 ): { success: boolean; message: string } => {
+  // Already reported — the OUTER mirror of the updater's guard. Without one the
+  // refusal was unreportable, so a second report of the same profile said
+  // "Profile reported and unmatched" and did nothing.
+  if ((gameState.sparkApp?.reportedIds ?? []).includes(profileId)) {
+    return { success: false, message: 'You already reported this profile.' };
+  }
   setGameState((prev) => {
     const s = ensureSpark(prev);
     if (s.reportedIds.includes(profileId)) return prev;

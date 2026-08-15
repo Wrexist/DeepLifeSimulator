@@ -60,12 +60,12 @@ export default function NpcProfileSheet({ visible, npc, onDismiss }: NpcProfileS
       unfollowNpc(setGameState, npc.id);
       pulseHaptics.light();
     } else {
-      const result = followNpc(setGameState, npc.id);
+      const result = followNpc(gameState, setGameState, npc.id);
       if (result.mutualFollow) pulseHaptics.success();
       else pulseHaptics.light();
     }
     saveGame?.();
-  }, [npc, isFollowing, setGameState, saveGame]);
+  }, [npc, isFollowing, gameState, setGameState, saveGame]);
 
   if (!visible || !npc) return null;
 

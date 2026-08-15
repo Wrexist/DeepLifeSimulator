@@ -733,8 +733,20 @@ export const processVehicleWeekly = (
     wear: Array.from({ length: 10 }, () => 1 + Math.floor(Math.random() * 2)),
   };
 
-  // NOTE: These are written from inside the updater to return results to callers.
-  // Safe under StrictMode because both invocations produce identical values.
+  /**
+   * NO PRODUCTION CALLER as of 2026-08-15 — the live weekly path is
+   * `contexts/game/actions/weekly/applyVehicles.ts`, whose own comment calls
+   * this "the pre-WeekContext version". Only the stress/insurance suites reach
+   * it, and they drive `setGameState` with a synchronous stub.
+   *
+   * That matters because the two values below ARE the cross-updater capture
+   * this repo spent 2026-08-15 removing everywhere else: assigned inside the
+   * updater, read after it, and therefore only reliable for the FIRST
+   * functional update of a React batch. It is left as-is deliberately — there
+   * is no player-facing path to get wrong — but if you ever wire this into the
+   * tick, derive the result from a pure helper first, the way
+   * `computeStakingClaim` does in MiningActions.
+   */
   let resultTotalCosts = 0;
   const resultExpiredInsurance: string[] = [];
 

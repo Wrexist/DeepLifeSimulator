@@ -107,6 +107,47 @@ penalty on the confirm dialog is worth doing anyway.
 a detector that only ever returns an empty list is indistinguishable from a
 broken one. Ratchet: 102 → 92.
 
+## Round 3 — the form the detector could not see
+
+Auditing the remaining 92 `suspects()` for unmirrored inner guards turned up
+something bigger: my capture detector had been too narrow, so its "zero" was
+wrong. It matched only `let x = false` / `= {}` initialisers and only two read
+forms (`if (!x)`, `return x;`). **Nine more sites** were carrying the shape:
+
+- `BankingActions::claimAdCashBonus` — `let granted = 0`, so a deferred dispatch
+  told a player who had just WATCHED A REWARDED AD "Bonus unavailable right now"
+  while the cash landed
+- `MailActions` ×4 — `onResolved({ lost })` / `{ recovered }` / `{ outcome }`
+  reported 0 or an empty string for money that had moved
+- `MiningActions::claimStakingRewards` — "No rewards available yet" for a claim
+  that credited
+- `LuxuryActions::sellLuxuryItem` — refund figure flipped between the quote and
+  the committed value depending on batching order
+- `PulseActions::followNpc` — always reported the plain "Following."
+- `VehicleActions::processVehicleWeekly` — no production caller (see below)
+
+Plus three functions with NO outer guard at all, so their refusal was
+unreportable by construction:
+
+- `RealEstateActions::maintainProperty` — returned `void`; a player who could
+  not afford maintenance tapped and got **complete silence**
+- `SparkActions::reportProfile` — a second report said "reported and unmatched"
+- `PulseActions::followNpc` — a second follow said "Following."
+
+All fixed. `followNpc`'s follow-back roll also moved OUT of the updater, which
+it needed anyway: React 19 StrictMode double-invokes updaters, so a
+`Math.random()` inside could roll differently on the second pass.
+
+The one survivor is `processVehicleWeekly`, which has no production caller —
+the live path is `weekly/applyVehicles.ts`. Pinned BY NAME in the ratchet so
+wiring it into the tick trips the test first, and the function carries the same
+warning.
+
+Detector widened and proved on fixtures for every read form, including the two
+false-positive classes (a local declared inside the updater; a `let` reassigned
+before the dispatch, which is what `swipeOnProfile` legitimately does).
+Ratchet 92 → 93. Lint ceiling 862 → **860**, lowered with the work.
+
 ## Deliberately not done
 
 - Rewriting the 22 boolean-capture sites as preview/commit resolvers too. Where

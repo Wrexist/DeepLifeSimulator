@@ -1183,7 +1183,8 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         }}
         onMaintain={() => {
           if (manageTarget) {
-            maintainProperty(setGameState, manageTarget.id);
+            const r = maintainProperty(gameState, setGameState, manageTarget.id);
+            if (!r.success) Alert.alert('Maintenance', r.message);
             queueSave();
           }
         }}
