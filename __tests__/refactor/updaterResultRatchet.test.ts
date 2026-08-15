@@ -174,31 +174,85 @@ function suspects(): string[] {
       if (!reportsUnconditionalSuccess(afterUpdater)) continue;
 
       /**
-       * Exclude anything already using the fixed shape.
+       * The capture EXCLUSION that used to sit here was deleted on 2026-08-15.
        *
-       * The first version of this detector only recognised a capture literally
-       * named `result`, so the first batch of fixes — which use `bought`,
-       * `fed`, `played`, `treated`, `entered` — did not move the number at all.
-       * A ratchet that cannot see its own progress is worse than none: it
-       * would have sat at 86 forever while the work happened.
-       *
-       * The shape that counts as fixed is a captured flag or object that is
-       * GUARDED before the success return: `if (!x)` or `return x;`. A `let`
-       * assigned inside the updater and never checked is not a fix.
+       * It skipped any function holding a `let` flag or result object assigned
+       * inside the updater and read after it, on the theory that this was "the
+       * fixed shape". It is not — see `captureSuspects` below and the header.
+       * Those functions are counted there instead, so the shape is measured
+       * rather than certified.
        */
-      const captures = body.match(/let\s+(\w+)\s*(?::[^=]+)?=\s*(?:false|\{)/g) ?? [];
-      const guarded = captures.some((c) => {
-        const v = /let\s+(\w+)/.exec(c)![1];
-        return new RegExp(`if\\s*\\(\\s*!${v}\\s*\\)`).test(body)
-          || new RegExp(`return\\s+${v}\\s*;`).test(body);
-      });
-      if (guarded) continue;
-
       found.push(`${file}::${name}`);
     }
   }
 
   return found.sort();
+}
+
+/**
+ * The OTHER half of the class: a variable assigned INSIDE a `setGameState`
+ * updater and read AFTER it.
+ *
+ * This was the detector's exclusion until 2026-08-15, when a player report
+ * disproved the premise — a $40.25M player told they needed $10,000 for a
+ * $10,000 action that had in fact succeeded. React runs only the FIRST
+ * functional update of a batch eagerly, so a capture reads its initial value
+ * for any dispatch that is not first, and the function reports failure for work
+ * that landed.
+ *
+ * Both spellings count, because both fail the same way:
+ *   - a boolean flag  — `let applied = false; … if (!applied) return failure;`
+ *   - a result object — `let result = { success: false }; … return result;`
+ *
+ * A ratchet that treats a broken shape as the fix cannot reach zero, and worse,
+ * its own failure message recommends adopting it.
+ */
+export function captureSuspects(): string[] {
+  const found: string[] = [];
+
+  for (const file of fs.readdirSync(ACTIONS_DIR).filter((f) => f.endsWith('.ts'))) {
+    const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
+    const decl = /^export (?:const|function) (\w+)/gm;
+
+    let m: RegExpExecArray | null;
+    while ((m = decl.exec(src)) !== null) {
+      const name = m[1];
+      const start = m.index;
+      const next = /^export (?:const|function) /m.exec(src.slice(start + 10));
+      const body = src.slice(start, next ? start + 10 + next.index : src.length);
+
+      const dispatch = body.indexOf('setGameState(');
+      if (dispatch === -1) continue;
+
+      /**
+       * Only declarations at the FUNCTION's top level (two-space indent) can be
+       * read across the updater boundary. A `let` inside the updater body is
+       * indented further and is an ordinary local — that is the false-positive
+       * class (`let next: GameState = …`, `let working = …`) which makes a
+       * naive sweep for this shape unusable.
+       */
+      const captures = [...body.matchAll(/\n {2}let\s+(\w+)\s*(?::[^=\n]+)?=\s*(?:false|\{)/g)];
+      for (const c of captures) {
+        const v = c[1];
+        if (c.index! > dispatch) continue; // declared after the dispatch → not a capture
+        const assignedInside = new RegExp(`\\n\\s{4,}${v}\\s*=[^=]`).test(body);
+        const readAfter =
+          new RegExp(`if\\s*\\(\\s*!${v}\\s*\\)`).test(body) ||
+          new RegExp(`\\n {0,2}return\\s+${v}\\s*;`).test(body);
+        if (assignedInside && readAfter) {
+          found.push(`${file}::${name}`);
+          break;
+        }
+      }
+    }
+  }
+
+  return found.sort();
+}
+
+/** Everything whose REPORT is not a pure function of the caller's snapshot. */
+function allSuspects(): string[] {
+  return Array.from(new Set([...suspects(), ...captureSuspects()])).sort();
 }
 
 /**
@@ -224,10 +278,30 @@ function suspects(): string[] {
  * count moved 86 → 62 when the detector learned to see captures under names
  * other than `result`. A number that moves when the detector improves is the
  * system working. What must never happen is raising it to admit NEW code
- * written in this shape — and the `promoteMatchToFriend` control below is
- * there to prove a new action still has to use the fixed shape.
+ * written in this shape.
+ *
+ * ── 65 → the honest total, 2026-08-15 ─────────────────────────────────────
+ *
+ * The 86 → 62 correction above was WRONG, and this is the entry that says so.
+ * It "found" 24 fixes by teaching the detector that a captured flag counts as
+ * fixed. A capture is not a fix: it is only readable for the FIRST functional
+ * update of a React batch, and a player report proved it in production — a
+ * $40.25M player told they needed $10,000 for an action that had succeeded.
+ *
+ * So the number was never 62 or 65; those were 65 plus a pile the detector had
+ * been told to ignore. The count now covers BOTH shapes (`suspects` for an
+ * unconditional-success tail, `captureSuspects` for a cross-updater read) and
+ * the baseline is set to the honest total. The 22 boolean captures were
+ * converted to outer-guard reporting in the same change, which moves them from
+ * one bucket to the other rather than out of the count — the ratchet measures
+ * a SHAPE, and the shape they now have is the one the repo's own
+ * `innerOnlyRejections.test.ts` prescribes.
+ *
+ * What is left to work down is real: the object-capture sites listed by
+ * `captureSuspects`, which need a state snapshot to report from (several take
+ * only `setGameState` today, so they cannot answer their caller at all).
  */
-const RATCHET = 65;
+const RATCHET = 102;
 
 describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
@@ -235,8 +309,13 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     expect(suspects().length).toBeGreaterThan(0);
   });
 
+  it('and BOTH shapes are detected, not just the tail form', () => {
+    // The capture half was invisible for months because it was the exclusion.
+    expect(captureSuspects().length).toBeGreaterThan(0);
+  });
+
   it('no NEW function reads its outcome out of an updater', () => {
-    const current = suspects();
+    const current = allSuspects();
 
     expect(
       `${current.length} suspects (ratchet ${RATCHET})\n${current.join('\n')}`,
@@ -250,7 +329,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     // If someone fixes twenty of these and forgets to lower the number, the
     // guard stops catching the twenty-first. Nudges the count down with the
     // work rather than letting slack accumulate.
-    expect(RATCHET - suspects().length).toBeLessThanOrEqual(5);
+    expect(RATCHET - allSuspects().length).toBeLessThanOrEqual(5);
   });
 
   /**
@@ -282,17 +361,24 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     ['SparkActions.ts', 'promoteMatchToFriend'],
   ];
 
-  it('the functions already fixed are NOT in the list (the control)', () => {
-    // If the detector flagged the fixed shape too, the ratchet would be
-    // measuring noise and could never reach zero.
-    const current = suspects();
+  it('the capture shape is counted as UNFIXED, not certified (the control)', () => {
+    /**
+     * This assertion is INVERTED from what it said before 2026-08-15.
+     *
+     * It used to read `not.toContain`, on the premise that a pessimistic
+     * capture was the fix. It is not — it is only readable for the first
+     * functional update of a React batch — so certifying it made the ratchet
+     * hide the very defect it exists to count. These three still carry the
+     * object-capture form and must therefore be VISIBLE in the list.
+     */
+    const current = allSuspects();
 
     for (const [file, fn] of CONTROLS) {
-      expect(current).not.toContain(`${file}::${fn}`);
+      expect(current).toContain(`${file}::${fn}`);
     }
   });
 
-  it('and those really do use the pessimistic shape (the control)', () => {
+  it('and those really do use the (unsound) pessimistic shape (the control)', () => {
     for (const [file, fn] of CONTROLS) {
       const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
       const i = src.indexOf(`export const ${fn}`);

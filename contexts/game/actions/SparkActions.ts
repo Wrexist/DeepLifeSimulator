@@ -30,7 +30,7 @@ import type {
   InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { updateStats } from './StatsActions';
+import { updateStats, applyStatsDelta } from './StatsActions';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import {
   rollMatch,
@@ -955,20 +955,29 @@ export const exposeCatfish = (
   const weeksLived = gameState.weeksLived ?? 0;
   const reputationGain = 5;
 
+  // Already exposed — the OUTER mirror of the updater's dedup guard. Without
+  // one, the refusal could only be reported by reading a flag back across the
+  // updater boundary, which is unreliable for any dispatch that is not first in
+  // its React batch (2026-08-15).
+  if ((gameState.sparkApp?.catfishRecords ?? []).some(
+    (r) => r.profileId === profileId && r.outcome === 'exposed',
+  )) {
+    return { success: false, message: 'You already exposed this catfish.', reputationGain: 0 };
+  }
+
   // ANTI-EXPLOIT (H-8/H-9 class): the outer call may fire twice in one React
-  // batch. Without a dedup re-check inside the updater, both taps appended a
-  // duplicate catfishRecord + bumped totalCatfishExposed, and the trailing
-  // updateStats double-granted reputation for one catfish. Re-check FRESH state
-  // and skip the reputation leg when the duplicate is rejected.
-  let applied = false;
+  // batch, so the dedup is re-checked against FRESH state here. The reputation
+  // grant folds into the SAME updater — it used to be a trailing `updateStats`
+  // gated on a flag, so a deferred dispatch recorded the exposure and granted
+  // no reputation at all.
   setGameState((prev) => {
     const s = ensureSpark(prev);
     if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'exposed')) {
       return prev;
     }
-    applied = true;
+    const withRep = { ...prev, ...applyStatsDelta(prev, { reputation: reputationGain }) };
     return {
-      ...prev,
+      ...withRep,
       sparkApp: {
         ...s,
         catfishRecords: [
@@ -983,10 +992,6 @@ export const exposeCatfish = (
       },
     };
   });
-  if (!applied) {
-    return { success: false, message: 'You already exposed this catfish.', reputationGain: 0 };
-  }
-  updateStats(setGameState, { reputation: reputationGain });
   return {
     success: true,
     message: `Catfish exposed — +${reputationGain} reputation`,
@@ -1020,18 +1025,24 @@ export const fallForCatfish = (
 ): void => {
   const weeksLived = gameState.weeksLived ?? 0;
   // ANTI-DOUBLE-CHARGE (mirrors exposeCatfish): the Alert "Send money" button can
-  // fire twice in one React batch; without a fresh-state re-check both taps append
-  // a record AND both trailing updateMoney calls debit the loss (charging twice).
-  // Skip the money/reputation legs when the duplicate is rejected.
-  let applied = false;
+  // fire twice in one React batch; without a fresh-state re-check both taps
+  // append a record AND both debit the loss.
+  //
+  // The debit and the reputation hit now fold into the SAME updater. They used
+  // to be trailing dispatches gated on a flag read back from here, so a
+  // deferred dispatch wrote the "fell for it" record — which the Spark history
+  // and lifetime stats read — while the player was never actually charged.
   setGameState((prev) => {
     const s = ensureSpark(prev);
     if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'fell_for_it' && r.exposedAtWeek === weeksLived)) {
       return prev;
     }
-    applied = true;
+    let next: GameState = prev;
+    const debit = applyMoneyDelta(next, -moneyLost, 'Spark catfish scam');
+    if (debit) next = { ...next, ...debit };
+    next = { ...next, ...applyStatsDelta(next, { reputation: -2 }) };
     return {
-      ...prev,
+      ...next,
       sparkApp: {
         ...s,
         catfishRecords: [
@@ -1041,9 +1052,6 @@ export const fallForCatfish = (
       },
     };
   });
-  if (!applied) return;
-  updateMoney(setGameState, -moneyLost, 'Spark catfish scam');
-  updateStats(setGameState, { reputation: -2 });
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1071,14 +1079,13 @@ export const resolveJealousy = (
   };
   const { rep, rel, msg } = effects[outcome];
 
-  let applied = false;
+  // The outer `!event` check above is the reported outcome; the re-check below
+  // is the same-batch RACE guard. The reputation hit folds in here too — it was
+  // a trailing `updateStats` gated on a flag read back after the dispatch, so a
+  // deferred resolve cleared the event and skipped the reputation entirely.
   setGameState((prev) => {
-    // Re-check against prev: a same-batch double-tap must not apply the
-    // relationship / history / stat effects twice (the first tap clears the
-    // event). Mirrors the exposeCatfish guard.
     const active = prev.sparkApp?.activeJealousy;
     if (!active) return prev;
-    applied = true;
     const s = ensureSpark(prev);
     const resolvedEvent = { ...active, resolved: true, outcome };
     const relationships = (prev.relationships ?? []).map((r) =>
@@ -1089,6 +1096,7 @@ export const resolveJealousy = (
 
     return {
       ...prev,
+      ...(rep !== 0 ? applyStatsDelta(prev, { reputation: rep }) : {}),
       sparkApp: {
         ...s,
         activeJealousy: null,
@@ -1102,12 +1110,6 @@ export const resolveJealousy = (
     };
   });
 
-  // Gate the trailing reputation dispatch on whether the update actually applied
-  // so a no-op second tap doesn't double-hit reputation.
-  if (!applied) {
-    return { success: false, message: 'No active jealousy event', reputationDelta: 0, relationshipDelta: 0 };
-  }
-  if (rep !== 0) updateStats(setGameState, { reputation: rep });
   log.info(`Jealousy resolved with ${outcome} (rep ${rep}, rel ${rel}) at week ${weeksLived}`);
   return { success: true, message: msg, reputationDelta: rep, relationshipDelta: rel };
 };

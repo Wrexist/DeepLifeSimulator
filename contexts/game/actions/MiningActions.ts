@@ -55,7 +55,13 @@ export function repairRig(
     return { success: false, message: `Insufficient funds. Need $${Math.ceil(cost).toLocaleString()}` };
   }
 
-  let didRepair = false;
+  // Every rejection inside mirrors an outer guard above (no warehouse, none
+  // deployed, already full durability, nothing to repair, unaffordable), so the
+  // updater's `return prev` paths are same-batch RACE protection for STATE.
+  // A `let didRepair` flag used to be read back here to report the outcome; it
+  // is only readable for the FIRST functional update of a React batch, so a
+  // successful repair that was not first reported "Unable to repair right now"
+  // (the 2026-08-15 player-report shape).
   setGameState(prev => {
     if (!prev.warehouse) return prev;
 
@@ -71,7 +77,6 @@ export function repairRig(
     if (!Number.isFinite(freshCost) || freshCost <= 0) return prev;
     if ((prev.stats?.money ?? 0) < freshCost) return prev;
 
-    didRepair = true;
     // Canonical money path (NaN/ceiling guards + dailySummary tracking) — the
     // affordability re-check above keeps behavior identical.
     const repairPatch = applyMoneyDelta(prev, -freshCost, 'Miner repair');
@@ -89,9 +94,6 @@ export function repairRig(
     };
   });
 
-  if (!didRepair) {
-    return { success: false, message: 'Unable to repair right now' };
-  }
   return { success: true, message: `Repaired ${tierId} to 100%` };
 }
 

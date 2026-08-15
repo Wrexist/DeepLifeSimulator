@@ -58,10 +58,10 @@ export function buyPet(
     health: 100,
     energy: 100,
   };
-  // C-9: pessimistic capture. Every rejection below is reachable ONLY from
-  // inside the updater, and the function used to return an unconditional
-  // success after it — the C-8 shape.
-  let bought = false;
+  // Both rejections below are same-batch RACE guards, and both are mirrored by
+  // an outer guard above (unknown breed / insufficient funds). They protect the
+  // STATE; they are not the reported outcome. See the note on the capture that
+  // used to read them, in `payForVet`.
   // M-batch-A (R8): debit + grant atomically so a same-batch double-tap can't
   // add two pets for one payment (the prior grant-then-charge added the pet
   // unconditionally, then charged in a separate updater that could reject).
@@ -82,12 +82,8 @@ export function buyPet(
 
     const spend = applyMoneyDelta(prev, -breed.price, `Bought ${breed.name}`);
     if (!spend) return prev; // race guard: an earlier same-batch buy drained the cash
-    bought = true;
     return { ...prev, ...spend, pets: [...(prev.pets ?? []), pet] };
   });
-  if (!bought) {
-    return { success: false, message: `Could not buy ${breed.name} right now.` };
-  }
   log.info(`Bought pet ${id} (${breed.id})`);
   return { success: true, message: `Welcome ${pet.name}!`, petId: id };
 }
@@ -111,14 +107,12 @@ export function feedPet(
   // atomic setGameState. Previously the two separate updates raced — two
   // rapid feeds could both pass the outer `inventory[foodId] > 0` check
   // and the second update's decrement would land at -1.
-  let fed = false; // C-9: pessimistic capture (see buyPet)
   setGameState((prev) => {
     const prevRemaining = prev.petFood?.[foodId] ?? 0;
     if (prevRemaining <= 0) return prev; // re-check inside updater
     const prevPets = prev.pets ?? [];
     const targetPet = prevPets.find((p) => p.id === petId);
     if (!targetPet || targetPet.isDead) return prev;
-    fed = true;
     return {
       ...prev,
       petFood: { ...(prev.petFood ?? {}), [foodId]: prevRemaining - 1 },
@@ -134,9 +128,6 @@ export function feedPet(
       ),
     };
   });
-  if (!fed) {
-    return { success: false, message: `Could not feed ${pet.name} right now.` };
-  }
   return { success: true, message: `Fed ${pet.name} ${food.name.toLowerCase()}.` };
 }
 
@@ -153,21 +144,16 @@ export function buyFood(
   if (safe(gameState.stats?.money, 0) < total) {
     return { success: false, message: `Need $${total.toLocaleString()}.` };
   }
-  let bought = false; // C-9: pessimistic capture (see buyPet)
   // M-batch-A (R8): atomic debit + grant (see buyPet).
   setGameState((prev) => {
     const spend = applyMoneyDelta(prev, -total, `Bought ${qty}× ${food.name}`);
     if (!spend) return prev; // race guard
-    bought = true;
     return {
       ...prev,
       ...spend,
       petFood: { ...(prev.petFood ?? {}), [foodId]: (prev.petFood?.[foodId] ?? 0) + qty },
     };
   });
-  if (!bought) {
-    return { success: false, message: `Need $${total.toLocaleString()}.` };
-  }
   return { success: true, message: `Bought ${qty}× ${food.name}.` };
 }
 
@@ -188,13 +174,11 @@ export function buyToy(
   }
   // M-batch-A (R8): atomic debit + grant; also re-check ownership inside the
   // updater so a double-tap can't buy the same toy twice.
-  let bought = false; // C-9: pessimistic capture (see buyPet)
   setGameState((prev) => {
     const target = (prev.pets ?? []).find((p) => p.id === petId);
     if (!target || (target.toys ?? []).includes(toyId)) return prev; // race: already owned
     const spend = applyMoneyDelta(prev, -toy.price, `Bought ${toy.name} for ${pet.name}`);
     if (!spend) return prev; // race: cash drained
-    bought = true;
     return {
       ...prev,
       ...spend,
@@ -203,9 +187,6 @@ export function buyToy(
       ),
     };
   });
-  if (!bought) {
-    return { success: false, message: `Could not buy the ${toy.name}.` };
-  }
   return { success: true, message: `${pet.name} loves the new ${toy.name}.` };
 }
 
@@ -248,7 +229,6 @@ export function playWithPet(
    * against `prev` (CLAUDE.md §4.4). The pet gate was already re-checked; the
    * player gate had nothing to re-check.
    */
-  let played = false; // C-9: pessimistic capture (see buyPet)
   setGameState((prev) => {
     const target = (prev.pets ?? []).find((p) => p.id === petId);
     if (!target || target.isDead) return prev;
@@ -256,7 +236,6 @@ export function playWithPet(
     const playerEnergy = safe(prev.stats?.energy, 0);
     if (playerEnergy < PLAY_PLAYER_ENERGY_COST) return prev;
 
-    played = true;
     return {
       ...prev,
       stats: { ...prev.stats, energy: clamp01(playerEnergy - PLAY_PLAYER_ENERGY_COST) },
@@ -271,9 +250,6 @@ export function playWithPet(
       ),
     };
   });
-  if (!played) {
-    return { success: false, message: `${pet.name} is not up for playing right now.` };
-  }
   return { success: true, message: `Had a great time with ${pet.name}.` };
 }
 
@@ -295,13 +271,13 @@ export function petSleep(
       message: `${pet.name} has already slept this week — let them play with their toys instead.`,
     };
   }
-  let slept = false; // C-9: pessimistic capture (see buyPet)
   updatePet(setGameState, petId, (p) => {
     // Re-check the once-per-week gate on fresh `p`: the precondition above reads
     // the stale snapshot, so a rapid double-tap would otherwise apply the +50
-    // energy / +5 health buff twice before `lastSleepWeek` was committed.
+    // energy / +5 health buff twice before `lastSleepWeek` was committed. This
+    // mirrors the outer guard exactly, so it protects STATE only — the report
+    // is the outer guard's, which has no timing dependency.
     if (p.lastSleepWeek === currentWeek) return p;
-    slept = true;
     return {
       ...p,
       energy: clamp01(safe(p.energy, 0) + 50),
@@ -309,13 +285,26 @@ export function petSleep(
       lastSleepWeek: currentWeek,
     };
   });
-  if (!slept) {
-    return {
-      success: false,
-      message: `${pet.name} has already slept this week — let them play with their toys instead.`,
-    };
-  }
   return { success: true, message: `${pet.name} is resting peacefully.` };
+}
+
+/**
+ * Would this vet service change anything for this pet?
+ *
+ * "Nothing left to do" means the pet is at full health AND this service has no
+ * sickness to treat, no vaccination to give and no happiness to add. A visit
+ * that would still change something is allowed through.
+ *
+ * Deliberately one predicate used in two places (the outer report and the
+ * inner race guard), so the two can never disagree about what a wasted visit is.
+ */
+function vetVisitWouldHelp(pet: Pet, service: ReturnType<typeof findVetService>): boolean {
+  if (!service) return false;
+  const wouldHeal = safe(pet.health, 0) < 100 && service.healthBonus > 0;
+  const wouldTreat = !!service.treatsSickness && !!pet.isSick;
+  const wouldVaccinate = !!service.vaccinates && !pet.vaccinated;
+  const wouldCheer = (service.happinessBonus ?? 0) > 0 && safe(pet.happiness, 0) < 100;
+  return wouldHeal || wouldTreat || wouldVaccinate || wouldCheer;
 }
 
 export function payForVet(
@@ -339,38 +328,41 @@ export function payForVet(
   if (safe(gameState.stats?.money, 0) < price) {
     return { success: false, message: `Need $${price.toLocaleString()}.` };
   }
-  // C-9: pessimistic capture. The "nothing left to do" rejection below is
-  // reachable only from inside the updater, and this used to report success
-  // for it — telling the player their pet "is doing better" after a visit
-  // that was correctly refused.
-  let treated = false;
+  /**
+   * The "nothing left to do" gate, checked OUTSIDE — which is where it was
+   * missing.
+   *
+   * R8 made the debit atomic; it did not stop a second tap being charged for a
+   * visit that does nothing. `health` is already clamped at 100 and `isSick` is
+   * already false after the first, so the second tap buys nothing — up to
+   * $1,500 for Surgery, or an infection's full treatment cost. Anti-player,
+   * same shape as the vehicle actions in R4-X5.
+   *
+   * That inner re-check was added, but nothing outside mirrored it, so the
+   * refusal was reported through a `let treated` capture read after the
+   * updater. A capture is only readable for the FIRST functional update of a
+   * React batch (`__tests__/refactor/updaterTimingContract.test.tsx`), so it
+   * failed in both directions: a refused visit could report "is doing better",
+   * and — the 2026-08-15 player-report shape — a visit that WORKED could report
+   * "does not need … right now" whenever it was not first in its batch.
+   *
+   * `vetVisitWouldHelp` is the same predicate for both, so the outer answer and
+   * the inner race guard cannot drift apart. This is the `upgradeEnergySystem`
+   * / `buildRDLab` treatment from `innerOnlyRejections.test.ts`: an outer
+   * guard, never a capture.
+   */
+  if (!vetVisitWouldHelp(pet, service)) {
+    return { success: false, message: `${pet.name} does not need ${service.name} right now.` };
+  }
   // M-batch-A (R8): atomic debit + grant.
   setGameState((prev) => {
-    /**
-     * Re-check the PRECONDITION, not just affordability.
-     *
-     * R8 made the debit atomic; it did not stop a second tap being charged for
-     * a visit that does nothing. `health` is already clamped at 100 and
-     * `isSick` is already false after the first, so the second tap buys
-     * nothing — up to $1,500 for Surgery, or an infection's full treatment
-     * cost. Anti-player, same shape as the vehicle actions in R4-X5.
-     *
-     * "Nothing left to do" means: the pet is at full health AND this service
-     * has no sickness to treat and no vaccination to give. A visit that would
-     * still change something is allowed through.
-     */
     const prevPet = (prev.pets ?? []).find((p) => p?.id === petId);
     if (!prevPet || prevPet.isDead) return prev;
-
-    const wouldHeal = safe(prevPet.health, 0) < 100 && service.healthBonus > 0;
-    const wouldTreat = !!service.treatsSickness && !!prevPet.isSick;
-    const wouldVaccinate = !!service.vaccinates && !prevPet.vaccinated;
-    const wouldCheer = (service.happinessBonus ?? 0) > 0 && safe(prevPet.happiness, 0) < 100;
-    if (!wouldHeal && !wouldTreat && !wouldVaccinate && !wouldCheer) return prev;
+    // Race guard on fresh state — a second same-batch tap finds nothing to do.
+    if (!vetVisitWouldHelp(prevPet, service)) return prev;
 
     const spend = applyMoneyDelta(prev, -price, `${service.name} for ${pet.name}`);
     if (!spend) return prev; // race guard
-    treated = true;
     return {
       ...prev,
       ...spend,
@@ -389,9 +381,6 @@ export function payForVet(
       ),
     };
   });
-  if (!treated) {
-    return { success: false, message: `${pet.name} does not need ${service.name} right now.` };
-  }
   return { success: true, message: `${service.name}: ${pet.name} is doing better.` };
 }
 
@@ -435,9 +424,9 @@ export function enterCompetition(
   // M-batch-A (R8): apply the net delta (entry fee always; prize only if won)
   // AND the pet update in one atomic updater, so the entry fee can't be charged
   // without the pet result landing, and a double-tap can't re-enter for free.
-  // C-9: pessimistic capture. This one also returned `won` and `payout` for a
-  // run that was rejected, so a refused second tap reported a prize.
-  let entered = false;
+  // Every rejection inside is mirrored by an outer guard above (pet missing /
+  // dead, already competed this week, entry fee) — they are the same-batch race
+  // protection for STATE, not the reported outcome.
   setGameState((prev) => {
     const target = (prev.pets ?? []).find((p) => p.id === petId);
     // Authoritative once-per-week re-check on fresh state: the precondition above
@@ -447,7 +436,6 @@ export function enterCompetition(
     const net = result.won ? comp.prize - comp.entryFee : -comp.entryFee;
     const spend = applyMoneyDelta(prev, net, result.won ? `Won ${comp.name}!` : `${comp.name} entry`);
     if (!spend) return prev; // race guard
-    entered = true;
     return {
       ...prev,
       ...spend,
@@ -456,12 +444,6 @@ export function enterCompetition(
       ),
     };
   });
-  if (!entered) {
-    return {
-      success: false,
-      message: `${pet.name} has already competed this week — come back next week.`,
-    };
-  }
   return {
     success: true,
     message: result.won

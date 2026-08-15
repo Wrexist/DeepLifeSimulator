@@ -2,7 +2,7 @@ import { GameState, TravelState } from '../types';
 import { logger } from '@/utils/logger';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
-import { updateStats } from './StatsActions';
+import { updateStats, applyStatsDelta } from './StatsActions';
 import { DESTINATIONS } from '@/lib/travel/destinations';
 import { quoteTrip, buildTripReturnSummary, isTripReady } from '@/lib/travel/operations';
 import { TravelEventDef } from '@/lib/travel/events';
@@ -59,7 +59,9 @@ export const travelTo = (
   // Single guarded updater folds the cost debit + trip booking, so a rapid
   // double-tap can't charge twice or double-book (mirrors the currentTrip
   // re-entry guard in returnFromTrip / purchasePassport).
-  let booked = false;
+  // `quoteTrip` above already refused an unknown destination, an in-progress
+  // trip, a missing passport and every affordability case, so both rejections
+  // inside are same-batch RACE guards for STATE, not the reported outcome.
   setGameState((prev) => {
     if (prev.travel?.currentTrip) return prev;
     // Debit through the canonical money path so the trip cost lands in
@@ -67,7 +69,6 @@ export const travelTo = (
     // doTravelActivity. applyMoneyDelta also does the overdraft-reject + NaN-guard.
     const spend = applyMoneyDelta(prev, -adjustedCost, `Travel to ${destination.name}`);
     if (!spend) return prev;
-    booked = true;
     return {
       ...prev,
       ...spend,
@@ -96,13 +97,6 @@ export const travelTo = (
       } as TravelState,
     };
   });
-
-  if (!booked) {
-    return {
-      success: false,
-      message: `Could not book this trip — you may already be traveling or short on funds.`,
-    };
-  }
 
   log.info(`Traveled to ${destination.name}, returning week ${returnWeek} (cost ${formatMoney(adjustedCost)})`);
   return {
@@ -150,28 +144,90 @@ export const returnFromTrip = (
 
   const { destination, events, totals, firstVisit } = summary;
 
-  // ANTI-EXPLOIT: clear the trip FIRST, guarded against fresh state, and only
-  // apply the stat/money rewards if THIS call actually ended the trip. The
-  // readiness check above reads the stale snapshot, so two "Return" taps in one
-  // batch both passed it and both applied the (additive) stat + money rewards.
-  // By clearing inside the updater with a presence check, a second same-batch
-  // tap finds no currentTrip and becomes a no-op (applied stays false).
-  let applied = false;
+  /**
+   * ONE updater: clear the trip AND pay out everything it earned.
+   *
+   * ── Why this is one updater and not five ──────────────────────────────────
+   *
+   * This used to clear the trip in a guarded updater, set `let applied = true`
+   * inside it, and then apply the stat totals, the event money, the passport
+   * milestones and the milestone stamp through four SEPARATE dispatches gated
+   * on reading that flag back.
+   *
+   * A capture is only readable for the FIRST functional update of a React batch
+   * (`__tests__/refactor/updaterTimingContract.test.tsx`). On any deferred
+   * dispatch the flag read `false` — so the queued clear-trip updater still ran
+   * and ENDED THE TRIP, while every reward was skipped and the player was told
+   * "You are not on a trip". Losing a whole trip's payoff is a much worse
+   * failure than the wrong message that motivated the sweep it was found in.
+   *
+   * Folding them together also removes the exploit the flag was protecting
+   * against, more directly than the flag did: a second same-batch tap finds no
+   * matching `currentTrip` and returns `prev`, so the rewards cannot land twice
+   * because they are the same object as the clear (CLAUDE.md §4.4).
+   *
+   * The milestone count is now derived from `prev` rather than the stale outer
+   * snapshot, which is a correctness gain in its own right.
+   */
+  /**
+   * The milestone set REPORTED to the caller, derived from the snapshot the
+   * player acted on. `evaluateTravelMilestones` is pure, so the updater below
+   * re-derives the same answer from `prev` for the state — outcome and state
+   * from one function, never a variable read across the updater boundary.
+   */
+  const previewVisited = gameState.travel?.visitedDestinations || [];
+  const previewMilestone = evaluateTravelMilestones(
+    previewVisited.includes(destination.id) ? previewVisited.length : previewVisited.length + 1,
+    gameState.travel?.passportMilestones
+  );
+
   setGameState((prev) => {
     const cur = prev.travel?.currentTrip;
     if (!cur || cur.destinationId !== trip.destinationId || cur.startWeek !== trip.startWeek) {
       return prev; // trip already returned by a prior tap → no-op
     }
-    applied = true;
     const alreadyVisited = prev.travel?.visitedDestinations?.includes(destination.id) || false;
+
+    // Passport milestones against the POST-return distinct-destination count.
+    const postVisitedCount = (prev.travel?.visitedDestinations || []).length + (alreadyVisited ? 0 : 1);
+    const milestone = evaluateTravelMilestones(postVisitedCount, prev.travel?.passportMilestones);
+
+    // Stat totals (destination benefits + event deltas).
+    // NOTE: happiness/energy here already include the folded stress-relief +
+    // intelligence ("de-stress / broaden the mind") experience via
+    // buildTripReturnSummary → deriveExperienceStats, so nothing is dropped.
+    const statPatch = applyStatsDelta(prev, {
+      happiness: totals.happinessDelta + (milestone.newlyEarned.length ? milestone.happiness : 0),
+      health: totals.healthDelta,
+      energy: totals.energyDelta,
+      ...(totals.reputationDelta || milestone.reputation
+        ? { reputation: (totals.reputationDelta ?? 0) + (milestone.newlyEarned.length ? milestone.reputation ?? 0 : 0) }
+        : {}),
+    });
+    let next: GameState = { ...prev, ...statPatch };
+
+    // Money delta from events (lost wallet, tourist trap, etc.). A refused
+    // debit must not cost the player their trip, so it degrades to no money
+    // change rather than rejecting the whole return.
+    if (totals.moneyDelta !== 0) {
+      const money = applyMoneyDelta(next, totals.moneyDelta, `Trip events: ${destination.name}`);
+      if (money) next = { ...next, ...money };
+    }
+
     return {
-      ...prev,
+      ...next,
       travel: {
         ...prev.travel!,
         currentTrip: undefined,
         visitedDestinations: alreadyVisited
           ? prev.travel?.visitedDestinations || []
           : [...(prev.travel?.visitedDestinations || []), destination.id],
+        passportMilestones: milestone.newlyEarned.length
+          ? Array.from(new Set([
+              ...(prev.travel?.passportMilestones || []),
+              ...milestone.newlyEarned.map((t) => t.id),
+            ]))
+          : prev.travel?.passportMilestones,
       },
       lifetimeStatistics:
         prev.lifetimeStatistics && !alreadyVisited
@@ -182,48 +238,10 @@ export const returnFromTrip = (
           : prev.lifetimeStatistics,
     };
   });
+  void deps; // rewards now fold through applyStatsDelta / applyMoneyDelta
 
-  if (!applied) {
-    return { success: false, message: 'You are not on a trip' };
-  }
-
-  // Apply stat totals (destination benefits + event deltas) — only once.
-  // NOTE: happiness/energy here already include the folded stress-relief +
-  // intelligence ("de-stress / broaden the mind") experience via
-  // buildTripReturnSummary → deriveExperienceStats, so nothing is dropped.
-  deps.updateStats(setGameState, {
-    happiness: totals.happinessDelta,
-    health: totals.healthDelta,
-    energy: totals.energyDelta,
-    ...(totals.reputationDelta ? { reputation: totals.reputationDelta } : {}),
-  });
-
-  // Apply money delta from events (lost wallet, tourist trap, etc.)
-  if (totals.moneyDelta !== 0 && deps.updateMoney) {
-    deps.updateMoney(setGameState, totals.moneyDelta, `Trip events: ${destination.name}`);
-  }
-
-  // Passport milestones: evaluate against the POST-return distinct-destination
-  // count and grant any newly-crossed tier's bounded one-off reward exactly once.
-  // Only reachable when `applied` is true (this call ended the trip), so a
-  // same-batch double-tap can't double-grant; the claimed-id set is idempotent too.
-  const preVisited = gameState.travel?.visitedDestinations || [];
-  const postVisitedCount = preVisited.includes(destination.id)
-    ? preVisited.length
-    : preVisited.length + 1;
-  const milestone = evaluateTravelMilestones(postVisitedCount, gameState.travel?.passportMilestones);
-  if (milestone.newlyEarned.length > 0) {
-    deps.updateStats(setGameState, {
-      happiness: milestone.happiness,
-      ...(milestone.reputation ? { reputation: milestone.reputation } : {}),
-    });
-    setGameState((prev) => {
-      if (!prev.travel) return prev;
-      const existing = prev.travel.passportMilestones || [];
-      const merged = Array.from(new Set([...existing, ...milestone.newlyEarned.map((t) => t.id)]));
-      return { ...prev, travel: { ...prev.travel, passportMilestones: merged } };
-    });
-    log.info(`Passport milestone(s) earned: ${milestone.newlyEarned.map((t) => t.id).join(', ')}`);
+  if (previewMilestone.newlyEarned.length > 0) {
+    log.info(`Passport milestone(s) earned: ${previewMilestone.newlyEarned.map((t) => t.id).join(', ')}`);
   }
 
   if (firstVisit) {
@@ -236,7 +254,7 @@ export const returnFromTrip = (
     message: `Welcome back from ${destination.name}!`,
     events,
     destinationName: destination.name,
-    milestonesEarned: milestone.newlyEarned,
+    milestonesEarned: previewMilestone.newlyEarned,
   };
 };
 
@@ -409,10 +427,10 @@ export interface TravelActivityResult {
  *
  * Money-safe: the cash cost runs through `applyMoneyDelta` (overdraft-reject +
  * daily-summary + budget tracking) folded into the SAME guarded updater that
- * marks the activity done, so a double-tap can neither charge twice nor apply
- * the reward twice — the second tap finds the activity already in
- * `activitiesDone` and no-ops (`applied` stays false). Stat effects are then
- * applied once, gated on `applied`, exactly like `returnFromTrip`.
+ * marks the activity done AND grants the stat effects, so a double-tap can
+ * neither charge twice nor apply the reward twice — the second tap finds the
+ * activity already in `activitiesDone` and returns `prev`. One transition, so
+ * there is no flag to read back across the updater boundary.
  */
 export const doTravelActivity = (
   gameState: GameState,
@@ -426,7 +444,9 @@ export const doTravelActivity = (
   }
   const { activity, netEnergy } = quote;
 
-  let applied = false;
+  // `quoteActivity` above already refused a missing trip, the wrong
+  // destination, an activity already done this trip, insufficient energy and an
+  // unaffordable cost, so every rejection inside is a same-batch RACE guard.
   setGameState((prev) => {
     const trip = prev.travel?.currentTrip;
     if (!trip) return prev;
@@ -447,10 +467,22 @@ export const doTravelActivity = (
       if (!spend) return prev; // unaffordable → reject atomically
     }
 
-    applied = true;
+    // Stat rewards land in the SAME transition as the charge and the cooldown
+    // stamp. They used to be a separate `deps.updateStats` dispatch gated on a
+    // flag read back after this updater — so a deferred dispatch charged the
+    // player, marked the activity done for the trip, and granted nothing.
+    const withMoney: GameState = { ...prev, ...(spend || {}) };
+    const statPatch = applyStatsDelta(withMoney, {
+      ...(activity.effects.happiness ? { happiness: activity.effects.happiness } : {}),
+      ...(activity.effects.health ? { health: activity.effects.health } : {}),
+      ...(activity.effects.reputation ? { reputation: activity.effects.reputation } : {}),
+      ...(netEnergy ? { energy: netEnergy } : {}),
+    });
+
     return {
       ...prev,
       ...(spend || {}),
+      ...statPatch,
       // Budget tab: in-trip activities are entertainment spending.
       banking:
         activity.cost > 0 && prev.banking?.budgetSpend
@@ -466,17 +498,7 @@ export const doTravelActivity = (
     };
   });
 
-  if (!applied) {
-    return { success: false, message: 'Could not do this activity right now.' };
-  }
-
-  // Apply the stat rewards once (happiness/health/reputation + net energy).
-  deps.updateStats(setGameState, {
-    ...(activity.effects.happiness ? { happiness: activity.effects.happiness } : {}),
-    ...(activity.effects.health ? { health: activity.effects.health } : {}),
-    ...(activity.effects.reputation ? { reputation: activity.effects.reputation } : {}),
-    ...(netEnergy ? { energy: netEnergy } : {}),
-  });
+  void deps; // stat rewards now fold through applyStatsDelta inside the updater
 
   log.info(`Did travel activity ${activity.id} (cost ${formatMoney(activity.cost)})`);
   return {

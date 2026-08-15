@@ -167,6 +167,20 @@ export const startResearch = (
     return { success: false, message: `Lab can only handle ${labInfo.maxConcurrentProjects} concurrent project(s)` };
   }
 
+  /**
+   * Already in progress — the one gate that had no outer mirror.
+   *
+   * The concurrency check above hides it on a Basic lab (max 1 project), but a
+   * lab with `maxConcurrentProjects > 1` and a free slot passes it while the
+   * updater still refuses a duplicate project for the SAME technology. That
+   * refusal used to surface through a `let applied` flag read after the
+   * dispatch — unreliable for any update that is not first in its React batch,
+   * so it also reported failure for research that had genuinely started.
+   */
+  if (activeProjects.some(p => p.technologyId === technologyId)) {
+    return { success: false, message: 'That technology is already being researched' };
+  }
+
   // Check cost
   if (gameState.stats.money < technology.researchCost) {
     return {
@@ -198,11 +212,8 @@ export const startResearch = (
   //
   // Same fix `filePatent` and `enterCompetition` in this file already carry from
   // the 2026-07-02 audit; `startResearch` was left behind. 2026-07-30 audit.
-  // Whether the updater actually applied the project. The trailing return used
-  // to be a hardcoded success, so on the very double-tap race these re-checks
-  // exist to stop, the REJECTED call still told the caller research had
-  // started. Review of ECON-2.
-  let applied = false;
+  // Every re-check below now mirrors an outer guard, so they are same-batch
+  // RACE protection for STATE — not the reported outcome.
   setGameState(prev => {
     const prevCompany = (prev.companies || []).find(c => c.id === companyId);
     if (!prevCompany?.rdLab) return prev;
@@ -219,8 +230,6 @@ export const startResearch = (
     // Charge inside the updater, rejecting rather than flooring.
     const spend = applyMoneyDelta(prev, -technology.researchCost, `Research: ${technology.name}`);
     if (!spend) return prev;
-
-    applied = true;
 
     // Create project inside updater to use fresh weeksLived
     const newProject = {
@@ -256,13 +265,6 @@ export const startResearch = (
         : prev.company,
     };
   });
-
-  if (!applied) {
-    return {
-      success: false,
-      message: 'Could not start that research — check your lab capacity and funds.',
-    };
-  }
 
   // Log the money update
   log.info(`Money deducted: $${technology.researchCost.toLocaleString()} for researching ${technology.name}`);

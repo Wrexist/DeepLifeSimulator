@@ -1,74 +1,94 @@
-# Active plan — first-session instrumentation (D1 retention)
+# Active plan — the read-out-of-updater class, fixed across the board
 
 ## Why
 
-App Store Connect benchmarks (Simulation peer set, week of Jul 13–19 2026):
+A player report on 2026-08-15 ($40.25M told they needed $10,000) traced to
+`manageFamilyBusiness` reading a `didManage` flag it had set INSIDE a
+`setGameState` updater. React runs only the FIRST functional update of a batch
+eagerly; a second is deferred, so the flag was still `false` at the read and a
+successful action reported failure.
 
-| Metric | Us | Percentile |
-|---|---|---|
-| Conversion rate | 6.28% | **above 75th** ✅ |
-| Proceeds per paying user | $5.94 | 25th–50th 🟡 |
-| Day 1 retention | 24.78% | **below 25th** 🔴 |
-| Day 7 retention | 2.86% | **below 25th** (median 7.14%) 🔴 |
+That one is fixed. Sweeping `contexts/game/actions/` for the same shape — a
+`let x = false` assigned `true` inside an updater and read through `if (!x)` —
+finds **27 more**. Every one can report a canned failure for an action that
+worked, and every one suppresses the caller's `saveGame()`.
 
-Acquisition is the healthy part of this business. Retention is the ceiling:
-of every 100 installs about 3 open the app a week later.
+## The fix, and why it is NOT a resolver rewrite
 
-## What is NOT the problem (checked, do not redo)
+`__tests__/actions/innerOnlyRejections.test.ts` already prescribes the answer
+for this class, and it is the one the repo used for `upgradeEnergySystem` /
+`buildRDLab`:
 
-- **Onboarding length.** Already fixed on 2026-08-10 (`7bbf717`): "Play" is the
-  primary card for a first-time player at 2 taps / 12.3s, against New Game's
-  6 taps / 21.4s. The measured retention week PREDATES that commit by four
-  weeks, so those numbers describe a build that no longer exists here.
-- **The tutorial never firing.** It fires: `showWelcomePopup` defaults true in
-  `initialState`, survives `buildNewGameState`, and `home.tsx` starts the
-  tutorial on `weeksLived <= 1`.
-- **Crashes.** Apple reports insufficient data to benchmark the crash rate,
-  i.e. the volume is low.
-- **Analytics being off.** `EXPO_PUBLIC_ENABLE_FIREBASE=true` in the production
-  EAS profile, and `track()` is genuinely wired into IAP, ads, paywalls,
-  week ticks, death and prestige.
+> Both are fixed with an OUTER guard, not an outcome capture. A capture is only
+> readable for the first update in a React batch. An outer guard has no timing
+> dependency at all.
 
-## What IS the problem
+Removing the capture and reporting from the outer guards gives **identical**
+reporting to a full pure-resolver rewrite (on a stale double-tap the preview
+passes either way), at a fraction of the diff and the risk. It is also robust
+to randomness inside the updater, which a preview/commit resolver is not.
 
-Quick Start has shipped, and **there is no instrument that can tell you whether
-it worked.** Three events are declared in `lib/analytics/events.ts` — the file
-whose own docstring says it exists to measure "retention (D1/D7/D30) … and
-churn points" — and never emitted by anything:
+So, per function:
 
-- `onboarding_step` — the six-screen funnel. `src/features/onboarding/
-  onboardingAnalytics.ts` records every step view, completion and validation
-  error, and sends them to `logger` only, so they never leave the device.
-  (`screen_view` gives a partial view-only picture by route; it cannot show
-  completions, and it cannot show WHY someone stopped.)
-- `tutorial_step` — the tutorial is the first thing a new player meets and its
-  progress is entirely unmeasured.
-- `session_end` — declared, never emitted, so **session length is not
-  measurable**. For a 24.78% D1 that is the single most diagnostic number
-  there is. The transport is a plain-JS batcher, not the Firebase SDK, so
-  nothing supplies this automatically.
-
-This is the same defect class as the scholarship event that never fired and
-`weeksInPoverty` that nothing wrote — a system built, then not connected.
+1. Enumerate the inner `return prev` guards.
+2. For each, confirm an OUTER guard already mirrors it. Where none exists, that
+   is a live "reported success for a no-op" bug — add the outer guard.
+3. Delete the `let x = false` capture and its `if (!x)` tail.
+4. Keep every inner guard: they are the same-batch race protection for STATE.
 
 ## Tasks
 
-- [x] Trace the cold-start path and count taps to first playable week
-- [x] Confirm the tutorial actually triggers for a new game
-- [x] Confirm production analytics flags and real `track()` call sites
-- [x] Establish that the retention data predates the Quick Start fix
-- [x] Emit `onboarding_step` from `onboardingAnalytics` (one choke point, all
-      six screens, no call-site churn)
-- [x] Emit `tutorial_step` on view / complete / skip
-- [x] Emit `session_end` with duration on background
-- [x] Tests for all three
-- [x] Full suite, type-check, lint ratchet, routes
+- [x] Fix the reported bug (`manageFamilyBusiness`) + regression test
+- [x] Sweep `contexts/game/actions/` for the same shape — 27 sites found
+- [x] PetActions (8 — `petSleep` too; the first sweep missed it because it
+      dispatches through the `updatePet` helper rather than `setGameState(` directly): buyPet, feedPet, buyFood, buyToy, playWithPet, payForVet,
+      enterCompetition
+      - `payForVet`'s "nothing left to do" check was **inner-only** → now
+        `vetVisitWouldHelp`, one predicate used inside and out
+- [x] ContactsActions (4): recordInteraction, lendMoney, redeemFavor, repayFavor
+- [x] TravelActions (3): travelTo, returnFromTrip, doTravelActivity
+- [x] PoliticalActions (3): lobby, campaign, hireLobbyist
+- [x] PulseActions (3): composePost, endLiveStream, watchAdForFollowerBoost
+- [x] RDActions (1 real — `advanceResearch` / `processCompetitionResults` scope their flags INSIDE the updater and were false positives): startResearch, advanceResearch, processCompetitionResults
+- [x] SparkActions (3): exposeCatfish, fallForCatfish, resolveJealousy
+- [x] MiningActions (1): repairRig
+- [x] GameActionsContext (1): `claimProgressAchievement` — the flag gated analytics
+      AND the global gold-claim AsyncStorage write
+- [x] Regression tests for every outer guard added
+- [x] Re-baseline the C-9 ratchet, which certified the guarded-capture shape as
+      "fixed" — the premise this bug disproves. It now counts BOTH shapes;
+      honest total 102, and the `not.toContain` control is inverted
+- [x] Full suite (7,062), type-check, both ratchets, lint, routes
+
+## Found on the way — bugs worse than the wrong message
+
+Six of these flags did not just misreport; they GATED the payout, so a deferred
+dispatch applied the cost and skipped the reward:
+
+- `returnFromTrip` — trip cleared, every stat/event-money/passport milestone
+  skipped. Now one updater.
+- `doTravelActivity` — charged and marked done for the trip, no stat effects.
+- `composePost` — post + followers recorded, energy/health/happiness costs and
+  the ad revenue never applied.
+- `endLiveStream` — session ended and followers banked, tips never paid.
+- `exposeCatfish` / `fallForCatfish` / `resolveJealousy` — record written,
+  reputation (and the scam debit) skipped.
+- `claimProgressAchievement` — gems granted, but `achievement_unlocked` never
+  tracked and the cross-install gold-claim record never persisted.
+
+Enabled by a new `applyStatsDelta` in `StatsActions` — the stats counterpart of
+`applyMoneyDelta`, so a stat change can fold into an existing updater. There was
+no pure stats helper, which is WHY these were separate dispatches.
+
+## Still open — the object-capture half of the same class
+
+`captureSuspects()` in the ratchet lists 12 functions using
+`let result = { success: false }` … `return result;`. Identical timing defect.
+Several (`installPropertyDecor`, `addPropertyRoom`, `upgradePropertyTier`) take
+only `setGameState` and no state snapshot, so they cannot report to their caller
+at all without a signature change.
 
 ## Deliberately not done
 
-- Redesigning the first session on a hunch. The instrument comes first; with
-  three weeks of `onboarding_step` and `session_end` data the change to make is
-  a fact rather than a guess.
-- Any change to the ad grace or paywall timing. Both are already gated well
-  clear of a first session, and moving them without data is how the two false
-  store claims happened.
+- Rewriting all 27 as preview/commit pure resolvers. Same reporting behaviour,
+  much larger diff, and it breaks on any updater that rolls randomness.

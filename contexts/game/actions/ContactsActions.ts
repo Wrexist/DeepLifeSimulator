@@ -67,7 +67,9 @@ export function recordInteraction(
   // updater applies in the common (no concurrent change) case.
   const preview = resolveInteraction(rel, action, bonus, ws);
 
-  let applied = false;
+  // Every rejection inside mirrors an outer guard above, so the updater's
+  // `return prev` paths are same-batch RACE protection for state, not the
+  // reported outcome (which must not depend on React's batching order).
   setGameState((prev) => {
     const rels = prev.relationships ?? [];
     const idx = rels.findIndex((r) => r.id === contactId);
@@ -102,11 +104,9 @@ export function recordInteraction(
       if (!paid) return prev; // affordability failed inside the delta — abort
       next = { ...next, ...paid };
     }
-    applied = true;
     return next;
   });
 
-  if (!applied) return { success: false, message: 'Could not complete.' };
   return { success: true, message: preview.message };
 }
 
@@ -161,7 +161,8 @@ export function lendMoney(
     return { success: false, message: `Need $${amount.toLocaleString()} to lend.` };
   }
 
-  let applied = false;
+  // As in recordInteraction: the inner guards mirror the outer ones and exist
+  // to protect STATE against a same-batch double-tap.
   setGameState((prev) => {
     const rels = prev.relationships ?? [];
     const idx = rels.findIndex((r) => r.id === contactId);
@@ -202,11 +203,9 @@ export function lendMoney(
     };
     const newRels = [...rels];
     newRels[idx] = updatedRel;
-    applied = true;
     return { ...prev, ...debit, relationships: newRels, favorLedger: nextLedger };
   });
 
-  if (!applied) return { success: false, message: 'Could not complete.' };
   return { success: true, message: `You lent ${rel.name} $${amount.toLocaleString()}. They owe you one.` };
 }
 
@@ -215,6 +214,81 @@ export function lendMoney(
  * also credit the cash. Money owed-by-player should be paid via the regular
  * money flow; this function only flips the ledger state and returns the favor.
  */
+/**
+ * Why `favor` cannot be redeemed from `state`, or null when it can.
+ *
+ * Extracted 2026-08-15. Three of these rejections used to live ONLY inside
+ * `redeemFavor`'s updater — the expiry gate, the invalid-amount gate and a
+ * refused non-money payout — and were reported through a `let redeemed` flag
+ * read after `setGameState`. That read is only reliable for the FIRST
+ * functional update of a React batch (see
+ * `__tests__/refactor/updaterTimingContract.test.tsx`), so a legitimate redeem
+ * that happened not to be first reported "Could not redeem this favor right
+ * now" for a favour it had just paid out. Same defect as the 2026-08-15
+ * player report.
+ *
+ * One predicate, called outside for the report and inside as the race guard,
+ * so the two can never disagree — and the player now gets the REAL reason
+ * ("expired", "invalid amount") instead of a generic "could not".
+ *
+ * `resolveNonMoneyFavor` is pure, so calling it here as well as in the commit
+ * costs only the allocation.
+ */
+export function favorRedeemBlocker(state: GameState, favor: Favor): string | null {
+  if (favor.status !== 'open') return 'Favor already closed';
+
+  /**
+   * Past its expiry counts as closed even if the tick has not stamped it yet.
+   *
+   * `expireFavors` runs in the weekly tick, so between the expiry week arriving
+   * and the next tick a favour sits `open` with `expiresWeek` behind it. That
+   * gap only became reachable when network favours introduced expiries the
+   * player can hold for weeks. Refusing makes the deadline mean the same thing
+   * whether or not a tick has run.
+   *
+   * The `?? 0` fallback stays ON PURPOSE (unlike favour CREATION, which
+   * refuses): an absent week counter means the deadline cannot be evaluated,
+   * and the lenient reading pays out a favour the player genuinely earned,
+   * while the strict reading denies it over a field unrelated to the favour.
+   * A non-finite counter is corruption rather than absence and IS rejected —
+   * `nowWeek >= NaN` is false, so it would otherwise skip the gate.
+   */
+  const nowWeek = state.weeksLived ?? 0;
+  if (favor.expiresWeek !== undefined) {
+    if (
+      typeof favor.expiresWeek !== 'number' ||
+      !isFinite(favor.expiresWeek) ||
+      !isFinite(nowWeek)
+    ) {
+      return 'This favor has an unusable expiry date.';
+    }
+    if (nowWeek >= favor.expiresWeek) return 'This favor has expired.';
+  }
+
+  // Cash IOU owed-to-player → the amount must be usable BEFORE anything flips.
+  // A redeemed-but-unpaid IOU is unrecoverable.
+  if (favor.kind === 'money' && favor.direction === 'owed-to-player') {
+    if (typeof favor.value !== 'number' || !isFinite(favor.value) || favor.value <= 0) {
+      return 'This favor has an invalid amount.';
+    }
+    return null;
+  }
+
+  /**
+   * Non-money favour → its effect must not be REFUSED.
+   *
+   * `resolveNonMoneyFavor` returns `rejected` only when the player is still
+   * owed something (a discount credit that could not be applied), so the favour
+   * stays open. A `noop` — reputation already capped, no heat to clear, intro
+   * already made — still closes it: the contact HAS done the thing, and leaving
+   * it open would let the player farm the same IOU until the state moved.
+   */
+  if (resolveNonMoneyFavor(state, favor).outcome === 'rejected') {
+    return 'That favor cannot be called in right now.';
+  }
+  return null;
+}
+
 export function redeemFavor(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
@@ -223,7 +297,8 @@ export function redeemFavor(
   const ledger = ledgerOf(gameState);
   const target = ledger.favors.find((f) => f.id === favorId);
   if (!target) return { success: false, message: 'Favor not found' };
-  if (target.status !== 'open') return { success: false, message: 'Favor already closed' };
+  const blocked = favorRedeemBlocker(gameState, target);
+  if (blocked) return { success: false, message: blocked, favor: target };
 
   // H-8/H-9: fold the cash credit and the ledger flip into ONE updater that
   // re-checks the favor's status against `prev`. The previous code gated on the
@@ -232,89 +307,26 @@ export function redeemFavor(
   // both paid out (a credit never overdraft-rejects) while the ledger closed
   // once: a same-batch double-credit money printer. Re-checking `prev` here makes
   // the second tap a no-op.
-  let redeemed = false;
   setGameState((prev) => {
     const prevLedger = ledgerOf(prev);
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
-    if (!fresh || fresh.status !== 'open') return prev; // already redeemed this batch
+    if (!fresh) return prev;
+    // Same predicate as the outer report — here it is the same-batch race guard
+    // (already redeemed this batch, or the state moved under us).
+    if (favorRedeemBlocker(prev, fresh)) return prev;
 
-    /**
-     * Past its expiry counts as closed even if the tick has not stamped it yet.
-     *
-     * `expireFavors` runs in the weekly tick, so between the expiry week
-     * arriving and the next tick a favour sits `open` with `expiresWeek` behind
-     * it — and this path would happily pay it out. That gap only became
-     * reachable when network favours introduced expiries the player can hold
-     * for weeks. Refusing here makes the deadline mean the same thing whether
-     * or not a tick has run.
-     */
-    /**
-     * Redemption keeps the `?? 0` fallback ON PURPOSE, unlike creation above.
-     *
-     * The two directions fail differently. An absent week counter here means
-     * the deadline cannot be evaluated — and the lenient reading ("nothing has
-     * expired yet") pays out a favour the player genuinely earned, while the
-     * strict reading denies it because of a field that has nothing to do with
-     * the favour. Creation refuses because it WRITES the bad week; redemption
-     * only reads it.
-     *
-     * A non-finite counter is a different matter and is rejected below: `NaN`
-     * is corruption rather than absence, and `nowWeek >= NaN` is false, so it
-     * would skip the gate rather than fail it.
-     *
-     * None of this is reachable through the save pipeline — `isValidGameState`
-     * requires `typeof weeksLived === 'number'` and `repairGameState` forces a
-     * non-finite one back to 0 — so this is the behaviour for state that never
-     * went through it.
-     */
-    const nowWeek = prev.weeksLived ?? 0;
-    if (fresh.expiresWeek !== undefined) {
-      // A non-finite bound does not compare: `nowWeek >= NaN` is false, so a
-      // corrupt `expiresWeek` would sail past the gate rather than trip it —
-      // the deadline would silently stop existing on exactly the saves whose
-      // data is least trustworthy. Refuse instead, matching how the money path
-      // below treats an unusable `value`.
-      if (
-        typeof fresh.expiresWeek !== 'number' ||
-        !isFinite(fresh.expiresWeek) ||
-        !isFinite(nowWeek)
-      ) {
-        log.warn(`Cannot redeem favor with an unusable expiry`, {
-          favorId,
-          expiresWeek: fresh.expiresWeek,
-          nowWeek,
-        });
-        return prev;
-      }
-      if (nowWeek >= fresh.expiresWeek) {
-        log.info(`Favor ${favorId} is past its expiry (week ${fresh.expiresWeek})`);
-        return prev;
-      }
-    }
-
-    // Cash IOU owed-to-player → validate the amount BEFORE flipping. If the
-    // value is invalid (NaN/Infinity/≤0), keep the favor open rather than
-    // closing it without paying out — a redeemed-but-unpaid IOU is unrecoverable.
+    // Cash IOU owed-to-player → flip and credit together.
     if (fresh.kind === 'money' && fresh.direction === 'owed-to-player') {
-      if (
-        typeof fresh.value !== 'number' ||
-        !isFinite(fresh.value) ||
-        fresh.value <= 0
-      ) {
-        log.warn(`Cannot redeem invalid money favor`, { favorId, value: fresh.value });
-        return prev;
-      }
+      const value = fresh.value;
+      // Re-narrowed for the type checker; `favorRedeemBlocker` already refused
+      // an unusable amount above.
+      if (typeof value !== 'number' || !isFinite(value) || value <= 0) return prev;
       const flipped = {
         ...prev,
         favorLedger: redeemFavorPure(prevLedger, favorId),
       } as GameState;
-      const credit = applyMoneyDelta(
-        flipped,
-        fresh.value,
-        `Favor redeemed from ${fresh.contactId}`
-      );
+      const credit = applyMoneyDelta(flipped, value, `Favor redeemed from ${fresh.contactId}`);
       if (!credit) return prev; // credit rejected → leave the favor open
-      redeemed = true;
       return { ...flipped, ...credit };
     }
 
@@ -326,32 +338,15 @@ export function redeemFavor(
      * label and no state. Nothing produced them at the time, so it was
      * invisible; `askNetworkFavor` (X-2) makes them reachable, and a reachable
      * no-op is a lie the player can see.
-     *
-     * `applyNonMoneyFavor` returns null when the effect would be a genuine
-     * no-op — reputation already at the cap, no heat to clear, an intro already
-     * made. The favor still closes: the contact HAS done the thing, and leaving
-     * it open would let the player farm the same IOU until the state happened
-     * to move.
      */
     const effect = resolveNonMoneyFavor(prev, fresh);
-    // Refused → leave the favor OPEN. A no-op still closes it (see the type doc
-    // on `FavorEffect`); a refusal means the player is still owed something.
-    if (effect.outcome === 'rejected') {
-      log.warn(`Favor payout refused, leaving it open`, { favorId, kind: fresh.kind });
-      return prev;
-    }
+    if (effect.outcome === 'rejected') return prev; // race guard; mirrored outside
     const withEffect = effect.outcome === 'applied' ? effect.state : prev;
-    redeemed = true;
     return {
       ...withEffect,
       favorLedger: redeemFavorPure(ledgerOf(withEffect), favorId),
     } as GameState;
   });
-  if (!redeemed) {
-    // The updater bailed (favor already closed this batch, or an invalid/rejected
-    // amount) — don't report success on a no-op.
-    return { success: false, message: 'Could not redeem this favor right now.', favor: target };
-  }
   log.info(`Redeemed favor ${favorId}`);
   return { success: true, message: 'Favor redeemed', favor: target };
 }
@@ -386,7 +381,8 @@ export function repayFavor(
     return { success: false, message: `Need $${target.value.toLocaleString()} to repay.` };
   }
 
-  let paid = false;
+  // Every inner rejection mirrors an outer guard above (not found / closed /
+  // wrong direction or kind / invalid amount / unaffordable).
   setGameState((prev) => {
     const prevLedger = ledgerOf(prev);
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
@@ -398,7 +394,6 @@ export function repayFavor(
     // Debit BEFORE flipping; if unaffordable, keep the debt open.
     const debit = applyMoneyDelta(prev, -fresh.value, `Repaid loan to ${fresh.contactId}`);
     if (!debit) return prev;
-    paid = true;
     return {
       ...prev,
       ...debit,
@@ -406,7 +401,6 @@ export function repayFavor(
     } as GameState;
   });
 
-  if (!paid) return { success: false, message: `Need $${target.value.toLocaleString()} to repay.` };
   log.info(`Repaid favor ${favorId} ($${target.value})`);
   return { success: true, message: 'Debt repaid.', favor: target };
 }

@@ -24,7 +24,7 @@ import type {
   InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { updateStats } from './StatsActions';
+import { updateStats, applyStatsDelta } from './StatsActions';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import {
   calculatePostEngagement,
@@ -178,7 +178,19 @@ export const composePost = (
     sponsoredBrandName: args.sponsoredBrandName,
   };
 
-  let applied = false;
+  /**
+   * ONE updater: the post, its stats and its ad revenue.
+   *
+   * The stat costs and the ad-revenue credit used to be separate
+   * `updateStats` / `updateMoney` dispatches gated on a `let applied` flag read
+   * back after this one. That read is only reliable for the FIRST functional
+   * update of a React batch, so on a deferred dispatch the post was appended
+   * and its followers/earnings recorded while the energy/health/happiness costs
+   * and the cash NEVER landed — and the player was told "You already posted
+   * that type this week." Folding them in makes the grant and its costs the
+   * same transition (CLAUDE.md §4.4), which is also a stronger version of the
+   * double-pay guard the flag was there to provide.
+   */
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
 
@@ -190,7 +202,6 @@ export const composePost = (
     if (typeof freshLast === 'number' && freshLast === weeksLived) {
       return prev;
     }
-    applied = true;
 
     sm.followers = (sm.followers ?? 0) + followersGained;
     sm.totalPosts = (sm.totalPosts ?? 0) + 1;
@@ -251,25 +262,20 @@ export const composePost = (
       });
     }
 
-    return { ...prev, socialMedia: sm };
+    // Stats & money fold in here so they cannot land without the post, and the
+    // post cannot land without them.
+    let next: GameState = { ...prev, socialMedia: sm };
+    next = { ...next, ...applyStatsDelta(next, {
+      energy: -getEnergyCost(args.contentType),
+      health: -getHealthCost(args.contentType),
+      happiness: getHappinessGain(args.contentType, isViral),
+    }) };
+    if (adRevenue > 0) {
+      const credit = applyMoneyDelta(next, adRevenue, `Pulse: ad revenue from post`);
+      if (credit) next = { ...next, ...credit };
+    }
+    return next;
   });
-
-  // If a same-batch duplicate was rejected inside the updater, do NOT run the
-  // money/stat side-effects (they would double-pay the rejected post).
-  if (!applied) {
-    return { success: false, message: 'You already posted that type this week.' };
-  }
-
-  // Side-effects: stats & money happen through the canonical actions so daily
-  // summary tracking works.
-  updateStats(setGameState, {
-    energy: -getEnergyCost(args.contentType),
-    health: -getHealthCost(args.contentType),
-    happiness: getHappinessGain(args.contentType, isViral),
-  });
-  if (adRevenue > 0) {
-    updateMoney(setGameState, adRevenue, `Pulse: ad revenue from post`);
-  }
 
   log.info(`Composed ${args.contentType} post (viral=${isViral}, +${followersGained} followers)`);
   return {
@@ -1043,21 +1049,28 @@ export const endLiveStream = (
     return { success: false, message: 'Not live.', totalDonations: 0, newFollowers: 0, peakViewers: 0, minutesElapsed: 0 };
   }
 
-  // ANTI-EXPLOIT: read the session and apply payout INSIDE the updater, guarded
-  // on the FRESH `prev.socialMedia.liveSession.active`. The outer guard reads the
-  // stale snapshot, so two rapid "End" taps both saw active===true and both
-  // double-claimed tips + followers. We capture the applied figures and only run
-  // the money/stat side-effects if this call actually ended the session.
-  let applied = false;
-  let appliedDonations = 0;
-  let appliedFollowers = 0;
+  // Reported from the snapshot the player acted on; the updater re-derives the
+  // same figures from `prev` for the state.
+  const reportedDonations = live.donationsEarned;
+  const reportedFollowers = Math.floor(live.peakViewers * 0.05);
+
+  /**
+   * ANTI-EXPLOIT: end the session and pay it out in ONE updater, guarded on the
+   * FRESH `prev.socialMedia.liveSession.active`. The outer guard reads the
+   * stale snapshot, so two rapid "End" taps both saw active===true.
+   *
+   * The tips and the stat deltas used to be separate dispatches gated on a
+   * `let applied` flag read back from here. That read is only reliable for the
+   * FIRST functional update of a React batch — so a deferred dispatch ended the
+   * stream, banked the follower count, and never paid the tips, while telling
+   * the player "Not live."
+   */
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     const ls = sm.liveSession;
     if (!ls || !ls.active) return prev; // already ended by a prior tap → reject
-    applied = true;
-    appliedDonations = ls.donationsEarned;
-    appliedFollowers = Math.floor(ls.peakViewers * 0.05);
+    const appliedDonations = ls.donationsEarned;
+    const appliedFollowers = Math.floor(ls.peakViewers * 0.05);
     sm.totalLiveStreams = (sm.totalLiveStreams ?? 0) + 1;
     sm.totalLiveViewers = (sm.totalLiveViewers ?? 0) + ls.peakViewers;
     sm.totalLiveDuration = (sm.totalLiveDuration ?? 0) + ls.minutesElapsed;
@@ -1072,21 +1085,17 @@ export const endLiveStream = (
       `Stream ended. Peak ${ls.peakViewers} viewers, +${appliedFollowers} followers, $${ls.donationsEarned.toFixed(2)} in tips`,
       prev.weeksLived ?? 0,
     );
-    return { ...prev, socialMedia: sm };
+    let next: GameState = { ...prev, socialMedia: sm };
+    const tips = applyMoneyDelta(next, appliedDonations, 'Pulse live stream tips');
+    if (tips) next = { ...next, ...tips };
+    return { ...next, ...applyStatsDelta(next, { energy: -20, happiness: 15 }) };
   });
-
-  if (!applied) {
-    return { success: false, message: 'Not live.', totalDonations: 0, newFollowers: 0, peakViewers: 0, minutesElapsed: 0 };
-  }
-
-  updateMoney(setGameState, appliedDonations, 'Pulse live stream tips');
-  updateStats(setGameState, { energy: -20, happiness: 15 });
 
   return {
     success: true,
     message: 'Stream ended.',
-    totalDonations: appliedDonations,
-    newFollowers: appliedFollowers,
+    totalDonations: reportedDonations,
+    newFollowers: reportedFollowers,
     peakViewers: live.peakViewers,
     minutesElapsed: live.minutesElapsed,
   };
@@ -1297,11 +1306,16 @@ export const watchAdForFollowerBoost = (
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const gained = proActive ? 150 : 50;
 
-  // The trailing return used to be an unconditional success, so on the very
-  // same-batch race the re-check below exists to stop, the REJECTED call still
-  // told `RewardedAdModal` that followers were gained — and the modal now shows
-  // an alert driven by that flag. Review of the Pulse atomicity fix.
-  let granted = false;
+  /**
+   * `canBoostFollowersWithAd` above is the reported outcome; the re-check below
+   * is the same-batch RACE guard for STATE.
+   *
+   * A `let granted` flag used to be read back here. It is only reliable for the
+   * FIRST functional update of a React batch, and this path is reached straight
+   * out of `RewardedAdModal` — so a player who had genuinely watched an ad
+   * could be told "Already used your ad-boost this week" while the followers
+   * landed. Of all the sites in this class that is the worst one to get wrong.
+   */
   setGameState((prev) => {
     // Atomic gate: re-check the weekly cooldown against prev. Two same-batch
     // taps both pass the stale outer check; without this, both add followers
@@ -1309,7 +1323,6 @@ export const watchAdForFollowerBoost = (
     const prevWs = prev.weeksLived ?? 0;
     const prevLast = prev.socialMedia?.lastAdBoostWeek ?? -Infinity;
     if (prevWs - prevLast < 1) return prev;
-    granted = true;
     const sm = { ...ensureSocial(prev) };
     sm.followers = (sm.followers ?? 0) + gained;
     sm.influenceLevel = getInfluenceLevel(sm.followers);
@@ -1318,9 +1331,6 @@ export const watchAdForFollowerBoost = (
     return { ...prev, socialMedia: sm };
   });
 
-  if (!granted) {
-    return { success: false, message: 'Already used your ad-boost this week.', followersGained: 0 };
-  }
   return { success: true, message: `+${gained} followers from ad reward.`, followersGained: gained };
 };
 
