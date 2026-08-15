@@ -3093,3 +3093,57 @@ banner named no shortfall while claiming one.
   `scripts/lib/lintRatchet.js`, which was sitting exactly at its 862 ceiling.
   Copying the workaround would have consumed the last slot to work around a
   problem that no longer exists.
+
+## 2026-08-15 — Fixing the class the player report belonged to, and what the ratchet had been hiding
+
+The `manageFamilyBusiness` fix above was one site. Sweeping for the shape found
+**34 more** across `contexts/game/actions/`, every one able to report a canned
+failure for an action that worked.
+
+- Rule: **a ratchet can hide the thing it counts.** `updaterResultRatchet` had
+  been EXCLUDING the "pessimistic capture" as *the fixed shape*, and its failure
+  message told you to adopt it. So ~22 defective functions were certified clean,
+  and the file's own header — plus `updaterTimingContract.test.tsx`, plus
+  `petActionResults.test.ts` — all carried the caveat that the shape was
+  unsound. Three files said it. Nothing acted on it, because the gate said green.
+  When a guard's premise is wrong, fix the guard in the same change; a
+  re-baselined number with the reasoning next to it is worth more than a lower
+  one.
+- Rule: **the flag was often load-bearing for STATE, not just the message.** Six
+  sites gated the payout on it, so a deferred dispatch applied the cost and
+  skipped the reward: `returnFromTrip` cleared the trip and paid no stats, event
+  money or passport milestone; `endLiveStream` ended the stream and never paid
+  the tips; `composePost` recorded the post and never charged the energy or paid
+  the ad revenue; `claimProgressAchievement` granted the gems but never fired
+  analytics or wrote the cross-install gold-claim record. Grep for what the flag
+  gates before assuming it is cosmetic.
+- Rule: **"there is no pure helper" is why the code is shaped wrong.**
+  `applyMoneyDelta` existed; nothing equivalent existed for stats, so every stat
+  reward HAD to be a second dispatch, which is what forced the flag. Adding
+  `applyStatsDelta` (and pointing `updateStats` at it) made six of those fixes
+  one-liners. When the same wrong shape appears repeatedly, look for the missing
+  primitive rather than fixing each site.
+- Rule: **two sound fixes, and picking the wrong one costs a lot of diff.**
+  Where every inner rejection already mirrors an outer guard, DELETING the
+  capture gives identical reporting to a full preview/commit resolver — and it
+  is robust to an updater that rolls randomness, which a resolver is not. Use
+  the resolver only where the result carries data the outer guards cannot
+  produce. 22 sites took the first, 12 the second.
+- Rule: **a test that pins a shape can outlive the shape's justification.** Five
+  suites asserted "the rejected second tap reports failure", satisfied only
+  because their stub runs updaters synchronously. `petActionResults` went
+  further and asserted a *swallowed* updater reports failure — a property that
+  cannot be satisfied, since a swallowed and a deferred dispatch are
+  indistinguishable from outside, and the mechanism that satisfied it misreports
+  every deferred success. Replaced with the achievable property: a deferred
+  dispatch must report the truth, and the flush must confirm it.
+- Rule: the accepted trade is worth stating at every site rather than once. A
+  stale same-batch double-tap now reports its result twice. The state is
+  unaffected. That is a duplicated message in a rare race, traded for a false
+  refusal on the common path — and a comment at each assertion stops the next
+  person "fixing" it back.
+- Rule: **a workaround's own documentation is a to-do list.** `breachBrandDeal`
+  shipped a "⚠️ DO NOT TRUST THE RETURN VALUE" banner and a whole extra pure
+  helper built to route around it. The banner named the correct fix and nobody
+  applied it. If a comment explains at length why a return value cannot be
+  trusted, that is the ticket.
