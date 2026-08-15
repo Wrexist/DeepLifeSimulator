@@ -3013,3 +3013,83 @@ make three of them worse:
 - Rule: when a rule is wrong for the codebase, write that down NEXT TO THE
   COUNT — not in a commit message. The next person to see "98 warnings" will
   reach for the autofix.
+
+## 2026-08-15 — The unsound workaround finally shipped, and the file predicting it was already in the repo
+
+Player report: a save with $40,096,831 tapped the $10,000 "Marketing push" on a
+family business and got an error banner reading
+
+    Need $10,000 for "marketing" — you have $40.25M.
+
+Four thousand times the money, told they were short. The money was fine — the
+charge and the +5 brand both landed. Only the report was wrong.
+
+`manageFamilyBusiness` set `didManage = true` INSIDE its `setGameState` updater
+and read the flag on the next line. React runs only the FIRST functional update
+of a batch eagerly; a second one is DEFERRED, so the flag was still `false` at
+the read. The tail then returned the shortfall-less spelling of the
+affordability message — a branch reachable ONLY this way, which is why the
+banner named no shortfall while claiming one.
+
+- Rule: the shape was already documented as unsound, by name, with a measurement,
+  in `__tests__/refactor/updaterTimingContract.test.tsx` ("WRONG for a legitimate
+  second action in the same batch: it reports failure for something that
+  succeeded") and in CLAUDE.md §4.1. It was still written into new code, because
+  the comment above it called it "the repairRig pattern" — a name that makes a
+  known-bad workaround sound like an established convention. **Naming a
+  workaround after another site of the same workaround launders it.** Cite the
+  file that says it is wrong, or do not cite anything.
+- Rule: the sound fix is the one both files already prescribed — make the
+  outcome a PURE function of `prev` and call it in both places
+  (`resolveFamilyBusinessManage`). Preview against the caller's snapshot for the
+  message, commit against `prev` for the state. No cross-updater variable exists
+  to be stale, and the atomicity the previous fix bought is untouched because the
+  debit and the grant are still one object.
+- Rule: **a false failure is not a cosmetic bug.** `CompanyDetailScreen` only
+  calls `saveGame()` when `success` is true, so every affected action was applied
+  to memory and left unsaved, and played the error haptic. "The state was never
+  wrong" describes the updater, not the feature.
+- Rule: every action suite in this repo drives `setGameState` with
+  `createSetGameStateStub`, which runs updaters synchronously. Under that stub a
+  capture is ALWAYS readable, so `exploitFixes.test.ts` asserted
+  `r.success === true` on this exact function and passed for as long as the bug
+  existed. `updaterTimingContract.test.tsx` says this too, in its last test. **A
+  stub more obliging than production turns a suite into a mirror** — the
+  regression test here uses a DEFERRED stub that queues updaters and flushes
+  after the action returns, and it fails against the old code.
+- Rule: the C-9 ratchet in `__tests__/refactor/updaterResultRatchet.test.ts` did
+  not catch this and was never going to. It excludes a *guarded capture* as
+  "the fixed shape" — but the fixed shape for the DETECTOR is the unsound shape
+  for React. The ratchet counts progress away from `return { success: true }`,
+  not progress toward correctness, so **every function it certifies as fixed is
+  a candidate for this bug.** Sweeping `contexts/game/actions/` for the exact
+  shape (a `let x = false` assigned `true` inside an updater and read through
+  `if (!x)`) finds **27 more sites** as of 2026-08-15:
+
+      ContactsActions   recordInteraction, lendMoney, redeemFavor, repayFavor
+      MiningActions     repairRig
+      PetActions        buyPet, feedPet, buyFood, buyToy, playWithPet,
+                        payForVet, enterCompetition
+      PoliticalActions  lobby, campaign, hireLobbyist
+      PulseActions      composePost, endLiveStream, watchAdForFollowerBoost
+      RDActions         startResearch, advanceResearch, processCompetitionResults
+      SparkActions      exposeCatfish, fallForCatfish, resolveJealousy
+      TravelActions     travelTo, returnFromTrip, doTravelActivity
+
+  Each reports a canned failure ("Unable to repair right now", …) for an action
+  that worked, whenever its update is not first in its batch. Not fixed here —
+  this change is scoped to the reported bug — but the list is the work, and the
+  ratchet will not surface it. Retake the sweep before trusting the count.
+- Rule (small, found on the way): the cost table was a `switch` with
+  `let cost = 0` and no `default`, so an action outside the union charged
+  nothing. Harmless only because the gains defaulted to 0 too. A `Record` plus an
+  explicit reject removes the coincidence.
+- Rule (one more stale claim, same family as §6/§7 above): the regression test
+  wanted `react-test-renderer`, and `updaterTimingContract.test.tsx` reaches for
+  it via `require` with the comment "react-test-renderer ships no types, and a
+  static import trips TS7016". `@types/react-test-renderer` **is installed**. A
+  typed static import type-checks clean and costs nothing; the `require` form
+  spends one slot of the `no-require-imports` budget in
+  `scripts/lib/lintRatchet.js`, which was sitting exactly at its 862 ceiling.
+  Copying the workaround would have consumed the last slot to work around a
+  problem that no longer exists.
