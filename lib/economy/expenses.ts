@@ -1,5 +1,6 @@
 import { GameState } from '@/contexts/game/types';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
+import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
@@ -247,6 +248,27 @@ export function calcWeeklyExpenses(
         }
       }
     });
+
+    // The v32 TENANCY, which the loop above cannot see. `state.rental` is
+    // deliberately NOT an entry in `realEstate` (a tenancy is not a holding —
+    // a synthetic entry there would make `calculateNetWorth` credit the
+    // player with a home they do not own), so this function counted only the
+    // pre-v32 shape and a renting player's largest recurring cost was missing
+    // from the card entirely. The tick charges it every week — it is in
+    // `weeklyBillsDue` via `housingWellbeing.rent` — and can evict for the
+    // arrears, so the number on screen was understating a real, enforced bill
+    // by $45-$950 a week.
+    //
+    // Read through `computeHousingWellbeing`, the SAME function the tick uses,
+    // rather than looking the tier up again here. Two implementations of one
+    // number is what produced this divergence; a second one would only move it.
+    // It returns 0 when the player owns or is homeless, so this cannot double
+    // count against the `upkeep` line above.
+    const tenancyRent = computeHousingWellbeing(state).rent;
+    if (typeof tenancyRent === 'number' && isFinite(tenancyRent) && tenancyRent > 0) {
+      rentCosts += tenancyRent;
+    }
+
     // Final validation
     if (!isFinite(rentCosts) || rentCosts < 0) rentCosts = 0;
     
