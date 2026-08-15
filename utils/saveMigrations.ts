@@ -1068,6 +1068,26 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 42;
     return state;
   },
+
+  // Version 43: `lifeStartWeek` — `weeksLived` at the moment a life began.
+  //
+  // `weeksLived` is absolute and seeded from the starting age, so an age-20
+  // character starts at 104. Every "have I played N weeks yet" check against
+  // the raw counter was therefore true before the first frame — which made
+  // Chapter 1's "Survive 4 Weeks" complete on week 1 and paid its reward for
+  // nothing. The same trap had already retired the first-session coach before
+  // it rendered.
+  //
+  // Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  // `repairGameState` mirror. A save written before this has no record of when
+  // its life began and cannot grow one — the week is gone — so readers fall
+  // back to 0, which is exactly the behaviour those saves have today. Writing
+  // a value would be a guess, and guessing high would silently un-complete a
+  // goal an existing player has already been paid for.
+  43: (state) => {
+    state.version = 43;
+    return state;
+  },
 };
 
 /**

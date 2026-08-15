@@ -422,16 +422,25 @@ describe('spending money never takes an app away', () => {
     expect(unlockTier(corruptPeak)).toBeGreaterThanOrEqual(4);
   });
 
-  it('and a chapter goal reads the same high-water mark', () => {
+  it('and a chapter goal reads a monotonic signal too', () => {
     // `applyChapterProgress` needs every goal true in the SAME tick. With a
     // balance read, a player who spends as they earn passes each money goal in
     // a different week and completes the chapter in none of them.
+    //
+    // The goal now reads `totalMoneyEarned` rather than the `peakNetWorth`
+    // high-water mark. Same property — it only ever increases, so spending
+    // cannot un-complete it — and it is monotonic by construction rather than
+    // by being a computed maximum. It also fixes what the balance read got
+    // wrong in the other direction: STARTING cash used to satisfy it, so the
+    // goal was complete before the player earned anything.
     const [chapterOne] = LIFE_CHAPTERS;
     const earnedThenSpent = at(0, {
       weeksLived: 6,
+      lifeStartWeek: 0,
       lifetimeStatistics: {
         ...createTestGameState().lifetimeStatistics!,
         peakNetWorth: 900,
+        totalMoneyEarned: 900,
       },
     });
 
@@ -487,12 +496,25 @@ describe('the week tick completes chapters, not a button', () => {
   const { applyChapterProgress, unlockAnnouncement } =
     require('@/contexts/game/actions/weekly/applyChapterProgress');
 
-  /** A state that satisfies every goal of chapter 1. */
+  /**
+   * A state that satisfies every goal of chapter 1.
+   *
+   * `totalMoneyEarned` rather than a balance, and an explicit `lifeStartWeek`:
+   * chapter 1 now measures money EARNED and weeks lived IN THIS LIFE, because
+   * both of the old readings were already true for a brand-new character —
+   * every scenario starts with cash, and `weeksLived` is seeded from the
+   * starting age. See `__tests__/progression/chapterOneNotPrePaid.test.ts`.
+   */
   const chapterOneDone = (): GameState => createTestGameState({
     ...fresh(),
     weeksLived: 6,
+    lifeStartWeek: 0,
     currentJob: 'job-1',
     stats: { ...createTestGameState().stats, money: 5_000 },
+    lifetimeStatistics: {
+      ...createTestGameState().lifetimeStatistics!,
+      totalMoneyEarned: 5_000,
+    },
   });
 
   it('a finished chapter completes on the tick', () => {

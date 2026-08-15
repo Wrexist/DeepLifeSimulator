@@ -224,6 +224,10 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       fitness: clampBoundedStat(baseStats.fitness + (perkStatBoosts.fitness || 0)),
     },
     weeksLived,
+    // The baseline for "weeks into THIS life" (v43). Stamped here because this
+    // is the one place that knows the life is starting; deriving it later is
+    // impossible once `weeksLived` has moved.
+    lifeStartWeek: weeksLived,
     week: (weeksLived % WEEKS_PER_MONTH) + 1,
     date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_YEAR) + 1 },
     educations: (() => {
