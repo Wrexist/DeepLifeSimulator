@@ -75,16 +75,16 @@ describe('ECON-4 — a brand-deal post can only be delivered once', () => {
     (s.socialMedia?.activeBrandDeals ?? []).find((d) => d.id === DEAL)?.postsDelivered;
 
   it('counts ONE delivery when the same post is submitted twice in a batch', () => {
-    const after = batch(withDeal(), (set) => {
-      deliverBrandDealPost(set, DEAL, POST);
+    const after = batch(withDeal(), (set, snapshot) => {
+      deliverBrandDealPost(snapshot, set, DEAL, POST);
     });
 
     expect(deliveredCount(after)).toBe(1);
   });
 
   it('does not complete a 3-post contract from a single post', () => {
-    const after = batch(withDeal(), (set) => {
-      deliverBrandDealPost(set, DEAL, POST);
+    const after = batch(withDeal(), (set, snapshot) => {
+      deliverBrandDealPost(snapshot, set, DEAL, POST);
     }, 3);
 
     // Still active — early completion pays every remaining installment at once.
@@ -98,8 +98,10 @@ describe('ECON-4 — a brand-deal post can only be delivered once', () => {
       current = u(current);
     }) as never;
 
-    expect(deliverBrandDealPost(set, DEAL, POST).success).toBe(true);
-    const second = deliverBrandDealPost(set, DEAL, POST);
+    // `current` is re-read at each call, so the second sees the delivery the
+    // first committed — which is exactly the sequential case this pins.
+    expect(deliverBrandDealPost(current, set, DEAL, POST).success).toBe(true);
+    const second = deliverBrandDealPost(current, set, DEAL, POST);
 
     expect(second.success).toBe(false);
     expect(second.message).toMatch(/already/i);

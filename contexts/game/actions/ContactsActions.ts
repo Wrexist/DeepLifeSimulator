@@ -535,14 +535,39 @@ export function askNetworkFavor(
     return { success: false, message: `${contact.name} already owes you one.` };
   }
 
-  // Pessimistic capture: the authoritative checks are re-run against `prev`
-  // inside the updater, so a second tap in the same React batch reports the
-  // refusal rather than a success it did not get (C-9).
-  let outcome: AskFavorResult = { success: false, message: 'Could not ask right now.' };
+  const preview = resolveAskNetworkFavor(gameState, contact, kind);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveAskNetworkFavor(prev, contact, kind).next ?? prev);
+  log.info(`Network favor asked: ${preview.result.favorId} (${kind})`);
+  return preview.result;
+}
 
-  setGameState((prev) => {
-    if (prev.showDeathPopup) return prev;
-    const prevLedger = ledgerOf(prev);
+/**
+ * PURE: what does asking `contact` for a `kind` favour do to `state`?
+ *
+ * `next: null` means refuse. Called once against the caller's snapshot for the
+ * outcome and once against `prev` for the state.
+ *
+ * ── Why (2026-08-15) ──────────────────────────────────────────────────────
+ *
+ * This used to hold a "pessimistic capture" — `let outcome` assigned inside the
+ * updater and read after it — added on the advice of `updaterResultRatchet`,
+ * which at the time treated that shape as the fix. It is not: a capture is only
+ * readable for the FIRST functional update of a React batch, so on any deferred
+ * dispatch it reported "Could not ask right now." for a favour that HAD been
+ * booked. Three of its refusals had no outer mirror at all, so they could only
+ * ever be reported this way; each now returns its real reason.
+ */
+function resolveAskNetworkFavor(
+  state: GameState,
+  contact: { id: string; name: string; strength: number },
+  kind: Favor['kind'],
+): { result: AskFavorResult; next: GameState | null } {
+  {
+    if (state.showDeathPopup) {
+      return { result: { success: false, message: 'Could not ask right now.' }, next: null };
+    }
+    const prevLedger = ledgerOf(state);
 
     /**
      * REFUSE rather than fall back to week 0.
@@ -556,10 +581,13 @@ export function askNetworkFavor(
      *
      * Redemption deliberately does NOT mirror this — see the note there.
      */
-    const prevWeek = prev.weeksLived;
+    const prevWeek = state.weeksLived;
     if (typeof prevWeek !== 'number' || !isFinite(prevWeek) || prevWeek < 0) {
-      log.warn(`Cannot ask a favor without a usable week counter`, { weeksLived: prev.weeksLived });
-      return prev;
+      log.warn(`Cannot ask a favor without a usable week counter`, { weeksLived: state.weeksLived });
+      return {
+        result: { success: false, message: 'This save has no usable week counter — reload and try again.' },
+        next: null,
+      };
     }
     // The id is derived from `prev`, NOT from the snapshot read above. It encodes
     // the week deliberately — that encoding is half the double-tap guard — so
@@ -568,9 +596,11 @@ export function askNetworkFavor(
     // between render and commit. Worse, the stale id could collide with a
     // already-closed favor from that earlier week and refuse a legitimate ask.
     const id = networkFavorId(contact.id, prevWeek);
-    if (prevLedger.favors.some((f) => f.id === id)) return prev;
+    if (prevLedger.favors.some((f) => f.id === id)) {
+      return { result: { success: false, message: `You already asked ${contact.name} this week.` }, next: null };
+    }
     if (prevLedger.favors.some((f) => f.contactId === contact.id && f.status === 'open')) {
-      return prev;
+      return { result: { success: false, message: `${contact.name} already owes you one.` }, next: null };
     }
     const favor: Omit<Favor, 'status'> = {
       id,
@@ -586,12 +616,18 @@ export function askNetworkFavor(
       expiresWeek: prevWeek + NETWORK_FAVOR_EXPIRY_WEEKS,
       note: `${contact.name} owes you a ${kind}`,
     };
-    outcome = { success: true, message: `${contact.name} owes you a ${kind}.`, favorId: id };
-    return { ...prev, favorLedger: addFavorPure(prevLedger, favor) } as GameState;
-  });
-
-  if (outcome.success) log.info(`Network favor asked: ${outcome.favorId} (${kind})`);
-  return outcome;
+    return {
+      // `favorId` is the id as of `state`. When `state` is the caller's snapshot
+      // and a tick lands before the commit, the STORED id encodes the committed
+      // week instead — that encoding is half the double-tap guard and must come
+      // from `prev`. No caller reads `favorId` (ContactsApp uses success/message),
+      // and reporting a snapshot-derived id is honest about what is knowable
+      // synchronously; the capture that used to promise the committed one was
+      // unreadable half the time anyway.
+      result: { success: true, message: `${contact.name} owes you a ${kind}.`, favorId: id },
+      next: { ...state, favorLedger: addFavorPure(prevLedger, favor) } as GameState,
+    };
+  }
 }
 
 /**

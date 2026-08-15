@@ -713,21 +713,26 @@ export const promoteMatchToFriend = (
 
   const relationshipId = match.id; // shared id, same as the partner path
 
-  /**
-   * Pessimistic capture, per the instruction in
-   * `__tests__/refactor/updaterResultRatchet.test.ts`: a NEW action must not
-   * ship the "reject inside the updater, return unconditional success" shape.
-   *
-   * Initialised to a refusal so the only way to report success is for the
-   * updater to have actually run and committed. A same-batch double-tap now
-   * reports "already in your contacts" for the second tap instead of claiming a
-   * second friendship that was never created.
-   */
-  let result: { success: boolean; message: string; relationshipId?: string } = {
-    success: false,
-    message: 'Already in your contacts',
-  };
+  // Already a contact under this id — the OUTER mirror of the updater's second
+  // guard. Without it the refusal could only be reported by reading a variable
+  // back across the updater boundary.
+  if ((gameState.relationships ?? []).some((r) => r?.id === relationshipId)) {
+    return { success: false, message: 'Already in your contacts' };
+  }
 
+  /**
+   * The pessimistic capture that used to live here was REMOVED on 2026-08-15.
+   *
+   * `updaterResultRatchet.test.ts` recommended it at the time, on the premise
+   * that it was the fixed shape. It is not: a captured value is only readable
+   * for the FIRST functional update of a React batch, so on any deferred
+   * dispatch this reported "Already in your contacts" for a friendship it had
+   * just created. That ratchet's premise — and its recommendation — have since
+   * been corrected.
+   *
+   * Both guards below now mirror an outer one, so they are same-batch RACE
+   * protection for STATE and the report has no timing dependency.
+   */
   setGameState((prev) => {
     // Re-check against `prev`, not the snapshot above: two taps in one React
     // batch would otherwise append the same person twice (CLAUDE.md §4.4).
@@ -752,7 +757,6 @@ export const promoteMatchToFriend = (
       datesCount: 0,
     };
 
-    result = { success: true, message: `${profile.name} is now a friend`, relationshipId };
     return {
       ...prev,
       sparkApp: {
@@ -763,7 +767,7 @@ export const promoteMatchToFriend = (
     };
   });
 
-  return result;
+  return { success: true, message: `${profile.name} is now a friend`, relationshipId };
 };
 
 export const subscribeSparkPremium = (

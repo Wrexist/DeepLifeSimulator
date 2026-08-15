@@ -1025,7 +1025,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         onClose={() => setBuyTarget(null)}
         onConfirm={(tier: AutoDownTier, term: AutoTerm) => {
           if (buyTarget) {
-            const result = purchaseVehicleWithAutoLoan(setGameState, {
+            const result = purchaseVehicleWithAutoLoan(gameState, setGameState, {
               templateId: buyTarget.id,
               tier,
               term,

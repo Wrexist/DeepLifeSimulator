@@ -352,13 +352,29 @@ describe('review round: the expiry gate cannot be walked past', () => {
 });
 
 describe('review round: the favour id comes from the committed week', () => {
-  it('the id agrees with the createdWeek it is stored beside', () => {
+  it('the STORED id agrees with the createdWeek it is stored beside', () => {
     /**
      * The id ENCODES the week — that encoding is half the double-tap guard — so
      * building it from the stale snapshot could store an id naming one week next
      * to a `createdWeek` naming the next, if a tick landed between render and
      * commit. It could also collide with a closed favour from that earlier week
      * and refuse a legitimate ask.
+     *
+     * That property is about what is WRITTEN, and it still holds: the commit
+     * runs against `prev`, so both the id and `createdWeek` come from week 101.
+     *
+     * The RETURNED `favorId` is a different question, and this test used to
+     * conflate them. It was satisfied by a `let outcome` assigned inside the
+     * updater and read after — a capture, which is only readable for the FIRST
+     * functional update of a React batch, and which reported "Could not ask
+     * right now." for favours it had booked whenever it was not (2026-08-15).
+     *
+     * With the outcome derived from the caller's snapshot, the reported id is
+     * the snapshot's. It can only differ in exactly this scenario — a tick
+     * landing between render and commit — and no caller reads it (`ContactsApp`
+     * uses `success` and `message` only). Reporting a snapshot-derived id is
+     * honest about what is knowable synchronously; promising the committed one
+     * was not.
      */
     const snapshot = base({ weeksLived: 100 });
     const stub = createSetGameStateStub(base({ weeksLived: 101 })); // a tick landed
@@ -368,6 +384,16 @@ describe('review round: the favour id comes from the committed week', () => {
     const [booked] = openFavors(stub.current().favorLedger!);
     expect(booked.createdWeek).toBe(101);
     expect(booked.id).toContain('101');
+  });
+
+  it('and with no tick in between, the reported id IS the stored one', () => {
+    // The ordinary case, which is every tap that is not racing a week boundary.
+    const snapshot = base({ weeksLived: 100 });
+    const stub = createSetGameStateStub(base({ weeksLived: 100 }));
+    const r = askNetworkFavor(snapshot, stub.setGameState, LOBBYIST);
+
+    expect(r.success).toBe(true);
+    const [booked] = openFavors(stub.current().favorLedger!);
     expect(r.favorId).toBe(booked.id);
   });
 

@@ -126,38 +126,63 @@ export function quotePropertyPurchase(
  *  - a string `propertyId` referring to an existing unowned RealEstate in state, OR
  *  - a full catalog descriptor (id, name, price, ...) to create a fresh entry.
  */
+/** What the player is asking to buy, and how they are financing it. */
+type BuyPropertySpec = {
+  /** Existing RealEstate descriptor — pass the full catalog item for new properties. */
+  property: RealEstate;
+  tier: DownPaymentTier;
+  term: MortgageTerm;
+  weeklyIncome: number;
+  asResidence?: boolean;
+};
+
 export const buyPropertyWithMortgage = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  spec: {
-    /** Existing RealEstate descriptor — pass the full catalog item for new properties. */
-    property: RealEstate;
-    tier: DownPaymentTier;
-    term: MortgageTerm;
-    weeklyIncome: number;
-    asResidence?: boolean;
-  }
+  spec: BuyPropertySpec
 ): { success: boolean; message: string } => {
-  // Result captured from inside the updater (same pattern as
-  // purchaseVehicleWithAutoLoan) so the UI can celebrate success or explain a
-  // rejection — previously this returned void and failures were silent.
-  let result: { success: boolean; message: string } = { success: false, message: 'Purchase failed' };
-  setGameState((prev) => {
+  const preview = resolveBuyProperty(gameState, spec);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveBuyProperty(prev, spec).next ?? prev);
+  return preview.result;
+};
+
+/**
+ * PURE-ENOUGH: what does buying `spec` do to `state`?
+ *
+ * `next: null` means refuse. Called once against the caller's snapshot for the
+ * outcome and once against `prev` for the state.
+ *
+ * `newId('mortgage')` inside is the one impure step, and it is harmless here:
+ * the preview's `next` is discarded, so only the COMMIT's id is ever stored.
+ *
+ * ── Why (2026-08-15) ──────────────────────────────────────────────────────
+ *
+ * This used to hold `let result = { success: false, message: 'Purchase failed' }`,
+ * assign it from inside the updater and return it after the dispatch. A capture
+ * is only readable for the FIRST functional update of a React batch, so on any
+ * deferred dispatch the UI showed "Purchase failed" for a property the player
+ * had just bought and paid a down payment on.
+ */
+function resolveBuyProperty(
+  state: GameState,
+  spec: BuyPropertySpec
+): { result: { success: boolean; message: string }; next: GameState | null } {
+  {
     const catalog = spec.property;
-    const existingIdx = (prev.realEstate ?? []).findIndex((p) => p.id === catalog.id);
-    const existing = existingIdx === -1 ? undefined : prev.realEstate![existingIdx];
+    const existingIdx = (state.realEstate ?? []).findIndex((p) => p.id === catalog.id);
+    const existing = existingIdx === -1 ? undefined : state.realEstate![existingIdx];
     if (existing && existing.owned) {
       log.warn(`Buy rejected: property already owned`);
-      result = { success: false, message: 'You already own this property.' };
-      return prev;
+      return { result: { success: false, message: 'You already own this property.' }, next: null };
     }
     // Use the catalog property for the quote (gives correct price even if not yet in state).
-    const quote = quotePropertyPurchase(prev, catalog, spec.tier, spec.term, spec.weeklyIncome);
+    const quote = quotePropertyPurchase(state, catalog, spec.tier, spec.term, spec.weeklyIncome);
     if (quote.rejected) {
       log.info(`Purchase rejected: ${quote.reason}`);
-      result = { success: false, message: quote.reason ?? 'The lender rejected this purchase.' };
-      return prev;
+      return { result: { success: false, message: quote.reason ?? 'The lender rejected this purchase.' }, next: null };
     }
-    const cash = prev.stats?.money ?? 0;
+    const cash = state.stats?.money ?? 0;
     const downPayment = quote.downPaymentUSD ?? 0;
     // EXPLOIT FIX (M-7): previously the down payment was floored with Math.max(0,…)
     // and the purchase still went through, so a quote-vs-apply race (or float/int
@@ -165,22 +190,20 @@ export const buyPropertyWithMortgage = (
     // instead of silently flooring.
     if (cash < downPayment) {
       log.info(`Purchase rejected: insufficient cash for down payment (need ${downPayment}, have ${cash})`);
-      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
-      return prev;
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` }, next: null };
     }
     // Route the down-payment debit through the canonical money helper
     // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
     // directly — the amount is unchanged, but a corrupt (NaN) balance can no
     // longer slip a purchase through (`cash < downPayment` is false for NaN).
-    const spend = applyMoneyDelta(prev, -downPayment, `Property down payment: ${catalog.name}`);
+    const spend = applyMoneyDelta(state, -downPayment, `Property down payment: ${catalog.name}`);
     if (!spend) {
       log.info(`Purchase rejected by money guard: down ${downPayment}, cash ${cash}`);
-      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
-      return prev;
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` }, next: null };
     }
 
     // Create the Loan record if there's a mortgage.
-    let updatedLoans = prev.loans ?? [];
+    let updatedLoans = state.loans ?? [];
     let mortgageId: string | undefined;
     if (spec.tier !== 'cash' && (quote.loanPrincipal ?? 0) > 0) {
       mortgageId = newId('mortgage');
@@ -195,7 +218,7 @@ export const buyPropertyWithMortgage = (
         termWeeks: TERM_OPTIONS_WEEKS[spec.term],
         weeksRemaining: TERM_OPTIONS_WEEKS[spec.term],
         weeklyPayment: quote.weeklyPayment!,
-        startWeek: prev.weeksLived,
+        startWeek: state.weeksLived,
         autoPay: true,
         type: 'mortgage',
         onTimePayments: 0,
@@ -210,7 +233,7 @@ export const buyPropertyWithMortgage = (
       owned: true,
       status: spec.asResidence ? 'owner' : 'owner',
       purchasePrice: catalog.price,
-      purchasedWeek: prev.weeksLived,
+      purchasedWeek: state.weeksLived,
       currentValue: catalog.price,
       condition: 90,
       currentResidence: spec.asResidence ?? false,
@@ -222,9 +245,9 @@ export const buyPropertyWithMortgage = (
 
     let updatedRealEstate: RealEstate[];
     if (existingIdx === -1) {
-      updatedRealEstate = [...(prev.realEstate ?? []), ownedEntry];
+      updatedRealEstate = [...(state.realEstate ?? []), ownedEntry];
     } else {
-      updatedRealEstate = (prev.realEstate ?? []).map((p, i) => (i === existingIdx ? ownedEntry : p));
+      updatedRealEstate = (state.realEstate ?? []).map((p, i) => (i === existingIdx ? ownedEntry : p));
     }
 
     // If marking as primary residence, demote any prior residence.
@@ -240,30 +263,29 @@ export const buyPropertyWithMortgage = (
 
     // Budget tab: the down payment leaves cash today → housing spending. The
     // mortgage principal is NOT recorded; its repayments are tracked as 'debt'.
-    const banking = prev.banking?.budgetSpend
-      ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', downPayment)
-      : prev.banking;
-
-    result = {
-      success: true,
-      message: spec.tier === 'cash'
-        ? `You bought ${catalog.name} outright for $${catalog.price.toLocaleString()}!`
-        : `You bought ${catalog.name} — $${Math.round(downPayment).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
-    };
+    const banking = state.banking?.budgetSpend
+      ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', downPayment)
+      : state.banking;
 
     return {
-      ...prev,
-      ...spend,
-      banking,
-      realEstate: updatedRealEstate,
-      loans: updatedLoans,
-      // A mortgage is debt. See `debtProgress`.
-      ...debtProgress(prev, updatedLoans.length > (prev.loans ?? []).length),
+      result: {
+        success: true,
+        message: spec.tier === 'cash'
+          ? `You bought ${catalog.name} outright for $${catalog.price.toLocaleString()}!`
+          : `You bought ${catalog.name} — $${Math.round(downPayment).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
+      },
+      next: {
+        ...state,
+        ...spend,
+        banking,
+        realEstate: updatedRealEstate,
+        loans: updatedLoans,
+        // A mortgage is debt. See `debtProgress`.
+        ...debtProgress(state, updatedLoans.length > (state.loans ?? []).length),
+      },
     };
-  });
-
-  return result;
-};
+  }
+}
 
 /**
  * Sell a property. Pays off any outstanding mortgage; remaining proceeds go to cash.
@@ -406,6 +428,127 @@ export const maintainProperty = (
 };
 
 /**
+ * PURE resolvers for the three "improve an owned property" actions.
+ *
+ * ── Why they exist (2026-08-15) ───────────────────────────────────────────
+ *
+ * All three used to hold `let result = { success: false }`, assign it from
+ * inside their `setGameState` updater, and `return result` after the dispatch.
+ * That read is only reliable for the FIRST functional update of a React batch
+ * (`__tests__/refactor/updaterTimingContract.test.tsx`); on any deferred
+ * dispatch it returned the initial "Install failed" / "Add-room failed" /
+ * "Upgrade failed" placeholder for work that had in fact succeeded — the same
+ * defect as the 2026-08-15 player report ($40.25M told they needed $10,000).
+ *
+ * These were the hardest members of the class because they took only
+ * `setGameState`: with no state snapshot they could not answer their caller at
+ * all except by reading across the updater boundary. Each now takes
+ * `gameState`, and one pure function produces BOTH the outcome (from the
+ * caller's snapshot) and the next state (from `prev`), so no cross-updater
+ * variable exists to be stale.
+ *
+ * `next: null` means refuse — the updater returns `prev` unchanged, which is
+ * also the same-batch race guard.
+ */
+type ImproveOutcome = { result: { success: boolean; message: string }; next: GameState | null };
+
+function resolveInstallDecor(state: GameState, propertyId: string, decorId: string): ImproveOutcome {
+  const property = (state.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+  if (!property) {
+    return { result: { success: false, message: 'You must own this property to improve it.' }, next: null };
+  }
+  const item = DECOR_ITEMS.find((d) => d.id === decorId);
+  if (!item) {
+    return { result: { success: false, message: 'Unknown decoration.' }, next: null };
+  }
+  if ((property.interior ?? []).includes(decorId)) {
+    return { result: { success: false, message: `${item.name} is already installed here.` }, next: null };
+  }
+  const cash = state.stats?.money ?? 0;
+  if (cash < item.cost) {
+    return {
+      result: { success: false, message: `You need $${item.cost.toLocaleString()} for the ${item.name}.` },
+      next: null,
+    };
+  }
+  return {
+    result: { success: true, message: `Installed ${item.name} (+${item.happiness} comfort/wk when lived in).` },
+    next: {
+      ...state,
+      banking: state.banking?.budgetSpend
+        ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', item.cost)
+        : state.banking,
+      ...(applyMoneyDelta(state, -item.cost, 'Property decor') ?? { stats: { ...state.stats, money: cash - item.cost } }),
+      realEstate: installDecorPure(state.realEstate ?? [], propertyId, decorId),
+    },
+  };
+}
+
+function resolveAddRoom(state: GameState, propertyId: string, roomId: string): ImproveOutcome {
+  const property = (state.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+  if (!property) {
+    return { result: { success: false, message: 'You must own this property to improve it.' }, next: null };
+  }
+  const room = ROOM_ADDITIONS.find((r) => r.id === roomId);
+  if (!room) {
+    return { result: { success: false, message: 'Unknown room.' }, next: null };
+  }
+  if ((property.rooms ?? []).includes(roomId)) {
+    return { result: { success: false, message: `${room.name} has already been added here.` }, next: null };
+  }
+  const cash = state.stats?.money ?? 0;
+  if (cash < room.cost) {
+    return {
+      result: { success: false, message: `You need $${room.cost.toLocaleString()} to add the ${room.name}.` },
+      next: null,
+    };
+  }
+  return {
+    result: { success: true, message: `Added ${room.name} (+${room.happinessBonus} comfort/wk when lived in).` },
+    next: {
+      ...state,
+      banking: state.banking?.budgetSpend
+        ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', room.cost)
+        : state.banking,
+      ...(applyMoneyDelta(state, -room.cost, 'Property room addition') ?? { stats: { ...state.stats, money: cash - room.cost } }),
+      realEstate: addRoomPure(state.realEstate ?? [], propertyId, roomId),
+    },
+  };
+}
+
+function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcome {
+  const property = (state.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
+  if (!property) {
+    return { result: { success: false, message: 'You must own this property to upgrade it.' }, next: null };
+  }
+  const nextTier = getUpgradeTier((property.upgradeLevel ?? 0) + 1);
+  if (!nextTier) {
+    return { result: { success: false, message: 'This property is already at the top upgrade tier.' }, next: null };
+  }
+  const cash = state.stats?.money ?? 0;
+  if (cash < nextTier.cost) {
+    return {
+      result: { success: false, message: `You need $${nextTier.cost.toLocaleString()} to reach tier ${nextTier.level}.` },
+      next: null,
+    };
+  }
+  return {
+    result: {
+      success: true,
+      message: `Upgraded ${property.name} to tier ${nextTier.level} (+$${nextTier.rentBonus}/wk rent when rented).`,
+    },
+    next: {
+      ...state,
+      banking: state.banking?.budgetSpend
+        ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', nextTier.cost)
+        : state.banking,
+      ...(applyMoneyDelta(state, -nextTier.cost, 'Property tier upgrade') ?? { stats: { ...state.stats, money: cash - nextTier.cost } }),
+      realEstate: upgradePropertyPure(state.realEstate ?? [], propertyId, nextTier.level),
+    },
+  };
+}
+
+/**
  * Improve flow — install a decoration item into an owned property. Debits the
  * item cost, tracks 'housing' budget spend, and writes the EXISTING interior[]
  * field (which calculatePropertyHappiness / appreciatePropertyValue already
@@ -413,43 +556,16 @@ export const maintainProperty = (
  * already-installed item (or the debited cash) and rejects — no double spend.
  */
 export const installPropertyDecor = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   propertyId: string,
   decorId: string
 ): { success: boolean; message: string } => {
-  let result: { success: boolean; message: string } = { success: false, message: 'Install failed' };
-  setGameState((prev) => {
-    const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
-    if (!property) {
-      result = { success: false, message: 'You must own this property to improve it.' };
-      return prev;
-    }
-    const item = DECOR_ITEMS.find((d) => d.id === decorId);
-    if (!item) {
-      result = { success: false, message: 'Unknown decoration.' };
-      return prev;
-    }
-    if ((property.interior ?? []).includes(decorId)) {
-      result = { success: false, message: `${item.name} is already installed here.` };
-      return prev;
-    }
-    const cash = prev.stats?.money ?? 0;
-    if (cash < item.cost) {
-      result = { success: false, message: `You need $${item.cost.toLocaleString()} for the ${item.name}.` };
-      return prev;
-    }
-    log.info(`Installed ${item.name} in ${property.name} for $${item.cost.toLocaleString()}`);
-    result = { success: true, message: `Installed ${item.name} (+${item.happiness} comfort/wk when lived in).` };
-    return {
-      ...prev,
-      banking: prev.banking?.budgetSpend
-        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', item.cost)
-        : prev.banking,
-      ...(applyMoneyDelta(prev, -item.cost, 'Property decor') ?? { stats: { ...prev.stats, money: cash - item.cost } }),
-      realEstate: installDecorPure(prev.realEstate ?? [], propertyId, decorId),
-    };
-  });
-  return result;
+  const preview = resolveInstallDecor(gameState, propertyId, decorId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveInstallDecor(prev, propertyId, decorId).next ?? prev);
+  log.info(`Installed decor ${decorId} in ${propertyId}`);
+  return preview.result;
 };
 
 /**
@@ -457,43 +573,16 @@ export const installPropertyDecor = (
  * 'housing' spend, and writes the EXISTING rooms[] field. Double-tap safe.
  */
 export const addPropertyRoom = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   propertyId: string,
   roomId: string
 ): { success: boolean; message: string } => {
-  let result: { success: boolean; message: string } = { success: false, message: 'Add-room failed' };
-  setGameState((prev) => {
-    const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
-    if (!property) {
-      result = { success: false, message: 'You must own this property to improve it.' };
-      return prev;
-    }
-    const room = ROOM_ADDITIONS.find((r) => r.id === roomId);
-    if (!room) {
-      result = { success: false, message: 'Unknown room.' };
-      return prev;
-    }
-    if ((property.rooms ?? []).includes(roomId)) {
-      result = { success: false, message: `${room.name} has already been added here.` };
-      return prev;
-    }
-    const cash = prev.stats?.money ?? 0;
-    if (cash < room.cost) {
-      result = { success: false, message: `You need $${room.cost.toLocaleString()} to add the ${room.name}.` };
-      return prev;
-    }
-    log.info(`Added ${room.name} to ${property.name} for $${room.cost.toLocaleString()}`);
-    result = { success: true, message: `Added ${room.name} (+${room.happinessBonus} comfort/wk when lived in).` };
-    return {
-      ...prev,
-      banking: prev.banking?.budgetSpend
-        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', room.cost)
-        : prev.banking,
-      ...(applyMoneyDelta(prev, -room.cost, 'Property room addition') ?? { stats: { ...prev.stats, money: cash - room.cost } }),
-      realEstate: addRoomPure(prev.realEstate ?? [], propertyId, roomId),
-    };
-  });
-  return result;
+  const preview = resolveAddRoom(gameState, propertyId, roomId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveAddRoom(prev, propertyId, roomId).next ?? prev);
+  log.info(`Added room ${roomId} to ${propertyId}`);
+  return preview.result;
 };
 
 /**
@@ -503,39 +592,15 @@ export const addPropertyRoom = (
  * only when the unit is actually tenanted). Double-tap safe.
  */
 export const upgradePropertyTier = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   propertyId: string
 ): { success: boolean; message: string } => {
-  let result: { success: boolean; message: string } = { success: false, message: 'Upgrade failed' };
-  setGameState((prev) => {
-    const property = (prev.realEstate ?? []).find((p) => p.id === propertyId && p.owned);
-    if (!property) {
-      result = { success: false, message: 'You must own this property to upgrade it.' };
-      return prev;
-    }
-    const currentLevel = property.upgradeLevel ?? 0;
-    const nextTier = getUpgradeTier(currentLevel + 1);
-    if (!nextTier) {
-      result = { success: false, message: 'This property is already at the top upgrade tier.' };
-      return prev;
-    }
-    const cash = prev.stats?.money ?? 0;
-    if (cash < nextTier.cost) {
-      result = { success: false, message: `You need $${nextTier.cost.toLocaleString()} to reach tier ${nextTier.level}.` };
-      return prev;
-    }
-    log.info(`Upgraded ${property.name} to tier ${nextTier.level} for $${nextTier.cost.toLocaleString()}`);
-    result = { success: true, message: `Upgraded ${property.name} to tier ${nextTier.level} (+$${nextTier.rentBonus}/wk rent when rented).` };
-    return {
-      ...prev,
-      banking: prev.banking?.budgetSpend
-        ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', nextTier.cost)
-        : prev.banking,
-      ...(applyMoneyDelta(prev, -nextTier.cost, 'Property tier upgrade') ?? { stats: { ...prev.stats, money: cash - nextTier.cost } }),
-      realEstate: upgradePropertyPure(prev.realEstate ?? [], propertyId, nextTier.level),
-    };
-  });
-  return result;
+  const preview = resolveUpgradeTier(gameState, propertyId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveUpgradeTier(prev, propertyId).next ?? prev);
+  log.info(`Upgraded property tier for ${propertyId}`);
+  return preview.result;
 };
 
 /**

@@ -47,14 +47,14 @@ function borrower(): GameState {
  */
 type Setter = (updater: React.SetStateAction<GameState>) => void;
 
-function run(action: (set: Setter) => void, from: GameState): GameState {
+function run(action: (set: Setter, from: GameState) => void, from: GameState): GameState {
   let state = from;
   action((updater) => {
     if (typeof updater !== 'function') {
       throw new Error('action wrote a raw value instead of a functional updater');
     }
     state = updater(state);
-  });
+  }, from);
   return state;
 }
 
@@ -108,7 +108,7 @@ describe('every way to borrow records that the player borrowed', () => {
   it('an auto loan sets it', () => {
     const start = borrower();
     const after = run(
-      (set) => purchaseVehicleWithAutoLoan(set as never, {
+      (set, from) => purchaseVehicleWithAutoLoan(from, set as never, {
         templateId: 'economy_sedan',
         tier: 'standard',
         term: '5y',
@@ -123,7 +123,7 @@ describe('every way to borrow records that the player borrowed', () => {
 
   it('a mortgage sets it', () => {
     const after = run(
-      (set) => buyPropertyWithMortgage(set as never, {
+      (set, from) => buyPropertyWithMortgage(from, set as never, {
         property: CONDO,
         tier: 'standard',
         term: '30y',
@@ -140,7 +140,7 @@ describe('every way to borrow records that the player borrowed', () => {
     // The control. Stamping unconditionally would "fix" this by handing the
     // Debt Free achievement to someone who never borrowed a cent.
     const after = run(
-      (set) => purchaseVehicleWithAutoLoan(set as never, {
+      (set, from) => purchaseVehicleWithAutoLoan(from, set as never, {
         templateId: 'economy_sedan',
         tier: 'cash',
         term: '5y',

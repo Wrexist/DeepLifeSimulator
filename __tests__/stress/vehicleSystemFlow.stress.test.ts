@@ -214,7 +214,7 @@ describe('Vehicle system deep audit', () => {
     const { purchaseVehicleWithAutoLoan } = await import('@/contexts/game/actions/VehicleActions');
     let result: { success: boolean; message: string } = { success: false, message: '' };
     act(() => {
-      result = purchaseVehicleWithAutoLoan(captured!.setGameState, {
+      result = purchaseVehicleWithAutoLoan(captured!.state, captured!.setGameState, {
         templateId: 'economy_sedan',
         tier: 'standard',
         term: '5y',

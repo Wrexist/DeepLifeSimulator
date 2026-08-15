@@ -918,49 +918,76 @@ export function quoteVehiclePurchase(
  * (type='auto') in the banking system, debits the down payment, and adds the
  * vehicle to gameState.vehicles.
  */
+/** What the player is asking to buy, and how they are financing it. */
+type BuyVehicleSpec = {
+  templateId: string;
+  tier: AutoDownTier;
+  term: AutoTerm;
+  weeklyIncome: number;
+};
+
 export const purchaseVehicleWithAutoLoan = (
+  gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
-  spec: {
-    templateId: string;
-    tier: AutoDownTier;
-    term: AutoTerm;
-    weeklyIncome: number;
-  }
+  spec: BuyVehicleSpec
 ): { success: boolean; message: string } => {
-  let result: { success: boolean; message: string } = { success: false, message: 'Purchase failed' };
-  setGameState((prev) => {
-    if (!prev.hasDriversLicense) {
-      result = { success: false, message: "You need a driver's license to purchase a vehicle!" };
-      return prev;
+  const preview = resolveBuyVehicle(gameState, spec);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveBuyVehicle(prev, spec).next ?? prev);
+  return preview.result;
+};
+
+/**
+ * PURE-ENOUGH: what does buying `spec` do to `state`?
+ *
+ * `next: null` means refuse. Called once against the caller's snapshot for the
+ * outcome and once against `prev` for the state. `newLoanId()` inside is the
+ * one impure step and is harmless: the preview's `next` is discarded, so only
+ * the COMMIT's loan id is ever stored.
+ *
+ * ── Why (2026-08-15) ──────────────────────────────────────────────────────
+ *
+ * This used to hold `let result = { success: false, message: 'Purchase failed' }`
+ * assigned from inside the updater and returned after the dispatch. A capture
+ * is only readable for the FIRST functional update of a React batch, so a
+ * deferred dispatch showed "Purchase failed" for a car the player had bought
+ * and paid a down payment on. It is also the exact pattern whose adoption
+ * across the other nine `VehicleActions` functions was REVERTED in an earlier
+ * round when a stress test caught a successful refuel reporting failure — the
+ * evidence was there, and this one was left carrying it.
+ */
+function resolveBuyVehicle(
+  state: GameState,
+  spec: BuyVehicleSpec
+): { result: { success: boolean; message: string }; next: GameState | null } {
+  {
+    if (!state.hasDriversLicense) {
+      return { result: { success: false, message: "You need a driver's license to purchase a vehicle!" }, next: null };
     }
     const template = VEHICLE_TEMPLATES.find((v) => v.id === spec.templateId);
     if (!template) {
-      result = { success: false, message: 'Vehicle template not found' };
-      return prev;
+      return { result: { success: false, message: 'Vehicle template not found' }, next: null };
     }
-    if ((prev.vehicles ?? []).some((v) => v.id === spec.templateId)) {
-      result = { success: false, message: 'You already own this vehicle!' };
-      return prev;
+    if ((state.vehicles ?? []).some((v) => v.id === spec.templateId)) {
+      return { result: { success: false, message: 'You already own this vehicle!' }, next: null };
     }
-    const quote = quoteVehiclePurchase(prev, spec.templateId, spec.tier, spec.term, spec.weeklyIncome);
+    const quote = quoteVehiclePurchase(state, spec.templateId, spec.tier, spec.term, spec.weeklyIncome);
     if (quote.rejected) {
-      result = { success: false, message: quote.reason ?? 'Rejected' };
-      return prev;
+      return { result: { success: false, message: quote.reason ?? 'Rejected' }, next: null };
     }
 
-    const cash = prev.stats?.money ?? 0;
+    const cash = state.stats?.money ?? 0;
     const downPayment = quote.downPaymentUSD ?? 0;
     // Route the down-payment debit through the canonical money helper
     // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
     // directly — a corrupt (NaN) balance now rejects the purchase rather than
     // writing NaN money. The amount charged is unchanged.
-    const spend = applyMoneyDelta(prev, -downPayment, `Vehicle down payment: ${template.name}`);
+    const spend = applyMoneyDelta(state, -downPayment, `Vehicle down payment: ${template.name}`);
     if (!spend) {
-      result = { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` };
-      return prev;
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` }, next: null };
     }
 
-    let updatedLoans = prev.loans ?? [];
+    let updatedLoans = state.loans ?? [];
     if (spec.tier !== 'cash' && (quote.loanPrincipal ?? 0) > 0) {
       const loan: Loan = {
         id: newLoanId(),
@@ -977,7 +1004,7 @@ export const purchaseVehicleWithAutoLoan = (
         termWeeks: AUTO_TERM_WEEKS[spec.term],
         weeksRemaining: AUTO_TERM_WEEKS[spec.term],
         weeklyPayment: quote.weeklyPayment!,
-        startWeek: prev.weeksLived,
+        startWeek: state.weeksLived,
         autoPay: true,
         type: 'auto',
         onTimePayments: 0,
@@ -989,51 +1016,51 @@ export const purchaseVehicleWithAutoLoan = (
       );
     }
 
-    const newVehicle = createVehicleFromTemplate(template, prev.weeksLived || 0);
-    const vehicles = [...(prev.vehicles ?? []), newVehicle];
-    const activeVehicleId = prev.activeVehicleId ?? newVehicle.id;
-
-    result = {
-      success: true,
-      message:
-        spec.tier === 'cash'
-          ? `Bought ${template.name} for $${template.price.toLocaleString()}`
-          : `Financed ${template.name} — $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
-    };
+    const newVehicle = createVehicleFromTemplate(template, state.weeksLived || 0);
+    const vehicles = [...(state.vehicles ?? []), newVehicle];
+    const activeVehicleId = state.activeVehicleId ?? newVehicle.id;
 
     // Budget tab: the down payment leaves cash today → transport spending.
     // The financed remainder is NOT recorded here; its weekly repayments are
     // tracked as 'debt' by the loan-payment path.
-    const banking = prev.banking?.budgetSpend
-      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', quote.downPaymentUSD ?? 0)
-      : prev.banking;
+    const banking = state.banking?.budgetSpend
+      ? trackBudgetSpend(state.banking, state.weeksLived ?? 0, 'transport', quote.downPaymentUSD ?? 0)
+      : state.banking;
 
     // Grant the dealer-card / spec-grid "+X rep" once at purchase. The UI buys
     // exclusively through THIS path (BuyVehicleModal → purchaseVehicleWithAutoLoan),
     // so without this the advertised reputationBonus was never applied — only the
     // legacy, UI-unused purchaseVehicle granted it. Capped at 100 (Math.min); the
     // weekly tick's separate +1/wk nudge (capped at reputationBonus*3) is unchanged.
-    const prevReputation = typeof prev.stats?.reputation === 'number' && isFinite(prev.stats.reputation)
-      ? prev.stats.reputation
+    const snapshotReputation = typeof state.stats?.reputation === 'number' && isFinite(state.stats.reputation)
+      ? state.stats.reputation
       : 0;
     const grantedReputation = template.reputationBonus > 0
-      ? Math.min(100, prevReputation + template.reputationBonus)
-      : prevReputation;
+      ? Math.min(100, snapshotReputation + template.reputationBonus)
+      : snapshotReputation;
 
     return {
-      ...prev,
-      ...spend,
-      banking,
-      stats: { ...spend.stats, reputation: grantedReputation },
-      vehicles,
-      activeVehicleId,
-      loans: updatedLoans,
-      // An auto loan is debt. See `debtProgress`.
-      ...debtProgress(prev, updatedLoans.length > (prev.loans ?? []).length),
+      result: {
+        success: true,
+        message:
+          spec.tier === 'cash'
+            ? `Bought ${template.name} for $${template.price.toLocaleString()}`
+            : `Financed ${template.name} — $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
+      },
+      next: {
+        ...state,
+        ...spend,
+        banking,
+        stats: { ...spend.stats, reputation: grantedReputation },
+        vehicles,
+        activeVehicleId,
+        loans: updatedLoans,
+        // An auto loan is debt. See `debtProgress`.
+        ...debtProgress(state, updatedLoans.length > (state.loans ?? []).length),
+      },
     };
-  });
-  return result;
-};
+  }
+}
 
 
 // ---------------------------------------------------------------------------

@@ -80,15 +80,43 @@ Enabled by a new `applyStatsDelta` in `StatsActions` — the stats counterpart o
 `applyMoneyDelta`, so a stat change can fold into an existing updater. There was
 no pure stats helper, which is WHY these were separate dispatches.
 
-## Still open — the object-capture half of the same class
+## The object-capture half — also done
 
-`captureSuspects()` in the ratchet lists 12 functions using
-`let result = { success: false }` … `return result;`. Identical timing defect.
-Several (`installPropertyDecor`, `addPropertyRoom`, `upgradePropertyTier`) take
-only `setGameState` and no state snapshot, so they cannot report to their caller
-at all without a signature change.
+`let result = { success: false }` … `return result;`, the same timing defect in
+its data-carrying form. All 12 converted to pure preview/commit resolvers:
+
+- RealEstateActions — `installPropertyDecor`, `addPropertyRoom`,
+  `upgradePropertyTier`, `buyPropertyWithMortgage`
+- PulseActions — `acceptBrandDeal`, `deliverBrandDealPost`, `breachBrandDeal`
+- CompanyActions — `buyCompanyUpgrade` (the original C-8)
+- BankingActions — `openNewAccount`
+- ContactsActions — `askNetworkFavor`
+- VehicleActions — `purchaseVehicleWithAutoLoan`
+- SparkActions — `promoteMatchToFriend` (outer guards, no resolver needed)
+
+Six took only `setGameState` and no snapshot, so they could not answer their
+caller except by reading across the updater boundary. Each now takes
+`gameState`; 9 call sites and 8 test files updated.
+
+`breachBrandDeal` carried a "⚠️ DO NOT TRUST THE RETURN VALUE" banner and a
+pure `brandDealBreachPenalty` helper built to work around it. The banner is
+replaced by the fix it asked for; the helper stays, because quoting the real
+penalty on the confirm dialog is worth doing anyway.
+
+`captureSuspects()` is now EMPTY. Its detector is proved on fixtures instead —
+a detector that only ever returns an empty list is indistinguishable from a
+broken one. Ratchet: 102 → 92.
 
 ## Deliberately not done
 
-- Rewriting all 27 as preview/commit pure resolvers. Same reporting behaviour,
-  much larger diff, and it breaks on any updater that rolls randomness.
+- Rewriting the 22 boolean-capture sites as preview/commit resolvers too. Where
+  every inner rejection already mirrors an outer guard, removing the capture
+  gives IDENTICAL reporting for a fraction of the diff — and it is robust to an
+  updater that rolls randomness, which a preview/commit resolver is not. The
+  resolver form was used exactly where the result carries data the outer guards
+  cannot produce.
+- Chasing the remaining 92 `suspects()`. That is the ORIGINAL C-8 tail shape
+  (reject inside, unconditional success after), and per
+  `innerOnlyRejections.test.ts` most mirror an outer guard and are correct on
+  the single tap that is almost all real play. A shape worth not adding more of,
+  not 92 live bugs.

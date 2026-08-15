@@ -1305,7 +1305,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           // `openNewAccount` used to return void and this closed the sheet
           // regardless, so a rejection was indistinguishable from success —
           // the player tapped Open, the sheet closed, and no account appeared.
-          const result = openNewAccount(setGameState, spec);
+          const result = openNewAccount(gameState, setGameState, spec);
           if (!result.success) {
             Alert.alert('Could not open account', result.message);
             return;

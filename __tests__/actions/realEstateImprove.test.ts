@@ -59,7 +59,7 @@ describe('installPropertyDecor', () => {
   it('installs decor, debits the cost, and writes interior[]', () => {
     const snap = stateWith(10_000, [ownedProp()]);
     const { setState, get } = makeBatchedSetState(snap);
-    const res = installPropertyDecor(setState, 'p1', bed.id);
+    const res = installPropertyDecor(snap, setState, 'p1', bed.id);
     expect(res.success).toBe(true);
     expect(get().realEstate![0].interior).toContain(bed.id);
     expect(get().stats.money).toBe(10_000 - bed.cost);
@@ -68,8 +68,8 @@ describe('installPropertyDecor', () => {
   it('is double-tap safe — two same-batch taps install + debit once', () => {
     const snap = stateWith(10_000, [ownedProp()]);
     const { setState, get } = makeBatchedSetState(snap);
-    installPropertyDecor(setState, 'p1', bed.id);
-    installPropertyDecor(setState, 'p1', bed.id); // stale snapshot → already installed
+    installPropertyDecor(snap, setState, 'p1', bed.id);
+    installPropertyDecor(snap, setState, 'p1', bed.id); // stale snapshot → already installed
     expect(get().realEstate![0].interior).toEqual([bed.id]);
     expect(get().stats.money).toBe(10_000 - bed.cost);
   });
@@ -77,7 +77,7 @@ describe('installPropertyDecor', () => {
   it('rejects when unaffordable (no state change)', () => {
     const snap = stateWith(100, [ownedProp()]);
     const { setState, get } = makeBatchedSetState(snap);
-    const res = installPropertyDecor(setState, 'p1', bed.id);
+    const res = installPropertyDecor(snap, setState, 'p1', bed.id);
     expect(res.success).toBe(false);
     expect(get().stats.money).toBe(100);
     expect(get().realEstate![0].interior).toEqual([]);
@@ -86,7 +86,7 @@ describe('installPropertyDecor', () => {
   it('rejects for a property the player does not own', () => {
     const snap = stateWith(10_000, [ownedProp({ owned: false })]);
     const { setState, get } = makeBatchedSetState(snap);
-    expect(installPropertyDecor(setState, 'p1', bed.id).success).toBe(false);
+    expect(installPropertyDecor(snap, setState, 'p1', bed.id).success).toBe(false);
     expect(get().stats.money).toBe(10_000);
   });
 });
@@ -95,19 +95,44 @@ describe('addPropertyRoom', () => {
   it('adds a room, debits the cost, and writes rooms[]', () => {
     const snap = stateWith(50_000, [ownedProp()]);
     const { setState, get } = makeBatchedSetState(snap);
-    const res = addPropertyRoom(setState, 'p1', office.id);
+    const res = addPropertyRoom(snap, setState, 'p1', office.id);
     expect(res.success).toBe(true);
     expect(get().realEstate![0].rooms).toContain(office.id);
     expect(get().stats.money).toBe(50_000 - office.cost);
   });
 
-  it('rejects a duplicate room add on the second tap', () => {
+  it('charges a duplicate room add only once', () => {
+    /**
+     * Both taps are handed the SAME stale snapshot, which is what a double tap
+     * in one React batch produces. The STATE is what must hold: one debit, one
+     * room.
+     *
+     * This used to assert `res2.success === false`, which was satisfied by a
+     * `let result` assigned inside the updater and read back after it. That
+     * read is only reliable for the FIRST functional update of a React batch,
+     * so on a deferred dispatch it returned the "Add-room failed" placeholder
+     * for a room that HAD been added (2026-08-15). Reporting from the snapshot
+     * costs a duplicated success message on this rare race instead.
+     */
     const snap = stateWith(50_000, [ownedProp()]);
     const { setState, get } = makeBatchedSetState(snap);
-    addPropertyRoom(setState, 'p1', office.id);
-    const res2 = addPropertyRoom(setState, 'p1', office.id);
-    expect(res2.success).toBe(false);
+    addPropertyRoom(snap, setState, 'p1', office.id);
+    addPropertyRoom(snap, setState, 'p1', office.id);
+    expect(get().realEstate![0].rooms).toEqual([office.id]);
     expect(get().stats.money).toBe(50_000 - office.cost);
+  });
+
+  it('reports the real outcome while the updater is still queued', () => {
+    // The 2026-08-15 defect, pinned: with the dispatch deferred, the old code
+    // returned its `{ success: false, message: 'Add-room failed' }` placeholder.
+    const snap = stateWith(50_000, [ownedProp()]);
+    const queue: React.SetStateAction<GameState>[] = [];
+    const setState = ((u: React.SetStateAction<GameState>) => { queue.push(u); }) as React.Dispatch<React.SetStateAction<GameState>>;
+
+    const res = addPropertyRoom(snap, setState, 'p1', office.id);
+
+    expect(res.success).toBe(true);
+    expect(res.message).toContain(office.name);
   });
 });
 
@@ -115,7 +140,7 @@ describe('upgradePropertyTier', () => {
   it('bumps upgradeLevel to the next tier and debits the tier cost', () => {
     const snap = stateWith(100_000, [ownedProp({ upgradeLevel: 0 })]);
     const { setState, get } = makeBatchedSetState(snap);
-    const res = upgradePropertyTier(setState, 'p1');
+    const res = upgradePropertyTier(snap, setState, 'p1');
     expect(res.success).toBe(true);
     expect(get().realEstate![0].upgradeLevel).toBe(1);
     expect(get().stats.money).toBe(100_000 - tier1.cost);
@@ -125,7 +150,7 @@ describe('upgradePropertyTier', () => {
     const top = UPGRADE_TIERS[UPGRADE_TIERS.length - 1].level;
     const snap = stateWith(100_000, [ownedProp({ upgradeLevel: top })]);
     const { setState, get } = makeBatchedSetState(snap);
-    const res = upgradePropertyTier(setState, 'p1');
+    const res = upgradePropertyTier(snap, setState, 'p1');
     expect(res.success).toBe(false);
     expect(get().stats.money).toBe(100_000);
   });
@@ -133,8 +158,8 @@ describe('upgradePropertyTier', () => {
   it('is double-tap safe — two same-batch taps advance one tier', () => {
     const snap = stateWith(100_000, [ownedProp({ upgradeLevel: 0 })]);
     const { setState, get } = makeBatchedSetState(snap);
-    upgradePropertyTier(setState, 'p1');
-    upgradePropertyTier(setState, 'p1'); // stale snapshot
+    upgradePropertyTier(snap, setState, 'p1');
+    upgradePropertyTier(snap, setState, 'p1'); // stale snapshot
     // Second tap sees level 1 already and charges tier 2 — so it legitimately
     // advances to 2. Guard instead against the SAME stale snapshot double-charge:
     // level advanced monotonically and money is internally consistent.
