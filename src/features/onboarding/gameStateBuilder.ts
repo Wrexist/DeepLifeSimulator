@@ -5,7 +5,7 @@
  * from onboarding selections (scenario, identity, perks, mindset).
  */
 
-import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { WEEKS_PER_YEAR, WEEKS_PER_MONTH, computeWeeksLived } from '@/lib/config/gameConstants';
 import type { MindsetId } from '@/lib/mindset/config';
 import { perks as perksCatalog } from './perksData';
 import { NEWBORN_BOND } from '@/lib/parenting/parentingLogic';
@@ -108,10 +108,14 @@ export function mapScenarioItemIds(scenarioItems: string[]): string[] {
   return scenarioItems.map((sid) => ITEM_ID_MAP[sid] || sid).filter(Boolean);
 }
 
-/** Calculate absolute weeksLived from a starting age. */
-export function computeWeeksLived(startingAge: number): number {
-  return Math.max(0, Math.floor((startingAge - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
-}
+/**
+ * Re-exported from `lib/config/gameConstants`, which is where it now lives so
+ * the prestige heir path can share it — `lib/` cannot import from `src/`.
+ * Kept exported here because callers and tests already import it from this
+ * module, and two definitions of this number is exactly the divergence that
+ * left heirs with `weeksLived: 0` at age 20.
+ */
+export { computeWeeksLived };
 
 function clampBoundedStat(value: number): number {
   return Math.max(0, Math.min(100, value));
@@ -224,6 +228,10 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       fitness: clampBoundedStat(baseStats.fitness + (perkStatBoosts.fitness || 0)),
     },
     weeksLived,
+    // The baseline for "weeks into THIS life" (v43). Stamped here because this
+    // is the one place that knows the life is starting; deriving it later is
+    // impossible once `weeksLived` has moved.
+    lifeStartWeek: weeksLived,
     week: (weeksLived % WEEKS_PER_MONTH) + 1,
     date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_YEAR) + 1 },
     educations: (() => {

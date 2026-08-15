@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 42`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 43`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -116,6 +116,14 @@ Path alias: `@/*` → repo root (tsconfig + jest `moduleNameMapper` + metro).
   (`resolveAbsoluteWeek`, `normalizeStoredWeekToAbsolute`).
 - Mixing these up has shipped bugs more than once; it is the first thing to check
   in any review of time-based logic.
+- **`weeksLived` does NOT start at 0.** It is seeded from the starting age —
+  `computeWeeksLived` = `(age - 18) * 52` — so an age-20 character begins at
+  **104** and an age-25 one at **364**. Any "have I played N weeks yet" check
+  against the raw counter is already true before the first frame for every
+  scenario except the age-18 ones. This has caused three bugs (the first-session
+  coach, `FirstWeekGuide`, Chapter 1's "Survive 4 Weeks"). Use
+  `weeksInThisLife(state)` from `lib/progress/lifeChapters.ts`, which reads the
+  `lifeStartWeek` baseline (v43).
 
 ### 4.3 The weekly tick
 
@@ -275,7 +283,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 42`** — single source of truth in
+- **Canonical `STATE_VERSION = 43`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -484,6 +492,21 @@ including the crash screen.
   backfill and no `repairGameState` mirror. Entries written before this cannot
   grow one (the week they were worked is gone) and readers fall back to deriving
   from `careers`, which is correct for every career except the political one.
+- **v43 adds `lifeStartWeek`** — `weeksLived` at the moment a life began.
+  `weeksLived` is ABSOLUTE and seeded from the starting age
+  (`computeWeeksLived` = `(age - 18) * 52`), so an age-20 character starts at
+  **104** and an age-25 one at **364**. Every "have I played N weeks yet" check
+  against the raw counter is therefore already true before the first frame.
+  That has now caused three bugs: the first-session coach retired before it ever
+  rendered, `FirstWeekGuide` carried a comment warning about it that was read and
+  not applied, and Chapter 1's "Survive 4 Weeks" was complete on week 1 for every
+  scenario that does not start at 18 — paying its per-goal reward for nothing, in
+  the tutorial chapter. Read it through `weeksInThisLife` (`lib/progress/lifeChapters.ts`),
+  never by subtracting by hand. Default `undefined`, so a CARVE-OUT: version
+  bumped, NO backfill and no `repairGameState` mirror. A save written earlier has
+  no record of when its life began and cannot grow one, so readers fall back to
+  0 — exactly the behaviour those saves have today. Guessing a baseline would
+  silently un-complete a goal an existing player was already paid for.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

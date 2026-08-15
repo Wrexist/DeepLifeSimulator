@@ -89,6 +89,8 @@ export interface AppearanceEditorProps {
   activeIndex: number;
   onChangeCategory: (index: number) => void;
   onSelectOption: (index: number) => void;
+  /** Writes the category's paired colour (hair colour, outfit colour). */
+  onSelectTint: (index: number) => void;
 }
 
 /**
@@ -120,10 +122,12 @@ function AppearanceEditorImpl({
   activeIndex,
   onChangeCategory,
   onSelectOption,
+  onSelectTint,
 }: AppearanceEditorProps) {
   const railRef = useRef<ScrollView | null>(null);
   const category = categories[Math.min(activeIndex, categories.length - 1)];
   const selected = (avatar[category.field] as number) ?? 0;
+  const tintSelected = category.tint ? ((avatar[category.tint.field] as number) ?? 0) : 0;
 
   /**
    * The avatar WITHOUT the field currently being edited, as a stable key.
@@ -168,6 +172,15 @@ function AppearanceEditorImpl({
       onSelectOption(index);
     },
     [onSelectOption]
+  );
+
+  // Same no-haptic reasoning as `handleOption`: the screen's own handler fires
+  // one, and two owners for one buzz is two buzzes.
+  const handleTint = useCallback(
+    (index: number) => {
+      onSelectTint(index);
+    },
+    [onSelectTint]
   );
 
   /**
@@ -274,6 +287,32 @@ function AppearanceEditorImpl({
           );
         })}
       </ScrollView>
+
+      {/* The colour for this same feature, under the shapes it applies to.
+          Hair colour used to be a category of its own, so picking a hairstyle
+          and then colouring it meant finding a second chip among nine — one
+          decision split across two places, and two of the eleven chips existed
+          only to colour other chips. */}
+      {category.tint && (
+        <View style={styles.tintRow}>
+          {category.tint.options.map((option, index) => {
+            const isSelected = tintSelected === index;
+            return (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                key={`${category.tint!.field}-${index}`}
+                accessibilityRole="button"
+                accessibilityLabel={`${category.tint!.label} ${option.label}`}
+                accessibilityState={{ selected: isSelected }}
+                onPress={() => handleTint(index)}
+                style={[styles.tintDot, isSelected && styles.tintDotSelected]}
+              >
+                <View style={[styles.tintFill, { backgroundColor: option.color }]} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -300,6 +339,30 @@ const styles = StyleSheet.create({
   },
   categoryLabel: { fontSize: fontScale(12), fontWeight: '700', color: '#CBD5E1' },
   categoryLabelSelected: { color: '#FFFFFF' },
+
+  /**
+   * The paired colour strip. Deliberately smaller than the option rail and
+   * un-labelled: it is a secondary control for the category already open, not a
+   * category of its own, and sizing it the same would say otherwise. Wraps
+   * rather than scrolls — there are at most 15, and a second horizontal
+   * scroller under the first one is a trap for the thumb.
+   */
+  tintRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.xs,
+    marginTop: verticalScale(2),
+  },
+  tintDot: {
+    width: scale(26),
+    height: scale(26),
+    borderRadius: responsiveBorderRadius.full,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: scale(2),
+  },
+  tintDotSelected: { borderColor: 'rgba(96, 165, 250, 0.95)' },
+  tintFill: { flex: 1, borderRadius: responsiveBorderRadius.full },
 
   railHeader: {
     flexDirection: 'row',

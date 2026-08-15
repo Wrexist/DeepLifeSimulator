@@ -14,7 +14,7 @@
  * render FACES, that no category is hidden, and that the rail cannot reflow the
  * page. Each of those survives a restyle and is the actual requirement.
  */
-import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
+import { AVATAR_PICKERS, EDITABLE_AVATAR_FIELDS, pickersFor } from '@/lib/avatar/pickers';
 import { ART_ZOOM } from '@/lib/avatar/depth';
 import fs from 'fs';
 import path from 'path';
@@ -64,8 +64,13 @@ describe('shape options are faces, not vocabulary', () => {
     // 15 near-identical heads read worse than 15 colour chips, and a swatch
     // already shows exactly what it does.
     expect(EDITOR).toMatch(/styles\.swatchFill/);
+  });
+
+  it('skin is the only colour that is still a category of its own', () => {
+    // Hair colour and outfit colour became TINTS on the categories they belong
+    // to. Skin has no shape to pair with, so it stays standalone.
     const colourCategories = AVATAR_PICKERS.filter((c) => c.kind === 'color').map((c) => c.field);
-    expect(colourCategories).toEqual(['skinTone', 'hairColor', 'clothingColor']);
+    expect(colourCategories).toEqual(['skinTone']);
   });
 });
 
@@ -136,8 +141,12 @@ describe('no category is hidden', () => {
     // If this ever drops to two or three the wrap is pointless — and if it
     // grows, the case for it gets stronger. Either way the number is the
     // premise of the layout, so it is asserted rather than assumed.
-    expect(pickersFor('male').length).toBeGreaterThanOrEqual(10);
-    expect(pickersFor('female').length).toBeGreaterThanOrEqual(9);
+    //
+    // Down from 11/10: pairing hair colour and outfit colour onto the
+    // categories they belong to removed two chips whose only job was to colour
+    // another chip. Still comfortably a wrapping row.
+    expect(pickersFor('male').length).toBeGreaterThanOrEqual(8);
+    expect(pickersFor('female').length).toBeGreaterThanOrEqual(7);
   });
 
   it('the rail says where you are inside the category you opened', () => {
@@ -204,5 +213,57 @@ describe('the screen still owns the state', () => {
     // Passing a different age here would show hairstyles on a face that is not
     // the one being created.
     expect(SCREEN).toMatch(/age=\{scenarioAge\}/);
+  });
+});
+
+describe('a colour lives with the thing it colours', () => {
+  /**
+   * Hair colour and outfit colour used to be categories of their own, so
+   * colouring a hairstyle you had just picked meant finding a second chip among
+   * nine others. Two of the eleven chips existed only to colour other chips,
+   * which is also what forced the category row onto four lines.
+   */
+  it('hair and outfit carry their colour; nothing else does', () => {
+    const paired = AVATAR_PICKERS.filter((c) => c.tint).map((c) => [c.field, c.tint!.field]);
+    expect(paired).toEqual([
+      ['hairStyle', 'hairColor'],
+      ['clothing', 'clothingColor'],
+    ]);
+  });
+
+  it('the paired colours are gone from the category list, not duplicated', () => {
+    // Leaving them in BOTH places would be the worst outcome: two controls
+    // writing one field, disagreeing about which is selected.
+    const fields = AVATAR_PICKERS.map((c) => c.field);
+    expect(fields).not.toContain('hairColor');
+    expect(fields).not.toContain('clothingColor');
+  });
+
+  it('every editable field is still reachable', () => {
+    // The point of the refactor is fewer chips, NOT fewer choices. If a field
+    // stopped being editable this is what would say so.
+    expect(EDITABLE_AVATAR_FIELDS).toEqual(expect.arrayContaining([
+      'skinTone', 'hairStyle', 'hairColor', 'facialHair', 'eyeShape',
+      'browShape', 'mouthShape', 'accessory', 'clothing', 'clothingColor', 'headwear',
+    ]));
+  });
+
+  it('the editor renders the strip and writes the tint field, not the shape one', () => {
+    // A tint tap that wrote `category.field` would change the hairSTYLE while
+    // the player was picking a colour.
+    expect(EDITOR).toMatch(/category\.tint && \(/);
+    expect(EDITOR).toMatch(/onPress=\{\(\) => handleTint\(index\)\}/);
+    expect(SCREEN).toMatch(/onSelectTint=\{handleSelectTint\}/);
+    expect(SCREEN).toMatch(/const field = category\.tint\?\.field;/);
+  });
+
+  it('the strip is smaller than the option rail, and wraps', () => {
+    // It is a secondary control for the open category, not a category itself;
+    // sizing it the same would say otherwise. And a second horizontal scroller
+    // stacked under the first is a trap for the thumb.
+    expect(EDITOR).toMatch(/tintRow: \{[\s\S]*?flexWrap: 'wrap'/);
+    const dot = EDITOR.match(/tintDot: \{[\s\S]*?width: scale\((\d+)\)/);
+    expect(dot).not.toBeNull();
+    expect(Number(dot![1])).toBeLessThan(58); // THUMB
   });
 });

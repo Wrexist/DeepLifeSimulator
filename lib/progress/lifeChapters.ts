@@ -62,6 +62,32 @@ let netWorthFailureLogged = false;
  * Each term is sanitised independently: `Math.max` propagates NaN, and a single
  * corrupt field must not zero the whole signal.
  */
+/**
+ * Weeks lived in THIS life, not since age 18.
+ *
+ * `weeksLived` is absolute and seeded from the starting age
+ * (`computeWeeksLived` = `(age - 18) * 52`), so an age-20 character begins at
+ * 104 and an age-25 one at 364. Comparing it to a small number asks "is this
+ * character over 18 by more than N weeks", which is true at birth for every
+ * scenario except the age-18 ones — the goal below read complete on week 1.
+ *
+ * `lifeStartWeek` (v43) is stamped when the life is built. Absent on older
+ * saves, where 0 keeps exactly the behaviour they already have.
+ */
+export function weeksInThisLife(state: GameState | undefined | null): number {
+  const now = Number(state?.weeksLived);
+  if (!Number.isFinite(now) || now < 0) return 0;
+  const start = Number(state?.lifeStartWeek);
+  if (!Number.isFinite(start) || start < 0) return now;
+  return Math.max(0, now - start);
+}
+
+/** Money EARNED in this life. Starts at 0 every life; only increases. */
+export function earnedThisLife(state: GameState | undefined | null): number {
+  const earned = Number(state?.lifetimeStatistics?.totalMoneyEarned);
+  return Number.isFinite(earned) && earned > 0 ? earned : 0;
+}
+
 export function wealthMark(state: GameState | undefined | null): number {
   if (!state) return 0;
 
@@ -125,9 +151,15 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
       {
         id: 'ch1_earn_500',
         title: 'Earn $500',
-        description: 'Accumulate $500 total',
-        checkComplete: (s) => wealthMark(s) >= 500,
-        checkProgress: (s) => Math.min(1, wealthMark(s) / 500),
+        description: 'Earn $500 of your own',
+        // `totalMoneyEarned`, not net worth. Every scenario starts with cash —
+        // Food Courier begins on $1,500 — so a wealth check was satisfied
+        // before the player did anything, and the tutorial chapter opened at
+        // 2 of 3 with a reward already banked. This counter starts at 0 for
+        // every life and only ever increases, the same property that makes
+        // Legacy Contracts safe to leave unstored (CLAUDE.md §7, v33).
+        checkComplete: (s) => earnedThisLife(s) >= 500,
+        checkProgress: (s) => Math.min(1, earnedThisLife(s) / 500),
       },
       {
         id: 'ch1_get_job',
@@ -140,8 +172,8 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
         id: 'ch1_survive',
         title: 'Survive 4 Weeks',
         description: 'Live for 4 weeks',
-        checkComplete: (s) => (s.weeksLived || 0) >= 4,
-        checkProgress: (s) => Math.min(1, (s.weeksLived || 0) / 4),
+        checkComplete: (s) => weeksInThisLife(s) >= 4,
+        checkProgress: (s) => Math.min(1, weeksInThisLife(s) / 4),
       },
     ],
     completionReward: { money: 500, gems: 20 },

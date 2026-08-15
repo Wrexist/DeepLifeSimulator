@@ -27,7 +27,7 @@ import { avatarFromSeed, cycleField, normalizeAvatar, PICKER_LENGTHS, randomAvat
 import { CODEC_MAX_INDEX, codecFitsCatalogs, decodeAvatar, encodeAvatar, FIELD_ORDER } from '@/lib/avatar/encode';
 import { inheritAvatar } from '@/lib/avatar/inherit';
 import { avatarSeedFor, resolveAvatar, resolveNpcAvatar, toAvatarSex } from '@/lib/avatar/resolve';
-import { AVATAR_PICKERS, pickersFor } from '@/lib/avatar/pickers';
+import { AVATAR_PICKERS, pickersFor, EDITABLE_AVATAR_FIELDS } from '@/lib/avatar/pickers';
 import { childParentSources, resolveChildAvatar } from '@/lib/avatar/family';
 import {
   addDepth, ART_VIEWBOX, ART_ZOOM, BLINK, frameArt, HEAD_CENTER_Y, nextBlinkDelay,
@@ -553,8 +553,26 @@ describe('pickers', () => {
     }
   });
 
+  it('and every PAIRED colour too — a tint is a swatch strip as well', () => {
+    // Hair colour and outfit colour moved from categories to tints. Without
+    // this they would have quietly dropped out of the check above, since it
+    // only looks at categories.
+    const tints = AVATAR_PICKERS.map((c) => c.tint).filter(Boolean);
+    expect(tints).toHaveLength(2);
+    for (const tint of tints) {
+      for (const option of tint!.options) {
+        expect(option.color).toMatch(HEX);
+      }
+    }
+  });
+
   it('covers every editable field exactly once', () => {
-    const fields = AVATAR_PICKERS.map((c) => c.field);
+    // Reads `EDITABLE_AVATAR_FIELDS`, not `AVATAR_PICKERS.map(c => c.field)`:
+    // hair colour and outfit colour are now TINTS carried on the category they
+    // belong to, so the category list alone no longer names every field the
+    // editor can write. The guarantee is unchanged — every field reachable,
+    // exactly once — only where it is read from.
+    const fields = EDITABLE_AVATAR_FIELDS;
     expect(new Set(fields).size).toBe(fields.length);
     expect(fields.slice().sort()).toEqual(FIELD_ORDER.slice().sort());
   });

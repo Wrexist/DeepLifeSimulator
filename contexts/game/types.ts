@@ -2497,6 +2497,26 @@ export interface GameState {
   totalHappiness: number;
   /** Absolute week counter — the single source of truth for elapsed game time. Use for ALL duration/scheduling logic. */
   weeksLived: number;
+  /**
+   * `weeksLived` at the moment this life began (STATE_VERSION 43).
+   *
+   * `weeksLived` is ABSOLUTE and seeded from the starting age —
+   * `computeWeeksLived` makes it `(age - 18) * 52`, so a character created at
+   * age 20 begins at **104**, not 0. Anything asking "how long have I been
+   * playing this life" against the raw counter is therefore already past any
+   * small threshold before the first frame.
+   *
+   * That has now caused three bugs: the first-session coach retired before it
+   * ever rendered, `FirstWeekGuide` carried a comment warning about it that was
+   * read and not applied, and Chapter 1's "Survive 4 Weeks" was complete on
+   * week 1 for every scenario that does not start at 18. This is the baseline
+   * those checks need, stored once instead of re-derived.
+   *
+   * Absent on saves written before v43 — readers fall back to 0, which is the
+   * behaviour those saves already have, so nothing shifts under an existing
+   * player mid-life.
+   */
+  lifeStartWeek?: number;
   day: number;
   /** UI-only week of month, cycles 1-4. For time comparisons, scheduling, and durations, use weeksLived instead. */
   week: number;
