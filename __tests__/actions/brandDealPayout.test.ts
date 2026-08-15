@@ -69,7 +69,7 @@ describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
     });
     const { setState, get } = makeBatchedSetState(snapshot);
 
-    const res = acceptBrandDeal(setState, 'd1');
+    const res = acceptBrandDeal(get(), setState, 'd1');
     expect(res.success).toBe(true);
     expect(get().stats.money).toBe(250); // floor(1000 * 0.25), actually paid
   });
@@ -100,7 +100,7 @@ describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
     });
     const { setState, get } = makeBatchedSetState(snapshot);
 
-    const res = deliverBrandDealPost(setState, 'd2', 'p1');
+    const res = deliverBrandDealPost(get(), setState, 'd2', 'p1');
     expect(res.success).toBe(true);
     // remainingWeeks = expiresAt(10) - weeksLived(0) = 10; weeklyPay 75 → 750.
     expect(get().stats.money).toBe(750);
@@ -139,12 +139,12 @@ describe('Brand-deal payout regressions (R8 M-batch-B / R9 P0-1)', () => {
     const { setState, get } = makeBatchedSetState(snapshot);
 
     // Accept → 25% signing bonus, deal becomes active with a 75% stream.
-    expect(acceptBrandDeal(setState, 'd3').success).toBe(true);
+    expect(acceptBrandDeal(get(), setState, 'd3').success).toBe(true);
     const afterAccept = get().stats.money;
     expect(afterAccept).toBe(Math.floor(payment * 0.25)); // 250
 
     // Deliver the single required post → pays the remaining streamed balance.
-    expect(deliverBrandDealPost(setState, 'd3', 'p1').success).toBe(true);
+    expect(deliverBrandDealPost(get(), setState, 'd3', 'p1').success).toBe(true);
     const total = get().stats.money;
 
     // Total must be 100% of the contract (allow a few $ of floor rounding), and

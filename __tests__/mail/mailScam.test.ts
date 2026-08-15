@@ -22,10 +22,11 @@ import type { GameState, MailMessage } from '@/contexts/game/types';
 /** Minimal setGameState harness that applies updaters against a held state. */
 function harness(initial: GameState) {
   let state = initial;
+  const snap = () => ({ mail: state.mail, money: state.stats?.money ?? 0 });
   const setGameState = (updater: (prev: GameState) => GameState) => {
     state = updater(state);
   };
-  return { setGameState, get: () => state };
+  return { setGameState, get: () => state, snap };
 }
 
 const vendor = (over: Partial<{ reputation: number; reviewCount: number; flaggedScam: boolean }>) => ({
@@ -178,8 +179,8 @@ describe('acting on a scam — §4.4 atomicity', () => {
     const h = harness(withScamMessage(10_000));
     const seen: number[] = [];
 
-    actOnScamMail(h.setGameState, 'mail-scam-bank-verify-100', (r) => seen.push(r.lost));
-    actOnScamMail(h.setGameState, 'mail-scam-bank-verify-100', (r) => seen.push(r.lost));
+    actOnScamMail(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', (r) => seen.push(r.lost));
+    actOnScamMail(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', (r) => seen.push(r.lost));
 
     // First tap took money; the second was rejected against `prev`.
     expect(seen[0]).toBeGreaterThan(0);
@@ -195,7 +196,7 @@ describe('acting on a scam — §4.4 atomicity', () => {
 
   it('cannot push the player below zero', () => {
     const h = harness(withScamMessage(0));
-    actOnScamMail(h.setGameState, 'mail-scam-bank-verify-100', () => undefined);
+    actOnScamMail(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', () => undefined);
     expect(h.get().stats.money).toBe(0);
   });
 
@@ -231,13 +232,13 @@ describe('reporting and disputing', () => {
   it('recovers half a loss, once', () => {
     const h = harness(withScamMessage(10_000));
     let lost = 0;
-    actOnScamMail(h.setGameState, 'mail-scam-bank-verify-100', (r) => {
+    actOnScamMail(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', (r) => {
       lost = r.lost;
     });
     const afterLoss = h.get().stats.money;
 
     let first = 0;
-    disputeMailCharge(h.setGameState, 'mail-scam-bank-verify-100', (r) => {
+    disputeMailCharge(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', (r) => {
       first = r.recovered;
     });
     expect(first).toBe(Math.floor(lost * DISPUTE_RECOVERY_FRACTION));
@@ -246,7 +247,7 @@ describe('reporting and disputing', () => {
     // A second dispute is refused, not paid.
     let refused: string | undefined;
     let second = 0;
-    disputeMailCharge(h.setGameState, 'mail-scam-bank-verify-100', (r) => {
+    disputeMailCharge(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', (r) => {
       second = r.recovered;
       refused = r.refused;
     });
@@ -258,7 +259,7 @@ describe('reporting and disputing', () => {
   it('refuses a dispute on a message that cost nothing', () => {
     const h = harness(withScamMessage(10_000));
     let refused: string | undefined;
-    disputeMailCharge(h.setGameState, 'mail-scam-bank-verify-100', (r) => {
+    disputeMailCharge(h.snap(), h.setGameState, 'mail-scam-bank-verify-100', (r) => {
       refused = r.refused;
     });
     expect(refused).toBeTruthy();

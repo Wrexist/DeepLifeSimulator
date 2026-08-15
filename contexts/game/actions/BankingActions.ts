@@ -240,28 +240,50 @@ export const transferBetweenOwnAccounts = (
   });
 };
 
-export const openNewAccount = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  spec: {
-    type: BankAccountType;
-    name: string;
-    initialDeposit: number;
-    baseAPR: number;
-    lockUntilWeek?: number;
-    minBalance?: number;
-  }
-): { success: boolean; message: string } => {
-  // Captured from inside the updater so the UI can explain a rejection instead
-  // of closing the sheet as though it had worked. Same pattern as
-  // `purchaseVehicleWithAutoLoan` / `buyPropertyWithMortgage`.
-  let result: { success: boolean; message: string } = {
-    success: false,
-    message: 'Could not open the account.',
-  };
+/** The account the player is asking to open. */
+type OpenAccountSpec = {
+  type: BankAccountType;
+  name: string;
+  initialDeposit: number;
+  baseAPR: number;
+  lockUntilWeek?: number;
+  minBalance?: number;
+};
 
-  setGameState((prev) => {
-    const state = ensureBanking(prev);
-    if (!state.banking) return prev;
+export const openNewAccount = (
+  gameState: GameState,
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  spec: OpenAccountSpec
+): { success: boolean; message: string } => {
+  const preview = resolveOpenAccount(gameState, spec);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveOpenAccount(prev, spec).next ?? prev);
+  return preview.result;
+};
+
+/**
+ * PURE: what does opening `spec` do to `from`?
+ *
+ * `next: null` means refuse. Called once against the caller's snapshot for the
+ * outcome and once against `prev` for the state.
+ *
+ * ── Why (2026-08-15) ──────────────────────────────────────────────────────
+ *
+ * This used to hold `let result = { success: false, message: 'Could not open
+ * the account.' }`, assign it from inside the updater, and return it after the
+ * dispatch — the shape its own comment described as "captured from inside the
+ * updater so the UI can explain a rejection". A capture is only readable for
+ * the FIRST functional update of a React batch, so on any deferred dispatch the
+ * sheet showed "Could not open the account." for an account that HAD been
+ * opened and paid for. Same defect as the 2026-08-15 player report.
+ */
+function resolveOpenAccount(
+  from: GameState,
+  spec: OpenAccountSpec
+): { result: { success: boolean; message: string }; next: GameState | null } {
+  {
+    const state = ensureBanking(from);
+    if (!state.banking) return { result: { success: false, message: 'Could not open the account.' }, next: null };
     /**
      * One account per type (CDs excepted — laddering multiple CDs is a real
      * strategy). Duplicate savings/checking accounts confused players and there
@@ -289,8 +311,7 @@ export const openNewAccount = (
     const playerOpened = state.banking.accounts.filter((a) => !MIRRORED_ACCOUNT_IDS.has(a.id));
     if (spec.type !== 'cd' && playerOpened.some((a) => a.type === spec.type)) {
       log.warn(`Open account rejected: already have a ${spec.type} account`);
-      result = { success: false, message: `You already have a ${spec.name} account.` };
-      return prev;
+      return { result: { success: false, message: `You already have a ${spec.name} account.` }, next: null };
     }
     const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
     // Reject a non-finite or negative deposit as well as an unaffordable one — a
@@ -298,23 +319,25 @@ export const openNewAccount = (
     // credited free money (currentMoney - (-X) = +X).
     if (!Number.isFinite(spec.initialDeposit) || spec.initialDeposit < 0 || spec.initialDeposit > currentMoney) {
       log.warn(`Open account rejected: invalid or unaffordable initial deposit`);
-      result = {
-        success: false,
-        message: `You need ${formatMoney(Math.max(0, spec.initialDeposit))} to open this account.`,
+      return {
+        result: {
+          success: false,
+          message: `You need ${formatMoney(Math.max(0, spec.initialDeposit))} to open this account.`,
+        },
+        next: null,
       };
-      return prev;
     }
     const opened = openAccount(state.banking, { ...spec, openedWeek: state.weeksLived });
-    result = { success: true, message: `${spec.name} opened.` };
     return {
-      ...state,
-      stats: { ...state.stats, money: currentMoney - spec.initialDeposit },
-      banking: opened.banking,
+      result: { success: true, message: `${spec.name} opened.` },
+      next: {
+        ...state,
+        stats: { ...state.stats, money: currentMoney - spec.initialDeposit },
+        banking: opened.banking,
+      },
     };
-  });
-
-  return result;
-};
+  }
+}
 
 export const closeBankAccount = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -817,7 +840,15 @@ export const claimAdCashBonus = (
   }
   const amount = getAdCashBonusAmount(gameState);
 
-  let granted = 0;
+  /**
+   * `amount` above is the reported figure, derived from the caller's snapshot.
+   *
+   * This used to report a `let granted` assigned inside the updater. That read
+   * is only reliable for the FIRST functional update of a React batch, so a
+   * deferred dispatch told a player who had just WATCHED A REWARDED AD that the
+   * "Bonus unavailable right now" — while the cash landed. The updater still
+   * re-derives the amount from `prev`, which is what keeps the payout atomic.
+   */
   setGameState((prev) => {
     // Atomic gate: both taps in a batch read the same stale snapshot above, so
     // this re-check against `prev` is the only thing that stops a double payout.
@@ -825,7 +856,6 @@ export const claimAdCashBonus = (
     const freshAmount = getAdCashBonusAmount(prev);
     const credit = applyMoneyDelta(prev, freshAmount, 'Bank sponsored bonus');
     if (!credit) return prev;
-    granted = freshAmount;
     return {
       ...prev,
       ...credit,
@@ -833,7 +863,7 @@ export const claimAdCashBonus = (
     };
   });
 
-  return granted > 0
-    ? { success: true, message: `The bank credited your account.`, amount: granted }
+  return amount > 0
+    ? { success: true, message: `The bank credited your account.`, amount }
     : { success: false, message: 'Bonus unavailable right now.', amount: 0 };
 };

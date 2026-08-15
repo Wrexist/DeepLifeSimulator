@@ -153,7 +153,7 @@ describe('follow graph', () => {
       { id: 'r1', name: 'Alex', type: 'friend', relationshipScore: 70 } as any,
     ];
     const { setGameState, getState } = makeStateHarness(state);
-    followNpc(setGameState, 'r1');
+    followNpc(getState(), setGameState, 'r1');
     expect(getState().socialMedia!.followGraph!.followingNpcIds).toContain('r1');
   });
 
@@ -274,7 +274,7 @@ describe('brand deals', () => {
     const state = freshState({ weeksLived: 5 });
     addOffer(state);
     const { setGameState, getState } = makeStateHarness(state);
-    const r = acceptBrandDeal(setGameState, 'offer1');
+    const r = acceptBrandDeal(getState(), setGameState, 'offer1');
     expect(r.success).toBe(true);
     expect(getState().socialMedia!.activeBrandDeals).toHaveLength(1);
     expect(getState().socialMedia!.activeBrandDeals![0].expiresAt).toBe(5 + 4);
@@ -295,7 +295,7 @@ describe('brand deals', () => {
     const state = freshState({ weeksLived: 5 });
     addOffer(state, { postsRequired: 2 });
     const { setGameState, getState } = makeStateHarness(state);
-    acceptBrandDeal(setGameState, 'offer1');
+    acceptBrandDeal(getState(), setGameState, 'offer1');
     // TWO posts, because a 2-post contract needs two. This used to deliver the
     // SAME post ('p1') twice and expect completion — the test encoded the
     // exploit: one post satisfied a whole multi-post contract and triggered the
@@ -318,12 +318,12 @@ describe('brand deals', () => {
         contentType: 'text',
       } as any,
     ];
-    let r = deliverBrandDealPost(setGameState, 'offer1', 'p1');
+    let r = deliverBrandDealPost(getState(), setGameState, 'offer1', 'p1');
     expect(r.success).toBe(true);
     expect(r.message).toMatch(/1\/2/);
     // Re-submitting the same post is refused, and does NOT advance the count.
-    expect(deliverBrandDealPost(setGameState, 'offer1', 'p1').success).toBe(false);
-    r = deliverBrandDealPost(setGameState, 'offer1', 'p2');
+    expect(deliverBrandDealPost(getState(), setGameState, 'offer1', 'p1').success).toBe(false);
+    r = deliverBrandDealPost(getState(), setGameState, 'offer1', 'p2');
     expect(r.message).toMatch(/completed/i);
     expect(getState().socialMedia!.activeBrandDeals).toHaveLength(0);
     expect(getState().socialMedia!.brandInbox!.history).toHaveLength(1);
@@ -336,8 +336,8 @@ describe('brand deals', () => {
     state.stats.reputation = 50;
     addOffer(state);
     const { setGameState, getState } = makeStateHarness(state);
-    acceptBrandDeal(setGameState, 'offer1');
-    const r = breachBrandDeal(setGameState, 'offer1');
+    acceptBrandDeal(getState(), setGameState, 'offer1');
+    const r = breachBrandDeal(getState(), setGameState, 'offer1');
     expect(r.success).toBe(true);
     expect(r.penalty).toBeGreaterThan(0);
     expect(getState().socialMedia!.activeBrandDeals).toHaveLength(0);

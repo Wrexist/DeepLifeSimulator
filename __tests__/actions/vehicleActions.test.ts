@@ -39,7 +39,7 @@ describe('purchaseVehicleWithAutoLoan — reputation grant', () => {
       }),
     );
 
-    const res = purchaseVehicleWithAutoLoan(store.setGameState, {
+    const res = purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
       templateId: 'economy_sedan',
       tier: 'cash',
       term: '5y',
@@ -61,7 +61,7 @@ describe('purchaseVehicleWithAutoLoan — reputation grant', () => {
         stats: { money: 100000, reputation: 99 },
       }),
     );
-    purchaseVehicleWithAutoLoan(store.setGameState, {
+    purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
       templateId: 'economy_sedan', // +2 would overshoot to 101
       tier: 'cash',
       term: '5y',
@@ -78,12 +78,12 @@ describe('purchaseVehicleWithAutoLoan — reputation grant', () => {
       }),
     );
     // First buy grants +2.
-    purchaseVehicleWithAutoLoan(store.setGameState, {
+    purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
       templateId: 'economy_sedan', tier: 'cash', term: '5y', weeklyIncome: 2000,
     });
     expect(store.get().stats.reputation).toBe(2);
     // Second buy is rejected (already owned) → reputation unchanged.
-    const again = purchaseVehicleWithAutoLoan(store.setGameState, {
+    const again = purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
       templateId: 'economy_sedan', tier: 'cash', term: '5y', weeklyIncome: 2000,
     });
     expect(again.success).toBe(false);
@@ -98,7 +98,7 @@ describe('purchaseVehicleWithAutoLoan — reputation grant', () => {
         stats: { money: 100000, reputation: 10 },
       }),
     );
-    const res = purchaseVehicleWithAutoLoan(store.setGameState, {
+    const res = purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
       templateId: 'economy_sedan',
       tier: 'standard', // 20% down + a financed remainder
       term: '5y',

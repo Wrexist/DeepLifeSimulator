@@ -160,7 +160,12 @@ export const sellLuxuryItem = (
   // consequence. 2026-07-28 audit econ-1.
   const quotedRefund = getLuxuryHoldingValue(item, gameState.luxuryHoldings?.[itemId]);
 
-  let paidRefund = quotedRefund;
+  // `quotedRefund` IS the reported figure. A `let paidRefund` used to be
+  // reassigned from inside the updater; that read is only reliable for the
+  // first functional update of a React batch, so the number shown flipped
+  // between the quote and the committed value depending on batching order.
+  // Reporting the quote is deterministic, and it is the figure the player was
+  // looking at when they tapped.
   setGameState((prev) => {
     // Only pay out if it's actually still owned in fresh state.
     if (!ownsLuxuryItem(prev.luxuryItems, itemId)) return prev;
@@ -168,7 +173,6 @@ export const sellLuxuryItem = (
     // the outer read is a render-time snapshot, and a tick in between can have
     // appreciated or damaged the item.
     const refund = getLuxuryHoldingValue(item, prev.luxuryHoldings?.[itemId]);
-    paidRefund = refund;
     // "sold" keyword keeps this out of totalMoneyEarned (see isIncomeReason).
     const credit = applyMoneyDelta(prev, refund, `Sold luxury: ${item.name}`);
     if (!credit) return prev;
@@ -193,8 +197,8 @@ export const sellLuxuryItem = (
     };
   });
 
-  log.info(`Player sold luxury: ${item.name} (+$${paidRefund.toLocaleString()})`);
-  return { success: true, message: `Sold your ${item.name} for $${paidRefund.toLocaleString()}.` };
+  log.info(`Player sold luxury: ${item.name} (+$${quotedRefund.toLocaleString()})`);
+  return { success: true, message: `Sold your ${item.name} for $${quotedRefund.toLocaleString()}.` };
 };
 
 

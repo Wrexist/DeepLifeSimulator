@@ -73,7 +73,7 @@ import {
 } from 'lucide-react-native';
 import type { MailFolder, MailMessage } from '@/contexts/game/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { shallowEqual, useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
+import { shallowEqual, useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/GameContext';
 import { getThemeColors } from '@/lib/config/theme';
 import {
@@ -151,12 +151,18 @@ interface Props {
 function MailAppInner({ onBack }: Props) {
   const insets = useSafeAreaInsets();
   const setGameState = useSetGameState();
+  // Non-subscribing accessor: the decision resolvers need the whole state to
+  // compute their outcome copy, and subscribing this screen to all of it is the
+  // perf regression CLAUDE.md 4.1 documents.
+  const getGameState = useGameStateGetter();
   // The one resolver. Mail delegates event-backed choices to it rather than
   // reimplementing effect application — see `MailResolver`.
   const { resolveEvent } = useGameActions();
 
   // Narrow subscription: the mail slice and the two booleans that style it.
   const mail = useGameSelector((s) => s?.mail);
+  // Narrow: `scamLossFor` scales the loss off cash on hand.
+  const money = useGameSelector((s) => s?.stats?.money ?? 0);
   const darkMode = useGameSelector((s) => s?.settings?.darkMode !== false);
   // Risk inputs, read separately so the panel stays live without subscribing to
   // the whole state. `shallowEqual` is not optional here: the selector builds a
@@ -295,15 +301,15 @@ function MailAppInner({ onBack }: Props) {
     if (!open) return;
     // `scamLossSummary` owns this copy. It was exported, unused, and duplicated
     // verbatim here — two sources for one sentence.
-    actOnScamMail(setGameState, open.id, ({ lost }) => setBanner(scamLossSummary(lost)));
-  }, [open, setGameState]);
+    actOnScamMail({ mail, money }, setGameState, open.id, ({ lost }) => setBanner(scamLossSummary(lost)));
+  }, [open, mail, money, setGameState]);
 
   const handleDispute = useCallback(() => {
     if (!open) return;
-    disputeMailCharge(setGameState, open.id, ({ recovered, refused }) => {
+    disputeMailCharge({ mail, money }, setGameState, open.id, ({ recovered, refused }) => {
       setBanner(refused ?? `The bank recovered ${docMoney(recovered)} of the loss.`);
     });
-  }, [open, setGameState]);
+  }, [open, mail, money, setGameState]);
 
   /**
    * Take a choice on a decision.
@@ -317,14 +323,14 @@ function MailAppInner({ onBack }: Props) {
   const handleChoose = useCallback(
     (choiceId: string) => {
       if (!open) return;
-      chooseMailDecision(setGameState, open.id, choiceId, ({ outcome, delegateToEvent }) => {
+      chooseMailDecision(getGameState(), setGameState, open.id, choiceId, ({ outcome, delegateToEvent }) => {
         if (delegateToEvent) {
           resolveEvent(delegateToEvent.eventId, delegateToEvent.choiceId);
         }
         if (outcome) setBanner(outcome);
       });
     },
-    [open, setGameState, resolveEvent]
+    [open, getGameState, setGameState, resolveEvent]
   );
 
   const handleReport = useCallback(() => {

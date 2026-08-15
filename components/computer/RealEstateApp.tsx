@@ -1109,7 +1109,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         onClose={() => setBuyTarget(null)}
         onConfirm={(spec) => {
           if (buyTarget) {
-            const result = buyPropertyWithMortgage(setGameState, {
+            const result = buyPropertyWithMortgage(gameState, setGameState, {
               property: buyTarget,
               tier: spec.tier,
               term: spec.term,
@@ -1183,7 +1183,8 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         }}
         onMaintain={() => {
           if (manageTarget) {
-            maintainProperty(setGameState, manageTarget.id);
+            const r = maintainProperty(gameState, setGameState, manageTarget.id);
+            if (!r.success) Alert.alert('Maintenance', r.message);
             queueSave();
           }
         }}
@@ -1203,21 +1204,21 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         }}
         onInstallDecor={(decorId) => {
           if (manageTarget) {
-            const r = installPropertyDecor(setGameState, manageTarget.id, decorId);
+            const r = installPropertyDecor(gameState, setGameState, manageTarget.id, decorId);
             if (!r.success) Alert.alert('Improve', r.message);
             queueSave();
           }
         }}
         onAddRoom={(roomId) => {
           if (manageTarget) {
-            const r = addPropertyRoom(setGameState, manageTarget.id, roomId);
+            const r = addPropertyRoom(gameState, setGameState, manageTarget.id, roomId);
             if (!r.success) Alert.alert('Improve', r.message);
             queueSave();
           }
         }}
         onUpgrade={() => {
           if (manageTarget) {
-            const r = upgradePropertyTier(setGameState, manageTarget.id);
+            const r = upgradePropertyTier(gameState, setGameState, manageTarget.id);
             if (!r.success) Alert.alert('Improve', r.message);
             queueSave();
           }

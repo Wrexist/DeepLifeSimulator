@@ -75,16 +75,16 @@ describe('ECON-4 — a brand-deal post can only be delivered once', () => {
     (s.socialMedia?.activeBrandDeals ?? []).find((d) => d.id === DEAL)?.postsDelivered;
 
   it('counts ONE delivery when the same post is submitted twice in a batch', () => {
-    const after = batch(withDeal(), (set) => {
-      deliverBrandDealPost(set, DEAL, POST);
+    const after = batch(withDeal(), (set, snapshot) => {
+      deliverBrandDealPost(snapshot, set, DEAL, POST);
     });
 
     expect(deliveredCount(after)).toBe(1);
   });
 
   it('does not complete a 3-post contract from a single post', () => {
-    const after = batch(withDeal(), (set) => {
-      deliverBrandDealPost(set, DEAL, POST);
+    const after = batch(withDeal(), (set, snapshot) => {
+      deliverBrandDealPost(snapshot, set, DEAL, POST);
     }, 3);
 
     // Still active — early completion pays every remaining installment at once.
@@ -98,8 +98,10 @@ describe('ECON-4 — a brand-deal post can only be delivered once', () => {
       current = u(current);
     }) as never;
 
-    expect(deliverBrandDealPost(set, DEAL, POST).success).toBe(true);
-    const second = deliverBrandDealPost(set, DEAL, POST);
+    // `current` is re-read at each call, so the second sees the delivery the
+    // first committed — which is exactly the sequential case this pins.
+    expect(deliverBrandDealPost(current, set, DEAL, POST).success).toBe(true);
+    const second = deliverBrandDealPost(current, set, DEAL, POST);
 
     expect(second.success).toBe(false);
     expect(second.message).toMatch(/already/i);
@@ -127,11 +129,22 @@ describe('ECON-3 — a lobbyist cannot be hired twice, or for free', () => {
 
     expect(lobbyists(after)).toHaveLength(1);
     expect(after.stats.money).toBeLessThan(before.stats.money);
-    // The REJECTED call must say so. Asserting only on final state let a
-    // hardcoded `{ success: true }` slip through — the caller was told the
-    // lobbyist was hired when the guard had bailed.
+    /**
+     * The STATE is what must hold, and it does — asserted above.
+     *
+     * This used to also assert the second call REPORTS failure, which was
+     * satisfied by a flag set inside the `setGameState` updater and read back
+     * after it. That flag was removed on 2026-08-15: React runs only the FIRST
+     * functional update of a batch eagerly, so on any deferred dispatch the
+     * flag read `false` for an action that had SUCCEEDED — the shape of the
+     * player report that started the sweep ($40.25M told they needed $10,000).
+     *
+     * With the report coming from the outer guards instead, a stale double-tap
+     * reports twice. That is a duplicated message in a rare race, traded for
+     * correct reporting on the common path.
+     */
     expect(results[0].success).toBe(true);
-    expect(results[1].success).toBe(false);
+    expect(results[1].success).toBe(true);
   });
 
   it('does not grant influence for a duplicate hire', () => {
@@ -200,9 +213,22 @@ describe('ECON-2 — research respects the lab cap and charges once', () => {
 
     // A Basic lab handles ONE concurrent project. Two taps used to make two.
     expect(projects(after).length).toBeLessThanOrEqual(1);
-    // ...and the second call reports the refusal rather than claiming success.
+    /**
+     * The STATE is what must hold, and it does — asserted above.
+     *
+     * This used to also assert the second call REPORTS failure, which was
+     * satisfied by a flag set inside the `setGameState` updater and read back
+     * after it. That flag was removed on 2026-08-15: React runs only the FIRST
+     * functional update of a batch eagerly, so on any deferred dispatch the
+     * flag read `false` for an action that had SUCCEEDED — the shape of the
+     * player report that started the sweep ($40.25M told they needed $10,000).
+     *
+     * With the report coming from the outer guards instead, a stale double-tap
+     * reports twice. That is a duplicated message in a rare race, traded for
+     * correct reporting on the common path.
+     */
     expect(results[0].success).toBe(true);
-    expect(results[1].success).toBe(false);
+    expect(results[1].success).toBe(true);
   });
 
   it('never starts the same technology twice', () => {

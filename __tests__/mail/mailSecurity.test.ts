@@ -271,9 +271,9 @@ describe('extortion — a real threat, not a scam', () => {
     hot.mail = { messages: [demand] };
     const h = harness(hot);
 
-    chooseMailDecision(h.setGameState, demand.id, 'pay', () => undefined);
+    chooseMailDecision(h.get(), h.setGameState, demand.id, 'pay', () => undefined);
     const afterFirst = h.get().stats.money;
-    chooseMailDecision(h.setGameState, demand.id, 'pay', () => undefined);
+    chooseMailDecision(h.get(), h.setGameState, demand.id, 'pay', () => undefined);
 
     expect(h.get().stats.money).toBe(afterFirst);
     expect(afterFirst).toBeLessThan(50_000);

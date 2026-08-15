@@ -279,38 +279,44 @@ export const buyCompanyUpgrade = (
     return { success: false, message: `Need ${formatMoney(costOuter)} for this upgrade — you have ${formatMoney(gameState.stats.money)} (${formatMoney(costOuter - gameState.stats.money)} short).` };
   }
 
-  /**
-   * C-8. This used to be `let appliedLevel = currentLevelOuter + 1`, assigned
-   * inside the updater and read after it, with an unconditional
-   * `return { success: true, … }` at the bottom.
-   *
-   * The updater has FOUR rejection paths — the company vanished, the upgrade is
-   * already at max level against fresh state, the recomputed cost is invalid,
-   * or `prev` cannot afford the recomputed cost. Every one of them returned
-   * `prev` correctly and then fell through to "Successfully purchased X
-   * (Level 3/3)!". The money was right; only the player was misled — and on
-   * the max-level path they were told they had bought a level that does not
-   * exist.
-   *
-   * Captured pessimistically instead: the default is failure, so an updater
-   * that React discards, or never runs, reports a rejection rather than a
-   * phantom purchase. Same shape as `openAccount` and
-   * `purchaseVehicleWithAutoLoan`. CLAUDE.md §4.1 — a value assigned inside an
-   * updater is not reliably visible outside it, so the SUCCESS case has to be
-   * written from inside too, not merely the level number.
-   */
-  let result: { success: boolean; message: string } = {
-    success: false,
-    message: 'Could not purchase the upgrade.',
-  };
+  const preview = resolveBuyCompanyUpgrade(gameState, targetId, upgradeId, upgradeDefinition);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveBuyCompanyUpgrade(prev, targetId, upgradeId, upgradeDefinition).next ?? prev);
+  log.info(`Purchased upgrade ${upgradeDefinition.name} for company ${company.name}`);
+  return preview.result;
+};
 
-  // Update company with upgrade — all level/cost/bonus reads from fresh prev state
-  setGameState(prev => {
-    const companies = [...(prev.companies || [])];
+/**
+ * PURE: what does buying `upgradeId` for `targetId` do to `state`?
+ *
+ * `next: null` means refuse. Called once against the caller's snapshot for the
+ * outcome and once against `prev` for the state — every level, cost and bonus
+ * read stays a read of the state it is given, which is what the original
+ * "STALE CLOSURE FIX" comments were protecting.
+ *
+ * ── Why (2026-08-15) ──────────────────────────────────────────────────────
+ *
+ * This is C-8, the function the whole read-out-of-updater ratchet was named
+ * after. It was first fixed by writing the outcome into a `let result` from
+ * inside the updater — "so an updater that React discards, or never runs,
+ * reports a rejection rather than a phantom purchase". That trades one wrong
+ * answer for another: React runs only the FIRST functional update of a batch
+ * eagerly, so a deferred dispatch reported "Could not purchase the upgrade."
+ * for an upgrade that had been bought and charged. A pure reducer answers both
+ * questions from the same code without a variable crossing the boundary.
+ */
+function resolveBuyCompanyUpgrade(
+  state: GameState,
+  targetId: string,
+  upgradeId: string,
+  upgradeDefinition: { name: string; description: string; cost: number; weeklyIncomeBonus: number; maxLevel: number }
+): { result: { success: boolean; message: string }; next: GameState | null } {
+  {
+    const companies = [...(state.companies || [])];
     const freshIndex = companies.findIndex(c => c.id === targetId);
     if (freshIndex === -1) {
-      result = { success: false, message: 'Company not found.' };
-      return prev; // Company disappeared — bail out safely
+      // Company disappeared — bail out safely
+      return { result: { success: false, message: 'Company not found.' }, next: null };
     }
     const companyToUpdate = companies[freshIndex];
 
@@ -321,33 +327,33 @@ export const buyCompanyUpgrade = (
     // Re-validate max level against fresh state. This is the path a double-tap
     // takes: the first tap lands, the second finds the upgrade already maxed.
     if (currentLevel >= upgradeDefinition.maxLevel) {
-      result = { success: false, message: 'Upgrade is already at maximum level.' };
-      return prev;
+      return { result: { success: false, message: 'Upgrade is already at maximum level.' }, next: null };
     }
 
     // Recalculate cost from fresh level
     const nextLevelCost = currentLevel === 0
       ? upgradeDefinition.cost
-      : Math.round(upgradeDefinition.cost * Math.pow(costMultiplier, currentLevel));
+      : Math.round(upgradeDefinition.cost * Math.pow(COMPANY_UPGRADE_COST_MULTIPLIER, currentLevel));
 
-    const freshPriceIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0 ? prev.economy.priceIndex : 1;
+    const freshPriceIndex = typeof state.economy?.priceIndex === 'number' && isFinite(state.economy.priceIndex) && state.economy.priceIndex > 0 ? state.economy.priceIndex : 1;
     // Business Banking IAP: 15% off (read from fresh state).
-    const innerDiscount = prev.settings?.businessBanking ? 0.15 : 0;
+    const innerDiscount = state.settings?.businessBanking ? 0.15 : 0;
     const cost = Math.round(getInflatedPrice(nextLevelCost, freshPriceIndex) * (1 - innerDiscount));
 
     if (!isFinite(cost) || cost < 0) {
-      result = { success: false, message: 'Invalid upgrade cost' };
-      return prev;
+      return { result: { success: false, message: 'Invalid upgrade cost' }, next: null };
     }
 
     // Atomic: check affordability against fresh state
-    const prevMoney = prev.stats?.money ?? 0;
+    const prevMoney = state.stats?.money ?? 0;
     if (prevMoney < cost) {
-      result = {
-        success: false,
-        message: `Need ${formatMoney(cost)} for this upgrade — you have ${formatMoney(prevMoney)} (${formatMoney(cost - prevMoney)} short).`,
+      return {
+        result: {
+          success: false,
+          message: `Need ${formatMoney(cost)} for this upgrade — you have ${formatMoney(prevMoney)} (${formatMoney(cost - prevMoney)} short).`,
+        },
+        next: null,
       };
-      return prev;
     }
 
     // ECONOMY FIX: Diminishing returns to upgrade ROI
@@ -393,28 +399,22 @@ export const buyCompanyUpgrade = (
     };
     companies[freshIndex] = updated;
 
-    // Success is written from HERE, not after the updater, so a rejected or
-    // discarded run cannot leave the optimistic default behind.
-    result = {
-      success: true,
-      message: `Successfully purchased ${upgradeDefinition.name} (Level ${currentLevel + 1}/${upgradeDefinition.maxLevel})!`,
-    };
-
     return {
-      ...prev,
-      companies,
-      company: prev.company?.id === targetId ? updated : prev.company,
-      stats: {
-        ...prev.stats,
-        money: prevMoney - cost,
+      result: {
+        success: true,
+        message: `Successfully purchased ${upgradeDefinition.name} (Level ${currentLevel + 1}/${upgradeDefinition.maxLevel})!`,
+      },
+      next: {
+        ...state,
+        companies,
+        company: state.company?.id === targetId ? updated : state.company,
+        stats: {
+          ...state.stats,
+          money: prevMoney - cost,
+        },
       },
     };
-  });
-
-  if (result.success) {
-    log.info(`Purchased upgrade ${upgradeDefinition.name} for company ${company.name}`);
   }
-  return result;
-};
+}
 
 

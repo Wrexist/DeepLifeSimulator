@@ -3963,14 +3963,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  haptic.success(); // Achievement unlocked!
  // Update game state with achievement unlock context for narrative display
  const achievementTimestamp = Date.now();
- let applied = false;
+ // The outer `claimed.includes(achievementId)` check above is the reported
+ // outcome; the guard inside is same-batch RACE protection for STATE.
+ // A `let applied` flag used to be read back after this dispatch to decide
+ // whether to fire analytics and persist the global gold-claim record. That
+ // read is only reliable for the FIRST functional update of a React batch, so
+ // a legitimate claim that was not first silently skipped BOTH — losing the
+ // `achievement_unlocked` event and, for gold achievements, the cross-install
+ // AsyncStorage record that stops it being re-claimed. 2026-08-15.
  setGameState(prevState => {
  // AUTHORITATIVE same-batch guard: if a prior claim in this batch
  // already added the id, return prev unchanged.
  if ((prevState.claimedProgressAchievements || []).includes(achievementId)) {
  return prevState;
  }
- applied = true;
  const newClaimed = [...(prevState.claimedProgressAchievements || []), achievementId];
 
  // Cross-life, account-permanent guard on the GEM MINT.
@@ -4022,13 +4028,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 : prevState.lifetimeStatistics,
  }, LEGACY_PASS_XP.achievement);
  });
-
- // If the same-batch guard rejected this claim, skip the global storage
- // write so we don't persist a global-claim record for an unapplied claim.
- if (!applied) {
- logger.warn('Achievement claim suppressed by same-batch guard:', { achievementId });
- return;
- }
 
  track('achievement_unlocked', { achievementId });
 

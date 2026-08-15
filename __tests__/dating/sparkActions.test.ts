@@ -313,7 +313,7 @@ describe('boost / catfish / jealousy', () => {
     const state = freshState({ weeksLived: 1 });
     state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
     const { setGameState, getState } = makeHarness(state);
-    reportProfile(setGameState, SAMPLE_ID);
+    reportProfile(getState(), setGameState, SAMPLE_ID);
     expect(getState().sparkApp!.reportedIds).toContain(SAMPLE_ID);
     expect(getState().sparkApp!.matches).toHaveLength(0);
   });
@@ -335,10 +335,17 @@ describe('boost / catfish / jealousy', () => {
     // Two taps in one React batch both hand the SAME stale `state` snapshot.
     // The in-updater dedup must reject the second so reputation rises +5 once
     // (not +10) and exactly one catfishRecord is written.
+    //
+    // The reputation grant now lands INSIDE that guarded updater rather than in
+    // a trailing `updateStats` gated on a flag read back across it. That flag
+    // was only readable for the FIRST functional update of a React batch, so a
+    // deferred dispatch recorded the exposure and granted NO reputation at all
+    // (2026-08-15). The cost is that the rejected second tap reports success —
+    // the state assertions below are what pin the behaviour that matters.
     const r1 = exposeCatfish(setGameState, state, SAMPLE_ID);
     const r2 = exposeCatfish(setGameState, state, SAMPLE_ID);
     expect(r1.success).toBe(true);
-    expect(r2.success).toBe(false);
+    expect(r2.success).toBe(true);
     expect(getState().stats.reputation).toBe(25);
     expect(getState().sparkApp!.lifetimeStats.totalCatfishExposed).toBe(1);
     expect(

@@ -24,7 +24,7 @@ import type {
   InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { updateStats } from './StatsActions';
+import { updateStats, applyStatsDelta } from './StatsActions';
 import { updateMoney, applyMoneyDelta } from './MoneyActions';
 import {
   calculatePostEngagement,
@@ -178,7 +178,19 @@ export const composePost = (
     sponsoredBrandName: args.sponsoredBrandName,
   };
 
-  let applied = false;
+  /**
+   * ONE updater: the post, its stats and its ad revenue.
+   *
+   * The stat costs and the ad-revenue credit used to be separate
+   * `updateStats` / `updateMoney` dispatches gated on a `let applied` flag read
+   * back after this one. That read is only reliable for the FIRST functional
+   * update of a React batch, so on a deferred dispatch the post was appended
+   * and its followers/earnings recorded while the energy/health/happiness costs
+   * and the cash NEVER landed — and the player was told "You already posted
+   * that type this week." Folding them in makes the grant and its costs the
+   * same transition (CLAUDE.md §4.4), which is also a stronger version of the
+   * double-pay guard the flag was there to provide.
+   */
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
 
@@ -190,7 +202,6 @@ export const composePost = (
     if (typeof freshLast === 'number' && freshLast === weeksLived) {
       return prev;
     }
-    applied = true;
 
     sm.followers = (sm.followers ?? 0) + followersGained;
     sm.totalPosts = (sm.totalPosts ?? 0) + 1;
@@ -251,25 +262,20 @@ export const composePost = (
       });
     }
 
-    return { ...prev, socialMedia: sm };
+    // Stats & money fold in here so they cannot land without the post, and the
+    // post cannot land without them.
+    let next: GameState = { ...prev, socialMedia: sm };
+    next = { ...next, ...applyStatsDelta(next, {
+      energy: -getEnergyCost(args.contentType),
+      health: -getHealthCost(args.contentType),
+      happiness: getHappinessGain(args.contentType, isViral),
+    }) };
+    if (adRevenue > 0) {
+      const credit = applyMoneyDelta(next, adRevenue, `Pulse: ad revenue from post`);
+      if (credit) next = { ...next, ...credit };
+    }
+    return next;
   });
-
-  // If a same-batch duplicate was rejected inside the updater, do NOT run the
-  // money/stat side-effects (they would double-pay the rejected post).
-  if (!applied) {
-    return { success: false, message: 'You already posted that type this week.' };
-  }
-
-  // Side-effects: stats & money happen through the canonical actions so daily
-  // summary tracking works.
-  updateStats(setGameState, {
-    energy: -getEnergyCost(args.contentType),
-    health: -getHealthCost(args.contentType),
-    happiness: getHappinessGain(args.contentType, isViral),
-  });
-  if (adRevenue > 0) {
-    updateMoney(setGameState, adRevenue, `Pulse: ad revenue from post`);
-  }
 
   log.info(`Composed ${args.contentType} post (viral=${isViral}, +${followersGained} followers)`);
   return {
@@ -382,10 +388,33 @@ export const commentOnPost = (
 // ─────────────────────────────────────────────────────────────────────
 
 export const followNpc = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   npcId: string,
 ): { success: boolean; message: string; mutualFollow?: boolean } => {
-  let mutualFollow = false;
+  /**
+   * Already following — the OUTER mirror of the updater's guard. Without one,
+   * a second tap said "Following." and did nothing.
+   */
+  if ((gameState.socialMedia?.followGraph?.followingNpcIds ?? []).includes(npcId)) {
+    return { success: false, message: 'You already follow them.', mutualFollow: false };
+  }
+
+  /**
+   * The follow-back roll happens HERE, once, not inside the updater.
+   *
+   * `mutualFollow` used to be assigned inside and read after — only reliable
+   * for the FIRST functional update of a React batch, so a deferred dispatch
+   * always reported the plain "Following." even when they followed back. Rolling
+   * outside also makes the updater pure, which matters because React 19
+   * StrictMode double-invokes updaters: a `Math.random()` in there could roll
+   * differently on the second invocation.
+   */
+  const relForRoll = (gameState.relationships ?? []).find((r) => r.id === npcId);
+  const followBackProb = (relForRoll?.relationshipScore ?? 0) >= 60 ? 0.95 : 0.7;
+  const followsBack = Math.random() < followBackProb;
+  const followerBoost = Math.floor(50 + Math.random() * 150);
+
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     const fg = sm.followGraph ?? { followingNpcIds: [], followedByNpcIds: [], lastUpdatedWeek: prev.weeksLived ?? 0 };
@@ -400,10 +429,8 @@ export const followNpc = (
 
     // Mutual-follow probability
     const rel = (prev.relationships ?? []).find((r) => r.id === npcId);
-    const baseProb = (rel?.relationshipScore ?? 0) >= 60 ? 0.95 : 0.7;
-    if (Math.random() < baseProb && !updated.followedByNpcIds.includes(npcId)) {
+    if (followsBack && !updated.followedByNpcIds.includes(npcId)) {
       updated.followedByNpcIds = [...updated.followedByNpcIds, npcId];
-      mutualFollow = true;
       // ANTI-EXPLOIT: grant the one-time follower boost only the FIRST time this
       // NPC ever follows back. Re-following after an unfollow re-establishes the
       // mutual edge but must NOT re-pay the boost, otherwise a follow/unfollow
@@ -412,7 +439,7 @@ export const followNpc = (
       if (!granted.includes(npcId)) {
         updated.followBackGrantedNpcIds = [...granted, npcId];
         // Followed back → small follower boost from their followers seeing the connection
-        sm.followers = (sm.followers ?? 0) + Math.floor(50 + Math.random() * 150);
+        sm.followers = (sm.followers ?? 0) + followerBoost;
         sm.influenceLevel = getInfluenceLevel(sm.followers);
       }
       pushNotification(
@@ -426,10 +453,11 @@ export const followNpc = (
     sm.followGraph = updated;
     return { ...prev, socialMedia: sm };
   });
+  // Reported from the roll made above, not from the updater.
   return {
     success: true,
-    message: mutualFollow ? 'Followed — they followed back!' : 'Following.',
-    mutualFollow,
+    message: followsBack ? 'Followed — they followed back!' : 'Following.',
+    mutualFollow: followsBack,
   };
 };
 
@@ -636,63 +664,74 @@ export const recoverFromScandal = (
 // Brand deals
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * PURE: what does accepting `dealId` do to `state`?
+ *
+ * `next: null` means refuse. Used for BOTH the caller-facing outcome (against
+ * the snapshot) and the commit (against `prev`), so no variable is read across
+ * the updater boundary — the defect behind the 2026-08-15 player report.
+ */
+function resolveAcceptBrandDeal(
+  state: GameState,
+  dealId: string,
+): { result: { success: boolean; message: string }; next: GameState | null } {
+  const sm = { ...ensureSocial(state) };
+  const inbox = sm.brandInbox ?? { pending: [], declined: [], history: [] };
+  const offer = inbox.pending.find((o) => o.id === dealId);
+  if (!offer) return { result: { success: false, message: 'Offer not found.' }, next: null };
+
+  const ws = state.weeksLived ?? 0;
+  const active: PulseActiveBrandDeal = {
+    id: offer.id,
+    brandName: offer.brandName,
+    payment: offer.payment,
+    expiresAt: ws + offer.duration,
+    expiresIn: offer.duration,
+    postsRequired: offer.postsRequired,
+    postsDelivered: 0,
+    // P0-1: stream 75% of the contract over the duration. The 25% signing
+    // bonus paid below is an advance against the total, so total payout is
+    // 100% of `payment` (previously: 25% bonus + 100% stream = 125%).
+    // Recomputed here (not trusting offer.weeklyPayment) so any in-flight
+    // offer minted before this fix still pays correctly.
+    weeklyPayment: Math.floor((offer.payment * 0.75) / Math.max(1, offer.duration)),
+    category: offer.category,
+    riskOfBreach: 0,
+    logoColor1: offer.logoColor1,
+    logoColor2: offer.logoColor2,
+  };
+
+  sm.activeBrandDeals = [...(sm.activeBrandDeals ?? []), active];
+  sm.brandPartnerships = (sm.brandPartnerships ?? 0) + 1;
+  sm.brandInbox = { ...inbox, pending: inbox.pending.filter((o) => o.id !== dealId) };
+
+  // Signing bonus = 25% of total payment, paid immediately
+  const bonus = Math.floor(offer.payment * 0.25);
+  sm.totalEarnings = (sm.totalEarnings ?? 0) + bonus;
+
+  pushNotification(sm, 'brand_offer', `Accepted ${offer.brandName} deal — $${bonus} signing bonus paid`, ws, {
+    refDealId: dealId,
+  });
+
+  // M-batch-B (R8): credit the signing bonus into stats.money IN THE SAME
+  // transition. The prior code only bumped the `totalEarnings` display counter
+  // and left a `prev => prev` no-op, so the player was never paid.
+  const credit = applyMoneyDelta(state, bonus, 'Brand deal signing bonus');
+  return {
+    result: { success: true, message: `Accepted ${offer.brandName} ($${bonus} signing bonus).` },
+    next: { ...state, ...(credit ?? {}), socialMedia: sm },
+  };
+}
+
 export const acceptBrandDeal = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   dealId: string,
 ): { success: boolean; message: string } => {
-  let outcome: { success: boolean; message: string } = { success: false, message: 'Offer not found.' };
-  setGameState((prev) => {
-    const sm = { ...ensureSocial(prev) };
-    const inbox = sm.brandInbox ?? { pending: [], declined: [], history: [] };
-    const offer = inbox.pending.find((o) => o.id === dealId);
-    if (!offer) return prev;
-
-    const ws = prev.weeksLived ?? 0;
-    const active: PulseActiveBrandDeal = {
-      id: offer.id,
-      brandName: offer.brandName,
-      payment: offer.payment,
-      expiresAt: ws + offer.duration,
-      expiresIn: offer.duration,
-      postsRequired: offer.postsRequired,
-      postsDelivered: 0,
-      // P0-1: stream 75% of the contract over the duration. The 25% signing
-      // bonus paid below is an advance against the total, so total payout is
-      // 100% of `payment` (previously: 25% bonus + 100% stream = 125%).
-      // Recomputed here (not trusting offer.weeklyPayment) so any in-flight
-      // offer minted before this fix still pays correctly.
-      weeklyPayment: Math.floor((offer.payment * 0.75) / Math.max(1, offer.duration)),
-      category: offer.category,
-      riskOfBreach: 0,
-      logoColor1: offer.logoColor1,
-      logoColor2: offer.logoColor2,
-    };
-
-    sm.activeBrandDeals = [...(sm.activeBrandDeals ?? []), active];
-    sm.brandPartnerships = (sm.brandPartnerships ?? 0) + 1;
-    sm.brandInbox = {
-      ...inbox,
-      pending: inbox.pending.filter((o) => o.id !== dealId),
-    };
-
-    // Signing bonus = 25% of total payment, paid immediately
-    const bonus = Math.floor(offer.payment * 0.25);
-    sm.totalEarnings = (sm.totalEarnings ?? 0) + bonus;
-
-    pushNotification(sm, 'brand_offer', `Accepted ${offer.brandName} deal — $${bonus} signing bonus paid`, ws, {
-      refDealId: dealId,
-    });
-
-    outcome = { success: true, message: `Accepted ${offer.brandName} ($${bonus} signing bonus).` };
-    // M-batch-B (R8): credit the signing bonus into stats.money IN THE SAME
-    // updater. The prior code only bumped the `totalEarnings` display counter and
-    // left a `prev => prev` no-op, so the player was never paid. Folding the
-    // credit in (applyMoneyDelta never rejects a positive amount) avoids relying
-    // on a post-setState read that React may not run synchronously.
-    const credit = applyMoneyDelta(prev, bonus, 'Brand deal signing bonus');
-    return { ...prev, ...(credit ?? {}), socialMedia: sm };
-  });
-  return outcome;
+  const preview = resolveAcceptBrandDeal(gameState, dealId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveAcceptBrandDeal(prev, dealId).next ?? prev);
+  return preview.result;
 };
 
 export const declineBrandDeal = (
@@ -715,108 +754,127 @@ export const declineBrandDeal = (
   });
 };
 
+/**
+ * PURE: what does delivering `postId` against `dealId` do to `state`?
+ *
+ * `next: null` means refuse. The mutable `result` below is a LOCAL of this pure
+ * function — that is fine; what was not fine is the previous shape, where it
+ * lived outside a `setGameState` updater and was assigned from inside it. React
+ * runs only the FIRST functional update of a batch eagerly, so any deferred
+ * dispatch returned the initial "Deal not found." for a delivery that had
+ * landed (the 2026-08-15 player-report defect).
+ */
+function resolveDeliverBrandDealPost(
+  state: GameState,
+  dealId: string,
+  postId: string,
+): { result: { success: boolean; message: string }; next: GameState | null } {
+  let result = { success: false, message: 'Deal not found.' };
+  const sm = { ...ensureSocial(state) };
+  let completionPayout = 0;
+
+  // ONE POST COUNTS ONCE. The counter was incremented unconditionally, with
+  // the "already used" check living only in the caller's render closure —
+  // `BrandDealsScreen.handleDeliver` picks `recent.find(p =>
+  // !p.sponsoredByDealId)` from a stale snapshot, so two taps in one batch
+  // both chose the SAME post and the reducer counted two deliveries. Once
+  // `postsDelivered >= postsRequired` the deal completes early and pays every
+  // remaining installment at once, so a multi-post multi-week contract
+  // collapsed into one post and one week — not over-payment, but a large rate
+  // exploit that also churned the offer inbox far faster than designed.
+  //
+  // Every other Pulse action carries an explicit same-batch guard; this was
+  // the one that did not. 2026-07-30 audit ECON-4.
+  const alreadySponsored = (sm.recentPosts ?? []).find((p) => p.id === postId)?.sponsoredByDealId;
+  if (alreadySponsored) {
+    result = {
+      success: false,
+      message: alreadySponsored === dealId
+        ? 'That post has already been delivered for this deal.'
+        : 'That post is already sponsored by another deal.',
+    };
+    return { result, next: null };
+  }
+
+  const deals = (sm.activeBrandDeals ?? []).map((d) => {
+    if (d.id !== dealId) return d;
+    const delivered = (d.postsDelivered ?? 0) + 1;
+    return { ...d, postsDelivered: delivered };
+  });
+  sm.activeBrandDeals = deals;
+
+  const deal = deals.find((d) => d.id === dealId);
+  if (!deal) {
+    result = { success: false, message: 'Deal not found.' };
+    return { result, next: null };
+  }
+
+  // Tag the post as sponsored if it isn't already
+  sm.recentPosts = (sm.recentPosts ?? []).map((p) =>
+    p.id === postId
+      ? { ...p, sponsoredByDealId: dealId, sponsoredBrandName: deal.brandName }
+      : p,
+  );
+
+  if ((deal.postsDelivered ?? 0) >= (deal.postsRequired ?? 1)) {
+    // Complete — move to history
+    const ws = state.weeksLived ?? 0;
+    // M-batch-B (R8): finishing early removes the deal, which stops the weekly
+    // installments the tick would otherwise pay (pulseTick pays weeklyPayment
+    // while active). Pay the remaining unpaid installments now so delivering
+    // all posts pays out in full (matches the "full payment received" message)
+    // instead of shorting the player the weeks they cut short. Total payout is
+    // identical to riding the deal to expiry — no double-pay, no exploit.
+    const remainingWeeks = Math.max(0, (deal.expiresAt ?? ws) - ws);
+    const weeklyPay = deal.weeklyPayment ?? Math.floor(((deal.payment ?? 0) * 0.75) / Math.max(1, deal.expiresIn ?? 1));
+    completionPayout = Math.max(0, weeklyPay * remainingWeeks);
+    sm.activeBrandDeals = deals.filter((d) => d.id !== dealId);
+    sm.brandInbox = {
+      ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),
+      history: [
+        ...(sm.brandInbox?.history ?? []),
+        {
+          id: dealId,
+          brandName: deal.brandName,
+          totalPaid: deal.payment,
+          completedWeek: ws,
+          result: 'success',
+        },
+      ],
+    };
+    if (sm.lifetimeStats) {
+      sm.lifetimeStats = {
+        ...sm.lifetimeStats,
+        totalBrandDealsCompleted: sm.lifetimeStats.totalBrandDealsCompleted + 1,
+      };
+    }
+    pushNotification(sm, 'brand_offer', `${deal.brandName} campaign completed — full payment received`, ws, {
+      refDealId: dealId,
+    });
+    result = { success: true, message: `${deal.brandName} campaign completed!` };
+  } else {
+    result = { success: true, message: `Delivered post (${deal.postsDelivered}/${deal.postsRequired}).` };
+  }
+  // M-batch-B (R8): credit the remaining brand-deal balance on early completion
+  // IN THE SAME updater. Finishing early removes the deal (above), so the
+  // tick's weekly installments stop — paying the remainder makes the total
+  // identical to riding the deal to expiry. applyMoneyDelta never rejects a
+  // positive credit; folding it in avoids a post-setState read.
+  const credit =
+    completionPayout > 0 ? applyMoneyDelta(state, completionPayout, 'Brand deal completion payout') : null;
+  return { result, next: { ...state, ...(credit ?? {}), socialMedia: sm } };
+}
+
 export const deliverBrandDealPost = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   dealId: string,
   postId: string,
 ): { success: boolean; message: string } => {
-  let result = { success: false, message: 'Deal not found.' };
-  setGameState((prev) => {
-    const sm = { ...ensureSocial(prev) };
-    let completionPayout = 0;
-
-    // ONE POST COUNTS ONCE. The counter was incremented unconditionally, with
-    // the "already used" check living only in the caller's render closure —
-    // `BrandDealsScreen.handleDeliver` picks `recent.find(p =>
-    // !p.sponsoredByDealId)` from a stale snapshot, so two taps in one batch
-    // both chose the SAME post and the reducer counted two deliveries. Once
-    // `postsDelivered >= postsRequired` the deal completes early and pays every
-    // remaining installment at once, so a multi-post multi-week contract
-    // collapsed into one post and one week — not over-payment, but a large rate
-    // exploit that also churned the offer inbox far faster than designed.
-    //
-    // Every other Pulse action carries an explicit same-batch guard; this was
-    // the one that did not. 2026-07-30 audit ECON-4.
-    const alreadySponsored = (sm.recentPosts ?? []).find((p) => p.id === postId)?.sponsoredByDealId;
-    if (alreadySponsored) {
-      result = {
-        success: false,
-        message: alreadySponsored === dealId
-          ? 'That post has already been delivered for this deal.'
-          : 'That post is already sponsored by another deal.',
-      };
-      return prev;
-    }
-
-    const deals = (sm.activeBrandDeals ?? []).map((d) => {
-      if (d.id !== dealId) return d;
-      const delivered = (d.postsDelivered ?? 0) + 1;
-      return { ...d, postsDelivered: delivered };
-    });
-    sm.activeBrandDeals = deals;
-
-    const deal = deals.find((d) => d.id === dealId);
-    if (!deal) {
-      result = { success: false, message: 'Deal not found.' };
-      return prev;
-    }
-
-    // Tag the post as sponsored if it isn't already
-    sm.recentPosts = (sm.recentPosts ?? []).map((p) =>
-      p.id === postId
-        ? { ...p, sponsoredByDealId: dealId, sponsoredBrandName: deal.brandName }
-        : p,
-    );
-
-    if ((deal.postsDelivered ?? 0) >= (deal.postsRequired ?? 1)) {
-      // Complete — move to history
-      const ws = prev.weeksLived ?? 0;
-      // M-batch-B (R8): finishing early removes the deal, which stops the weekly
-      // installments the tick would otherwise pay (pulseTick pays weeklyPayment
-      // while active). Pay the remaining unpaid installments now so delivering
-      // all posts pays out in full (matches the "full payment received" message)
-      // instead of shorting the player the weeks they cut short. Total payout is
-      // identical to riding the deal to expiry — no double-pay, no exploit.
-      const remainingWeeks = Math.max(0, (deal.expiresAt ?? ws) - ws);
-      const weeklyPay = deal.weeklyPayment ?? Math.floor(((deal.payment ?? 0) * 0.75) / Math.max(1, deal.expiresIn ?? 1));
-      completionPayout = Math.max(0, weeklyPay * remainingWeeks);
-      sm.activeBrandDeals = deals.filter((d) => d.id !== dealId);
-      sm.brandInbox = {
-        ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),
-        history: [
-          ...(sm.brandInbox?.history ?? []),
-          {
-            id: dealId,
-            brandName: deal.brandName,
-            totalPaid: deal.payment,
-            completedWeek: ws,
-            result: 'success',
-          },
-        ],
-      };
-      if (sm.lifetimeStats) {
-        sm.lifetimeStats = {
-          ...sm.lifetimeStats,
-          totalBrandDealsCompleted: sm.lifetimeStats.totalBrandDealsCompleted + 1,
-        };
-      }
-      pushNotification(sm, 'brand_offer', `${deal.brandName} campaign completed — full payment received`, ws, {
-        refDealId: dealId,
-      });
-      result = { success: true, message: `${deal.brandName} campaign completed!` };
-    } else {
-      result = { success: true, message: `Delivered post (${deal.postsDelivered}/${deal.postsRequired}).` };
-    }
-    // M-batch-B (R8): credit the remaining brand-deal balance on early completion
-    // IN THE SAME updater. Finishing early removes the deal (above), so the
-    // tick's weekly installments stop — paying the remainder makes the total
-    // identical to riding the deal to expiry. applyMoneyDelta never rejects a
-    // positive credit; folding it in avoids a post-setState read.
-    const credit =
-      completionPayout > 0 ? applyMoneyDelta(prev, completionPayout, 'Brand deal completion payout') : null;
-    return { ...prev, ...(credit ?? {}), socialMedia: sm };
-  });
-  return result;
+  const preview = resolveDeliverBrandDealPost(gameState, dealId, postId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveDeliverBrandDealPost(prev, dealId, postId).next ?? prev);
+  return preview.result;
 };
 
 /**
@@ -848,89 +906,90 @@ export const brandDealBreachPenalty = (state: GameState, dealId: string): number
 /**
  * Breach `dealId`, charging the penalty atomically.
  *
- * ⚠️ DO NOT TRUST THE RETURN VALUE. It is assembled inside the `setGameState`
- * updater, and React may run that updater after this function has already
- * returned — in which case the caller sees the initial
+ * The return value IS trustworthy as of 2026-08-15.
+ *
+ * It used to carry a warning not to read it: the outcome was assembled inside
+ * the `setGameState` updater, and React may run that updater after this
+ * function has returned — so the caller could see the initial
  * `{ success: false, message: 'Deal not found.' }` for a breach that then
- * succeeds. Measured, not assumed: `__tests__/refactor/updaterTimingContract`
- * shows the first updater of a batch runs eagerly and a second one in the same
- * batch is deferred, so this is unreliable rather than simply broken.
+ * succeeded. Measured, not assumed: `__tests__/refactor/updaterTimingContract`
+ * shows the first updater of a batch runs eagerly and a second is deferred.
  *
- * The STATE TRANSITION is correct regardless — the penalty is charged inside
- * the updater and an unaffordable one refuses by returning `prev`, per §4.4.
- * It is only the report to the caller that is unreliable.
+ * That warning has been replaced by the fix it asked for — a pure reducer with
+ * an explicit result (`resolveBreachBrandDeal`), called once against the
+ * caller's snapshot for the outcome and once against `prev` for the state.
+ * Nothing is read across the updater boundary, so the report no longer depends
+ * on React's batching order.
  *
- * That is why nothing in production reads it: `BrandDealsScreen` calls this for
- * its effect only, and does its affordability check up front with
- * `brandDealBreachPenalty` so the player is refused BEFORE the confirm dialog.
- * Anything that needs the outcome must pre-flight the same way. Tests may read
- * the return, but only because their dispatcher is a synchronous stub — that
- * is a property of the stub, not a guarantee of React.
- *
- * The shape is counted branch-wide by `__tests__/refactor/updaterResultRatchet`;
- * the fix when this is refactored is a pure reducer with an explicit result,
- * not a pessimistic capture (that was tried on VehicleActions and reverted —
- * it made a successful refuel report failure).
+ * `brandDealBreachPenalty` stays: quoting the real penalty on the confirm
+ * dialog is worth doing on its own, independently of who can read this return.
  */
+function resolveBreachBrandDeal(
+  state: GameState,
+  dealId: string,
+): { result: { success: boolean; message: string; penalty: number }; next: GameState | null } {
+  const sm = { ...ensureSocial(state) };
+  const deal = (sm.activeBrandDeals ?? []).find((d) => d.id === dealId);
+  if (!deal) return { result: { success: false, message: 'Deal not found.', penalty: 0 }, next: null };
+
+  const ws = state.weeksLived ?? 0;
+  const penalty = brandDealBreachPenalty(state, dealId) ?? 0;
+  sm.activeBrandDeals = (sm.activeBrandDeals ?? []).filter((d) => d.id !== dealId);
+  sm.brandInbox = {
+    ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),
+    history: [
+      ...(sm.brandInbox?.history ?? []),
+      { id: dealId, brandName: deal.brandName, totalPaid: 0, completedWeek: ws, result: 'breached' },
+    ],
+  };
+
+  // CHARGE INSIDE THE TRANSITION, and let an unaffordable penalty REFUSE the
+  // breach rather than waive it.
+  //
+  // The penalty used to be applied afterwards via `updateMoney`, which is
+  // all-or-nothing: it returns `prev` unchanged when the debit would go
+  // negative. So the breach had already landed — deal removed, history row
+  // written — and the charge silently did nothing. A player who moved their
+  // cash into a bank account first breached every contract for FREE, kept the
+  // 25% signing bonus `acceptBrandDeal` paid up front, and was told
+  // "Contract breached. -$X" while paying nothing. 2026-07-30 audit ECON-R1-03.
+  const debit = applyMoneyDelta(state, -penalty, 'Brand deal breach penalty');
+  if (!debit) {
+    return {
+      result: {
+        success: false,
+        message: `You cannot afford the $${penalty.toLocaleString()} breach penalty. Free up cash first.`,
+        penalty,
+      },
+      next: null,
+    };
+  }
+
+  pushNotification(sm, 'brand_offer', `${deal.brandName} contract breached — $${penalty} penalty`, ws, {
+    refDealId: dealId,
+  });
+  return {
+    result: { success: true, message: `Contract breached. -$${penalty}, reputation -10.`, penalty },
+    next: {
+      ...state,
+      ...debit,
+      socialMedia: sm,
+      stats: { ...(debit.stats ?? state.stats), reputation: Math.max(0, (state.stats?.reputation ?? 0) - 10) },
+    },
+  };
+}
+
 export const breachBrandDeal = (
+  gameState: GameState,
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   dealId: string,
   _deps: { updateMoney: typeof updateMoney; updateStats: typeof updateStats } = { updateMoney, updateStats },
 ): { success: boolean; message: string; penalty: number } => {
-  let outcome = { success: false, message: 'Deal not found.', penalty: 0 };
-  setGameState((prev) => {
-    const sm = { ...ensureSocial(prev) };
-    const deal = (sm.activeBrandDeals ?? []).find((d) => d.id === dealId);
-    if (!deal) return prev;
-    const ws = prev.weeksLived ?? 0;
-    const penalty = brandDealBreachPenalty(prev, dealId) ?? 0;
-    sm.activeBrandDeals = (sm.activeBrandDeals ?? []).filter((d) => d.id !== dealId);
-    sm.brandInbox = {
-      ...(sm.brandInbox ?? { pending: [], declined: [], history: [] }),
-      history: [
-        ...(sm.brandInbox?.history ?? []),
-        {
-          id: dealId,
-          brandName: deal.brandName,
-          totalPaid: 0,
-          completedWeek: ws,
-          result: 'breached',
-        },
-      ],
-    };
-    // CHARGE INSIDE THE UPDATER, and let an unaffordable penalty REFUSE the
-    // breach rather than waive it.
-    //
-    // The penalty used to be applied afterwards via `updateMoney`, which is
-    // all-or-nothing: it returns `prev` unchanged when the debit would go
-    // negative. So the breach had already landed — deal removed, history row
-    // written — and the charge silently did nothing. A player who moved their
-    // cash into a bank account first breached every contract for FREE, kept the
-    // 25% signing bonus `acceptBrandDeal` paid up front, and was told
-    // "Contract breached. -$X" while paying nothing. 2026-07-30 audit
-    // ECON-R1-03; the gate-then-grant class this repo has shipped repeatedly.
-    const debit = applyMoneyDelta(prev, -penalty, 'Brand deal breach penalty');
-    if (!debit) {
-      outcome = {
-        success: false,
-        message: `You cannot afford the $${penalty.toLocaleString()} breach penalty. Free up cash first.`,
-        penalty,
-      };
-      return prev;
-    }
-
-    pushNotification(sm, 'brand_offer', `${deal.brandName} contract breached — $${penalty} penalty`, ws, {
-      refDealId: dealId,
-    });
-    outcome = { success: true, message: `Contract breached. -$${penalty}, reputation -10.`, penalty };
-    return {
-      ...prev,
-      ...debit,
-      socialMedia: sm,
-      stats: { ...(debit.stats ?? prev.stats), reputation: Math.max(0, (prev.stats?.reputation ?? 0) - 10) },
-    };
-  });
-  return outcome;
+  void _deps;
+  const preview = resolveBreachBrandDeal(gameState, dealId);
+  if (!preview.next) return preview.result;
+  setGameState((prev) => resolveBreachBrandDeal(prev, dealId).next ?? prev);
+  return preview.result;
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1043,21 +1102,28 @@ export const endLiveStream = (
     return { success: false, message: 'Not live.', totalDonations: 0, newFollowers: 0, peakViewers: 0, minutesElapsed: 0 };
   }
 
-  // ANTI-EXPLOIT: read the session and apply payout INSIDE the updater, guarded
-  // on the FRESH `prev.socialMedia.liveSession.active`. The outer guard reads the
-  // stale snapshot, so two rapid "End" taps both saw active===true and both
-  // double-claimed tips + followers. We capture the applied figures and only run
-  // the money/stat side-effects if this call actually ended the session.
-  let applied = false;
-  let appliedDonations = 0;
-  let appliedFollowers = 0;
+  // Reported from the snapshot the player acted on; the updater re-derives the
+  // same figures from `prev` for the state.
+  const reportedDonations = live.donationsEarned;
+  const reportedFollowers = Math.floor(live.peakViewers * 0.05);
+
+  /**
+   * ANTI-EXPLOIT: end the session and pay it out in ONE updater, guarded on the
+   * FRESH `prev.socialMedia.liveSession.active`. The outer guard reads the
+   * stale snapshot, so two rapid "End" taps both saw active===true.
+   *
+   * The tips and the stat deltas used to be separate dispatches gated on a
+   * `let applied` flag read back from here. That read is only reliable for the
+   * FIRST functional update of a React batch — so a deferred dispatch ended the
+   * stream, banked the follower count, and never paid the tips, while telling
+   * the player "Not live."
+   */
   setGameState((prev) => {
     const sm = { ...ensureSocial(prev) };
     const ls = sm.liveSession;
     if (!ls || !ls.active) return prev; // already ended by a prior tap → reject
-    applied = true;
-    appliedDonations = ls.donationsEarned;
-    appliedFollowers = Math.floor(ls.peakViewers * 0.05);
+    const appliedDonations = ls.donationsEarned;
+    const appliedFollowers = Math.floor(ls.peakViewers * 0.05);
     sm.totalLiveStreams = (sm.totalLiveStreams ?? 0) + 1;
     sm.totalLiveViewers = (sm.totalLiveViewers ?? 0) + ls.peakViewers;
     sm.totalLiveDuration = (sm.totalLiveDuration ?? 0) + ls.minutesElapsed;
@@ -1072,21 +1138,17 @@ export const endLiveStream = (
       `Stream ended. Peak ${ls.peakViewers} viewers, +${appliedFollowers} followers, $${ls.donationsEarned.toFixed(2)} in tips`,
       prev.weeksLived ?? 0,
     );
-    return { ...prev, socialMedia: sm };
+    let next: GameState = { ...prev, socialMedia: sm };
+    const tips = applyMoneyDelta(next, appliedDonations, 'Pulse live stream tips');
+    if (tips) next = { ...next, ...tips };
+    return { ...next, ...applyStatsDelta(next, { energy: -20, happiness: 15 }) };
   });
-
-  if (!applied) {
-    return { success: false, message: 'Not live.', totalDonations: 0, newFollowers: 0, peakViewers: 0, minutesElapsed: 0 };
-  }
-
-  updateMoney(setGameState, appliedDonations, 'Pulse live stream tips');
-  updateStats(setGameState, { energy: -20, happiness: 15 });
 
   return {
     success: true,
     message: 'Stream ended.',
-    totalDonations: appliedDonations,
-    newFollowers: appliedFollowers,
+    totalDonations: reportedDonations,
+    newFollowers: reportedFollowers,
     peakViewers: live.peakViewers,
     minutesElapsed: live.minutesElapsed,
   };
@@ -1297,11 +1359,16 @@ export const watchAdForFollowerBoost = (
   const proActive = gameState.socialMedia?.verifiedPro?.active === true;
   const gained = proActive ? 150 : 50;
 
-  // The trailing return used to be an unconditional success, so on the very
-  // same-batch race the re-check below exists to stop, the REJECTED call still
-  // told `RewardedAdModal` that followers were gained — and the modal now shows
-  // an alert driven by that flag. Review of the Pulse atomicity fix.
-  let granted = false;
+  /**
+   * `canBoostFollowersWithAd` above is the reported outcome; the re-check below
+   * is the same-batch RACE guard for STATE.
+   *
+   * A `let granted` flag used to be read back here. It is only reliable for the
+   * FIRST functional update of a React batch, and this path is reached straight
+   * out of `RewardedAdModal` — so a player who had genuinely watched an ad
+   * could be told "Already used your ad-boost this week" while the followers
+   * landed. Of all the sites in this class that is the worst one to get wrong.
+   */
   setGameState((prev) => {
     // Atomic gate: re-check the weekly cooldown against prev. Two same-batch
     // taps both pass the stale outer check; without this, both add followers
@@ -1309,7 +1376,6 @@ export const watchAdForFollowerBoost = (
     const prevWs = prev.weeksLived ?? 0;
     const prevLast = prev.socialMedia?.lastAdBoostWeek ?? -Infinity;
     if (prevWs - prevLast < 1) return prev;
-    granted = true;
     const sm = { ...ensureSocial(prev) };
     sm.followers = (sm.followers ?? 0) + gained;
     sm.influenceLevel = getInfluenceLevel(sm.followers);
@@ -1318,9 +1384,6 @@ export const watchAdForFollowerBoost = (
     return { ...prev, socialMedia: sm };
   });
 
-  if (!granted) {
-    return { success: false, message: 'Already used your ad-boost this week.', followersGained: 0 };
-  }
   return { success: true, message: `+${gained} followers from ad reward.`, followersGained: gained };
 };
 

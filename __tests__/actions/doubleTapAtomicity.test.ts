@@ -31,15 +31,23 @@ describe('same-batch double-tap atomicity (2026-07-05 audit fixes)', () => {
     const r1 = watchAdForFollowerBoost(setGameState, stale);
     const r2 = watchAdForFollowerBoost(setGameState, stale);
 
-    // Both taps pass the stale OUTER gate; the updater is the authoritative
-    // one. This used to assert `r2.success === true` — i.e. it pinned the
-    // action LYING to its caller: the second tap granted nothing but reported
-    // a successful boost, and `RewardedAdModal` now drives an alert off that
-    // flag. The return value is derived from the updater's decision now.
-    // 2026-07-30 review.
+    /**
+     * Both taps pass the stale OUTER gate; the updater is the authoritative one,
+     * and the GRANT is what must happen exactly once — asserted below.
+     *
+     * The reporting assertion has flipped twice, and the reasoning is worth
+     * keeping. It first pinned `r2.success === true` (the action lying about a
+     * grant it did not make). 2026-07-30 changed it to `false` by deriving the
+     * return from a flag set inside the updater. On 2026-08-15 that flag was
+     * removed everywhere: it is only readable for the FIRST functional update
+     * of a React batch, so it reported failure for actions that SUCCEEDED —
+     * and on this path in particular that meant telling a player who had just
+     * WATCHED A REWARDED AD that their boost had already been used, while the
+     * followers landed. Reporting from the outer gate costs a duplicated
+     * message on a stale double-tap and fixes the ad case.
+     */
     expect(r1.success).toBe(true);
-    expect(r2.success).toBe(false);
-    expect(r2.followersGained).toBe(0);
+    expect(r2.success).toBe(true);
     const followers = ref.state.socialMedia?.followers ?? 0;
     const baseline = stale.socialMedia?.followers ?? 0;
     expect(followers - baseline).toBe(r1.followersGained); // exactly ONE grant

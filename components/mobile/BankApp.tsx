@@ -860,7 +860,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           // Same as AdvancedBankApp: a rejection used to close the sheet
           // silently, so "Can't create a new savings" looked like nothing
           // happening at all.
-          const result = openNewAccount(setGameState, spec);
+          const result = openNewAccount(gameState, setGameState, spec);
           if (!result.success) {
             Alert.alert('Could not open account', result.message);
             return;

@@ -234,11 +234,27 @@ describe('F8 — eviction asks first', () => {
     expect(APP).toMatch(/the rent stops immediately/);
   });
 
-  it('the non-destructive actions did NOT gain a prompt (the control)', () => {
+  it('the non-destructive actions did NOT gain a CONFIRMATION prompt (the control)', () => {
     // Confirmation is for the irreversible one; adding it everywhere would be
     // its own UX regression.
+    //
+    // Narrowed 2026-08-15 from "no Alert at all". `maintainProperty` used to
+    // return `void` and refuse silently inside its updater, so a player who
+    // could not afford maintenance tapped the button and got nothing. It now
+    // reports, and the handler surfaces that the same way `onInstallDecor`,
+    // `onAddRoom` and `onUpgrade` already do — a failure alert. What this
+    // control is actually about is the extra tap a CONFIRM dialog costs, so it
+    // now tests for that shape rather than for the word "Alert".
     const maintain = APP.slice(APP.indexOf('onMaintain={()'), APP.indexOf('onSell={()'));
 
-    expect(maintain).not.toMatch(/Alert\.alert/);
+    expect(maintain).not.toMatch(/text: 'Cancel'/);
+    expect(maintain).not.toMatch(/style: 'destructive'/);
+    // And it still does not gate the action behind an onPress callback.
+    expect(maintain).not.toMatch(/onPress:/);
+  });
+
+  it('but maintain DOES report a refusal it used to swallow', () => {
+    const maintain = APP.slice(APP.indexOf('onMaintain={()'), APP.indexOf('onSell={()'));
+    expect(maintain).toMatch(/if \(!r\.success\)/);
   });
 });

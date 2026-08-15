@@ -174,31 +174,136 @@ function suspects(): string[] {
       if (!reportsUnconditionalSuccess(afterUpdater)) continue;
 
       /**
-       * Exclude anything already using the fixed shape.
+       * The capture EXCLUSION that used to sit here was deleted on 2026-08-15.
        *
-       * The first version of this detector only recognised a capture literally
-       * named `result`, so the first batch of fixes — which use `bought`,
-       * `fed`, `played`, `treated`, `entered` — did not move the number at all.
-       * A ratchet that cannot see its own progress is worse than none: it
-       * would have sat at 86 forever while the work happened.
-       *
-       * The shape that counts as fixed is a captured flag or object that is
-       * GUARDED before the success return: `if (!x)` or `return x;`. A `let`
-       * assigned inside the updater and never checked is not a fix.
+       * It skipped any function holding a `let` flag or result object assigned
+       * inside the updater and read after it, on the theory that this was "the
+       * fixed shape". It is not — see `captureSuspects` below and the header.
+       * Those functions are counted there instead, so the shape is measured
+       * rather than certified.
        */
-      const captures = body.match(/let\s+(\w+)\s*(?::[^=]+)?=\s*(?:false|\{)/g) ?? [];
-      const guarded = captures.some((c) => {
-        const v = /let\s+(\w+)/.exec(c)![1];
-        return new RegExp(`if\\s*\\(\\s*!${v}\\s*\\)`).test(body)
-          || new RegExp(`return\\s+${v}\\s*;`).test(body);
-      });
-      if (guarded) continue;
-
       found.push(`${file}::${name}`);
     }
   }
 
   return found.sort();
+}
+
+/**
+ * The OTHER half of the class: a variable assigned INSIDE a `setGameState`
+ * updater and read AFTER it.
+ *
+ * This was the detector's exclusion until 2026-08-15, when a player report
+ * disproved the premise — a $40.25M player told they needed $10,000 for a
+ * $10,000 action that had in fact succeeded. React runs only the FIRST
+ * functional update of a batch eagerly, so a capture reads its initial value
+ * for any dispatch that is not first, and the function reports failure for work
+ * that landed.
+ *
+ * Both spellings count, because both fail the same way:
+ *   - a boolean flag  — `let applied = false; … if (!applied) return failure;`
+ *   - a result object — `let result = { success: false }; … return result;`
+ *
+ * A ratchet that treats a broken shape as the fix cannot reach zero, and worse,
+ * its own failure message recommends adopting it.
+ */
+/**
+ * Does this function body assign a top-level `let` from INSIDE a `setGameState`
+ * updater and read it back afterwards?
+ *
+ * Extracted so it can be exercised on fixtures. The real count is 0 as of
+ * 2026-08-15, and a detector that only ever returns an empty list is
+ * indistinguishable from a broken one — the fixtures below are what tell the
+ * difference.
+ */
+export function bodyHasCrossUpdaterCapture(body: string): boolean {
+  const ranges = dispatchRanges(body);
+  if (!ranges.length) return false;
+  const firstDispatch = ranges[0][0];
+  const tail = body.slice(ranges[ranges.length - 1][1]);
+
+  // ANY top-level `let`, not just `= false` / `= {}`. The first version of this
+  // detector matched only those two initialisers AND only two read forms
+  // (`if (!x)` / `return x;`), and so reported ZERO while nine functions still
+  // carried the shape — `let lost = 0` read as `onResolved({ lost })`,
+  // `let mutualFollow = false` read inside a ternary, and so on. A detector
+  // that is narrower than the defect is worse than none, because its zero is
+  // read as proof.
+  for (const c of body.matchAll(/\n {2}let\s+(\w+)\s*(?::[^=\n]+)?=\s*[^;]+;/g)) {
+    const v = c[1];
+    if (c.index! > firstDispatch) continue; // declared after the dispatch → not a capture
+
+    // The assignment must sit INSIDE a dispatch, by byte range. Indentation
+    // alone is not enough: `let matched = false` reassigned in an ordinary
+    // `if` block before the dispatch is not a capture, and an earlier version
+    // of this check flagged `swipeOnProfile` for exactly that.
+    const assignedInside = [...body.matchAll(new RegExp(`\\b${v}\\s*=[^=]`, 'g'))]
+      .map((a) => a.index!)
+      .filter((idx) => idx > c.index! + c[0].length)
+      .some((idx) => ranges.some(([a, b]) => idx > a && idx < b));
+    if (!assignedInside) continue;
+
+    // Read ANYWHERE after the last dispatch — a bare reference is enough.
+    if (new RegExp(`\\b${v}\\b`).test(tail)) return true;
+  }
+  return false;
+}
+
+/** Byte ranges of every `setGameState(...)` call in `body`, by brace matching. */
+function dispatchRanges(body: string): [number, number][] {
+  const out: [number, number][] = [];
+  let i = 0;
+  while ((i = body.indexOf('setGameState(', i)) !== -1) {
+    let depth = 0;
+    let j = body.indexOf('(', i);
+    for (; j < body.length; j++) {
+      if (body[j] === '(') depth++;
+      else if (body[j] === ')') {
+        depth--;
+        if (!depth) break;
+      }
+    }
+    if (j === -1 || j >= body.length) break;
+    out.push([i, j]);
+    i = j;
+  }
+  return out;
+}
+
+export function captureSuspects(): string[] {
+  const found: string[] = [];
+
+  for (const file of fs.readdirSync(ACTIONS_DIR).filter((f) => f.endsWith('.ts'))) {
+    const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
+    const decl = /^export (?:const|function) (\w+)/gm;
+
+    let m: RegExpExecArray | null;
+    while ((m = decl.exec(src)) !== null) {
+      const name = m[1];
+      const start = m.index;
+      const next = /^export (?:const|function) /m.exec(src.slice(start + 10));
+      const body = src.slice(start, next ? start + 10 + next.index : src.length);
+
+      const dispatch = body.indexOf('setGameState(');
+      if (dispatch === -1) continue;
+
+      /**
+       * Only declarations at the FUNCTION's top level (two-space indent) can be
+       * read across the updater boundary. A `let` inside the updater body is
+       * indented further and is an ordinary local — that is the false-positive
+       * class (`let next: GameState = …`, `let working = …`) which makes a
+       * naive sweep for this shape unusable.
+       */
+      if (bodyHasCrossUpdaterCapture(body)) found.push(`${file}::${name}`);
+    }
+  }
+
+  return found.sort();
+}
+
+/** Everything whose REPORT is not a pure function of the caller's snapshot. */
+function allSuspects(): string[] {
+  return Array.from(new Set([...suspects(), ...captureSuspects()])).sort();
 }
 
 /**
@@ -224,10 +329,30 @@ function suspects(): string[] {
  * count moved 86 → 62 when the detector learned to see captures under names
  * other than `result`. A number that moves when the detector improves is the
  * system working. What must never happen is raising it to admit NEW code
- * written in this shape — and the `promoteMatchToFriend` control below is
- * there to prove a new action still has to use the fixed shape.
+ * written in this shape.
+ *
+ * ── 65 → the honest total, 2026-08-15 ─────────────────────────────────────
+ *
+ * The 86 → 62 correction above was WRONG, and this is the entry that says so.
+ * It "found" 24 fixes by teaching the detector that a captured flag counts as
+ * fixed. A capture is not a fix: it is only readable for the FIRST functional
+ * update of a React batch, and a player report proved it in production — a
+ * $40.25M player told they needed $10,000 for an action that had succeeded.
+ *
+ * So the number was never 62 or 65; those were 65 plus a pile the detector had
+ * been told to ignore. The count now covers BOTH shapes (`suspects` for an
+ * unconditional-success tail, `captureSuspects` for a cross-updater read) and
+ * the baseline is set to the honest total. The 22 boolean captures were
+ * converted to outer-guard reporting in the same change, which moves them from
+ * one bucket to the other rather than out of the count — the ratchet measures
+ * a SHAPE, and the shape they now have is the one the repo's own
+ * `innerOnlyRejections.test.ts` prescribes.
+ *
+ * What is left to work down is real: the object-capture sites listed by
+ * `captureSuspects`, which need a state snapshot to report from (several take
+ * only `setGameState` today, so they cannot answer their caller at all).
  */
-const RATCHET = 65;
+const RATCHET = 93;
 
 describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
@@ -235,8 +360,129 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     expect(suspects().length).toBeGreaterThan(0);
   });
 
+  it('the cross-updater capture survives in exactly ONE dead-code site', () => {
+    /**
+     * It was the detector's exclusion until 2026-08-15, then its own bucket.
+     * All 43 live members were converted to outer-guard reporting or to a pure
+     * preview/commit resolver.
+     *
+     * The single survivor is `processVehicleWeekly`, which has NO production
+     * caller — the live weekly path is `weekly/applyVehicles.ts`, whose own
+     * comment calls this "the pre-WeekContext version". Only the stress and
+     * insurance suites reach it, through a synchronous stub. It is pinned here
+     * by name rather than deleted so that wiring it into the tick trips this
+     * assertion first; the function itself carries the same warning.
+     *
+     * ── Why this list was briefly, wrongly, empty ──────────────────────────
+     *
+     * The first version of the detector matched only `let x = false` / `= {}`
+     * initialisers and only two read forms (`if (!x)`, `return x;`). It
+     * reported ZERO while nine functions still carried the shape — `let lost =
+     * 0` read as `onResolved({ lost })`, `let mutualFollow = false` read inside
+     * a ternary, `let totalRewardsOut = 0` read in a template string. A
+     * detector narrower than the defect is worse than none, because its zero
+     * gets quoted as proof.
+     */
+    expect(captureSuspects()).toEqual(['VehicleActions.ts::processVehicleWeekly']);
+  });
+
+  describe('the capture detector still works at zero (fixtures)', () => {
+    const wrap = (inner: string) => `export const act = () => {\n${inner}\n};`;
+
+    it('sees the boolean-flag form', () => {
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let applied = false;',
+        '  setGameState((prev) => {',
+        '    if (!ok) return prev;',
+        '    applied = true;',
+        '    return next;',
+        '  });',
+        '  if (!applied) return fail;',
+        '  return ok;',
+      ].join('\n')))).toBe(true);
+    });
+
+    it('sees the result-object form', () => {
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let result = { success: false };',
+        '  setGameState((prev) => {',
+        '    result = { success: true };',
+        '    return next;',
+        '  });',
+        '  return result;',
+      ].join('\n')))).toBe(true);
+    });
+
+    it('does NOT flag a local declared INSIDE the updater', () => {
+      // `let next: GameState = { ...prev }` and friends — the false-positive
+      // class that makes a naive sweep for this shape unusable.
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  setGameState((prev) => {',
+        '    let next = { ...prev };',
+        '    next = { ...next, a: 1 };',
+        '    return next;',
+        '  });',
+        '  return ok;',
+      ].join('\n')))).toBe(false);
+    });
+
+    it('does NOT flag a capture that is never read back', () => {
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let seen = false;',
+        '  setGameState((prev) => {',
+        '    seen = true;',
+        '    return prev;',
+        '  });',
+        '  return ok;',
+      ].join('\n')))).toBe(false);
+    });
+
+    it('sees a capture read as an EXPRESSION, not just `if (!x)` / `return x`', () => {
+      // The nine sites the first detector missed all read the capture this way.
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let lost = 0;',
+        '  setGameState((prev) => {',
+        '    lost = amount;',
+        '    return next;',
+        '  });',
+        '  onResolved({ lost });',
+      ].join('\n')))).toBe(true);
+    });
+
+    it('sees a capture read inside a ternary', () => {
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let mutualFollow = false;',
+        '  setGameState((prev) => {',
+        '    mutualFollow = true;',
+        '    return next;',
+        '  });',
+        '  return { message: mutualFollow ? "a" : "b" };',
+      ].join('\n')))).toBe(true);
+    });
+
+    it('does NOT flag a let reassigned BEFORE the dispatch (byte range, not indent)', () => {
+      // `swipeOnProfile` computes `matched` in an ordinary `if` block above the
+      // dispatch. An indentation-only check flagged it; a range check does not.
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let matched = false;',
+        '  if (isLike) {',
+        '    matched = rollMatch(gameState);',
+        '  }',
+        '  setGameState((prev) => next);',
+        '  return { matched };',
+      ].join('\n')))).toBe(false);
+    });
+
+    it('does NOT flag a function with no dispatch at all', () => {
+      expect(bodyHasCrossUpdaterCapture(wrap([
+        '  let result = { success: false };',
+        '  return result;',
+      ].join('\n')))).toBe(false);
+    });
+  });
+
   it('no NEW function reads its outcome out of an updater', () => {
-    const current = suspects();
+    const current = allSuspects();
 
     expect(
       `${current.length} suspects (ratchet ${RATCHET})\n${current.join('\n')}`,
@@ -250,7 +496,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     // If someone fixes twenty of these and forgets to lower the number, the
     // guard stops catching the twenty-first. Nudges the count down with the
     // work rather than letting slack accumulate.
-    expect(RATCHET - suspects().length).toBeLessThanOrEqual(5);
+    expect(RATCHET - allSuspects().length).toBeLessThanOrEqual(5);
   });
 
   /**
@@ -274,26 +520,41 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
    * Anchoring to the declaration makes both assertions real and removes the
    * dependency on byte distance from an unrelated import.
    */
-  const CONTROLS: [string, string][] = [
-    ['CompanyActions.ts', 'buyCompanyUpgrade'],
-    ['BankingActions.ts', 'openNewAccount'],
-    // A capture written AFTER the detector was widened, so it also proves the
-    // ternary/anchor changes did not start swallowing the fixed shape.
-    ['SparkActions.ts', 'promoteMatchToFriend'],
+  const CONTROLS: [string, string, 'resolver' | 'outer-guard'][] = [
+    ['CompanyActions.ts', 'buyCompanyUpgrade', 'resolver'],
+    ['BankingActions.ts', 'openNewAccount', 'resolver'],
+    // Fixed the OTHER sound way: every inner rejection mirrors an outer guard,
+    // so the report needs no resolver and has no timing dependency either.
+    ['SparkActions.ts', 'promoteMatchToFriend', 'outer-guard'],
   ];
 
-  it('the functions already fixed are NOT in the list (the control)', () => {
-    // If the detector flagged the fixed shape too, the ratchet would be
-    // measuring noise and could never reach zero.
-    const current = suspects();
-
+  it('the three former capture-shape exemplars are genuinely fixed now', () => {
+    /**
+     * This assertion has been through three states, which is the whole story of
+     * this file. It first read `not.toContain` because a pessimistic capture
+     * was believed to be the fix. On 2026-08-15 it was inverted to `toContain`,
+     * because that premise was disproved by a player report. Now all three have
+     * been converted to pure preview/commit resolvers, so they are out of the
+     * capture bucket for a real reason rather than a definitional one — and the
+     * source check below is what tells those two apart.
+     */
     for (const [file, fn] of CONTROLS) {
-      expect(current).not.toContain(`${file}::${fn}`);
+      expect(captureSuspects()).not.toContain(`${file}::${fn}`);
     }
   });
 
-  it('and those really do use the pessimistic shape (the control)', () => {
-    for (const [file, fn] of CONTROLS) {
+  it('and each really carries one of the two sound shapes (the control)', () => {
+    /**
+     * The source-level proof that the line above is not passing by definition.
+     * There are exactly two sound fixes for this class and both are represented:
+     *
+     *   resolver    — a pure `resolve*` called once for the outcome and once for
+     *                 the state, for functions whose result carries data.
+     *   outer-guard — every inner rejection mirrors a check against the caller's
+     *                 snapshot, so no resolver is needed. This is what
+     *                 `innerOnlyRejections.test.ts` prescribes.
+     */
+    for (const [file, fn, shape] of CONTROLS) {
       const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
       const i = src.indexOf(`export const ${fn}`);
 
@@ -301,9 +562,23 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
       // `indexOf` return -1, slice from the end, and pass on an empty string.
       expect(`${file}::${fn} declared: ${i !== -1}`).toBe(`${file}::${fn} declared: true`);
 
-      const body = src.slice(i, i + 6000);
-      expect(`${file}::${fn}: ${/let result[^=]*=\s*\{\s*\n?\s*success: false/.test(body)}`)
-        .toBe(`${file}::${fn}: true`);
+      // Slice to the function's REAL extent (next top-level export), not a
+      // fixed byte window — the mistake this file's own history records twice.
+      const after = src.indexOf('\nexport ', i + 10);
+      const body = src.slice(i, after === -1 ? src.length : after);
+      // Use the real predicate, not a prose-sensitive regex: these functions
+      // now DOCUMENT the capture they used to carry, and a naive text match
+      // finds the comment describing it.
+      expect(`${file}::${fn} has no capture: ${!bodyHasCrossUpdaterCapture(body)}`)
+        .toBe(`${file}::${fn} has no capture: true`);
+      if (shape === 'resolver') {
+        expect(`${file}::${fn} previews: ${/const preview = resolve\w+\(/.test(body)}`)
+          .toBe(`${file}::${fn} previews: true`);
+      } else {
+        // No capture and no resolver → it must report from its own prelude.
+        expect(`${file}::${fn} returns before dispatching: ${/return \{ success: false[\s\S]*setGameState\(/.test(body)}`)
+          .toBe(`${file}::${fn} returns before dispatching: true`);
+      }
     }
   });
 

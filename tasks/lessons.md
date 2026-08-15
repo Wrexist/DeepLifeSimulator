@@ -3013,3 +3013,177 @@ make three of them worse:
 - Rule: when a rule is wrong for the codebase, write that down NEXT TO THE
   COUNT — not in a commit message. The next person to see "98 warnings" will
   reach for the autofix.
+
+## 2026-08-15 — The unsound workaround finally shipped, and the file predicting it was already in the repo
+
+Player report: a save with $40,096,831 tapped the $10,000 "Marketing push" on a
+family business and got an error banner reading
+
+    Need $10,000 for "marketing" — you have $40.25M.
+
+Four thousand times the money, told they were short. The money was fine — the
+charge and the +5 brand both landed. Only the report was wrong.
+
+`manageFamilyBusiness` set `didManage = true` INSIDE its `setGameState` updater
+and read the flag on the next line. React runs only the FIRST functional update
+of a batch eagerly; a second one is DEFERRED, so the flag was still `false` at
+the read. The tail then returned the shortfall-less spelling of the
+affordability message — a branch reachable ONLY this way, which is why the
+banner named no shortfall while claiming one.
+
+- Rule: the shape was already documented as unsound, by name, with a measurement,
+  in `__tests__/refactor/updaterTimingContract.test.tsx` ("WRONG for a legitimate
+  second action in the same batch: it reports failure for something that
+  succeeded") and in CLAUDE.md §4.1. It was still written into new code, because
+  the comment above it called it "the repairRig pattern" — a name that makes a
+  known-bad workaround sound like an established convention. **Naming a
+  workaround after another site of the same workaround launders it.** Cite the
+  file that says it is wrong, or do not cite anything.
+- Rule: the sound fix is the one both files already prescribed — make the
+  outcome a PURE function of `prev` and call it in both places
+  (`resolveFamilyBusinessManage`). Preview against the caller's snapshot for the
+  message, commit against `prev` for the state. No cross-updater variable exists
+  to be stale, and the atomicity the previous fix bought is untouched because the
+  debit and the grant are still one object.
+- Rule: **a false failure is not a cosmetic bug.** `CompanyDetailScreen` only
+  calls `saveGame()` when `success` is true, so every affected action was applied
+  to memory and left unsaved, and played the error haptic. "The state was never
+  wrong" describes the updater, not the feature.
+- Rule: every action suite in this repo drives `setGameState` with
+  `createSetGameStateStub`, which runs updaters synchronously. Under that stub a
+  capture is ALWAYS readable, so `exploitFixes.test.ts` asserted
+  `r.success === true` on this exact function and passed for as long as the bug
+  existed. `updaterTimingContract.test.tsx` says this too, in its last test. **A
+  stub more obliging than production turns a suite into a mirror** — the
+  regression test here uses a DEFERRED stub that queues updaters and flushes
+  after the action returns, and it fails against the old code.
+- Rule: the C-9 ratchet in `__tests__/refactor/updaterResultRatchet.test.ts` did
+  not catch this and was never going to. It excludes a *guarded capture* as
+  "the fixed shape" — but the fixed shape for the DETECTOR is the unsound shape
+  for React. The ratchet counts progress away from `return { success: true }`,
+  not progress toward correctness, so **every function it certifies as fixed is
+  a candidate for this bug.** Sweeping `contexts/game/actions/` for the exact
+  shape (a `let x = false` assigned `true` inside an updater and read through
+  `if (!x)`) finds **27 more sites** as of 2026-08-15:
+
+      ContactsActions   recordInteraction, lendMoney, redeemFavor, repayFavor
+      MiningActions     repairRig
+      PetActions        buyPet, feedPet, buyFood, buyToy, playWithPet,
+                        payForVet, enterCompetition
+      PoliticalActions  lobby, campaign, hireLobbyist
+      PulseActions      composePost, endLiveStream, watchAdForFollowerBoost
+      RDActions         startResearch, advanceResearch, processCompetitionResults
+      SparkActions      exposeCatfish, fallForCatfish, resolveJealousy
+      TravelActions     travelTo, returnFromTrip, doTravelActivity
+
+  Each reports a canned failure ("Unable to repair right now", …) for an action
+  that worked, whenever its update is not first in its batch. Not fixed here —
+  this change is scoped to the reported bug — but the list is the work, and the
+  ratchet will not surface it. Retake the sweep before trusting the count.
+- Rule (small, found on the way): the cost table was a `switch` with
+  `let cost = 0` and no `default`, so an action outside the union charged
+  nothing. Harmless only because the gains defaulted to 0 too. A `Record` plus an
+  explicit reject removes the coincidence.
+- Rule (one more stale claim, same family as §6/§7 above): the regression test
+  wanted `react-test-renderer`, and `updaterTimingContract.test.tsx` reaches for
+  it via `require` with the comment "react-test-renderer ships no types, and a
+  static import trips TS7016". `@types/react-test-renderer` **is installed**. A
+  typed static import type-checks clean and costs nothing; the `require` form
+  spends one slot of the `no-require-imports` budget in
+  `scripts/lib/lintRatchet.js`, which was sitting exactly at its 862 ceiling.
+  Copying the workaround would have consumed the last slot to work around a
+  problem that no longer exists.
+
+## 2026-08-15 — Fixing the class the player report belonged to, and what the ratchet had been hiding
+
+The `manageFamilyBusiness` fix above was one site. Sweeping for the shape found
+**34 more** across `contexts/game/actions/`, every one able to report a canned
+failure for an action that worked.
+
+- Rule: **a ratchet can hide the thing it counts.** `updaterResultRatchet` had
+  been EXCLUDING the "pessimistic capture" as *the fixed shape*, and its failure
+  message told you to adopt it. So ~22 defective functions were certified clean,
+  and the file's own header — plus `updaterTimingContract.test.tsx`, plus
+  `petActionResults.test.ts` — all carried the caveat that the shape was
+  unsound. Three files said it. Nothing acted on it, because the gate said green.
+  When a guard's premise is wrong, fix the guard in the same change; a
+  re-baselined number with the reasoning next to it is worth more than a lower
+  one.
+- Rule: **the flag was often load-bearing for STATE, not just the message.** Six
+  sites gated the payout on it, so a deferred dispatch applied the cost and
+  skipped the reward: `returnFromTrip` cleared the trip and paid no stats, event
+  money or passport milestone; `endLiveStream` ended the stream and never paid
+  the tips; `composePost` recorded the post and never charged the energy or paid
+  the ad revenue; `claimProgressAchievement` granted the gems but never fired
+  analytics or wrote the cross-install gold-claim record. Grep for what the flag
+  gates before assuming it is cosmetic.
+- Rule: **"there is no pure helper" is why the code is shaped wrong.**
+  `applyMoneyDelta` existed; nothing equivalent existed for stats, so every stat
+  reward HAD to be a second dispatch, which is what forced the flag. Adding
+  `applyStatsDelta` (and pointing `updateStats` at it) made six of those fixes
+  one-liners. When the same wrong shape appears repeatedly, look for the missing
+  primitive rather than fixing each site.
+- Rule: **two sound fixes, and picking the wrong one costs a lot of diff.**
+  Where every inner rejection already mirrors an outer guard, DELETING the
+  capture gives identical reporting to a full preview/commit resolver — and it
+  is robust to an updater that rolls randomness, which a resolver is not. Use
+  the resolver only where the result carries data the outer guards cannot
+  produce. 22 sites took the first, 12 the second.
+- Rule: **a test that pins a shape can outlive the shape's justification.** Five
+  suites asserted "the rejected second tap reports failure", satisfied only
+  because their stub runs updaters synchronously. `petActionResults` went
+  further and asserted a *swallowed* updater reports failure — a property that
+  cannot be satisfied, since a swallowed and a deferred dispatch are
+  indistinguishable from outside, and the mechanism that satisfied it misreports
+  every deferred success. Replaced with the achievable property: a deferred
+  dispatch must report the truth, and the flush must confirm it.
+- Rule: the accepted trade is worth stating at every site rather than once. A
+  stale same-batch double-tap now reports its result twice. The state is
+  unaffected. That is a duplicated message in a rare race, traded for a false
+  refusal on the common path — and a comment at each assertion stops the next
+  person "fixing" it back.
+- Rule: **a workaround's own documentation is a to-do list.** `breachBrandDeal`
+  shipped a "⚠️ DO NOT TRUST THE RETURN VALUE" banner and a whole extra pure
+  helper built to route around it. The banner named the correct fix and nobody
+  applied it. If a comment explains at length why a return value cannot be
+  trusted, that is the ticket.
+
+## 2026-08-15 (round 3) — my own detector's zero was the same lie the ratchet had told
+
+Having removed the cross-updater capture everywhere, I asserted the class was
+extinct and pinned `captureSuspects() === []`. It was not. Widening the detector
+found **nine more**, including `claimAdCashBonus` telling a player who had just
+watched a rewarded ad that the bonus was unavailable while the cash landed.
+
+- Rule: **a detector's zero is only as good as its recall, and a zero is exactly
+  when nobody checks.** Mine matched two initialisers (`= false`, `= {}`) and two
+  read forms (`if (!x)`, `return x;`). The misses were `let lost = 0` read as
+  `onResolved({ lost })`, `let mutualFollow = false` read in a ternary, and
+  `let totalRewardsOut = 0` read in a template string — same defect, different
+  spelling. This is the SECOND time in one day a guard in this repo reported
+  green while the thing it guarded was broken. When a detector reports zero,
+  prove it on fixtures for every shape you claim it covers, and write the
+  fixtures for the shapes you did NOT think of first.
+- Rule: **triage heuristics need both error directions checked.** My first sweep
+  flagged 49 of 92 on token echo; refining to structural categories cut it to 22,
+  and hand-reading all 22 found them mirrored. But the same loosening nearly hid
+  three functions with NO outer guard at all — they surfaced only from a
+  different angle ("which suspects have zero `success: false` returns before the
+  dispatch?"). Ask the question two ways before believing the answer.
+- Rule: an indentation check is not a scope check. `swipeOnProfile` computes
+  `matched` in an ordinary `if` block ABOVE its dispatch — correct code — and a
+  `\n\s{4,}` test flagged it. Match brace ranges, not whitespace.
+- Rule: **`void` returns hide refusals completely.** `maintainProperty` returned
+  nothing and refused inside its updater with a `log.warn`. A player who could
+  not afford maintenance tapped the button and got silence — no error, no
+  change, no clue. An action that can refuse must be able to say so; that is a
+  signature question, not a messaging one.
+- Rule: moving a roll out of an updater is not just about reporting. React 19
+  StrictMode double-invokes updaters, so `Math.random()` inside one can roll
+  differently on the second pass. `followNpc` had that latent alongside its
+  capture; both fixed by rolling once, outside.
+- Rule: when the honest answer is "one left", say WHICH one and pin it by name.
+  `processVehicleWeekly` has no production caller, so it is left as-is and
+  asserted by name in the ratchet — wiring it into the tick trips that test
+  before it can hurt anyone. "Zero except the one we know about" is only a
+  useful statement if the exception is written down.

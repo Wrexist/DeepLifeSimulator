@@ -51,7 +51,7 @@ function drive(state: GameState) {
   const set = ((u: (prev: GameState) => GameState) => {
     current = typeof u === 'function' ? u(current) : u;
   }) as never;
-  const result = breachBrandDeal(set, DEAL_ID);
+  const result = breachBrandDeal(current, set, DEAL_ID);
   return { result, state: current };
 }
 
@@ -130,8 +130,9 @@ describe('double-tap safety', () => {
       current = u(current);
     }) as never;
 
-    const first = breachBrandDeal(set, DEAL_ID);
-    breachBrandDeal(set, DEAL_ID);
+    // Both taps hand the SAME stale snapshot — a double tap in one React batch.
+    const first = breachBrandDeal(before, set, DEAL_ID);
+    breachBrandDeal(before, set, DEAL_ID);
 
     // The second call finds no deal in `prev` and returns it unchanged.
     expect(current.stats.money).toBe(before.stats.money - first.penalty);
@@ -144,7 +145,7 @@ describe('double-tap safety', () => {
       current = u(current);
     }) as never;
 
-    const result = breachBrandDeal(set, 'no-such-deal');
+    const result = breachBrandDeal(before, set, 'no-such-deal');
 
     expect(result.success).toBe(false);
     expect(current.stats.money).toBe(before.stats.money);

@@ -114,7 +114,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
       // twice, and the synchronous save above the dispatch never captured the
       // completion payout. A direct call fixes both.
       if (sponsorDealId && r.postId) {
-        deliverBrandDealPost(setGameState, sponsorDealId, r.postId);
+        deliverBrandDealPost(gameState, setGameState, sponsorDealId, r.postId);
       }
       pulseHaptics.success();
       // Persist AFTER the commit (post-commit ref-sync pattern) so the delivery

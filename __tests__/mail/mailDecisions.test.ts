@@ -238,8 +238,8 @@ describe('payable arrears — the first action on overdueBalance', () => {
     state.mail = { messages: [invoice] };
     const h = harness(state);
 
-    chooseMailDecision(h.setGameState, invoice.id, 'pay', () => undefined);
-    chooseMailDecision(h.setGameState, invoice.id, 'pay', () => undefined);
+    chooseMailDecision(h.get(), h.setGameState, invoice.id, 'pay', () => undefined);
+    chooseMailDecision(h.get(), h.setGameState, invoice.id, 'pay', () => undefined);
 
     expect(h.get().stats.money).toBe(1500);
     expect(h.get().overdueBalance).toBe(0);
@@ -293,10 +293,10 @@ describe('choosing is one-shot', () => {
     const h = harness(state);
 
     const delegations: unknown[] = [];
-    chooseMailDecision(h.setGameState, letter.id, 'serve', (r) =>
+    chooseMailDecision(h.get(), h.setGameState, letter.id, 'serve', (r) =>
       delegations.push(r.delegateToEvent)
     );
-    chooseMailDecision(h.setGameState, letter.id, 'excuse', (r) =>
+    chooseMailDecision(h.get(), h.setGameState, letter.id, 'excuse', (r) =>
       delegations.push(r.delegateToEvent)
     );
 

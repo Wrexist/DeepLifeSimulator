@@ -46,7 +46,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
     setTimeout(() => { void saveGame?.(); }, 0);
   }, [saveGame]);
 
-  const handleAccept = useCallback((id: string) => { acceptBrandDeal(setGameState, id); persist(); }, [setGameState, persist]);
+  const handleAccept = useCallback((id: string) => { acceptBrandDeal(gameState, setGameState, id); persist(); }, [gameState, setGameState, persist]);
   const handleDecline = useCallback((id: string) => { declineBrandDeal(setGameState, id); persist(); }, [setGameState, persist]);
 
   // Destructive: confirm before applying the 50% penalty. Tapping the breach
@@ -79,7 +79,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
         `You'll lose $${penalty.toLocaleString()} and the deal will be marked as breached in your history.`,
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Breach', style: 'destructive', onPress: () => { breachBrandDeal(setGameState, id); persist(); } },
+          { text: 'Breach', style: 'destructive', onPress: () => { breachBrandDeal(gameState, setGameState, id); persist(); } },
         ],
       );
     },
@@ -100,14 +100,17 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
         );
         return;
       }
-      const r = deliverBrandDealPost(setGameState, dealId, candidate.id);
+      const r = deliverBrandDealPost(gameState, setGameState, dealId, candidate.id);
       if (!r.success) {
         Alert.alert('Delivery failed', r.message);
         return;
       }
       persist();
     },
-    [setGameState, sm?.recentPosts, persist],
+    // `gameState` is a real dependency now that the action reports from the
+    // snapshot it is handed — a stale one would preview a delivery against an
+    // out-of-date post list.
+    [gameState, setGameState, sm?.recentPosts, persist],
   );
 
   const tabCount = {

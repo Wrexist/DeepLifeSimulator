@@ -112,7 +112,7 @@ describe('trade money guards — NaN balance', () => {
   describe('vehicle BUY (financed asset)', () => {
     it('a healthy balance completes the purchase', () => {
       const store = makeStore(createTestGameState({ hasDriversLicense: true, stats: st(100_000, { reputation: 0 }) }));
-      const res = purchaseVehicleWithAutoLoan(store.setGameState, {
+      const res = purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
         templateId: 'economy_sedan',
         tier: 'cash',
         term: '5y',
@@ -124,7 +124,7 @@ describe('trade money guards — NaN balance', () => {
 
     it('a NaN balance rejects the purchase — no vehicle granted', () => {
       const store = makeStore(createTestGameState({ hasDriversLicense: true, stats: st(NaN) }));
-      const res = purchaseVehicleWithAutoLoan(store.setGameState, {
+      const res = purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
         templateId: 'economy_sedan',
         tier: 'cash',
         term: '5y',

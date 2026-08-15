@@ -94,7 +94,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
           style: 'destructive',
           onPress: () => {
             sparkHaptics.tap();
-            const result = reportProfile(setGameState, profile.id);
+            const result = reportProfile(gameState, setGameState, profile.id);
             if (result.success) {
               saveGame?.();
               onClosed();
@@ -103,7 +103,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
         },
       ],
     );
-  }, [profile, setGameState, saveGame, onClosed]);
+  }, [profile, gameState, setGameState, saveGame, onClosed]);
 
   // 1c: expose a matched catfish — unmatches and grants reputation for calling
   // out the fake profile. Mirrors handleReport's confirm → act → save → close.

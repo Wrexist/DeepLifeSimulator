@@ -1,43 +1,49 @@
 /**
- * C-9 batch 1 — every pet action now reports what actually happened.
+ * C-9 batch 1, REVISED 2026-08-15 — every pet action reports what actually
+ * happened, without reading across the updater boundary.
+ *
+ * ── The original problem (still fixed) ────────────────────────────────────
  *
  * All eight functions in `PetActions.ts` had the C-8 shape: rejection paths
  * reachable ONLY from inside the `setGameState` updater, each correctly
  * returning `prev`, followed by an unconditional `return { success: true }`.
  * The state was always right. The report was not, and `PetApp` branches on
- * that flag — so a refused action played the success path.
+ * that flag — so a refused action played the success path. Worst of them,
+ * `payForVet` told the player "$service: Rex is doing better" for a visit the
+ * code had just correctly refused as a no-op.
  *
- * Two of them were worse than a wrong message:
+ * ── Why the first fix was withdrawn ───────────────────────────────────────
  *
- *   - `payForVet` told the player "$service: Rex is doing better" for a visit
- *     the code had just correctly refused as a no-op. That is the C-6 guard
- *     from earlier this round reporting the opposite of what it did.
- *   - `enterCompetition` returned `won` and `payout` from the stale
- *     pre-updater roll, so a second entry in the same week — rejected by the
- *     once-per-week cap — still reported a prize the player did not receive.
+ * That round fixed it with a "pessimistic capture": `let treated = false`
+ * assigned inside the updater and read after. This file's own header carried
+ * the caveat, and a player report on 2026-08-15 turned the caveat into an
+ * incident — in `manageFamilyBusiness`, a $40.25M player was told they needed
+ * $10,000 for a $10,000 action that had in fact succeeded.
  *
- * Each now captures pessimistically: the default is failure, so the function
- * cannot claim success for a path that returned `prev`.
+ * React runs only the FIRST functional update of a batch eagerly; a second is
+ * DEFERRED, so the capture reads its initial `false` for an action that
+ * worked. The capture cannot distinguish "the updater rejected" from "the
+ * updater has not run yet", and those need opposite reports.
  *
- * CAVEAT, added after the fact and measured in
- * `__tests__/refactor/updaterTimingContract.test.tsx`: reading a captured flag
- * after `setGameState` is only reliable for the FIRST update in a batch, which
- * React runs eagerly. A second update in the same batch is deferred, so the
- * flag reads stale. That makes this shape a strict improvement on the
- * unconditional `return { success: true }` it replaces — which was wrong for
- * every rejection — but not a sound general fix. The nine `VehicleActions`
- * functions were converted the same way and had to be REVERTED: a passing
- * stress test driving real React through `act()` caught a successful refuel
- * reporting failure.
+ * ── What replaces it ──────────────────────────────────────────────────────
  *
- * The sound fix for the remaining 62 is a pure reducer over `prev`, called
- * both for the state and for the report — see the C-10 fix in `SkillTreeModal`
- * and the note at the top of `updaterResultRatchet.test.ts`.
+ * The treatment `innerOnlyRejections.test.ts` prescribes and that
+ * `upgradeEnergySystem` / `buildRDLab` already use: an OUTER guard, never a
+ * capture. Every inner `return prev` here is mirrored by an outer check
+ * against the snapshot, so the report has no timing dependency at all. The
+ * inner guards stay — they are the same-batch race protection for STATE.
  *
- * Note also that the `swallowed` cases below pass under a synchronous stub;
- * they pin the pessimistic DEFAULT, not React's real timing.
+ * `payForVet` was the one with no outer mirror, so it got a real one:
+ * `vetVisitWouldHelp`, the same predicate inside and out.
  *
- * 2026-08-01 audit round 4.
+ * ── The property that was dropped, deliberately ───────────────────────────
+ *
+ * The old suite asserted "with the updater swallowed, nothing may claim to
+ * have happened". That is not achievable: a swallowed updater and a deferred
+ * updater are indistinguishable from outside, and the only mechanism that
+ * satisfies it — the capture — misreports every deferred success, which is the
+ * common case and the one that reached a player. Those cases are replaced
+ * below by the timing property that IS achievable and IS the reported bug.
  */
 import {
   buyPet, feedPet, buyFood, buyToy, playWithPet, petSleep, payForVet, enterCompetition,
@@ -57,8 +63,29 @@ function batched(initial: GameState) {
   return { setState, get: () => state };
 }
 
-/** A setState that swallows the updater — models a render React discards. */
-const swallowed = (() => { /* no-op */ }) as React.Dispatch<React.SetStateAction<GameState>>;
+/**
+ * A setState that QUEUES the updater instead of running it — React's deferred
+ * path for any update that is not first in its batch.
+ *
+ * This is what the old `swallowed` stub should have been modelling. The
+ * difference matters: a report read after `setGameState` sees exactly this
+ * state of the world, and it must not conclude "rejected" from it.
+ */
+function deferred(initial: GameState) {
+  let state = initial;
+  const queue: React.SetStateAction<GameState>[] = [];
+  const setState = ((update: React.SetStateAction<GameState>) => {
+    queue.push(update);
+  }) as React.Dispatch<React.SetStateAction<GameState>>;
+  const flush = () => {
+    while (queue.length) {
+      const u = queue.shift()!;
+      if (typeof u !== 'function') throw new Error('non-functional updater');
+      state = (u as (p: GameState) => GameState)(state);
+    }
+  };
+  return { setState, flush, get: () => state };
+}
 
 function withPet(over: Record<string, unknown> = {}, money = 1_000_000): GameState {
   const base = createTestGameState();
@@ -74,26 +101,51 @@ function withPet(over: Record<string, unknown> = {}, money = 1_000_000): GameSta
   });
 }
 
-describe('C-9 — a discarded updater never reports success', () => {
+describe('C-9 — a DEFERRED updater never reports failure for work that lands', () => {
   /**
-   * The single property the whole pessimistic-capture pattern exists for, and
-   * the one the old code could not satisfy at all: with the updater swallowed,
-   * nothing changed, so nothing may claim to have happened.
+   * The property that replaces the old swallowed-updater assertions, and the
+   * one the 2026-08-15 player report was about. Each action is invoked with a
+   * setState that has not yet run the updater — React's ordinary deferred path
+   * — and must still report the truth, which the flush then confirms.
    */
-  const cases: [string, (s: GameState) => { success: boolean }][] = [
-    ['buyPet', (s) => buyPet(s, swallowed, 'dog', 'Rex', deps)],
-    ['feedPet', (s) => feedPet(s, swallowed, 'p1', 'basic')],
-    ['buyFood', (s) => buyFood(s, swallowed, 'basic', 1, deps)],
-    ['playWithPet', (s) => playWithPet(s, swallowed, 'p1')],
-    ['petSleep', (s) => petSleep(s, swallowed, 'p1')],
-    ['payForVet', (s) => payForVet(s, swallowed, 'p1', 'checkup', deps, 10)],
+  const cases: [string, (s: GameState, set: React.Dispatch<React.SetStateAction<GameState>>) => { success: boolean }][] = [
+    ['buyPet', (s, set) => buyPet(s, set, 'dog', 'Bella', deps)],
+    ['feedPet', (s, set) => feedPet(s, set, 'p1', 'basic')],
+    ['buyFood', (s, set) => buyFood(s, set, 'basic', 1, deps)],
+    ['playWithPet', (s, set) => playWithPet(s, set, 'p1')],
+    ['petSleep', (s, set) => petSleep(s, set, 'p1')],
+    ['payForVet', (s, set) => payForVet(s, set, 'p1', 'checkup', deps, 10)],
   ];
 
   for (const [name, run] of cases) {
-    it(`${name} reports failure`, () => {
-      expect(`${name}: ${run(withPet()).success}`).toBe(`${name}: false`);
+    it(`${name} reports success while the updater is still queued`, () => {
+      const snapshot = withPet();
+      const d = deferred(snapshot);
+
+      const r = run(snapshot, d.setState);
+
+      expect(`${name}: ${r.success}`).toBe(`${name}: true`);
+
+      // And it was telling the truth — flushing really does change the state.
+      const before = JSON.stringify(d.get());
+      d.flush();
+      expect(`${name} changed state: ${JSON.stringify(d.get()) !== before}`)
+        .toBe(`${name} changed state: true`);
     });
   }
+
+  it('and each still refuses, on the snapshot, when it genuinely cannot act', () => {
+    // The other half: the outer guards are what report now, so they have to be
+    // real. A broke player and a sick-free pet are both refused with no updater
+    // dispatched at all.
+    const broke = withPet({}, 0);
+    const d1 = deferred(broke);
+    expect(buyPet(broke, d1.setState, 'dog', 'Bella', deps).success).toBe(false);
+
+    const healthy = withPet({ health: 100, happiness: 100, vaccinated: true });
+    const d2 = deferred(healthy);
+    expect(payForVet(healthy, d2.setState, 'p1', 'checkup', deps, 10).success).toBe(false);
+  });
 });
 
 describe('C-9 — payForVet no longer congratulates a refused visit', () => {
@@ -121,16 +173,29 @@ describe('C-9 — payForVet no longer congratulates a refused visit', () => {
   });
 });
 
-describe('C-9 — enterCompetition no longer reports a prize it did not pay', () => {
-  it('a same-batch double tap reports neither success nor a payout', () => {
+describe('C-9 — enterCompetition pays once, whatever it reports', () => {
+  it('a same-batch double tap enters ONCE and is charged/paid ONCE', () => {
     /**
      * Both calls are given the SAME stale snapshot, which is what a double tap
-     * in one React batch produces. That matters: passing the UPDATED state
-     * instead makes the OUTER once-per-week guard reject, which was always
-     * correct and passes on the pre-fix tree too. Only the stale-snapshot path
-     * reaches the inner `lastCompetitionWeek` re-check — the rejection that
-     * used to fall through to an unconditional success carrying `won` and
-     * `payout` from the pre-updater roll.
+     * in one React batch produces. The inner `lastCompetitionWeek` re-check is
+     * the only thing that can see the first entry, so it is what must hold.
+     *
+     * ── What changed here, and the trade being made ─────────────────────────
+     *
+     * This used to also assert `second.success === false` with no `won` /
+     * `payout`, satisfied by a `let entered` capture read after the updater.
+     * That capture is what the 2026-08-15 player report was about: it cannot
+     * tell "the updater rejected" from "the updater has not run yet", and the
+     * second reading is far more common — every update that is not first in
+     * its React batch. A legitimate FIRST entry was being reported as "already
+     * competed this week".
+     *
+     * With the capture gone, the report comes from the outer once-per-week
+     * guard, which reads the stale snapshot and therefore passes twice. So a
+     * stale double tap now reports its result twice. The MONEY is unaffected —
+     * asserted below — and the prize really was paid, once. A duplicated
+     * message on a rare double tap is a strictly better failure than a false
+     * refusal on the common path.
      */
     const snapshot = withPet();
     const { setState, get } = batched(snapshot);
@@ -140,10 +205,12 @@ describe('C-9 — enterCompetition no longer reports a prize it did not pay', ()
     const second = enterCompetition(snapshot, setState, 'p1', 'agility', 0);
 
     expect(first.success).toBe(true);
-    expect(second.success).toBe(false);
-    expect(second.won).toBeUndefined();
-    expect(second.payout).toBeUndefined();
+    // The state is the thing that has to be right, and it is: the second entry
+    // was rejected inside the updater, so no second fee and no second prize.
     expect(get().stats.money).toBe(moneyAfterFirst);
+    expect(get().pets?.[0].lastCompetitionWeek).toBe(10);
+    // Documenting the accepted trade rather than leaving it unstated.
+    expect(second.success).toBe(true);
   });
 
   it('the once-per-week OUTER guard also still holds (the control)', () => {

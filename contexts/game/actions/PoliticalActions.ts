@@ -675,14 +675,14 @@ export const lobby = (
   // class: "the goods were granted and the money just zeroed out". The sibling
   // actions `runForElection` and `enactPolicy` were fixed in the 2026-07-02
   // audit; these three were left behind. 2026-07-30 audit.
-  // Reflect the updater's decision in the return value. It used to be a
-   // hardcoded success, so on the very same-batch race `applyMoneyDelta`
-   // exists to reject, the caller was still told the influence was bought.
-  let applied = false;
+  // The outer guards above are the reported outcome; the `return prev` below is
+  // the same-batch RACE guard for STATE. A `let applied` flag used to be read
+  // back after the dispatch, which is only reliable for the FIRST functional
+  // update of a React batch — so a legitimate spend that was not first reported
+  // "you cannot afford ..." for money it had just spent (2026-08-15).
   setGameState(prev => {
     const spend = applyMoneyDelta(prev, -amount, 'Lobbying');
     if (!spend) return prev;
-    applied = true;
     return {
     ...prev,
     ...spend,
@@ -702,9 +702,6 @@ export const lobby = (
     };
   });
 
-  if (!applied) {
-    return { success: false, message: `You cannot afford $${amount.toLocaleString()} of lobbying right now.` };
-  }
   log.info(`Lobbied for ${policy.name} with $${amount}`);
   return { success: true, message: `Lobbied for ${policy.name}. Policy influence increased!` };
 };
@@ -813,11 +810,14 @@ export const campaign = (
   const approvalGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 5000))) : 0;
 
   // ECON-3: reject rather than floor — see `lobby` above.
-  let applied = false;
+  // The outer guards above are the reported outcome; the `return prev` below is
+  // the same-batch RACE guard for STATE. A `let applied` flag used to be read
+  // back after the dispatch, which is only reliable for the FIRST functional
+  // update of a React batch — so a legitimate spend that was not first reported
+  // "you cannot afford ..." for money it had just spent (2026-08-15).
   setGameState(prev => {
     const spend = applyMoneyDelta(prev, -amount, 'Campaign spending');
     if (!spend) return prev;
-    applied = true;
     return {
     ...prev,
     ...spend,
@@ -839,9 +839,6 @@ export const campaign = (
   });
 
   log.info(`Campaign spending: $${amount}, approval gain: ${approvalGain}`);
-  if (!applied) {
-    return { success: false, message: `You cannot afford $${amount.toLocaleString()} of campaign spending right now.` };
-  }
   return { success: true, message: `Campaign spending increased your approval rating by ${approvalGain}!` };
 };
 
@@ -895,12 +892,15 @@ export const hireLobbyist = (
   // one retainer two taps hired two lobbyists — the second free, its influence
   // permanent. Tapping the SAME row twice appended a duplicate entry while
   // `fireLobbyist` only ever subtracts one lobbyist's influence.
-  let applied = false;
+  // The outer guards above are the reported outcome; the `return prev` below is
+  // the same-batch RACE guard for STATE. A `let applied` flag used to be read
+  // back after the dispatch, which is only reliable for the FIRST functional
+  // update of a React batch — so a legitimate spend that was not first reported
+  // "you cannot afford ..." for money it had just spent (2026-08-15).
   setGameState(prev => {
     if ((prev.politics?.lobbyists || []).some((l) => l?.id === newLobbyist.id)) return prev;
     const spend = applyMoneyDelta(prev, -lobbyist.cost, `Hire lobbyist: ${lobbyist.name}`);
     if (!spend) return prev;
-    applied = true;
     return {
     ...prev,
     ...spend,
@@ -922,12 +922,6 @@ export const hireLobbyist = (
   });
 
   log.info(`Hired lobbyist: ${lobbyist.name}`);
-  if (!applied) {
-    return {
-      success: false,
-      message: `Could not hire ${lobbyist.name} — you may already have them, or cannot afford the retainer.`,
-    };
-  }
   return { success: true, message: `Successfully hired ${lobbyist.name}! Policy influence increased by ${lobbyist.influence}.` };
 };
 

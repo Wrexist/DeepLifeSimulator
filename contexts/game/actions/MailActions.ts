@@ -24,7 +24,6 @@ import {
   applyRecruiterLeverage,
   applySecurityShield,
 } from '@/lib/mail/resolve';
-import { docMoney } from '@/lib/mail/format';
 import { logger } from '@/utils/logger';
 
 type SetGameState = (updater: (prev: GameState) => GameState) => void;
@@ -140,12 +139,43 @@ export interface ScamActionResult {
  * The caller receives the amount through a ref rather than a return value,
  * because a `setGameState` updater's result is not visible outside it (§4.1).
  */
+/**
+ * These four report through an `onResolved` callback fired AFTER the dispatch,
+ * and each used to fill that callback from a `let` assigned inside the updater.
+ * That read is only reliable for the FIRST functional update of a React batch
+ * (`__tests__/refactor/updaterTimingContract.test.tsx`), so on a deferred
+ * dispatch the player was shown `lost: 0`, `recovered: 0` or an empty outcome
+ * string for money that had actually moved — the 2026-08-15 defect class.
+ *
+ * Each now derives the reported figure from the caller's snapshot with the same
+ * pure logic the updater applies to `prev`, so nothing crosses the boundary.
+ */
+/**
+ * The narrow slice these previews need.
+ *
+ * Deliberately NOT the whole `GameState`: `MailApp` subscribes through
+ * `useGameSelector`, and pulling the combined state into it would re-subscribe
+ * the screen to every field — the perf regression CLAUDE.md §4.1 documents.
+ * `scamLossFor` reads only `stats.money`, and the dispute path only `mail`.
+ */
+export interface MailSnapshot {
+  mail: GameState['mail'];
+  money: number;
+}
+
+function scamLossPreview(snapshot: MailSnapshot, id: string): number {
+  const message = (snapshot.mail?.messages ?? []).find((m) => m.id === id);
+  if (!message || !message.scam || message.actionTaken) return 0;
+  return scamLossFor({ stats: { money: snapshot.money } } as GameState, message);
+}
+
 export function actOnScamMail(
+  snapshot: MailSnapshot,
   setGameState: SetGameState,
   id: string,
   onResolved: (result: ScamActionResult) => void
 ): void {
-  let lost = 0;
+  const lost = scamLossPreview(snapshot, id);
 
   setGameState((prev) => {
     const mail = getMailState(prev);
@@ -157,7 +187,6 @@ export function actOnScamMail(
     if (!message.scam || message.actionTaken) return prev;
 
     const amount = scamLossFor(prev, message);
-    lost = amount;
 
     const messages = [...mail.messages];
     messages[index] = {
@@ -176,8 +205,6 @@ export function actOnScamMail(
     };
   });
 
-  // Flushed after the updater so the caller sees the charged figure, not a
-  // value read from a state it cannot observe yet.
   onResolved({ lost });
 }
 
@@ -195,47 +222,49 @@ export interface DisputeResult {
  * once per incident. `disputed` is set in the same updater that pays, for the
  * same double-tap reason as above.
  */
+/** Why a dispute would be refused from `snapshot`, or the recoverable amount. */
+function disputePreview(snapshot: MailSnapshot, id: string): { recovered: number; refused?: string } {
+  const message = (snapshot.mail?.messages ?? []).find((m) => m.id === id);
+  if (!message) return { recovered: 0, refused: 'That message is no longer in your mailbox.' };
+  if (!message.lostAmount || message.lostAmount <= 0) {
+    return { recovered: 0, refused: 'There is no charge on this message to dispute.' };
+  }
+  if (message.disputed) return { recovered: 0, refused: 'This charge has already been disputed.' };
+  return { recovered: Math.floor(message.lostAmount * DISPUTE_RECOVERY_FRACTION) };
+}
+
 export function disputeMailCharge(
+  snapshot: MailSnapshot,
   setGameState: SetGameState,
   id: string,
   onResolved: (result: DisputeResult) => void
 ): void {
-  let recovered = 0;
-  let refused: string | undefined;
+  const preview = disputePreview(snapshot, id);
 
   setGameState((prev) => {
     const mail = getMailState(prev);
     const index = mail.messages.findIndex((m) => m.id === id);
-    if (index === -1) {
-      refused = 'That message is no longer in your mailbox.';
-      return prev;
-    }
+    if (index === -1) return prev;
 
     const message = mail.messages[index];
-    if (!message.lostAmount || message.lostAmount <= 0) {
-      refused = 'There is no charge on this message to dispute.';
-      return prev;
-    }
-    if (message.disputed) {
-      refused = 'This charge has already been disputed.';
-      return prev;
-    }
+    if (!message.lostAmount || message.lostAmount <= 0) return prev;
+    if (message.disputed) return prev; // race guard; mirrored by disputePreview
 
-    recovered = Math.floor(message.lostAmount * DISPUTE_RECOVERY_FRACTION);
+    const freshRecovered = Math.floor(message.lostAmount * DISPUTE_RECOVERY_FRACTION);
 
     const messages = [...mail.messages];
     messages[index] = { ...message, disputed: true };
 
-    logger.info(`[MAIL] Dispute settled (${message.id}) — ${recovered} recovered`);
+    logger.info(`[MAIL] Dispute settled (${message.id}) — ${freshRecovered} recovered`);
 
     return {
       ...prev,
-      stats: { ...prev.stats, money: (prev.stats?.money ?? 0) + recovered },
+      stats: { ...prev.stats, money: (prev.stats?.money ?? 0) + freshRecovered },
       mail: { ...mail, messages },
     };
   });
 
-  onResolved({ recovered, refused });
+  onResolved(preview);
 }
 
 export interface DecisionResult {
@@ -284,37 +313,6 @@ function resolveDecisionOn(
  * the effects in its own updater. The stamp is still one-shot, so the delegation
  * can only be issued once.
  */
-export function chooseMailDecision(
-  setGameState: SetGameState,
-  id: string,
-  choiceId: string,
-  onResolved: (result: DecisionResult) => void
-): void {
-  let result: DecisionResult = { outcome: '' };
-
-  setGameState((prev) => {
-    const mail = getMailState(prev);
-    const message = mail.messages.find((m) => m.id === id);
-    if (!message?.decision || message.decision.chosenId) return prev;
-
-    const { resolver } = message.decision;
-
-    if (resolver.kind === 'event') {
-      result = {
-        outcome: 'Answered.',
-        delegateToEvent: { eventId: resolver.eventId, choiceId },
-      };
-      return resolveDecisionOn(prev, id, choiceId, 'chosen', 'Answered.');
-    }
-
-    const applied = applyResolver(prev, resolver, choiceId);
-    result = { outcome: applied.outcome };
-    return resolveDecisionOn(applied.state, id, choiceId, 'chosen', applied.outcome);
-  });
-
-  onResolved(result);
-}
-
 /**
  * One dispatcher for every non-event resolver.
  *
@@ -348,41 +346,73 @@ function applyResolver(
 }
 
 /**
- * Lapse a decision nobody answered.
+ * PURE: what does answering `id` with `choiceId` do to `state`?
  *
- * Called by the tick, not the UI. Applies the decision's own `lapseChoiceId`
- * through the same path a tap would, so "ignored" and "chose the default" can
- * never diverge.
+ * `next: null` means the decision was already answered (or the message is
+ * gone). Used for the reported outcome AND the commit, so the copy the player
+ * sees is never read across the updater boundary.
  */
+function resolveMailDecision(
+  state: GameState,
+  id: string,
+  choiceId: string,
+  mode: 'chosen' | 'lapsed',
+  decorate?: (resolverKind: string, outcome: string) => string,
+): { result: DecisionResult; next: GameState | null } {
+  const message = getMailState(state).messages.find((m) => m.id === id);
+  if (!message?.decision || message.decision.chosenId) return { result: { outcome: '' }, next: null };
+
+  const { resolver } = message.decision;
+  const lapsedCopy = 'No reply sent.';
+  const baseCopy = mode === 'chosen' ? 'Answered.' : lapsedCopy;
+
+  if (resolver.kind === 'event') {
+    return {
+      result: { outcome: baseCopy, delegateToEvent: { eventId: resolver.eventId, choiceId } },
+      next: resolveDecisionOn(state, id, choiceId, mode, baseCopy),
+    };
+  }
+
+  const applied = applyResolver(state, resolver, choiceId);
+  const outcome = decorate ? decorate(resolver.kind, applied.outcome) : applied.outcome;
+  return {
+    result: { outcome },
+    next: resolveDecisionOn(applied.state, id, choiceId, mode, outcome),
+  };
+}
+
+export function chooseMailDecision(
+  gameState: GameState,
+  setGameState: SetGameState,
+  id: string,
+  choiceId: string,
+  onResolved: (result: DecisionResult) => void
+): void {
+  const preview = resolveMailDecision(gameState, id, choiceId, 'chosen');
+  if (preview.next) {
+    setGameState((prev) => resolveMailDecision(prev, id, choiceId, 'chosen').next ?? prev);
+  }
+  onResolved(preview.result);
+}
+
 export function lapseMailDecision(
+  gameState: GameState,
   setGameState: SetGameState,
   id: string,
   onResolved: (result: DecisionResult) => void
 ): void {
-  let result: DecisionResult = { outcome: '' };
+  const decorate = (kind: string, outcome: string) =>
+    kind === 'careerOffer' ? `You started without replying. ${outcome}` : outcome;
 
-  setGameState((prev) => {
-    const message = getMailState(prev).messages.find((m) => m.id === id);
-    if (!message?.decision || message.decision.chosenId) return prev;
+  const lapseChoice = (state: GameState) =>
+    getMailState(state).messages.find((m) => m.id === id)?.decision?.lapseChoiceId ?? '';
 
-    const choiceId = message.decision.lapseChoiceId;
-    const { resolver } = message.decision;
-
-    if (resolver.kind === 'event') {
-      result = { outcome: 'No reply sent.', delegateToEvent: { eventId: resolver.eventId, choiceId } };
-      return resolveDecisionOn(prev, id, choiceId, 'lapsed', 'No reply sent.');
-    }
-
-    const applied = applyResolver(prev, resolver, choiceId);
-    const outcome =
-      resolver.kind === 'careerOffer'
-        ? `You started without replying. ${applied.outcome}`
-        : applied.outcome;
-    result = { outcome };
-    return resolveDecisionOn(applied.state, id, choiceId, 'lapsed', outcome);
-  });
-
-  onResolved(result);
+  const preview = resolveMailDecision(gameState, id, lapseChoice(gameState), 'lapsed', decorate);
+  if (preview.next) {
+    setGameState((prev) =>
+      resolveMailDecision(prev, id, lapseChoice(prev), 'lapsed', decorate).next ?? prev);
+  }
+  onResolved(preview.result);
 }
 
 /**

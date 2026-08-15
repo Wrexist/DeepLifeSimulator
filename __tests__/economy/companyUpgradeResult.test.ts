@@ -16,12 +16,29 @@
  *
  * The level number was also read out of the updater (`appliedLevel`, assigned
  * inside, read after), which is the CLAUDE.md §4.1 violation this repo has
- * shipped before. The capture is now pessimistic: the default is failure, so an
- * updater React discards or never runs reports a rejection rather than a
- * phantom purchase, and the SUCCESS message is written from inside the updater
- * too — not just the number in it.
+ * shipped before.
  *
- * 2026-08-01 audit round 4.
+ * ── The first fix was withdrawn, 2026-08-15 ───────────────────────────────
+ *
+ * That round replaced the hardcoded success with a "pessimistic capture": a
+ * `let result` defaulting to failure, assigned from inside the updater. It
+ * traded one wrong answer for another. React runs only the FIRST functional
+ * update of a batch eagerly; a second is DEFERRED, so the capture reads its
+ * default for an upgrade that HAS been bought and charged. A player report on
+ * 2026-08-15 caught the same shape in `manageFamilyBusiness` — $40.25M, told
+ * they needed $10,000 for an action that had succeeded.
+ *
+ * `buyCompanyUpgrade` is now a pure reducer (`resolveBuyCompanyUpgrade`) called
+ * twice: against the caller's snapshot for the outcome, against `prev` for the
+ * state. Nothing crosses the updater boundary.
+ *
+ * What that costs, and why it is the right trade: the four scenarios below all
+ * describe the state MOVING between the snapshot and the commit. A report
+ * derived from the snapshot cannot see that, so it reports what the snapshot
+ * supported. The STATE is still rejected correctly in every one — which is what
+ * the assertions now pin — and in exchange, the overwhelmingly common case (a
+ * single legitimate tap that happens not to be first in its batch) stops
+ * reporting a failure that did not happen.
  */
 import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
@@ -82,7 +99,7 @@ describe('C-8 — the catalogue premise', () => {
 });
 
 describe('C-8 — a rejected purchase says so', () => {
-  it('a double-tap past the max level does not report a phantom level', () => {
+  it('a double-tap past the max level buys exactly one level', () => {
     // Sit the upgrade one below max, then tap twice in one batch: the first
     // lands, the second finds it maxed against fresh state.
     const maxed = withCompany(100_000_000, [{
@@ -101,13 +118,16 @@ describe('C-8 — a rejected purchase says so', () => {
     const second = buyCompanyUpgrade(maxed, setState, UPGRADE.id, deps, COMPANY_ID);
 
     expect(first.success).toBe(true);
-    expect(second.success).toBe(false);
-    expect(second.message).toMatch(/maximum level/i);
-    // And the rejection really was free.
+    // The STATE is the property that has to hold: the second tap was rejected
+    // inside the updater, so it cost nothing and added no level.
     expect(get().stats.money).toBe(moneyAfterFirst);
+    const lvl = get().companies?.[0].upgrades.find((u) => u.id === UPGRADE.id)?.level;
+    expect(lvl).toBe(UPGRADE.maxLevel);
+    // Documenting the accepted reporting trade rather than leaving it unstated.
+    expect(second.success).toBe(true);
   });
 
-  it('a company that vanished mid-batch is reported, not celebrated', () => {
+  it('a company that vanished mid-batch changes nothing', () => {
     const snapshot = withCompany(100_000_000);
     let state = snapshot;
     const setState = ((update: React.SetStateAction<GameState>) => {
@@ -115,13 +135,27 @@ describe('C-8 — a rejected purchase says so', () => {
       state = (update as (p: GameState) => GameState)({ ...state, companies: [] });
     }) as React.Dispatch<React.SetStateAction<GameState>>;
 
+    buyCompanyUpgrade(snapshot, setState, UPGRADE.id, deps, COMPANY_ID);
+
+    // No company, so nothing was bought and nothing was charged.
+    expect(state.companies).toEqual([]);
+    expect(state.stats.money).toBe(100_000_000);
+  });
+
+  it('but a company that is really missing IS reported (the outer guard)', () => {
+    // The case the caller can actually be told about, because the snapshot
+    // shows it. This is what the outer guard is for.
+    const empty = withCompany(100_000_000);
+    const snapshot = { ...empty, companies: [] } as GameState;
+    const { setState } = batched(snapshot);
+
     const r = buyCompanyUpgrade(snapshot, setState, UPGRADE.id, deps, COMPANY_ID);
 
     expect(r.success).toBe(false);
     expect(r.message).toMatch(/not found/i);
   });
 
-  it('funds that ran out between the check and the updater are reported', () => {
+  it('funds that ran out between the check and the updater are not spent', () => {
     // The outer snapshot can afford it; `prev` cannot. Only the inner check
     // sees this, and it used to return prev and then claim success.
     const rich = withCompany(100_000_000);
@@ -133,22 +167,49 @@ describe('C-8 — a rejected purchase says so', () => {
       });
     }) as React.Dispatch<React.SetStateAction<GameState>>;
 
-    const r = buyCompanyUpgrade(rich, setState, UPGRADE.id, deps, COMPANY_ID);
+    buyCompanyUpgrade(rich, setState, UPGRADE.id, deps, COMPANY_ID);
+
+    // The updater refused against `prev`, so the balance is untouched at 0 and
+    // no upgrade landed — the money guard is the authority, as it should be.
+    expect(state.stats.money).toBe(0);
+    expect(state.companies?.[0].upgrades.find((u) => u.id === UPGRADE.id)).toBeUndefined();
+  });
+
+  it('and a snapshot that cannot afford it IS reported (the outer guard)', () => {
+    const broke = withCompany(1);
+    const { setState } = batched(broke);
+
+    const r = buyCompanyUpgrade(broke, setState, UPGRADE.id, deps, COMPANY_ID);
 
     expect(r.success).toBe(false);
     expect(r.message).toMatch(/Need /);
-    expect(state.stats.money).toBe(0);
   });
 
-  it('an updater that never runs reports failure, not success', () => {
-    // The pessimistic default. React may discard a render; the old code's
-    // optimistic `return { success: true }` did not care either way.
+  it('a DEFERRED updater still reports the purchase it is about to make', () => {
+    /**
+     * Replaces an assertion that a swallowed updater must report failure. That
+     * property is not achievable: a swallowed dispatch and a deferred one are
+     * indistinguishable from outside, and the only mechanism that satisfied it
+     * — the capture — misreported every deferred success, which is the common
+     * case and the one that reached a player.
+     */
     const snapshot = withCompany(100_000_000);
-    const never = (() => { /* setState swallowed */ }) as React.Dispatch<React.SetStateAction<GameState>>;
+    const queue: React.SetStateAction<GameState>[] = [];
+    const setState = ((u: React.SetStateAction<GameState>) => { queue.push(u); }) as React.Dispatch<React.SetStateAction<GameState>>;
 
-    const r = buyCompanyUpgrade(snapshot, never, UPGRADE.id, deps, COMPANY_ID);
+    const r = buyCompanyUpgrade(snapshot, setState, UPGRADE.id, deps, COMPANY_ID);
 
-    expect(r.success).toBe(false);
+    expect(r.success).toBe(true);
+    expect(r.message).toMatch(/Successfully purchased/);
+
+    // And it was telling the truth — flushing really does buy the level.
+    let state = snapshot;
+    while (queue.length) {
+      const u = queue.shift()!;
+      state = typeof u === 'function' ? (u as (p: GameState) => GameState)(state) : u;
+    }
+    expect(state.stats.money).toBeLessThan(100_000_000);
+    expect(state.companies?.[0].upgrades.find((up) => up.id === UPGRADE.id)?.level).toBe(1);
   });
 });
 
