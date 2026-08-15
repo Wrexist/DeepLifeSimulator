@@ -31,7 +31,7 @@ import {
   weeksInThisLife,
   earnedThisLife,
 } from '@/lib/progress/lifeChapters';
-import { computeWeeksLived } from '@/src/features/onboarding/gameStateBuilder';
+import { computeWeeksLived } from '@/lib/config/gameConstants';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -125,5 +125,53 @@ describe('weeksInThisLife degrades safely', () => {
   it('survives NaN on either side', () => {
     expect(weeksInThisLife(createTestGameState({ weeksLived: NaN }))).toBe(0);
     expect(weeksInThisLife(createTestGameState({ weeksLived: 50, lifeStartWeek: NaN }))).toBe(50);
+  });
+});
+
+describe('a prestige heir starts a life, not mid-one', () => {
+  /**
+   * `prestigeExecution` spreads `initialGameState` (weeksLived 0) and then set
+   * `date.age` to the child's age without touching the counter — so an heir who
+   * took over at 20 carried `age: 20` with `weeksLived: 0`. That is the exact
+   * pair `src/debug/aiIntegrityChecks` flags as "weeks lived inconsistent with
+   * age", and it would put every age-derived read out of step with the counter
+   * for the whole of that life.
+   *
+   * These assert the RULE rather than driving the prestige flow, which needs a
+   * whole terminal life to set up. `computeWeeksLived` is now the one shared
+   * definition — it moved to `lib/config/gameConstants` precisely so the heir
+   * path could use it without `lib/` importing from `src/`.
+   */
+  const ADULT = 18;
+  const WEEKS = 52;
+
+  it('the shared helper agrees with the integrity check it has to satisfy', () => {
+    for (const age of [18, 20, 25, 40]) {
+      const weeks = computeWeeksLived(age);
+      // `aiIntegrityChecks`: weeksLived within [min - 52, max + 52].
+      expect(weeks).toBeGreaterThanOrEqual((age - ADULT) * WEEKS - WEEKS);
+      expect(weeks).toBeLessThanOrEqual((age - ADULT + 1) * WEEKS + WEEKS);
+    }
+  });
+
+  it('an age-20 heir is 104 weeks in, not 0 — the pair that failed the check', () => {
+    expect(computeWeeksLived(20)).toBe(104);
+    // The old behaviour, shown failing the same bound, so the regression is
+    // legible rather than implied.
+    expect(0).toBeLessThan((20 - ADULT) * WEEKS - WEEKS);
+  });
+
+  it('and their life-relative clock still starts at zero', () => {
+    // `lifeStartWeek` is stamped to the same value, so chapter goals measure
+    // the heir's own weeks — they do not inherit a head start.
+    const start = computeWeeksLived(20);
+    const heir = createTestGameState({ weeksLived: start, lifeStartWeek: start });
+
+    expect(weeksInThisLife(heir)).toBe(0);
+    expect(done(heir)).toEqual([]);
+  });
+
+  it('a fresh 18-year-old is unchanged (the control)', () => {
+    expect(computeWeeksLived(18)).toBe(0);
   });
 });

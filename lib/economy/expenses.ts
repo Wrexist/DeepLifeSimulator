@@ -1,7 +1,8 @@
 import { GameState } from '@/contexts/game/types';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
-import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
 
@@ -31,6 +32,10 @@ export interface ExpenseBreakdown {
   vehicles: number;
   dietPlans: number;
   rent: number;
+  /** Student-loan payments, which the tick charges via education progression. */
+  studentLoans: number;
+  /** Weekly income tax. 0 unless a taxable income is supplied — see below. */
+  incomeTax: number;
 }
 
 interface LoanLike {
@@ -38,7 +43,18 @@ interface LoanLike {
 }
 
 export function calcWeeklyExpenses(
-  state: GameState & { loans?: LoanLike[] }
+  state: GameState & { loans?: LoanLike[] },
+  /**
+   * This week's taxable income, so the figure can include income tax.
+   *
+   * Passed in rather than derived here because the caller already knows it —
+   * `IdentityCard` computes job, passive and partner income a few lines above —
+   * and because a second income calculation living inside the EXPENSE function
+   * is exactly the kind of duplicate that put the tenancy rent out of step in
+   * the first place. Omit it and tax is simply 0, which is what every existing
+   * caller gets.
+   */
+  taxableIncome?: number,
 ): { total: number; breakdown: ExpenseBreakdown } {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
@@ -272,6 +288,31 @@ export function calcWeeklyExpenses(
     // Final validation
     if (!isFinite(rentCosts) || rentCosts < 0) rentCosts = 0;
     
+    // Student-loan payments. `applyEducationProgression` charges
+    // `min(weeklyPayment, remaining)` per education whose loan still has a
+    // balance, so this mirrors that cap rather than the nominal payment — the
+    // last instalment of a nearly-repaid loan is smaller than the sticker.
+    let studentLoanCosts = 0;
+    for (const edu of Array.isArray(state.educations) ? state.educations : []) {
+      const loan = edu?.studentLoan;
+      if (!loan) continue;
+      const remaining = typeof loan.remaining === 'number' && isFinite(loan.remaining) ? loan.remaining : 0;
+      const payment = typeof loan.weeklyPayment === 'number' && isFinite(loan.weeklyPayment) ? loan.weeklyPayment : 0;
+      if (remaining > 0 && payment > 0) studentLoanCosts += Math.min(payment, remaining);
+    }
+    if (!isFinite(studentLoanCosts) || studentLoanCosts < 0) studentLoanCosts = 0;
+
+    // Income tax, through the SAME `calculateIncomeTax` the week loop uses and
+    // scaled by the same Tax Strategy life-skill multiplier. A projection, so
+    // it moves with next week's income rather than reporting last week's bill.
+    let incomeTaxCost = 0;
+    if (typeof taxableIncome === 'number' && isFinite(taxableIncome) && taxableIncome > 0) {
+      const taxMult = getLifeSkillModifiers(state)?.taxMult;
+      const mult = typeof taxMult === 'number' && isFinite(taxMult) && taxMult >= 0 ? taxMult : 1;
+      const owed = Math.round(calculateIncomeTax(taxableIncome) * mult);
+      if (isFinite(owed) && owed > 0) incomeTaxCost = owed;
+    }
+
     // CRITICAL: Validate all components before summing to prevent NaN propagation
     const safeUpkeep = isFinite(upkeep) && upkeep >= 0 ? upkeep : 0;
     const safeLoanPayments = isFinite(loanPayments) && loanPayments >= 0 ? loanPayments : 0;
@@ -279,8 +320,11 @@ export function calcWeeklyExpenses(
     const safeVehicleCosts = isFinite(vehicleCosts) && vehicleCosts >= 0 ? vehicleCosts : 0;
     const safeDietPlanCosts = isFinite(dietPlanCosts) && dietPlanCosts >= 0 ? dietPlanCosts : 0;
     const safeRentCosts = isFinite(rentCosts) && rentCosts >= 0 ? rentCosts : 0;
+    const safeStudentLoans = isFinite(studentLoanCosts) && studentLoanCosts >= 0 ? studentLoanCosts : 0;
+    const safeIncomeTax = isFinite(incomeTaxCost) && incomeTaxCost >= 0 ? incomeTaxCost : 0;
     
-    const total = safeUpkeep + safeLoanPayments + safeMiningPowerCosts + safeVehicleCosts + safeDietPlanCosts + safeRentCosts;
+    const total = safeUpkeep + safeLoanPayments + safeMiningPowerCosts + safeVehicleCosts
+      + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax;
     
     // CRITICAL: Final validation - ensure total is always valid
     const safeTotal = isFinite(total) && total >= 0 ? total : 0;
@@ -294,6 +338,8 @@ export function calcWeeklyExpenses(
         vehicles: safeVehicleCosts,
         dietPlans: safeDietPlanCosts,
         rent: safeRentCosts,
+        studentLoans: safeStudentLoans,
+        incomeTax: safeIncomeTax,
       } 
     };
   } catch (error) {
@@ -308,6 +354,8 @@ export function calcWeeklyExpenses(
         vehicles: 0,
         dietPlans: 0,
         rent: 0,
+        studentLoans: 0,
+        incomeTax: 0,
       },
     };
   }

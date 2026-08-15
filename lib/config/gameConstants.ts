@@ -272,3 +272,20 @@ export const ADULTHOOD_AGE = 18;
 
 // ── Save System ───────────────────────────────────────────
 export const MAX_SAVE_SIZE = 4 * 1024 * 1024; // 4 MB
+
+/**
+ * Absolute `weeksLived` for a character starting at a given age.
+ *
+ * Lives here, beside `ADULTHOOD_AGE` and `WEEKS_PER_YEAR`, because BOTH places
+ * that begin a life need it — onboarding (`gameStateBuilder`) and the prestige
+ * heir path (`lib/prestige/prestigeExecution`). It was previously only in
+ * `src/features/onboarding`, which `lib/` must not import from, and the heir
+ * path consequently left `weeksLived` at 0 while setting `age` to the child's —
+ * a state `aiIntegrityChecks` already flags as "weeks lived inconsistent with
+ * age".
+ */
+export function computeWeeksLived(startingAge: number): number {
+  const age = Number(startingAge);
+  if (!Number.isFinite(age)) return 0;
+  return Math.max(0, Math.floor((age - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
+}

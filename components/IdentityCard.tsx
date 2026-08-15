@@ -243,11 +243,6 @@ function IdentityCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
   );
-  const expenseInfo = useMemo(
-    () => calcWeeklyExpenses(gameState),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [gameState.realEstate, gameState.vehicles, gameState.loans]
-  );
   const passive = passiveInfo.total;
   // Guard the level index the same way `job` (line ~153) does: a stale/migrated
   // save can carry a `level` out of bounds for `levels`, making the lookup
@@ -263,6 +258,27 @@ function IdentityCard() {
       .reduce((max, rel) => Math.max(max, rel.income || 0), 0);
     return Math.round(top * 0.25);
   }, [relationships]);
+
+  /**
+   * What the week loop will actually take.
+   *
+   * Income is threaded in so the figure can include income TAX, which the tick
+   * charges (`weeklyBillsDue` = tax + rent + housing + food + education) and
+   * which this card never showed. Same for student loans, charged through
+   * education progression. Before this, "Weekly Expenses" was a subset of the
+   * real bill and the Cash Flow beneath it was correspondingly optimistic.
+   *
+   * Declared after the income pieces because it now depends on them.
+   */
+  const expenseInfo = useMemo(
+    () => calcWeeklyExpenses(gameState, jobIncome + passive + partnerIncome),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      gameState.realEstate, gameState.vehicles, gameState.loans,
+      gameState.rental, gameState.educations, gameState.unlockedLifeSkills,
+      jobIncome, passive, partnerIncome,
+    ]
+  );
 
   const expenses = expenseInfo.total;
   const cashFlow = jobIncome + passive + partnerIncome - expenses;

@@ -10,7 +10,7 @@ import { getEarnedAchievementCount, getEarnedAchievementNames, getSatisfiedAchie
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
-import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { ADULTHOOD_AGE, computeWeeksLived } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
 import { heirStartingBonuses } from '@/lib/legacy/legacyShop';
 import { applyDynastyTransition } from '@/lib/dynasty/transition';
@@ -429,6 +429,11 @@ function createResetGameState(
     week: 1,
     age: 18,
   };
+  // A fresh 18-year-old starts the counter at 0, which `initialGameState`
+  // already gives — stamped explicitly so the baseline is stated rather than
+  // inherited, and so this path reads the same as the heir one below.
+  newState.weeksLived = computeWeeksLived(18);
+  newState.lifeStartWeek = newState.weeksLived;
 
   // BUG FIX: Apply starting bonuses and unlock bonuses after creating new state
   const unlockedBonuses = prestigeData.unlockedBonuses || [];
@@ -725,6 +730,18 @@ function createChildGameState(
     week: 1,
     age: childAge,
   };
+
+  // `weeksLived` must agree with that age. `newState` is spread from
+  // `initialGameState`, whose `weeksLived` is 0, so an heir who takes over at
+  // 20 carried `age: 20` with `weeksLived: 0` — a combination
+  // `aiIntegrityChecks` already flags ("weeks lived inconsistent with age"),
+  // and one that would make every age-derived read disagree with the counter
+  // for the whole of that life.
+  //
+  // `lifeStartWeek` is stamped to the same value so "weeks into THIS life"
+  // starts at 0 for the heir, exactly as it does for a new character (v43).
+  newState.weeksLived = computeWeeksLived(childAge);
+  newState.lifeStartWeek = newState.weeksLived;
 
   // Calculate inheritance using computeInheritance for proper calculation
   // This includes heirloom bonuses and proper net worth calculation
