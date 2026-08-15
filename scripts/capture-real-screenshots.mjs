@@ -86,7 +86,14 @@ async function main() {
 
   console.log('Loading', URL, '… (first web bundle can take a minute)');
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 180000 });
-  await mustWait('New Game', 90000);   // through splash → main menu
+  // Main-menu labels as of v2.8.0: Play / Custom life / Save Slots / Settings.
+  // This waited on "New Game", which no longer exists anywhere in the app —
+  // so every run of this script hung here for 90s and then threw. That is the
+  // THIRD label this navigation has been broken by ("New Game" only existed
+  // once a save existed; "Create Identity" was renamed to "Create Character"),
+  // which is why the check below asserts the label is actually still in the
+  // source rather than trusting this comment.
+  await mustWait('Custom life', 90000);   // through splash → main menu
   let t = await text(page);
   console.log('Menu text:', JSON.stringify(t.slice(0, 160)));
   await shot(page, 'menu', 0);
@@ -103,8 +110,8 @@ async function main() {
     }
   };
 
-  // MainMenu → New Game
-  await mustStep('New Game', 1500);
+  // MainMenu → the custom-life path (the one that reaches the creator).
+  await mustStep('Custom life', 1500);
   await mustWait('Choose Scenario', 45000);
   // Static-export builds hydrate slowly, so a scenario tap can land before the
   // card is interactive. Retry select → continue until the Identity step shows.

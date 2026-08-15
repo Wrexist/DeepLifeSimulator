@@ -210,6 +210,19 @@ export default function Customize() {
     [category.field]
   );
 
+  // The colour that belongs to the open category (hair colour on Hair, outfit
+  // colour on Outfit). Writes a DIFFERENT field from `handleSelectOption`,
+  // which is the whole reason it is a separate handler rather than a flag.
+  const handleSelectTint = useCallback(
+    (index: number) => {
+      haptic.selection();
+      const field = category.tint?.field;
+      if (!field) return;
+      setAvatar((prev) => ({ ...prev, [field]: index }));
+    },
+    [category.tint?.field]
+  );
+
   const handleSexChange = useCallback((next: AvatarSex) => {
     haptic.selection();
     setSex(next);
@@ -415,6 +428,7 @@ export default function Customize() {
                 activeIndex={activeCategory}
                 onChangeCategory={setActiveCategory}
                 onSelectOption={handleSelectOption}
+                onSelectTint={handleSelectTint}
               />
             </LinearGradient>
           </BlurView>
