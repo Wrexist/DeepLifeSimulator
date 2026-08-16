@@ -155,10 +155,102 @@ lint, routes, weekly audit). Findings triaged into work packages below.
       settle fires, with a discriminating regression test
 - [x] lessons.md entry; committed and pushed
 
+## Wave 4 — picked up from the deferred list
+
+- [x] **WP-I: wire `utils/stateInvariants.ts` (F-14)** — the module claimed "the
+      game never enters an impossible state" while enforcing nothing:
+      `validateMoneyInvariants` log-only in `MoneyActionsContext`,
+      `validateStateInvariants` only in dev tooling, and six exports with zero
+      production callers.
+  - New `enforceStateInvariants(state, context)` runs as the LAST step of
+    `loadGame` (after migrations → `repairGameState` →
+    `validateGameState(autoFix)` → `repairRelationshipState`, and after the
+    merge onto `initialGameState`) and in the CloudSync "keep cloud version"
+    path. Logs every violation under one grep-able tag, `[INVARIANT]`, and
+    clamps the safely-repairable ones. **It never rejects** — a player's save
+    must always load — and it never invents or deletes: relationship violations
+    (duplicate ids, out-of-union types) are reported and left alone, because
+    every repair for those is a deletion or a guess about who someone is.
+  - Deliberately NOT in the weekly tick or per-action paths: the tick has its
+    own per-subsystem guards (§4.3) and the boundary is where corruption enters.
+    Cheap when clean — one pass, early return with the same object reference;
+    the shallow copies only happen on a state already known to be broken.
+  - Does not double-implement the pipeline. It catches what the earlier stages
+    miss on the final state: `date.week` outside 1–4 (`validateGameState` only
+    rejects a NEGATIVE week) and a negative/non-finite `weeksLived` (nothing
+    else checks it at all, and it is the counter every cooldown compares
+    against). Stats clamping is `autoFixStats`' job; kept as a backstop for the
+    paths that skip it.
+  - **Two validators were genuinely wrong and fired on legitimate saves** —
+    exactly why an unwired checker is worse than none, since nothing ever
+    disproved them: (1) `date.age < 18` was a hard ERROR, but the
+    `athletes_journey` scenario starts at **16** and `gameStateBuilder` writes
+    that into `date.age` — now `MIN_VALID_AGE = 16` with the citation;
+    (2) `date.year > 2100` warned, but the year is CUMULATIVE across prestige
+    generations (`newYear = previousYear + yearsLived + 1`), so it fired on the
+    saves of the players who play the most — upper bound removed, lower bound
+    (the 2025 epoch) kept. Also un-nested the "multiple spouses" check, which
+    sat inside `if (family.spouse)` and so could never see the corruption shape
+    it exists to catch.
+  - Tests: `__tests__/save/loadInvariants.test.ts` (10) — unit coverage of the
+    wrapper plus an end-to-end corrupted-save load through the real
+    `GameProvider`/`loadGame` proving (a) logged, (b) repaired, (c) still loads,
+    with a healthy-save control asserting silence. Verified discriminating: with
+    the call stubbed out, `date.week` comes back 9.
+
+- [x] **WP-J: close the save-format tooling gaps (F-2, F-3, F-4, F-6, F-7)** —
+      the audit only ever checked ONE direction of the §7 rule, and two repair
+      mirrors plus two doc entries were missing.
+  - **F-2 (the substantive one): `audit-save.cjs` V11, the INVERSE check.** V8
+    walks the migrations and asks "is each backfill mirrored in repair?", which
+    only ever sees fields somebody already remembered to migrate. §7's rule runs
+    the other way — every `initialState` field with a concrete default ships a
+    migration AND a mirror in the same change — and nothing checked it. V11 now
+    parses `initialGameState`'s 141 top-level keys (depth-tracked, not
+    indentation-matched), keeps the 126 with a concrete default, and fails on
+    any that is named by neither the migration registry nor `repairGameState`.
+    **57 legacy fields are grandfathered** in `LEGACY_PRE_MIGRATION_FIELDS`
+    (`totalHappiness`, `criminalXp`, `vehicles`, `karma`, `lifetimeStatistics`,
+    `politics`, …). They are NOT live bugs: the primary load path is
+    `{ ...initialGameState, ...parsed }`, so an absent key is filled before
+    anything reads it — what they lack is the second line of defence for a save
+    that arrives partial through a path that does not spread. The set is a
+    ratchet like the coverage floors: seeded so the audit is green today, may
+    only SHRINK, and a NEW field without its pair now fails the audit instead of
+    waiting for someone to notice by eye. V11b flags stale entries so the list
+    cannot rot into protecting nothing.
+  - Two analyzer bugs found while wiring it: `repairGameStateBody` ended at "the
+    first column-0 `}`", which landed ~400 lines INSIDE the function (stripNoise
+    deletes `//` comments, so cleaned offsets match nothing) — now brace-matched
+    from the body's opening brace, not the return type's. And repair's
+    table-driven backfills (`requiredArrays`/`catalogArrays`/`subsystemObjects`)
+    live in string literals that stripNoise blanks, so they are read separately
+    from the raw source. V9 gets the same fix for free: it now scans the whole
+    function instead of a third of it.
+  - **F-3: `lastEventWeeksLived` repair mirror.** v12 migration, no mirror — the
+    last v12 field without one. Seeded from `weeksLived`, not 0, because the
+    pity system reads `weeksLived - lastEventWeeksLived`: a 0 on a 400-week
+    character reads as a 400-week drought and fires an event immediately.
+  - **F-4: the v22 `pets.ownedToys` → `toys` collapse mirror.** The one part of
+    migration 22 that MOVES data rather than defaulting it, and the one with no
+    repair counterpart — a partial save stamped ≥v22 still carrying `ownedToys`
+    is skipped by the ladder while every reader has moved to `pet.toys ?? []`,
+    so those toys are paid for and invisible. Union-then-empty, so it never
+    drops a toy and a second pass is a no-op.
+  - **F-6: §7's no-op rule matched no practice.** It said a structure-free bump
+    "must be listed in the intentional-no-op set", but that set is versions 2–9
+    only (the pre-v10 baseline) and all 14 carve-out bumps since v26 are stub
+    migrations carrying their reasoning in a comment. §7 now describes both
+    mechanisms and says which one new work uses.
+  - **F-7: §7 was missing v35** (`settings.lastAdCashGrantWeek`, the marker the
+    ad orb's week gate reads). Added in its neighbours' style.
+  - Tests: `__tests__/save/v22FieldRepairParity.test.ts` +11 (collapse, dedupe,
+    idempotence, malformed-pet safety, the pity-marker seed and its fallbacks)
+    and a new `__tests__/tooling/initialStateFieldCoverage.test.ts` (8) that
+    proves the V11 ratchet still BITES against fixtures — a ratchet nobody can
+    show still fires is not a ratchet.
+
 ## Deliberately deferred (recorded, not done)
 
-- stateInvariants.ts is ~unwired (F-14) — wiring it into load is a design decision
-  (perf + false-positive risk); documented for the owner
-- audit-save.cjs inverse-direction check (F-2) — analyzer extension, larger change
 - Dead superseded action exports (refresh* etc.) — deletion sweep is churn-risk;
   keep list in recon reports

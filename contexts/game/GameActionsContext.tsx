@@ -26,6 +26,7 @@ import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
+import { enforceStateInvariants } from '@/utils/stateInvariants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
@@ -4275,6 +4276,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[CloudSync] Remote state failed validation after repair:', validation.errors);
  return;
  }
+ // F-14: same last-word invariants pass as loadGame. A cloud state
+ // arrives from another device and skips loadGame's merge entirely,
+ // so it needs the check at least as much.
+ const cloudInvariants = enforceStateInvariants(remote, 'cloudSync:keep-cloud');
+ if (!cloudInvariants.clean) {
+ logger.warn('[CloudSync] State invariant violations in cloud state', {
+ violations: cloudInvariants.violations,
+ warnings: cloudInvariants.warnings,
+ repairs: cloudInvariants.repairs,
+ });
+ remote = cloudInvariants.state;
+ }
  setGameState(remote);
  logger.info('[CloudSync] User chose cloud version — migrated + state replaced (validated)');
  }
@@ -4677,6 +4690,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  issues: relationshipValidation.issues,
  });
  safeState = repairRelationshipState(safeState);
+ }
+
+ // F-14: the LAST word on state sanity, after migrations, repair, autoFix and
+ // the relationship repair above have all had their turn — and after the merge
+ // onto `initialGameState`, so it sees the state the app will actually run.
+ // It catches what the earlier stages miss (a `date.week` outside 1-4, which
+ // `validateGameState` only rejects when negative; a negative or non-finite
+ // `weeksLived`, which nothing else checks at all), logs every violation under
+ // the grep-able `[INVARIANT]` tag, and clamps the safely-repairable ones. It
+ // never rejects: a player's save must always load.
+ const invariants = enforceStateInvariants(safeState, `loadGame:slot-${slot}`);
+ if (!invariants.clean) {
+ logger.warn('[LOAD_GAME] State invariant violations on load', {
+ slot,
+ violations: invariants.violations,
+ warnings: invariants.warnings,
+ repairs: invariants.repairs,
+ });
+ safeState = invariants.state;
  }
 
  // ANTI-EXPLOIT: Restore protected state from embedded data if AsyncStorage keys were deleted

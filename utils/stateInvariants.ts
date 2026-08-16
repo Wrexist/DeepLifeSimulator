@@ -1,14 +1,90 @@
 /**
  * State Invariant Checks
- * 
- * Validates game state invariants to prevent silent corruption.
- * These checks ensure the game never enters an impossible state.
+ *
+ * ## What is actually enforced, and where
+ *
+ * This module used to claim it "ensures the game never enters an impossible
+ * state" while enforcing nothing: only `validateMoneyInvariants` had a
+ * production caller, and that one only logged. A module that claims to prevent
+ * impossible states while preventing none is worse than no module, because the
+ * claim is what stops someone adding a real check elsewhere. So the header now
+ * says exactly what runs where:
+ *
+ * | Function | Production caller | Effect |
+ * |---|---|---|
+ * | `enforceStateInvariants` | `loadGame` (`contexts/game/GameActionsContext.tsx`), and the CloudSync "keep cloud version" merge in the same file | logs violations under the `[INVARIANT]` tag and repairs the safely-repairable ones |
+ * | `validateStateInvariants` | the above, plus `lib/simulation/MultiWeekSimulator` | pure check, no repair |
+ * | `validateMoneyInvariants` | `MoneyActionsContext.updateMoney` | log-only |
+ * | `validateStatsInvariants` / `validateTimeInvariants` / `validateRelationshipInvariants` | via `validateStateInvariants` | pure checks |
+ * | `sanitizeFinalStats` | via `enforceStateInvariants` | clamps a stats block |
+ * | `validateStatChanges` / `sanitizeStatChanges` | tests only | helpers for a per-action guard that does NOT exist |
+ *
+ * ## Where it deliberately does NOT run
+ *
+ * Not in the weekly tick and not on per-action paths. The tick has its own
+ * per-subsystem try/catch guards (CLAUDE.md §4.3) and runs ~37 subsystems per
+ * tap; a whole-state pass per tap buys nothing those guards don't already
+ * cover. The enforcement point is the save/load boundary, which is where
+ * corruption actually enters the app.
+ *
+ * ## Relationship to the save pipeline
+ *
+ * `enforceStateInvariants` runs LAST, after `runMigrations` →
+ * `repairGameState` → `validateGameState(autoFix)` → `repairRelationshipState`.
+ * It deliberately does not re-implement them; it catches what they miss on the
+ * final, merged state:
+ *
+ * - `date.week` outside 1–4 (`validateGameState` only rejects `week < 0`)
+ * - `weeksLived` negative or non-finite (nothing else checks it, and it is the
+ *   counter every cooldown, timestamp and history entry compares against —
+ *   CLAUDE.md §4.2)
+ * - `date.age` non-finite or absurd
+ * - duplicate relationship ids and out-of-union relationship types
+ *
+ * ## Repair philosophy
+ *
+ * A player's save must always load — the pipeline never rejects. So violations
+ * are logged (tag `[INVARIANT]`, so QA and telemetry can grep one string) and
+ * only *safely* repairable ones are repaired: values are clamped back into
+ * range, never invented and never dropped. Nothing here deletes a relationship,
+ * a holding or a history entry — a duplicate id is reported and left alone,
+ * because silently removing a person from someone's save is a worse outcome
+ * than the duplicate.
  */
 
-import { GameState, GameStats } from '@/contexts/game/types';
+import type { GameState, GameStats, Relationship } from '@/contexts/game/types';
+import { ADULTHOOD_AGE, WEEKS_PER_MONTH, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
 
 const log = logger.scope('StateInvariants');
+
+/**
+ * The youngest age a legitimately-created save can carry.
+ *
+ * NOT `ADULTHOOD_AGE`. The `athletes_journey` scenario
+ * (`lib/scenarios/scenarioDefinitions.ts`) starts at **16** — "start as an unfit
+ * teen" is its entire premise — and `gameStateBuilder` writes that straight into
+ * `date.age`. This validator used to raise a hard ERROR below 18, so every load
+ * of a perfectly valid Athlete's Journey save reported an impossible state. A
+ * check that fires on legitimate data is how a real one gets ignored.
+ *
+ * If a scenario is ever added that starts younger, lower this constant — do not
+ * remove the check.
+ */
+export const MIN_VALID_AGE = 16;
+
+/** Beyond this, an age is corruption rather than a very long life. */
+export const MAX_VALID_AGE = 150;
+
+/**
+ * The year the game's calendar starts (`initialState.ts`). Anything earlier is
+ * corruption. There is deliberately NO upper bound: `date.year` is CUMULATIVE
+ * across prestige generations (`lib/prestige/prestigeExecution.ts` sets
+ * `newYear = previousYear + yearsLived + 1`), so a few lives push past 2100 and
+ * a dynasty pushes far past it. The old `[2025, 2100]` warning fired on exactly
+ * the saves belonging to the players who play the most.
+ */
+export const GAME_EPOCH_YEAR = 2025;
 
 export interface InvariantCheckResult {
   valid: boolean;
@@ -125,33 +201,35 @@ export function validateTimeInvariants(state: Partial<GameState>): InvariantChec
     return { valid: false, errors, warnings };
   }
 
-  // Validate week (1-4)
+  // Validate week (1-4). `date.week` is the week-of-MONTH and is display only;
+  // the absolute counter is `weeksLived` (CLAUDE.md §4.2).
   if (typeof state.date.week !== 'number') {
     errors.push('date.week is not a number');
   } else if (isNaN(state.date.week) || !isFinite(state.date.week)) {
     errors.push('date.week is NaN or Infinity');
-  } else if (state.date.week < 1 || state.date.week > 4) {
-    errors.push(`date.week is outside valid range [1, 4]: ${state.date.week}`);
+  } else if (state.date.week < 1 || state.date.week > WEEKS_PER_MONTH) {
+    errors.push(`date.week is outside valid range [1, ${WEEKS_PER_MONTH}]: ${state.date.week}`);
   }
 
-  // Validate age (18-150, reasonable range)
+  // Validate age. The floor is MIN_VALID_AGE, not adulthood — see the constant.
   if (typeof state.date.age !== 'number') {
     errors.push('date.age is not a number');
   } else if (isNaN(state.date.age) || !isFinite(state.date.age)) {
     errors.push('date.age is NaN or Infinity');
-  } else if (state.date.age < 18) {
-    errors.push(`date.age is below minimum (18): ${state.date.age}`);
-  } else if (state.date.age > 150) {
+  } else if (state.date.age < MIN_VALID_AGE) {
+    errors.push(`date.age is below minimum (${MIN_VALID_AGE}): ${state.date.age}`);
+  } else if (state.date.age > MAX_VALID_AGE) {
     warnings.push(`date.age is very high: ${state.date.age}`);
   }
 
-  // Validate year (reasonable range: 2025-2100)
+  // Validate year. Lower bound only — the year is cumulative across prestige
+  // generations, so there is no meaningful ceiling (see GAME_EPOCH_YEAR).
   if (typeof state.date.year !== 'number') {
     errors.push('date.year is not a number');
   } else if (isNaN(state.date.year) || !isFinite(state.date.year)) {
     errors.push('date.year is NaN or Infinity');
-  } else if (state.date.year < 2025 || state.date.year > 2100) {
-    warnings.push(`date.year is outside expected range [2025, 2100]: ${state.date.year}`);
+  } else if (state.date.year < GAME_EPOCH_YEAR) {
+    warnings.push(`date.year is before the game epoch (${GAME_EPOCH_YEAR}): ${state.date.year}`);
   }
 
   // Validate weeksLived consistency
@@ -171,6 +249,21 @@ export function validateTimeInvariants(state: Partial<GameState>): InvariantChec
     warnings,
   };
 }
+
+/**
+ * The `Relationship['type']` union as a lookup.
+ *
+ * A `Record<Relationship['type'], true>` rather than a string array on purpose:
+ * adding a member to the union fails THIS file to compile, so the validator
+ * cannot silently start rejecting a type the game legitimately writes.
+ */
+const VALID_RELATIONSHIP_TYPES: Record<Relationship['type'], true> = {
+  parent: true,
+  friend: true,
+  partner: true,
+  spouse: true,
+  child: true,
+};
 
 /**
  * Validate relationship invariants
@@ -205,8 +298,7 @@ export function validateRelationshipInvariants(state: Partial<GameState>): Invar
     }
 
     // Validate relationship type
-    const validTypes = ['parent', 'friend', 'partner', 'spouse', 'child'];
-    if (!validTypes.includes(rel.type)) {
+    if (!(rel.type in VALID_RELATIONSHIP_TYPES)) {
       errors.push(`Relationship ${rel.id} has invalid type: ${rel.type}`);
     }
   }
@@ -219,12 +311,14 @@ export function validateRelationshipInvariants(state: Partial<GameState>): Invar
     } else if (spouseInRelationships.type !== 'spouse') {
       errors.push(`family.spouse has type '${spouseInRelationships.type}' but should be 'spouse'`);
     }
+  }
 
-    // Check for multiple spouses
-    const spouses = state.relationships.filter(r => r.type === 'spouse');
-    if (spouses.length > 1) {
-      errors.push(`Multiple spouses found: ${spouses.length}`);
-    }
+  // Check for multiple spouses. Deliberately OUTSIDE the `family.spouse` branch
+  // above, where it used to live: two spouse rows with no `family.spouse` is a
+  // corruption shape too, and it was the one the nested check could never see.
+  const spouses = state.relationships.filter(r => r.type === 'spouse');
+  if (spouses.length > 1) {
+    errors.push(`Multiple spouses found: ${spouses.length}`);
   }
 
   // Check children consistency
@@ -291,7 +385,10 @@ export function validateMoneyInvariants(
 }
 
 /**
- * Comprehensive state invariant check
+ * Comprehensive state invariant check.
+ *
+ * Pure — reports, never repairs. `enforceStateInvariants` is the wrapper that
+ * logs and repairs; use that one at a boundary.
  */
 export function validateStateInvariants(state: Partial<GameState>): InvariantCheckResult {
   const errors: string[] = [];
@@ -396,5 +493,159 @@ export function sanitizeFinalStats(stats: Partial<GameStats>): GameStats {
   }
 
   return sanitized as GameStats;
+}
+
+/** Outcome of an `enforceStateInvariants` pass. */
+export interface InvariantEnforcementResult {
+  /** True when nothing was wrong — `state` is then the identical reference. */
+  clean: boolean;
+  /** Invariant ERRORS found before repair (logged under `[INVARIANT]`). */
+  violations: string[];
+  /** Non-fatal oddities found before repair. */
+  warnings: string[];
+  /** Human-readable description of each repair actually applied. */
+  repairs: string[];
+  /** The state to use. A new object only when something was repaired. */
+  state: GameState;
+}
+
+/** The age a `weeksLived` counter of N implies (CLAUDE.md §4.2). */
+function deriveAge(weeksLived: unknown): number {
+  if (typeof weeksLived !== 'number' || !isFinite(weeksLived) || weeksLived < 0) {
+    return ADULTHOOD_AGE;
+  }
+  const age = ADULTHOOD_AGE + Math.floor(weeksLived / WEEKS_PER_YEAR);
+  return Math.max(MIN_VALID_AGE, Math.min(MAX_VALID_AGE, age));
+}
+
+/** The `weeksLived` counter an age implies — the inverse of `computeWeeksLived`. */
+function deriveWeeksLived(age: unknown): number {
+  if (typeof age !== 'number' || !isFinite(age)) return 0;
+  return Math.max(0, Math.floor((age - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
+}
+
+/**
+ * Check a whole state, log what is wrong, and repair what can be repaired
+ * safely. This is the function boundaries call; see the module header for where
+ * it runs and why it does not run in the weekly tick.
+ *
+ * Contract:
+ * - **Never rejects.** A player's save must always load, so the worst outcome
+ *   here is "logged and left alone".
+ * - **Never invents or deletes.** Repairs clamp an existing value back into
+ *   range, or derive one counter from its documented twin (`date.age` ⇄
+ *   `weeksLived`). Relationship violations — duplicate ids, out-of-union types,
+ *   family/relationships mismatches — are reported and NOT repaired: every
+ *   repair for those is either a deletion or a guess about who someone is.
+ * - **Cheap when clean.** One pass over stats/date/relationships and an early
+ *   return with the same object reference; the shallow copies below only happen
+ *   on a state that is already known to be broken.
+ *
+ * @param context short label for the log line (e.g. `'loadGame:slot-2'`)
+ */
+export function enforceStateInvariants(state: GameState, context: string): InvariantEnforcementResult {
+  if (!state || typeof state !== 'object') {
+    return { clean: true, violations: [], warnings: [], repairs: [], state };
+  }
+
+  const check = validateStateInvariants(state);
+  if (check.valid && check.warnings.length === 0) {
+    return { clean: true, violations: [], warnings: [], repairs: [], state };
+  }
+
+  // One grep-able tag for QA and telemetry: `[INVARIANT]`.
+  if (check.errors.length > 0) {
+    log.error(`[INVARIANT] ${check.errors.length} violation(s) at ${context}`, undefined, {
+      context,
+      errors: check.errors,
+      warnings: check.warnings,
+    });
+  } else {
+    log.warn(`[INVARIANT] ${check.warnings.length} warning(s) at ${context}`, {
+      context,
+      warnings: check.warnings,
+    });
+  }
+
+  const repairs: string[] = [];
+
+  // ── stats: clamp back into range ────────────────────────────────────────
+  // `autoFixStats` (saveValidation) already does this on the load path; this is
+  // the backstop for the paths that skip it and for anything the merge onto
+  // `initialGameState` reintroduces afterwards.
+  let stats = state.stats;
+  if (stats && typeof stats === 'object') {
+    const sanitized = sanitizeFinalStats(stats);
+    const changedKeys = (Object.keys(sanitized) as (keyof GameStats)[]).filter(
+      (key) => !Object.is(sanitized[key], stats[key]),
+    );
+    if (changedKeys.length > 0) {
+      for (const key of changedKeys) {
+        repairs.push(`stats.${String(key)}: ${String(stats[key])} -> ${String(sanitized[key])}`);
+      }
+      stats = sanitized;
+    }
+  }
+
+  // ── date: week-of-month and age ─────────────────────────────────────────
+  let date = state.date;
+  if (date && typeof date === 'object') {
+    const nextDate = { ...date };
+    let dateChanged = false;
+
+    const week: unknown = nextDate.week;
+    if (typeof week !== 'number' || !isFinite(week) || week < 1 || week > WEEKS_PER_MONTH) {
+      // Clamp rather than wrap. `week` is display-only week-of-month, so a
+      // stored 0 or 9 carries no information worth preserving modulo-style —
+      // and wrapping would turn "uninitialised" (0) into the last week of the
+      // month, which reads as real data.
+      const fixed =
+        typeof week === 'number' && isFinite(week)
+          ? Math.min(WEEKS_PER_MONTH, Math.max(1, Math.round(week)))
+          : 1;
+      repairs.push(`date.week: ${String(week)} -> ${fixed}`);
+      nextDate.week = fixed;
+      dateChanged = true;
+    }
+
+    const age: unknown = nextDate.age;
+    if (typeof age !== 'number' || !isFinite(age)) {
+      const fixed = deriveAge(state.weeksLived);
+      repairs.push(`date.age: ${String(age)} -> ${fixed} (derived from weeksLived)`);
+      nextDate.age = fixed;
+      dateChanged = true;
+    } else if (age < MIN_VALID_AGE || age > MAX_VALID_AGE) {
+      const fixed = Math.min(MAX_VALID_AGE, Math.max(MIN_VALID_AGE, age));
+      repairs.push(`date.age: ${age} -> ${fixed} (clamped)`);
+      nextDate.age = fixed;
+      dateChanged = true;
+    }
+
+    if (dateChanged) date = nextDate;
+  }
+
+  // ── weeksLived: the absolute counter every cooldown compares against ────
+  // Repaired AFTER `date.age`, so a save with both broken derives the counter
+  // from the already-repaired age instead of from the corrupt one.
+  let weeksLived = state.weeksLived;
+  if (typeof weeksLived !== 'number' || !isFinite(weeksLived) || weeksLived < 0) {
+    const fixed = deriveWeeksLived(date?.age);
+    repairs.push(`weeksLived: ${String(weeksLived)} -> ${fixed} (derived from date.age)`);
+    weeksLived = fixed;
+  }
+
+  if (repairs.length === 0) {
+    return { clean: false, violations: check.errors, warnings: check.warnings, repairs, state };
+  }
+
+  log.warn(`[INVARIANT] repaired ${repairs.length} field(s) at ${context}`, { context, repairs });
+
+  return {
+    clean: false,
+    violations: check.errors,
+    warnings: check.warnings,
+    repairs,
+    state: { ...state, stats, date, weeksLived },
+  };
 }
 

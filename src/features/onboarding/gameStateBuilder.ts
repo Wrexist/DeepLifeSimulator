@@ -233,7 +233,11 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     // impossible once `weeksLived` has moved.
     lifeStartWeek: weeksLived,
     week: (weeksLived % WEEKS_PER_MONTH) + 1,
-    date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_YEAR) + 1 },
+    // Same 1-4 week-of-month cycle as the sibling `week` above. This used to
+    // take the modulus by WEEKS_PER_YEAR, which only stayed inside the 1-4
+    // range because computeWeeksLived returns a multiple of 52 for integer
+    // starting ages — a fractional age would have written date.week up to 52.
+    date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_MONTH) + 1 },
     educations: (() => {
       const existing: any[] = initialGameState.educations.map((e: any) => {
         const eduFromScenario = scenario.start.education;
