@@ -167,7 +167,27 @@ export function weeklyLogDriftFor(volatility: number, isBoosted = false): number
  */
 const MAX_WEEKLY_MOVE = 0.35;
 
-// Mutable stock state — initialized from defaults, restored from save via restoreStockPrices()
+/**
+ * Mutable stock state — initialized from defaults, restored from save via
+ * `restoreStockPrices()`.
+ *
+ * ⚠️ THIS IS THE ONE PLACE GAME STATE LIVES OUTSIDE `GameState` (2026-08-16
+ * audit L15). It is a MODULE GLOBAL: one board shared by every save slot, every
+ * life and every prestige cycle for the lifetime of the JS context. The load
+ * path is what keeps it honest — `loadGame` calls `restoreStockPrices` as its
+ * last step, and prestige/new-game call `resetStockPrices` — and it has already
+ * been wrong once: before that call existed, an heir opened on a market that had
+ * compounded for sixty years while holding a starter wallet (see the comment on
+ * `restoreStockPrices`).
+ *
+ * The rule for every reader below: BETWEEN app start (or a slot switch) and the
+ * `restoreStockPrices` call for the save being loaded, this board holds the
+ * DEFAULTS or the PREVIOUS save's prices. Any accessor called in that window
+ * returns another life's market, and the value looks perfectly plausible, so
+ * nothing downstream will notice. New callers must run after the restore — in
+ * practice, from the week tick or from UI rendered off a loaded save — never
+ * from module init, a boot task, or anything on the pre-load path.
+ */
 const stocks: Record<string, StockData> = {};
 Object.entries(DEFAULT_PRICES).forEach(([symbol, data]) => {
   stocks[symbol] = { ...data };
@@ -284,6 +304,11 @@ export function policyAdjustedYield(baseYield: number, dividendBonus: number): n
 
 /**
  * Get a snapshot of current prices for persistence in game state.
+ *
+ * Reader of the module-global board — see the warning on `stocks`. Called on the
+ * SAVE path, so it is the accessor with the most to lose from being called
+ * early: snapshotting before `restoreStockPrices` has run for this save writes
+ * another life's market into this one's file.
  */
 export function getStockPricesSnapshot(): Record<string, { price: number; dividendYield: number }> {
   const snapshot: Record<string, { price: number; dividendYield: number }> = {};
@@ -414,6 +439,11 @@ export function simulateWeek(policyEffects?: {
   }
 }
 
+/**
+ * Reader of the module-global board. See the warning on `stocks`: before
+ * `restoreStockPrices` has run for the CURRENT save this returns the defaults or
+ * the previous save's price, and both look valid.
+ */
 export function getStockInfo(id: string): StockData {
   // ANTI-EXPLOIT (B-6): Normalize to uppercase — stock keys are uppercase (AAPL, GOOGL, etc.)
   // Prevents silent zero-dividend from case mismatch (e.g., 'aapl' vs 'AAPL')
@@ -436,10 +466,15 @@ export function adjustStockPrice(id: string, factor: number) {
   }
 }
 
+/** Reader of the module-global board — see the warning on `stocks`. */
 export function getAllStockSymbols(): string[] {
   return Object.keys(stocks);
 }
 
+/**
+ * Reader of the module-global board — see the warning on `stocks`. The copy
+ * stops callers mutating the board; it does NOT make the values save-scoped.
+ */
 export function getAllStocks(): Record<string, StockData> {
   // Return a copy to prevent direct mutation outside this module
   // Deep copy not needed as StockData is simple object, but shallow copy of Record is needed

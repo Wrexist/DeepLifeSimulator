@@ -9,6 +9,10 @@ import { isSaveSigningConfigError, SAVE_SIGNING_CONFIG_ERROR_CODE } from '@/util
 // plus saveSlotHelpers, so this static import introduces no require cycle.
 import { extractSaveSlotMeta, writeSaveSlotMeta } from '@/utils/saveSlotMeta';
 import { MAX_SAVE_SIZE } from '@/lib/config/gameConstants';
+// Held ONLY by the startup replay path (`restoreQueue`), which is the one drain
+// with no enqueuer holding the lock for it. See the comment there and on
+// `queueSave` for why the normal drain deliberately takes no lock.
+import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
 
 interface SaveOperation {
   id: string;
@@ -857,7 +861,42 @@ class SaveQueue {
         // drain finishes last (`kickProcessing`), so an already-running drain
         // clears it just the same.
         this.clearPersistedAfterDrain = true;
-        void this.kickProcessing().catch(() => {});
+
+        // L7 (2026-08-16 audit): the replay drain is the ONE drain with no mutex
+        // holder behind it, and it writes whole GameStates to slots.
+        //
+        // The comment on `queueSave` (F-9) explains why nothing INSIDE the queue
+        // acquires the mutex: the normal enqueuer is already holding it across
+        // its `await`, and the mutex is not reentrant, so a lock taken by
+        // `performSave` would deadlock every autosave. That design assumes the
+        // enqueuer is the holder — and this path has no enqueuer. It was kicked
+        // fire-and-forget from `restoreQueue`, so a startup `loadGame` could read
+        // a slot while the replay was writing it.
+        //
+        // Fixed at the only place that can fix it without touching the normal
+        // path: the restore acquires the 'save' lock ITSELF and awaits the drain
+        // inside it, exactly as `saveGame` does. No deadlock is possible —
+        // nothing on the `performSave` path acquires the mutex.
+        //
+        // Best-effort: if the lock cannot be had within the watchdog window we
+        // still replay rather than silently dropping the queued saves, because
+        // the persisted operations are the only copy of that data.
+        let token: MutexToken | null = null;
+        try {
+          token = await saveLoadMutex.acquire('save');
+        } catch (lockError) {
+          this.log.warn('Could not acquire save lock for queue replay — draining unlocked', {
+            error: lockError instanceof Error ? lockError.message : String(lockError),
+          });
+        }
+        try {
+          await this.kickProcessing();
+        } catch {
+          // processQueue already logs per-operation failures; a rejected drain
+          // must not turn startup restore into a thrown boot error.
+        } finally {
+          if (token !== null) saveLoadMutex.release(token);
+        }
       }
     } catch (error) {
       this.log.warn('Failed to restore queue (non-critical):', { error: error instanceof Error ? error.message : String(error) });

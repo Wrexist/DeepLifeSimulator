@@ -475,8 +475,16 @@ if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
 // 8) Initialize crash recovery system
 setTimeout(async () => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crashRecoveryModule = require('../utils/crashRecovery');
+    // TYPED lazy require. The DEFERRAL is deliberate — this runs 100ms after
+    // module evaluation so crash-recovery's storage access never sits on the
+    // boot path — but the untyped `require()` returned `any`, so a rename of
+    // `initializeCrashRecovery` would have compiled, read `undefined`, hit the
+    // optional-call guard below and silently disabled crash recovery at boot
+    // (2026-08-16 audit L2). `as typeof import(...)` restores the types without
+    // moving the evaluation: `import type` is erased by tsc, so this adds no
+    // runtime edge. CLAUDE.md §5, the typed-lazy-getter pattern.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, no-restricted-syntax
+    const crashRecoveryModule = require('../utils/crashRecovery') as typeof import('../utils/crashRecovery');
     if (crashRecoveryModule?.initializeCrashRecovery) {
       await crashRecoveryModule.initializeCrashRecovery();
       if (__DEV__) {
@@ -493,8 +501,13 @@ setTimeout(async () => {
 // 9) Native module audit
 setTimeout(async () => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const auditModule = require('../utils/nativeModuleAudit');
+    // TYPED lazy require — same reasoning as the crash-recovery block above
+    // (2026-08-16 audit L2). The 500ms deferral is the point: `nativeModuleAudit`
+    // reads `NativeModules` at call time, which must not happen during module
+    // evaluation. `as typeof import(...)` is erased by tsc, so the types come
+    // back without adding a runtime import edge.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, no-restricted-syntax
+    const auditModule = require('../utils/nativeModuleAudit') as typeof import('../utils/nativeModuleAudit');
     if (!auditModule) {
       if (__DEV__) {
         console.warn('[RootLayout] Native module audit module not available');

@@ -159,17 +159,14 @@ if (!follyPatched) {
   // This is not an error - the file might not exist until after pod install
 }
 
-// Expo Go / Metro sometimes request assets/icon.png; app.config uses assets/images/icon.png
-const iconSource = path.join(__dirname, '..', 'assets', 'images', 'icon.png');
-const iconTarget = path.join(__dirname, '..', 'assets', 'icon.png');
-if (fs.existsSync(iconSource) && !fs.existsSync(iconTarget)) {
-  try {
-    fs.copyFileSync(iconSource, iconTarget);
-    patchesApplied.push('assets/icon.png');
-  } catch (error) {
-    errors.push(`assets/icon.png: ${error.message}`);
-  }
-}
+// NOTE (2026-08-16 audit L12): a block here copied assets/images/icon.png to
+// assets/icon.png "because Expo Go / Metro sometimes request it". Both paths
+// were TRACKED IN GIT, so `!fs.existsSync(iconTarget)` was false on every clone
+// and the copy never ran — a no-op that made a redundant 1.6 MB duplicate look
+// load-bearing. Nothing in the repo references `assets/icon.png` (app.config.js
+// and every plugin use `./assets/images/icon.png`; the support-site references
+// resolve to `support-site/assets/icon.png`), so the block is deleted and the
+// duplicate removed.
 
 // Summary
 console.log(`\n[${getTimestamp()}] Patching summary:`);
@@ -177,9 +174,16 @@ if (patchesApplied.length > 0) {
   console.log(`  ✅ Patches applied: ${patchesApplied.join(', ')}`);
 }
 if (errors.length > 0) {
-  console.log(`  ❌ Errors: ${errors.length}`);
+  // WARN, don't fail (2026-08-16 audit L12). This is a postinstall hook, so a
+  // non-zero exit fails `npm install` itself — for every developer, on every
+  // install, including ones that will never run `pod install`. Every patch here
+  // is best-effort against files inside node_modules that may not be present
+  // yet, and the real gate is `pod install`, which fails loudly and immediately
+  // if the podspec is still broken. Blocking dependency installation on a
+  // cosmetic patch failure trades a clear, late error for an opaque, early one.
+  console.log(`  ⚠️  Warnings: ${errors.length} (non-blocking — pod install is the real gate)`);
   errors.forEach(error => console.log(`    - ${error}`));
-  process.exit(1);
+  process.exit(0);
 } else {
   console.log(`  ✅ All patches applied successfully`);
   process.exit(0);

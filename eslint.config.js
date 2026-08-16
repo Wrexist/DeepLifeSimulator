@@ -73,8 +73,26 @@ module.exports = [
           message: "No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper.",
         },
         {
-          selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
-          message: "Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. See tasks/lessons.md.",
+          // The old pattern was `/^@.(lib|utils|contexts)/`, which had two holes
+          // (2026-08-16 audit L2). It listed only three alias roots, so
+          // `require('@/services/…')`, `@/hooks`, `@/components` and `@/src` all
+          // walked past it; and it matched only ALIASED specifiers, so the same
+          // module required by RELATIVE path (`require('../utils/crashRecovery')`
+          // in app/_layout.tsx) was invisible — which is the shape that actually
+          // shipped a hazard: an untyped require returns `any`, so a rename of
+          // `initializeCrashRecovery` would compile, read `undefined`, and
+          // silently disable crash recovery at boot.
+          //
+          // `\x2f` is a literal `/`: esquery's regex token is delimited by `/`
+          // and has no escape mechanism, so the slash cannot be written directly
+          // inside the selector. (The unescaped `.` in the old pattern was also
+          // a wildcard rather than the intended `/`.)
+          //
+          // Severity is unchanged — 'warn' app-wide, 'error' inside the ratcheted
+          // lib/ directories below — so widening it surfaces the forms without
+          // turning a burndown into a build break.
+          selector: "CallExpression[callee.name='require'][arguments.0.value=/^(@\\x2f(lib|utils|contexts|services|hooks|components|src)|\\.\\.?\\x2f)/]",
+          message: "Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md.",
         },
       ],
       // Block bare @ts-ignore / @ts-nocheck; require a justification on

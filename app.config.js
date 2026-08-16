@@ -1,7 +1,29 @@
 // Single source of truth: version from package.json
 const { version } = require('./package.json');
-// Build number can be overridden via EAS: BUILD_NUMBER env variable
-const buildNumber = process.env.BUILD_NUMBER || "99";
+// Build number can be overridden via EAS: BUILD_NUMBER env variable.
+// Validated HERE, at config-eval time. `android.versionCode` is
+// `parseInt(buildNumber, 10)`, so a non-numeric or empty-but-set BUILD_NUMBER
+// used to produce `versionCode: NaN` — which serializes to `null` and is only
+// rejected ~20 minutes into the Gradle build. Failing at config eval turns that
+// into an immediate, readable error. The "99" fallback for an UNSET variable is
+// documented behavior (see lib/config/buildTag.ts) and is unchanged.
+// 2026-08-16 audit L13.
+const rawBuildNumber = process.env.BUILD_NUMBER;
+const trimmedBuildNumber = rawBuildNumber === undefined ? "" : String(rawBuildNumber).trim();
+let buildNumber = "99";
+if (trimmedBuildNumber !== "") {
+  const parsed = Number.parseInt(trimmedBuildNumber, 10);
+  // Digits only: `parseInt` happily returns 12 for "12abc" and NaN for "abc",
+  // and only the first of those is silent enough to reach Gradle.
+  if (!/^\d+$/.test(trimmedBuildNumber) || !Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(
+      `BUILD_NUMBER must be a positive integer, got ${JSON.stringify(rawBuildNumber)}. ` +
+      `It becomes the iOS CFBundleVersion and the Android versionCode; a non-numeric ` +
+      `value yields versionCode NaN and is rejected ~20 minutes into the Gradle build.`
+    );
+  }
+  buildNumber = String(parsed);
+}
 // AdMob App IDs — one per platform (iOS and Android are separate AdMob apps).
 // Defaults are the real per-platform App IDs; override via EAS env vars if needed.
 //   iOS     ~7015403477  (confirmed — used by the iOS build that serves ads)
