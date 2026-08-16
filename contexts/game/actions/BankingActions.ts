@@ -28,10 +28,7 @@ import {
   addSavingsGoal,
   contributeToGoal,
   withdrawFromGoal,
-  trackBudgetSpend,
   setBudgetTarget as setBudgetTargetOp,
-  findCheckingAccount,
-  recomputeCreditScore,
   MIRRORED_ACCOUNT_IDS,
   LEGACY_SAVINGS_ACCOUNT_ID,
 } from '@/lib/banking/operations';
@@ -694,44 +691,6 @@ export const setBudgetTarget = (
     if (!state.banking) return prev;
     return { ...state, banking: setBudgetTargetOp(state.banking, category, amount) };
   });
-};
-
-export const recordCategorizedSpend = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  category: BudgetCategory,
-  amount: number
-) => {
-  setGameState((prev) => {
-    const state = ensureBanking(prev);
-    if (!state.banking) return prev;
-    return { ...state, banking: trackBudgetSpend(state.banking, state.weeksLived, category, amount) };
-  });
-};
-
-// ---------------------------------------------------------------------------
-// Credit-score recompute (called from the weekly tick in Phase B)
-// ---------------------------------------------------------------------------
-
-export const refreshCreditScore = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>
-) => {
-  setGameState((prev) => {
-    const state = ensureBanking(prev);
-    if (!state.banking) return prev;
-    return {
-      ...state,
-      banking: recomputeCreditScore(state.banking, state.loans ?? [], state.weeksLived),
-    };
-  });
-};
-
-// ---------------------------------------------------------------------------
-// Convenience
-// ---------------------------------------------------------------------------
-
-export const getCheckingAccount = (state: GameState) => {
-  if (!state.banking) return undefined;
-  return findCheckingAccount(state.banking);
 };
 
 // ---------------------------------------------------------------------------

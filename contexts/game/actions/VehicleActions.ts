@@ -843,24 +843,6 @@ export const processVehicleWeekly = (
   return { totalCosts: resultTotalCosts, expiredInsurance: resultExpiredInsurance };
 };
 
-/**
- * Get total reputation bonus from all owned vehicles
- */
-export const getTotalVehicleReputationBonus = (gameState: GameState): number => {
-  const vehicles = gameState.vehicles || [];
-  return vehicles.reduce((total, vehicle) => total + (vehicle.reputationBonus || 0), 0);
-};
-
-/**
- * Get active vehicle's speed bonus (travel time reduction)
- */
-export const getActiveVehicleSpeedBonus = (gameState: GameState): number => {
-  if (!gameState.activeVehicleId) return 0;
-  const vehicle = (gameState.vehicles || []).find(v => v.id === gameState.activeVehicleId);
-  if (!vehicle || vehicle.condition < 20 || vehicle.fuelLevel < 10) return 0; // Must be in usable condition
-  return vehicle.speedBonus || 0;
-};
-
 const newLoanId = (): string =>
   `loan-auto-${Math.floor(Math.random() * 1e9).toString(36)}`;
 

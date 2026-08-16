@@ -395,26 +395,6 @@ export function chooseMailDecision(
   onResolved(preview.result);
 }
 
-export function lapseMailDecision(
-  gameState: GameState,
-  setGameState: SetGameState,
-  id: string,
-  onResolved: (result: DecisionResult) => void
-): void {
-  const decorate = (kind: string, outcome: string) =>
-    kind === 'careerOffer' ? `You started without replying. ${outcome}` : outcome;
-
-  const lapseChoice = (state: GameState) =>
-    getMailState(state).messages.find((m) => m.id === id)?.decision?.lapseChoiceId ?? '';
-
-  const preview = resolveMailDecision(gameState, id, lapseChoice(gameState), 'lapsed', decorate);
-  if (preview.next) {
-    setGameState((prev) =>
-      resolveMailDecision(prev, id, lapseChoice(prev), 'lapsed', decorate).next ?? prev);
-  }
-  onResolved(preview.result);
-}
-
 /**
  * Permanently drop everything in ONE folder.
  *

@@ -268,8 +268,3 @@ export function claimAllLegacyPassRewards(
   return { state: next, claimedCount, gemsGained };
 }
 
-/** Mark the premium track as owned (called after a verified IAP). Pure. */
-export function unlockLegacyPassPremium(state: GameState, nowMs: number = Date.now()): GameState {
-  const pass = ensureCurrentSeason(state.legacyPass, getCurrentSeasonId(nowMs));
-  return { ...state, legacyPass: { ...pass, premiumOwned: true } };
-}

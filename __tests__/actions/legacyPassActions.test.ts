@@ -4,7 +4,6 @@ import {
   awardLegacyPassXp,
   claimLegacyPassReward,
   claimAllLegacyPassRewards,
-  unlockLegacyPassPremium,
   reconcileLegacyPassSeason,
 } from '@/contexts/game/actions/LegacyPassActions';
 import {
@@ -98,29 +97,20 @@ describe('LegacyPassActions', () => {
       const denied = claimLegacyPassReward(base, 'premium', 1, NOW);
       expect(denied.result).toMatchObject({ ok: false, reason: 'premium-required' });
 
-      const owned = unlockLegacyPassPremium(denied.state, NOW);
+      const owned = reconcileLegacyPassSeason(denied.state, /*premiumActiveNow*/ true, NOW);
       const granted = claimLegacyPassReward(owned, 'premium', 1, NOW);
       expect(granted.result.ok).toBe(true);
     });
 
     it('grants the marquee heritable trait at the premium finale', () => {
       let s = createTestGameState();
-      s = unlockLegacyPassPremium(s, NOW);
+      s = reconcileLegacyPassSeason(s, /*premiumActiveNow*/ true, NOW);
       s = awardLegacyPassXp(s, XP_PER_TIER * MAX_TIER, NOW);
       const { state, result } = claimLegacyPassReward(s, 'premium', MAX_TIER, NOW);
       expect(result.ok).toBe(true);
       const trait = getLegacyPassReward('premium', MAX_TIER)!;
       expect(trait.kind).toBe('trait');
       expect(state.activeTraits).toContain(trait.id);
-    });
-  });
-
-  describe('unlockLegacyPassPremium', () => {
-    it('sets premiumOwned without altering XP/claims', () => {
-      const s = awardLegacyPassXp(createTestGameState(), 200, NOW);
-      const next = unlockLegacyPassPremium(s, NOW);
-      expect(next.legacyPass?.premiumOwned).toBe(true);
-      expect(next.legacyPass?.xp).toBe(200);
     });
   });
 
@@ -184,7 +174,9 @@ describe('LegacyPassActions', () => {
     });
 
     it('includes premium tiers when premium is owned', () => {
-      let s = unlockLegacyPassPremium(createTestGameState({ stats: { gems: 0 } }), NOW);
+      let s = reconcileLegacyPassSeason(
+        createTestGameState({ stats: { gems: 0 } }), /*premiumActiveNow*/ true, NOW,
+      );
       s = awardLegacyPassXp(s, XP_PER_TIER * 2, NOW);
       const { claimedCount } = claimAllLegacyPassRewards(s, NOW);
       expect(claimedCount).toBe(4); // free 1,2 + premium 1,2

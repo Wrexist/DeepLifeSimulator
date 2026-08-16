@@ -190,22 +190,3 @@ export const manageFamilyBusiness = (
   return { success: true, message: preview.message };
 };
 
-export const inheritFamilyBusinesses = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  prevGameState: GameState
-) => {
-  if (!prevGameState.familyBusinesses || prevGameState.familyBusinesses.length === 0) return;
-
-  setGameState(prev => ({
-    ...prev,
-    familyBusinesses: prev.familyBusinesses?.map(fb => ({
-      ...fb,
-      generationsHeld: fb.generationsHeld + 1,
-      // Brand value might decay slightly on inheritance if not managed well?
-      // For now, keep it.
-    })),
-  }));
-  
-  log.info('Inherited family businesses to next generation');
-};
-

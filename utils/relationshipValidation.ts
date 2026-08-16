@@ -189,7 +189,7 @@ export function repairRelationshipState(state: GameState): GameState {
   const orphanedInRelationships = relationships.filter(r => r.type === 'child' && !childIdsInFamily.has(r.id));
   if (orphanedInRelationships.length > 0) {
     for (const orphan of orphanedInRelationships) {
-      family.children.push(orphan as any);
+      family.children.push(orphan);
       log.warn('Synced orphaned child from relationships into family.children', { childId: orphan.id });
     }
     _repaired = true;
@@ -200,7 +200,7 @@ export function repairRelationshipState(state: GameState): GameState {
   const orphanedInFamily = family.children.filter(c => !relationshipIds.has(c.id));
   if (orphanedInFamily.length > 0) {
     for (const orphan of orphanedInFamily) {
-      relationships.push({ ...orphan, type: 'child' } as any);
+      relationships.push({ ...orphan, type: 'child' });
       log.warn('Synced orphaned child from family.children into relationships', { childId: orphan.id });
     }
     _repaired = true;

@@ -428,16 +428,6 @@ export const studyExtra = (
 };
 
 /**
- * Acknowledge / resolve a campus event. Choice effects are applied by the
- * legacy modal in EducationApp; here we just clear the pending flag.
- */
-export const clearCampusEvent = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>
-) => {
-  setGameState((prev) => ({ ...prev, pendingCampusEventEducationId: undefined }));
-};
-
-/**
  * Resolve a campus event with the player's chosen option: apply the choice's
  * stat effects (clamped 0–100), route money through the canonical
  * applyMoneyDelta path, and clear the pending flag — all in one atomic

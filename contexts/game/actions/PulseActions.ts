@@ -1434,12 +1434,3 @@ export const markAllNotificationsRead = (
   });
 };
 
-export const clearAllNotifications = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-): void => {
-  setGameState((prev) => {
-    const sm = { ...ensureSocial(prev) };
-    sm.notifications = [];
-    return { ...prev, socialMedia: sm };
-  });
-};

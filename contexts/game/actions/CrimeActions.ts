@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { GameState, DarkWebMixerTier, DarkWebSkillId } from '../types';
+import { GameState, DarkWebMixerTier } from '../types';
 import { logger } from '@/utils/logger';
 import { listingItemId } from '@/lib/darkweb/marketplace';
 import { initialGameState } from '../initialState';
@@ -443,11 +443,3 @@ export const acquireNewIdentity = (
   });
 };
 
-// ---------------------------------------------------------------------------
-// Skill display helper — exported for the UI to look up current skill level
-// without re-importing from lib.
-// ---------------------------------------------------------------------------
-
-export function getDarkWebSkillLevel(state: GameState, id: DarkWebSkillId): number {
-  return state.darkWeb?.skills?.[id]?.level ?? 1;
-}

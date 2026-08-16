@@ -9,7 +9,7 @@
  * - Divorce
  */
 
-import { GameState, Relationship, WeddingPlan } from '../types';
+import { GameState, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta, updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
@@ -1018,8 +1018,7 @@ export const fileDivorce = (
           return property;
         }
 
-        const propertyAny = property as any;
-        const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = propertyAny;
+        const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = property;
         return {
           ...withoutResidence,
           owned: false,
@@ -1251,7 +1250,13 @@ export const fileDivorce = (
   };
 };
 /**
- * Cancel engagement
+ * Cancel engagement.
+ *
+ * No UI entry point yet — nothing in `components/` or `app/` calls this; the
+ * engagement screens offer only propose / plan / execute. Kept because it is a
+ * designed half of that flow (and covered by
+ * `__tests__/stress/marriageFlow.stress.test.ts`); wiring it up is a product
+ * decision, not a cleanup one.
  */
 export const cancelEngagement = (
   gameState: GameState,
@@ -1370,24 +1375,4 @@ export const checkAnniversary = (
   return { isAnniversary: false };
 };
 
-/**
- * Get relationship status summary
- */
-export const getRelationshipStatus = (relationship: Relationship): {
-  status: 'dating' | 'engaged' | 'married';
-  canPropose: boolean;
-  canPlanWedding: boolean;
-  canExecuteWedding: boolean;
-} => {
-  const isMarried = relationship.type === 'spouse';
-  const isEngaged = Boolean(relationship.engagementWeek);
-  const hasWeddingPlan = Boolean(relationship.weddingPlanned);
-
-  return {
-    status: isMarried ? 'married' : isEngaged ? 'engaged' : 'dating',
-    canPropose: !isMarried && !isEngaged && relationship.relationshipScore >= 60,
-    canPlanWedding: isEngaged && !hasWeddingPlan,
-    canExecuteWedding: hasWeddingPlan,
-  };
-};
 
