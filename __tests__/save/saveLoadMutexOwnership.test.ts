@@ -13,7 +13,7 @@
  * corrupting concurrent slot writes." It was patched at the one known call site
  * instead of in the mutex. 2026-07-29 audit PIPE-3.
  */
-import { saveLoadMutex } from '@/utils/saveLoadMutex';
+import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
 
 jest.useFakeTimers();
 
@@ -91,6 +91,91 @@ describe('mutex ownership', () => {
     const cToken = await cPromise;
     expect(cAcquired).toBe(true);
     saveLoadMutex.release(cToken);
+  });
+
+  it('never grants the lock twice across the hand-off (F-8)', async () => {
+    // The hand-off used to be `setTimeout(next, 0)` with `isLocked = false` set
+    // first, so everything already on the microtask queue — every pending
+    // `await` continuation — ran while the lock looked FREE. A save starting in
+    // that window took the fast path and the timer then handed the same lock to
+    // the queued waiter: two holders, one slot.
+    const aToken = await saveLoadMutex.acquire('save');
+
+    let bToken: MutexToken | null = null;
+    const bPromise = saveLoadMutex.acquire('load').then((t) => {
+      bToken = t;
+      return t;
+    });
+
+    saveLoadMutex.release(aToken);
+
+    // C arrives in the very window the old implementation left open.
+    let cGranted = false;
+    const cPromise = saveLoadMutex.acquire('save').then((t) => {
+      cGranted = true;
+      return t;
+    });
+
+    // Drain microtasks AND the macrotask the old code used for the hand-off.
+    await Promise.resolve();
+    jest.advanceTimersByTime(1);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // B — the waiter that was already queued — owns the lock, and C is queued.
+    expect(saveLoadMutex.isHeld()).toBe(true);
+    expect(saveLoadMutex.getCurrentOperation()).toBe('load');
+    expect(bToken).not.toBeNull();
+    expect(cGranted).toBe(false);
+
+    saveLoadMutex.release(await bPromise);
+    await Promise.resolve();
+    expect(saveLoadMutex.getCurrentOperation()).toBe('save');
+    saveLoadMutex.release(await cPromise);
+    expect(saveLoadMutex.isHeld()).toBe(false);
+  });
+
+  it('keeps the lock held for the whole hand-off, so isHeld() never reports free', async () => {
+    const aToken = await saveLoadMutex.acquire('save');
+    const bPromise = saveLoadMutex.acquire('save');
+
+    saveLoadMutex.release(aToken);
+    // Observed synchronously, immediately after the release returns: with a
+    // waiter queued the lock is still held (by the waiter), which is what the
+    // autosave's `saveLoadMutex.isHeld()` skip-check depends on.
+    expect(saveLoadMutex.isHeld()).toBe(true);
+
+    saveLoadMutex.release(await bPromise);
+    expect(saveLoadMutex.isHeld()).toBe(false);
+  });
+
+  it('unlocks when the queue is empty', async () => {
+    const token = await saveLoadMutex.acquire('save');
+    saveLoadMutex.release(token);
+    expect(saveLoadMutex.isHeld()).toBe(false);
+    expect(saveLoadMutex.getCurrentOperation()).toBeNull();
+  });
+
+  it('skips a waiter whose acquire already timed out and grants the next one', async () => {
+    const aToken = await saveLoadMutex.acquire('save', 30_000);
+
+    // B gives up after 1s; C is still waiting.
+    const bPromise = saveLoadMutex.acquire('save', 1_000);
+    const bResult = bPromise.then(
+      () => 'acquired',
+      () => 'timed-out'
+    );
+    const cPromise = saveLoadMutex.acquire('load', 30_000);
+
+    jest.advanceTimersByTime(1_000);
+    expect(await bResult).toBe('timed-out');
+
+    saveLoadMutex.release(aToken);
+    const cToken = await cPromise;
+    expect(saveLoadMutex.isHeld()).toBe(true);
+    expect(saveLoadMutex.getCurrentOperation()).toBe('load');
+    saveLoadMutex.release(cToken);
+    expect(saveLoadMutex.isHeld()).toBe(false);
   });
 
   it('still supports a token-less release, so an un-migrated site is not broken', async () => {

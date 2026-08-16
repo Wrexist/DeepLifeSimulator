@@ -20,7 +20,14 @@ export type MutexToken = number;
 
 class SaveLoadMutex {
   private isLocked = false;
-  private queue: (() => void)[] = [];
+  /**
+   * Waiters, in FIFO order. Each entry GRANTS the lock to itself when invoked
+   * and reports whether it did: an entry whose acquire already timed out
+   * removes itself from the queue, but the boolean keeps `release` correct even
+   * if a settled entry is ever reached — it moves on to the next waiter instead
+   * of leaving the lock held by nobody.
+   */
+  private queue: (() => boolean)[] = [];
   private currentOperation: 'save' | 'load' | null = null;
   private acquireTimer: ReturnType<typeof setTimeout> | null = null;
   /**
@@ -62,16 +69,20 @@ class SaveLoadMutex {
       }
       log.debug(`Lock busy (${this.currentOperation}), queuing ${operation}`);
       let settled = false;
-      const queueEntry = () => {
-        if (settled) return;
+      const queueEntry = (): boolean => {
+        if (settled) return false;
         settled = true;
         clearTimeout(queueTimer);
+        // The lock is handed over SYNCHRONOUSLY from `release` — it was never
+        // unlocked in between (see the comment there), so this assignment is a
+        // transfer of ownership, not a fresh acquisition.
         this.isLocked = true;
         this.currentOperation = operation;
         const token = ++this.holderId;
         log.debug(`Lock acquired for ${operation} (from queue)`);
         this.armWatchdog(operation, timeoutMs);
         resolve(token);
+        return true;
       };
       const queueTimer = setTimeout(() => {
         if (settled) return;
@@ -124,17 +135,32 @@ class SaveLoadMutex {
       this.acquireTimer = null;
     }
     const operation = this.currentOperation;
-    this.isLocked = false;
-    this.currentOperation = null;
     log.debug(`Lock released for ${operation}${forced ? ' (forced)' : ''}`);
 
-    // Process next queued operation
-    const next = this.queue.shift();
-    if (next) {
-      // Use setTimeout to allow current operation to complete
-      setTimeout(() => {
-        next();
-      }, 0);
+    // SYNCHRONOUS HAND-OFF. This used to set `isLocked = false` here and then
+    // grant the lock to the queued waiter from a `setTimeout(…, 0)`. Every
+    // pending microtask — and every `await` continuation already scheduled —
+    // runs before that macrotask, so any caller that hit `acquire()` inside the
+    // window took the fast path (`if (!this.isLocked)`), got the lock, and then
+    // the timer handed the SAME lock to the queued waiter. Two holders, both
+    // with valid tokens, writing one slot. 2026-08-16 audit F-8.
+    //
+    // So when a waiter exists the lock is never unlocked at all: ownership
+    // (isLocked / currentOperation / holderId / the watchdog) transfers
+    // directly to the shifted waiter, and only an EMPTY queue clears the lock.
+    // The waiter's `acquire` promise still resolves on the normal microtask
+    // timeline; what changed is that the lock is provably held by exactly one
+    // operation at every instant.
+    let handedOff = false;
+    while (!handedOff) {
+      const next = this.queue.shift();
+      if (!next) break;
+      handedOff = next();
+    }
+
+    if (!handedOff) {
+      this.isLocked = false;
+      this.currentOperation = null;
     }
   }
 

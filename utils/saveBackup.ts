@@ -692,7 +692,17 @@ export async function createBackup(
             logger.error(`Backup for slot ${slot} still rejected by storage after cleanup`);
             return null;
           }
+          // F-13: the retry path skipped BOTH pieces of post-write bookkeeping
+          // the happy path does, so a backup that only landed on the second
+          // attempt (a) left the throttle stamp stale, which made
+          // `isAutoBackupThrottled` fall back to parsing every backup blob on a
+          // device that has just proved it is short on storage, and (b) never
+          // rotated — the ring grew past its cap on the one device that cannot
+          // afford it, making the next quota failure more likely. Same order as
+          // above: only ever after a CONFIRMED write.
+          await recordBackupTime(slot);
           logger.info(`Created backup for slot ${slot} after cleanup: ${retryBackupId} (${reason})`);
+          await rotateBackups(slot);
           return retryBackupId;
         } catch (retryError) {
           logger.error(`Failed to create backup for slot ${slot} even after cleanup`, retryError);
