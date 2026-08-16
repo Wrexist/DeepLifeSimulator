@@ -1533,11 +1533,14 @@ describe('pre-tick equivalence — applyEducationStress', () => {
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 
-  it('energy NOT clamped at 0 here (legacy intentional)', () => {
-    // energy = 5, penalty = -7 → result = -2 (NOT clamped to 0).
-    // The final 0-100 cap happens later in the updater per legacy code.
+  it('energy clamped at 0, like its happiness/health neighbours', () => {
+    // energy = 5, penalty = -7 → 0, not -2. This write used to be the one stat
+    // write in the weekly modules with no clamp ("the final 0-100 cap happens
+    // later in the updater") — but the intermediate value is read before that
+    // cap, so it could hand the rest of the tick a negative energy.
     const ctx = eduStubCtx(eduStubStats({ energy: 5 }));
     const result = applyEducationStress([anEdu()], ctx);
+    expect(ctx.newStats.energy).toBe(0);
     expect({ result, newStats: ctx.newStats }).toMatchSnapshot();
   });
 

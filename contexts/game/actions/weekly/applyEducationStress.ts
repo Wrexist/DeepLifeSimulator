@@ -83,9 +83,14 @@ export function applyEducationStress(
 
   ctx.newStats.happiness = Math.max(0, Math.min(100, ctx.newStats.happiness + educationHappinessPenalty));
   ctx.newStats.health = Math.max(0, Math.min(100, ctx.newStats.health + educationHealthPenalty));
-  // Apply education energy penalty (energy was already increased by regen above — legacy code
-  // intentionally does NOT clamp here; the final 0-100 cap happens later in the updater).
-  ctx.newStats.energy = ctx.newStats.energy + educationEnergyPenalty;
+  // Clamped like its two neighbours. This was the one stat write in the weekly
+  // modules with no clamp, on the theory that "the final 0-100 cap happens later
+  // in the updater" — but the intermediate value is READ before that cap (energy
+  // gates activities and feeds later weekly math), so a stacked penalty could
+  // drive it negative and make the rest of the tick reason about an impossible
+  // stat. Clamping here cannot change a legitimate outcome: the later cap applies
+  // the same 0-100 bounds.
+  ctx.newStats.energy = Math.max(0, Math.min(100, ctx.newStats.energy + educationEnergyPenalty));
 
   return {
     numActiveEducations,
