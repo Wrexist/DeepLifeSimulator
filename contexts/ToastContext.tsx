@@ -4,6 +4,7 @@ import ToastNotification from '@/components/ui/ToastNotification';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport } from '@/utils/diagnosticReport';
 import { setToastHandler } from '@/utils/toastBridge';
+import { toastText } from '@/utils/notificationText';
 
 /**
  * Turn a raw error into something actionable: one tap on an error toast's
@@ -84,10 +85,21 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return;
       }
 
+      // Emoji out, length capped — applied HERE rather than at the ~200 call
+      // sites, because most toast copy is assembled by concatenation several
+      // modules away from the call (see utils/notificationText.ts). A message
+      // that is nothing but emoji sanitises to empty and is dropped like any
+      // other blank.
+      const text = toastText(message);
+      if (!text) {
+        if (__DEV__) console.warn('[toast suppressed: no text after sanitising]', type);
+        return;
+      }
+
       const id = `toast-${Date.now()}-${Math.random()}`;
       const newToast: Toast = {
         id,
-        message,
+        message: text,
         type,
         duration,
         position: resolvedPosition,

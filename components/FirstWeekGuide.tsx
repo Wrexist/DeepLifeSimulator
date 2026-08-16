@@ -10,8 +10,8 @@ import { Platform, View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Animated } from 'react-native';
-import { Z_INDEX } from '@/utils/zIndexConstants';
+    Animated,
+    Modal } from 'react-native';
 import {
     X,
     ChevronRight,
@@ -226,9 +226,32 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
     const Icon = currentStep?.icon || Target;
 
     return (
-        <Animated.View pointerEvents="box-none" style={[styles.container, { opacity: fadeAnim }]}>
+        /*
+          Presented as a MODAL rather than an absolutely-positioned sibling.
+          It used to render inside the Home screen at `Z_INDEX.TOOLTIP`, which
+          put it in the same stacking context as the screen's own content and
+          BELOW the tab layout's HUD — the shipped build showed the top stats
+          bar clipping the guide's header. z-index cannot arbitrate between two
+          different parents, so raising the number would only have moved the
+          problem; a Modal gets its own window and is unconditionally on top.
+        */
+        <Modal
+            visible
+            transparent
+            animationType="none"
+            statusBarTranslucent
+            onRequestClose={handleDismiss}
+        >
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+            {/* Tapping the dim area dismisses, like every other sheet here. */}
+            <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={handleDismiss}
+                accessibilityLabel="Dismiss the first week guide"
+                accessibilityRole="button"
+            />
             <LinearGradient
-                pointerEvents="box-none"
                 colors={['#1E293B', '#0F172A']}
                 style={styles.card}
                 start={{ x: 0, y: 0 }}
@@ -314,6 +337,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
                 </Text>
             </LinearGradient>
         </Animated.View>
+        </Modal>
     );
 }
 
@@ -472,11 +496,11 @@ export function useContextualTip(gameState: any) {
 
 const styles = StyleSheet.create({
     container: {
-        position: 'absolute',
-        bottom: scale(100),
-        left: responsiveSpacing.lg,
-        right: responsiveSpacing.lg,
-        zIndex: Z_INDEX.TOOLTIP,
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'stretch',
+        paddingHorizontal: responsiveSpacing.lg,
+        backgroundColor: 'rgba(2, 6, 23, 0.72)',
     },
     card: {
         borderRadius: responsiveBorderRadius.xl,

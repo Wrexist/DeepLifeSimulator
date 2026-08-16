@@ -197,8 +197,11 @@ export default function ToastNotification({
       // notch instead of overlapping the clock and battery (the old flat 50px
       // landed right in the notch on modern phones). stackIndex offsets each
       // toast so multiple don't pile on top of each other.
-      top: position === 'top' ? insets.top + 8 + stackIndex * 72 : undefined,
-      bottom: position === 'bottom' ? insets.bottom + 8 + stackIndex * 72 : undefined,
+      // The stack step tracks the toast HEIGHT — it was 72 for a toast whose
+      // padding, icon and font were each a step larger. Left at 72 the denser
+      // toasts would sit in a column with a visible gap between them.
+      top: position === 'top' ? insets.top + 8 + stackIndex * TOAST_STACK_STEP : undefined,
+      bottom: position === 'bottom' ? insets.bottom + 8 + stackIndex * TOAST_STACK_STEP : undefined,
       transform: [
         { translateY: slideAnim },
         { scale: scaleAnim },
@@ -221,14 +224,14 @@ export default function ToastNotification({
       >
         <View style={styles.content}>
           <View style={styles.iconContainer}>
-            <IconComponent 
-              size={20} 
+            <IconComponent
+              size={16}
               color={typeStyles.iconColor}
               accessibilityLabel={`${type} icon`}
             />
           </View>
-          <Text 
-            style={styles.message} 
+          <Text
+            style={styles.message}
             numberOfLines={2}
             accessibilityLabel={message}
           >
@@ -249,11 +252,15 @@ export default function ToastNotification({
             style={styles.dismissButton}
             onPress={handleDismiss}
             activeOpacity={0.7}
+            // The button shrank with the rest of the surface; hitSlop keeps the
+            // TAP target at the size it was, so the denser toast is not a
+            // harder one to dismiss.
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityLabel="Dismiss notification"
             accessibilityRole="button"
             accessibilityHint="Double tap to dismiss this notification"
           >
-            <X size={16} color={typeStyles.iconColor} />
+            <X size={14} color={typeStyles.iconColor} />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -263,6 +270,22 @@ export default function ToastNotification({
 
 // Width not used - removed to fix TS6133
 
+/**
+ * Vertical step between stacked toasts, in points.
+ *
+ * One toast is ~44pt of content plus its shadow; 56 leaves a clear gap without
+ * the column reaching halfway down the screen when three fire at once.
+ */
+const TOAST_STACK_STEP = 56;
+
+/**
+ * A toast is a glance, not a paragraph.
+ *
+ * Everything here is one step down from where it was: the surface used to be a
+ * `md`-padded card with `base` type and a 12pt radius, which — with two lines
+ * of text — was a ~90pt block covering the bottom of the screen for three
+ * seconds. The information is unchanged; the furniture around it is not.
+ */
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
@@ -271,13 +294,14 @@ const styles = StyleSheet.create({
     zIndex: Z_INDEX.TOAST,
   },
   toast: {
-    borderRadius: responsiveBorderRadius.lg,
-    ...shadows.lg,
+    borderRadius: responsiveBorderRadius.md,
+    ...shadows.md,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.sm + responsiveSpacing.xs,
   },
   iconContainer: {
     marginRight: responsiveSpacing.sm,
@@ -285,11 +309,11 @@ const styles = StyleSheet.create({
   message: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.base,
+    fontSize: responsiveFontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
     fontWeight: typography.weight.medium,
-    // 1.5x the font size — kept as a ratio so it tracks the scaled font size.
-    lineHeight: Math.round(responsiveFontSize.base * 1.5),
+    // 1.4x the font size — kept as a ratio so it tracks the scaled font size.
+    lineHeight: Math.round(responsiveFontSize.sm * 1.4),
   },
   actionButton: {
     marginLeft: responsiveSpacing.sm,
@@ -300,11 +324,11 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.sm,
+    fontSize: responsiveFontSize.xs,
     fontWeight: typography.weight.semibold,
   },
   dismissButton: {
-    marginLeft: responsiveSpacing.sm,
+    marginLeft: responsiveSpacing.xs,
     padding: responsiveSpacing.xs,
   },
 });

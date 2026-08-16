@@ -9,7 +9,14 @@
  */
 
 import { createTestGameState } from '../helpers/createTestGameState';
-import { generateScam, scamRisk, scamLossFor, SCAM_LOSS_CAP_FRACTION } from '@/lib/mail/scam';
+import {
+  generateScam,
+  scamRisk,
+  scamLossFor,
+  scamWindowOpen,
+  SCAM_LOSS_CAP_FRACTION,
+  SCAM_WINDOW_WEEKS,
+} from '@/lib/mail/scam';
 import {
   actOnScamMail,
   disputeMailCharge,
@@ -85,7 +92,9 @@ describe('scam risk is earned, not sprinkled', () => {
     // reading its review counts as the PLAYER's dealings put every new save at
     // four times base risk for something they had not done.
     const risk = scamRisk(freshSave(1000));
-    expect(risk.chance).toBeLessThanOrEqual(0.05);
+    // Read per ATTEMPT WINDOW, not per week — see SCAM_WINDOW_WEEKS. At this
+    // value a clean player meets the mechanic roughly once a game-year.
+    expect(risk.chance).toBeLessThanOrEqual(0.15);
     expect(risk.reasons.join(' ')).toMatch(/generic/i);
   });
 
@@ -140,11 +149,70 @@ describe('scam risk is earned, not sprinkled', () => {
         id: `v${i}`,
       })),
     } as never;
-    expect(scamRisk(worst).chance).toBeLessThanOrEqual(0.42);
+    expect(scamRisk(worst).chance).toBeLessThanOrEqual(0.4);
   });
 
   it('always explains itself', () => {
     expect(scamRisk(freshSave(0)).reasons.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The spacing guarantee.
+ *
+ * Lowering the probability alone would not have fixed "scams every other week":
+ * an independent per-week roll clusters, so two in three weeks stays possible
+ * however low it goes. These assert the property that a probability cannot
+ * give — a hard floor on the gap between attempts, holding for the WORST
+ * possible save.
+ */
+describe('scams are spaced by a window, not just made rarer', () => {
+  const alwaysFires = (week: number) => ({
+    state: (() => {
+      const s = freshSave(1000);
+      s.darkWeb = { ...(s.darkWeb ?? {}), playerReputation: 90, heat: 100 } as never;
+      return s;
+    })(),
+    week,
+    facts: {},
+    // Below any risk value, so the ONLY thing that can stop a scam here is the
+    // window gate.
+    rand: () => 0,
+  });
+
+  it('opens exactly once per window', () => {
+    for (let start = 0; start < 240; start += SCAM_WINDOW_WEEKS) {
+      const open: number[] = [];
+      for (let w = start; w < start + SCAM_WINDOW_WEEKS; w += 1) {
+        if (scamWindowOpen(w)) open.push(w);
+      }
+      expect(open).toHaveLength(1);
+    }
+  });
+
+  it('never delivers two scams inside one window, even at maximum risk', () => {
+    const weeks: number[] = [];
+    for (let w = 0; w < 300; w += 1) {
+      if (generateScam(alwaysFires(w))) weeks.push(w);
+    }
+
+    expect(weeks.length).toBeGreaterThan(0);
+    for (let i = 1; i < weeks.length; i += 1) {
+      expect(weeks[i] - weeks[i - 1]).toBeGreaterThanOrEqual(1);
+      // Consecutive windows can be adjacent at the boundary (last week of one,
+      // first of the next), so the guarantee is one PER WINDOW rather than a
+      // flat gap — assert that directly.
+      expect(Math.floor(weeks[i] / SCAM_WINDOW_WEEKS)).not.toBe(
+        Math.floor(weeks[i - 1] / SCAM_WINDOW_WEEKS)
+      );
+    }
+  });
+
+  it('is stable for a given week — a replayed tick decides the same way', () => {
+    for (let w = 0; w < 60; w += 1) {
+      expect(scamWindowOpen(w)).toBe(scamWindowOpen(w));
+      expect(!!generateScam(alwaysFires(w))).toBe(!!generateScam(alwaysFires(w)));
+    }
   });
 });
 

@@ -317,11 +317,11 @@ export const performStreetJob = (
     const sk = gameState.crimeSkills[job.skill];
     if (sk.xp + (success ? 15 : 5) >= sk.level * 100) {
       const label = job.skill.charAt(0).toUpperCase() + job.skill.slice(1);
-      levelUpText += ` 🔓 ${label} skill is now level ${sk.level + 1}!`;
+      levelUpText += ` ${label} lv.${sk.level + 1}.`;
     }
   }
   if (job.illegal && (gameState.criminalXp || 0) + 10 >= (gameState.criminalLevel || 1) * 100) {
-    levelUpText += ` ⬆️ Criminal Level ${(gameState.criminalLevel || 1) + 1} reached!`;
+    levelUpText += ` Criminal lv.${(gameState.criminalLevel || 1) + 1}.`;
   }
 
   // Calculate money - store original money BEFORE any changes
@@ -475,11 +475,11 @@ export const performStreetJob = (
     // assigns is still unset when this line executes. So say the thing that is
     // true under every ordering. Same lesson as the Legacy Pass claim toast
     // (lessons.md, 2026-06-24) — report what happened, not what you predicted.
-    const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
+    const penaltyText = ` (${happinessPenalty} happiness, ${healthPenalty} health)`;
     if (moneyBeforeJob > 0) {
-      message = `Caught! Jailed for ${job.jailWeeks} weeks. The police confiscated 10% of your cash. ${penaltyText}`;
+      message = `Caught. Jailed ${job.jailWeeks} weeks, 10% of your cash seized.${penaltyText}`;
     } else {
-      message = `Caught! Jailed for ${job.jailWeeks} weeks. ${penaltyText}`;
+      message = `Caught. Jailed ${job.jailWeeks} weeks.${penaltyText}`;
     }
   } else {
     // Check if rank will increase (before state update)
@@ -629,27 +629,36 @@ export const performStreetJob = (
   // longer double-grants XP via separate post-updater setState calls.
 
   // Set message if not already set (i.e., if not caught)
+  //
+  // Kept SHORT on purpose. This is the single most-fired toast in the game (a
+  // street job is three taps a week, every week) and it used to read
+  // "Crime failed. Wanted level increased. 🔓 Stealth skill is now level 2!
+  // This work took a toll on your wellbeing (-7 happiness, -3 health)" — a
+  // paragraph, of which a two-line toast showed the first half. The stat cost
+  // is the part a player actually re-reads, so it survives as a compact
+  // "-7 happiness, -3 health" and the sentence around it does not.
   if (!caught) {
+    const costs: string[] = [];
+    if (happinessPenalty) costs.push(`${happinessPenalty} happiness`);
+    if (healthPenalty) costs.push(`${healthPenalty} health`);
+    const penaltyText = costs.length > 0 ? ` (${costs.join(', ')})` : '';
+
     if (success) {
-      const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
-      const rankUpText = rankIncreased ? ` Rank increased to ${job.rank + 1}!` : '';
+      const rankUpText = rankIncreased ? ` Rank ${job.rank + 1}.` : '';
       message = job.illegal
-        ? `Crime succeeded! Gained $${moneyGained}.${rankUpText}${levelUpText} ${penaltyText}`
-        : `Earned $${moneyGained}!${rankUpText}${levelUpText} ${penaltyText}`;
+        ? `Crime paid off: +$${moneyGained}.${rankUpText}${levelUpText}${penaltyText}`
+        : `Earned $${moneyGained}.${rankUpText}${levelUpText}${penaltyText}`;
     } else {
-      const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
       message = job.illegal
-        ? `Crime failed. Wanted level increased.${levelUpText} ${penaltyText}`
-        : `No luck this time.${levelUpText} ${penaltyText}`;
+        ? `Crime failed. Wanted level up.${levelUpText}${penaltyText}`
+        : `No luck this time.${levelUpText}${penaltyText}`;
     }
-    
+
     // Handle combined cases (only if not caught)
     if (moneyLost > 0 && moneyGained > 0) {
-      const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
-      message = `Earned $${moneyGained} but robbed of $${moneyLost}. ${penaltyText}`;
+      message = `Earned $${moneyGained}, robbed of $${moneyLost}.${penaltyText}`;
     } else if (moneyLost > 0) {
-      const penaltyText = `This work took a toll on your wellbeing (${happinessPenalty} happiness, ${healthPenalty} health)`;
-      message = `Robbed! Lost $${moneyLost}. ${penaltyText}`;
+      message = `Robbed of $${moneyLost}.${penaltyText}`;
     }
   }
 

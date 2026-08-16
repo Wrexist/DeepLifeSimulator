@@ -6,6 +6,7 @@ import { personalCrisisEventTemplates } from './personalCrises';
 import { enhancedEventTemplates } from './enhancedEvents';
 import { lifeMilestoneEventTemplates } from './lifeMilestoneEvents';
 import { legalEventTemplates } from './legalEvents';
+import { inboxEventTemplates } from './inboxEvents';
 import { careerEventTemplates } from './careerEvents';
 import { travelEventTemplates } from './travelEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
@@ -2920,6 +2921,8 @@ export const eventTemplates: EventTemplate[] = [
   // Life milestone events (relationships, family, age, wellness)
   ...lifeMilestoneEventTemplates,
   ...legalEventTemplates,
+  // Inbox events — the non-adversarial half of the mail app (see inboxEvents.ts)
+  ...inboxEventTemplates,
   // Career events (performance, workplace, firing)
   ...careerEventTemplates,
   // Travel events (experiences while on trips)
