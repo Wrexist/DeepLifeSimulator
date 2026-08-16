@@ -240,16 +240,6 @@ export function trackNewCompany(stats: LifetimeStatistics): LifetimeStatistics {
 }
 
 /**
- * Increment property count
- */
-export function trackNewProperty(stats: LifetimeStatistics): LifetimeStatistics {
-  return {
-    ...stats,
-    totalPropertiesOwned: stats.totalPropertiesOwned + 1,
-  };
-}
-
-/**
  * Track crime committed
  */
 export function trackCrime(stats: LifetimeStatistics): LifetimeStatistics {
@@ -280,25 +270,23 @@ export function trackTravelDestination(stats: LifetimeStatistics): LifetimeStati
 }
 
 /**
- * Track social media post
+ * NOTE (2026-08-16, WP-F): `trackNewProperty`, `trackPost` and
+ * `trackHobbyLearned` used to live here. They had no production caller — only a
+ * stress test — which is exactly the "green leaf nobody calls" shape
+ * `tasks/lessons.md` keeps recording, and it left two gem milestones
+ * (`first-property`, `viral`) permanently unearnable.
+ *
+ * `totalPropertiesOwned` is now written inline by
+ * `RealEstateActions.resolveBuyProperty` and `totalPostsMade` /
+ * `totalViralPosts` by `PulseActions.composePost`, inside the same updater that
+ * commits the purchase / the post — the established pattern here
+ * (`applyLifetimeStatistics.ts`, `TravelActions.ts`, `company.ts`).
+ *
+ * `totalHobbiesLearned` still has NO writer AND no reader. The field stays on
+ * `GameState` because removing an `initialState` field is save-format churn
+ * (Hard Rule #3); only its orphaned helper is gone. Wire it from a real event
+ * site (or give it a reader) before treating it as meaningful.
  */
-export function trackPost(stats: LifetimeStatistics, isViral: boolean): LifetimeStatistics {
-  return {
-    ...stats,
-    totalPostsMade: stats.totalPostsMade + 1,
-    totalViralPosts: isViral ? stats.totalViralPosts + 1 : stats.totalViralPosts,
-  };
-}
-
-/**
- * Track hobby learned (skill level increased)
- */
-export function trackHobbyLearned(stats: LifetimeStatistics): LifetimeStatistics {
-  return {
-    ...stats,
-    totalHobbiesLearned: stats.totalHobbiesLearned + 1,
-  };
-}
 
 /**
  * Track achievement unlocked

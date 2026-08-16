@@ -637,7 +637,9 @@ function HomeScreenContent() {
         <FirstSessionCoach />
 
         <FadeInUp delay={0}>
-          <IdentityCard />
+          {/* The prestige badge on the card opens the shop this screen already
+              mounts below, instead of its previous empty onPress. */}
+          <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
         </FadeInUp>
 
         {/* DeepLife+ upsell — a golden crown entry to the premium paywall.

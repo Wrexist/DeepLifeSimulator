@@ -23,13 +23,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, Heart, MessageCircle, Repeat2, Send } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Heart, MessageCircle, Repeat2, Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { commentOnPost, likePost, repostPost } from '@/contexts/game/actions/PulseActions';
+import { bookmarkPost, commentOnPost, likePost, repostPost } from '@/contexts/game/actions/PulseActions';
 import CommentThread from '../components/CommentThread';
 import { PULSE_COLORS } from '../styles/pulseTheme';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
@@ -70,6 +70,14 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
   const onRepost = useCallback(() => {
     pulseHaptics.medium();
     repostPost(setGameState, postId);
+    saveGame?.();
+  }, [setGameState, saveGame, postId]);
+
+  // Bookmark parity with the feed card — the toggle that feeds ProfileScreen's
+  // Bookmarks tab. `bookmarkPost` had no caller anywhere before this.
+  const onBookmark = useCallback(() => {
+    pulseHaptics.light();
+    bookmarkPost(setGameState, postId);
     saveGame?.();
   }, [setGameState, saveGame, postId]);
 
@@ -181,6 +189,14 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
               label="Repost"
             />
             <ActionButton
+              Icon={Bookmark}
+              active={!!post.isBookmarked}
+              activeColor={PULSE_COLORS.bookmark}
+              mutedColor={theme.textSecondary}
+              onPress={onBookmark}
+              label="Bookmark"
+            />
+            <ActionButton
               Icon={MessageCircle}
               active={false}
               activeColor={theme.text}
@@ -283,7 +299,7 @@ function ActionButton({ Icon, active, activeColor, mutedColor, onPress, label }:
         size={fontScale(20)}
         color={active ? activeColor : mutedColor}
         strokeWidth={active ? 2.4 : 2}
-        fill={active && Icon === Heart ? activeColor : 'transparent'}
+        fill={active && (Icon === Heart || Icon === Bookmark) ? activeColor : 'transparent'}
       />
     </Pressable>
   );

@@ -93,16 +93,55 @@ lint, routes, weekly audit). Findings triaged into work packages below.
 
 ## Wave 2 — after wave 1 lands
 
-- [ ] **WP-F: dead code & unwired features**
-  - Wire `totalPropertiesOwned` / `totalPostsMade` / `totalViralPosts`
-    (unblocks 2 unearnable gem milestones); wire-or-delete `totalHobbiesLearned`
-  - Delete `lib/events/seasonal.ts` (+test) — getCurrentSeason collision trap
-  - Delete `lib/legacy/children.ts`, `utils/analytics.ts`, `services/AnalyticsService.ts`
-  - `IdentityCard.tsx:530` empty onPress; Pulse `bookmarkPost` unwired;
-    Hustle notification read/clear unwired
-- [ ] **WP-G: ratchet scope** — extend `updaterResultRatchet.test.ts` to scan
+- [x] **WP-F: dead code & unwired features** — done 2026-08-16
+  - [x] `totalPropertiesOwned` written inline in `resolveBuyProperty`
+        (RealEstateActions), `totalPostsMade` / `totalViralPosts` inline in
+        `composePost` (PulseActions) — both INSIDE the updater that commits the
+        purchase/post, past its fresh-state guard (§4.4), so a refused action
+        cannot count. Unblocks the `first-property` (15 gems) and `viral`
+        (10 gems) milestones, which were unearnable since they shipped.
+        Orphaned `trackNewProperty` / `trackPost` / `trackHobbyLearned` helpers
+        deleted from `statisticsTracker.ts` (stress test updated).
+  - [x] `totalHobbiesLearned`: field KEPT (removing an `initialState` field is
+        save-format churn, Hard Rule #3), helper deleted, note left in
+        `statisticsTracker.ts` — still no reader AND no writer.
+  - [x] Deleted `lib/events/seasonal.ts` + `__tests__/lib/events/seasonal.test.ts`
+        (zero non-test importers; `seasonalEvents.ts` is the live one),
+        `lib/legacy/children.ts`, `utils/analytics.ts`, `services/AnalyticsService.ts`
+        (sole importer was `utils/analytics.ts`). `lib/analytics` untouched.
+  - [x] `IdentityCard` prestige badge: optional `onOpenPrestigeShop` prop, wired
+        from `app/(tabs)/home.tsx` (which already mounts `PrestigeShopModal`);
+        degrades to a plain View when unwired, so it never animates as a button
+        that goes nowhere.
+  - [x] `bookmarkPost` wired into `PostCard` (player posts only — ambient posts
+        aren't in `recentPosts`) and `PostDetailScreen`; ProfileScreen's
+        Bookmarks tab can finally fill.
+  - [x] `markHustleNotificationRead` (tap a row) + `clearHustleNotifications`
+        ("Clear all" in the section header) wired in `CompanyDetailScreen`.
+  - [x] Tests: `__tests__/statistics/lifetimeCountersWired.test.ts` (8, incl.
+        milestone reachability + refusal controls),
+        `__tests__/refactor/unwiredActionCallSites.test.ts` (5, source-level
+        call-site guard for the "green leaf nobody calls" class)
+- [x] **WP-G: ratchet scope** — extend `updaterResultRatchet.test.ts` to scan
       weekly/, components/, app/, contexts/game/*.tsx (recursive), pin the
       documented survivors by name
+  - Scope: recursive walk of `contexts/game/`, `components/`, `app/` (381 files,
+    tests excluded); entries keyed by repo-relative path. Original top-level
+    extraction preserved verbatim so all 93 prior members still mean the same
+    thing; a second structural pass reaches nested handlers (the AdRewardOrb
+    shape) with indentation normalised (GameActionsContext.tsx is 1-space).
+  - Baseline 93 → **101**. No production code changed: 8 additions are pre-existing
+    code in files the scan never opened. 7 are the benign outer-guard-mirrored
+    shape (company.ts sellCompany/sellMiner, GameActionsContext proposeToPartner/
+    moveInTogether, ItemActionsContext performHack, MoneyActionsContext
+    purchasePrestigeBonus, SocialActionsContext haveChild).
+  - **REAL remaining capture, pinned not fixed: `contexts/game/company.ts::upgradeWarehouse`**
+    — live (Mining warehouse upgrade), reads `let result` across its updater.
+    Siblings buyMiner/buyWarehouse/sellMiner are already resolver-shaped, so
+    `resolveUpgradeWarehouse` is mechanical — but it moves money, so it is the
+    owner's call, not a test-scope commit's.
+  - components/ and app/ contribute zero (2d99a22 fixed them); fixtures + a
+    negative control prove the scan really reaches them.
 
 ## Wave 3 — validation
 

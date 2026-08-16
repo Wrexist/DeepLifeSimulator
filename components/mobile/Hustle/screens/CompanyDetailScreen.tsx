@@ -35,6 +35,7 @@ import { buyCompanyUpgrade } from '@/contexts/game/actions/CompanyActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { buildRDLab, startResearch, filePatent, enterCompetition } from '@/contexts/game/actions/RDActions';
+import { clearHustleNotifications, markHustleNotificationRead } from '@/contexts/game/actions/HustleActions';
 import { LAB_TYPES, getLabUpgradeCost, type LabType } from '@/lib/rd/labs';
 import { getAvailableTechnologies, getTechnologiesForCompany, getTechnologyById } from '@/lib/rd/technologyTree';
 import { getActiveCompetitions, canEnterCompetition } from '@/lib/rd/competitions';
@@ -147,6 +148,22 @@ export default function CompanyDetailScreen({
       Alert.alert('Upgrade', r.message);
     }
   }, [gameState, setGameState, companyId, saveGame]);
+
+  // ───────── Notifications ─────────
+  // `markHustleNotificationRead` / `clearHustleNotifications` existed in
+  // HustleActions with no caller anywhere in the app, so `overlay.notifications`
+  // accumulated and rendered permanently unread.
+  const handleMarkNotificationRead = useCallback((notificationId: string) => {
+    hustleHaptics.tap();
+    markHustleNotificationRead(setGameState, companyId, notificationId);
+    saveGame?.();
+  }, [setGameState, companyId, saveGame]);
+
+  const handleClearNotifications = useCallback(() => {
+    hustleHaptics.tap();
+    clearHustleNotifications(setGameState, companyId);
+    saveGame?.();
+  }, [setGameState, companyId, saveGame]);
 
   // ───────── R&D handlers — thin wrappers over the canonical RDActions ─────────
   // (buildRDLab / startResearch / filePatent / enterCompetition). The weekly
@@ -1115,21 +1132,45 @@ export default function CompanyDetailScreen({
           </>
         ) : null}
 
-        {/* Notifications list */}
+        {/* Notifications list. `markHustleNotificationRead` /
+            `clearHustleNotifications` both shipped with ZERO call sites, so
+            every alert stayed unread forever and the list only ever grew —
+            the unread dot was decoration. Tapping a row marks it read; the
+            header carries a Clear-all. */}
         {overlay && overlay.notifications.length > 0 ? (
           <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Recent alerts</Text>
+            <View style={styles.notifHeaderRow}>
+              <Text style={[styles.sectionLabel, { color: theme.text }]}>Recent alerts</Text>
+              <Pressable
+                onPress={handleClearNotifications}
+                accessibilityRole="button"
+                accessibilityLabel="Clear all alerts"
+                hitSlop={8}
+                style={({ pressed }) => [styles.notifClearBtn, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Text style={[styles.notifClearText, { color: HUSTLE_COLORS.accent }]}>Clear all</Text>
+              </Pressable>
+            </View>
             <View style={[getGlassCard(isDark, 6), styles.notifCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
               {overlay.notifications.slice(0, 5).map((n, i) => (
-                <View
+                <Pressable
                   key={n.id}
-                  style={[styles.notifRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}
+                  onPress={n.read ? undefined : () => handleMarkNotificationRead(n.id)}
+                  disabled={n.read}
+                  accessibilityRole={n.read ? 'text' : 'button'}
+                  accessibilityLabel={n.text}
+                  accessibilityHint={n.read ? undefined : 'Marks this alert as read'}
+                  style={({ pressed }) => [
+                    styles.notifRow,
+                    i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth },
+                    { opacity: pressed && !n.read ? 0.7 : 1 },
+                  ]}
                 >
                   {!n.read ? <View style={[styles.unreadDot, { backgroundColor: HUSTLE_COLORS.accent }]} /> : <View style={styles.unreadSpacer} />}
-                  <Text style={[styles.notifText, { color: theme.text }]} numberOfLines={2}>
+                  <Text style={[styles.notifText, { color: n.read ? theme.textSecondary : theme.text }]} numberOfLines={2}>
                     {n.text}
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           </>
@@ -1754,6 +1795,19 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  notifHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notifClearBtn: {
+    paddingHorizontal: responsiveSpacing.xs,
+    paddingVertical: responsiveSpacing.xs,
+  },
+  notifClearText: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
   },
   notifCard: {
     borderRadius: responsiveBorderRadius.xl,

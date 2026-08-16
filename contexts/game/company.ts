@@ -570,119 +570,70 @@ export function buyWarehouse(
 /**
  * Upgrade warehouse to increase capacity
  */
+/**
+ * The whole of `upgradeWarehouse`, as a PURE function of the state it is
+ * given — the same shape as `resolveBuyMiner` / `resolveBuyWarehouse` above.
+ * The cost is re-derived from whichever state it runs on, so a queued second
+ * upgrade is billed at the real, higher price for the level it is actually
+ * buying, and the max-10 ceiling holds under a same-batch double-tap.
+ *
+ * This used to be the file's last capture-across-updater site: it read a
+ * `let result` assigned inside the updater, defended by a comment arguing the
+ * refusal-by-default failure mode was the safer direction. True, but the
+ * preview/commit pair needs no trade-off at all — the caller's outcome comes
+ * from running the resolver on the snapshot, the committed state from running
+ * it again on `prev`, and on the stale double-tap the prev-side run refuses on
+ * its own evidence. Money now goes through `applyMoneyDelta` like the
+ * siblings, so an overdraw is refused rather than hand-subtracted.
+ */
+export function resolveUpgradeWarehouse(
+  state: GameState
+): { state: GameState; success: boolean; message: string } {
+  const wh = state.warehouse;
+  if (!wh) {
+    return { state, success: false, message: 'You need to buy a warehouse first' };
+  }
+
+  const maxLevel = 10;
+  if (wh.level >= maxLevel) {
+    return { state, success: false, message: 'Warehouse is already at maximum level' };
+  }
+
+  // Upgrade cost: $25,000 * level, inflation-adjusted.
+  const baseCost = 25000;
+  const priceIndex = typeof state.economy?.priceIndex === 'number' && isFinite(state.economy.priceIndex) && state.economy.priceIndex > 0
+    ? state.economy.priceIndex
+    : 1;
+  const cost = getInflatedPrice(baseCost * wh.level, priceIndex);
+  if (!isFinite(cost) || cost < 0) {
+    return { state, success: false, message: 'Upgrade price is unavailable right now' };
+  }
+  const quoted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost);
+
+  const spend = applyMoneyDelta(state, -cost, 'Warehouse upgrade');
+  if (!spend) {
+    return { state, success: false, message: `Not enough money. Upgrade costs ${quoted}` };
+  }
+
+  const newLevel = wh.level + 1;
+  return {
+    success: true,
+    message: `Warehouse upgraded to level ${newLevel}! New capacity: ${10 + newLevel * 5} miners.`,
+    state: {
+      ...state,
+      ...spend,
+      warehouse: { ...wh, level: newLevel },
+    },
+  };
+}
+
 export function upgradeWarehouse(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>
 ): { success: boolean; message?: string } {
-  // Check if has warehouse
-  if (!gameState.warehouse) {
-    return { success: false, message: 'You need to buy a warehouse first' };
-  }
-
-  // Max level is 10
-  const maxLevel = 10;
-  if (gameState.warehouse.level >= maxLevel) {
-    return { success: false, message: 'Warehouse is already at maximum level' };
-  }
-
-  // Upgrade cost: $25,000 * level
-  const baseCost = 25000;
-  const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
-    ? gameState.economy.priceIndex
-    : 1;
-  
-  const { getInflatedPrice } = require('@/lib/economy/inflation');
-  const cost = getInflatedPrice(baseCost * gameState.warehouse.level, priceIndex);
-
-  // Validate money
-  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0
-    ? gameState.stats.money
-    : 0;
-
-  if (currentMoney < cost) {
-    return { success: false, message: `Not enough money. Upgrade costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost)}` };
-  }
-
-  // The upgrade itself, re-validated against FRESH `prev`.
-  //
-  // Everything above this point reads the caller's snapshot and exists to
-  // produce the message. It cannot be the gate: two taps in the same React
-  // batch see identical state and both pass, and this function used to apply
-  // the level and the charge with no second look. That was three bugs at once —
-  // the level rose twice (straight past the max-10 ceiling), the second upgrade
-  // was billed at the STALE level's cheaper price, and `money` was written by
-  // hand with no clamp, so an overdraw stored a NEGATIVE balance rather than
-  // being refused.
-  //
-  // `buyWarehouse`, `buyMiner` and `sellMiner` in this same file all validate
-  // inside their updater; this one was the outlier. Cost is recomputed from
-  // `prev.warehouse.level` so a queued second upgrade pays the real, higher
-  // price for the level it is actually buying.
-  //
-  // The OUTCOME is reported from inside the updater too, the same shape
-  // `buyWarehouse` uses. Building the return value from `gameState` instead —
-  // which is what this did first — meant a rejected second tap still answered
-  // "Warehouse upgraded to level 3!", naming a level the player never reached
-  // and a charge that never happened. Fixing the state without fixing the
-  // message just moves the lie.
-  //
-  // The known cost of this shape (CLAUDE.md §4.1): React only evaluates an
-  // updater eagerly when the fiber has no pending lanes, so under contention
-  // `result` may still hold its initial value when it is read. That is the
-  // right way round here. The initial value is a REFUSAL, so the failure mode
-  // is "said no when it meant yes" — recoverable, the player taps again and the
-  // state was correct throughout. The alternative failed the other way, and a
-  // player told they bought something they did not is the worse outcome.
-  let result: { success: boolean; message?: string } = {
-    success: false,
-    message: 'Upgrade could not be applied. Please try again.',
-  };
-
-  setGameState(prev => {
-    const wh = prev.warehouse;
-    if (!wh) {
-      result = { success: false, message: 'You need to buy a warehouse first' };
-      return prev;
-    }
-    if (wh.level >= maxLevel) {
-      result = { success: false, message: 'Warehouse is already at maximum level' };
-      return prev;
-    }
-
-    const prevIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0
-      ? prev.economy.priceIndex
-      : 1;
-    const liveCost = getInflatedPrice(baseCost * wh.level, prevIndex);
-    if (!isFinite(liveCost) || liveCost < 0) {
-      result = { success: false, message: 'Upgrade price is unavailable right now' };
-      return prev;
-    }
-
-    const money = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
-      ? prev.stats.money
-      : 0;
-    if (money < liveCost) {
-      result = {
-        success: false,
-        message: `Not enough money. Upgrade costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(liveCost)}`,
-      };
-      return prev;
-    }
-
-    // Quoted from the level actually being bought, not from the snapshot.
-    const newLevel = wh.level + 1;
-    result = {
-      success: true,
-      message: `Warehouse upgraded to level ${newLevel}! New capacity: ${10 + newLevel * 5} miners.`,
-    };
-    return {
-      ...prev,
-      warehouse: { ...wh, level: newLevel },
-      stats: { ...prev.stats, money: money - liveCost },
-    };
-  });
-
-  return result;
+  const preview = resolveUpgradeWarehouse(gameState);
+  setGameState(prev => resolveUpgradeWarehouse(prev).state);
+  return { success: preview.success, message: preview.message };
 }
 
 export function sellMiner(

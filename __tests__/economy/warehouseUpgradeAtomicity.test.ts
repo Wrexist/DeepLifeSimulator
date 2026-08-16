@@ -108,50 +108,57 @@ describe('a batched double-tap cannot double-upgrade', () => {
   });
 });
 
-describe('the reported outcome matches what actually happened', () => {
+describe('the reported outcome matches the snapshot it was asked about', () => {
   /**
-   * Call `upgradeWarehouse` with a snapshot that PASSES its outer checks while
-   * the committed state the updater sees does not — exactly the divergence a
-   * batched second tap produces — and return what the function claimed.
+   * `upgradeWarehouse` is now the preview/commit resolver its three siblings
+   * use (`resolveUpgradeWarehouse` run on the snapshot for the outcome and on
+   * `prev` for the state). The contract this suite used to pin — the outcome
+   * read from INSIDE the updater via a captured `let` — was the shape the
+   * 2026-08-15/16 sweeps removed everywhere: the capture is only readable for
+   * the first update in a React batch, so under contention the caller saw the
+   * initial refusal for an upgrade that landed ("said no when it meant yes").
+   *
+   * The resolver form makes the report a claim about the SNAPSHOT: on the
+   * stale second tap of a same-batch double-tap the preview can say "yes"
+   * while the prev-side run refuses — the accepted trade, identical to
+   * `buyCompanyUpgrade` / `buyMiner` / `buyWarehouse` (see
+   * innerOnlyRejections.test.ts). What must never diverge is the STATE, which
+   * the batching suites above pin: one charge, one level, ceiling holds.
    */
-  function outcomeWhenCommittedStateIs(committed: GameState, snapshot: GameState) {
-    return upgradeWarehouse(snapshot, ((u: unknown) => {
-      if (typeof u === 'function') (u as (p: GameState) => GameState)(committed);
-    }) as never);
-  }
-
   it('reports success, and the real level, when the upgrade lands', () => {
     const state = withWarehouse(1, 1_000_000);
-    const res = outcomeWhenCommittedStateIs(state, state);
+    let committed: GameState = state;
+    const res = upgradeWarehouse(state, ((u: unknown) => {
+      if (typeof u === 'function') committed = (u as (p: GameState) => GameState)(committed);
+    }) as never);
     expect(res.success).toBe(true);
     expect(res.message).toMatch(/level 2\b/);
+    expect(committed.warehouse?.level).toBe(2);
   });
 
-  it('does NOT claim success when the updater refused for lack of funds', () => {
-    // THE BUG THIS EXISTS FOR. The message used to be built from the caller's
-    // snapshot after the updater ran, so a rejected tap still answered
-    // "Warehouse upgraded to level 2!" — naming a level never reached and a
-    // charge never made. Fixing the state without fixing the message would just
-    // move the lie.
-    const res = outcomeWhenCommittedStateIs(withWarehouse(1, 0), withWarehouse(1, 1_000_000));
+  it('refuses on the snapshot evidence: no funds', () => {
+    const res = upgradeWarehouse(withWarehouse(1, 0), (() => {}) as never);
     expect(res.success).toBe(false);
     expect(res.message).not.toMatch(/upgraded to level/i);
   });
 
-  it('does NOT claim success when the updater refused at the ceiling', () => {
-    const res = outcomeWhenCommittedStateIs(withWarehouse(10, 1_000_000), withWarehouse(1, 1_000_000));
+  it('refuses on the snapshot evidence: at the ceiling', () => {
+    const res = upgradeWarehouse(withWarehouse(10, 1_000_000), (() => {}) as never);
     expect(res.success).toBe(false);
     expect(res.message).toMatch(/maximum level/i);
   });
 
-  it('fails CLOSED when the updater never runs', () => {
-    // React only evaluates an updater eagerly when the fiber has no pending
-    // lanes (CLAUDE.md §4.1), so under contention the result may still hold its
-    // initial value. That value must be a refusal: "said no when it meant yes"
-    // is recoverable — the player taps again — whereas the other direction
-    // tells someone they bought something they did not.
-    const res = upgradeWarehouse(withWarehouse(1, 1_000_000), (() => {}) as never);
-    expect(res.success).toBe(false);
+  it('a prev that can no longer afford it is not charged, whatever was reported', () => {
+    // The divergence a batched second tap produces: snapshot passes, prev
+    // refuses. The resolver's prev-side run is the gate — the committed state
+    // must be untouched even though the preview said yes.
+    const broke = withWarehouse(1, 0);
+    let committed: GameState = broke;
+    upgradeWarehouse(withWarehouse(1, 1_000_000), ((u: unknown) => {
+      if (typeof u === 'function') committed = (u as (p: GameState) => GameState)(committed);
+    }) as never);
+    expect(committed.warehouse?.level).toBe(1);
+    expect(committed.stats.money).toBe(0);
   });
 });
 
