@@ -38,16 +38,51 @@ describe('the gate exists and is on the game week', () => {
   it('stamps the week INSIDE the updater, not outside it', () => {
     // §4.4: the updater that records the week must BE the gate, returning
     // `prev` unchanged to reject — otherwise two taps in one batch both pass.
+    // WP-A moved that updater body into the pure `applyAdCashGrant`, which the
+    // `grant` callback passes straight to setGameState.
+    const reducer = ORB_SOURCE.slice(
+      ORB_SOURCE.indexOf('export function applyAdCashGrant'),
+      ORB_SOURCE.indexOf('function AdRewardOrb()')
+    );
+    expect(reducer).toMatch(/return prev;/);
     const grantBlock = ORB_SOURCE.slice(
       ORB_SOURCE.indexOf('const grant = useCallback'),
       ORB_SOURCE.indexOf('const handleSheetDismissed')
     );
-    expect(grantBlock).toMatch(/setGameState\(prev => \{/);
-    expect(grantBlock).toMatch(/return prev;/);
-    // And the decision is captured inside, then read after — the established
-    // pattern for pairing a guard with the module-form updateMoney.
-    expect(grantBlock).toMatch(/allowed = true/);
-    expect(grantBlock).toMatch(/if \(!allowed\)/);
+    expect(grantBlock).toMatch(/setGameState\(prev => applyAdCashGrant\(prev, reward\)\)/);
+  });
+
+  it('reads NOTHING back out of the updater', () => {
+    // WP-A: the decision used to be a `let allowed` assigned inside the updater
+    // and read after it. React defers any update that is not first in its
+    // batch, so that read saw its `false` default for a grant that HAD
+    // committed the week marker — the reward silently dropped. The gate is now
+    // an OUTER guard (`cashGrantClaimed`) mirroring the inner `return prev`.
+    const grantBlock = ORB_SOURCE.slice(
+      ORB_SOURCE.indexOf('const grant = useCallback'),
+      ORB_SOURCE.indexOf('const handleSheetDismissed')
+    );
+    expect(grantBlock).not.toMatch(/let allowed/);
+    expect(grantBlock).toMatch(/if \(cashGrantClaimed\(getGameState\(\)\)\)/);
+  });
+
+  it('never shows the success sheet for a refused grant', () => {
+    const grantBlock = ORB_SOURCE.slice(
+      ORB_SOURCE.indexOf('const grant = useCallback'),
+      ORB_SOURCE.indexOf('const handleSheetDismissed')
+    );
+    // The refusal branch sets the honest flag and errors out; only the path
+    // that reached the updater sets `granted` / plays the success haptic.
+    const refusal = grantBlock.slice(
+      grantBlock.indexOf('if (cashGrantClaimed('),
+      grantBlock.indexOf('setGameState(prev => applyAdCashGrant')
+    );
+    expect(refusal).toMatch(/setGranted\(false\)/);
+    expect(refusal).toMatch(/setClaimBlocked\(true\)/);
+    expect(refusal).toMatch(/haptic\.error\(\)/);
+    expect(refusal).not.toMatch(/haptic\.success\(\)/);
+    // And the sheet copy for that state does not announce money.
+    expect(ORB_SOURCE).toMatch(/claimBlocked[\s\S]{0,80}Already collected this week/);
   });
 
   it('leaves the VITALITY reward ungated', () => {

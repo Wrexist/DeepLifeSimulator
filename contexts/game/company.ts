@@ -426,6 +426,72 @@ export function selectMiningCrypto(
   });
 }
 
+/**
+ * The whole of `buyMiner`, as a PURE function of the state it is given.
+ *
+ * WP-A: `buyMiner` used to assign a `let result` from inside its updater and
+ * return it afterwards. React only evaluates the FIRST functional update of a
+ * batch eagerly, so a purchase that committed could still report the
+ * initialiser — "Purchase Failed — Unknown error" over a miner the player owns
+ * and was charged for. Same shape, same fix as `resolveBuyCompanyUpgrade`
+ * (C-8): run it against the caller's snapshot for the OUTCOME, and again
+ * against `prev` for the STATE, so nothing crosses the updater boundary.
+ */
+export function resolveBuyMiner(
+  state: GameState,
+  minerId: string,
+  minerName: string,
+  cost: number
+): { state: GameState; success: boolean; message: string } {
+  if (!state.warehouse) {
+    return { state, success: false, message: 'You need a warehouse to buy miners' };
+  }
+
+  const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) && state.stats.money >= 0
+    ? state.stats.money
+    : 0;
+
+  if (currentMoney < cost) {
+    return { state, success: false, message: 'Not enough money' };
+  }
+
+  // Check warehouse capacity
+  const currentMiners = Object.values(state.warehouse.miners).reduce((sum, count) => sum + count, 0);
+  const maxCapacity = 10 + (state.warehouse.level - 1) * 5;
+
+  if (currentMiners >= maxCapacity) {
+    return { state, success: false, message: 'Warehouse is full! Upgrade your warehouse to store more miners.' };
+  }
+
+  // Charge and grant in one step (§4.4). `applyMoneyDelta` re-checks
+  // affordability and clamps, so a hand-written subtraction can never store a
+  // negative balance.
+  const spend = applyMoneyDelta(state, -cost, `Miner purchase: ${minerName}`);
+  if (!spend) {
+    return { state, success: false, message: 'Not enough money' };
+  }
+
+  return {
+    success: true,
+    message: `Successfully purchased ${minerName}!`,
+    state: {
+      ...state,
+      ...spend,
+      warehouse: {
+        ...state.warehouse,
+        miners: {
+          ...state.warehouse.miners,
+          [minerId]: (state.warehouse.miners[minerId] || 0) + 1,
+        },
+        minerDurability: {
+          ...state.warehouse.minerDurability,
+          [minerId]: 100,
+        },
+      },
+    },
+  };
+}
+
 export function buyMiner(
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
@@ -433,107 +499,72 @@ export function buyMiner(
   minerName: string,
   cost: number
 ): { success: boolean; message?: string } {
-  // Perform all validation and mutation inside a single functional update
-  // to avoid race conditions with stale state
-  let result: { success: boolean; message?: string } = { success: false, message: 'Unknown error' };
-
-  setGameState(prev => {
-    if (!prev.warehouse) {
-      result = { success: false, message: 'You need a warehouse to buy miners' };
-      return prev;
-    }
-
-    const currentMoney = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
-      ? prev.stats.money
-      : 0;
-
-    if (currentMoney < cost) {
-      result = { success: false, message: 'Not enough money' };
-      return prev;
-    }
-
-    // Check warehouse capacity
-    const currentMiners = Object.values(prev.warehouse.miners).reduce((sum, count) => sum + count, 0);
-    const maxCapacity = 10 + (prev.warehouse.level - 1) * 5;
-
-    if (currentMiners >= maxCapacity) {
-      result = { success: false, message: 'Warehouse is full! Upgrade your warehouse to store more miners.' };
-      return prev;
-    }
-
-    result = { success: true, message: `Successfully purchased ${minerName}!` };
-    return {
-      ...prev,
-      warehouse: {
-        ...prev.warehouse,
-        miners: {
-          ...prev.warehouse.miners,
-          [minerId]: (prev.warehouse.miners[minerId] || 0) + 1,
-        },
-        minerDurability: {
-          ...prev.warehouse.minerDurability,
-          [minerId]: 100,
-        },
-      },
-      stats: {
-        ...prev.stats,
-        money: prev.stats.money - cost,
-      },
-    };
-  });
-
-  return result;
+  // Outcome from the snapshot; state from `prev`. Every gate is still
+  // re-validated inside the updater, so two taps in one batch cannot both buy.
+  const preview = resolveBuyMiner(gameState, minerId, minerName, cost);
+  setGameState(prev => resolveBuyMiner(prev, minerId, minerName, cost).state);
+  return { success: preview.success, message: preview.message };
 }
 
 /**
  * Buy a warehouse (required for mining operations)
  */
-export function buyWarehouse(
-  gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>
-): { success: boolean; message?: string } {
-  // Perform all validation and mutation inside a single functional update
-  let result: { success: boolean; message?: string } = { success: false, message: 'Unknown error' };
+/**
+ * The whole of `buyWarehouse`, as a PURE function of the state it is given —
+ * same WP-A fix and same reasoning as `resolveBuyMiner` above. The price is
+ * re-derived from whichever state it runs on, so the committed charge always
+ * matches that state's `economy.priceIndex`.
+ */
+export function resolveBuyWarehouse(
+  state: GameState
+): { state: GameState; success: boolean; message: string } {
+  if (state.warehouse) {
+    return { state, success: false, message: 'You already have a warehouse' };
+  }
 
-  setGameState(prev => {
-    if (prev.warehouse) {
-      result = { success: false, message: 'You already have a warehouse' };
-      return prev;
-    }
+  const baseCost = 50000;
+  const priceIndex = typeof state.economy?.priceIndex === 'number' && isFinite(state.economy.priceIndex) && state.economy.priceIndex > 0
+    ? state.economy.priceIndex
+    : 1;
 
-    const baseCost = 50000;
-    const priceIndex = typeof prev.economy?.priceIndex === 'number' && isFinite(prev.economy.priceIndex) && prev.economy.priceIndex > 0
-      ? prev.economy.priceIndex
-      : 1;
+  const cost = getInflatedPrice(baseCost, priceIndex);
+  const quoted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost);
 
-    const { getInflatedPrice } = require('@/lib/economy/inflation');
-    const cost = getInflatedPrice(baseCost, priceIndex);
+  const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) && state.stats.money >= 0
+    ? state.stats.money
+    : 0;
 
-    const currentMoney = typeof prev.stats.money === 'number' && isFinite(prev.stats.money) && prev.stats.money >= 0
-      ? prev.stats.money
-      : 0;
+  if (currentMoney < cost) {
+    return { state, success: false, message: `Not enough money. Warehouse costs ${quoted}` };
+  }
 
-    if (currentMoney < cost) {
-      result = { success: false, message: `Not enough money. Warehouse costs ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cost)}` };
-      return prev;
-    }
+  const spend = applyMoneyDelta(state, -cost, 'Warehouse purchase');
+  if (!spend) {
+    return { state, success: false, message: `Not enough money. Warehouse costs ${quoted}` };
+  }
 
-    result = { success: true, message: 'Warehouse purchased successfully! You can now buy miners.' };
-    return {
-      ...prev,
+  return {
+    success: true,
+    message: 'Warehouse purchased successfully! You can now buy miners.',
+    state: {
+      ...state,
+      ...spend,
       warehouse: {
         level: 1,
         miners: {},
         minerDurability: {},
       },
-      stats: {
-        ...prev.stats,
-        money: prev.stats.money - cost,
-      },
-    };
-  });
+    },
+  };
+}
 
-  return result;
+export function buyWarehouse(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>
+): { success: boolean; message?: string } {
+  const preview = resolveBuyWarehouse(gameState);
+  setGameState(prev => resolveBuyWarehouse(prev).state);
+  return { success: preview.success, message: preview.message };
 }
 
 /**

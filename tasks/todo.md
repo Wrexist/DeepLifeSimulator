@@ -6,7 +6,7 @@ lint, routes, weekly audit). Findings triaged into work packages below.
 
 ## Wave 1 — parallel, disjoint file sets
 
-- [ ] **WP-A: UI-layer capture-across-updater fixes** (the class the 08-15 sweep
+- [x] **WP-A: UI-layer capture-across-updater fixes** (the class the 08-15 sweep
       closed in `contexts/game/actions/` but which survives outside it)
   - `components/AdRewardOrb.tsx` grant(): gate→grant capture; success UI shown for
     $0 grants (deterministic on 2nd same-week orb); check the week gate BEFORE
@@ -15,6 +15,14 @@ lint, routes, weekly audit). Findings triaged into work packages below.
   - `contexts/game/company.ts` buyMiner/buyWarehouse — no outer guard, capture read
   - `contexts/game/JobActionsContext.tsx` performJailActivity resultMessage capture
   - Regression tests for each
+  - DONE 2026-08-16: orb gate moved to the spawner + `applyAdCashGrant`
+    (stamp+credit in one updater); `SkillTreeModal` effects moved out of the
+    updater onto a preview run; `resolveBuyMiner`/`resolveBuyWarehouse` pure
+    resolvers; jail message built before the updater. Tests:
+    `__tests__/ads/adCashGrantAtomicity.test.ts`,
+    `__tests__/refactor/skillTreePurchaseSideEffects.test.ts`,
+    `__tests__/economy/minerPurchaseResult.test.ts`,
+    `__tests__/actions/jailActivityMessage.test.ts`
 - [x] **WP-B: raw-weeksLived class (bug #4 of CLAUDE.md §4.2)**
   - [x] `lib/progress/featureUnlocks.ts:207,227` → `weeksInThisLife` (both fed by
         one local, now `weeksThisLife`); `getActiveChapter` in `lifeChapters.ts`
@@ -49,13 +57,20 @@ lint, routes, weekly audit). Findings triaged into work packages below.
   - Replace `weeklyTickGuards.test.ts` allowlist with a full scan of all apply*
     call sites in the updater
   - `applyEducationStress.ts:88` missing clamp
-- [ ] **WP-D: save pipeline**
-  - `saveLoadMutex.ts` synchronous lock handoff (F-8)
-  - autosave releases mutex before write lands (F-9)
-  - `doubleBufferLoad` pointer-flip recovery vs comment (F-10)
-  - sign/CRC `save_queue_persisted` (F-11)
-  - `assertValidGameState` stale required fields (F-1)
-  - repair fallback drift for settings/stats defaults (F-5)
+- [x] **WP-D: save pipeline**
+  - [x] `saveLoadMutex.ts` synchronous lock handoff (F-8)
+  - [x] autosave releases mutex before write lands (F-9) — `addToQueue` now
+        resolves on completion, not on enqueue; `performSave` deliberately does
+        NOT take the mutex (the enqueuer still holds it → deadlock)
+  - [x] `doubleBufferLoad` pointer-flip recovery vs comment (F-10) — pointer
+        flip verified by read-back; timestamp preference when the pointer is
+        MISSING (a present pointer stays authoritative, no double verify cost)
+  - [x] sign/CRC `save_queue_persisted` (F-11) — same envelope as a save;
+        refuse + clear on verification failure
+  - [x] `assertValidGameState` stale required fields (F-1) — derived from
+        `initialGameState`; re-enabled in `criticalPaths.test.ts`
+  - [x] repair fallback drift for settings/stats defaults (F-5)
+  - [x] F-13: backup quota-retry path now records the throttle stamp and rotates
 - [x] **WP-E: economy guards** — done 2026-08-16
   - [x] `VehicleActions.purchaseVehicle` — converted to a pure resolver
     (`resolvePurchaseVehicle`) called twice (snapshot → outcome, `prev` → state):

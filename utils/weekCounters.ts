@@ -149,9 +149,12 @@ export function weeksSinceLifeStart(
   weeksLived: unknown,
   lifeStartWeek: unknown
 ): number {
-  const now = Number(weeksLived);
-  if (!Number.isFinite(now) || now < 0) return 0;
-  const start = Number(lifeStartWeek);
-  if (!Number.isFinite(start) || start < 0) return now;
+  // Strict typeof, matching resolveAbsoluteWeek above: a corrupt counter
+  // (including a numeric STRING from a hand-edited save) resolves to week
+  // zero, which errs toward the quieter, more-protected first session.
+  const now = weeksLived;
+  if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) return 0;
+  const start = lifeStartWeek;
+  if (typeof start !== 'number' || !Number.isFinite(start) || start < 0) return now;
   return Math.max(0, now - start);
 }

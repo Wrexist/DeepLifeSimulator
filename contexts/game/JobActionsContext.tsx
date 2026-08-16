@@ -335,9 +335,36 @@ function applyCriminalXp(
     const jailRollKey = `jail_activity:${currentWeek}:${activityId}`;
     const success = !activity.successRate || getDeterministicRoll(state, jailRollKey) < activity.successRate;
 
-    let resultMessage = '';
+    // WP-A: the report is built HERE, outside the updater, from the same
+    // snapshot every guard above already used. It used to be a `let
+    // resultMessage = ''` assigned inside the updater and returned after —
+    // React defers any functional update that is not first in its batch, so a
+    // jail activity that ran and paid out returned an EMPTY message to the
+    // screen. Nothing here is a gate: both of the updater's `return prevState`
+    // paths (already done this week, and an unaffordable fee) mirror an outer
+    // guard above that has already returned a real failure.
+    const outcomeParts: string[] = [];
     let willBeReleased = false;
-    let criminalXpToGain = 0;
+    if (success) {
+      if (activity.payment) outcomeParts.push(`+$${activity.payment}`);
+      if (activity.sentenceReduction) {
+        outcomeParts.push(`-${activity.sentenceReduction} week${activity.sentenceReduction > 1 ? 's' : ''}`);
+        willBeReleased = Math.max(0, state.jailWeeks - activity.sentenceReduction) <= 0;
+      }
+      if (activity.fitnessGain) outcomeParts.push(`+${activity.fitnessGain} Fitness`);
+      if (activity.healthGain) outcomeParts.push(`+${activity.healthGain} Health`);
+      if (activity.happinessGain) outcomeParts.push(`+${activity.happinessGain} Happiness`);
+      if (activity.reputationGain) outcomeParts.push(`+${activity.reputationGain} Reputation`);
+    }
+    const message = success
+      ? `Activity completed! ${outcomeParts.join(', ')}${willBeReleased ? ' You are released!' : ''}`
+      : activityId === 'escape_attempt'
+        ? 'Escape failed! Guards caught you. +3 weeks added to your sentence.'
+        : activityId === 'contraband_trade'
+          ? 'Busted! Guards found your contraband. +1 week added to your sentence.'
+          : activity.failurePenalty
+            ? `Activity failed. Lost ${activity.failurePenalty} happiness.`
+            : 'Activity failed.';
 
     setGameState(prevState => {
       // Authoritative once-per-week re-check on fresh state: the precondition
@@ -355,7 +382,9 @@ function applyCriminalXp(
       let working: GameState = prevState;
       const newStats = { ...prevState.stats };
       let newJailWeeks = prevState.jailWeeks;
-      const messages: string[] = [];
+      // Local to this updater — the player-facing message is built outside.
+      let releasedByReduction = false;
+      let criminalXpToGain = 0;
 
       // Deduct energy
       newStats.energy = Math.max(0, newStats.energy - activity.energyCost);
@@ -377,32 +406,26 @@ function applyCriminalXp(
             working = { ...working, ...earn };
             newStats.money = working.stats.money;
           }
-          messages.push(`+$${activity.payment}`);
         }
 
         // Apply sentence reduction
         if (activity.sentenceReduction) {
           newJailWeeks = Math.max(0, newJailWeeks - activity.sentenceReduction);
-          messages.push(`-${activity.sentenceReduction} week${activity.sentenceReduction > 1 ? 's' : ''}`);
-          willBeReleased = newJailWeeks <= 0;
+          releasedByReduction = newJailWeeks <= 0;
         }
 
         // Apply stat gains
         if (activity.fitnessGain) {
           newStats.fitness = Math.min(100, (newStats.fitness || 0) + activity.fitnessGain);
-          messages.push(`+${activity.fitnessGain} Fitness`);
         }
         if (activity.healthGain) {
           newStats.health = Math.min(100, (newStats.health || 0) + activity.healthGain);
-          messages.push(`+${activity.healthGain} Health`);
         }
         if (activity.happinessGain) {
           newStats.happiness = Math.min(100, (newStats.happiness || 0) + activity.happinessGain);
-          messages.push(`+${activity.happinessGain} Happiness`);
         }
         if (activity.reputationGain) {
           newStats.reputation = Math.min(100, (newStats.reputation || 0) + activity.reputationGain);
-          messages.push(`+${activity.reputationGain} Reputation`);
         }
 
         // Store criminal XP gain for later application
@@ -419,10 +442,8 @@ function applyCriminalXp(
         if (activityId === 'escape_attempt') {
           newJailWeeks = Math.min(52, newJailWeeks + 3); // Failed escape adds 3 weeks (capped at 52)
           newStats.health = Math.max(0, (newStats.health || 0) - 10);
-          messages.push('+3 weeks sentence, -10 health');
         } else if (activityId === 'contraband_trade') {
           newJailWeeks = Math.min(52, newJailWeeks + 1); // Caught with contraband adds 1 week (capped at 52)
-          messages.push('+1 week sentence (caught with contraband)');
         }
       }
 
@@ -438,16 +459,6 @@ function applyCriminalXp(
         [activityId]: currentWeek,
       };
 
-      resultMessage = success
-        ? `Activity completed! ${messages.join(', ')}${willBeReleased ? ' You are released!' : ''}`
-        : activityId === 'escape_attempt'
-          ? 'Escape failed! Guards caught you. +3 weeks added to your sentence.'
-          : activityId === 'contraband_trade'
-            ? 'Busted! Guards found your contraband. +1 week added to your sentence.'
-            : activity.failurePenalty
-              ? `Activity failed. Lost ${activity.failurePenalty} happiness.`
-              : 'Activity failed.';
-
       return {
         ...prevState,
         stats: newStats,
@@ -461,7 +472,7 @@ function applyCriminalXp(
           ? { rngCommitLog: commitDeterministicRoll(prevState, jailRollKey, prevState.weeksLived || 0) }
           : {}),
         // Mark escaped from jail for achievement tracking
-        ...(success && activityId === 'escape_attempt' && willBeReleased && { escapedFromJail: true }),
+        ...(success && activityId === 'escape_attempt' && releasedByReduction && { escapedFromJail: true }),
         // R3-C11: fold the XP into THIS updater. It used to be granted after,
         // gated on `criminalXpToGain` — an outer variable assigned inside this
         // very updater — so whenever React deferred the updater (any time
@@ -470,8 +481,6 @@ function applyCriminalXp(
         ...(success && criminalXpToGain > 0 ? applyCriminalXp(prevState, criminalXpToGain) : {}),
       };
     });
-
-    const message = resultMessage;
 
     logger.info('Jail activity performed:', { activityId, success, message });
     return { success, message };

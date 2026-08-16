@@ -155,14 +155,17 @@ describe('a life skill is confirmed before the point is spent', () => {
   });
 
   it('still reports success (the control)', () => {
-    // Moving the report inside the updater must not have deleted it.
+    // Moving the report out of the updater must not have deleted it. WP-A: the
+    // Alert and the haptic fire from a PREVIEW run of the same pure reducer on
+    // the snapshot — inside the updater they were double-fired by StrictMode's
+    // double-invoke (two buzzes, two stacked alerts, one purchase).
     expect(CODE).toMatch(/Alert\.alert\('Skill Unlocked'/);
-    expect(CODE).toMatch(/if \(result\.purchased\)/);
+    expect(CODE).toMatch(/if \(preview\.purchased\)/);
   });
 
   it('the atomic reducer is still what performs the purchase', () => {
     // The confirm step must not have reintroduced a gate-then-grant.
-    expect(CODE).toMatch(/purchaseLifeSkill\(prev, \{/);
+    expect(CODE).toMatch(/purchaseLifeSkill\(prev, args\)\.state/);
   });
 });
 

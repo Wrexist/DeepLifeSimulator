@@ -502,29 +502,38 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
    * Every gate is re-validated against FRESH `prev`; money only ever DECREASES
    * (mirror-safe — no cash minted).
    *
-   * C-10: the outcome is reported from INSIDE the updater rather than through a
-   * `let purchased` read after it. CLAUDE.md §4.1 — a value assigned inside an
-   * updater is not reliably visible outside it, and React only evaluates
-   * eagerly when the fiber has no pending lanes, which is exactly not the
-   * contended case. The old form could show no confirmation for a purchase that
-   * had in fact landed, on the screen a player uses to check a five-figure
-   * spend went through.
+   * C-10: the outcome is reported from a PREVIEW run of the same pure reducer
+   * on the caller's snapshot, not through a `let purchased` read after the
+   * updater. CLAUDE.md §4.1 — a value assigned inside an updater is not
+   * reliably visible outside it, and React only evaluates eagerly when the
+   * fiber has no pending lanes, which is exactly not the contended case. The
+   * old form could show no confirmation for a purchase that had in fact
+   * landed, on the screen a player uses to check a five-figure spend went
+   * through.
+   *
+   * WP-A: the haptic and the Alert used to fire from INSIDE the updater. An
+   * updater must be pure — React StrictMode double-invokes it (and a
+   * re-render/rebase replays it), so a single purchase buzzed the phone twice
+   * and stacked two identical "Skill Unlocked" alerts. `purchaseLifeSkill` is
+   * pure, so it can be run twice: once against the snapshot for the REPORT,
+   * once against `prev` for the STATE. Nothing crosses the boundary.
    */
   const commitUnlock = useCallback((node: SkillNode) => {
-    setGameState(prev => {
-      const result = purchaseLifeSkill(prev, {
-        id: node.id,
-        cost: node.cost,
-        levelRequired: node.levelRequired,
-        requires: node.requires,
-      });
-      if (result.purchased) {
-        haptic.success();
-        Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
-      }
-      return result.state;
-    });
-  }, [setGameState]);
+    const args = {
+      id: node.id,
+      cost: node.cost,
+      levelRequired: node.levelRequired,
+      requires: node.requires,
+    };
+    // Preview on the snapshot — decides the UI only. The committed state is
+    // whatever the second run against `prev` says, which is the authority.
+    const preview = purchaseLifeSkill(gameState, args);
+    setGameState(prev => purchaseLifeSkill(prev, args).state);
+    if (preview.purchased) {
+      haptic.success();
+      Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
+    }
+  }, [gameState, setGameState]);
 
   const handleUnlockNode = useCallback((node: SkillNode) => {
     if (isNodeUnlocked(node.id)) return;
