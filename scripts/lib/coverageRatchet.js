@@ -112,17 +112,20 @@ const COVERAGE_FLOORS = {
  * (statements 52.05 → 53.56, branches 34.05 → 35.62, functions 43.25 → 45.05,
  * lines 53.37 → 54.86) and the floors were raised with the measurement in the
  * same commit — the rule this ratchet's own 2026-08-04 history entry exists
- * to enforce.
+ * to enforce. Re-measured once more at the end of the same session after the
+ * Wave-5 packages (per-life achievements, simulation regression suite, UI
+ * tail) added ~140 tests: the constants below are that final figure, still
+ * 0.5-1.0 over the floors, so the gain is locked without another floor move.
  *
  * Re-measure and update BOTH this and the floors in the same commit. Raise them
  * in the commit that EARNS the coverage; never lower them to get a build
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 53.56,
-  branches: 35.62,
-  functions: 45.05,
-  lines: 54.86,
+  statements: 53.71,
+  branches: 35.99,
+  functions: 45.22,
+  lines: 55.01,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];

@@ -215,6 +215,9 @@ describe('the counters stay null-safe', () => {
       const spec = byId(id).progressSpec;
       if (spec.kind !== 'counter') throw new Error(`${id} should be a counter`);
       for (const gs of shapes) {
+        // DELIBERATE-CORRUPTION: this test proves the accessor survives a
+        // stripped/partial state, so it must construct garbage a factory
+        // cannot produce.
         const v = spec.current(gs as GameState);
         expect(Number.isFinite(v)).toBe(true);
         expect(v).toBeGreaterThanOrEqual(0);

@@ -27,11 +27,8 @@ const mockHaveChild = jest.fn();
 let mockGameState: GameState;
 
 /** Applies functional updates for real, so the action's effect is observable. */
-const mockSetGameState = jest.fn((updater: unknown) => {
-  mockGameState =
-    typeof updater === 'function'
-      ? (updater as (prev: GameState) => GameState)(mockGameState)
-      : (updater as GameState);
+const mockSetGameState = jest.fn((updater: GameState | ((prev: GameState) => GameState)) => {
+  mockGameState = typeof updater === 'function' ? updater(mockGameState) : updater;
 });
 
 jest.mock('@/contexts/GameContext', () => ({
@@ -64,7 +61,7 @@ const stateWith = (partner: Partial<Relationship> = {}): GameState => {
     weeksLived: 20,
     relationships: [{ ...PARTNER, ...partner }],
     family: { ...base.family, spouse: undefined, children: [] },
-  } as GameState;
+  };
 };
 
 const render = () => {
