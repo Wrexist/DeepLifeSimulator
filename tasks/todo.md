@@ -333,7 +333,7 @@ lint, routes, weekly audit). Findings triaged into work packages below.
     `reconcileLegacyPassSeason`, so the coverage is kept on the live path.
   - `DatingActions.cancelEngagement` deliberately KEPT — a designed half of the
     engagement flow with a stress test but no UI entry point. Annotated in place;
-    wiring it is a product decision.
+    wiring it is a product decision. (Wired up in WP-Q below, 2026-08-16.)
   - Logger conformance: `lib/social/npcPosts.ts` (3) and
     `lib/config/featureFlags.ts` (1) `console.*` → `utils/logger`. No cycle —
     `logger` pulls only `RemoteLoggingService`, which reads no flag.
@@ -413,6 +413,64 @@ lint, routes, weekly audit). Findings triaged into work packages below.
     `npm run type-check:tests` both clean. ESLint on all changed files: 0 errors;
     warning count on `ContactsApp.tsx` unchanged at 3 vs HEAD, no new warnings
     anywhere.
+
+- [x] **WP-Q: the achievement ladder's week goals, and the engagement's missing
+      exit** — the two product-shaped findings deferred out of the earlier
+      sweeps, done 2026-08-16.
+  - **Storage-vs-derived, investigated first because it decides everything.**
+    Achievement COMPLETION is DERIVED — `achievementProgress` runs the
+    `progressSpec` closure against live state on every render — while only the
+    CLAIM is stored (`claimedProgressAchievements`, per-life, wiped by prestige;
+    plus `prestige.claimedAchievementIds`, permanent, which one-shots the GEM
+    mint across all lives). So a naive switch to `weeksInThisLife` would have
+    left every card reading "Claimed" (that branch is checked first in
+    `AchievementsProgress`) but silently dropped the achievement out of the
+    `progress >= 1` completed count, out of `isAchievementEarned`, and through
+    it out of `getSatisfiedAchievementIds` — which gates the perk unlocks
+    (`app/(onboarding)/Perks.tsx`), `LifeGoalsPanel` and the prestige snapshot.
+  - **`src/features/onboarding/achievementsData.ts`: 4 week goals + 1 divisor.**
+    `beginner_survivor` (4), `beginner_getting_started` (10),
+    `milestone_100_weeks`, `milestone_500_weeks` now measure `weeksInThisLife`
+    through one helper, `weeksTowardGoal`, which short-circuits to the goal for
+    an id already in the per-life claim store — the "|| alreadyRecorded" that
+    keeps existing claims honoured. It cannot hand anything out: the claim
+    button needs `progress >= 1 && !claimed`. `joyful_life` is the same defect
+    inverted — it divided `totalHappiness` (one reading per week PLAYED, 0 at
+    the start of every life) by the age-seeded absolute counter, so an age-25
+    life's average happiness read ~2 instead of ~85; the divisor is now weeks in
+    this life, which can only RAISE the value, so it needs no claim guard.
+  - Left alone deliberately: `totalPrisonWeeks`, `healthWeeks`,
+    `healthZeroWeeks`, `lifetimeStatistics.totalWeeksWorked` are per-life
+    accumulators seeded at 0 (not from age), and the age goals measure age.
+    Progression's "Weeks Lived" stat card feeds NO progress bar (that card is
+    `liveAchievements.filter(a => a.claimed)`) and is an age-derived lifetime
+    figure sitting beside Age, so it stays as it is.
+  - Pre-v43 saves have no `lifeStartWeek`, so `weeksInThisLife` falls back to
+    the absolute counter and their behaviour is bit-identical to today.
+  - **`components/FamilyTab.tsx`: "Call off the engagement"** on the engaged
+    partner card, next to Propose / Plan the wedding, calling the fully-tested
+    `DatingActions.cancelEngagement` that had shipped with no caller anywhere in
+    `components/` or `app/`. Destructive → `Alert.alert` confirm first, the same
+    shape as Move In / Try for Baby on that screen, with `style: 'destructive'`
+    and the cost (-15 happiness, -20 bond) stated in the prompt. The
+    "no UI entry point" comment in `DatingActions.ts` is updated rather than
+    left to mislead. NOT added to `components/mobile/ContactsApp.tsx` (the other
+    surface with propose / plan wedding): another agent holds that file this
+    session.
+  - Tests: `__tests__/progression/weekAchievementsPerLife.test.ts` (24 — every
+    shipped scenario age completes none of the four at birth, each fires at
+    exactly its own week count, a recorded claim survives, pre-v43 fallback, the
+    happiness divisor, null-safety, and a source guard) and
+    `__tests__/render/familyTabEngagement.render.test.tsx` (5 — the row appears
+    only while engaged, confirms before acting, cancel is a no-op, confirming
+    clears the engagement and KEEPS the partner).
+  - Verification: `progression` + `onboarding` + `src/features/onboarding` +
+    `useAchievements` = 33 suites / 582 tests; `render` + achievements/marriage
+    stress = 43 suites / 403 tests; `dating` + `social` + `scenarios` +
+    `prestige` + `actions` = 97 suites / 1,066 tests. All passing.
+    `npm run type-check` and `npm run type-check:tests` clean. ESLint on the 5
+    changed/added files: 0 errors, only the 4 pre-existing `require()` warnings
+    already in `DatingActions.ts`.
 
 ## Deliberately deferred (recorded, not done)
 

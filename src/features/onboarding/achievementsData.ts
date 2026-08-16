@@ -1,6 +1,7 @@
 import { ImageSourcePropType } from 'react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { isLuxuryLifeComplete, getOwnedLuxuryCount, getTotalLuxuryValue } from '@/lib/luxury';
 
 const socialIcon = require('@/assets/images/Achivements/Career Titan.webp');
@@ -17,6 +18,45 @@ export interface Achievement {
   icon?: ImageSourcePropType;
   group?: string;
 }
+
+/**
+ * Weeks played in THIS life, for a "survive N weeks" achievement.
+ *
+ * These read the raw `weeksLived` counter, which is ABSOLUTE and seeded from
+ * the starting age (`computeWeeksLived` = `(age - 18) * 52`), so an age-20
+ * character begins at 104 and an age-25 one at 364 — CLAUDE.md §4.2. "Survive
+ * your first month (4 weeks)" and "Survive 10 weeks" were therefore already
+ * complete on frame one for 7 of the 8 shipped scenario ages, and "Live for 100
+ * weeks" was complete at birth for anyone starting at 20 or later. An
+ * early-progression ladder that pays out before the player has done anything is
+ * not a ladder; `weeksInThisLife` is the measurement the titles promise.
+ *
+ * The `goal` short-circuit is what makes this safe to change under existing
+ * players. Completion is DERIVED (`achievementProgress` runs the closure on
+ * live state); only the CLAIM is stored, in `claimedProgressAchievements`. So
+ * a player who already collected the reward would otherwise see the achievement
+ * drop back out of the "Completed" count in `AchievementsProgress`, and out of
+ * `isAchievementEarned` — which feeds `getSatisfiedAchievementIds`, and through
+ * it the perk unlocks and the prestige achievement snapshot. Returning the goal
+ * for an id that is already in the per-life claim store keeps every recorded
+ * claim honoured, and it cannot hand anything out: the claim button requires
+ * `progress >= 1 && !claimed`, so a claimed achievement can never be claimed
+ * twice (and the gem mint is separately one-shot per id across all lives via
+ * `prestige.claimedAchievementIds`).
+ *
+ * Per-life is the right scope for the short-circuit because the achievements
+ * system itself is per-life: `claimedProgressAchievements` is wiped by prestige
+ * (`createResetGameState`), and `lifeStartWeek` is re-stamped at the same
+ * moment, so a new life re-earns these against its own week count.
+ *
+ * A pre-v43 save has no `lifeStartWeek`, so `weeksInThisLife` falls back to the
+ * absolute counter and those saves keep exactly the behaviour they have today.
+ */
+const weeksTowardGoal = (gs: GameState, achievementId: string, goal: number): number => {
+  const claimed = gs?.claimedProgressAchievements;
+  if (Array.isArray(claimed) && claimed.includes(achievementId)) return goal;
+  return weeksInThisLife(gs);
+};
 
 export const achievements: Achievement[] = [
   // ── Beginner Achievements ─────────────────────────────────────────────
@@ -82,7 +122,7 @@ export const achievements: Achievement[] = [
     id: 'beginner_survivor',
     title: 'Survivor',
     description: 'Survive your first month (4 weeks).',
-    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 4 },
+    progressSpec: { kind: 'counter', current: gs => weeksTowardGoal(gs, 'beginner_survivor', 4), goal: 4 },
     goldReward: 5,
     group: 'beginner',
   },
@@ -90,7 +130,7 @@ export const achievements: Achievement[] = [
     id: 'beginner_getting_started',
     title: 'Getting Started',
     description: 'Survive 10 weeks.',
-    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 10 },
+    progressSpec: { kind: 'counter', current: gs => weeksTowardGoal(gs, 'beginner_getting_started', 10), goal: 10 },
     goldReward: 10,
     group: 'beginner',
   },
@@ -633,7 +673,16 @@ export const achievements: Achievement[] = [
     progressSpec: {
       kind: 'counter',
       current: gs => {
-        const weeks = gs.weeksLived ?? 0;
+        // `totalHappiness` accumulates ONE happiness reading per week actually
+        // played (`GameActionsContext`'s tick) and starts at 0 every life, so
+        // the divisor has to be weeks played in this life. Dividing by the
+        // absolute, age-seeded `weeksLived` diluted the average by the 364
+        // weeks an age-25 character is "born" holding, putting an 80-average
+        // out of reach for every scenario that does not start at 18 — the same
+        // §4.2 defect as the survival goals above, pointing the other way.
+        // No claim short-circuit is needed here: `weeksInThisLife` is never
+        // larger than `weeksLived`, so this can only ever RAISE the value.
+        const weeks = weeksInThisLife(gs);
         return weeks > 0 ? (gs.totalHappiness ?? 0) / weeks : 0;
       },
       goal: 80,
@@ -831,7 +880,7 @@ export const achievements: Achievement[] = [
     id: 'milestone_100_weeks',
     title: 'Century',
     description: 'Live for 100 weeks',
-    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 100 },
+    progressSpec: { kind: 'counter', current: gs => weeksTowardGoal(gs, 'milestone_100_weeks', 100), goal: 100 },
     goldReward: 100,
     group: 'milestone',
   },
@@ -839,7 +888,7 @@ export const achievements: Achievement[] = [
     id: 'milestone_500_weeks',
     title: 'Half Millennium',
     description: 'Live for 500 weeks',
-    progressSpec: { kind: 'counter', current: gs => gs.weeksLived ?? 0, goal: 500 },
+    progressSpec: { kind: 'counter', current: gs => weeksTowardGoal(gs, 'milestone_500_weeks', 500), goal: 500 },
     goldReward: 500,
     group: 'milestone',
   },

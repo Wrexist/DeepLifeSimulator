@@ -1252,11 +1252,12 @@ export const fileDivorce = (
 /**
  * Cancel engagement.
  *
- * No UI entry point yet — nothing in `components/` or `app/` calls this; the
- * engagement screens offer only propose / plan / execute. Kept because it is a
- * designed half of that flow (and covered by
- * `__tests__/stress/marriageFlow.stress.test.ts`); wiring it up is a product
- * decision, not a cleanup one.
+ * Wired into the Family screen's partner card (`components/FamilyTab.tsx`,
+ * "Call off the engagement", behind a destructive confirm) on 2026-08-16. For
+ * most of its life it had NO caller in `components/` or `app/` — the engagement
+ * screens offered only propose / plan / execute, so an engaged player's only
+ * exit was "Break up", which ends the relationship outright. This is the softer
+ * one it was designed for: the ring comes off, the partner stays.
  */
 export const cancelEngagement = (
   gameState: GameState,
