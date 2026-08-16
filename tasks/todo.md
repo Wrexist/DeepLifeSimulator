@@ -1,27 +1,40 @@
-# Active plan — architecture-audit fix wave 1 (2026-08-16) — COMPLETE
+# Architecture-audit fix waves (2026-08-16) — waves 1 & 2 COMPLETE
 
-Source: tasks/architecture-audit-2026-08-16.md (fix order items 1–6).
-All items landed on claude/codebase-architecture-audit-dy6c5m and verified
-(type-check app+tests clean, check:routes, lint:errors, audit-save all clear,
-54 targeted suites / 650 tests passing on the combined tree).
+Source: tasks/architecture-audit-2026-08-16.md. All items below landed on
+claude/codebase-architecture-audit-dy6c5m, each batch verified before commit;
+final combined tree: both type-checks clean, lint:errors clean, audit-save all
+clear, preflight passes on a clean checkout, tooling+save+startup 531 tests green.
 
-- [x] C1: Welcome-back bonus `settings.lastWelcomeBackWeek` gate (v44 carve-out,
-      docs synced, round-trip + clock-farm tests).
-- [x] C2: `check:routes` in `.github/workflows/eas-update.yml`.
-- [x] C3: audit-save V11 assignment-based matching + 8 repairGameState mirrors.
-- [x] C4: factory scan widened to all jest trees; all 25 raw `as GameState`
-      casts converted or marked DELIBERATE-CORRUPTION.
-- [x] H3: `test:integration` → real `__tests__/save` + `__tests__/integration`
-      (36 suites / 404 tests); hollow saveLoad.test.ts deleted.
-- [x] H4: `src/**` in tsconfig.typecheck.json (zero fallout, proven by diff).
-- [x] H1: discoverySystem typed reads (9 of 20 systems were broken);
-      `as unknown as … any` eslint bypass closed (descendant selector).
-- [x] H7a: payoffRoll → seeded `makeWeeklyRoll` (Math.sin divergence closed).
+## Wave 1 (fix-order items 1–6)
+- [x] C1 welcome-back forward-clock exploit (v44 carve-out + tests)
+- [x] C2 check:routes in the production OTA workflow
+- [x] C3 audit-save V11 assignment-based matching + 8 repair mirrors
+- [x] C4 factory scan widened; all 25 raw `as GameState` casts burned down
+- [x] H3 test:integration → real save/integration suites
+- [x] H4 src/** in tsconfig.typecheck.json
+- [x] H1 discoverySystem typed reads + `as unknown as … any` lint closure
+- [x] H7a payoffRoll → seeded makeWeeklyRoll
 
-## Next wave candidates (from the report's fix order, not started)
-- H2 preflight reads eas.json profile env (before next release)
-- H5 boot-error surfacing (dead earlyInitError / Metro screen)
-- H8 forceSave protected-state embed; H6 lib→contexts inversions; H9 cold-start delay
-- M1/M2/M3 tick+action correctness; M12 carve-out round-trip suite
-- Noted during wave 1: `mark('relationships', …)` in discoverySystem is always
-  true (initialState seeds Mom+Dad) — same over-credit class, left for next wave.
+## Wave 2
+- [x] H2 preflight resolves eas.json profile env (warn-not-fail for EAS-store-only
+      secrets; NEW hard fail on Google test ad units in production)
+- [x] H5 boot-error surfacing live (subscriber model); Metro dead code deleted
+- [x] H9 cold start ~6s faster (readiness-driven; MIN_SPLASH_MS=600); bounded health poll
+- [x] M2 tick failure actually aborts (no silent pre-tick save)
+- [x] M3 relationship pass per-entry containment
+- [x] M1 breakUp/moveIn stat deltas atomic in-updater
+- [x] H8/L10 forceSave + quota-retry protected-state parity
+- [x] H6 lib boundary: 3 symbols moved down, 2 sanctioned in place, eslint
+      boundary rule over lib/** (documented in CLAUDE.md §5)
+- [x] M12 carveOutRoundTrip.test.ts — all 14 carve-outs + 3 full envelope round trips
+- [x] Discovery follow-up: seeded Mom/Dad no longer credit 'relationships'
+
+## Wave 3 candidates (from the report, not started)
+- M4 whole-state subscriptions (IAPHandler, AchievementToast, UIUXOverlay,
+  provider stateRef pattern → useGameStateGetter)
+- M5 useAchievements recompute; M7 formatMoney ×35; M8 gem catalog + false success
+- M6 cloud-sync half-wired path; M9 net-worth consolidation; M10 age dual-source
+- M11 render-phase mirror write; M13 zeroPreRolls adoption; M14 audit-logic G5
+- M15 EAS preview profile flags; M16 tabs layout selectors; M17 preview.tsx
+- M18 EventChoice.special union; M19 constants/order-book dedup; M20 nested audit walk
+- H7(b/c) event payload seeded rolls + RNG consolidation; LOW items L1–L18

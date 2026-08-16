@@ -101,7 +101,9 @@ describe('preflight uses this helper rather than its own copy', () => {
 
   it('§9 delegates the decision', () => {
     expect(SRC).toMatch(/require\('\.\/lib\/receiptVerification'\)/);
-    expect(SRC).toMatch(/resolveVerificationPath\(process\.env, \{ isProductionBuild \}\)/);
+    // `buildEnv`, not `process.env`: the gate judges the env the BUILD will see
+    // (eas.json profile env overlaid with process.env) — see H2 / preflightEnv.
+    expect(SRC).toMatch(/resolveVerificationPath\(buildEnv, \{ isProductionBuild \}\)/);
   });
 
   it('and still fails the build on the two bad verdicts (the control)', () => {
