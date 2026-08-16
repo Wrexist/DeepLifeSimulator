@@ -472,6 +472,74 @@ lint, routes, weekly audit). Findings triaged into work packages below.
     changed/added files: 0 errors, only the 4 pre-existing `require()` warnings
     already in `DatingActions.ts`.
 
+- [x] **WP-O: long-horizon balance pass — three defects the real tick only shows
+      over 20+ game years** — the analysis was report-only for TUNING; these
+      three are defects, not knobs, and were fixed. Found by mounting the real
+      `GameProvider` (the `realProviderLoop` pattern), seeding a life through the
+      real `buildNewGameState`, and driving production `nextWeek()` for 22-25
+      game years across starting ages 18/20/25/30/40. Harnesses are exploratory
+      (50-100s each) and deliberately NOT shipped — they live in the session
+      scratchpad under `probes/` with a README; only the fast regression suite
+      ships.
+  - **Early-game stat-decay grace applied to exactly one starting age.**
+    `computeDecayInputs` (`weekly/preTick.ts`) computed its 8-week grace factor
+    from the ABSOLUTE `weeksLived`, which is seeded from the starting age
+    (`(age - 18) * 52`). An age-20 character begins at 104 and an age-25 one at
+    364, so `weeksLived / 8` was already ≥ 1 on frame one: full-rate decay from
+    the very first tick for every scenario except the age-18 ones, and for every
+    prestige heir (heirs start at 20). Measured on the real tick — week 1 of a
+    passive life lost 3.2 health / 5.6 happiness at age 18 and 7.8 / 14.4 at
+    age 25, and the age-25 life died three weeks sooner. This is the FOURTH
+    instance of the bug class CLAUDE.md §4.3 names; fixed the same way, by
+    reading the `lifeStartWeek` baseline (v43) through `weeksSinceLifeStart`.
+  - **Beginner luck paid out for age-18 starts and nothing else.**
+    `computeWeeklyIncome` (`weekly/applyIncome.ts`) gated its weeks-0-19 bonus on
+    the same absolute counter. Measured: an age-18 passive life gained $22-34/wk
+    for 15 weeks; age-20/25/40 lives gained exactly $0 and their cash sat frozen
+    at the starting figure. The GATE now counts weeks into this life; the SEED
+    stays on the absolute week, so every existing paycheck stays reproducible.
+  - **`lifetimeStatistics.totalMoneyEarned` — a reader with no writer on the
+    paycheck path.** Same shape as the WP-F counters. Its only production writer
+    was `useMoneyActions().updateMoney`, which the weekly tick does not use (the
+    tick writes `newStats.money` directly), so salary, passive income, partner
+    contribution, Pulse earnings and the pension were never counted. Measured:
+    758 weeks of paid work, $121,765 accumulated, counter still $0. Not
+    cosmetic — `earnedThisLife` reads it for **Chapter 1's "Earn $500", the
+    first goal of the tutorial chapter**, which could therefore never complete
+    (taking its per-goal reward and the chapter completion reward with it);
+    `readMetric` reads it as the `lifetimeEarnings` Legacy Contract metric, so
+    those were unclaimable; and `StatisticsApp`'s "Lifetime money" card rendered
+    "Earned $0" for every player forever. `applyLifetimeStatistics` now credits
+    the `totalIncome` it already receives, sanitised so a non-finite week adds 0.
+  - **No softlock found.** 520-week runs of a jobless tenant confirm the arrears
+    design holds: rent accrues, eviction fires (week 6), and the debt then
+    FREEZES — `applyArrears` charges a one-off fee on the miss rather than
+    interest on the balance, so a player who cannot pay never watches the number
+    grow. A tenant WITH a job cleared a $633 peak by week 12. `nextWeek` never
+    stopped advancing in any run; the only non-advancing state is death, which
+    is deliberate.
+  - Tests: `__tests__/simulation/lifeRelativeTickGates.test.ts` (23 — every
+    shipped starting age gets the week-0 grace and the beginner bonus, both
+    windows still CLOSE on schedule, pre-v43 saves keep today's behaviour in
+    both directions, the counter accumulates / ignores unpaid weeks / cannot be
+    poisoned by NaN, and Chapter 1's goal plus the Legacy Contract metric
+    actually become reachable).
+  - Two `applyLifetimeStatistics` snapshots in
+    `__tests__/refactor/subsystemEquivalence.test.ts` updated deliberately —
+    the diff is exactly the two new `totalMoneyEarned` lines. The
+    `computeDecayInputs` and `computeWeeklyIncome` snapshots did NOT move, which
+    is the backward-compatibility proof: their fixtures carry no `lifeStartWeek`.
+  - Verification: the new suite (23), `refactor/subsystemEquivalence` +
+    `weekly/__tests__` + `statistics` + `progression` + `legacy` +
+    `lib/retirement` + `monetization/premiumPackIncome` = 41 suites / 833 tests,
+    and `__tests__/stress/realProviderLoop` 7/7 (500 real ticks, no NaN, save
+    round-trips). `npm run type-check` and `npm run type-check:tests` clean.
+    ESLint on the 4 changed/added files: 0 errors, 0 warnings.
+  - Balance findings are REPORT-ONLY and were not tuned — see the WP-O report
+    (passive life dies in 13-16 weeks; no baseline cost of living so a jobless,
+    homeless player pays $0/wk forever; career level never advances without a
+    player action; ~3%/yr price inflation against a flat entry salary).
+
 ## Deliberately deferred (recorded, not done)
 
 - (empty — the dead-export deletion sweep listed here was done as WP-K above)

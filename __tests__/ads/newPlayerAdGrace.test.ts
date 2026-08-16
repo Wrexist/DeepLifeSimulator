@@ -121,4 +121,25 @@ describe('interstitials leave a new player alone', () => {
       maybeShowInterstitialForWeek(WEEKS_PER_YEAR * 4, { adsRemoved: true, blocked: false })
     ).resolves.toBe(false);
   });
+
+  it('the grace measures weeks into THIS life, not the age-seeded counter', async () => {
+    // An age-25 start begins at weeksLived 364 — past the two-year grace on
+    // the absolute counter, so it used to meet an interstitial at its first
+    // year boundary. With weeksThisLife supplied, the same boundary is silent
+    // until two years of that life have actually been played.
+    await expect(
+      maybeShowInterstitialForWeek(WEEKS_PER_YEAR * 8, { ...opts, weeksThisLife: WEEKS_PER_YEAR })
+    ).resolves.toBe(false);
+    await expect(
+      maybeShowInterstitialForWeek(WEEKS_PER_YEAR * 8, { ...opts, weeksThisLife: WEEKS_PER_YEAR * 2 - 1 })
+    ).resolves.toBe(false);
+  });
+
+  it('a pre-v43 caller that supplies no weeksThisLife keeps the old gate', async () => {
+    // Absence falls back to the absolute counter, so old saves (which have no
+    // lifeStartWeek) behave exactly as they do today. NaN falls back too.
+    await expect(
+      maybeShowInterstitialForWeek(WEEKS_PER_YEAR - 1, { ...opts, weeksThisLife: NaN })
+    ).resolves.toBe(false);
+  });
 });

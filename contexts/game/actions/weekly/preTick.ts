@@ -22,6 +22,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { logger } from '@/utils/logger';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 // ============================================================================
 // 1. calculateNetWorth — sum cash, savings, stocks, real estate, vehicles,
@@ -245,7 +246,25 @@ export function computeDecayInputs(state: GameState, opts: DecayInputsOptions): 
 
   // ENGAGEMENT: Early game grace period — reduce stat decay weeks 0-8.
   // This prevents new players from feeling punished before they understand the game.
-  const currentWeeks = typeof state.weeksLived === 'number' ? state.weeksLived : 0;
+  //
+  // Counted in weeks into THIS LIFE, not on the absolute counter. `weeksLived`
+  // is seeded from the starting age (`computeWeeksLived` = `(age - 18) * 52`),
+  // so an age-20 character begins at 104 and an age-25 one at 364 — every one
+  // of them was already past an 8-week window on frame one and took FULL decay
+  // from their very first tick. The grace applied to exactly one starting age
+  // (18), and to no prestige heir at all (heirs start at 20). Measured on the
+  // real tick: an age-18 passive life loses 3.2 health / 5.6 happiness in week
+  // 1, an age-25 one loses 7.8 / 14.4 and dies three weeks sooner.
+  //
+  // This is the fourth instance of the bug class CLAUDE.md §4.3 names (the
+  // first-session coach, `FirstWeekGuide`, Chapter 1's "Survive 4 Weeks"), and
+  // it is fixed the same way: read the `lifeStartWeek` baseline (v43).
+  //
+  // A save written before v43 has no baseline, and `weeksSinceLifeStart` falls
+  // back to the absolute counter for those — deliberately. Such a save is by
+  // definition not a first session, so re-opening a grace window for it would
+  // hand an established player eight weeks of quarter-rate decay.
+  const currentWeeks = weeksSinceLifeStart(state.weeksLived, state.lifeStartWeek);
   const graceFactor = Math.min(1.0, currentWeeks / gracePeriodWeeks);
   effectiveDecayRate = effectiveDecayRate * (0.25 + 0.75 * graceFactor);
   // Week 0: 25% decay, Week 4: 62.5% decay, Week 8+: 100% decay.

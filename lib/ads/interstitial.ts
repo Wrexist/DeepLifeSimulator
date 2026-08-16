@@ -39,14 +39,23 @@ export function __resetInterstitialCadence(): void {
  */
 export async function maybeShowInterstitialForWeek(
   weeksLived: number,
-  opts: { adsRemoved?: boolean; blocked?: boolean } = {},
+  opts: { adsRemoved?: boolean; blocked?: boolean; weeksThisLife?: number } = {},
 ): Promise<boolean> {
   // Paid ad-free, no ad SDK, or a blocking popup is up → never show.
   if (opts.adsRemoved || opts.blocked) return false;
   if (!isFeatureEnabled('adMob') || Platform.OS === 'web') return false;
 
-  // Only at a natural breakpoint, and not for brand-new players.
-  if (weeksLived < GRACE_WEEKS) return false;
+  // Only at a natural breakpoint, and not for brand-new players. The grace
+  // measures weeks into THIS life when the caller supplies them: `weeksLived`
+  // is seeded from the starting age ((age - 18) * 52, CLAUDE.md §4.2), so
+  // gating on the absolute counter gave the two-year grace to exactly one of
+  // the eight scenario ages — the same defect BannerAd fixed for its grace
+  // year. The year-boundary check below stays on the absolute counter: it is
+  // a calendar breakpoint, not a progress gate.
+  const graceClock = typeof opts.weeksThisLife === 'number' && isFinite(opts.weeksThisLife) && opts.weeksThisLife >= 0
+    ? opts.weeksThisLife
+    : weeksLived;
+  if (graceClock < GRACE_WEEKS) return false;
   if (weeksLived % WEEKS_PER_YEAR !== 0) return false;
 
   const now = Date.now();
