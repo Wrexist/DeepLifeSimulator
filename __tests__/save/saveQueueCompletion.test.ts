@@ -124,4 +124,36 @@ describe('queueSave resolves on completion, not on enqueue', () => {
     expect(doubleBufferSave).toHaveBeenCalledTimes(2);
     expect(saveQueue.getStatus().queueLength).toBe(0);
   });
+
+  it('does not resolve via the dying drain while its own write is in flight (F-9b)', async () => {
+    // The stale-drain race: `processQueue` returns on an empty queue one
+    // microtask before `processingPromise` clears, so an operation enqueued in
+    // that window gets the OLD drain promise back from `kickProcessing()`.
+    // Racing that stale promise resolved `queueSave` while this operation's
+    // write had not even started — the mutex came off, and the mid-write
+    // window F-9 exists to close was open again. The await must loop until
+    // THIS operation settles, whatever drain promise it happened to see.
+    const first = queueSave(1, state);
+    await settleEventLoop();
+    const finishFirst = takeRelease();
+    releaseWrite = null;
+    finishFirst?.();
+
+    // Enqueue behind the finishing drain, without letting the loop settle.
+    let secondResolved = false;
+    const second = queueSave(1, state).then(() => {
+      secondResolved = true;
+    });
+
+    await settleEventLoop();
+
+    // The second write is open; its caller must still be waiting on it. With
+    // the raced-stale-drain code this flag could already be true here.
+    expect(writeStarted).toBe(2);
+    expect(secondResolved).toBe(false);
+
+    takeRelease()?.();
+    await Promise.all([first, second]);
+    expect(secondResolved).toBe(true);
+  });
 });

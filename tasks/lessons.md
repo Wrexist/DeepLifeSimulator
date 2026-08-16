@@ -4,7 +4,46 @@
 
 ## Patterns to Watch For
 
-### 2026-08-14 - The instrument was built and never plugged in, and I twice nearly reported a bug that wasn't
+### 2026-08-16 - The hardening pass: a sweep's enforcement must be as wide as its claim, and parallel edits in one tree need file-scoped commits
+
+- **A fix "across the board" is only as broad as the ratchet that guards it.**
+  The 08-15 capture-across-updater sweep was real and thorough — inside
+  `contexts/game/actions/`. Its ratchet scanned exactly that one directory,
+  non-recursively, so the identical shape survived in `components/`
+  (AdRewardOrb — a player watches a full rewarded ad, sees "Reward added!",
+  gets $0), `contexts/game/company.ts` and `JobActionsContext.tsx`. When a
+  class is declared closed, widen the *enforcement* to every tree the class
+  can occur in; the fix sweep and the ratchet scope must land together.
+- **The raw-weeksLived class shipped a fourth and fifth time, in both
+  directions at once.** `unlockTier` returned tier 5 on frame one for every
+  age-21+ start (>= gates pre-passed) while the welcome tutorial and
+  first-job CTA never rendered for the same players (<= gates pre-failed),
+  and ~45 event gates in `lib/events/` had the same split. The failure hides
+  because each direction masks the other: nothing crashes, the game is just
+  silently mispaced for 7 of the 8 scenario ages. Any new "played N weeks"
+  comparison must go through `weeksInThisLife`/`weeksSinceLifeStart`, and the
+  source-guard test in `weeksInThisLifeSweep.test.tsx` now pins the fixed
+  gate files.
+- **An allowlist coverage test certifies the past, not the present.**
+  `weeklyTickGuards.test.ts` asserted 14 named subsystems were guarded and
+  said nothing about the two added since — which ran bare, where a throw
+  costs the player's week. Same shape as the C-9 ratchet's too-narrow
+  detector. Structural tests must SCAN (and self-check their exemptions),
+  not enumerate.
+- **In a shared working tree with parallel agents, stage explicit file lists,
+  never directories.** `git add lib/events/` swept another agent's
+  half-landed deletion (source gone, test still present) into an unrelated
+  commit and pushed a red suite. Also from the same session: a source-shape
+  test (`newPlayerAdGrace`) pinned another file's literal source text, so an
+  agent changing that file broke a suite its own validation never ran — a
+  cross-file coupling neither agent could see. After parallel work
+  integrates, only the FULL suite is evidence.
+- **A concurrency fix can reopen the hole it closes one layer up.** F-9 made
+  `queueSave` await write completion by racing the drain promise — but the
+  drain it captured could be a PREVIOUS drain in its dying microtasks, which
+  resolves without touching the new operation, releasing the mutex mid-write
+  again (F-9b). Post-fix adversarial review of the fix itself found it; the
+  await now loops until the operation's own settle fires.
 
 - **A declared event with no emitter is the analytics form of dead code, and it
   is invisible.** `lib/analytics/events.ts` names the events its own docstring

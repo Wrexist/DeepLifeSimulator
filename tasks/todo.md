@@ -135,19 +135,25 @@ lint, routes, weekly audit). Findings triaged into work packages below.
     shape (company.ts sellCompany/sellMiner, GameActionsContext proposeToPartner/
     moveInTogether, ItemActionsContext performHack, MoneyActionsContext
     purchasePrestigeBonus, SocialActionsContext haveChild).
-  - **REAL remaining capture, pinned not fixed: `contexts/game/company.ts::upgradeWarehouse`**
-    — live (Mining warehouse upgrade), reads `let result` across its updater.
-    Siblings buyMiner/buyWarehouse/sellMiner are already resolver-shaped, so
-    `resolveUpgradeWarehouse` is mechanical — but it moves money, so it is the
-    owner's call, not a test-scope commit's.
+  - The one REAL capture the wider scope found — `company.ts::upgradeWarehouse`,
+    the live Mining warehouse-upgrade button — was converted to
+    `resolveUpgradeWarehouse` (the siblings' preview/commit shape, money via
+    `applyMoneyDelta`) in the same change; its atomicity suite now pins the
+    resolver contract. `processVehicleWeekly` (no production caller) remains
+    the single pinned capture.
   - components/ and app/ contribute zero (2d99a22 fixed them); fixtures + a
     negative control prove the scan really reaches them.
 
 ## Wave 3 — validation
 
-- [ ] Full suite, type-check (app+tests), lint, routes, both ratchets, audit:weekly
-- [ ] Re-audit diffs (code-review pass)
-- [ ] lessons.md entry; commit and push
+- [x] Full suite (7,252 pass), type-check (app+tests), lint, routes, both
+      ratchets, audit:weekly fully green across all five domains
+- [x] Re-audit diffs — /code-review at high effort over main...HEAD; one
+      finding survived verification (F-9b: `addToQueue` could resolve via a
+      STALE drain promise from a dying drain, reopening the mid-write window
+      F-9 closed) — fixed: the await now loops until the operation's own
+      settle fires, with a discriminating regression test
+- [x] lessons.md entry; committed and pushed
 
 ## Deliberately deferred (recorded, not done)
 

@@ -84,9 +84,13 @@ class SaveQueue {
     //
     // Bounded: three retries with a 1s/2s/3s backoff is ~6s worst case, well
     // inside the mutex's 30s watchdog.
+    let settled = false;
     let settle: () => void = () => {};
     const completed = new Promise<void>(resolve => {
-      settle = resolve;
+      settle = () => {
+        settled = true;
+        resolve();
+      };
     });
 
     const operation: SaveOperation = {
@@ -106,13 +110,27 @@ class SaveQueue {
       this.log.warn('Failed to persist queue after add (non-critical):', err);
     });
 
-    // Chain onto existing processing promise to guarantee serialized processing
-    const drain = this.kickProcessing();
-
-    // Race against the drain so a `processQueue` that rejected outright (it
-    // shouldn't — every operation is caught individually) surfaces as a failed
-    // save instead of hanging the caller and, with it, the mutex.
-    await Promise.race([completed, drain]);
+    // F-9b: race the LIVE drain, not a captured one, until OUR operation
+    // settles. The first drain promise this sees can be a PREVIOUS drain in
+    // its dying microtasks: `processQueue` returns on an empty queue a moment
+    // before `processingPromise` clears, so an operation pushed in that window
+    // gets the old drain back from `kickProcessing()`. That old drain resolves
+    // without ever touching this operation (the `finally` re-kick processes it
+    // on a NEW drain), and racing it resolved this await while the slot write
+    // was still in flight — reopening the exact mid-write window the await
+    // above exists to close. Looping on `settled` keeps both properties:
+    // completion is the only success exit, and a drain that rejects outright
+    // still propagates instead of hanging the caller (and, with it, the
+    // mutex). Each pass awaits a full drain lifecycle, so this cannot spin.
+    while (!settled) {
+      await Promise.race([completed, this.kickProcessing()]);
+      if (!settled) {
+        // A drain finished without settling us — yield one microtask so the
+        // finally's re-kick (or `processingPromise = null`) lands before we
+        // fetch the live drain.
+        await Promise.resolve();
+      }
+    }
   }
 
   /**
