@@ -294,7 +294,10 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               {item.description}
             </Text>
           )}
-          <Text style={styles.itemPrice}>${inflatedPrice}</Text>
+          {/* Raw interpolation printed "$20000" beside rows whose own confirm
+              dialog already said "$20K" — this file imports `formatMoney` and
+              uses it for rents and the purchase dialog. One convention. */}
+          <Text style={styles.itemPrice}>{formatMoney(inflatedPrice)}</Text>
         </View>
 
         {item.owned ? (
@@ -310,7 +313,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 handleSell(item.id, item.name);
               }
             }}
-            title={`Sell ($${(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5).toFixed(2)})`}
+            title={`Sell (${formatMoney(getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) * 0.5)})`}
             loading={loadingStates[item.id] || false}
             variant="secondary"
             size="small"
@@ -364,7 +367,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             * with what `buyFood` charges.
             */}
           <Text style={styles.itemPrice}>
-            ${getInflatedPrice(food.price, gameState.economy?.priceIndex ?? 1).toFixed(2)}
+            {formatMoney(getInflatedPrice(food.price, gameState.economy?.priceIndex ?? 1))}
           </Text>
 
           <View style={styles.bonusInfo}>
@@ -608,7 +611,33 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 })}
               </ScrollView>
 
-              {sortedItems.map((item) => renderItem({ item }))}
+              {sortedItems.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Package size={scale(40)} color="rgba(226, 232, 240, 0.45)" />
+                  {/* A chip that matches nothing used to render dead space under
+                      the filter bar — "Owned" does that on week 1 for every new
+                      character. Name the dead end and offer the way out. */}
+                  <Text style={styles.emptyStateTitle}>
+                    {activeFilter === 'owned' ? "You don't own anything yet" : 'Nothing here'}
+                  </Text>
+                  <Text style={styles.emptyStateText}>
+                    {activeFilter === 'owned'
+                      ? 'Buy something from All, Electronics or Lifestyle and it will show up here.'
+                      : 'No items in this category yet.'}
+                  </Text>
+                  {activeFilter !== 'all' && (
+                    <TouchableOpacity
+                      onPress={() => setActiveFilter('all')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Show all items"
+                    >
+                      <Text style={styles.emptyStateAction}>Show all items</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                sortedItems.map((item) => renderItem({ item }))
+              )}
             </>
           ) : activeTab === 'food' ? (
             <>
@@ -749,11 +778,14 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           visible={true}
           title={`Sell ${showSellConfirm.itemName}?`}
           message={
+            // Same value the Sell button prints, so the two must format the
+            // same way — raw interpolation here read "$2500.5" under a button
+            // saying "$2.5K".
             showSellConfirm.itemId === 'computer'
-              ? `Are you sure you want to sell your ${showSellConfirm.itemName} for $${showSellConfirm.price}?\n\nDon't worry - all your data (crypto, stocks, real estate, etc.) will be preserved and restored if you buy another computer later.`
+              ? `Are you sure you want to sell your ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?\n\nDon't worry - all your data (crypto, stocks, real estate, etc.) will be preserved and restored if you buy another computer later.`
               : showSellConfirm.itemId === 'smartphone'
-                ? `Are you sure you want to sell your ${showSellConfirm.itemName} for $${showSellConfirm.price}?\n\nYou'll lose access to all mobile apps until you buy another phone.`
-                : `Are you sure you want to sell ${showSellConfirm.itemName} for $${showSellConfirm.price}?`
+                ? `Are you sure you want to sell your ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?\n\nYou'll lose access to all mobile apps until you buy another phone.`
+                : `Are you sure you want to sell ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?`
           }
           confirmText="Sell"
           cancelText="Cancel"

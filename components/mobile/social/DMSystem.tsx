@@ -585,7 +585,12 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <View style={styles.conversationList}>
  {/* Header */}
  <View style={styles.header}>
- <TouchableOpacity onPress={onBack} style={styles.backButton}>
+ <TouchableOpacity
+ onPress={onBack}
+ style={styles.backButton}
+ accessibilityRole="button"
+ accessibilityLabel="Back"
+ >
  <ArrowLeft size={scale(24)} color="#F9FAFB" />
  </TouchableOpacity>
  <Text style={styles.headerTitle}>Messages</Text>
@@ -690,9 +695,11 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  <View style={styles.messageThread}>
  {/* Thread Header */}
  <View style={styles.threadHeader}>
- <TouchableOpacity 
- onPress={() => setSelectedConversation(null)} 
+ <TouchableOpacity
+ onPress={() => setSelectedConversation(null)}
  style={styles.backButton}
+ accessibilityRole="button"
+ accessibilityLabel="Back to messages"
  >
  <ArrowLeft size={scale(24)} color="#F9FAFB" />
  </TouchableOpacity>
@@ -780,6 +787,9 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  style={[styles.sendButton,!messageInput.trim() && styles.sendButtonDisabled]}
  onPress={handleSendMessage}
  disabled={!messageInput.trim()}
+ accessibilityRole="button"
+ accessibilityLabel="Send message"
+ accessibilityState={{ disabled: !messageInput.trim() }}
  >
  <Send size={scale(20)} color={messageInput.trim() ?'#3B82F6': '#94A3B8'} />
  </TouchableOpacity>

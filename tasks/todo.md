@@ -154,6 +154,61 @@ lint, routes, weekly audit). Findings triaged into work packages below.
       F-9 closed) — fixed: the await now loops until the operation's own
       settle fires, with a discriminating regression test
 - [x] lessons.md entry; committed and pushed
+- [x] **WP-M: the verified UI findings** — eight items from the UI audit, each
+      re-read at the source before editing.
+  - **HUD clipping (HIGH).** `TopStatsBarStyles.ts` paired a scaled `fontSize`
+    with a RAW `lineHeight` on all three lines of the date block — the bug shape
+    already annotated on `chipText` in the same file and fixed once in
+    `FirstWeekGuide`. `fontScale` clamps at 1.6 on a tablet, so `yearText` put
+    26pt glyphs in a 20pt box (month 22 in 18, age 19 in 16) on the one bar that
+    is on screen at all times. Each box now `fontScale()`s at its original
+    ratio; `hudLegibility` gained a guard that no `lineHeight` in the sheet is a
+    literal, so a fourth cannot be added quietly.
+  - **Market dead end + money format.** `sortedItems.map()` had no empty branch,
+    so the "Owned" chip — which matches nothing on week 1 for every character —
+    rendered its own active state, a count badge reading 0, and then nothing.
+    Named the dead end with a way out, in the Mail app's empty-state shape.
+    Prices went through raw interpolation (`$20000`, and `.toFixed(2)` on a
+    value `getInflatedPrice` had ALREADY rounded, so it only ever printed
+    `.00`) while the same file used `formatMoney` for rents and the purchase
+    dialog; all now use the one convention, the sell CONFIRM included — it reads
+    the same value as the Sell button, so leaving it raw would have introduced
+    a "$2.5K" button over a "$2500.5" dialog.
+  - **Savings goal +/- (a11y).** Two 28pt circles moving real money in opposite
+    directions, no `hitSlop`, nothing announced. Uses the repo's
+    `hitSlopToMinTarget` — but NOT verbatim: the pair sits `responsiveSpacing.sm`
+    apart, so a symmetric slop would make their hit rectangles OVERLAP, and RN
+    hit-tests the last-rendered child first, which would turn "too small to hit"
+    into "withdraw deposits". The facing edge is capped at half the gap and the
+    remainder pushed outward; both still clear 44pt on both axes.
+  - **Unbounded typed names.** First/last name, pet name and bank account name
+    were uncapped, and those strings reach the HUD, the ID card, save-slot
+    metadata and the obituary. Capped at 20/20/20/30 — 20+20 matches Pulse's
+    40-char display-name budget. `onboardingValidation` has no length rule and
+    did not gain one, so no message can be wrong about a limit. `IdentityCard`'s
+    name got `numberOfLines={1}` (the cap cannot shorten an already-saved name).
+  - **a11y labels** on the listed icon-only touchables (DMSystem back ×2 +
+    send, ProgressOverview clear-search + sort, Journal close + filter). MailApp
+    and InfoButton were already compliant — the audit's line numbers were stale.
+  - **Raw zIndex** → `Z_INDEX.DROPDOWN` / `Z_INDEX.LOADING` (the latter's comment
+    already named the constant it was not using).
+  - **`React.memo(MailRow)` was inert.** The list passed `() => openMessage(m.id)`
+    per row, so the memo compared unequal every render and a keystroke in the
+    search field re-rendered all 50 rows. The row takes its id back now (Pulse's
+    FeedScreen pattern) and the list hands every row the same two callbacks.
+  - **Found while testing: `render — in-game tab screens` was green on a crash
+    screen.** `useNavigationContainerRef` was missing from `jest.setup.js`'s
+    expo-router mock, so every screen going through `useNavigationReady` threw on
+    first commit and rendered its OWN `ErrorBoundary` fallback — a valid tree, so
+    `expect(json.length).toBeGreaterThan(0)` passed on a screen that had never
+    rendered. Mock added; all 40 render suites still pass, and the market tests
+    below mount `MarketScreenContent` rather than the boundary-wrapped default
+    for the same reason.
+  - Full suite 7,295 pass / 308 snapshots unchanged, type-check (app + tests)
+    clean, eslint 0 errors on every touched file, `check:routes` OK. One existing
+    assertion updated: `uiTruthF5toF8` pinned the food price's exact
+    interpolation; its subject (the displayed price is the INFLATED one) is
+    unchanged and still asserted through the formatter.
 
 ## Wave 4 — picked up from the deferred list
 

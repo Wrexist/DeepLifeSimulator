@@ -161,6 +161,9 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                   onChangeText={setName}
                   placeholder="Account name"
                   placeholderTextColor={theme.textMuted}
+                  // Unbounded, and the label is rendered on every account row
+                  // in the banking list afterwards.
+                  maxLength={30}
                   style={[styles.fieldInput, { color: theme.text }]}
                 />
               </View>

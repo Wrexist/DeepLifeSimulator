@@ -64,6 +64,37 @@ describe('the HUD money/savings/gems figures are readable', () => {
     expect(chip.height).toBeGreaterThan(chipText.lineHeight);
   });
 
+  it('the date block\'s line boxes scale with their text too', () => {
+    // Same bug shape as `chipText` above, three more times, on the one bar that
+    // is on screen at ALL times. `fontScale` clamps at 1.6 on a tablet, so a
+    // raw `lineHeight: 20` under `responsiveFontSize.lg` put 26pt glyphs in a
+    // 20pt box (month 22 in 18, age 19 in 16) and clipped on iPad.
+    const lines: [string, { fontSize: number; lineHeight: number }, number][] = [
+      ['yearText', styles.yearText as { fontSize: number; lineHeight: number }, 20],
+      ['monthText', styles.monthText as { fontSize: number; lineHeight: number }, 18],
+      ['ageText', styles.ageText as { fontSize: number; lineHeight: number }, 16],
+    ];
+
+    for (const [name, style, base] of lines) {
+      // Scaled, not raw — the point of the fix.
+      expect(`${name}: ${style.lineHeight}`).toBe(`${name}: ${fontScale(base)}`);
+      // And the box still leads the glyphs at this device's scale.
+      expect(`${name} leads`).toBe(
+        style.lineHeight > style.fontSize ? `${name} leads` : `${name} clips`,
+      );
+    }
+  });
+
+  it('no style in the HUD pairs a scaled font with a raw line box', () => {
+    // The guard, so a fourth one cannot be added quietly. Every `lineHeight` in
+    // the sheet must equal a `scale()`/`fontScale()` output rather than a
+    // literal that stays put while the text grows.
+    const src = read('components/TopStatsBarStyles.ts');
+    const raws = src.match(/lineHeight:\s*\d/g) ?? [];
+
+    expect(raws).toEqual([]);
+  });
+
   it('the chip can still shrink on a narrow device (the control)', () => {
     // Growing the pill must not have made it unable to fit three-across on a
     // 320pt screen, which would trade one legibility bug for another.

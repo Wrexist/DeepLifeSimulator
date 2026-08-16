@@ -169,6 +169,16 @@ jest.mock('expo-router', () => ({
   })),
   useFocusEffect: jest.fn(),
   usePathname: jest.fn(() => '/'),
+  // Every tab screen that redirects on mount goes through
+  // `hooks/useNavigationReady`, which calls this. It was MISSING here, so those
+  // screens threw "useNavigationContainerRef is not a function" on their first
+  // commit and rendered their own <ErrorBoundary> fallback instead — a valid
+  // tree, so `expect(json.length).toBeGreaterThan(0)` passed on a screen that
+  // had crashed. `render — in-game tab screens` was green on the crash screen.
+  useNavigationContainerRef: jest.fn(() => ({
+    isReady: jest.fn(() => true),
+    addListener: jest.fn(() => jest.fn()),
+  })),
 }));
 
 jest.mock('expo-linear-gradient', () => 'LinearGradient');

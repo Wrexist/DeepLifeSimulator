@@ -577,7 +577,10 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
         </View>
         <View style={styles.nameContainer}>
-          <Text style={[styles.name, styles.nameDark]}>{name}</Text>
+          {/* Player-typed name — clamp to one line so a long one cannot push
+              the streak badge and everything under it down the card
+              (DeathPopup's obituary name does the same). */}
+          <Text style={[styles.name, styles.nameDark]} numberOfLines={1}>{name}</Text>
           {/* Persistent login-streak badge — surfaces the daily-reward streak
               outside the popup so loss aversion can do its job. */}
           {(gameState?.loginStreak ?? 0) >= 2 && (

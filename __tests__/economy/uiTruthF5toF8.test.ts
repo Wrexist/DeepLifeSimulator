@@ -57,7 +57,15 @@ describe('F5 — food is priced like everything else', () => {
   it('the displayed price is inflated too', () => {
     const src = read('app/(tabs)/market.tsx');
 
-    expect(src).toMatch(/\$\{getInflatedPrice\(food\.price, gameState\.economy\?\.priceIndex \?\? 1\)/);
+    // The row now renders `{formatMoney(getInflatedPrice(food.price, …))}`
+    // rather than `${getInflatedPrice(…).toFixed(2)}` — every money figure on
+    // this screen goes through the shared formatter. What F5 is about is
+    // unchanged and still asserted: the number the label shows is the INFLATED
+    // one, the same value `canAfford` gates on and `buyFood` charges.
+    expect(src).toMatch(
+      /formatMoney\(getInflatedPrice\(food\.price, gameState\.economy\?\.priceIndex \?\? 1\)\)/,
+    );
+    expect(src).not.toMatch(/\$\{food\.price\}/);
   });
 
   it('so the label, the gate and the charge finally agree', () => {

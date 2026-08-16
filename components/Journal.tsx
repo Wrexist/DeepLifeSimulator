@@ -253,6 +253,8 @@ export default function Journal({ compact = false }: JournalProps) {
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setSelectedEntry(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Close entry"
               >
                 <X size={24} color="#FFF" />
               </TouchableOpacity>
@@ -314,6 +316,9 @@ export default function Journal({ compact = false }: JournalProps) {
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
+          accessibilityRole="button"
+          accessibilityLabel="Filter entries by category"
+          accessibilityState={{ expanded: showFilters }}
         >
           <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? '#94A3B8' : '#6B7280')} />
         </TouchableOpacity>

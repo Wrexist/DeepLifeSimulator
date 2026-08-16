@@ -292,6 +292,19 @@ function MailAppInner({ onBack }: Props) {
     [setGameState]
   );
 
+  /**
+   * Stable per-row handlers. These were inline arrows in the list JSX, so every
+   * render minted a fresh pair for each of up to 50 rows and `React.memo(MailRow)`
+   * never once hit — typing a character into the search field re-rendered the
+   * whole list. Same shape as Pulse's FeedScreen: the row passes its own id back.
+   */
+  const toggleStar = useCallback(
+    (id: string) => {
+      toggleMailStar(setGameState, id);
+    },
+    [setGameState]
+  );
+
   const closeMessage = useCallback(() => {
     setOpenId(null);
     setBanner(null);
@@ -585,8 +598,8 @@ function MailAppInner({ onBack }: Props) {
                   ? FOLDERS.find((f) => f.key === m.folder)?.label
                   : undefined
               }
-              onPress={() => openMessage(m.id)}
-              onToggleStar={() => toggleMailStar(setGameState, m.id)}
+              onPress={openMessage}
+              onToggleStar={toggleStar}
             />
           ))
         )}

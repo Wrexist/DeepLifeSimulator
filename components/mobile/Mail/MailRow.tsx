@@ -39,8 +39,13 @@ interface Props {
    * player cannot find again — they read "Archive" here or they go hunting.
    */
   folderLabel?: string;
-  onPress: () => void;
-  onToggleStar: () => void;
+  /**
+   * Id-taking, so the list can hand every row the SAME two functions. Closing
+   * over the id in the parent's JSX (`onPress={() => open(m.id)}`) allocates a
+   * fresh pair per render and defeats the `React.memo` below for all 50 rows.
+   */
+  onPress: (id: string) => void;
+  onToggleStar: (id: string) => void;
 }
 
 function MailRow({
@@ -59,7 +64,7 @@ function MailRow({
   return (
     <TouchableOpacity
       style={s.row}
-      onPress={onPress}
+      onPress={() => onPress(message.id)}
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={[
@@ -147,7 +152,7 @@ function MailRow({
       </View>
 
       <TouchableOpacity
-        onPress={onToggleStar}
+        onPress={() => onToggleStar(message.id)}
         style={s.star}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityRole="button"
