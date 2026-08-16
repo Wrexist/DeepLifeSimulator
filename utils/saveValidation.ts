@@ -433,6 +433,24 @@ function isGameStateLike(obj: unknown): obj is Partial<GameState> {
  * deps actually fire after a repair — previously the in-place mutation kept
  * the same nested refs and selectors silently saw stale data, freezing the UI.
  */
+/**
+ * The repair verdict for a 1-based calendar marker (`week`, `day`).
+ *
+ * Returns `null` — meaning LEAVE IT ALONE — for every value a real save can
+ * legitimately hold. Only an absent, non-numeric, non-finite, below-1 or
+ * fractional value is healed, because overwriting a valid marker would silently
+ * move the player's position in the month.
+ */
+function healCalendarMarker(current: unknown): { value: number; reason: string } | null {
+  if (typeof current !== 'number' || !Number.isFinite(current) || current < 1) {
+    return { value: 1, reason: 'Restored missing/invalid' };
+  }
+  if (!Number.isInteger(current)) {
+    return { value: Math.floor(current), reason: 'Normalized fractional' };
+  }
+  return null;
+}
+
 export function repairGameState(state: unknown): { repaired: boolean; repairs: string[] } {
   const repairs: string[] = [];
   let repaired = false;
@@ -486,8 +504,37 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
+  // `week` (week-of-month, 1–4, DISPLAY ONLY — `weeksLived` is the absolute
+  // counter) and `day` both carry a concrete `1` default in initialState and had
+  // neither a migration nor a repair mirror: on any path that does not spread
+  // `initialGameState` (a CloudSync field-merge, a hand-edited or truncated blob)
+  // they arrived `undefined` and the HUD rendered a blank/NaN date.
+  //
+  // Written by hand rather than through a table because the table mechanisms
+  // either replace the whole value or only test `Array.isArray` — neither is safe
+  // for a scalar the player's calendar position depends on. ONLY an absent or
+  // structurally invalid value is filled; a valid stored week/day is never
+  // touched, because overwriting one would silently rewind the player's month.
+  // Written out per field rather than looped over a name list on purpose: the V11
+  // coverage check reads `s.<field>` as the evidence that repair reaches a field,
+  // and a `s[key]` loop is invisible to it (and to a human grepping for `s.week`).
+  const healedWeek = healCalendarMarker(s.week);
+  if (healedWeek !== null) {
+    s.week = healedWeek.value;
+    repairs.push(`${healedWeek.reason} week → ${healedWeek.value}`);
+    repaired = true;
+  }
+  const healedDay = healCalendarMarker(s.day);
+  if (healedDay !== null) {
+    s.day = healedDay.value;
+    repairs.push(`${healedDay.reason} day → ${healedDay.value}`);
+    repaired = true;
+  }
+
   // Ensure required arrays exist
-  const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'loans'];
+  // `goals` joins this table (concrete `[]` default in initialState) — see the
+  // week/day block above for why these long-lived fields are getting mirrors now.
+  const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'loans', 'goals'];
   for (const field of requiredArrays) {
     if (!Array.isArray(s[field])) {
       s[field] = [];
@@ -815,7 +862,14 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // / cryptoMarket.coinMarkets undefined → crash on first access. Restore a
   // missing object wholesale; shallow-merge defaults into a partial one to fill
   // any missing top-level keys.
-  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket', 'legacyPass'];
+  // `social`, `family`, `economy`, `progress` and `prestige` join the table for
+  // the same reason, one step later than the rest: all five carry a concrete
+  // object default in initialState and had neither a migration nor a repair
+  // mirror, and `prestige` / `family.children` are read BARE in the week loop and
+  // the prestige UI. The restore-or-shallow-merge shape is exactly right for
+  // them — a missing slice comes back whole, a partial one keeps every value the
+  // player actually has and only gains the keys it lacks.
+  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket', 'legacyPass', 'social', 'family', 'economy', 'progress', 'prestige'];
   for (const key of subsystemObjects) {
     const seed = initialFields[key];
     if (!seed || typeof seed !== 'object') continue;

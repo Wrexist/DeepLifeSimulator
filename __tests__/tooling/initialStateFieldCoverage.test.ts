@@ -111,18 +111,34 @@ describe('initialState field coverage (audit-save V11)', () => {
         `export const initialGameState: GameState = {\n  ${decl}`,
       );
 
-    // (a) named by a migration
+    // (a) BACKFILLED by a migration — a real assignment, not a mention. A word
+    //     match used to be enough, and it ran over the UNSTRIPPED migration
+    //     source, so a field was exempted by its name turning up in migration
+    //     prose. The commented control below is the half that used to pass.
+    expect(
+      uncoveredConcreteFields(add('fieldA: [],'), `${migSrc}\nstate.fieldA = [];`, repairSrc),
+    ).not.toContain('fieldA');
     expect(
       uncoveredConcreteFields(add('fieldA: [],'), `${migSrc}\n// state.fieldA = [];`, repairSrc),
-    ).not.toContain('fieldA');
+    ).toContain('fieldA');
 
-    // (b) named by a branch inside repairGameState's body
+    // (b) reached on the STATE OBJECT inside repairGameState's body
     const repairWithBranch = repairSrc.replace(
       '  const repairs: string[] = [];',
-      '  const repairs: string[] = [];\n  const seed: Record<string, unknown> = {}; seed.fieldB = [];',
+      '  const repairs: string[] = [];\n  s.fieldB = [];',
     );
     expect(uncoveredConcreteFields(add('fieldB: [],'), migSrc, repairWithBranch))
       .not.toContain('fieldB');
+
+    //     …and a same-named property on some OTHER object in the body is not
+    //     coverage: `week` passed for years off a `week:` key in an unrelated
+    //     socialMedia literal while repair never touched `state.week`.
+    const repairWithForeignObject = repairSrc.replace(
+      '  const repairs: string[] = [];',
+      '  const repairs: string[] = [];\n  const seed: Record<string, unknown> = {}; seed.fieldC = [];',
+    );
+    expect(uncoveredConcreteFields(add('fieldC: [],'), migSrc, repairWithForeignObject))
+      .toContain('fieldC');
 
     // (c) listed in one of repair's table-driven backfills — these live in
     //     STRING literals, which the body scan blanks, so they need their own read.

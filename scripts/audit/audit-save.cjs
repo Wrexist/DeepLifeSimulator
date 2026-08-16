@@ -198,7 +198,17 @@ function build() {
   a.assert(L.exists(factory), 'high', 'createTestGameState factory present',
     'createTestGameState factory missing', 'All suites must build state through one factory (Hard Rule #3).', factory);
 
-  const testFiles = L.walk('__tests__', L.isTest)
+  // Mirror jest.config.js `testMatch`, which runs THREE trees:
+  //   lib/**/__tests__/**, __tests__/**, and co-located **/*.test.{ts,tsx}.
+  // Walking only `__tests__/` made the Hard Rule #3 scan blind to every suite
+  // under lib/**/__tests__ and contexts/**/__tests__ — 25 hand-built
+  // `as GameState` casts were invisible while the audit printed PASS (a green
+  // light that lies). `L.walk` already skips node_modules/ios/android/etc via
+  // IGNORED_DIRS, so listing the source roots is enough. FACTORY_ALLOWLIST
+  // entries are repo-relative paths, which is exactly what `walk` returns, so
+  // the same allowlist keeps working across the wider scan.
+  const TEST_ROOTS = ['__tests__', 'lib', 'contexts', 'utils', 'components', 'services', 'src', 'hooks', 'app'];
+  const testFiles = L.walk(TEST_ROOTS, L.isTest)
     .filter((f) => !FACTORY_ALLOWLIST.includes(f));
   const drift = L.grep(testFiles, /\bas GameState\b/, { skipComments: true })
     // Keep only casts NOT authorised as deliberate corruption fixtures.
@@ -483,12 +493,45 @@ function repairGameStateBody(src) {
 function uncoveredConcreteFields(initialSrc, migSrc, repairSrc) {
   const repairBody = repairGameStateBody(repairSrc);
   const repairTables = repairTableFields(repairSrc);
+  // Coverage is an ASSIGNMENT/ACCESS on the state object, never a word match.
+  // Both sides used to be `mentionsField` — a bare `\b<name>\b` regex — and on
+  // the migration side it ran over the UNSTRIPPED source, so a field was
+  // exempted by its name appearing in migration PROSE (`family` matched
+  // "…churn the whole family tree…", `economy` matched an import line) and
+  // `week` was exempted by a nested `week:` key inside an unrelated repair
+  // literal. Eight concrete-default fields passed that way with no coverage at
+  // all, and the hole was generic: any future field whose name shows up in a
+  // comment was silently exempt from the Hard Rule #3 machine check.
+  const migBackfilled = new Set(
+    // `concreteBackfillPaths` already strips comments/strings and skips
+    // `= undefined` assignments — the same mechanism V8 trusts for parity.
+    // The ROOT segment is what matters here: a migration writing
+    // `state.settings.foo = …` has created/owned the top-level `settings`.
+    concreteBackfillPaths(migSrc).map((p) => p.split('.')[0]),
+  );
   return topLevelInitialFields(initialSrc)
     .filter((f) => f.concrete)
     .map((f) => f.name)
-    .filter((name) => !mentionsField(migSrc, name)
-      && !mentionsField(repairBody, name)
+    .filter((name) => !migBackfilled.has(name)
+      && !repairTouchesField(repairBody, name)
       && !repairTables.has(name));
+}
+
+/**
+ * Does `repairGameState`'s body actually reach this TOP-LEVEL field on the state
+ * object — `s.<name>` / `state.<name>` / `s['<name>']` — rather than merely
+ * containing the word somewhere? The body is already noise-stripped, so this is
+ * about structure, not comments: a `week:` key inside some other object literal
+ * (socialMedia's stats block) is not repair coverage of `state.week`.
+ *
+ * A property ACCESS counts, not only an assignment, because repair legitimately
+ * heals a field through a helper it hands the slice to
+ * (`scanAndRepairArray(s.stocks.holdings, …)`) or through a nested write
+ * (`s.userProfile.verified = false`) — in both cases the field is on repair's
+ * radar, which is what this invariant asks about.
+ */
+function repairTouchesField(repairBody, leaf) {
+  return new RegExp(`\\b(?:s|state|repairedState)(?:\\.${leaf}\\b|\\[['"]${leaf}['"]\\])`).test(repairBody);
 }
 
 /**
