@@ -18,13 +18,16 @@ import { applyCareerSalaryAndPenalty } from '../applyCareerSalaryAndPenalty';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import type { Career, GameState } from '@/contexts/game/types';
 import type { WeekContext } from '../weekContext';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 function ctx(): WeekContext {
   return {
-    newStats: { money: 0, happiness: 50, health: 50 },
+    newStats: { money: 0, happiness: 50, health: 50, energy: 0, fitness: 0, reputation: 0, gems: 0 },
     notifications: [],
-  } as unknown as WeekContext;
+    preRolls: zeroPreRolls(),
+    nextWeeksLived: 100,
+  };
 }
 
 

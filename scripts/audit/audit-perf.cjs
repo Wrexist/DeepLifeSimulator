@@ -8,8 +8,10 @@
  *
  * Invariants:
  *   P1  No JSON.parse(JSON.stringify(...)) deep clones inside the weekly tick path.
- *   P2  Every weekly subsystem (apply*.ts) is invoked inside a try/catch (one slow/throwing
- *       subsystem can't abort or stall the rest of the tick).
+ *   P2  (removed) — "every weekly subsystem runs inside a try/catch" is proven, rigorously,
+ *       by `__tests__/stress/weeklyTickGuards.test.ts`, which poisons a subsystem and
+ *       asserts the week still advances. The 0.6 guarded-CALL-RATIO heuristic that used
+ *       to live here measured brace positions, not survival, and is gone (audit L16).
  *   P3  Nested-loop density in the tick stays under budget.
  *   P4  A performance regression test exists and (optionally) passes within budget.
  *   P5  No NEW zero-importer module under lib/ utils/ contexts/ hooks/ services/ —
@@ -90,64 +92,23 @@ function build({ runTests = false } = {}) {
       '. Deep-cloning whole state every tick is O(state size) on each Next Week tap.',
     `${weeklyDir} + ${TICK_PATH_LIB_MODULES.length} tick-path lib module(s)`);
 
-  // --- P2: subsystem resilience wrapping ----------------------------------
-  // Verify each apply*/run*/process* weekly subsystem invocation in the orchestrator
-  // is *actually positioned inside* a try/catch block (brace-matched), not merely that
-  // some try exists in the file. A single throwing subsystem must not abort the week.
-  const fullCtx = L.read(tickEntry) || '';
-
-  // Scope to the WEEK LOOP, not the whole orchestrator file.
+  // --- P2: subsystem resilience wrapping — REMOVED -------------------------
+  // The property (a throwing weekly subsystem must not cost the player the
+  // week) is unchanged and still matters; what was removed is this file's weak
+  // proxy for it.
   //
-  // This used to scan every `apply*`/`run*`/`process*` call in
-  // GameActionsContext.tsx, which is ~4,400 lines and holds dozens of USER
-  // actions alongside the tick. So it permanently reported
-  // `applyRelationshipGain` and `applyMoneyDelta` as "unwrapped weekly-tick
-  // subsystems" — both are user actions (a karma-adjusted relationship change
-  // and an engagement-ring purchase), neither is in the tick, and no amount of
-  // fixing the tick could ever clear them.
+  // P2 counted `apply*`/`run*`/`process*` call sites inside brace-matched
+  // try/catch ranges in `nextWeek` and warned at severity `low` if fewer than
+  // 60% were wrapped. A ratio cannot express the invariant: it passes with two
+  // subsystems in five bare, and it says nothing about whether the tick
+  // actually SURVIVES a throw — only about where a call token sits relative to
+  // a brace. It had already needed two rounds of scoping fixes to stop
+  // reporting user actions as unwrapped subsystems.
   //
-  // A permanent phantom finding is worse than no finding: it trains the reader
-  // to skim the line, which is precisely how a REAL unguarded subsystem would
-  // get missed. Bound the scan to `nextWeek`'s body and the count means what it
-  // says. Falls back to the whole file if the boundary cannot be located, so a
-  // refactor degrades to the old (noisy) behaviour rather than to silence.
-  const tickStart = fullCtx.search(/const nextWeek\s*=\s*useCallback\(/);
-  let ctx = fullCtx;
-  if (tickStart >= 0) {
-    const rest = fullCtx.slice(tickStart);
-    const endRel = rest.search(/\n\s*\}, \[/);
-    if (endRel > 0) ctx = rest.slice(0, endRel);
-  }
-
-  const ranges = L.tryRanges(ctx);
-  const cleanCtx = L.stripNoise(ctx);
-  const callRe = /\b(?:apply|run|process|tick|compute)[A-Z]\w*\s*\(/g;
-  let totalCalls = 0;
-  let guardedCalls = 0;
-  const unguarded = []; // names of subsystem calls NOT inside a try/catch
-  let cm;
-  while ((cm = callRe.exec(cleanCtx))) {
-    totalCalls++;
-    if (L.inAnyRange(ranges, cm.index)) {
-      guardedCalls++;
-    } else {
-      // Strip the trailing "(" to report the bare callee name. De-dupe so a
-      // helper referenced twice isn't listed twice.
-      const name = cm[0].replace(/\s*\($/, '');
-      if (!unguarded.includes(name)) unguarded.push(name);
-    }
-  }
-  const guardRatio = totalCalls ? guardedCalls / totalCalls : 1;
-  // Not every subsystem call must be guarded (pure calculators are safe), but the bulk
-  // of the tick's subsystem dispatch should be. Flag a low-coverage tick as a smell.
-  // NAME the unwrapped subsystem(s): a bare "N/M" count hid *which* tick was bare and
-  // let the same "unwrapped weekly-tick subsystem" class recur (tasks/lessons.md,
-  // 2026-07-10 / 07-13). The named list makes the gap actionable, not buried.
-  const namedTail = unguarded.length ? ` — unwrapped: ${unguarded.join(', ')}` : '';
-  a.assert(totalCalls === 0 || guardRatio >= 0.6, 'low',
-    `Weekly tick subsystems mostly guarded (${guardedCalls}/${totalCalls} inside try/catch, ${ranges.length} blocks)${namedTail}`,
-    `Most weekly subsystem calls are unguarded (${guardedCalls}/${totalCalls} inside try/catch)${namedTail}`,
-    'A throwing subsystem can abort the whole week. Wrap dispatch in try/catch.', tickEntry);
+  // `__tests__/stress/weeklyTickGuards.test.ts` proves the real property
+  // rigorously: it poisons subsystems and asserts the week still advances and
+  // the rest of the tick still runs. That is the authority for P2's invariant;
+  // this section is deliberately empty so nobody re-adds the proxy beside it.
 
   // --- P3: nested-loop density --------------------------------------------
   let nested = 0;

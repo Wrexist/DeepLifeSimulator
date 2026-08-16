@@ -23,6 +23,7 @@ import { applyLuxuryItemsForWeek } from '@/contexts/game/actions/weekly/applyLux
 import { netWorth } from '@/lib/progress/achievements';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
 import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 // --- test helpers -----------------------------------------------------------
 
@@ -54,7 +55,7 @@ function makeCtx(stats: Partial<GameState['stats']>): WeekContext {
       ...stats,
     },
     notifications: [],
-    preRolls: {} as any,
+    preRolls: zeroPreRolls(),
     nextWeeksLived: 1,
   };
 }

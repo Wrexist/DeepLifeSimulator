@@ -154,13 +154,16 @@ function richState(weeksLived: number): GameState {
     vehicles: [vehicle('v1', 'Sedan'), vehicle('v2', 'Coupe'), vehicle('v3', 'Van'), vehicle('v4', 'Truck')],
     activeVehicleId: 'v1',
     politics: {
-      ...(base.politics ?? {}),
+      // The factory always materialises `politics` (initialState declares it
+      // concretely), so the non-null assertion is truthful and keeps this a
+      // plain typed literal rather than a cast the factory audit would flag.
+      ...base.politics!,
       careerLevel: 3,
       party: 'democratic',
       approvalRating: 50,
       policyInfluence: 10,
       policiesEnacted: ['minimum_wage_increase', 'corporate_tax_cut', 'green_energy_subsidy'],
-    } as GameState['politics'],
+    },
   };
 }
 

@@ -20,6 +20,11 @@
  *   V10 A new life can never guess its save slot: no numeric slot fallback, every
  *       entry into onboarding assigns one, and the write itself re-checks
  *       occupancy (2026-07-29 player save-loss report).
+ *   V13 V11, one level DEEPER: the four slices `loadedStateMerge` merges key-by-key
+ *       (`stats`, `date`, `settings`, `userProfile`) hold concrete defaults that the
+ *       top-level walk cannot see — and most recent carve-outs are `settings.*` keys.
+ *   V12 Tests don't hand-cast `WeekContext` / stub `preRolls` — must use the
+ *       `zeroPreRolls()` factory, or the next PreRolls field goes silently missing.
  *   V11 The INVERSE of V8 (Hard Rule #3, the direction that was never machine-checked):
  *       every top-level `initialGameState` field with a CONCRETE stored default is
  *       migration- or repair-covered, or is an explicitly grandfathered legacy field.
@@ -29,6 +34,16 @@
 const L = require('./_lib.cjs');
 
 // Tests legitimately allowed to touch raw GameState shape (the factory + its own tests).
+/**
+ * V12 allowlist — files legitimately allowed to name the raw `WeekContext`
+ * shape. Same convention as FACTORY_ALLOWLIST: repo-relative paths, kept as
+ * short as the rule allows.
+ */
+const WEEK_CONTEXT_ALLOWLIST = [
+  // The factory itself, and the suite that asserts the ban's own wording.
+  '__tests__/helpers/zeroPreRolls.ts',
+];
+
 const FACTORY_ALLOWLIST = [
   '__tests__/helpers/createTestGameState.ts',
   // Contains the literal `as GameState` inside FIXTURE STRINGS — it is the test
@@ -91,6 +106,45 @@ const LEGACY_PRE_MIGRATION_FIELDS = new Set([
   'showWelcomePopup', 'showZeroStatPopup', 'socialPosts', 'streetJobsCompleted',
   'totalHappiness', 'unlockedLifeSkills', 'updatedAt', 'vaccinations', 'vehicles',
   'weeklyJailActivities', 'weeklyStreetJobs', 'weeklyStudySessions', 'youthPills',
+]);
+
+/**
+ * The four sub-objects `utils/loadedStateMerge.ts` merges KEY BY KEY on load.
+ * Everything else in the save is merged by spread, so only these four hide
+ * concrete defaults one level below what V8/V11 can see.
+ */
+const MERGED_SLICES = ['stats', 'date', 'settings', 'userProfile'];
+
+/**
+ * V13 grandfather list — `<slice>.<field>` paths with a CONCRETE default and
+ * neither a migration nor a `repairGameState` mirror.
+ *
+ * Same class and same rules as LEGACY_PRE_MIGRATION_FIELDS: every entry
+ * predates the v22+ discipline, none is a live bug on the primary load path
+ * (`mergeLoadedSlice` fills an absent key from `initialGameState`, and repair
+ * recreates all four slices wholesale when the object itself is gone), and the
+ * list is a RATCHET that may only SHRINK. **Never add a field here** to get
+ * unstuck — write the migration and the mirror.
+ *
+ * What is left is exactly one group: the cosmetic identity strings on
+ * `userProfile`. Absent, they render blank in the profile UI — they carry no
+ * arithmetic and gate nothing. Their numeric/array siblings (`followers`,
+ * `following`, `bookmarkedPosts`) were NOT grandfathered, because those are
+ * summed and iterated; they got mirrors in the same change as this list.
+ */
+const LEGACY_NESTED_FIELDS = new Set([
+  'userProfile.name',
+  'userProfile.handle',
+  'userProfile.bio',
+  'userProfile.gender',
+  'userProfile.seekingGender',
+  'userProfile.firstName',
+  'userProfile.lastName',
+  'userProfile.sex',
+  'userProfile.sexuality',
+  'userProfile.displayName',
+  'userProfile.username',
+  'userProfile.joinedDate',
 ]);
 
 function build() {
@@ -223,6 +277,28 @@ function build() {
     drift.slice(0, 5).map((d) => `${d.file}:${d.line}`).join(', ') + (drift.length > 5 ? ' …' : ''),
     'No GameState Drift (Hard Rule #3)');
 
+  // --- V12: WeekContext / PreRolls drift ----------------------------------
+  // Same failure mode as V6, one layer down. A subsystem test has to supply a
+  // `WeekContext`, and hand-writing one behind `as WeekContext` /
+  // `as unknown as WeekContext` (or stubbing `preRolls: {} as never`) means the
+  // next field added to `PreRolls` is `undefined` in that test while the suite
+  // stays green — a test cannot prove anything about a roll it never supplies.
+  // `__tests__/helpers/zeroPreRolls.ts` exists so that addition breaks
+  // compilation in ONE place; this makes using it non-optional.
+  const weekCtxDrift = L.grep(
+    testFiles.filter((f) => !WEEK_CONTEXT_ALLOWLIST.includes(f)),
+    /\bas (?:unknown as )?WeekContext\b|preRolls:\s*(?:\{\s*\}|undefined)\s*(?:as\b[^,\n]*)?[,\n]/,
+    { skipComments: true },
+  );
+  a.assert(weekCtxDrift.length === 0, 'medium',
+    'No hand-cast WeekContext / stubbed preRolls in tests (all route through zeroPreRolls)',
+    `${weekCtxDrift.length} hand-built WeekContext / preRolls stub(s) in tests bypass zeroPreRolls()`,
+    weekCtxDrift.slice(0, 5).map((d) => `${d.file}:${d.line}`).join(', ')
+      + (weekCtxDrift.length > 5 ? ' …' : '')
+      + ' — build the context with `preRolls: zeroPreRolls({ …overrides })` so a new PreRolls field'
+      + ' breaks compilation once instead of going silently undefined everywhere.',
+    '__tests__/helpers/zeroPreRolls.ts');
+
   // --- V8: migration ↔ repair parity --------------------------------------
   // The asymmetry the 2026-07-22 weekly audit found by hand: a field can be
   // migration-covered, factory-covered (createTestGameState spreads
@@ -284,6 +360,43 @@ function build() {
       `${stale.length} grandfathered field(s) no longer need the exemption`,
       stale.join(', ')
         + ' — each is now covered (or gone). Remove it from LEGACY_PRE_MIGRATION_FIELDS so the ratchet holds the ground.',
+      'scripts/audit/audit-save.cjs');
+  }
+
+  // --- V13: V11, one level deeper -----------------------------------------
+  // V8/V11 both stop at depth 0 of `initialGameState`, so every concrete
+  // default under `stats` / `date` / `settings` / `userProfile` was outside the
+  // machine check — which is backwards, because those are precisely the four
+  // slices `utils/loadedStateMerge.ts` merges KEY BY KEY (the others arrive by
+  // spread), and the majority of the recent §7 carve-outs are `settings.*`
+  // keys. Same ratchet shape as V11: LEGACY_NESTED_FIELDS is frozen, anything
+  // new fails.
+  if (mig != null && sv != null) {
+    const nestedConcrete = MERGED_SLICES
+      .flatMap((slice) => nestedInitialFields(initial, slice))
+      .filter((f) => f.concrete);
+    const uncoveredNested = uncoveredNestedFields(initial, mig, sv);
+    const undocumentedNested = uncoveredNested.filter((p) => !LEGACY_NESTED_FIELDS.has(p));
+
+    a.assert(undocumentedNested.length === 0, 'high',
+      `All ${nestedConcrete.length} concrete defaults inside the ${MERGED_SLICES.length} merged slices are `
+        + `migration/repair-covered (${LEGACY_NESTED_FIELDS.size} grandfathered)`,
+      `${undocumentedNested.length} nested field(s) with a concrete default have neither a migration nor a repairGameState mirror`,
+      undocumentedNested.join(', ')
+        + ' — GameState drift one level down (Hard Rule #3). Ship the migration and the'
+        + ' repairGameState mirror in the same change; do NOT add the path to'
+        + ' LEGACY_NESTED_FIELDS, which is frozen and may only shrink.',
+      'contexts/game/initialState.ts');
+
+    // V13b: the LEGACY_NESTED_FIELDS counterpart of V11b — an entry that has
+    // gained coverage (or been renamed away) is a baseline with slack in it.
+    const uncoveredNestedSet = new Set(uncoveredNested);
+    const staleNested = [...LEGACY_NESTED_FIELDS].filter((p) => !uncoveredNestedSet.has(p));
+    a.assert(staleNested.length === 0, 'low',
+      'LEGACY_NESTED_FIELDS has no stale entries',
+      `${staleNested.length} grandfathered nested field(s) no longer need the exemption`,
+      staleNested.join(', ')
+        + ' — each is now covered (or gone). Remove it from LEGACY_NESTED_FIELDS so the ratchet holds the ground.',
       'scripts/audit/audit-save.cjs');
   }
 
@@ -565,25 +678,65 @@ function repairTableFields(src) {
  * preserved) so a brace inside either cannot skew the depth counter.
  */
 function topLevelInitialFields(initialSrc) {
-  if (initialSrc == null) return [];
+  const body = initialGameStateBody(initialSrc);
+  return body == null ? [] : objectLiteralFields(body);
+}
+
+/**
+ * The keys of ONE merged slice (`stats` / `date` / `settings` / `userProfile`)
+ * inside `initialGameState`, as `<slice>.<key>` paths with the same
+ * concrete/undefined verdict `topLevelInitialFields` returns.
+ *
+ * V8 and V11 both stop at depth 0, so everything under these four objects was
+ * outside the machine check entirely — and they are the four that matter most,
+ * because `utils/loadedStateMerge.ts` merges exactly these key-by-key and the
+ * majority of the recent §7 carve-outs are `settings.*` keys.
+ */
+function nestedInitialFields(initialSrc, slice) {
+  const body = initialGameStateBody(initialSrc);
+  if (body == null) return [];
+  const sub = sliceLiteralBody(body, slice);
+  if (sub == null) return [];
+  return objectLiteralFields(sub).map((f) => ({ ...f, name: `${slice}.${f.name}` }));
+}
+
+/** The `initialGameState = { … }` object literal's body, comments/strings blanked. */
+function initialGameStateBody(initialSrc) {
+  if (initialSrc == null) return null;
   const clean = L.stripNoise(initialSrc);
   const decl = clean.match(/initialGameState\s*:\s*GameState\s*=\s*\{/);
-  if (!decl) return [];
-  const open = decl.index + decl[0].length - 1;
+  if (!decl) return null;
+  return balancedBody(clean, decl.index + decl[0].length - 1);
+}
 
+/** The body of the depth-0 `<name>: { … }` property inside an object body. */
+function sliceLiteralBody(body, name) {
+  const depthAt = depthMap(body);
+  const re = new RegExp(`(?:^|[,{\n])\\s*${name}\\s*:\\s*\\{`, 'g');
+  let m;
+  while ((m = re.exec(body))) {
+    const brace = m.index + m[0].length - 1;
+    if (depthAt[brace] === 0) return balancedBody(body, brace);
+  }
+  return null;
+}
+
+/** Text between `src[open]`'s bracket and its match, exclusive. */
+function balancedBody(src, open) {
   let depth = 0;
-  let end = clean.length;
-  for (let i = open; i < clean.length; i++) {
-    const ch = clean[i];
+  for (let i = open; i < src.length; i++) {
+    const ch = src[i];
     if (ch === '{' || ch === '[' || ch === '(') depth++;
     else if (ch === '}' || ch === ']' || ch === ')') {
       depth--;
-      if (depth === 0) { end = i; break; }
+      if (depth === 0) return src.slice(open + 1, i);
     }
   }
-  const body = clean.slice(open + 1, end);
+  return src.slice(open + 1);
+}
 
-  // Depth at each character of the body (an opener's own index is the OUTER depth).
+/** Depth at each character (an opener's own index is the OUTER depth). */
+function depthMap(body) {
   const depthAt = new Array(body.length);
   let d = 0;
   for (let i = 0; i < body.length; i++) {
@@ -592,7 +745,19 @@ function topLevelInitialFields(initialSrc) {
     else if (ch === '}' || ch === ']' || ch === ')') { d--; depthAt[i] = d; }
     else depthAt[i] = d;
   }
+  return depthAt;
+}
 
+/**
+ * Every DEPTH-0 key of an object-literal body, with whether its default is
+ * CONCRETE (anything but a literal `undefined`).
+ *
+ * Depth-tracked rather than indentation-matched: nested subsystem literals are
+ * full of keys, and a two-space heuristic would break the moment the file is
+ * reformatted.
+ */
+function objectLiteralFields(body) {
+  const depthAt = depthMap(body);
   const out = [];
   const re = /([A-Za-z_$][\w$]*)\s*:/g;
   let m;
@@ -604,6 +769,37 @@ function topLevelInitialFields(initialSrc) {
     if (before.trim() !== '' && !/[,{\n]\s*$/.test(before)) continue;
     const rhs = body.slice(m.index + m[0].length).split('\n')[0].trim();
     out.push({ name: m[1], concrete: !/^undefined\s*,?$/.test(rhs) });
+  }
+  return out;
+}
+
+/**
+ * The V13 counterpart of `uncoveredConcreteFields`: nested `<slice>.<field>`
+ * paths that neither a migration nor `repairGameState` reaches.
+ *
+ * Coverage is a STRUCTURAL access rooted at the slice — `state.settings.foo`,
+ * `s.userProfile['bar']` — never a bare word match, for the reason recorded on
+ * `uncoveredConcreteFields`: a name appearing in prose is not coverage.
+ *
+ * Deliberately NOT counting the whole-slice recreation branches
+ * (`s.settings = defaultsFor('settings')`). Those heal a MISSING slice, which
+ * is a different failure from the one this invariant is about: a slice that is
+ * present and short a key. Letting them count would make the check green by
+ * construction and prove nothing.
+ */
+function uncoveredNestedFields(initialSrc, migSrc, repairSrc) {
+  const mig = migSrc == null ? '' : L.stripNoise(migSrc);
+  const rep = repairSrc == null ? '' : L.stripNoise(repairSrc);
+  const out = [];
+  for (const slice of MERGED_SLICES) {
+    for (const f of nestedInitialFields(initialSrc, slice)) {
+      if (!f.concrete) continue;
+      const leaf = f.name.split('.')[1];
+      const access = `(?:\\.${leaf}\\b|\\[['"\`]${leaf}['"\`]\\])`;
+      const rooted = new RegExp(`\\b(?:s|state|repairedState|prev)\\.${slice}${access}`);
+      if (rooted.test(mig) || rooted.test(rep)) continue;
+      out.push(f.name);
+    }
   }
   return out;
 }
@@ -638,5 +834,9 @@ module.exports = {
   LEGACY_PRE_MIGRATION_FIELDS,
   topLevelInitialFields,
   uncoveredConcreteFields,
+  LEGACY_NESTED_FIELDS,
+  MERGED_SLICES,
+  nestedInitialFields,
+  uncoveredNestedFields,
 };
 if (require.main === module) L.runStandalone(build);

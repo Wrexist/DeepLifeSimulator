@@ -12,13 +12,14 @@
 import { applyScheduledWedding } from '@/contexts/game/actions/weekly/applyScheduledWedding';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
 import type { Relationship } from '@/contexts/game/types';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 function makeCtx(money: number, nextWeeksLived: number): WeekContext {
   // applyScheduledWedding only reads `newStats.money` and `nextWeeksLived`.
   return {
-    newStats: { money } as WeekContext['newStats'],
+    newStats: { money, health: 50, happiness: 50, energy: 50, fitness: 50, reputation: 50, gems: 0 },
     notifications: [],
-    preRolls: {} as WeekContext['preRolls'],
+    preRolls: zeroPreRolls(),
     nextWeeksLived,
   };
 }

@@ -16,15 +16,17 @@ import { applyHousingWellbeing } from '../applyHousingWellbeing';
 import type { WeekContext } from '../weekContext';
 import { RENTAL_TIERS, HOMELESS_PENALTY } from '@/lib/realEstate/rentals';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 import type { GameState } from '@/contexts/game/types';
 
 const TIER = RENTAL_TIERS[2];
 
-const ctx = (): WeekContext =>
-  ({
-    newStats: { health: 50, happiness: 50, energy: 50, money: 1000 },
-    notifications: [],
-  }) as unknown as WeekContext;
+const ctx = (): WeekContext => ({
+  newStats: { health: 50, happiness: 50, energy: 50, money: 1000, fitness: 0, reputation: 0, gems: 0 },
+  notifications: [],
+  preRolls: zeroPreRolls(),
+  nextWeeksLived: 0,
+});
 
 const renting = (startedWeek: number, weeksLived: number): GameState =>
   createTestGameState({

@@ -16,6 +16,7 @@
 import { applyVehiclesForWeek } from '../applyVehicles';
 import type { WeekContext } from '../weekContext';
 import type { PreRolls } from '../preTick';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 import type { GameStats, Vehicle } from '@/contexts/game/types';
 
 function stats(overrides: Partial<GameStats> = {}): GameStats {
@@ -31,34 +32,11 @@ function stats(overrides: Partial<GameStats> = {}): GameStats {
   };
 }
 
-function rolls(overrides: Partial<PreRolls> = {}): PreRolls {
-  return {
-    careerAcceptDelay: 1,
-    stockPickRoll: 0,
-    childGender: 'male',
-    childIdSuffix: 'x',
-    childPersonality: 0,
-    relBreakup: [],
-    relDisappointed: [],
-    policeEncounter: 0,
-    minerDegradation: 0,
-    diseaseComplication: [],
-    diseaseProgression: [],
-    luxuryIncident: [],
-    petSickness: [],
-    petSicknessType: [],
-    vehicleAccident: [],
-    vehicleAccidentSeverity: [],
-    timestamp: 0,
-    ...overrides,
-  };
-}
-
 function ctxWith(s: GameStats, preRollOverrides: Partial<PreRolls> = {}): WeekContext {
   return {
     newStats: s,
     notifications: [],
-    preRolls: rolls(preRollOverrides),
+    preRolls: zeroPreRolls(preRollOverrides),
     nextWeeksLived: 100,
   };
 }

@@ -130,7 +130,7 @@ module.exports = [
       "lib/devtools/**/*.{ts,tsx}", "lib/diseases/**/*.{ts,tsx}", "lib/dynasty/**/*.{ts,tsx}",
       "lib/economy/**/*.{ts,tsx}",
       "lib/education/**/*.{ts,tsx}", "lib/events/**/*.{ts,tsx}",
-      "lib/gameLogic/**/*.{ts,tsx}", "lib/karma/**/*.{ts,tsx}",
+      "lib/karma/**/*.{ts,tsx}",
       "lib/legacy/**/*.{ts,tsx}", "lib/legacyPass/**/*.{ts,tsx}", "lib/lifeMoments/**/*.{ts,tsx}",
       "lib/luxury/**/*.{ts,tsx}", "lib/mail/**/*.{ts,tsx}", "lib/mindset/**/*.{ts,tsx}",
       "lib/notifications/**/*.{ts,tsx}", "lib/parenting/**/*.{ts,tsx}", "lib/pets/**/*.{ts,tsx}",

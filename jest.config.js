@@ -74,7 +74,6 @@ module.exports = {
     '[\\\\/]__tests__[\\\\/]stress[\\\\/]helpers[\\\\/]',
     '[\\\\/]__tests__[\\\\/]refactor[\\\\/]helpers[\\\\/]',
     '[\\\\/]__tests__[\\\\/]render[\\\\/]helpers[\\\\/]',
-    '[\\\\/]lib[\\\\/]skillTrees[\\\\/]__tests__[\\\\/]careerSkillTrees\\.test\\.ts$',
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testTimeout: 10000,

@@ -31,15 +31,18 @@ import { applyEducationProgression } from '@/contexts/game/actions/weekly/applyE
 import { quoteEnrollment } from '@/contexts/game/actions/EducationActions';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
+import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
 /** Same harness shape the existing applyEducationProgression suites use. */
-const ctx = {
+const ctx: WeekContext = {
   newStats: {
-    happiness: 50, energy: 50, money: 10_000, health: 50, fitness: 50, reputation: 50,
+    happiness: 50, energy: 50, money: 10_000, health: 50, fitness: 50, reputation: 50, gems: 0,
   },
   notifications: [],
-  preRolls: {},
-} as never;
+  preRolls: zeroPreRolls(),
+  nextWeeksLived: 200,
+};
 
 /** Exam + campus cadence anchored past the tick week so neither fires. */
 const enrolled = () => [

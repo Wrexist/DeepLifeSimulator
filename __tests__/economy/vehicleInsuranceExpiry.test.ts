@@ -22,6 +22,7 @@
 import { applyVehiclesForWeek } from '@/contexts/game/actions/weekly/applyVehicles';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
 import type { Vehicle } from '@/contexts/game/types';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 const TERM_WEEKS = 26;
 
@@ -31,13 +32,13 @@ function ctxAt(week: number): WeekContext {
     notifications: [],
     // No accidents: every roll sits above any plausible chance, so these tests
     // observe expiry alone rather than an accident's side effects.
-    preRolls: {
+    preRolls: zeroPreRolls({
       vehicleAccident: Array(10).fill(0.999),
       vehicleAccidentSeverity: Array(10).fill(0.5),
-    },
+    }),
     nextWeeksLived: week,
     deferredCharges: 0,
-  } as unknown as WeekContext;
+  };
 }
 
 function insuredCar(expiresWeek: number): Vehicle {

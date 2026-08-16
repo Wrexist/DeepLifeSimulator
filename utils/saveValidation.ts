@@ -531,6 +531,48 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
+  // `date.month` — the last member of the `date` slice with a concrete default
+  // and no mirror (`year`/`week`/`age` are all reached above/below). The HUD
+  // renders the month string directly, so an absent key printed an empty month
+  // beside a valid year. Only an absent/non-string value is filled: a stored
+  // month is the player's calendar position and must never be rewound.
+  if (s.date && typeof s.date === 'object' && typeof s.date.month !== 'string') {
+    s.date.month = initialGameState.date.month;
+    repairs.push(`Set missing date.month → ${initialGameState.date.month}`);
+    repaired = true;
+  }
+
+  // `userProfile` had no existence branch at all, unlike its three sibling
+  // merged slices (`stats`, `date`, `settings` above). A save that lost the
+  // object arrived at every profile/social read as `undefined` — the one slice
+  // of the four whose total loss repair could not heal.
+  if (!s.userProfile || typeof s.userProfile !== 'object') {
+    s.userProfile = defaultsFor<Record<string, unknown>>('userProfile');
+    repairs.push('Created missing userProfile object');
+    repaired = true;
+  }
+  // The two numeric counters and the one array inside it, which are read
+  // arithmetically / iterated: absent, they produce NaN follower counts and a
+  // `.map` on undefined. The remaining `userProfile` strings are cosmetic
+  // identity and are grandfathered in audit-save's nested legacy set.
+  if (s.userProfile && typeof s.userProfile === 'object') {
+    if (typeof s.userProfile.followers !== 'number' || !Number.isFinite(s.userProfile.followers)) {
+      s.userProfile.followers = 0;
+      repairs.push('Set missing userProfile.followers');
+      repaired = true;
+    }
+    if (typeof s.userProfile.following !== 'number' || !Number.isFinite(s.userProfile.following)) {
+      s.userProfile.following = 0;
+      repairs.push('Set missing userProfile.following');
+      repaired = true;
+    }
+    if (!Array.isArray(s.userProfile.bookmarkedPosts)) {
+      s.userProfile.bookmarkedPosts = [];
+      repairs.push('Created missing userProfile.bookmarkedPosts array');
+      repaired = true;
+    }
+  }
+
   // Ensure required arrays exist
   // `goals` joins this table (concrete `[]` default in initialState) — see the
   // week/day block above for why these long-lived fields are getting mirrors now.
@@ -1515,6 +1557,46 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // ── Settings sub-field defaults (added across v11/v12) ────────
   if (s.settings && typeof s.settings === 'object') {
+    // The remaining `settings` toggles with a concrete default and no mirror.
+    // `autoSave` is the one that costs a player something: absent, it reads
+    // falsy and the game silently stops writing saves. The rest read falsy as
+    // "off", which flips three toggles away from the shipped default.
+    if (typeof s.settings.autoSave !== 'boolean') {
+      s.settings.autoSave = true;
+      repairs.push('Set missing settings.autoSave');
+      repaired = true;
+    }
+    if (typeof s.settings.hapticFeedback !== 'boolean') {
+      s.settings.hapticFeedback = false;
+      repairs.push('Set missing settings.hapticFeedback');
+      repaired = true;
+    }
+    if (typeof s.settings.notificationsEnabled !== 'boolean') {
+      s.settings.notificationsEnabled = true;
+      repairs.push('Set missing settings.notificationsEnabled');
+      repaired = true;
+    }
+    if (typeof s.settings.maxStats !== 'boolean') {
+      s.settings.maxStats = false;
+      repairs.push('Set missing settings.maxStats');
+      repaired = true;
+    }
+    if (typeof s.settings.language !== 'string' || s.settings.language.length === 0) {
+      s.settings.language = initialGameState.settings.language;
+      repairs.push('Set missing settings.language');
+      repaired = true;
+    }
+    // `lifetimePremium` is an ENTITLEMENT, so this fills ONLY an absent key and
+    // never coerces a present one. Absent already reads falsy, so writing the
+    // `false` default changes no behaviour — which is the only safe answer
+    // here: inventing `true` would hand out a paid unlock, and coercing a
+    // present-but-odd value could revoke one a player paid for (the v30
+    // `revivalPack` reasoning).
+    if (s.settings.lifetimePremium === undefined) {
+      s.settings.lifetimePremium = false;
+      repairs.push('Set missing settings.lifetimePremium');
+      repaired = true;
+    }
     if (typeof s.settings.showDecimalsInStats !== 'boolean') {
       s.settings.showDecimalsInStats = false;
       repairs.push('Set missing settings.showDecimalsInStats');

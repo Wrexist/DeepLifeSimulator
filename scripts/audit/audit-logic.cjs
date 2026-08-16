@@ -46,11 +46,70 @@ const L = require('./_lib.cjs');
  *     `updateMoney`)
  *
  * Delete either and this drops to 1 — lower the budget in the same commit.
+ *
+ * ── Standing over-budget: 4 pending RealEstateActions sites (audit M14) ────
+ *
+ * `contexts/game/actions/RealEstateActions.ts:460/522/554/586` each carry
+ *   `...(applyMoneyDelta(state, -cost, …) ?? { stats: { …, money: cash - cost } })`
+ * — a hand-written charge in the FALLBACK position of the canonical guard, so
+ * it runs exactly when the guard refuses. They were invisible while the
+ * exemption was proximity-based (the helper name is on the same line); the
+ * tightened `helperProducesValue` + fallback rule now reports them.
+ *
+ * They are NOT added to the budget, and they are NOT allowlisted. The budget
+ * is a ratchet that may only go DOWN, and this audit is advisory — nothing in
+ * CI or `npm run preflight` consumes it — so a red line with a written reason
+ * is the honest state, and raising the number to get green would be the exact
+ * move CLAUDE.md §8 warns about. The fix is to DELETE the four `??` fallbacks:
+ * every one of those resolvers has already refused ~10 lines up when the player
+ * cannot afford the cost, so `applyMoneyDelta` cannot return null there and the
+ * fallback is unreachable dead code that only re-implements the charge outside
+ * the guard. Owned by whoever next touches RealEstateActions; delete them and
+ * this drops back to 2.
  */
 const GATE_GRANT_BUDGET = 2;
 
 /** Charging through any of these is safe — each re-checks `prev` and rejects. */
 const GUARDED_HELPERS = /updateMoney|applyMoneyDelta|batchUpdateMoney|chargeOrDefer|spendMoney/;
+
+/**
+ * Does the guarded helper actually PRODUCE the value being assigned?
+ *
+ * The exemption used to be proximity: a guarded helper NAME anywhere in a
+ * 60-lines-back / 20-lines-forward window cleared the charge. That is not the
+ * property §4.4 asks for — it asks that the balance be written by something
+ * that can refuse. The two are not the same, and the gap is not hypothetical:
+ * `contexts/game/actions/RealEstateActions.ts` carries four
+ * `...(applyMoneyDelta(state, -cost, …) ?? { stats: { …, money: cash - cost } })`
+ * sites where the hand-written charge is the FALLBACK for the guarded helper
+ * refusing — i.e. it runs precisely when the guard said no, on the same line
+ * that used to exempt it.
+ *
+ * So: the helper counts only when the assigned value is its result. In
+ * practice that means the charge expression is (or spreads) the call, and the
+ * hand-written arithmetic is not sitting in a `??` / `||` fallback behind it.
+ */
+/**
+ * The values §4.4 governs: "Money and other grants must be atomic … The same
+ * rule applies to reputation, gems, and any claim flag".
+ */
+const CHARGED_VALUES = /\b(money|gems|reputation)\s*:/;
+
+/**
+ * A claim flag being SET — the non-arithmetic member of the gate→grant class.
+ * Narrow on purpose: only an explicit `…Claimed/Redeemed/Granted: true`, which
+ * is the shape the repo actually uses (`ambitionRewardClaimed`,
+ * `legacyContracts.claimedIds`, the daily-login and no-fill markers).
+ */
+const CLAIM_FLAG = /\b[A-Za-z_$][\w$]*(?:Claimed|Redeemed|Granted)\s*:\s*true\b/;
+
+function helperProducesValue(stmt) {
+  if (!GUARDED_HELPERS.test(stmt)) return false;
+  // `helper(...) ?? { … money: x - y }` / `|| { … }` — a fallback object is by
+  // definition what runs when the guard refuses, so the guard did not produce it.
+  if (/(?:\?\?|\|\|)\s*\{/.test(stmt)) return false;
+  return true;
+}
 
 function countUnguardedCharges(files) {
   const hits = [];
@@ -60,15 +119,35 @@ function countUnguardedCharges(files) {
     const lines = src.split('\n');
 
     lines.forEach((line, i) => {
-      // A hand-written charge: money/gems reduced by something.
+      // A hand-written charge: a §4.4 value reduced by something.
       //
       // The operand may be a named cost OR a numeric literal. Only identifiers
       // were matched at first, which silently exempted `money: prev.money - 100`
       // and `gems: prev.gems - 5` — the same stale-gate failure mode, invisible
       // to the budget. A detector with a blind spot reports a number that means
       // less than it looks like it means.
-      if (!/\b(money|gems)\s*:/.test(line)) return;
-      if (!/-\s*(?:[A-Za-z_$][\w$.]*|\d)/.test(line)) return;
+      //
+      // `reputation` joins money/gems because §4.4 names it explicitly: "The
+      // same rule applies to reputation, gems, and any claim flag".
+      const isCharge = CHARGED_VALUES.test(line) && /-\s*(?:[A-Za-z_$][\w$.]*|\d)/.test(line);
+      // A claim flag is the non-arithmetic member of the same class: the grant
+      // is "mark it claimed", so setting the flag outside/independently of the
+      // check that reads it double-grants exactly the same way.
+      const isClaim = CLAIM_FLAG.test(line);
+      if (!isCharge && !isClaim) return;
+
+      // The one shape no exemption clears: a hand-written charge sitting in the
+      // `??` / `||` FALLBACK of a guarded helper. It re-implements the charge
+      // outside the canonical guard, and it runs precisely when the guard
+      // refused — so the enclosing updater's own refusal path (which may sit
+      // 40 lines up, guarding something else) proves nothing about it. This is
+      // also why it must be checked BEFORE the updater walk-back: three of the
+      // four live instances sit in pure resolver functions with no updater at
+      // all above them.
+      if (isCharge && GUARDED_HELPERS.test(line) && /(?:\?\?|\|\|)\s*\{/.test(line)) {
+        hits.push(`${file}:${i + 1}`);
+        return;
+      }
 
       // Walk back to the enclosing updater, capturing its PARAMETER NAME.
       // Binding the real name matters: this codebase uses `prev`, `prevState`
@@ -78,15 +157,25 @@ function countUnguardedCharges(files) {
       let start = -1;
       let param = null;
       for (let j = i; j >= 0 && j > i - 60; j--) {
+        // A doc comment that SHOWS the idiom (`drop into setGameState(prev =>
+        // …)`) is not an enclosing updater. Matching it invented one 40 lines
+        // above a pure function and reported its honest same-object gate as
+        // unguarded.
+        if (/^\s*(?:\/\/|\*|\/\*)/.test(lines[j])) continue;
         const m = lines[j].match(/setGameState\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*(?::[^=]+)?=>/);
         if (m) { start = j; param = m[1]; break; }
       }
       if (start === -1 || !param) return;
 
       const body = lines.slice(start, i + 20).join('\n');
-      // A refusal path anywhere in the updater, or a guarded helper, is enough.
+      // A refusal path anywhere in the updater is enough — the updater can say no.
       if (new RegExp(`return\\s+${param}\\s*[;,)]`).test(body)) return;
-      if (GUARDED_HELPERS.test(body)) return;
+      // The guarded-helper exemption is scoped to the charge STATEMENT (the
+      // assignment and the few lines it may wrap across), not to the whole
+      // updater, and requires the helper to be the producer — see
+      // `helperProducesValue`.
+      const stmt = lines.slice(Math.max(0, i - 3), i + 2).join(' ');
+      if (helperProducesValue(stmt)) return;
 
       hits.push(`${file}:${i + 1}`);
     });
