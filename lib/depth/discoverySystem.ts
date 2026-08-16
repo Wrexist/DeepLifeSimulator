@@ -523,7 +523,28 @@ export function reconcileDiscoveredSystems(gameState: GameState): GameState {
   const gaming = gameState.gamingStreaming;
 
   mark('career', !!gameState.currentJob || !!gameState.careers?.some((c) => c?.accepted));
-  mark('relationships', has(gameState.relationships));
+  // `relationships` is NOT evidence by mere presence: `initialGameState` seeds
+  // every save with Mom and Dad (`type: 'parent'`, score 50, no counters), so
+  // `has(relationships)` was true before the first frame — the same shape as the
+  // `banking.accounts` seeding two lines below, and as the `weeksLived` baseline
+  // that cost three bugs (§4.2). Evidence is the player ENGAGING the system:
+  // either a relationship they made (nothing but parents is seeded, so any
+  // non-parent is player-made — a friend, partner, spouse or child) or an
+  // interaction recorded against one (`actions` written by ContactsActions,
+  // `weeklyInteractions`/`lastInteractionWeek` by Contacts + Dating, `datesCount`
+  // by Dating). Deliberately NOT the score: the weekly tick decays it on its own,
+  // so a drifted parent score would credit the system for the passage of time.
+  mark(
+    'relationships',
+    !!gameState.relationships?.some(
+      (r) =>
+        (r?.type && r.type !== 'parent') ||
+        Object.keys(r?.actions ?? {}).length > 0 ||
+        (r?.weeklyInteractions ?? 0) > 0 ||
+        typeof r?.lastInteractionWeek === 'number' ||
+        (r?.datesCount ?? 0) > 0,
+    ),
+  );
   mark('health', (gameState.stats?.fitness ?? 0) > 0 && (gameState.weeksLived ?? 0) > 0);
   // `pursuits` is a `Record<string, PlayerPursuit>`, never an array, so the old
   // `has(pursuits)` could not fire — count keys instead.

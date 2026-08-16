@@ -13,7 +13,7 @@
  * natural stat decay + old-age death roll are reused unchanged.
  */
 import type { GameState, GameStats } from '@/contexts/game/types';
-import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
+import { applyMoneyDelta } from '@/lib/economy/moneyDelta';
 import { getAge, isRetired } from './pension';
 import { RETIREMENT_AGE, EARLY_RETIRE_MIN_AGE } from './constants';
 

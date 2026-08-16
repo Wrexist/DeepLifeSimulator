@@ -17,6 +17,22 @@ import {
   IAP_PRODUCTS,
   getProductConfig,
 } from '@/utils/iapConfig';
+/**
+ * SANCTIONED layering exception (audit H6). One call —
+ * `isDeepLifePlusActive()` → `subscriptionService.hasPremiumAccess()` — asks the
+ * entitlement layer a question `lib/` cannot answer: whether a receipt verified.
+ *
+ * The two ways to invert it are both worse than the edge. Parameter injection
+ * pushes the same lookup onto every caller (`SubscriptionModal`,
+ * `PremiumCrownButton`, `useDeepLifePlusUpsell`), i.e. the same import moved
+ * sideways into three files instead of one. A registration hook adds a boot
+ * ordering hazard to a PAYMENT gate: whatever the unregistered default is, it is
+ * wrong — `false` silently strips premium from a paying subscriber until
+ * registration lands, `true` gives it away. Neither is worth trading for a
+ * layering diagram. The edge cannot close a cycle: `SubscriptionService` imports
+ * `@/utils/iapConfig` and `IAPService`, never `lib/subscription`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import { subscriptionService } from '@/services/SubscriptionService';
 
 export type BillingPeriod = 'monthly' | 'yearly';

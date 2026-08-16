@@ -14,8 +14,8 @@ import {
   nextRaisePremium,
   raisePremiumPct,
   resolveRaisePremium,
+  RAISE_MIN_PERFORMANCE,
 } from '@/lib/careers/raisePremium';
-import { RAISE_MIN_PERFORMANCE } from '@/contexts/game/actions/JobActions';
 import { getMailState, appendMessages } from './state';
 import { SENDERS } from './senders';
 import { SHIELD_WEEKS } from './security';

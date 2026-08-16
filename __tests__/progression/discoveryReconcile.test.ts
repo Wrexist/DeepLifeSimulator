@@ -125,6 +125,35 @@ describe('every system is detected through its real GameState path', () => {
     expect(fresh).not.toContain('bank');
   });
 
+  it('relationships: a relationship the PLAYER made, or one they interacted with', () => {
+    const base = createTestGameState();
+    const mom = base.relationships[0];
+    // Nothing but parents is seeded, so any other type is player-made.
+    expect(played({ relationships: [...base.relationships, { ...mom, id: 'f1', name: 'Ada', type: 'friend' }] })).toContain('relationships');
+    // …and an interaction recorded against a SEEDED parent counts too — calling
+    // Mom is engaging the system.
+    expect(played({ relationships: [{ ...mom, actions: { call: 12 } }] })).toContain('relationships');
+    expect(played({ relationships: [{ ...mom, weeklyInteractions: 1, lastInteractionWeek: 12 }] })).toContain('relationships');
+    expect(played({ relationships: [{ ...mom, datesCount: 1 }] })).toContain('relationships');
+  });
+
+  it('relationships: the Mom and Dad `initialGameState` SEEDS are not evidence', () => {
+    // `has(relationships)` was true before the first frame of every save — the
+    // same shape as the seeded bank accounts above.
+    const fresh = createTestGameState({ weeksLived: 0 });
+    expect(fresh.relationships.length).toBe(2);
+    expect(fresh.relationships.every((r) => r.type === 'parent')).toBe(true);
+    expect(idsOf(reconcileDiscoveredSystems(fresh))).not.toContain('relationships');
+  });
+
+  it('relationships: a parent score DRIFTING is not evidence', () => {
+    // The weekly tick decays relationship scores on its own, so reading the
+    // score would credit the system for the passage of time.
+    const base = createTestGameState();
+    const drifted = base.relationships.map((r) => ({ ...r, relationshipScore: 21 }));
+    expect(played({ relationships: drifted })).not.toContain('relationships');
+  });
+
   it('travel: a visited destination, an in-flight trip or a passport marks `travel`', () => {
     const base = createTestGameState();
     const t = base.travel!;

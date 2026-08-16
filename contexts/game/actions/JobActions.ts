@@ -17,7 +17,14 @@ import {
   isRaisePremiumMaxed,
   nextRaisePremium,
   resolveRaisePremium,
+  RAISE_MIN_PERFORMANCE,
 } from '@/lib/careers/raisePremium';
+/**
+ * Re-exported so existing importers of `RAISE_MIN_PERFORMANCE` keep working.
+ * The constant itself now lives in `lib/careers/raisePremium` — `lib/mail`
+ * needs it too, and `lib/` must not import upward from `contexts/`.
+ */
+export { RAISE_MIN_PERFORMANCE };
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
@@ -1119,13 +1126,9 @@ export const promoteCareer = (
 // well-kept your stats are) + a cooldown. Real risk: a denial bruises your
 // standing (happiness) and can draw a formal warning (3 = fired).
 export const RAISE_COOLDOWN_WEEKS = 8;
-/**
- * Exported because the mail app's recruiter-leverage letter uses the SAME
- * floor: an outside offer is only leverage if your manager believes you are
- * worth keeping. Two copies of this number would let one path call a bluff the
- * other path rewarded.
- */
-export const RAISE_MIN_PERFORMANCE = 45;
+// `RAISE_MIN_PERFORMANCE` moved to `@/lib/careers/raisePremium` (imported and
+// re-exported at the top of this file) — the mail app's recruiter-leverage
+// letter uses the SAME floor, and `lib/` cannot import upward from `contexts/`.
 
 export const requestRaise = (
   gameState: GameState,

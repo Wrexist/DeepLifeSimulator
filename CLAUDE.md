@@ -234,6 +234,24 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
     bake a lib → contexts inversion into the graph).
   - `require('@/lib|utils|contexts…')` for internal modules → warn (degrades types
     to `any`/`never`); use static `import` or `import type` + a typed lazy getter.
+  - **`lib/` may not import VALUES from `contexts|components|app|services|hooks`**
+    (`@typescript-eslint/no-restricted-imports`, error across `lib/**`).
+    `import type` stays legal in both directions — tsc erases those edges, so
+    they cannot form a runtime cycle — and `@/contexts/game/types` is exempt
+    outright as a types-only module. The rule exists because an upward edge that
+    closes a cycle does not fail the build: it reads as `undefined` at module
+    init, and `lib/mail` / `lib/crypto` sit on the week-loop path, where that is
+    a lost week. Three symbols were moved DOWN when it landed
+    (`RAISE_MIN_PERFORMANCE` → `lib/careers/raisePremium`,
+    `calculateMiningEarnings` → `lib/crypto/miningEarnings`, `applyMoneyDelta` →
+    `lib/economy/moneyDelta`), each re-exported from its old home so importers
+    were untouched. Two files carry a line-level disable with the reasoning
+    in place — `lib/prestige/prestigeExecution.ts` (`initialGameState` is data,
+    and injecting it ripples through ~20 call sites for no structural gain) and
+    `lib/subscription/deepLifePlus.ts` (one entitlement query; a registration
+    hook would put a boot-order hazard on a PAYMENT gate). `lib/simulation`,
+    `lib/devtools` and `lib/analytics` are exempt by directory as
+    adapters/dev-tooling rather than game logic.
   - `@ts-ignore` / `@ts-nocheck` banned; `@ts-expect-error` needs a ≥5-char description.
   - Tests are exempt from both rules.
 

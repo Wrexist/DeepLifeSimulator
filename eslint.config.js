@@ -161,6 +161,73 @@ module.exports = [
     },
   },
   {
+    /**
+     * --- Layering boundary: `lib/` may not import upward (audit H6) ----------
+     *
+     * The app's one-way direction is `app|components → contexts → lib → lib/config`.
+     * Until 2026-08-16 that was asserted in comments and enforced nowhere: five
+     * `lib/` modules statically imported executable code from `contexts/` or
+     * `services/`, in directories the ratchet block above already errors on —
+     * the require()-based rule there cannot see a static `import`. Three of the
+     * five were pure symbols sitting one layer too high and have been moved DOWN
+     * (`RAISE_MIN_PERFORMANCE` → `lib/careers/raisePremium`,
+     * `calculateMiningEarnings` → `lib/crypto/miningEarnings`, `applyMoneyDelta`
+     * → `lib/economy/moneyDelta`), with the old locations re-exporting them.
+     *
+     * Why it is worth a rule rather than vigilance: an upward edge that closes a
+     * cycle does not fail the build. It surfaces as `undefined` at module init,
+     * and `lib/mail` and `lib/crypto` are both on the week-loop path, where that
+     * reads as a lost week for the save. Measured on 2026-08-16: zero true
+     * cycles today, and `lib/mail` was one import away from one.
+     *
+     * `allowTypeImports` keeps `import type` legal in both directions — tsc
+     * erases those edges, so they cannot form a runtime cycle. `@/contexts/game/types`
+     * is exempted outright because it is a types-only module whose every import
+     * is itself type-only (the same reasoning the cycle audit used), and ~80
+     * `lib/` files import from it with value syntax.
+     */
+    files: ["lib/**/*.{ts,tsx}"],
+    ignores: [
+      "lib/**/__tests__/**",
+      "lib/**/*.test.{ts,tsx}",
+      /**
+       * Sanctioned directories, not oversights — each is a consumer of the
+       * upper layers by nature rather than a domain module that leaked one.
+       *
+       * `lib/simulation` — ~10k LOC of dev/QA tooling that drives the real
+       * action modules on purpose; already dead-code-eliminated from release
+       * bundles by the `__DEV__`-folded require in SettingsModal, and already
+       * documented as a boundary (not a cycle) in the ratchet block above.
+       * `lib/devtools` — same shape: `simulations.ts` exercises ~20 action
+       * modules and the weekly subsystems to prove they still behave.
+       * `lib/analytics` — `AnalyticsTracker.tsx` is a React component that must
+       * subscribe to game context, and `AnalyticsService` wraps the Firebase
+       * service singleton. Both are adapters between layers, not game logic.
+       */
+      "lib/simulation/**",
+      "lib/devtools/**",
+      "lib/analytics/**",
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [
+          {
+            // A regex rather than a gitignore-style `group`, because the one
+            // exemption has to be a NEGATION and `group`'s `!` form does not
+            // fire for aliased specifiers here. Covers the `@/` alias and the
+            // relative escapes (`../../contexts/…`) that reach the same places.
+            // `@/contexts/game/types` is the sole allowed path — types only.
+            regex:
+              '^(?!@/contexts/game/types$)(@/(contexts|components|app|services|hooks)(/|$)|(\\.\\./)+(contexts|components|app|services|hooks)(/|$))',
+            allowTypeImports: true,
+            message:
+              "lib/ must not import VALUES from contexts|components|app|services|hooks — that inverts the app's layering and an upward edge that closes a cycle reads as `undefined` at module init inside the week loop, not as a build error (audit H6). Move the symbol DOWN into lib/ and re-export it from the old location, or use `import type` if you only need the type.",
+          },
+        ],
+      }],
+    },
+  },
+  {
     files: ["jest.setup.js", "**/*.test.{js,ts,tsx}", "**/__tests__/**/*.{js,ts,tsx}"],
     languageOptions: {
       globals: {

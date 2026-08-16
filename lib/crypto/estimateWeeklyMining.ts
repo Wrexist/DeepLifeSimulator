@@ -16,7 +16,7 @@
  * Pure function. No React, no state, no wall-clock.
  */
 import type { GameState } from '@/contexts/game/types';
-import { calculateMiningEarnings } from '@/contexts/game/actions/MiningActions';
+import { calculateMiningEarnings } from './miningEarnings';
 
 type Warehouse = GameState['warehouse'];
 type Crypto = { id: string; price: number };
