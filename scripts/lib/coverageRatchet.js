@@ -84,10 +84,10 @@ const COVERAGE_GOAL = 70;
  *    twice.
  */
 const COVERAGE_FLOORS = {
-  statements: 51.4,
-  branches: 33.5,
-  functions: 42.6,
-  lines: 52.7,
+  statements: 53.0,
+  branches: 35.0,
+  functions: 44.5,
+  lines: 54.3,
 };
 
 /**
@@ -107,15 +107,22 @@ const COVERAGE_FLOORS = {
  * passed silently. That is the quiet slide this ratchet exists to catch,
  * appearing in the ratchet itself; step 3 in the history above is the fix.
  *
+ * Re-measured 2026-08-16 after the full-completion hardening pass (~180 new
+ * tests across save/tick/economy/events/UI). Every metric rose ~1.5 points
+ * (statements 52.05 → 53.56, branches 34.05 → 35.62, functions 43.25 → 45.05,
+ * lines 53.37 → 54.86) and the floors were raised with the measurement in the
+ * same commit — the rule this ratchet's own 2026-08-04 history entry exists
+ * to enforce.
+ *
  * Re-measure and update BOTH this and the floors in the same commit. Raise them
  * in the commit that EARNS the coverage; never lower them to get a build
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 52.05,
-  branches: 34.05,
-  functions: 43.25,
-  lines: 53.37,
+  statements: 53.56,
+  branches: 35.62,
+  functions: 45.05,
+  lines: 54.86,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];
