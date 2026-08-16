@@ -44,6 +44,15 @@
   resolves without touching the new operation, releasing the mutex mid-write
   again (F-9b). Post-fix adversarial review of the fix itself found it; the
   await now loops until the operation's own settle fires.
+- **A render test that accepts any tree is green on a crash screen.**
+  `jest.setup.js`'s expo-router mock lacked `useNavigationContainerRef`, so
+  every screen using `useNavigationReady` threw on first commit and rendered
+  its ErrorBoundary fallback — a perfectly valid tree, so "mounts without
+  throwing" passed for months while asserting on the crash screen. When a
+  mount test's only assertion is "some JSON came out", it proves nothing;
+  assert on content the real screen renders (the market suite now presses a
+  real filter chip). Same family as the C-9 detector's false zero: a check
+  weaker than the defect converts absence of evidence into evidence.
 
 - **A declared event with no emitter is the analytics form of dead code, and it
   is invisible.** `lib/analytics/events.ts` names the events its own docstring
