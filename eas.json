@@ -27,7 +27,10 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_ENABLE_DEVTOOLS": "true",
-        "EXPO_PUBLIC_BORING_BUILD": "true"
+        "EXPO_PUBLIC_BORING_BUILD": "true",
+        "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
+        "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
+        "EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "b2747d4eef39a4a03b3751ab2ae5c778992960d9a19573476223c7cfdc0599af"
       },
       "ios": {
         "simulator": false

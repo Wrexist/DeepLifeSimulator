@@ -74,6 +74,38 @@ describe('native SDK feature flag defaults', () => {
     expect(flags.att).toBe(false);
   });
 
+  // `cloudSave` is the one flag that is deliberately NOT a native SDK and
+  // therefore deliberately NOT gated on Boring Build. The rollout is
+  // preview-first (owner decision), which is only possible because of that:
+  // `preview` carries EXPO_PUBLIC_BORING_BUILD=true.
+  it('preview turns cloud backup on — flag AND endpoint, both explicit', () => {
+    const env = profiles.preview.env ?? {};
+    expect(env.EXPO_PUBLIC_ENABLE_CLOUD_SAVE).toBe('true');
+    expect(env.EXPO_PUBLIC_CLOUD_SAVE_URL ?? '').not.toBe('');
+
+    const flags = loadFlags(env);
+    expect(flags.cloudSave).toBe(true);
+    // Proof the Boring Build exemption is real and not an accident of ordering.
+    expect(env.EXPO_PUBLIC_BORING_BUILD).toBe('true');
+  });
+
+  it('production does NOT ship cloud backup yet (preview-first rollout)', () => {
+    const env = profiles.production.env ?? {};
+    expect(env.EXPO_PUBLIC_ENABLE_CLOUD_SAVE).toBeUndefined();
+    expect(loadFlags(env).cloudSave).toBe(false);
+  });
+
+  it('cloud backup needs BOTH the flag and a non-empty URL', () => {
+    // A flag with no endpoint would render a Back up / Restore UI that can
+    // never do anything — the transport no-ops without a base URL.
+    expect(loadFlags({ EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true' }).cloudSave).toBe(false);
+    expect(loadFlags({ EXPO_PUBLIC_CLOUD_SAVE_URL: 'https://example.test/v1' }).cloudSave).toBe(false);
+    expect(loadFlags({ EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true', EXPO_PUBLIC_CLOUD_SAVE_URL: '   ' }).cloudSave).toBe(false);
+    expect(
+      loadFlags({ EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true', EXPO_PUBLIC_CLOUD_SAVE_URL: 'https://example.test/v1' }).cloudSave
+    ).toBe(true);
+  });
+
   it('drops the notifications flag — expo-notifications is a no-op stub', () => {
     const flags = loadFlags({ EXPO_PUBLIC_BORING_BUILD: 'false' });
     expect('notifications' in flags).toBe(false);

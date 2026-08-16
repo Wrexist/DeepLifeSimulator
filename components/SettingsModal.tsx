@@ -14,6 +14,7 @@ import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
+import CloudBackupRow from './settings/CloudBackupRow';
 import RedeemCodeModal from './RedeemCodeModal';
 import WhatsNewModal from './WhatsNewModal';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -743,6 +744,10 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     });
                   }}
                 />
+
+                {/* Cloud backup — renders nothing unless the `cloudSave` flag
+                    is on (preview-first rollout). */}
+                <CloudBackupRow />
 
                 {/* Danger Zone (restart & bug report) */}
                 <DangerZone

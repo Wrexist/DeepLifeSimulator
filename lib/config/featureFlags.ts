@@ -58,6 +58,24 @@ export const FEATURE_FLAGS = {
   // integration at all, burning the one-shot system prompt for nothing.
   att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT === 'true',
 
+  // Cloud device backup (save upload/restore through lib/progress/cloud.ts).
+  // OPT-IN only (=== 'true'), and additionally requires a non-empty
+  // EXPO_PUBLIC_CLOUD_SAVE_URL: the transport silently no-ops without a base
+  // URL, so a flag that reads "on" with no endpoint would present a Back up /
+  // Restore UI that can never do anything. Both halves must be present.
+  //
+  // DELIBERATELY NOT gated on BORING_BUILD_MODE, unlike every flag above it.
+  // Boring Build exists to keep NATIVE SDKs (AdMob, StoreKit, Firebase,
+  // RevenueCat, ATT) out of a build so a startup crash can be isolated — this
+  // is pure JS over `fetch`, initializes nothing native, and touches the
+  // network only after the first frame. Gating it would also make the
+  // preview-first rollout impossible: `preview` carries
+  // EXPO_PUBLIC_BORING_BUILD=true, which is exactly the profile this is meant
+  // to ship in first.
+  cloudSave:
+    process.env.EXPO_PUBLIC_ENABLE_CLOUD_SAVE === 'true' &&
+    (process.env.EXPO_PUBLIC_CLOUD_SAVE_URL ?? '').trim().length > 0,
+
   // NOTE: there is no `notifications` flag. expo-notifications was removed to
   // fix a TurboModule crash and utils/notifications.ts is a no-op stub, so the
   // flag had zero readers — a flag nobody consults is worse than none, because

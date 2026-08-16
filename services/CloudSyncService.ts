@@ -1,33 +1,32 @@
 /**
- * Cloud save sync — STATUS: transport is live, save-sync is NOT WIRED UP.
+ * Cloud save sync — STATUS: wired as a DEVICE BACKUP, flag-gated (`cloudSave`).
  *
- * What actually runs today: `lib/progress/cloud.ts` talks to the backend for
- * the LEADERBOARD. Everything in this file that moves a SAVE — `queueSync`,
- * `sync`, `downloadState`, `checkConflict`, `resolveConflict` — has zero
- * callers in the app. The only members anyone calls are `pauseSync`,
- * `resumeSync` and `setConflictCallback`, from the AppState listener in
- * `contexts/game/GameActionsContext.tsx`, which is why the surface reads as
- * live when it is not. Leaving it half-wired is a decision, not an oversight:
- * turning it on is a product decision, not a refactor.
+ * What runs today. `services/cloudBackup.ts` schedules a debounced `queueSync`
+ * after every successful local save, and the Settings "Cloud backup" row and
+ * the SaveSlots restore offer call `backupNow` / `downloadState` through the
+ * same module. Boot arms `start()` from the deferred-service pattern in
+ * `app/_layout.tsx`. All of it is off unless BOTH
+ * `EXPO_PUBLIC_ENABLE_CLOUD_SAVE=true` and a non-empty
+ * `EXPO_PUBLIC_CLOUD_SAVE_URL` are set — shipping to the `preview` profile
+ * first (owner decision).
  *
- * What wiring it would require (README, "cloud-save backend contract"):
- *   1. A real IDENTITY. `resolveUserId` falls back to minting a random
- *      `player_*` id in local storage, which is a device id wearing an
- *      account's clothes: reinstall and the saves are orphaned, and nothing
- *      stops one device claiming another's id. Sign-in comes first.
- *   2. The backend `/save` upload + download endpoints behind
- *      `lib/progress/cloud.ts`, including server-side verification of the
- *      `hash`/`signature` integrity proof this client already sends — a proof
- *      only the client checks is decoration.
- *   3. A call site for `queueSync` (after `saveGame`) and for `downloadState`
- *      (at load), both inside the save/load mutex, plus the conflict UI.
+ * SCOPE: this is a backup of THIS DEVICE, not a cross-device account. The
+ * identity is the anonymous per-device id in `cloud_user_id` (see
+ * `resolveUserId`), so a reinstall still orphans the old saves and there is no
+ * "sign in on a new phone and get your game" path. That is the remaining
+ * future work, and it is an IDENTITY problem, not a transport one:
  *
- * Until then this class must be INERT ON IMPORT. It used to arm a network
+ *   1. A real account (sign-in) to key saves on, replacing the device id.
+ *   2. Server-side verification of the `hash`/`signature` integrity proof this
+ *      client already sends — a proof only the client checks is decoration.
+ *   3. A cross-device conflict UX beyond the single alert wired here.
+ *
+ * The class stays INERT ON IMPORT regardless. It used to arm a network
  * listener and a 30-second `setInterval` in its constructor, and the module
  * called `getInstance()` at the bottom — so merely importing the file (which
- * the AppState listener does) started a timer for a feature that cannot do
- * anything. Construction is now lazy (`getCloudSyncService()`) and the
- * listener/timer are armed only by an explicit `start()`. 2026-08-16
+ * the AppState listener does) started a timer. Construction is lazy
+ * (`getCloudSyncService()`) and the listener/timer are armed only by an
+ * explicit `start()`, which only the flag-gated boot task calls. 2026-08-16
  * architecture audit M6.
  */
 import { GameState, Relationship } from '@/contexts/game/types';
@@ -53,6 +52,8 @@ export type ConflictCallback = (conflict: SyncConflict & { remoteState: GameStat
 class CloudSyncService {
   private static instance: CloudSyncService;
   private static readonly CLOUD_USER_ID_KEY = 'cloud_user_id';
+  /** Epoch ms of the last successful upload — survives a cold start (see `performUpload`). */
+  private static readonly LAST_BACKUP_AT_KEY = 'cloud_backup_last_at';
   private static readonly RESERVED_USER_IDS = new Set(['local_player', 'guest', 'anonymous', 'unknown', 'null', 'undefined']);
   private syncQueue: { state: GameState; timestamp: number; retries: number }[] = [];
   private isSyncing = false;
@@ -127,7 +128,10 @@ class CloudSyncService {
     }, this.syncInterval);
   }
 
-  private async resolveSlotId(): Promise<string> {
+  private async resolveSlotId(explicitSlot?: number): Promise<string> {
+    if (Number.isFinite(explicitSlot) && (explicitSlot as number) >= 1 && (explicitSlot as number) <= 3) {
+      return `slot_${explicitSlot}`;
+    }
     const currentSlotRaw = await safeGetItem('currentSlot');
     const lastSlotRaw = await safeGetItem('lastSlot');
     const parsedCurrent = currentSlotRaw ? parseInt(currentSlotRaw, 10) : NaN;
@@ -142,18 +146,24 @@ class CloudSyncService {
     return normalized.length >= 3 && !CloudSyncService.RESERVED_USER_IDS.has(normalized);
   }
 
-  private async resolveUserId(state: GameState): Promise<string | null> {
-    const candidates = [
-      state.userProfile?.username,
-      state.userProfile?.handle,
-    ];
-
-    for (const candidate of candidates) {
-      if (this.isValidCloudUserId(candidate)) {
-        return candidate!.trim();
-      }
-    }
-
+  /**
+   * The backup identity: the anonymous per-device id in `cloud_user_id`,
+   * minted on first use and never derived from game state.
+   *
+   * This used to prefer `userProfile.username` / `.handle` and fall back to the
+   * device id. Both halves of that were wrong for a device backup, and the
+   * first was actively dangerous: `initialGameState` ships
+   * `userProfile.username = 'player'`, which passes `isValidCloudUserId`, so
+   * EVERY install would have uploaded to the single cloud key `player` and
+   * restored whichever device wrote last. The fallback was unreachable for the
+   * same reason. A display name is not an identity — it is player-editable and
+   * not unique — so the device id is now the only answer, which also makes the
+   * id stable across the pre-game menus, where no life is loaded and the
+   * profile fields are still the defaults. Nothing was wired before this
+   * change, so there is no installed base of `player`-keyed cloud saves to
+   * migrate. Cross-device identity (sign-in) is the future work in the header.
+   */
+  private async resolveUserId(): Promise<string | null> {
     const existing = await safeGetItem(CloudSyncService.CLOUD_USER_ID_KEY);
     if (this.isValidCloudUserId(existing ?? undefined)) {
       return existing!.trim();
@@ -196,6 +206,86 @@ class CloudSyncService {
   }
 
   /**
+   * Upload ONE state. Throws on failure so the caller decides about retries.
+   *
+   * Extracted from the `sync` drain so the user-initiated "Back up now" button
+   * can run exactly the same upload — identity, slot, revision, integrity
+   * proof and the stale-revision guard — and still learn whether it worked.
+   * Duplicating any of that for the manual path is how the two drift.
+   */
+  private async performUpload(state: GameState, timestamp: number): Promise<'uploaded' | 'stale'> {
+    const userId = await this.resolveUserId();
+    if (!userId) {
+      throw new Error('Cloud sync blocked: no trusted user identity');
+    }
+    const slotId = await this.resolveSlotId();
+    const revision = state.weeksLived || state.updatedAt || timestamp;
+    if (!Number.isFinite(revision) || revision <= 0) {
+      throw new Error(`Cloud sync blocked: invalid revision ${revision}`);
+    }
+    const lastSyncedRevision = this.lastSyncedRevisionBySlot.get(slotId) || 0;
+    if (revision <= lastSyncedRevision) {
+      logger.warn('Skipping stale cloud upload revision', {
+        slotId,
+        revision,
+        lastSyncedRevision,
+      });
+      return 'stale';
+    }
+    const { hash, signature } = this.buildIntegrityProof(state, userId, slotId, revision);
+    const uploadResult = await uploadGameState({
+      state,
+      updatedAt: state.updatedAt || timestamp,
+      userId,
+      slotId,
+      revision,
+      hash,
+      signature,
+    });
+    if (!uploadResult.success) {
+      throw new Error(uploadResult.error || 'Cloud upload failed');
+    }
+
+    this.lastSyncedRevisionBySlot.set(slotId, revision);
+    this.lastSyncTime = Date.now();
+    // Persisted, not just held in memory: the Settings row shows "Last backup
+    // …" and a number that resets to "never" on every cold start would read as
+    // a lost backup. Best-effort — a failed write must not fail the upload.
+    void safeSetItem(CloudSyncService.LAST_BACKUP_AT_KEY, String(this.lastSyncTime)).catch(() => {});
+    return 'uploaded';
+  }
+
+  /**
+   * Upload the given state right now and report the outcome.
+   *
+   * The manual "Back up now" path. `queueSync` is fire-and-forget by design
+   * (it serves the debounced autosave hook), but a button the player pressed
+   * owes them an answer.
+   */
+  async backupNow(state: GameState): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
+    try {
+      const result = await this.performUpload(state, Date.now());
+      this.notifyListeners({ status: 'synced', progress: 100 });
+      // 'stale' means the cloud already holds this revision — nothing to do,
+      // which is a success from the player's point of view, not a failure.
+      return { success: true, skipped: result === 'stale' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Cloud backup failed';
+      logger.error('[CloudSync] Manual backup failed:', error);
+      this.notifyListeners({ status: 'error', error: message });
+      return { success: false, error: message };
+    }
+  }
+
+  /** Epoch ms of the last successful upload, or null if this device never uploaded. */
+  async getLastBackupAt(): Promise<number | null> {
+    if (this.lastSyncTime > 0) return this.lastSyncTime;
+    const raw = await safeGetItem(CloudSyncService.LAST_BACKUP_AT_KEY);
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  /**
    * Sync queued states
    */
   private async sync(): Promise<void> {
@@ -211,40 +301,8 @@ class CloudSyncService {
         const item = this.syncQueue.shift()!;
 
         try {
-          const userId = await this.resolveUserId(item.state);
-          if (!userId) {
-            throw new Error('Cloud sync blocked: no trusted user identity');
-          }
-          const slotId = await this.resolveSlotId();
-          const revision = item.state.weeksLived || item.state.updatedAt || item.timestamp;
-          if (!Number.isFinite(revision) || revision <= 0) {
-            throw new Error(`Cloud sync blocked: invalid revision ${revision}`);
-          }
-          const lastSyncedRevision = this.lastSyncedRevisionBySlot.get(slotId) || 0;
-          if (revision <= lastSyncedRevision) {
-            logger.warn('Skipping stale cloud upload revision', {
-              slotId,
-              revision,
-              lastSyncedRevision,
-            });
-            continue;
-          }
-          const { hash, signature } = this.buildIntegrityProof(item.state, userId, slotId, revision);
-          const uploadResult = await uploadGameState({
-            state: item.state,
-            updatedAt: item.state.updatedAt || item.timestamp,
-            userId,
-            slotId,
-            revision,
-            hash,
-            signature,
-          });
-          if (!uploadResult.success) {
-            throw new Error(uploadResult.error || 'Cloud upload failed');
-          }
-
-          this.lastSyncedRevisionBySlot.set(slotId, revision);
-          this.lastSyncTime = Date.now();
+          const outcome = await this.performUpload(item.state, item.timestamp);
+          if (outcome === 'stale') continue;
           this.notifyListeners({ status: 'synced', progress: 100 });
         } catch (error) {
           logger.error('Sync error:', error);
@@ -270,16 +328,22 @@ class CloudSyncService {
    * Download state from cloud
    * A-6: Now checks for conflicts and notifies callback when local/remote diverge
    */
-  async downloadState(localState?: GameState): Promise<GameState | null> {
+  async downloadState(
+    localState?: GameState,
+    options?: { slot?: number; detectConflicts?: boolean }
+  ): Promise<GameState | null> {
     try {
-      const userId = localState ? await this.resolveUserId(localState) : null;
+      // Identity no longer depends on `localState` — it is the device id (see
+      // `resolveUserId`), which is what lets the pre-game SaveSlots screen read
+      // a slot's cloud save with no life loaded.
+      const userId = await this.resolveUserId();
       if (!userId) {
         logger.warn('Cloud download skipped: missing trusted user identity');
         return null;
       }
       const cloudSave = await downloadGameState({
         userId,
-        slotId: await this.resolveSlotId(),
+        slotId: await this.resolveSlotId(options?.slot),
       });
       if (!cloudSave || !cloudSave.state) return null;
 
@@ -307,8 +371,11 @@ class CloudSyncService {
 
       const remoteState = cloudSave.state as GameState;
 
-      // A-6: Detect conflict when both local and remote have diverged
-      if (localState && this.onConflictDetected) {
+      // A-6: Detect conflict when both local and remote have diverged.
+      // Opt-OUT for an explicit restore: the player has already asked for the
+      // cloud copy, so raising the "which version?" alert and returning null
+      // would answer a question nobody asked and silently do nothing.
+      if (localState && this.onConflictDetected && options?.detectConflicts !== false) {
         const localTimestamp = localState.updatedAt || localState.lastLogin || 0;
         const remoteTimestamp = cloudSave.updatedAt ||
           (remoteState.updatedAt || remoteState.lastLogin || 0);
@@ -401,7 +468,7 @@ class CloudSyncService {
    */
   async checkConflict(localState: GameState): Promise<SyncConflict | null> {
     try {
-      const userId = await this.resolveUserId(localState);
+      const userId = await this.resolveUserId();
       if (!userId) {
         logger.warn('Cloud conflict check skipped: missing trusted user identity');
         return null;

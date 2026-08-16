@@ -6,9 +6,13 @@
  * importing the file started background work. It is imported for real: the
  * AppState listener in `contexts/game/GameActionsContext.tsx` requires it on
  * every background/foreground transition to call `pauseSync`/`resumeSync`.
- * Meanwhile everything in that file that moves a SAVE (`queueSync`, `sync`,
- * `downloadState`, `checkConflict`) has zero callers, so the timer was polling
- * on behalf of a feature that cannot do anything. 2026-08-16 architecture audit M6.
+ * 2026-08-16 architecture audit M6.
+ *
+ * The save-moving half is wired now (device backup, `services/cloudBackup.ts`),
+ * but ONLY behind the `cloudSave` flag: the sole caller of `start()` is the
+ * flag-gated boot task in `app/_layout.tsx`. So the inertia rule is unchanged
+ * and matters more, not less — in a build with the flag off, importing this
+ * module still has to cost nothing.
  *
  * The service is `require`d lazily inside each test, AFTER the spies exist — a
  * top-level `import` would run the module before anything could observe it,
@@ -26,6 +30,22 @@ jest.mock('@/utils/offlineManager', () => ({
     isConnected: () => true,
     addNetworkListener: mockAddNetworkListener,
   },
+}));
+
+// The transport and the storage layer, mocked for the identity/upload cases
+// below. The inert cases above never reach either.
+const mockUploadGameState = jest.fn(async (_save: unknown) => ({ success: true }));
+jest.mock('@/lib/progress/cloud', () => ({
+  uploadGameState: mockUploadGameState,
+  downloadGameState: jest.fn(async () => null),
+}));
+const mockStorage = new Map<string, string>();
+jest.mock('@/utils/safeStorage', () => ({
+  safeGetItem: jest.fn(async (key: string) => mockStorage.get(key) ?? null),
+  safeSetItem: jest.fn(async (key: string, value: string) => {
+    mockStorage.set(key, value);
+    return true;
+  }),
 }));
 
 describe('CloudSyncService import-time side effects', () => {
@@ -99,6 +119,41 @@ describe('CloudSyncService import-time side effects', () => {
       }
 
       expect(service.isStarted()).toBe(false);
+    });
+  });
+});
+
+/**
+ * The identity a device backup uploads under.
+ *
+ * `resolveUserId` used to prefer `userProfile.username`, and `initialGameState`
+ * ships `username: 'player'` — which passes the validity check. Every install
+ * would therefore have uploaded to the single cloud key `player` and restored
+ * whichever device wrote last. The identity is now the anonymous per-device id
+ * in `cloud_user_id`, independent of game state, which also makes it stable in
+ * the pre-game menus where no life is loaded.
+ */
+describe('CloudSyncService identity', () => {
+  it('uploads under the stored device id, never the player-editable profile name', async () => {
+    mockUploadGameState.mockClear();
+    mockStorage.set('cloud_user_id', 'device_abc123');
+    mockStorage.set('currentSlot', '2');
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getCloudSyncService } = require('@/services/CloudSyncService');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createTestGameState } = require('../helpers/createTestGameState');
+
+    const state = createTestGameState({ weeksLived: 700 });
+    state.userProfile.username = 'player'; // the initialState default — see above
+    const result = await getCloudSyncService().backupNow(state);
+
+    expect(result.success).toBe(true);
+    expect(mockUploadGameState).toHaveBeenCalledTimes(1);
+    expect(mockUploadGameState.mock.calls[0][0]).toMatchObject({
+      userId: 'device_abc123',
+      slotId: 'slot_2',
+      revision: 700,
     });
   });
 });
