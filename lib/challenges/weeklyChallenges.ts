@@ -29,18 +29,16 @@ export interface WeeklyChallengeDefinition {
 }
 
 /**
- * Net worth, from the CANONICAL implementation.
+ * Net worth, from the CANONICAL implementation (`lib/progress/achievements.ts`).
  *
  * This was a local copy summing cash + bank + stocks + realEstate only, so it
  * omitted crypto, mining, luxury, businesses and liabilities — the same figure
- * the prestige gate and the leaderboard read is `netWorth()` in
- * lib/progress/achievements.ts. A challenge asking for "$1M net worth" was
- * therefore asking for a different, larger number than every other surface in
- * the game showed the player. 2026-07-30 audit GP-2.
+ * the prestige gate and the leaderboard read is `netWorth()`. A challenge
+ * asking for "$1M net worth" was therefore asking for a different, larger
+ * number than every other surface in the game showed the player. 2026-07-30
+ * audit GP-2; the delegating wrapper it left behind is gone (M9) — objectives
+ * call `netWorth` directly.
  */
-function getNetWorth(s: GameState): number {
- return netWorth(s);
-}
 
 export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  {
@@ -61,7 +59,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'net_worth_500k',
  description: 'Have $500K+ net worth',
  target: 1,
- checkCurrent: (s) => (getNetWorth(s) >= 500_000 ? 1 : 0),
+ checkCurrent: (s) => (netWorth(s) >= 500_000 ? 1 : 0),
  },
  {
  id: 'married',
@@ -201,7 +199,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'net_worth_1m',
  description: 'Have $1M+ net worth',
  target: 1,
- checkCurrent: (s) => (getNetWorth(s) >= 1_000_000 ? 1 : 0),
+ checkCurrent: (s) => (netWorth(s) >= 1_000_000 ? 1 : 0),
  },
  {
  id: 'employees_10',
@@ -294,7 +292,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'net_worth_250k',
  description: 'Have $250K+ net worth',
  target: 1,
- checkCurrent: (s) => (getNetWorth(s) >= 250_000 ? 1 : 0),
+ checkCurrent: (s) => (netWorth(s) >= 250_000 ? 1 : 0),
  },
  {
  id: 'property_1',
@@ -358,7 +356,7 @@ export const WEEKLY_CHALLENGES: WeeklyChallengeDefinition[] = [
  id: 'net_worth_100k',
  description: 'Have $100K+ net worth',
  target: 1,
- checkCurrent: (s) => (getNetWorth(s) >= 100_000 ? 1 : 0),
+ checkCurrent: (s) => (netWorth(s) >= 100_000 ? 1 : 0),
  },
  {
  id: 'all_stats_50',

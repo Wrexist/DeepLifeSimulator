@@ -7,17 +7,14 @@ import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   rule: BillPayRule;
   currentWeek: number;
   darkMode: boolean;
   onToggle?: () => void;
   onDelete?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 export default function BillPayRow({ rule, currentWeek, darkMode, onToggle, onDelete }: Props) {

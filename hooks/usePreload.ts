@@ -39,6 +39,11 @@ export function usePreload() {
         if (cancelled || !isMounted) return;
         setPreloadProgress(20);
         
+        // H9: the "preload critical images" entry here was a bare
+        // `setTimeout(resolve, 200)` — it preloaded nothing. It and the 100/50/100 ms
+        // staging sleeps below were 450 ms of pure delay standing in for work that
+        // had already been moved elsewhere (game state is initialized by
+        // GameActionsProvider). Only the real work remains.
         const parallelTasks = Promise.allSettled([
           // Detect device type (independent)
           (async () => {
@@ -55,27 +60,13 @@ export function usePreload() {
               }
             }
           })(),
-          // Preload critical images (independent)
-          new Promise(resolve => setTimeout(resolve, 200)),
         ]);
-        
+
         await parallelTasks;
-        
-        // Step 3: Initialize game state (deferred - not critical for startup)
-        // This is now deferred to GameActionsProvider to improve startup time
-        if (cancelled || !isMounted) return;
-        setPreloadProgress(60);
-        await new Promise(resolve => setTimeout(resolve, 100)); // Reduced delay
-        
-        // Step 4: Final setup
-        if (cancelled || !isMounted) return;
-        setPreloadProgress(80);
-        await new Promise(resolve => setTimeout(resolve, 50)); // Reduced delay
-        
+
         if (cancelled || !isMounted) return;
         setPreloadProgress(100);
-        await new Promise(resolve => setTimeout(resolve, 100)); // Reduced delay
-        
+
         // Final guard before setting preloaded
         if (cancelled || !isMounted) return;
         setIsPreloaded(true);

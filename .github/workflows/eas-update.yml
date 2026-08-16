@@ -39,6 +39,13 @@ jobs:
       - name: Run Expo Doctor
         run: npx --yes expo-doctor
 
+      # expo-router route-collision guard. Two files resolving to the same route
+      # are silently deduped in PRODUCTION ONLY — that shipped the v2.5.0 launch
+      # crash. An `eas update` bundle is production, so this must run before any
+      # update is published, not just before a store build.
+      - name: Check routes
+        run: npm run check:routes
+
       - name: Type check
         run: npm run type-check
 

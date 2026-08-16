@@ -25,6 +25,7 @@ import {
 import { bondingSummary } from '@/lib/pets/bonding';
 import type { Pet, GameStats } from '@/contexts/game/types';
 import type { WeekContext, WeekNotification } from '@/contexts/game/actions/weekly/weekContext';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 function pet(over: Partial<Pet> = {}): Pet {
   return {
@@ -60,7 +61,7 @@ function stubCtx(stats: GameStats): WeekContext {
   return {
     newStats: stats,
     notifications: [] as WeekNotification[],
-    preRolls: {} as WeekContext['preRolls'],
+    preRolls: zeroPreRolls(),
     nextWeeksLived: 100,
   };
 }

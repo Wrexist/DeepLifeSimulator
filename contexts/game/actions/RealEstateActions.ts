@@ -450,6 +450,15 @@ export const maintainProperty = (
       log.warn(`Maintenance rejected: need $${cost}, have $${cash}`);
       return prev;
     }
+    // The canonical guard is the only charge path. No hand-written fallback:
+    // a non-finite cost slips past the `cash < cost` gate (NaN comparisons are
+    // false), gets refused here, and a `cash - cost` fallback would then write
+    // NaN into stats.money — so refusal must mean "no charge, no effect".
+    const spend = applyMoneyDelta(prev, -cost, 'Property maintenance');
+    if (!spend) {
+      log.warn(`Maintenance rejected by money guard: need $${cost}, have $${cash}`);
+      return prev;
+    }
     const updated = performMaintenance(prev.realEstate ?? [], propertyId, prev.weeksLived);
     return {
       ...prev,
@@ -457,7 +466,7 @@ export const maintainProperty = (
       banking: prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'housing', cost)
         : prev.banking,
-      ...(applyMoneyDelta(prev, -cost, 'Property maintenance') ?? { stats: { ...prev.stats, money: cash - cost } }),
+      ...spend,
       realEstate: updated,
     };
   });
@@ -512,6 +521,15 @@ function resolveInstallDecor(state: GameState, propertyId: string, decorId: stri
       next: null,
     };
   }
+  // Canonical guard only — see resolveMaintenance for why a hand-written
+  // `cash - cost` fallback is a NaN hazard, not a safety net.
+  const spend = applyMoneyDelta(state, -item.cost, 'Property decor');
+  if (!spend) {
+    return {
+      result: { success: false, message: `You need $${item.cost.toLocaleString()} for the ${item.name}.` },
+      next: null,
+    };
+  }
   return {
     result: { success: true, message: `Installed ${item.name} (+${item.happiness} comfort/wk when lived in).` },
     next: {
@@ -519,7 +537,7 @@ function resolveInstallDecor(state: GameState, propertyId: string, decorId: stri
       banking: state.banking?.budgetSpend
         ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', item.cost)
         : state.banking,
-      ...(applyMoneyDelta(state, -item.cost, 'Property decor') ?? { stats: { ...state.stats, money: cash - item.cost } }),
+      ...spend,
       realEstate: installDecorPure(state.realEstate ?? [], propertyId, decorId),
     },
   };
@@ -544,6 +562,14 @@ function resolveAddRoom(state: GameState, propertyId: string, roomId: string): I
       next: null,
     };
   }
+  // Canonical guard only — see resolveMaintenance for the NaN-fallback hazard.
+  const spend = applyMoneyDelta(state, -room.cost, 'Property room addition');
+  if (!spend) {
+    return {
+      result: { success: false, message: `You need $${room.cost.toLocaleString()} to add the ${room.name}.` },
+      next: null,
+    };
+  }
   return {
     result: { success: true, message: `Added ${room.name} (+${room.happinessBonus} comfort/wk when lived in).` },
     next: {
@@ -551,7 +577,7 @@ function resolveAddRoom(state: GameState, propertyId: string, roomId: string): I
       banking: state.banking?.budgetSpend
         ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', room.cost)
         : state.banking,
-      ...(applyMoneyDelta(state, -room.cost, 'Property room addition') ?? { stats: { ...state.stats, money: cash - room.cost } }),
+      ...spend,
       realEstate: addRoomPure(state.realEstate ?? [], propertyId, roomId),
     },
   };
@@ -573,6 +599,14 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
       next: null,
     };
   }
+  // Canonical guard only — see resolveMaintenance for the NaN-fallback hazard.
+  const spend = applyMoneyDelta(state, -nextTier.cost, 'Property tier upgrade');
+  if (!spend) {
+    return {
+      result: { success: false, message: `You need $${nextTier.cost.toLocaleString()} to reach tier ${nextTier.level}.` },
+      next: null,
+    };
+  }
   return {
     result: {
       success: true,
@@ -583,7 +617,7 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
       banking: state.banking?.budgetSpend
         ? trackBudgetSpend(state.banking, state.weeksLived, 'housing', nextTier.cost)
         : state.banking,
-      ...(applyMoneyDelta(state, -nextTier.cost, 'Property tier upgrade') ?? { stats: { ...state.stats, money: cash - nextTier.cost } }),
+      ...spend,
       realEstate: upgradePropertyPure(state.realEstate ?? [], propertyId, nextTier.level),
     },
   };

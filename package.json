@@ -11,7 +11,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest lib/",
-    "test:integration": "jest lib/progress/__tests__/saveLoad.test.ts",
+    "test:integration": "jest __tests__/save/ __tests__/integration/",
     "test:e2e": "jest __tests__/e2e/",
     "test:performance": "jest __tests__/performance/",
     "test:ci": "jest --ci --coverage --watchAll=false && node scripts/check-coverage.js",

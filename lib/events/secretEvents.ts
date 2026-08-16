@@ -11,7 +11,7 @@
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
-import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { getAge as canonicalAge, weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 /**
  * Net worth, from the CANONICAL implementation. This was a byte-identical copy
@@ -22,7 +22,13 @@ import { weeksInThisLife } from '@/lib/progress/lifeChapters';
  */
 const getNetWorth = (s: GameState): number => netWorth(s);
 
-const getAge = (s: GameState) => Math.floor(s.date?.age ?? 18);
+/**
+ * Age, from the CANONICAL helper — derived from `weeksLived`, not the stored
+ * `date.age` this used to read (M10 / §4.2). Every age-gated secret event here
+ * previously fell back to 18 on a corrupt `date.age`, and inherited the float
+ * skew the tick's `+1/52` accumulates.
+ */
+const getAge = (s: GameState) => canonicalAge(s);
 
 // Live store, not the deprecated `achievements[].completed` flag — that never
 // gets set in play, so every achievement-gated secret event was unreachable.

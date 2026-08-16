@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 43`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 44`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -40,7 +40,7 @@ Codebase size: ~400 files in `lib/`, ~240 components, ~535 test files.
 | `npm run lint` / `lint:errors` / `lint:fix` | ESLint (`lint:errors` = `--quiet`, used by preflight) |
 | `npm run check:routes` | expo-router conflict guard (see §5) |
 | `npm run preflight:quick` | routes + type-check — **run this during development** |
-| `npm run preflight` | routes + full 10-section preflight + `lint:errors` — **required before any release build** |
+| `npm run preflight` | `check:routes` + the full preflight script (`--platform ios`, 11 sections) + `lint:errors` + `lint:ratchet` + `check:content` — **required before any release build** |
 | `npm run audit:weekly` | Static five-domain audit → `tasks/weekly-audit-<date>.md` |
 | `npm run audit:economy` \| `:stability` \| `:save` \| `:logic` \| `:perf` | Individual audit modules |
 
@@ -117,8 +117,13 @@ Path alias: `@/*` → repo root (tsconfig + jest `moduleNameMapper` + metro).
 
 - `gameState.week` cycles **1–4** (week-of-month) — **display only**.
 - `gameState.weeksLived` is the absolute counter — **use it for every comparison,
-  cooldown, timestamp and history entry**. Helpers: `utils/weekCounters.ts`
-  (`resolveAbsoluteWeek`, `normalizeStoredWeekToAbsolute`).
+  cooldown, timestamp and history entry**. Helpers: `weeksInThisLife`
+  (`lib/progress/lifeChapters.ts`) when you hold a `GameState`, and
+  `weeksSinceLifeStart` / `resolveCalendar` / `ageFromWeeksLived`
+  (`utils/weekCounters.ts`) when you only hold the raw numbers. This list used to
+  name `resolveAbsoluteWeek` / `normalizeStoredWeekToAbsolute`, which had zero
+  production callers for their whole life — legacy cyclic 1–4 markers were never
+  actually stored, so nothing ever needed converting; they are deleted.
 - Mixing these up has shipped bugs more than once; it is the first thing to check
   in any review of time-based logic.
 - **`weeksLived` does NOT start at 0.** It is seeded from the starting age —
@@ -156,8 +161,8 @@ inside, so a double-tap in the same React batch pays once and grants twice.
 ### 4.5 Save system
 
 Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
-`saveMigrations.ts`, `saveQueue.ts`, `saveBackup.ts`, `saveCompression.ts`,
-`saveLoadMutex.ts`, `saveSigningConfig.ts`, `saveSlotMeta.ts`,
+`saveMigrations.ts`, `saveQueue.ts`, `saveBackup.ts`, `saveLoadMutex.ts`,
+`saveSigningConfig.ts`, `saveSlotMeta.ts`, `loadedStateMerge.ts`,
 `phantomSaveCleanup.ts`, `stateInvariants.ts`. See §7 for the schema rules.
 
 ### 4.6 Feature flags & native modules
@@ -166,8 +171,20 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   `EXPO_PUBLIC_*` env vars. `BORING_BUILD_MODE` (default **on in `__DEV__`**)
   disables AdMob, IAP, analytics, notifications and ATT for a stable baseline.
 - Native-SDK flags are **opt-in** (`=== 'true'`): `adMob`, `firebaseAnalytics`,
-  `revenueCat`. Sentry `analytics` is hard-disabled (iOS 26 TurboModule crash).
-  Production values are set per-profile in `eas.json`.
+  `revenueCat`, `iap`, `att`. Sentry `analytics` is hard-disabled (iOS 26
+  TurboModule crash). Production values are set per-profile in `eas.json`.
+  `iap` and `att` were the two exceptions until 2026-08-16 — they read
+  `!== 'false'`, so they were ON in any profile that simply did not mention the
+  variable, which is exactly what `preview` and `development` do. An internal
+  preview build therefore armed StoreKit with no products and burned the
+  one-shot ATT prompt with no ad integration behind it. Both are `=== 'true'`
+  now, `preview` carries `EXPO_PUBLIC_BORING_BUILD=true`, and
+  `__tests__/tooling/nativeSdkFlagDefaults.test.ts` pins the per-profile truth
+  table against `eas.json` so a profile that drops its explicit `"true"` fails
+  in CI rather than on TestFlight.
+- There is **no `notifications` flag**. `expo-notifications` was removed to fix a
+  TurboModule crash and `utils/notifications.ts` is a no-op stub, so the flag had
+  zero readers — a kill switch nobody consults reads as working protection.
 - Load native modules lazily via `require()` in a try/catch, never at module top level.
 
 ---
@@ -234,6 +251,24 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
     bake a lib → contexts inversion into the graph).
   - `require('@/lib|utils|contexts…')` for internal modules → warn (degrades types
     to `any`/`never`); use static `import` or `import type` + a typed lazy getter.
+  - **`lib/` may not import VALUES from `contexts|components|app|services|hooks`**
+    (`@typescript-eslint/no-restricted-imports`, error across `lib/**`).
+    `import type` stays legal in both directions — tsc erases those edges, so
+    they cannot form a runtime cycle — and `@/contexts/game/types` is exempt
+    outright as a types-only module. The rule exists because an upward edge that
+    closes a cycle does not fail the build: it reads as `undefined` at module
+    init, and `lib/mail` / `lib/crypto` sit on the week-loop path, where that is
+    a lost week. Three symbols were moved DOWN when it landed
+    (`RAISE_MIN_PERFORMANCE` → `lib/careers/raisePremium`,
+    `calculateMiningEarnings` → `lib/crypto/miningEarnings`, `applyMoneyDelta` →
+    `lib/economy/moneyDelta`), each re-exported from its old home so importers
+    were untouched. Two files carry a line-level disable with the reasoning
+    in place — `lib/prestige/prestigeExecution.ts` (`initialGameState` is data,
+    and injecting it ripples through ~20 call sites for no structural gain) and
+    `lib/subscription/deepLifePlus.ts` (one entitlement query; a registration
+    hook would put a boot-order hazard on a PAYMENT gate). `lib/simulation`,
+    `lib/devtools` and `lib/analytics` are exempt by directory as
+    adapters/dev-tooling rather than game logic.
   - `@ts-ignore` / `@ts-nocheck` banned; `@ts-expect-error` needs a ≥5-char description.
   - Tests are exempt from both rules.
 
@@ -288,7 +323,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 43`** — single source of truth in
+- **Canonical `STATE_VERSION = 44`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -521,6 +556,21 @@ including the crash screen.
   no record of when its life began and cannot grow one, so readers fall back to
   0 — exactly the behaviour those saves have today. Guessing a baseline would
   silently un-complete a goal an existing player was already paid for.
+- **v44 adds `settings.lastWelcomeBackWeek`** — the `weeksLived` marker capping
+  the welcome-back cash bonus to one per game week. The bonus
+  (`0.5 × weekly salary × min(daysAway, 7)`, floor $100, computed in
+  `utils/welcomeBackBonus.ts`) was gated purely on `Date.now() - lastLogin`,
+  which refuses a REWOUND clock and nothing else — so scrubbing the device date
+  FORWARD a week at a time paid 3.5 weeks of salary per scrub with no game weeks
+  played, past the tax brackets, past the net-worth soft cap and outside the
+  weekly tick entirely. The same "gate on game state, not the device clock" fix
+  as v28/v31/v35/v40. The grant and the stamp happen in ONE updater
+  (`applyWelcomeBackBonus`), which returns `prev` unchanged when the week is
+  already claimed, and the popup SPAWNER consults the same pure
+  `welcomeBackClaimed` guard so an unredeemable bonus is never offered — the
+  `AdRewardOrb` spawner pattern. Default `undefined`, so a CARVE-OUT: version
+  bumped, NO backfill and no `repairGameState` mirror — stamping the current
+  week would deny an existing player their next legitimate bonus.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
@@ -666,11 +716,13 @@ plugin options that become purpose strings at prebuild time, so add a row to its
 
 ### What preflight actually checks
 
-`scripts/preflight-check.js` (10 sections): 1 type-check · 2 lint (non-blocking) ·
-3 `entry.ts` syntax & complexity · 4 Metro bundling · 5 native ad SDK config ·
-5b iOS privacy manifest · 5c iOS purpose strings · 6 IAP native module ·
-7 startup safety guardrails · 8 save signing · 8b IAP legacy entitlements flag ·
-9 IAP receipt verification (production) · 10 AdMob ad unit ids (production).
+`scripts/preflight-check.js` (11 numbered sections plus four lettered
+sub-sections): 1 type-check · 2 lint (non-blocking) · 3 `entry.ts` syntax &
+complexity · 4 Metro bundling · 5 native ad SDK config · 5b iOS privacy
+manifest · 5c iOS purpose strings · 6 IAP native module · 7 startup safety
+guardrails · 8 save signing · 8b IAP legacy entitlements flag · 9 IAP receipt
+verification (production) · 9b analytics pipeline (production) · 10 AdMob ad
+unit ids (production) · 11 shipped image payload.
 
 ### EAS profiles (`eas.json`)
 

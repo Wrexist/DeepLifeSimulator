@@ -4,6 +4,7 @@
  */
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
+import { payloadRoll } from './seededPayload';
 
 function isOnTrip(state: GameState): boolean {
   return Boolean(state.travel?.currentTrip);
@@ -107,6 +108,7 @@ const travelScam: EventTemplate = {
   condition: isOnTrip,
   generate: (state) => {
     const dest = getCurrentDestinationName(state);
+    const roll = payloadRoll(state, 'travel_scam');
     return {
       id: 'travel_scam',
       description: `A street vendor at ${dest} tricks you into buying a "rare antique" that turns out to be worthless.`,
@@ -119,7 +121,7 @@ const travelScam: EventTemplate = {
         {
           id: 'confront',
           text: 'Confront the vendor',
-          effects: { money: Math.random() > 0.5 ? 0 : -100, stats: { happiness: -3, reputation: -2 } },
+          effects: { money: roll('confront-outcome') > 0.5 ? 0 : -100, stats: { happiness: -3, reputation: -2 } },
         },
       ],
     };

@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useCallback, ReactNode, useRef, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useRef, useMemo } from 'react';
 import * as ItemActions from './actions/ItemActions';
 import * as StatsActions from './actions/StatsActions';
 import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import { logger } from '@/utils/logger';
-import { useGameState } from './GameStateContext';
+import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { HackResult } from './types';
@@ -49,19 +49,26 @@ interface ItemActionsProviderProps {
 }
 
 export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
-  const { gameState, setGameState } = useGameState();
+  const setGameState = useSetGameState();
   const { updateMoney } = useMoneyActions();
   const { showError } = useUIUX();
   // Track activities currently being processed to prevent double-clicks
   const processingActivities = useRef<Set<string>>(new Set());
 
-  // Ref keeps latest state for callbacks without adding gameState to deps
-  const stateRef = useRef(gameState);
-  useEffect(() => { stateRef.current = gameState; }, [gameState]);
+  // M4: read the LIVE state on demand instead of mirroring it into a ref.
+  // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
+  // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
+  // and still handed callbacks a snapshot that was one commit stale — the
+  // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
+  // returns a stable getter over the same store, so callbacks stay stable, the
+  // memoized context value keeps its identity, and the provider no longer
+  // re-renders on every mutation. Reads are still OUTSIDE the updater, so the
+  // authoritative re-check inside `setGameState(prev => ...)` stays mandatory.
+  const getGameState = useGameStateGetter();
 
   // Items & Purchases Actions
   const buyItem = useCallback((itemId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const result = ItemActions.buyItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
@@ -73,7 +80,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [setGameState, updateMoney, showError]);
 
   const sellItem = useCallback((itemId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const result = ItemActions.sellItem(state, setGameState, itemId, { updateMoney: updateMoneyModule });
@@ -89,7 +96,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   // for ownership, jailWeeks for caught-while-hacking penalties).
 
   const buyDarkWebItem = useCallback((itemId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const item = state.darkWebItems?.find(i => i.id === itemId);
@@ -113,7 +120,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
        * Re-check affordability AND ownership against `prev`, not the outer
        * snapshot (CLAUDE.md §4.4).
        *
-       * The outer guards above read `stateRef.current`, which is the classic
+       * The outer guards above read `getGameState()`, which is the classic
        * gate-outside / grant-inside shape: two taps in one React batch both pass
        * the outer check, and the second charges BTC for an item already owned.
        * That never bit before because this function had no caller — the Gear tab
@@ -137,7 +144,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [setGameState, showError]);
 
   const buyHack = useCallback((hackId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const hack = state.hacks?.find(h => h.id === hackId);
@@ -168,7 +175,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [setGameState, showError]);
 
   const performHack = useCallback((hackId: string): HackResult => {
-    const state = stateRef.current;
+    const state = getGameState();
     const empty: HackResult = { success: false, caught: false, reward: 0, btcReward: 0, risk: 0 };
     if (!state) return empty;
 
@@ -177,8 +184,8 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       logger.error('Hack not available:', { hackId, found: !!hack, purchased: hack?.purchased });
       return empty;
     }
-    // Messaging gate, read from the committed snapshot. `stateRef.current` is
-    // synced by a post-commit effect, so inside a single React batch it is the
+    // Messaging gate, read from the committed snapshot. `getGameState()` returns
+    // the last COMMITTED state, so inside a single React batch it is still the
     // PRE-batch state and two taps read identical energy. The authoritative
     // check is `canRunHack(prev)` inside each updater below.
     if ((state.stats.energy ?? 0) < hack.energyCost) {
@@ -246,7 +253,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [setGameState, showError]);
 
   const buyFood = useCallback((foodId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const food = state.foods?.find(f => f.id === foodId);
@@ -302,7 +309,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [updateMoney, setGameState]);
 
   const performHealthActivity = useCallback((activityId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     // Prevent double-clicks: if activity is already being processed, ignore
@@ -749,7 +756,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [setGameState]);
 
   const toggleDietPlan = useCallback((planId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     setGameState(prevState => {

@@ -23,6 +23,11 @@ if (fs.existsSync(envPath)) {
 }
 
 const { evaluateSaveSigningEnv } = require('./preflightSaveSigning');
+const {
+  resolveEffectiveEnv,
+  isUnverifiableLocally,
+  unverifiableNote,
+} = require('./lib/preflightEnv');
 
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
@@ -68,8 +73,49 @@ function checkStep(name, command, options = {}) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Effective build environment (audit 2026-08-16, H2)
+//
+// The config-validating sections below (5, 6, 8, 8b, 9, 9b, 10) must judge the
+// env the BUILD will see, not the one this shell happens to have. The
+// production flags live in `eas.json` (`build.<profile>.env`) and the secrets
+// live in the EAS project env store; reading `process.env` alone made every
+// clean checkout fail a mandatory gate. See scripts/lib/preflightEnv.js for the
+// precedence rationale (eas.json baseline, process.env overrides — the local
+// export standing in for the server store, which EAS ranks above eas.json).
+// ---------------------------------------------------------------------------
+const envResolution = resolveEffectiveEnv({ cwd: process.cwd(), argv: process.argv });
+const buildEnv = envResolution.env;
+
+/** One-line banner so a section's verdict is always attributable to a baseline. */
+function logEnvBaseline() {
+  const baseline = envResolution.profileFound
+    ? `eas.json build.${envResolution.profile}.env + process.env overrides`
+    : `process.env only (no eas.json baseline for profile "${envResolution.profile}")`;
+  log(`   [env] baseline: ${baseline}`, YELLOW);
+}
+
+/** Report a name preflight cannot see either layer of, as a WARN not a FAIL. */
+function warnUnverifiable(names) {
+  log(`[WARN] ${unverifiableNote(names)}`, YELLOW);
+}
+
 // Main preflight checks
 logSection('🚀 PREFLIGHT CHECK - MANDATORY RELEASE CHECKS');
+
+log(`Env baseline: eas.json profile "${envResolution.profile}"`
+  + `${envResolution.profileFound ? '' : ' (NOT FOUND)'}`
+  + ' overlaid with process.env', YELLOW);
+envResolution.warnings.forEach((w) => log(`[WARN] ${w}`, YELLOW));
+if (envResolution.conflicts.length > 0) {
+  // Not fatal — an exported value legitimately outranks eas.json, mirroring the
+  // EAS store — but a silent disagreement is exactly the unversioned second
+  // source of truth this change exists to avoid.
+  log('[WARN] Local exports disagree with eas.json (shell value wins, as EAS ranks '
+    + 'its server store above eas.json):', YELLOW);
+  envResolution.conflicts.forEach((k) => log(`   - ${k}`, YELLOW));
+}
+log('   Use --profile <name> to check a different eas.json build profile.', YELLOW);
 
 // 1. TypeScript Compilation Check (BLOCKING — see note)
 logSection('1. TypeScript Type Checking');
@@ -274,6 +320,7 @@ if (platform === 'android' || platform === 'all') {
 // 5. Native Ad SDK config validation (critical for iOS startup stability)
 logSection('5. Native Ad SDK Configuration');
 try {
+  logEnvBaseline();
   const packageJsonPath = path.join(process.cwd(), 'package.json');
   if (!fs.existsSync(packageJsonPath)) {
     log('[FAIL] package.json not found', RED);
@@ -324,15 +371,15 @@ try {
             hasErrors = true;
           } else {
             const iosAppId = adMobPluginConfig.iosAppId || adMobPluginConfig.ios_app_id ||
-              process.env.ADMOB_IOS_APP_ID ||
-              process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID ||
-              process.env.ADMOB_APP_ID ||
-              process.env.EXPO_PUBLIC_ADMOB_APP_ID;
+              buildEnv.ADMOB_IOS_APP_ID ||
+              buildEnv.EXPO_PUBLIC_ADMOB_IOS_APP_ID ||
+              buildEnv.ADMOB_APP_ID ||
+              buildEnv.EXPO_PUBLIC_ADMOB_APP_ID;
             const androidAppId = adMobPluginConfig.androidAppId || adMobPluginConfig.android_app_id ||
-              process.env.ADMOB_ANDROID_APP_ID ||
-              process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID ||
-              process.env.ADMOB_APP_ID ||
-              process.env.EXPO_PUBLIC_ADMOB_APP_ID;
+              buildEnv.ADMOB_ANDROID_APP_ID ||
+              buildEnv.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID ||
+              buildEnv.ADMOB_APP_ID ||
+              buildEnv.EXPO_PUBLIC_ADMOB_APP_ID;
             const appIdPattern = /^ca-app-pub-\d+~\d+$/;
 
             if (!iosAppId) {
@@ -600,6 +647,7 @@ try {
 // 6. Startup safety guardrails (prevent forced optional service init)
 logSection('6. IAP Native Module Availability');
 try {
+  logEnvBaseline();
   const packageJsonPath = path.join(process.cwd(), 'package.json');
   if (!fs.existsSync(packageJsonPath)) {
     log('[FAIL] package.json not found', RED);
@@ -616,7 +664,7 @@ try {
       packageJson?.dependencies?.['expo-in-app-purchases'] ||
       packageJson?.devDependencies?.['expo-in-app-purchases']
     );
-    const iapEnabledInProduction = process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false';
+    const iapEnabledInProduction = buildEnv.EXPO_PUBLIC_ENABLE_IAP !== 'false';
 
     if (iapEnabledInProduction && !hasIapDependency) {
       log('[FAIL] IAP is enabled but no IAP native module dependency is installed', RED);
@@ -668,16 +716,38 @@ try {
 // 8. Save signing configuration guardrails (critical for onboarding save reliability)
 logSection('8. Save Signing Configuration');
 try {
-  const signingCheck = evaluateSaveSigningEnv(process.env);
+  logEnvBaseline();
+  const signingCheck = evaluateSaveSigningEnv(buildEnv);
 
   if (!signingCheck.requireSignedSaves) {
     log('[WARN] Signed saves are disabled (EXPO_PUBLIC_REQUIRE_SIGNED_SAVES=false).', YELLOW);
     log('   This weakens production save integrity and should only be temporary.', YELLOW);
   }
 
-  if (!signingCheck.valid) {
-    signingCheck.errors.forEach((err) => log(`[FAIL] ${err}`, RED));
+  // The HMAC key is a `--visibility sensitive` EAS env-store value: it exists in
+  // neither eas.json nor a clean shell, so "missing" here means "unknown", not
+  // "unset". Only that one error is downgradable — every other signing error
+  // (weak-migration / unsigned-legacy escape hatches) describes a value that IS
+  // present and IS wrong, and those still fail closed.
+  const signingKeyUnverifiable = isUnverifiableLocally('EXPO_PUBLIC_SAVE_HMAC_KEY', envResolution)
+    && isUnverifiableLocally('EXPO_PUBLIC_SAVE_SIGNATURE_KEY', envResolution);
+  const MISSING_KEY_ERROR = 'EXPO_PUBLIC_SAVE_HMAC_KEY is required when signed saves are enforced.';
+  const hardErrors = signingCheck.errors.filter(
+    (err) => !(signingKeyUnverifiable && err === MISSING_KEY_ERROR)
+  );
+  const downgraded = signingCheck.errors.length !== hardErrors.length;
+
+  if (downgraded) {
+    warnUnverifiable('EXPO_PUBLIC_SAVE_HMAC_KEY');
+    log('   Signed saves are enforced, so the BUILD must have this key — verify it', YELLOW);
+    log('   with: eas env:list --environment production', YELLOW);
+  }
+
+  if (hardErrors.length > 0) {
+    hardErrors.forEach((err) => log(`[FAIL] ${err}`, RED));
     hasErrors = true;
+  } else if (downgraded) {
+    log('[WARN] Save signing config is clean except for the unverifiable key above', YELLOW);
   } else {
     log('[PASS] Save signing environment variables are production-safe', GREEN);
   }
@@ -696,7 +766,8 @@ try {
 // local-tamper "grant yourself perks" vector the signed-envelope path closed.
 logSection('8b. IAP Legacy Entitlements Flag');
 try {
-  const legacy = String(process.env.EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS || '').toLowerCase();
+  logEnvBaseline();
+  const legacy = String(buildEnv.EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS || '').toLowerCase();
   if (legacy === 'true' || legacy === '1') {
     log('[FAIL] EXPO_PUBLIC_ALLOW_LEGACY_LOCAL_IAP_ENTITLEMENTS is enabled — unsigned local entitlements are a tamper vector. Unset it for production.', RED);
     hasErrors = true;
@@ -716,17 +787,25 @@ try {
 // without it.
 logSection('9. IAP Receipt Verification (production)');
 try {
+  logEnvBaseline();
   const isProductionBuild = process.argv.includes('--platform')
     && (platform === 'ios' || platform === 'android')
     && !process.argv.includes('--dev');
-  const verifyUrl = (process.env.EXPO_PUBLIC_IAP_VERIFY_URL || '').trim();
+  const verifyUrl = (buildEnv.EXPO_PUBLIC_IAP_VERIFY_URL || '').trim();
 
   // The decision lives in scripts/lib/receiptVerification.js so it can be
   // TESTED. Its branches are subtle and the cost of getting one wrong is a
   // release that refuses every purchase, which is not something to leave on
   // "it read correctly at the time".
   const { resolveVerificationPath } = require('./lib/receiptVerification');
-  const { verdict } = resolveVerificationPath(process.env, { isProductionBuild });
+  const { verdict } = resolveVerificationPath(buildEnv, { isProductionBuild });
+
+  const RC_KEY_VARS = [
+    'EXPO_PUBLIC_RC_IOS_KEY',
+    'EXPO_PUBLIC_RC_ANDROID_KEY',
+    'EXPO_PUBLIC_RC_API_KEY',
+  ];
+  const rcKeysUnverifiable = RC_KEY_VARS.every((n) => isUnverifiableLocally(n, envResolution));
 
   if (verdict === 'skip-iap-disabled') {
     log('[SKIP] IAP disabled (EXPO_PUBLIC_ENABLE_IAP=false)', YELLOW);
@@ -735,12 +814,32 @@ try {
   } else if (verdict === 'revenuecat') {
     log('[PASS] RevenueCat verifies receipts server-side (self-hosted verify URL not needed)', GREEN);
   } else if (verdict === 'rc-flag-without-key') {
-    log('[FAIL] EXPO_PUBLIC_USE_REVENUECAT=true but no RevenueCat API key is set.', RED);
-    log('   Without a key `revenueCatService.isEnabled()` is false, so the build', RED);
-    log('   silently falls back to the self-hosted path — where a missing verify', RED);
-    log('   URL makes verifyReceiptWithServer return FALSE and every purchase is', RED);
-    log('   REFUSED. Set EXPO_PUBLIC_RC_IOS_KEY / EXPO_PUBLIC_RC_ANDROID_KEY.', RED);
-    hasErrors = true;
+    // The RC keys are sensitive EAS env-store values — absent from eas.json AND
+    // from a clean shell. If BOTH layers are silent this is "cannot tell", not
+    // "misconfigured", so it warns; a key that is present and empty/garbage
+    // still reads as set here and keeps the hard failure.
+    if (rcKeysUnverifiable) {
+      warnUnverifiable(RC_KEY_VARS);
+      log('   EXPO_PUBLIC_USE_REVENUECAT=true, so the build MUST carry one of these:', YELLOW);
+      log('   without a key `revenueCatService.isEnabled()` is false, the build falls', YELLOW);
+      log('   back to the self-hosted path, and a missing verify URL makes', YELLOW);
+      log('   verifyReceiptWithServer return FALSE — every purchase REFUSED.', YELLOW);
+      log('   Confirm with: eas env:list --environment production', YELLOW);
+    } else {
+      log('[FAIL] EXPO_PUBLIC_USE_REVENUECAT=true but no RevenueCat API key is set.', RED);
+      log('   Without a key `revenueCatService.isEnabled()` is false, so the build', RED);
+      log('   silently falls back to the self-hosted path — where a missing verify', RED);
+      log('   URL makes verifyReceiptWithServer return FALSE and every purchase is', RED);
+      log('   REFUSED. Set EXPO_PUBLIC_RC_IOS_KEY / EXPO_PUBLIC_RC_ANDROID_KEY.', RED);
+      hasErrors = true;
+    }
+  } else if (verdict === 'none' && rcKeysUnverifiable
+      && isUnverifiableLocally('EXPO_PUBLIC_IAP_VERIFY_URL', envResolution)) {
+    // Neither path is configured in anything this script can read. Since both
+    // candidates live in the env store, the honest verdict is "unknown".
+    warnUnverifiable([...RC_KEY_VARS, 'EXPO_PUBLIC_IAP_VERIFY_URL']);
+    log('   A production build with neither refuses every purchase, so confirm', YELLOW);
+    log('   one is set: eas env:list --environment production', YELLOW);
   } else if (verdict === 'none') {
     log('[FAIL] No receipt verification configured for a production build.', RED);
     log('   Pick ONE:', RED);
@@ -770,13 +869,14 @@ try {
 // ad unit IDs even in release builds (ships with zero-revenue test ads).
 logSection('9b. Analytics pipeline (production)');
 try {
+  logEnvBaseline();
   const isProductionBuild = process.argv.includes('--platform')
     && (platform === 'ios' || platform === 'android')
     && !process.argv.includes('--dev');
 
-  const telemetryOn = process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true';
-  const firebaseOn = process.env.EXPO_PUBLIC_ENABLE_FIREBASE === 'true';
-  const url = (process.env.EXPO_PUBLIC_ANALYTICS_URL || '').trim();
+  const telemetryOn = buildEnv.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true';
+  const firebaseOn = buildEnv.EXPO_PUBLIC_ENABLE_FIREBASE === 'true';
+  const url = (buildEnv.EXPO_PUBLIC_ANALYTICS_URL || '').trim();
 
   // WHY THIS CHECK EXISTS
   // ---------------------
@@ -818,12 +918,13 @@ try {
 
 logSection('10. AdMob Ad Unit IDs (production)');
 try {
-  const iapEnabled = process.env.EXPO_PUBLIC_ENABLE_ADMOB !== 'false';
+  logEnvBaseline();
+  const adMobEnabled = buildEnv.EXPO_PUBLIC_ENABLE_ADMOB !== 'false';
   const isProductionBuild = process.argv.includes('--platform')
     && (platform === 'ios' || platform === 'android')
     && !process.argv.includes('--dev');
 
-  if (!iapEnabled) {
+  if (!adMobEnabled) {
     log('[SKIP] AdMob disabled (EXPO_PUBLIC_ENABLE_ADMOB=false)', YELLOW);
   } else if (!isProductionBuild) {
     log('[SKIP] Non-production build — test ad units OK', YELLOW);
@@ -848,22 +949,32 @@ try {
       'EXPO_PUBLIC_ADMOB_REWARDED_ANDROID',
     ];
 
+    // Google's sample publisher id. A real-looking value that serves TEST ads —
+    // i.e. a shipped release with zero ad revenue and nothing in preflight
+    // saying so, because it passes the well-formed check. This stays a hard
+    // failure under every relaxation below: a value that is PRESENT and WRONG
+    // is exactly what this gate is still for.
+    const TEST_PUBLISHER_ID = 'ca-app-pub-3940256099942544';
+
     const missing = [];
     const malformed = [];
+    const testUnits = [];
 
     // Any configured value must be well-formed — catches secret typos on either
     // platform, regardless of whether the var is required.
     for (const name of [...iosVars, ...androidRequired]) {
-      const v = (process.env[name] || '').trim();
+      const v = (buildEnv[name] || '').trim();
       if (v && !adUnitPattern.test(v)) {
         malformed.push(`${name}=${v}`);
+      } else if (v && v.startsWith(`${TEST_PUBLISHER_ID}/`)) {
+        testUnits.push(`${name}=${v}`);
       }
     }
 
     // Android (when in scope) still hard-requires its IDs — no committed default.
     if (platform === 'android' || platform === 'all') {
       for (const name of androidRequired) {
-        if (!(process.env[name] || '').trim()) {
+        if (!(buildEnv[name] || '').trim()) {
           missing.push(name);
         }
       }
@@ -878,24 +989,46 @@ try {
       // this flag, so its hard gate is unchanged.
       const advisory = process.argv.includes('--warn-missing-android-admob')
         && platform === 'android';
-      const tag = advisory ? '[WARN]' : '[FAIL]';
-      const color = advisory ? YELLOW : RED;
-      log(`${tag} Missing AdMob ad unit IDs for production:`, color);
-      missing.forEach((n) => log(`   - ${n}`, color));
-      log('   Without these, AdMobService ships with Google test ad units', color);
-      log('   (zero revenue). Configure via EAS secrets.', color);
-      if (!advisory) hasErrors = true;
+      // Second, broader downgrade (audit H2): ad unit ids are `eas env` values,
+      // so a name absent from BOTH eas.json and the shell is unknown, not unset.
+      // Failing on it made the gate unpassable on a clean checkout. Anything
+      // that IS readable and wrong (malformed, or a Google test unit) still
+      // fails below.
+      const unverifiable = missing.filter((n) => isUnverifiableLocally(n, envResolution));
+      const definitelyMissing = missing.filter((n) => !isUnverifiableLocally(n, envResolution));
+
+      if (unverifiable.length > 0) {
+        warnUnverifiable(unverifiable);
+        log('   Without these the build falls back to Google TEST ad units (zero', YELLOW);
+        log('   revenue), so confirm them: eas env:list --environment production', YELLOW);
+      }
+      if (definitelyMissing.length > 0) {
+        const tag = advisory ? '[WARN]' : '[FAIL]';
+        const color = advisory ? YELLOW : RED;
+        log(`${tag} Empty AdMob ad unit IDs for production:`, color);
+        definitelyMissing.forEach((n) => log(`   - ${n}`, color));
+        log('   Set but blank — AdMobService ships Google test ad units (zero', color);
+        log('   revenue). Configure via EAS secrets.', color);
+        if (!advisory) hasErrors = true;
+      }
     }
     if (malformed.length > 0) {
       log('[FAIL] Malformed AdMob ad unit IDs (expect ca-app-pub-…/…):', RED);
       malformed.forEach((n) => log(`   - ${n}`, RED));
       hasErrors = true;
     }
+    if (testUnits.length > 0) {
+      log('[FAIL] Google TEST ad unit IDs configured for a production build:', RED);
+      testUnits.forEach((n) => log(`   - ${n}`, RED));
+      log('   These serve test ads and earn nothing. Replace with the real units', RED);
+      log('   from the AdMob console.', RED);
+      hasErrors = true;
+    }
 
     // iOS interstitial is optional (no committed default) — warn so the missing
     // revenue slot stays visible without blocking the launch.
     if (platform === 'ios' || platform === 'all') {
-      if (!(process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS || '').trim()) {
+      if (!(buildEnv.EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS || '').trim()) {
         log('[WARN] iOS interstitial ad unit not configured — no interstitial revenue', YELLOW);
         log('   Banner + rewarded serve real ads via committed defaults; create a', YELLOW);
         log('   standard Interstitial unit in AdMob and set', YELLOW);
@@ -903,7 +1036,7 @@ try {
       }
     }
 
-    if (missing.length === 0 && malformed.length === 0) {
+    if (missing.length === 0 && malformed.length === 0 && testUnits.length === 0) {
       log('[PASS] AdMob ad unit IDs configured for production', GREEN);
     }
   }

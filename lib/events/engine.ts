@@ -30,6 +30,7 @@ import {
 } from '@/lib/config/gameConstants';
 import { logger } from '@/utils/logger';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { payloadRoll, pickSeeded } from './seededPayload';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker';
@@ -60,11 +61,30 @@ export interface EventChoiceEffects {
   karma?: { dimension: KarmaDimension; amount: number; reason: string };
 }
 
+/**
+ * The side effects a choice can request that are NOT expressible as
+ * `EventChoiceEffects` — each one is executed by a named branch in
+ * `contexts/game/GameActionsContext.tsx` (`applyEventChoice`, ~:3711-3800).
+ *
+ * A UNION, not `string` (2026-08-16 audit M18). As a free-form string the field
+ * was a silent no-op contract: a template could ask for `'grant_scholarship'`,
+ * compile, ship, and simply do nothing at run time, because the consumer only
+ * matches four literals. The union makes the producer side fail the type check
+ * instead. Every member here has a handler, and every handler has a member —
+ * verified by grepping producers across `lib/events/` against the consumer's
+ * comparisons; adding a member without wiring the handler re-opens the hole.
+ */
+export type EventSpecial =
+  | 'grant_free_education'
+  | 'add_disease'
+  | 'fire_from_job'
+  | 'add_career_warning';
+
 export interface EventChoice {
   id: string;
   text: string;
   effects: EventChoiceEffects;
-  special?: string; // STABILITY FIX: Special effects (e.g., 'grant_free_education', 'add_disease')
+  special?: EventSpecial; // STABILITY FIX: Special effects (e.g., 'grant_free_education', 'add_disease')
   followUpEventId?: string; // ID of follow-up event to trigger after this choice
   chainId?: string; // ID of event chain this choice continues
   diseaseId?: string; // Disease ID to add when special === 'add_disease'
@@ -147,6 +167,14 @@ export interface EventTemplate {
   // pipeline knows what tag to inject without parsing the description.
   pulseHashtag?: string;
 }
+
+/**
+ * The payload-roll helpers now live in `./seededPayload`, a leaf module the
+ * event PACKS can import too — `engine.ts` imports those packs, so a pack
+ * importing a value back out of here would close a runtime cycle (H7b, second
+ * pass). Re-exported under the same names so nothing else moved.
+ */
+export { payloadRoll, pickSeeded } from './seededPayload';
 
 const jobBonus: EventTemplate = {
   id: 'job_bonus',
@@ -263,7 +291,8 @@ const friendNeedsHelp: EventTemplate = {
   condition: state => state.relationships?.length > 0,
   generate: state => {
     if (!state.relationships?.length) return { id: 'friend_help', description: 'A friend reaches out.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const friend = state.relationships[Math.floor(Math.random() * state.relationships.length)];
+    const roll = payloadRoll(state, 'friend_help');
+    const friend = pickSeeded(state.relationships, roll, 'friend');
     return {
       id: 'friend_help',
       description: `${friend.name} asks to borrow $50.`,
@@ -306,7 +335,7 @@ const schoolFees: EventTemplate = {
   generate: state => {
     const children = state.family?.children;
     if (!children?.length) return { id: 'school_fees', description: 'School fees are due.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const child = children[Math.floor(Math.random() * children.length)];
+    const child = pickSeeded(children, payloadRoll(state, 'school_fees'), 'child');
     return {
       id: 'school_fees',
       description: `${child.name}'s school fees of $100 are due.`,
@@ -368,7 +397,7 @@ const gymInvitation: EventTemplate = {
   condition: state => state.relationships?.length > 0,
   generate: state => {
     if (!state.relationships?.length) return { id: 'gym_invite', description: 'A friend invites you to the gym.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const friend = state.relationships[Math.floor(Math.random() * state.relationships.length)];
+    const friend = pickSeeded(state.relationships, payloadRoll(state, 'gym_invite'), 'friend');
     return {
       id: 'gym_invite',
       description: `${friend.name} invites you to join a gym session for $20.`,
@@ -445,7 +474,7 @@ const petIllness: EventTemplate = {
   condition: state => state.pets?.length > 0,
   generate: state => {
     if (!state.pets?.length) return { id: 'pet_illness', description: 'You hear about a sick animal.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const pet = state.pets[Math.floor(Math.random() * state.pets.length)];
+    const pet = pickSeeded(state.pets, payloadRoll(state, 'pet_illness'), 'pet');
     return {
       id: 'pet_illness',
       description: `${pet.name} seems ill. What do you do?`,
@@ -474,7 +503,7 @@ const petContest: EventTemplate = {
   generate: state => {
     const candidates = (state.pets || []).filter(p => p.happiness > 60);
     if (!candidates.length) return { id: 'pet_contest', description: 'A local contest is happening.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
-    const pet = candidates[Math.floor(Math.random() * candidates.length)];
+    const pet = pickSeeded(candidates, payloadRoll(state, 'pet_contest'), 'pet');
     return {
       id: 'pet_contest',
       description: `A local contest invites ${pet.name}.`,
@@ -909,8 +938,9 @@ const policyVotingEvent: EventTemplate = {
       };
     }
 
-    // Pick a random policy
-    const policy = availablePolicies[Math.floor(Math.random() * availablePolicies.length)];
+    // Pick a policy — seeded, so the same week always votes on the same bill.
+    const roll = payloadRoll(state, 'policy_voting');
+    const policy = pickSeeded(availablePolicies, roll, 'policy');
 
     // Determine party preferences based on policy type
     const playerParty = politics.party || 'independent';
@@ -937,9 +967,9 @@ const policyVotingEvent: EventTemplate = {
       republicanSupport = 55;
     }
 
-    // Add randomness
-    democraticSupport += (Math.random() - 0.5) * 20;
-    republicanSupport += (Math.random() - 0.5) * 20;
+    // Add randomness (distinct salts: the two chambers move independently)
+    democraticSupport += (roll('democratic-support') - 0.5) * 20;
+    republicanSupport += (roll('republican-support') - 0.5) * 20;
     democraticSupport = Math.max(0, Math.min(100, democraticSupport));
     republicanSupport = Math.max(0, Math.min(100, republicanSupport));
 
@@ -1174,7 +1204,9 @@ const policyBacklash: EventTemplate = {
   condition: state => Boolean(state.politics && state.politics.policiesEnacted && state.politics.policiesEnacted.length > 0),
   generate: state => {
     const enactedPolicies = state.politics!.policiesEnacted || [];
-    const randomPolicyId = enactedPolicies[Math.floor(Math.random() * enactedPolicies.length)];
+    const randomPolicyId = enactedPolicies.length > 0
+      ? pickSeeded(enactedPolicies, payloadRoll(state, 'policy_backlash'), 'policy')
+      : undefined;
     const policy = POLICIES.find(p => p.id === randomPolicyId);
 
     return {
@@ -1197,7 +1229,9 @@ const stockMarketRegulation: EventTemplate = {
   condition: state => Boolean(state.politics && state.politics.careerLevel >= 2 && state.politics.policiesEnacted?.some(p => POLICIES.find(pol => pol.id === p)?.type === 'stock')),
   generate: state => {
     const stockPolicies = (state.politics!.policiesEnacted || []).filter(p => POLICIES.find(pol => pol.id === p)?.type === 'stock');
-    const policy = stockPolicies.length > 0 ? POLICIES.find(p => p.id === stockPolicies[Math.floor(Math.random() * stockPolicies.length)]) : null;
+    const policy = stockPolicies.length > 0
+      ? POLICIES.find(p => p.id === pickSeeded(stockPolicies, payloadRoll(state, 'stock_market_regulation'), 'policy')) ?? null
+      : null;
 
     return {
       id: 'stock_market_regulation',
@@ -1489,9 +1523,9 @@ const oldFriendReturns: EventTemplate = {
   id: 'old_friend_returns',
   category: 'relationship',
   weight: 0.4,
-  generate: () => {
+  generate: state => {
     const names = ['Alex', 'Jamie', 'Morgan', 'Taylor', 'Jordan', 'Casey', 'Riley', 'Quinn'];
-    const name = names[Math.floor(Math.random() * names.length)];
+    const name = pickSeeded(names, payloadRoll(state, 'old_friend_returns'), 'name');
     return {
       id: 'old_friend_returns',
       description: `Your old friend ${name} from school just moved back to town and wants to reconnect!`,
@@ -1549,14 +1583,15 @@ const investmentTip: EventTemplate = {
     // At high net worth: Scale to 0.1-0.5% of net worth
     // Cap at $25K/$50K to prevent excessive risk/reward
     const currentNetWorth = netWorth(state);
+    const roll = payloadRoll(state, 'investment_tip');
 
     // Small investment: 0.1-0.2% of net worth, floor $1K, cap $25K
-    const smallPercentage = 0.001 + (Math.random() * 0.001); // 0.1-0.2%
+    const smallPercentage = 0.001 + (roll('small-pct') * 0.001); // 0.1-0.2%
     const baseSmall = Math.floor(currentNetWorth * smallPercentage);
     const smallAmount = Math.max(1000, Math.min(25000, baseSmall));
 
     // Big investment: 0.3-0.5% of net worth, floor $5K, cap $50K
-    const bigPercentage = 0.003 + (Math.random() * 0.002); // 0.3-0.5%
+    const bigPercentage = 0.003 + (roll('big-pct') * 0.002); // 0.3-0.5%
     const baseBig = Math.floor(currentNetWorth * bigPercentage);
     const bigAmount = Math.max(5000, Math.min(50000, baseBig));
 
@@ -1567,8 +1602,8 @@ const investmentTip: EventTemplate = {
       // it (50/50, EV ≈ 0). Description updated to match the real stakes.
       description: 'A successful investor shares a tip about an undervalued stock. You could double your money — or lose your whole stake.',
       choices: [
-        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? bigAmount : -bigAmount } },
-        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: Math.random() > 0.5 ? smallAmount : -smallAmount } },
+        { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
+        { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
         { id: 'pass', text: 'Pass on the opportunity', effects: {} },
       ],
     };
@@ -1586,7 +1621,7 @@ const businessPartnership: EventTemplate = {
     // At high net worth: Cap ensures maximum $100K (prevents excessive rewards)
     // Scales proportionally: 2-5% of net worth (maintains usefulness at all levels)
     const currentNetWorth = netWorth(state);
-    const percentage = 0.02 + (Math.random() * 0.03); // 2-5% of net worth
+    const percentage = 0.02 + (payloadRoll(state, 'business_partnership')('pct') * 0.03); // 2-5% of net worth
     const baseOffer = Math.floor(currentNetWorth * percentage);
     const scaledOffer = Math.max(10000, Math.min(100000, baseOffer)); // Floor $10K, cap $100K
 
@@ -1615,7 +1650,7 @@ const distantRelativeInheritance: EventTemplate = {
     // At high net worth: Cap ensures maximum $50K (prevents excessive rewards)
     // Scales proportionally: 0.1-0.3% of net worth (maintains usefulness at all levels)
     const currentNetWorth = netWorth(state);
-    const percentage = 0.001 + (Math.random() * 0.002); // 0.1-0.3% of net worth
+    const percentage = 0.001 + (payloadRoll(state, 'distant_relative_inheritance')('pct') * 0.002); // 0.1-0.3% of net worth
     const baseInheritance = Math.floor(currentNetWorth * percentage);
     const inheritance = Math.max(5000, Math.min(50000, baseInheritance)); // Floor $5K, cap $50K
 
@@ -2254,8 +2289,8 @@ const taxRefund: EventTemplate = {
   id: 'tax_refund',
   category: 'economy',
   weight: 0.2,
-  generate: () => {
-    const refund = Math.floor(Math.random() * 1500) + 500;
+  generate: state => {
+    const refund = Math.floor(payloadRoll(state, 'tax_refund')('amount') * 1500) + 500;
     return {
       id: 'tax_refund',
       description: `Good news! You're getting a tax refund of $${refund}!`,
@@ -2331,11 +2366,11 @@ const antiqueFinding: EventTemplate = {
   id: 'antique_finding',
   category: 'economy',
   weight: 0.15,
-  generate: () => ({
+  generate: state => ({
     id: 'antique_finding',
     description: 'You find an old item at a garage sale that might be valuable!',
     choices: [
-      { id: 'buy_appraise', text: 'Buy it ($50) and get it appraised', effects: { money: Math.random() > 0.5 ? 400 : -100, stats: { happiness: 10 } } },
+      { id: 'buy_appraise', text: 'Buy it ($50) and get it appraised', effects: { money: payloadRoll(state, 'antique_finding')('appraisal') > 0.5 ? 400 : -100, stats: { happiness: 10 } } },
       { id: 'skip', text: 'Probably junk', effects: {} },
     ],
   }),
@@ -2379,13 +2414,14 @@ const speedingTicket: EventTemplate = {
   condition: state => !!(state.vehicles || []).length && !!state.activeVehicleId,
   generate: state => {
     const vehicle = (state.vehicles || []).find(v => v.id === state.activeVehicleId);
-    const fine = 150 + Math.floor(Math.random() * 100);
+    const roll = payloadRoll(state, 'speeding_ticket');
+    const fine = 150 + Math.floor(roll('fine') * 100);
     return {
       id: 'speeding_ticket',
       description: `You got pulled over for speeding in your ${vehicle?.name || 'vehicle'}. The officer issues a ticket.`,
       choices: [
         { id: 'pay', text: `Pay the $${fine} fine`, effects: { money: -fine, stats: { reputation: -2 } } },
-        { id: 'contest', text: 'Contest the ticket ($50 court fee)', effects: { money: Math.random() > 0.3 ? -50 : -fine, stats: { reputation: -1 } } },
+        { id: 'contest', text: 'Contest the ticket ($50 court fee)', effects: { money: roll('contest-outcome') > 0.3 ? -50 : -fine, stats: { reputation: -1 } } },
       ],
     };
   },
@@ -2398,9 +2434,10 @@ const vehicleTheft: EventTemplate = {
   condition: state => (state.vehicles || []).length > 0,
   generate: state => {
     const vehicles = state.vehicles || [];
-    const vehicle = vehicles[Math.floor(Math.random() * vehicles.length)];
+    const roll = payloadRoll(state, 'vehicle_theft');
+    const vehicle = pickSeeded(vehicles, roll, 'vehicle');
     const hasInsurance = vehicle.insurance?.active;
-    const recoveryChance = Math.random();
+    const recoveryChance = roll('recovery');
 
     return {
       id: 'vehicle_theft',
@@ -2461,14 +2498,15 @@ const parkingTicket: EventTemplate = {
   category: 'economy',
   weight: 0.25,
   condition: state => !!(state.vehicles || []).length && !!state.activeVehicleId,
-  generate: () => {
-    const fine = 50 + Math.floor(Math.random() * 50);
+  generate: state => {
+    const roll = payloadRoll(state, 'parking_ticket');
+    const fine = 50 + Math.floor(roll('fine') * 50);
     return {
       id: 'parking_ticket',
       description: 'You find a parking ticket on your windshield. Expired meter!',
       choices: [
         { id: 'pay', text: `Pay the $${fine} fine`, effects: { money: -fine } },
-        { id: 'ignore', text: 'Ignore it (risk higher fine)', effects: { money: Math.random() > 0.5 ? -fine * 2 : -fine, stats: { reputation: -2 } } },
+        { id: 'ignore', text: 'Ignore it (risk higher fine)', effects: { money: roll('ignore-outcome') > 0.5 ? -fine * 2 : -fine, stats: { reputation: -2 } } },
       ],
     };
   },
@@ -2502,11 +2540,19 @@ const weightPayoffReady = (state: GameState, id: string): boolean => {
   return triggered && !resolved;
 };
 
-/** Deterministic 0..1 roll seeded on the absolute week + a per-event salt. */
-const payoffRoll = (state: GameState, salt: number): number => {
-  const x = Math.sin((state.weeksLived || 0) * 1013 + salt) * 10000;
-  return x - Math.floor(x);
-};
+/**
+ * Deterministic 0..1 roll seeded on the absolute week + a per-event salt.
+ *
+ * DETERMINISM FIX: this was `Math.sin(seed) * 10000` fractional parts — the exact
+ * construction the weekly selection roll below abandoned, and for the same reason:
+ * ECMAScript does not require bit-exact `Math.sin`, so a device on Hermes and CI on
+ * V8 could disagree on which payoff branch a given week produces. Routed through
+ * the same audited, integer-only seeded RNG (`makeWeeklyRoll` → mulberry32
+ * finalizer); the numeric salt becomes a distinct key, which the helper keys on
+ * collision-free. 2026-08-16 audit H7a.
+ */
+const payoffRoll = (state: GameState, salt: number): number =>
+  makeWeeklyRoll(state.weeksLived || 0)(`payoff-${salt}`);
 
 // Payoff to: tipping a street musician $5 (unlock_event, +5 weeks). A warm,
 // low-stakes callback that rewards a small act of kindness.

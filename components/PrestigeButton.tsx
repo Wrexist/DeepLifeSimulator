@@ -6,6 +6,8 @@ import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 interface PrestigeButtonProps {
@@ -92,13 +94,6 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
     inputRange: [0, 1],
     outputRange: [0.3, 0.7],
   });
-
-  const formatMoney = (amount: number) => {
-    if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
-    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${Math.floor(amount).toLocaleString()}`;
-  };
 
   if (!isAvailable) {
     return (
@@ -246,5 +241,4 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 });
-
 

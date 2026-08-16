@@ -12,6 +12,7 @@ import { runPoliticsWeeklyTick } from '../weeklyTick';
 import { runForOffice } from '@/contexts/game/actions/PoliticalActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import type { GameState, PoliticsState } from '@/contexts/game/types';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 function basePolitics(over: Partial<PoliticsState> = {}): PoliticsState {
   return {
@@ -61,14 +62,21 @@ describe('runPoliticsWeeklyTick — re-election', () => {
 
 describe('runForOffice — office rank semantics', () => {
   function makeState(): GameState {
-    return {
+    return createTestGameState({
       weeksLived: 200,
       date: { age: 40 },
       stats: { money: 50_000, reputation: 60 },
-      educations: [{ id: 'business_degree', completed: true }],
+      educations: [{
+        id: 'business_degree',
+        name: 'Business Degree',
+        description: 'Business degree',
+        cost: 0,
+        duration: 0,
+        completed: true,
+      }],
       careers: [],
       politics: basePolitics({ careerLevel: 0, electionsWon: 0 }),
-    } as unknown as GameState;
+    });
   }
 
   it('winning Council sets careerLevel to rank 1 (not 0) and marks the career accepted', () => {

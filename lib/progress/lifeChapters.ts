@@ -10,10 +10,11 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { outstandingDebt } from '@/lib/progress/wealthRatchet';
 import { logger } from '@/utils/logger';
-import { weeksSinceLifeStart } from '@/utils/weekCounters';
+import { ageFromWeeksLived, weeksSinceLifeStart } from '@/utils/weekCounters';
 
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
@@ -82,6 +83,54 @@ let netWorthFailureLogged = false;
  */
 export function weeksInThisLife(state: GameState | undefined | null): number {
   return weeksSinceLifeStart(state?.weeksLived, state?.lifeStartWeek);
+}
+
+/**
+ * The player's age in whole years. THE canonical reader — M10.
+ *
+ * §4.2 in a second variable. `weeksLived` is the absolute counter; `date.age`
+ * is a SECOND, stored copy of the same fact, advanced by `+1/52` on every tick
+ * in the week loop. Four modules kept a private `getAge` off `date.age` while
+ * the story generator derived from `weeksLived`, so the game answered "how old
+ * am I?" two different ways at once:
+ *
+ *   - `+1/52` is not representable in binary floating point, so 52 additions do
+ *     not make exactly 1. The stored value drifts a hair below the true age and
+ *     `Math.floor` turns that into a whole year lost — permanently, since the
+ *     skew compounds. The counter cannot drift: it is an integer increment.
+ *   - One corrupt or absent `date.age` reset the player to 18 for the death
+ *     roll, the pension gates and every age-conditioned event, while the story
+ *     engine still reported their true age.
+ *
+ * The derivation is exact: every path that starts a life seeds `weeksLived`
+ * with `computeWeeksLived(startingAge)` = `(startingAge - 18) * 52` —
+ * onboarding (`gameStateBuilder`) and BOTH prestige paths (reset-to-18 and
+ * heir), which RESET the counter rather than letting it run on across the
+ * generation. So `18 + weeksLived / 52` is the age in every life, and because
+ * `lifeStartWeek` (v43) is stamped to that same seed, the "this life" form
+ * `startingAge + weeksInThisLife / 52` is algebraically the same number.
+ *
+ * FALLBACK for legacy saves. A save with no `lifeStartWeek` predates v43, and
+ * the heir path before it left `weeksLived` at 0 while writing the child's real
+ * `age` — the very inconsistency `aiIntegrityChecks` flags. Deriving there
+ * would report 18 for a 20-year-old heir, so those saves keep reading
+ * `date.age`, exactly the behaviour they have today. New lives are stamped, so
+ * this branch shrinks to nothing over time.
+ *
+ * `date.age` stays the DISPLAY value (and the legacy fallback). Do not read it
+ * for logic; call this.
+ */
+export function getAge(state: GameState | undefined | null): number {
+  const stored = Math.floor(num(state?.date?.age));
+  const storedAge = stored >= ADULTHOOD_AGE ? stored : ADULTHOOD_AGE;
+
+  // Pre-v43 save: no baseline was ever stamped, so `weeksLived` may not agree
+  // with the age the player has been shown. Keep their current behaviour.
+  if (typeof state?.lifeStartWeek !== 'number' || !Number.isFinite(state.lifeStartWeek)) {
+    return storedAge;
+  }
+
+  return ageFromWeeksLived(state.weeksLived);
 }
 
 /** Money EARNED in this life. Starts at 0 every life; only increases. */

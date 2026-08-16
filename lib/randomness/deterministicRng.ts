@@ -1,9 +1,28 @@
+/**
+ * Deterministic RNG with a PERSISTED commit log.
+ *
+ * ── Which RNG should new code use? ────────────────────────────────────────
+ * `utils/seededRoll.ts` (`makeWeeklyRoll`). It is the project's one RNG
+ * primitive: pure, stateless, keyed by `weeksLived` + a string, nothing written
+ * to the save. Reach for it by default.
+ *
+ * This module is the heavier alternative and it is NOT deprecated: it records
+ * every roll it hands out into `state.rngCommitLog`, which is part of the save
+ * format, and five call sites depend on that (`JobActionsContext`,
+ * `actions/JobActions`, `actions/DatingActions`, `actions/LuxuryActions`,
+ * `lib/legacy/childSimulation`). Use it only when a roll must be *replayable
+ * from the save* rather than merely reproducible from the week — the 2026-08-16
+ * audit (H7c) considered folding it into `seededRoll` and deliberately did not:
+ * deleting the commit log would change the shape of live saves.
+ *
+ * Its FNV-1a hash is now the shared `fnv1a32` from `utils/seededRoll.ts`
+ * (bit-identical to the copy that was here, so no committed roll moved).
+ */
 import type { GameState, RngCommitLog } from '@/contexts/game/types';
+import { fnv1a32 } from '@/utils/seededRoll';
 
 const DEFAULT_RNG_SEED = 0x9e3779b9;
 const MAX_COMMIT_LOG_ENTRIES = 1024;
-const FNV_OFFSET_BASIS = 2166136261;
-const FNV_PRIME = 16777619;
 
 type RngStateView = Pick<GameState, 'rngCommitLog' | 'lineageId' | 'generationNumber'>;
 
@@ -14,14 +33,7 @@ const normalizeKey = (rollKey: string): string => {
   return rollKey.trim();
 };
 
-const hashFNV1a = (input: string): number => {
-  let hash = FNV_OFFSET_BASIS;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, FNV_PRIME);
-  }
-  return toUint32(hash);
-};
+const hashFNV1a = (input: string): number => fnv1a32(input);
 
 const deriveSeed = (state: RngStateView): number => {
   const configuredSeed = state.rngCommitLog?.seed;

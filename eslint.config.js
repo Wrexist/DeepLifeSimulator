@@ -60,12 +60,39 @@ module.exports = [
     rules: {
       'no-restricted-syntax': ['warn',
         {
-          selector: 'TSAsExpression > TSAnyKeyword',
-          message: "No `as any` casts (CLAUDE.md Hard Rule #2) — use a real type or a type guard. For RN-web style shadows, use a typed helper.",
+          // DESCENDANT, not `>`. The child selector only saw a bare `as any`, so
+          // the whole `as unknown as Record<string, any>` family walked straight
+          // past Hard Rule #2 — and that is the shape that actually does damage:
+          // it erases the type AND invents a plausible-looking index signature,
+          // so fabricated field names compile and read `undefined` forever
+          // (`lib/depth/discoverySystem.ts` had six of them; 2026-08-16 audit H1).
+          // `TSAsExpression > TSAnyKeyword` is a strict subset of this, so the
+          // old rule is subsumed rather than kept alongside it (which would
+          // double-report every bare `as any`).
+          selector: 'TSAsExpression TSAnyKeyword',
+          message: "No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper.",
         },
         {
-          selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
-          message: "Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. See tasks/lessons.md.",
+          // The old pattern was `/^@.(lib|utils|contexts)/`, which had two holes
+          // (2026-08-16 audit L2). It listed only three alias roots, so
+          // `require('@/services/…')`, `@/hooks`, `@/components` and `@/src` all
+          // walked past it; and it matched only ALIASED specifiers, so the same
+          // module required by RELATIVE path (`require('../utils/crashRecovery')`
+          // in app/_layout.tsx) was invisible — which is the shape that actually
+          // shipped a hazard: an untyped require returns `any`, so a rename of
+          // `initializeCrashRecovery` would compile, read `undefined`, and
+          // silently disable crash recovery at boot.
+          //
+          // `\x2f` is a literal `/`: esquery's regex token is delimited by `/`
+          // and has no escape mechanism, so the slash cannot be written directly
+          // inside the selector. (The unescaped `.` in the old pattern was also
+          // a wildcard rather than the intended `/`.)
+          //
+          // Severity is unchanged — 'warn' app-wide, 'error' inside the ratcheted
+          // lib/ directories below — so widening it surfaces the forms without
+          // turning a burndown into a build break.
+          selector: "CallExpression[callee.name='require'][arguments.0.value=/^(@\\x2f(lib|utils|contexts|services|hooks|components|src)|\\.\\.?\\x2f)/]",
+          message: "Use a static `import` (or `import type` + a typed lazy getter) for internal modules — require() degrades types to any/never. Covers both `@/…` aliases and relative (`./`, `../`) specifiers. See tasks/lessons.md.",
         },
       ],
       // Block bare @ts-ignore / @ts-nocheck; require a justification on
@@ -121,7 +148,7 @@ module.exports = [
       "lib/devtools/**/*.{ts,tsx}", "lib/diseases/**/*.{ts,tsx}", "lib/dynasty/**/*.{ts,tsx}",
       "lib/economy/**/*.{ts,tsx}",
       "lib/education/**/*.{ts,tsx}", "lib/events/**/*.{ts,tsx}",
-      "lib/gameLogic/**/*.{ts,tsx}", "lib/karma/**/*.{ts,tsx}",
+      "lib/karma/**/*.{ts,tsx}",
       "lib/legacy/**/*.{ts,tsx}", "lib/legacyPass/**/*.{ts,tsx}", "lib/lifeMoments/**/*.{ts,tsx}",
       "lib/luxury/**/*.{ts,tsx}", "lib/mail/**/*.{ts,tsx}", "lib/mindset/**/*.{ts,tsx}",
       "lib/notifications/**/*.{ts,tsx}", "lib/parenting/**/*.{ts,tsx}", "lib/pets/**/*.{ts,tsx}",
@@ -139,14 +166,83 @@ module.exports = [
     rules: {
       'no-restricted-syntax': ['error',
         {
-          selector: 'TSAsExpression > TSAnyKeyword',
-          message: "No `as any` casts (CLAUDE.md Hard Rule #2) — use a real type or a type guard.",
+          // Descendant, mirroring the app-wide block above: catches
+          // `as unknown as Record<string, any>` as well as a bare `as any`.
+          selector: 'TSAsExpression TSAnyKeyword',
+          message: "No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard.",
         },
         {
           selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
           message: "Use a static `import` for internal modules — require() degrades types. See tasks/lessons.md.",
         },
       ],
+    },
+  },
+  {
+    /**
+     * --- Layering boundary: `lib/` may not import upward (audit H6) ----------
+     *
+     * The app's one-way direction is `app|components → contexts → lib → lib/config`.
+     * Until 2026-08-16 that was asserted in comments and enforced nowhere: five
+     * `lib/` modules statically imported executable code from `contexts/` or
+     * `services/`, in directories the ratchet block above already errors on —
+     * the require()-based rule there cannot see a static `import`. Three of the
+     * five were pure symbols sitting one layer too high and have been moved DOWN
+     * (`RAISE_MIN_PERFORMANCE` → `lib/careers/raisePremium`,
+     * `calculateMiningEarnings` → `lib/crypto/miningEarnings`, `applyMoneyDelta`
+     * → `lib/economy/moneyDelta`), with the old locations re-exporting them.
+     *
+     * Why it is worth a rule rather than vigilance: an upward edge that closes a
+     * cycle does not fail the build. It surfaces as `undefined` at module init,
+     * and `lib/mail` and `lib/crypto` are both on the week-loop path, where that
+     * reads as a lost week for the save. Measured on 2026-08-16: zero true
+     * cycles today, and `lib/mail` was one import away from one.
+     *
+     * `allowTypeImports` keeps `import type` legal in both directions — tsc
+     * erases those edges, so they cannot form a runtime cycle. `@/contexts/game/types`
+     * is exempted outright because it is a types-only module whose every import
+     * is itself type-only (the same reasoning the cycle audit used), and ~80
+     * `lib/` files import from it with value syntax.
+     */
+    files: ["lib/**/*.{ts,tsx}"],
+    ignores: [
+      "lib/**/__tests__/**",
+      "lib/**/*.test.{ts,tsx}",
+      /**
+       * Sanctioned directories, not oversights — each is a consumer of the
+       * upper layers by nature rather than a domain module that leaked one.
+       *
+       * `lib/simulation` — ~10k LOC of dev/QA tooling that drives the real
+       * action modules on purpose; already dead-code-eliminated from release
+       * bundles by the `__DEV__`-folded require in SettingsModal, and already
+       * documented as a boundary (not a cycle) in the ratchet block above.
+       * `lib/devtools` — same shape: `simulations.ts` exercises ~20 action
+       * modules and the weekly subsystems to prove they still behave.
+       * `lib/analytics` — `AnalyticsTracker.tsx` is a React component that must
+       * subscribe to game context, and `AnalyticsService` wraps the Firebase
+       * service singleton. Both are adapters between layers, not game logic.
+       */
+      "lib/simulation/**",
+      "lib/devtools/**",
+      "lib/analytics/**",
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [
+          {
+            // A regex rather than a gitignore-style `group`, because the one
+            // exemption has to be a NEGATION and `group`'s `!` form does not
+            // fire for aliased specifiers here. Covers the `@/` alias and the
+            // relative escapes (`../../contexts/…`) that reach the same places.
+            // `@/contexts/game/types` is the sole allowed path — types only.
+            regex:
+              '^(?!@/contexts/game/types$)(@/(contexts|components|app|services|hooks)(/|$)|(\\.\\./)+(contexts|components|app|services|hooks)(/|$))',
+            allowTypeImports: true,
+            message:
+              "lib/ must not import VALUES from contexts|components|app|services|hooks — that inverts the app's layering and an upward edge that closes a cycle reads as `undefined` at module init inside the week loop, not as a build error (audit H6). Move the symbol DOWN into lib/ and re-export it from the old location, or use `import type` if you only need the type.",
+          },
+        ],
+      }],
     },
   },
   {

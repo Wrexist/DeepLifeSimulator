@@ -9,8 +9,23 @@
  *   - Stop-loss / take-profit are stop orders that convert to market when triggered.
  *
  * Pure functions. State updates returned to the caller; no React, no setGameState.
+ *
+ * The five pricing/predicate functions are thin wrappers over the shared core
+ * in `lib/markets/orderBook.ts` (M19) — this module owns the crypto-specific
+ * parameters (a regime-derived spread, a $250k liquidity ceiling, a 0.01
+ * slippage coefficient), the `CryptoOrder` types, and `fillMarketOrder`, which
+ * has no equity counterpart. Signatures and numeric behaviour are unchanged;
+ * `__tests__/economy/orderBookParity.test.ts` pins that.
  */
 
+import {
+  askPriceFor,
+  bidPriceFor,
+  limitOrderShouldFillFor,
+  marketFillPriceFor,
+  stopOrderShouldTriggerFor,
+  type OrderBookLiquidity,
+} from '@/lib/markets/orderBook';
 import { CryptoRegime, REGIME_PARAMS } from './marketModel';
 
 export type OrderType = 'market' | 'limit' | 'stop';
@@ -39,21 +54,30 @@ export interface CryptoOrder {
 const safe = (n: number, fb = 0): number => (typeof n === 'number' && isFinite(n) ? n : fb);
 
 /**
- * Notional liquidity ceiling. Trades up to this size fill cleanly; larger trades
- * walk the spread and incur extra slippage. Per-coin; defaults to 250k USD.
+ * Depth parameters for the crypto book. Thinner than the equity book on both
+ * axes: slippage starts at a quarter of the notional and costs twice as much
+ * per unit of excess size. See `lib/markets/orderBook.ts` for the shared
+ * arithmetic these five wrappers delegate to (M19).
  */
-const LIQUIDITY_CEILING = 250_000;
+const CRYPTO_LIQUIDITY: OrderBookLiquidity = {
+  /**
+   * Notional liquidity ceiling. Trades up to this size fill cleanly; larger
+   * trades walk the spread and incur extra slippage. Per-coin.
+   */
+  liquidityCeiling: 250_000,
+  slippageCoefficient: 0.01,
+};
 
 export function bidAskSpreadForRegime(regime: CryptoRegime): number {
   return REGIME_PARAMS[regime].bidAskSpread;
 }
 
 export function bidPrice(mid: number, regime: CryptoRegime): number {
-  return mid * (1 - bidAskSpreadForRegime(regime) / 2);
+  return bidPriceFor(mid, bidAskSpreadForRegime(regime));
 }
 
 export function askPrice(mid: number, regime: CryptoRegime): number {
-  return mid * (1 + bidAskSpreadForRegime(regime) / 2);
+  return askPriceFor(mid, bidAskSpreadForRegime(regime));
 }
 
 /**
@@ -69,15 +93,13 @@ export function marketFillPrice(
   notionalUSD: number,
   regime: CryptoRegime
 ): number {
-  const mid = Math.max(0.0001, safe(midPrice, 1));
-  const notional = Math.max(0, safe(notionalUSD));
-  // Slippage starts at 0 below the ceiling, then grows linearly with size/ceiling.
-  const slippage = Math.max(0, notional / LIQUIDITY_CEILING - 1) * 0.01;
-  const halfSpread = bidAskSpreadForRegime(regime) / 2;
-  if (side === 'buy') {
-    return mid * (1 + halfSpread + slippage);
-  }
-  return mid * (1 - halfSpread - slippage);
+  return marketFillPriceFor(
+    midPrice,
+    side,
+    notionalUSD,
+    bidAskSpreadForRegime(regime),
+    CRYPTO_LIQUIDITY
+  );
 }
 
 /**
@@ -90,11 +112,7 @@ export function limitOrderShouldFill(
   midPrice: number,
   regime: CryptoRegime
 ): boolean {
-  if (order.type !== 'limit' || order.limitPrice == null) return false;
-  if (order.side === 'buy') {
-    return askPrice(midPrice, regime) <= order.limitPrice;
-  }
-  return bidPrice(midPrice, regime) >= order.limitPrice;
+  return limitOrderShouldFillFor(order, midPrice, bidAskSpreadForRegime(regime));
 }
 
 /**
@@ -104,9 +122,7 @@ export function limitOrderShouldFill(
  * Stop-buy (rare) triggers when price rises above stopPrice.
  */
 export function stopOrderShouldTrigger(order: CryptoOrder, midPrice: number): boolean {
-  if (order.type !== 'stop' || order.stopPrice == null) return false;
-  if (order.side === 'sell') return midPrice <= order.stopPrice;
-  return midPrice >= order.stopPrice;
+  return stopOrderShouldTriggerFor(order, midPrice);
 }
 
 export interface OrderFillResult {

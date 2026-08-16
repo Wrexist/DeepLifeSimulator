@@ -2,6 +2,7 @@ import type { GameState } from '@/contexts/game/types';
 import type { EventTemplate } from './engine';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { generateEventDisease } from '@/lib/diseases/diseaseGenerator';
+import { payloadRoll } from './seededPayload';
 
 /**
  * Personal crisis events are high-impact events that affect individual players
@@ -96,6 +97,11 @@ export const medicalEmergency: EventTemplate = {
 
     // Generate potential disease from event
     const eventDisease = generateEventDisease('medical_emergency', state);
+    // SEEDED (H7b): the coin flip below decides whether home remedies leave the
+    // player with a DISEASE. Drawn inside the weekly `setGameState` updater, so
+    // React 19's double invocation could hand the player either outcome and a
+    // reload re-rolled it. Now a pure function of the week.
+    const roll = payloadRoll(state, 'medical_emergency');
     const diseaseName = eventDisease ? eventDisease.name : null;
     
     return {
@@ -142,7 +148,7 @@ export const medicalEmergency: EventTemplate = {
             },
           },
           // Lower chance but still possible
-          special: eventDisease && Math.random() < 0.5 ? 'add_disease' : undefined,
+          special: eventDisease && roll('home-remedy-disease') < 0.5 ? 'add_disease' : undefined,
           diseaseId: eventDisease ? eventDisease.id : undefined,
         },
       ],

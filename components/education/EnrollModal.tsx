@@ -13,6 +13,8 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 export interface EnrollTemplate {
   id: string;
   name: string;
@@ -41,13 +43,6 @@ function bonusLabel(c: ClassTemplate): string {
     if (v) parts.push(`+${v} ${short[k] ?? k}`);
   }
   return parts.join(' · ');
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 export default function EnrollModal({ visible, template, gameState, darkMode, onClose, onConfirm }: Props) {

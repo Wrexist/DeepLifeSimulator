@@ -6,7 +6,8 @@
  * 6=President): every office earned the tier above it, and the President read
  * off the end of the table and earned $0.
  */
-import { GameState } from '@/contexts/game/types';
+import { Company, GameState } from '@/contexts/game/types';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import {
   calculateGovernmentContractBonus,
   areGovernmentContractsAvailable,
@@ -15,11 +16,29 @@ import {
 
 // Minimal state slice the calculator actually reads. approvalRating 100 makes
 // the approval multiplier exactly 1.0 (0.5 + 100/100 * 0.5), so bonus == income*rate.
-function stateWith(careerLevel: number, approvalRating: number, weeklyIncome = 1000): GameState {
+function company(weeklyIncome: number): Company {
   return {
-    politics: { careerLevel, approvalRating },
-    companies: [{ id: 'c1', weeklyIncome }],
-  } as unknown as GameState;
+    id: 'c1',
+    name: 'C1',
+    type: 'factory',
+    weeklyIncome,
+    baseWeeklyIncome: weeklyIncome,
+    upgrades: [],
+    employees: 0,
+    workerSalary: 0,
+    workerMultiplier: 1,
+    marketingLevel: 0,
+    miners: {},
+    warehouseLevel: 0,
+  };
+}
+
+function stateWith(careerLevel: number, approvalRating: number, weeklyIncome = 1000): GameState {
+  const base = createTestGameState();
+  return createTestGameState({
+    politics: { ...base.politics!, careerLevel, approvalRating },
+    companies: [company(weeklyIncome)],
+  });
 }
 
 describe('calculateGovernmentContractBonus — office tier (1-based careerLevel)', () => {

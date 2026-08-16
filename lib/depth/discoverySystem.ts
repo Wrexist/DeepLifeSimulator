@@ -503,34 +503,120 @@ function getActiveSystems(gameState: GameState): string[] {
  * discovery is "you have seen this", not "you currently own this".
  */
 export function reconcileDiscoveredSystems(gameState: GameState): GameState {
-  const has = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
-  const s = gameState as unknown as Record<string, any>;
+  const has = (v: readonly unknown[] | null | undefined): boolean => Array.isArray(v) && v.length > 0;
 
   const touched: string[] = [];
   const mark = (id: string, seen: unknown) => {
     if (seen) touched.push(id);
   };
 
-  mark('career', !!gameState.currentJob || has(gameState.careers?.filter?.((c: any) => c?.accepted)));
-  mark('relationships', has(gameState.relationships));
+  // Every read below is a REAL path on `GameState`. This function used to reach
+  // through `gameState as unknown as Record<string, any>`, which let six field
+  // names that exist nowhere in `contexts/game/types.ts` compile and then read
+  // `undefined` forever: `bankAccounts`, `visitedCountries`, `currentTrip` (it
+  // is on `travel`, not on the root), `rdProjects`, `research` and
+  // `darkWebPurchases`. Six of the twenty systems could therefore never be
+  // discovered by their own evidence. 2026-08-16 audit H1.
+  const banking = gameState.banking;
+  const travel = gameState.travel;
+  const politics = gameState.politics;
+  const gaming = gameState.gamingStreaming;
+
+  mark('career', !!gameState.currentJob || !!gameState.careers?.some((c) => c?.accepted));
+  // `relationships` is NOT evidence by mere presence: `initialGameState` seeds
+  // every save with Mom and Dad (`type: 'parent'`, score 50, no counters), so
+  // `has(relationships)` was true before the first frame — the same shape as the
+  // `banking.accounts` seeding two lines below, and as the `weeksLived` baseline
+  // that cost three bugs (§4.2). Evidence is the player ENGAGING the system:
+  // either a relationship they made (nothing but parents is seeded, so any
+  // non-parent is player-made — a friend, partner, spouse or child) or an
+  // interaction recorded against one (`actions` written by ContactsActions,
+  // `weeklyInteractions`/`lastInteractionWeek` by Contacts + Dating, `datesCount`
+  // by Dating). Deliberately NOT the score: the weekly tick decays it on its own,
+  // so a drifted parent score would credit the system for the passage of time.
+  mark(
+    'relationships',
+    !!gameState.relationships?.some(
+      (r) =>
+        (r?.type && r.type !== 'parent') ||
+        Object.keys(r?.actions ?? {}).length > 0 ||
+        (r?.weeklyInteractions ?? 0) > 0 ||
+        typeof r?.lastInteractionWeek === 'number' ||
+        (r?.datesCount ?? 0) > 0,
+    ),
+  );
   mark('health', (gameState.stats?.fitness ?? 0) > 0 && (gameState.weeksLived ?? 0) > 0);
-  mark('hobbies', has(gameState.hobbies) || has(s.pursuits));
+  // `pursuits` is a `Record<string, PlayerPursuit>`, never an array, so the old
+  // `has(pursuits)` could not fire — count keys instead.
+  mark('hobbies', has(gameState.hobbies) || Object.keys(gameState.pursuits ?? {}).length > 0);
   mark('education', has(gameState.educations));
-  mark('items', has(gameState.items?.filter?.((i: any) => i?.owned)));
-  mark('bank', (gameState.bankSavings ?? 0) > 0 || has(s.bankAccounts));
-  mark('travel', has(s.visitedCountries) || !!s.currentTrip);
+  mark('items', !!gameState.items?.some((i) => i?.owned));
+  // `banking.accounts` is NOT evidence: `initialGameState` seeds every save with
+  // a default checking and savings account, so its mere presence would credit
+  // the bank on week 1. Evidence is money actually moved or a product opened.
+  // `bankSavings` is the legacy pre-v14 balance and stays as a fallback.
+  mark(
+    'bank',
+    (gameState.bankSavings ?? 0) > 0 ||
+      !!banking?.accounts?.some((a) => (a?.balance ?? 0) !== 0) ||
+      has(banking?.creditCards) ||
+      has(banking?.savingsGoals) ||
+      has(banking?.billPayRules),
+  );
+  mark(
+    'travel',
+    has(travel?.visitedDestinations) ||
+      !!travel?.currentTrip ||
+      has(travel?.travelHistory) ||
+      !!travel?.passportOwned,
+  );
   mark('realEstate', has(gameState.realEstate));
   // `state.stocks` is an OBJECT (`{ holdings: [...] }`), never an array, so
-  // `has(s.stocks)` could never be true — it was dead weight, not legacy-save
+  // `has(state.stocks)` could never be true — it was dead weight, not legacy-save
   // coverage. The real legacy shape is the `stocksOwned` map.
-  mark('stocks', has(gameState.stocks?.holdings) || Object.keys(s.stocksOwned ?? {}).length > 0);
-  mark('company', has(gameState.companies) || !!s.company);
-  mark('politics', has(gameState.careers?.filter?.((c: any) => c?.id === 'political')));
-  mark('rd', has(s.rdProjects) || has(s.research));
-  mark('socialMedia', (gameState.socialMedia?.followers ?? 0) > 0 || has(s.socialMedia?.posts));
-  mark('streetJobs', (s.streetJobsCompleted ?? 0) > 0);
-  mark('darkWeb', (s.criminalLevel ?? 0) > 0 || has(s.darkWebPurchases));
-  mark('gamingStreaming', has(s.gamingStreaming?.streams) || (s.gamingStreaming?.subscribers ?? 0) > 0);
+  mark('stocks', has(gameState.stocks?.holdings) || Object.keys(gameState.stocksOwned ?? {}).length > 0);
+  mark('company', has(gameState.companies) || !!gameState.company);
+  // The old read scanned `careers` for `id === 'political'`. `careers` is the
+  // 30-entry catalogue from `lib/careers/careerData.ts` and contains no such id,
+  // so politics was permanently undiscoverable. The political track lives in its
+  // own `politics` slice.
+  mark(
+    'politics',
+    (politics?.careerLevel ?? 0) > 0 ||
+      (politics?.electionsWon ?? 0) > 0 ||
+      has(politics?.policiesEnacted) ||
+      has(politics?.lobbyists),
+  );
+  // R&D is a COMPANY subsystem (`Company.rdLab` / `patents` /
+  // `unlockedTechnologies`) — there is no root-level `rdProjects` or `research`.
+  mark(
+    'rd',
+    !!gameState.companies?.some(
+      (c) => !!c?.rdLab || has(c?.patents) || has(c?.unlockedTechnologies),
+    ) ||
+      !!gameState.company?.rdLab,
+  );
+  // `socialMedia.posts` does not exist; the counter is `totalPosts`.
+  mark(
+    'socialMedia',
+    (gameState.socialMedia?.followers ?? 0) > 0 || (gameState.socialMedia?.totalPosts ?? 0) > 0,
+  );
+  mark('streetJobs', (gameState.streetJobsCompleted ?? 0) > 0);
+  // `criminalLevel` starts at 1 on every save, so `> 0` credited the dark web to
+  // players who had never opened it; and `darkWebItems` is the CATALOGUE (all 16
+  // entries ship in `initialGameState` with `owned: false`), not a purchase log.
+  mark(
+    'darkWeb',
+    (gameState.criminalLevel ?? 1) > 1 || !!gameState.darkWebItems?.some((i) => i?.owned),
+  );
+  // `gamingStreaming.streams` does not exist; the log is `streamHistory`.
+  mark(
+    'gamingStreaming',
+    (gaming?.subscribers ?? 0) > 0 ||
+      (gaming?.totalViews ?? 0) > 0 ||
+      has(gaming?.streamHistory) ||
+      has(gaming?.videos),
+  );
   mark('prestige', (gameState.prestige?.prestigeLevel ?? 0) > 0);
   mark('dynasty', (gameState.generationNumber ?? 1) > 1);
   mark('legacy', has(gameState.ancestors) || has(gameState.family?.children));

@@ -1,59 +1,4 @@
-import { WEEKS_PER_MONTH, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-
-/**
- * Use absolute week for gameplay logic and fall back to legacy week values only
- * when older saves do not have weeksLived populated.
- */
-export function resolveAbsoluteWeek(
-  weeksLived: number | undefined,
-  legacyWeek: number | undefined
-): number {
-  if (typeof weeksLived === 'number' && isFinite(weeksLived) && weeksLived >= 0) {
-    return weeksLived;
-  }
-  if (typeof legacyWeek === 'number' && isFinite(legacyWeek) && legacyWeek >= 0) {
-    return legacyWeek;
-  }
-  return 0;
-}
-
-/**
- * Convert legacy cyclical week markers (1-4) into absolute weeks so existing saves
- * remain valid after moving logic to weeksLived.
- */
-export function normalizeStoredWeekToAbsolute(
-  storedWeek: number | undefined,
-  currentAbsoluteWeek: number,
-  currentWeekOfMonth: number
-): number {
-  if (typeof storedWeek !== 'number' || !isFinite(storedWeek) || storedWeek < 0) {
-    return 0;
-  }
-
-  const safeAbsoluteWeek = Math.max(0, Math.floor(currentAbsoluteWeek));
-  const safeWeekOfMonth = Math.min(
-    WEEKS_PER_MONTH,
-    Math.max(1, Math.floor(currentWeekOfMonth || 1))
-  );
-
-  if (storedWeek <= WEEKS_PER_MONTH && safeAbsoluteWeek > WEEKS_PER_MONTH) {
-    return Math.max(
-      0,
-      safeAbsoluteWeek - ((safeWeekOfMonth - storedWeek + WEEKS_PER_MONTH) % WEEKS_PER_MONTH)
-    );
-  }
-
-  return Math.max(0, Math.floor(storedWeek));
-}
-
-export function getWeeksSinceStoredWeek(
-  storedWeek: number | undefined,
-  currentAbsoluteWeek: number,
-  currentWeekOfMonth: number
-): number {
-  const normalized = normalizeStoredWeekToAbsolute(storedWeek, currentAbsoluteWeek, currentWeekOfMonth);
-  return Math.max(0, currentAbsoluteWeek - normalized);
-}
+import { ADULTHOOD_AGE, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 // ---------------------------------------------------------------------------
 // Calendar — month and week-of-month from ONE source
@@ -149,12 +94,37 @@ export function weeksSinceLifeStart(
   weeksLived: unknown,
   lifeStartWeek: unknown
 ): number {
-  // Strict typeof, matching resolveAbsoluteWeek above: a corrupt counter
-  // (including a numeric STRING from a hand-edited save) resolves to week
-  // zero, which errs toward the quieter, more-protected first session.
+  // Strict typeof: a corrupt counter (including a numeric STRING from a
+  // hand-edited save) resolves to week zero, which errs toward the quieter,
+  // more-protected first session.
   const now = weeksLived;
   if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) return 0;
   const start = lifeStartWeek;
   if (typeof start !== 'number' || !Number.isFinite(start) || start < 0) return now;
   return Math.max(0, now - start);
+}
+
+/**
+ * Age in whole years, derived from the ABSOLUTE `weeksLived` counter.
+ *
+ * The primitive behind `getAge` (`lib/progress/lifeChapters.ts`), which is the
+ * form to reach for when you hold a `GameState`. This one exists for the call
+ * sites that only have a week number — notably the story generator, which asks
+ * "how old was the player when this happened?" of a HISTORICAL `weeksLived`
+ * stamped on an event, where there is no state to read an age off at all.
+ *
+ * The inverse of `computeWeeksLived` (`lib/config/gameConstants.ts`), which
+ * seeds the counter as `(startingAge - 18) * 52` at the start of every life —
+ * onboarding (`gameStateBuilder`) and BOTH prestige paths, each of which resets
+ * `weeksLived` to `computeWeeksLived(newAge)` rather than letting it run on. So
+ * `18 + weeksLived / 52` is the player's age in every life, heirs included, and
+ * no `lifeStartWeek` term is needed: `lifeStartWeek` is stamped to the same
+ * value, making `startingAge + weeksInThisLife / 52` algebraically identical.
+ */
+export function ageFromWeeksLived(weeksLived: unknown): number {
+  const weeks = weeksLived;
+  if (typeof weeks !== 'number' || !Number.isFinite(weeks) || weeks < 0) {
+    return ADULTHOOD_AGE;
+  }
+  return Math.floor(ADULTHOOD_AGE + weeks / WEEKS_PER_YEAR);
 }

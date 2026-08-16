@@ -107,6 +107,8 @@ import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import TaxStatement from '@/components/banking/TaxStatement';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 type Tab = 'overview' | 'accounts' | 'borrow' | 'budget' | 'tax';
@@ -125,14 +127,6 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
   { id: 'budget', label: 'Budget', icon: Receipt },
   { id: 'tax', label: 'Tax', icon: Percent },
 ];
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 function formatMoneyExact(n: number): string {
   if (!isFinite(n)) return '$0';

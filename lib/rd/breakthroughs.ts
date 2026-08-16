@@ -3,6 +3,14 @@
  * 
  * Rare events with major economic impact
  */
+// Static, not a lazy `require('./technologyTree')` (2026-08-16 audit L2). Checked
+// against the static import graph per CLAUDE.md §5: `technologyTree` imports
+// nothing at all, so it cannot reach back here and this is not a cycle-breaker;
+// its only top-level statement is a `const TECHNOLOGIES` data array, so there is
+// no module-evaluation side effect the require was deferring either. The require
+// returned `any`, which is what let `technology?.tier` be read without a type.
+import { getTechnologyById } from './technologyTree';
+
 export type BreakthroughType = 'revolutionary_product' | 'industry_disruption' | 'global_impact';
 
 export interface Breakthrough {
@@ -62,7 +70,7 @@ export function triggerBreakthrough(
   }[labType];
 
   // Higher tier technologies have higher breakthrough chance
-  const technology = require('./technologyTree').getTechnologyById(technologyId);
+  const technology = getTechnologyById(technologyId);
   const tierMultiplier = technology?.tier === 3 ? 2.0 : technology?.tier === 2 ? 1.5 : 1.0;
 
   const chance = baseChance * tierMultiplier;

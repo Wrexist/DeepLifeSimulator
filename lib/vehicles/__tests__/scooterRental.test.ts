@@ -20,6 +20,7 @@ import {
   getRentalWeeklyCost,
 } from '../scooterRental';
 import type { GameState, Vehicle } from '@/contexts/game/types';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
 const BASIC = SCOOTER_RENTAL_PLANS[0];
 const MOPED = SCOOTER_RENTAL_PLANS.find((p) => p.tier === 'moped')!;
@@ -35,14 +36,15 @@ function rentalVehicle(planId: string): Vehicle {
   } as unknown as Vehicle;
 }
 
-function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
+function makeState(overrides: TestGameStateOverrides = {}): GameState {
+  const { stats, ...rest } = overrides;
+  return createTestGameState({
     weeksLived: 4,
-    stats: { money: 200, energy: 100 },
     items: [{ id: 'bike', name: 'Bike', price: 450, owned: false }],
     vehicles: [],
-    ...overrides,
-  } as unknown as GameState;
+    ...rest,
+    stats: { money: 200, energy: 100, ...(stats ?? {}) },
+  });
 }
 
 describe('rental plans', () => {
@@ -109,6 +111,8 @@ describe('transport tier', () => {
 
   it('survives malformed state', () => {
     expect(getTransportTier(null)).toBe('none');
+    // DELIBERATE-CORRUPTION: `vehicles` as a string is the malformed-save shape
+    // this assertion exists to prove survivable; no valid GameState expresses it.
     expect(getTransportTier({ vehicles: 'nope' } as unknown as GameState)).toBe('none');
   });
 });

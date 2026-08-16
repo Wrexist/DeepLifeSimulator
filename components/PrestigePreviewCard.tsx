@@ -6,6 +6,8 @@ import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 interface PrestigePreviewCardProps {
@@ -18,13 +20,6 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
   const prestigeLevel = 0; // Preview for players who haven't prestiged yet
   const threshold = getPrestigeThreshold(prestigeLevel);
   const progress = Math.min(100, (currentNetWorth / threshold) * 100);
-
-  const formatMoney = (amount: number) => {
-    if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
-    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${Math.floor(amount).toLocaleString()}`;
-  };
 
   return (
     <TouchableOpacity
@@ -284,5 +279,4 @@ const styles = StyleSheet.create({
 });
 
 export default React.memo(PrestigePreviewCard);
-
 

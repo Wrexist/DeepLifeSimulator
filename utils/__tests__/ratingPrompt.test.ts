@@ -16,6 +16,7 @@ import {
   MAX_LIFETIME_PROMPTS,
 } from '../ratingPrompt';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import AsyncStorageImport from '@react-native-async-storage/async-storage';
 import * as StoreReviewImport from 'expo-store-review';
 
@@ -45,7 +46,7 @@ function installMemoryStorage(seed: Record<string, string> = {}) {
   return store;
 }
 
-const state = (weeksLived: number): GameState => ({ weeksLived }) as unknown as GameState;
+const state = (weeksLived: number): GameState => createTestGameState({ weeksLived });
 
 /** A record that is past the settling-in delay and has never been prompted. */
 function eligibleRecord(overrides: Record<string, unknown> = {}) {
@@ -237,7 +238,7 @@ describe('maybeRequestReview', () => {
       reason: 'invalid-state',
     });
     await expect(
-      maybeRequestReview('promotion', { weeksLived: NaN } as unknown as GameState)
+      maybeRequestReview('promotion', createTestGameState({ weeksLived: NaN }))
     ).resolves.toEqual({ requested: false, reason: 'invalid-state' });
   });
 

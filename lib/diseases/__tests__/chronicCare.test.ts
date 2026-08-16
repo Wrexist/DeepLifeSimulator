@@ -16,6 +16,7 @@ import {
   HOSPITAL_MANAGEMENT_WEEKS,
   isDiseaseManagedForWeek,
 } from '@/lib/diseases/chronicCare';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 function stubStats(overrides: Partial<GameStats> = {}): GameStats {
   return {
@@ -38,28 +39,13 @@ function stubCtx(
   return {
     newStats: stats,
     notifications: [] as WeekNotification[],
-    preRolls: {
-      careerAcceptDelay: 1,
-      stockPickRoll: 0,
-      childGender: 'male',
-      childIdSuffix: 'x',
-      childPersonality: 0,
-      relBreakup: [],
-      relDisappointed: [],
-      policeEncounter: 0,
-      minerDegradation: 0,
+    preRolls: zeroPreRolls({
       // Always below the 10% worsening gate: any disease whose complication
       // roll is NOT blocked by managed care WILL worsen this tick.
       diseaseComplication: [0.0001],
       diseaseProgression: [0.9],
-      luxuryIncident: [],
-      petSickness: [],
-      petSicknessType: [],
-      vehicleAccident: [],
-      vehicleAccidentSeverity: [],
-      timestamp: 0,
       ...preRollOverrides,
-    },
+    }),
     nextWeeksLived,
   };
 }

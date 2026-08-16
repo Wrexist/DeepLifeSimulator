@@ -16,6 +16,7 @@
 import { logger as _loggerForStorage } from '@/utils/logger';
 import { logger } from '@/utils/logger';
 import { readSaveSlotMeta, deleteSaveSlotMeta, type SaveSlotMeta } from '@/utils/saveSlotMeta';
+import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
 
 /**
  * LAZY. This was the only static top-level `@react-native-async-storage`
@@ -79,6 +80,38 @@ export function saveSlotMetaLooksPhantom(meta: SaveSlotMeta): boolean {
  * Never throws.
  */
 export async function purgeSlotIfPhantom(slot: number): Promise<boolean> {
+  // L8 (2026-08-16 audit): this was the one DESTRUCTIVE storage operation in the
+  // app that ran outside the save/load mutex. It reads a slot, decides from that
+  // read that the slot is worthless, and then deletes it — a read-verify-delete
+  // whose verdict goes stale the moment anything else writes the slot. Nothing
+  // reaches it today (it is called from MainMenu, before a game is running), but
+  // "practically unreachable" is not the same as "correct", and every other
+  // slot-level write in the pipeline holds this lock.
+  //
+  // 'save' rather than 'load': the operation ends in writes and deletes. No
+  // deadlock is possible — nothing under this call acquires the mutex, and the
+  // only caller (MainMenu) holds nothing.
+  //
+  // Best-effort: a lock we cannot take must not leave the phantom on screen
+  // forever, so a timeout falls through to the unlocked path it had before.
+  let token: MutexToken | null = null;
+  try {
+    token = await saveLoadMutex.acquire('save');
+  } catch (lockError) {
+    log.warn('Could not acquire save lock for phantom purge — proceeding unlocked', {
+      slot,
+      error: lockError instanceof Error ? lockError.message : String(lockError),
+    });
+  }
+  try {
+    return await purgeSlotIfPhantomLocked(slot);
+  } finally {
+    if (token !== null) saveLoadMutex.release(token);
+  }
+}
+
+/** The read-verify-delete itself. Always called with the save mutex held. */
+async function purgeSlotIfPhantomLocked(slot: number): Promise<boolean> {
   try {
     const {
       readSaveSlotDetailed,

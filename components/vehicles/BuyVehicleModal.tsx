@@ -8,6 +8,8 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Template {
   id: string;
   name: string;
@@ -37,13 +39,6 @@ const TERM_LABEL: Record<AutoTerm, string> = {
   '5y': '5-year',
   '7y': '7-year',
 };
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 export default function BuyVehicleModal({ visible, template, gameState, weeklyIncome, darkMode, onClose, onConfirm }: Props) {
   const theme = getThemeColors(darkMode);

@@ -11,7 +11,7 @@
 import { logger } from '@/utils/logger';
 
 // Boring Build Mode: Disables all optional systems for maximum stability
-// Set to true to disable: AdMob, IAP, Analytics, Notifications, ATT
+// Set to true to disable: AdMob, IAP, Analytics, Telemetry, Firebase, RevenueCat, ATT
 // This helps isolate crash causes and provides a stable baseline
 export const BORING_BUILD_MODE = 
   process.env.EXPO_PUBLIC_BORING_BUILD === 'true' || 
@@ -22,8 +22,13 @@ export const FEATURE_FLAGS = {
   // AdMob (ads) - opt-in only to avoid accidental startup init in release builds
   adMob: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ADMOB === 'true',
 
-  // In-App Purchases
-  iap: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_IAP !== 'false',
+  // In-App Purchases (expo-in-app-purchases / StoreKit) — native SDK, so
+  // OPT-IN only (=== 'true') per CLAUDE.md §4.6. It used to default ON
+  // (!== 'false'), which meant any profile that simply did not mention the var
+  // — the `preview` and `development` profiles — armed the store connection in
+  // a build with no products configured. Production sets it explicitly in
+  // eas.json, as do all four local/cloud build workflows.
+  iap: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_IAP === 'true',
 
   // Analytics (Sentry, etc.) - DISABLED for iOS 26 compatibility (native TurboModule crash)
   analytics: false, // !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ANALYTICS !== 'false',
@@ -47,12 +52,17 @@ export const FEATURE_FLAGS = {
   // in docs/REVENUECAT-SETUP.md). See RevenueCatService for the guarded loader.
   revenueCat: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_USE_REVENUECAT === 'true',
 
-  // App Tracking Transparency (iOS)
-  att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT !== 'false',
-  
-  // Push Notifications
-  notifications: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_NOTIFICATIONS !== 'false',
-  
+  // App Tracking Transparency (iOS) — native SDK (expo-tracking-transparency),
+  // so OPT-IN only (=== 'true') for the same reason as `iap` above: a default-on
+  // flag showed the ATT prompt in internal preview builds that carry no ad
+  // integration at all, burning the one-shot system prompt for nothing.
+  att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT === 'true',
+
+  // NOTE: there is no `notifications` flag. expo-notifications was removed to
+  // fix a TurboModule crash and utils/notifications.ts is a no-op stub, so the
+  // flag had zero readers — a flag nobody consults is worse than none, because
+  // it reads as a working kill switch.
+
   // Boot breadcrumbs (always enabled for crash diagnosis)
   bootBreadcrumbs: true,
 

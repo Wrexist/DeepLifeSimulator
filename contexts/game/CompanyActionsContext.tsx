@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useCallback, ReactNode, useRef, useEffect, useMemo } from 'react';
-import { useGameState } from './GameStateContext';
+import { useSetGameState, useGameStateGetter, useGameSelector } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
 import * as CompanyActions from './company';
 import * as MiningActions from './actions/MiningActions';
@@ -56,21 +56,28 @@ interface CompanyActionsProviderProps {
 }
 
 export function CompanyActionsProvider({ children }: CompanyActionsProviderProps) {
-  const { gameState, setGameState } = useGameState();
+  const setGameState = useSetGameState();
   const { showError } = useUIUX();
-  // Use ref to always have latest state
-  const stateRef = useRef<GameState | null>(gameState);
-  
-  useEffect(() => {
-    stateRef.current = gameState;
-  }, [gameState]);
+  // M4: read the LIVE state on demand instead of mirroring it into a ref.
+  // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
+  // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
+  // and still handed callbacks a snapshot that was one commit stale — the
+  // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
+  // returns a stable getter over the same store, so callbacks stay stable, the
+  // memoized context value keeps its identity, and the provider no longer
+  // re-renders on every mutation. Reads are still OUTSIDE the updater, so the
+  // authoritative re-check inside `setGameState(prev => ...)` stays mandatory.
+  const getGameState = useGameStateGetter();
 
   // R10-1: resolve due R&D competitions once per week. `enterCompetition` charges
   // the entry fee up front; this is the matching payout pass (previously orphaned,
   // so every entry was a pure money sink). Keyed on `weeksLived` so it fires once
   // per advance; processCompetitionResults is atomic + idempotent (it only touches
   // entries whose endWeek has arrived and that aren't already completed).
-  const weeksLived = gameState?.weeksLived ?? 0;
+  // The one genuinely REACTIVE read in this provider: the two effects below
+  // must fire when the week advances. A narrow selector gives exactly that
+  // without resubscribing the provider to the whole state.
+  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
   useEffect(() => {
     processCompetitionResults(setGameState, weeksLived);
   }, [weeksLived, setGameState]);
@@ -93,12 +100,12 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     // delta — a jump forward or a rewind) no longer grants a spurious research
     // week / breakthrough roll. First mount is a no-op (prevWeek === weeksLived).
     if (weeksLived !== prevWeek + 1) return;
-    const state = stateRef.current;
+    const state = getGameState();
     if (state) advanceResearch(state, setGameState);
   }, [weeksLived, setGameState]);
 
   const buyWarehouse = useCallback(() => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -110,7 +117,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const upgradeWarehouse = useCallback(() => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -122,7 +129,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const buyMiner = useCallback((minerId: string, minerName: string, cost: number) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -134,7 +141,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const sellMiner = useCallback((minerId: string, minerName: string, purchasePrice: number, companyId?: string) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -146,14 +153,14 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const selectMiningCrypto = useCallback((cryptoId: string, companyId?: string) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) return;
     CompanyActions.selectMiningCrypto(latestState, setGameState, cryptoId, companyId);
   }, [setGameState]);
 
   // Enhanced Mining Features
   const buyMinerUpgrade = useCallback((upgradeId: string, minerId: string) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -165,7 +172,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const joinMiningPool = useCallback((poolId: string) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -177,7 +184,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const leaveMiningPool = useCallback(() => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -189,7 +196,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const stakeCrypto = useCallback((cryptoId: string, amount: number, lockWeeks: number) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -201,7 +208,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const claimStakingRewards = useCallback(() => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -213,7 +220,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const upgradeEnergySystem = useCallback((energyType: 'solar' | 'wind' | 'hybrid') => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -225,7 +232,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const upgradeAutomation = useCallback(() => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -237,7 +244,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const createFamilyBusiness = useCallback((companyId: string) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) return;
     createFamilyBusinessModule(latestState, setGameState, companyId, { updateMoney: updateMoneyModule });
   }, [setGameState]);
@@ -246,7 +253,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     companyId: string,
     action: 'marketing' | 'branding' | 'reputation'
   ) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }
@@ -260,7 +267,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   }, [setGameState, showError]);
 
   const enterCompetition = useCallback((companyId: string, competitionId: string) => {
-    const latestState = stateRef.current;
+    const latestState = getGameState();
     if (!latestState) {
       return { success: false, message: 'Game state not available' };
     }

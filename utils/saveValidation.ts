@@ -142,7 +142,29 @@ function getActiveSaveHmacKey(): string | null {
  */
 type Sha256Padding = 'correct' | 'legacy';
 
-/** UTF-8 encode a JS string to bytes. */
+/**
+ * Encode a JS string to bytes for hashing.
+ *
+ * ⚠️ This is CESU-8, not UTF-8, for astral-plane characters (2026-08-16 audit L9).
+ * It walks UTF-16 code UNITS, so a character above U+FFFF — every emoji, which
+ * players put in character names, social posts and business names — arrives as a
+ * surrogate PAIR and each half is encoded separately as its own 3-byte sequence
+ * (6 bytes total, 0xED-led). Real UTF-8 would combine the pair into one 4-byte
+ * sequence. Everything in the BMP (all Latin, CJK, most punctuation) is identical
+ * to UTF-8, so this only diverges for astral characters.
+ *
+ * DELIBERATELY NOT FIXED. The encoding is SELF-CONSISTENT: the same function
+ * signs and verifies, so no save is ever rejected and no data is lost. Correcting
+ * it would change the digest of every save containing an emoji and invalidate
+ * those signatures on every device at once — the same trap the legacy SHA-256
+ * padding is documented under above, and the reason that one kept a
+ * verifier-only compatibility mode.
+ *
+ * CONSEQUENCE FOR ANY FUTURE SERVER-SIDE VERIFIER: a standards-compliant
+ * HMAC-SHA256 over real UTF-8 bytes will DISAGREE with this signature for any
+ * save carrying an astral character. A verifier outside this module must
+ * replicate this encoding (CESU-8), not use a stock UTF-8 encoder.
+ */
 function utf8Bytes(message: string): number[] {
   const bytes: number[] = [];
   for (let i = 0; i < message.length; i++) {
@@ -248,6 +270,17 @@ export function calculateHmacSignature(data: string): string {
  * with the length-padding bug, the result was self-consistent but was not
  * HMAC-SHA256 for any input at all. Found by comparing against `node:crypto`
  * while fixing the padding: the padding alone did not close the gap.
+ *
+ * One divergence from `node:crypto` REMAINS, and it is a decision rather than a
+ * bug (2026-08-16 audit L9): `utf8Bytes` encodes astral-plane characters as
+ * CESU-8 — surrogate halves encoded separately, 6 bytes instead of 4 — so any
+ * message containing an emoji hashes differently here than under a stock UTF-8
+ * encoder. It is self-consistent, so in-app signing and verification always
+ * agree; see the comment on `utf8Bytes` for why correcting it would invalidate
+ * every existing emoji-bearing save. Anything verifying these signatures OUTSIDE
+ * this module (a server) must replicate that encoding, and any future
+ * `node:crypto` comparison should use BMP-only vectors or it will re-report this
+ * as a defect.
  */
 function hmacWith(data: string, key: string): string {
   // HMAC: H((key XOR opad) || H((key XOR ipad) || message))
@@ -433,6 +466,24 @@ function isGameStateLike(obj: unknown): obj is Partial<GameState> {
  * deps actually fire after a repair — previously the in-place mutation kept
  * the same nested refs and selectors silently saw stale data, freezing the UI.
  */
+/**
+ * The repair verdict for a 1-based calendar marker (`week`, `day`).
+ *
+ * Returns `null` — meaning LEAVE IT ALONE — for every value a real save can
+ * legitimately hold. Only an absent, non-numeric, non-finite, below-1 or
+ * fractional value is healed, because overwriting a valid marker would silently
+ * move the player's position in the month.
+ */
+function healCalendarMarker(current: unknown): { value: number; reason: string } | null {
+  if (typeof current !== 'number' || !Number.isFinite(current) || current < 1) {
+    return { value: 1, reason: 'Restored missing/invalid' };
+  }
+  if (!Number.isInteger(current)) {
+    return { value: Math.floor(current), reason: 'Normalized fractional' };
+  }
+  return null;
+}
+
 export function repairGameState(state: unknown): { repaired: boolean; repairs: string[] } {
   const repairs: string[] = [];
   let repaired = false;
@@ -486,8 +537,79 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
+  // `week` (week-of-month, 1–4, DISPLAY ONLY — `weeksLived` is the absolute
+  // counter) and `day` both carry a concrete `1` default in initialState and had
+  // neither a migration nor a repair mirror: on any path that does not spread
+  // `initialGameState` (a CloudSync field-merge, a hand-edited or truncated blob)
+  // they arrived `undefined` and the HUD rendered a blank/NaN date.
+  //
+  // Written by hand rather than through a table because the table mechanisms
+  // either replace the whole value or only test `Array.isArray` — neither is safe
+  // for a scalar the player's calendar position depends on. ONLY an absent or
+  // structurally invalid value is filled; a valid stored week/day is never
+  // touched, because overwriting one would silently rewind the player's month.
+  // Written out per field rather than looped over a name list on purpose: the V11
+  // coverage check reads `s.<field>` as the evidence that repair reaches a field,
+  // and a `s[key]` loop is invisible to it (and to a human grepping for `s.week`).
+  const healedWeek = healCalendarMarker(s.week);
+  if (healedWeek !== null) {
+    s.week = healedWeek.value;
+    repairs.push(`${healedWeek.reason} week → ${healedWeek.value}`);
+    repaired = true;
+  }
+  const healedDay = healCalendarMarker(s.day);
+  if (healedDay !== null) {
+    s.day = healedDay.value;
+    repairs.push(`${healedDay.reason} day → ${healedDay.value}`);
+    repaired = true;
+  }
+
+  // `date.month` — the last member of the `date` slice with a concrete default
+  // and no mirror (`year`/`week`/`age` are all reached above/below). The HUD
+  // renders the month string directly, so an absent key printed an empty month
+  // beside a valid year. Only an absent/non-string value is filled: a stored
+  // month is the player's calendar position and must never be rewound.
+  if (s.date && typeof s.date === 'object' && typeof s.date.month !== 'string') {
+    s.date.month = initialGameState.date.month;
+    repairs.push(`Set missing date.month → ${initialGameState.date.month}`);
+    repaired = true;
+  }
+
+  // `userProfile` had no existence branch at all, unlike its three sibling
+  // merged slices (`stats`, `date`, `settings` above). A save that lost the
+  // object arrived at every profile/social read as `undefined` — the one slice
+  // of the four whose total loss repair could not heal.
+  if (!s.userProfile || typeof s.userProfile !== 'object') {
+    s.userProfile = defaultsFor<Record<string, unknown>>('userProfile');
+    repairs.push('Created missing userProfile object');
+    repaired = true;
+  }
+  // The two numeric counters and the one array inside it, which are read
+  // arithmetically / iterated: absent, they produce NaN follower counts and a
+  // `.map` on undefined. The remaining `userProfile` strings are cosmetic
+  // identity and are grandfathered in audit-save's nested legacy set.
+  if (s.userProfile && typeof s.userProfile === 'object') {
+    if (typeof s.userProfile.followers !== 'number' || !Number.isFinite(s.userProfile.followers)) {
+      s.userProfile.followers = 0;
+      repairs.push('Set missing userProfile.followers');
+      repaired = true;
+    }
+    if (typeof s.userProfile.following !== 'number' || !Number.isFinite(s.userProfile.following)) {
+      s.userProfile.following = 0;
+      repairs.push('Set missing userProfile.following');
+      repaired = true;
+    }
+    if (!Array.isArray(s.userProfile.bookmarkedPosts)) {
+      s.userProfile.bookmarkedPosts = [];
+      repairs.push('Created missing userProfile.bookmarkedPosts array');
+      repaired = true;
+    }
+  }
+
   // Ensure required arrays exist
-  const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'loans'];
+  // `goals` joins this table (concrete `[]` default in initialState) — see the
+  // week/day block above for why these long-lived fields are getting mirrors now.
+  const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'loans', 'goals'];
   for (const field of requiredArrays) {
     if (!Array.isArray(s[field])) {
       s[field] = [];
@@ -815,7 +937,14 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // / cryptoMarket.coinMarkets undefined → crash on first access. Restore a
   // missing object wholesale; shallow-merge defaults into a partial one to fill
   // any missing top-level keys.
-  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket', 'legacyPass'];
+  // `social`, `family`, `economy`, `progress` and `prestige` join the table for
+  // the same reason, one step later than the rest: all five carry a concrete
+  // object default in initialState and had neither a migration nor a repair
+  // mirror, and `prestige` / `family.children` are read BARE in the week loop and
+  // the prestige UI. The restore-or-shallow-merge shape is exactly right for
+  // them — a missing slice comes back whole, a partial one keeps every value the
+  // player actually has and only gains the keys it lacks.
+  const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket', 'legacyPass', 'social', 'family', 'economy', 'progress', 'prestige'];
   for (const key of subsystemObjects) {
     const seed = initialFields[key];
     if (!seed || typeof seed !== 'object') continue;
@@ -1461,6 +1590,46 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // ── Settings sub-field defaults (added across v11/v12) ────────
   if (s.settings && typeof s.settings === 'object') {
+    // The remaining `settings` toggles with a concrete default and no mirror.
+    // `autoSave` is the one that costs a player something: absent, it reads
+    // falsy and the game silently stops writing saves. The rest read falsy as
+    // "off", which flips three toggles away from the shipped default.
+    if (typeof s.settings.autoSave !== 'boolean') {
+      s.settings.autoSave = true;
+      repairs.push('Set missing settings.autoSave');
+      repaired = true;
+    }
+    if (typeof s.settings.hapticFeedback !== 'boolean') {
+      s.settings.hapticFeedback = false;
+      repairs.push('Set missing settings.hapticFeedback');
+      repaired = true;
+    }
+    if (typeof s.settings.notificationsEnabled !== 'boolean') {
+      s.settings.notificationsEnabled = true;
+      repairs.push('Set missing settings.notificationsEnabled');
+      repaired = true;
+    }
+    if (typeof s.settings.maxStats !== 'boolean') {
+      s.settings.maxStats = false;
+      repairs.push('Set missing settings.maxStats');
+      repaired = true;
+    }
+    if (typeof s.settings.language !== 'string' || s.settings.language.length === 0) {
+      s.settings.language = initialGameState.settings.language;
+      repairs.push('Set missing settings.language');
+      repaired = true;
+    }
+    // `lifetimePremium` is an ENTITLEMENT, so this fills ONLY an absent key and
+    // never coerces a present one. Absent already reads falsy, so writing the
+    // `false` default changes no behaviour — which is the only safe answer
+    // here: inventing `true` would hand out a paid unlock, and coercing a
+    // present-but-odd value could revoke one a player paid for (the v30
+    // `revivalPack` reasoning).
+    if (s.settings.lifetimePremium === undefined) {
+      s.settings.lifetimePremium = false;
+      repairs.push('Set missing settings.lifetimePremium');
+      repaired = true;
+    }
     if (typeof s.settings.showDecimalsInStats !== 'boolean') {
       s.settings.showDecimalsInStats = false;
       repairs.push('Set missing settings.showDecimalsInStats');
@@ -1565,7 +1734,25 @@ export function isPristineUnstartedState(state: any): boolean {
  * Validate game state structure and data integrity
  * Enhanced to be more permissive and allow saving with warnings
  */
-export function validateGameState(state: any, autoFix: boolean = false): { valid: boolean; errors: string[]; warnings: string[]; fixed?: boolean; fixes?: string[] } {
+export function validateGameState(
+  state: any,
+  autoFix: boolean = false,
+  options?: {
+    /**
+     * Skip the `repairGameState` pass that `autoFix` normally runs first,
+     * keeping everything else `autoFix` does (the stat clamping, and the
+     * stricter error-vs-warning grading further down).
+     *
+     * For the one caller that has ALREADY repaired the exact object it is
+     * handing over — the load/hydration path. `repairGameState` opens with a
+     * `structuredClone` of the whole state, so running it twice made every load
+     * pay for two deep clones of a multi-MB object to do one repair, and the
+     * second pass by construction found nothing left to fix. Defaults to
+     * `false`, so no existing caller changes behaviour.
+     */
+    skipRepair?: boolean;
+  }
+): { valid: boolean; errors: string[]; warnings: string[]; fixed?: boolean; fixes?: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -1577,9 +1764,11 @@ export function validateGameState(state: any, autoFix: boolean = false): { valid
 
   // Repair common corruption patterns first
   if (autoFix) {
-    const repairResult = repairGameState(state);
-    if (repairResult.repaired) {
-      warnings.push(...repairResult.repairs);
+    if (!options?.skipRepair) {
+      const repairResult = repairGameState(state);
+      if (repairResult.repaired) {
+        warnings.push(...repairResult.repairs);
+      }
     }
     // Then auto-fix stats
     const fixResult = autoFixStats(state);

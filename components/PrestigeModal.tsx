@@ -10,6 +10,7 @@ import { childParentSources } from '@/lib/avatar/family';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
 
+import { formatMoney } from '@/utils/moneyFormatting';
 
 interface PrestigeModalProps {
   visible: boolean;
@@ -139,13 +140,6 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     executePrestige(selectedPath, selectedChildId);
     setShowConfirmation(false);
     onClose();
-  };
-
-  const formatMoney = (amount: number) => {
-    if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
-    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${Math.floor(amount).toLocaleString()}`;
   };
 
   const glowOpacity = glowAnim.interpolate({

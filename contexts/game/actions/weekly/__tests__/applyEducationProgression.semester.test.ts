@@ -10,12 +10,13 @@
 import { applyEducationProgression, needsEducationProgressionTick } from '../applyEducationProgression';
 import type { WeekContext } from '../weekContext';
 import type { Education, GameStats } from '@/contexts/game/types';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 function makeCtx(): WeekContext {
-  const newStats = {
-    happiness: 50, energy: 50, money: 10_000, health: 50, fitness: 50, reputation: 50,
-  } as unknown as GameStats;
-  return { newStats, notifications: [], preRolls: {} as never } as unknown as WeekContext;
+  const newStats: GameStats = {
+    happiness: 50, energy: 50, money: 10_000, health: 50, fitness: 50, reputation: 50, gems: 0,
+  };
+  return { newStats, notifications: [], preRolls: zeroPreRolls(), nextWeeksLived: 200 };
 }
 
 function ed(over: Partial<Education> = {}): Education {

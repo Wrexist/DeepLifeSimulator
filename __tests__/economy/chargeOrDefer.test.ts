@@ -17,15 +17,15 @@ import fs from 'fs';
 import path from 'path';
 import { chargeOrDefer } from '@/contexts/game/actions/weekly/chargeOrDefer';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
-const ctxWith = (money: number, deferred?: number): WeekContext =>
-  ({
-    newStats: { money } as WeekContext['newStats'],
-    notifications: [],
-    preRolls: {} as WeekContext['preRolls'],
-    nextWeeksLived: 100,
-    deferredCharges: deferred,
-  }) as WeekContext;
+const ctxWith = (money: number, deferred?: number): WeekContext => ({
+  newStats: { money, health: 50, happiness: 50, energy: 50, fitness: 50, reputation: 50, gems: 0 },
+  notifications: [],
+  preRolls: zeroPreRolls(),
+  nextWeeksLived: 100,
+  deferredCharges: deferred,
+});
 
 describe('paying what you can', () => {
   it('takes the full cost when affordable and defers nothing', () => {

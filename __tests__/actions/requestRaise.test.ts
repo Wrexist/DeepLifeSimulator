@@ -8,6 +8,7 @@ import { createTestGameState } from '../helpers/createTestGameState';
 import { requestRaise, RAISE_COOLDOWN_WEEKS } from '@/contexts/game/actions/JobActions';
 import { applyCareerSalaryAndPenalty } from '@/contexts/game/actions/weekly/applyCareerSalaryAndPenalty';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
 function harness(initial: GameState) {
   const ref = { state: initial };
@@ -38,14 +39,9 @@ function salaryCtx(stats: Partial<GameStats> = {}): WeekContext {
   return {
     newStats: { health: 80, happiness: 80, energy: 80, fitness: 60, money: 500, reputation: 50, gems: 0, ...stats },
     notifications: [],
-    preRolls: {
-      careerAcceptDelay: 1, stockPickRoll: 0, childGender: 'male', childIdSuffix: 'x', childPersonality: 0,
-      relBreakup: [], relDisappointed: [], policeEncounter: 0, minerDegradation: 0,
-      diseaseComplication: [], diseaseProgression: [], petSickness: [], petSicknessType: [],
-      vehicleAccident: [], vehicleAccidentSeverity: [], timestamp: 0,
-    } as any,
+    preRolls: zeroPreRolls(),
     nextWeeksLived: 101,
-  } as WeekContext;
+  };
 }
 
 describe('requestRaise', () => {

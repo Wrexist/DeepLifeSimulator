@@ -15,6 +15,7 @@
  *     pre-migration in some edge cases).
  */
 
+import { fnv1a32 } from '@/utils/seededRoll';
 import type { GameState ,
   PulseActiveBrandDeal,
   PulseActiveScandal,
@@ -121,13 +122,9 @@ const BOOST_LINGER_WEEKS = 2; // pendingBoosts entries expire after this many we
  * purity test stays green (no Math.random / Date.now in the spawn decision).
  */
 const hashRoll = (...parts: (number | string)[]): number => {
-  const seed = parts.join('|');
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 100000) / 100000;
+  // FNV-1a body moved to the shared `fnv1a32` (audit H7c). Bit-identical to the
+  // hand-rolled loop that was here, so every existing roll is unchanged.
+  return (fnv1a32(parts.join('|')) % 100000) / 100000;
 };
 
 // Deterministic notification id. `seq` (the current list length at push time)

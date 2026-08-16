@@ -1,6 +1,6 @@
 /**
  * Economic systems audit: loans, stocks weekly tick, real estate tenant
- * satisfaction, week-counter helpers.
+ * satisfaction.
  *
  * Why this file:
  *  - `loanEligibility` returned NaN when any input was NaN, because
@@ -34,11 +34,6 @@ import { marketFillPrice, bidPrice, askPrice } from '@/lib/stocks/orderBook';
 import { quarterlyDividend, isDividendWeek } from '@/lib/stocks/dividends';
 import { sectorForSymbol, nextState, sampleDuration } from '@/lib/stocks/sectors';
 import { satisfactionStep, RENT_MODE_PARAMS, type RentMode } from '@/lib/realEstate/tenancy';
-import {
-  resolveAbsoluteWeek,
-  normalizeStoredWeekToAbsolute,
-  getWeeksSinceStoredWeek,
-} from '@/utils/weekCounters';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 // ---------------------------------------------------------------------------
@@ -439,46 +434,6 @@ describe('Real estate tenant satisfaction', () => {
       expect(r).toBeGreaterThanOrEqual(0);
       expect(r).toBeLessThanOrEqual(100);
     }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Week-counter helpers
-// ---------------------------------------------------------------------------
-describe('Week-counter helpers', () => {
-  it('resolveAbsoluteWeek: prefers weeksLived over legacy week', () => {
-    expect(resolveAbsoluteWeek(100, 2)).toBe(100);
-    expect(resolveAbsoluteWeek(undefined, 2)).toBe(2);
-    expect(resolveAbsoluteWeek(undefined, undefined)).toBe(0);
-  });
-
-  it('resolveAbsoluteWeek: rejects NaN/negative weeksLived, falls back', () => {
-    expect(resolveAbsoluteWeek(NaN, 5)).toBe(5);
-    expect(resolveAbsoluteWeek(-1, 5)).toBe(5);
-  });
-
-  it('normalizeStoredWeekToAbsolute: handles 1-4 cycle markers', () => {
-    // Stored week 3, currently at absolute week 10, week-of-month 2
-    // → we're "2 weeks past" the marker (which was at week 3 of the month)
-    const result = normalizeStoredWeekToAbsolute(3, 10, 2);
-    expect(Number.isFinite(result)).toBe(true);
-    expect(result).toBeGreaterThanOrEqual(0);
-  });
-
-  it('normalizeStoredWeekToAbsolute: rejects invalid stored weeks', () => {
-    expect(normalizeStoredWeekToAbsolute(NaN, 10, 2)).toBe(0);
-    expect(normalizeStoredWeekToAbsolute(-5, 10, 2)).toBe(0);
-  });
-
-  it('getWeeksSinceStoredWeek: never negative', () => {
-    const r = getWeeksSinceStoredWeek(20, 10, 2);
-    expect(r).toBeGreaterThanOrEqual(0);
-  });
-
-  it('getWeeksSinceStoredWeek: monotonic — older marker = more weeks ago', () => {
-    const recent = getWeeksSinceStoredWeek(50, 100, 2);
-    const old = getWeeksSinceStoredWeek(10, 100, 2);
-    expect(old).toBeGreaterThanOrEqual(recent);
   });
 });
 

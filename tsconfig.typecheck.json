@@ -17,6 +17,8 @@
     "hooks/**/*.tsx",
     "lib/**/*.ts",
     "lib/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "services/**/*.ts",
     "services/**/*.tsx",
     "utils/**/*.ts",

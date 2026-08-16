@@ -30,6 +30,8 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getAvailablePolicies } from '@/lib/politics/policies';
 import type { Policy } from '@/lib/politics/policies';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   visible: boolean;
   darkMode: boolean;
@@ -38,14 +40,6 @@ interface Props {
   cash: number;
   onClose: () => void;
   onEnact: (policyId: string) => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 export default function EnactPolicyModal({

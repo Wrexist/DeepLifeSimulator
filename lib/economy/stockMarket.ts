@@ -1,9 +1,23 @@
+import { fnv1a32, mulberry32 } from '@/utils/seededRoll';
+
 export interface StockData {
   price: number;
   dividendYield: number;
 }
 
-export const DEFAULT_PRICES: Record<string, StockData> = {
+/**
+ * THE stock universe. Adding a symbol here is what adds it to the game.
+ *
+ * `satisfies` rather than a `Record<string, StockData>` annotation (M19): the
+ * annotation widened the keys to `string`, so `keyof typeof DEFAULT_PRICES`
+ * was useless and the two satellite registries — `STOCK_SECTORS`
+ * (`lib/stocks/sectors.ts`) and the volatility tiers below — were plain
+ * `Record<string, …>` maps hand-synced with this one. A 26th symbol added here
+ * silently got no sector and default volatility. They are typed off
+ * {@link StockSymbol} now, so a missing or misspelled symbol is a compile
+ * error. The value type is still checked, by the `satisfies` clause.
+ */
+export const DEFAULT_PRICES = {
   AAPL: { price: 150.25, dividendYield: 0.006 },
   GOOGL: { price: 2750.80, dividendYield: 0.0 },
   MSFT: { price: 310.45, dividendYield: 0.008 },
@@ -33,7 +47,23 @@ export const DEFAULT_PRICES: Record<string, StockData> = {
   // Healthcare — thickens a sector that was JNJ-only.
   PFE: { price: 27.60, dividendYield: 0.061 },
   UNH: { price: 512.30, dividendYield: 0.015 },
-};
+} satisfies Record<string, StockData>;
+
+/**
+ * Every symbol the game trades, as a literal union derived from the registry
+ * above — the single source of truth for the stock universe (M19).
+ */
+export type StockSymbol = keyof typeof DEFAULT_PRICES;
+
+/**
+ * Catalogue lookup for a symbol that is NOT known to be one of ours — a value
+ * off a save, a URL, or user input. Returns `undefined` for anything not in
+ * the universe, which is exactly what indexing used to do before the keys were
+ * narrowed; callers holding a real {@link StockSymbol} should index directly.
+ */
+export function defaultStockFor(symbol: string): StockData | undefined {
+  return (DEFAULT_PRICES as Record<string, StockData>)[symbol];
+}
 
 // Per-share ceiling. It exists to stop a corrupt multiplier compounding to
 // Infinity (which `validateGameState` treats as critical and resets), NOT to
@@ -137,53 +167,74 @@ export function weeklyLogDriftFor(volatility: number, isBoosted = false): number
  */
 const MAX_WEEKLY_MOVE = 0.35;
 
-// Mutable stock state — initialized from defaults, restored from save via restoreStockPrices()
+/**
+ * Mutable stock state — initialized from defaults, restored from save via
+ * `restoreStockPrices()`.
+ *
+ * ⚠️ THIS IS THE ONE PLACE GAME STATE LIVES OUTSIDE `GameState` (2026-08-16
+ * audit L15). It is a MODULE GLOBAL: one board shared by every save slot, every
+ * life and every prestige cycle for the lifetime of the JS context. The load
+ * path is what keeps it honest — `loadGame` calls `restoreStockPrices` as its
+ * last step, and prestige/new-game call `resetStockPrices` — and it has already
+ * been wrong once: before that call existed, an heir opened on a market that had
+ * compounded for sixty years while holding a starter wallet (see the comment on
+ * `restoreStockPrices`).
+ *
+ * The rule for every reader below: BETWEEN app start (or a slot switch) and the
+ * `restoreStockPrices` call for the save being loaded, this board holds the
+ * DEFAULTS or the PREVIOUS save's prices. Any accessor called in that window
+ * returns another life's market, and the value looks perfectly plausible, so
+ * nothing downstream will notice. New callers must run after the restore — in
+ * practice, from the week tick or from UI rendered off a loaded save — never
+ * from module init, a boot task, or anything on the pre-load path.
+ */
 const stocks: Record<string, StockData> = {};
 Object.entries(DEFAULT_PRICES).forEach(([symbol, data]) => {
   stocks[symbol] = { ...data };
 });
 
 // --- Seeded PRNG (Mulberry32) to prevent save/reload stock price manipulation ---
-// Same weeksLived + symbol always produces the same price change
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// Same weeksLived + symbol always produces the same price change.
+// Both the mulberry32 stream and the FNV-1a seed hash used to be hand-copied
+// here; they are now the shared primitives in `utils/seededRoll.ts` (audit
+// H7c). The arithmetic is bit-identical, so no stock price moved.
 
 // FNV-1a hash for combining weeksLived + stock index into a unique seed
 function hashSeed(weeksLived: number, index: number): number {
-  let hash = 2166136261;
-  const combined = `${weeksLived}:${index}`;
-  for (let i = 0; i < combined.length; i++) {
-    hash ^= combined.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
+  return fnv1a32(`${weeksLived}:${index}`);
 }
 
-// Pre-calculate volatility map to avoid recalculation every tick
+// Pre-calculate volatility map to avoid recalculation every tick.
+//
+// The tier arrays are `StockSymbol[]` (M19), so a typo or a symbol removed from
+// DEFAULT_PRICES fails the type-check here instead of silently dropping the
+// stock to the 5% default tier. The tiers stay ARRAYS, checked in order, rather
+// than one exhaustive map: the `else` default is deliberate — a symbol added to
+// the universe without a volatility opinion gets a sane middle value, and the
+// board keeps working.
+const HIGH_VOLATILITY: StockSymbol[] = ['TSLA', 'NVDA', 'META', 'NFLX'];
+const MEDIUM_VOLATILITY: StockSymbol[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN'];
+/** Higher-beta energy services / healthcare insurer. */
+const MEDIUM_VOLATILITY_BETA: StockSymbol[] = ['SLB', 'UNH'];
+/** Blue chips, dividend stocks, energy majors. */
+const LOW_VOLATILITY: StockSymbol[] = [
+  'JPM', 'JNJ', 'PG', 'KO', 'WMT', 'V', 'MA', 'HD', 'CAT', 'IBM', 'XOM', 'CVX', 'PFE',
+];
+
 const volatilityMap: Record<string, number> = {};
 
 Object.keys(stocks).forEach(symbol => {
+  const known = symbol as StockSymbol;
   // High volatility stocks (tech, growth stocks)
-  if (['TSLA', 'NVDA', 'META', 'NFLX'].includes(symbol)) {
+  if (HIGH_VOLATILITY.includes(known)) {
     volatilityMap[symbol] = 0.08; // 8% volatility
   }
   // Medium volatility stocks
-  else if (['AAPL', 'GOOGL', 'MSFT', 'AMZN'].includes(symbol)) {
-    volatilityMap[symbol] = 0.06; // 6% volatility
-  }
-  // Higher-beta energy services / healthcare insurer
-  else if (['SLB', 'UNH'].includes(symbol)) {
+  else if (MEDIUM_VOLATILITY.includes(known) || MEDIUM_VOLATILITY_BETA.includes(known)) {
     volatilityMap[symbol] = 0.06; // 6% volatility
   }
   // Low volatility stocks (blue chips, dividend stocks, energy majors)
-  else if (['JPM', 'JNJ', 'PG', 'KO', 'WMT', 'V', 'MA', 'HD', 'CAT', 'IBM', 'XOM', 'CVX', 'PFE'].includes(symbol)) {
+  else if (LOW_VOLATILITY.includes(known)) {
     volatilityMap[symbol] = 0.04; // 4% volatility
   }
   else {
@@ -223,7 +274,7 @@ export function restoreStockPrices(savedPrices?: Record<string, { price: number;
       // no schema changes: the field simply returns to the only value it should
       // ever have held. Below-default values are still honoured, so a future
       // yield-cut mechanic would not be silently reverted.
-      const catalogueYield = DEFAULT_PRICES[normalizedSymbol]?.dividendYield;
+      const catalogueYield = defaultStockFor(normalizedSymbol)?.dividendYield;
       if (typeof data.dividendYield === 'number' && isFinite(data.dividendYield) && data.dividendYield >= 0) {
         stocks[normalizedSymbol].dividendYield =
           typeof catalogueYield === 'number'
@@ -253,6 +304,11 @@ export function policyAdjustedYield(baseYield: number, dividendBonus: number): n
 
 /**
  * Get a snapshot of current prices for persistence in game state.
+ *
+ * Reader of the module-global board — see the warning on `stocks`. Called on the
+ * SAVE path, so it is the accessor with the most to lose from being called
+ * early: snapshotting before `restoreStockPrices` has run for this save writes
+ * another life's market into this one's file.
  */
 export function getStockPricesSnapshot(): Record<string, { price: number; dividendYield: number }> {
   const snapshot: Record<string, { price: number; dividendYield: number }> = {};
@@ -383,6 +439,11 @@ export function simulateWeek(policyEffects?: {
   }
 }
 
+/**
+ * Reader of the module-global board. See the warning on `stocks`: before
+ * `restoreStockPrices` has run for the CURRENT save this returns the defaults or
+ * the previous save's price, and both look valid.
+ */
 export function getStockInfo(id: string): StockData {
   // ANTI-EXPLOIT (B-6): Normalize to uppercase — stock keys are uppercase (AAPL, GOOGL, etc.)
   // Prevents silent zero-dividend from case mismatch (e.g., 'aapl' vs 'AAPL')
@@ -405,10 +466,15 @@ export function adjustStockPrice(id: string, factor: number) {
   }
 }
 
+/** Reader of the module-global board — see the warning on `stocks`. */
 export function getAllStockSymbols(): string[] {
   return Object.keys(stocks);
 }
 
+/**
+ * Reader of the module-global board — see the warning on `stocks`. The copy
+ * stops callers mutating the board; it does NOT make the values save-scoped.
+ */
 export function getAllStocks(): Record<string, StockData> {
   // Return a copy to prevent direct mutation outside this module
   // Deep copy not needed as StockData is simple object, but shallow copy of Record is needed

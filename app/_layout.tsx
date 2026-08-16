@@ -87,8 +87,32 @@ interface ErrorUtilsBridge {
   getGlobalHandler?: () => ErrorHandler | undefined;
 }
 
-// Store any early errors so the app can surface them later
+// Store any early errors so the app can surface them later.
+// H5: the capture below runs at module-eval time, long before RootLayout mounts,
+// and every handler in this file writes to it asynchronously. A snapshot taken at
+// module scope is therefore frozen at `null` forever, which made the fatal-error
+// screen dead code. The listener set makes the value OBSERVABLE after mount —
+// capture semantics are unchanged; this only adds a read path.
 let layoutEarlyError: EarlyError | null = null;
+const earlyErrorListeners = new Set<(error: EarlyError | null) => void>();
+
+function setEarlyError(error: EarlyError): void {
+  layoutEarlyError = error;
+  earlyErrorListeners.forEach((listener) => {
+    try {
+      listener(error);
+    } catch {
+      // A bad listener must never break error capture.
+    }
+  });
+}
+
+function subscribeEarlyInitError(listener: (error: EarlyError | null) => void): () => void {
+  earlyErrorListeners.add(listener);
+  return () => {
+    earlyErrorListeners.delete(listener);
+  };
+}
 
 // CRITICAL: iOS version detection and module audit
 let iosVersionInfo: IOSVersionInfo | null = null;
@@ -170,58 +194,12 @@ try {
   // Ignore errors checking for native crash state
 }
 
-// PHASE 5.2: Metro bundler connection health check
-let metroConnectionHealthy = true;
-let metroConnectionError: string | null = null;
-
-function checkMetroConnection(): boolean {
-  try {
-    // Only relevant in development mode
-    if (!__DEV__) return true;
-
-    // The ONLY reliable indicator of a missing Metro connection is if `require`
-    // is unavailable. All other globals (ErrorUtils, __METRO_GLOBAL_PREFIX__,
-    // nativeExtensions) are set inconsistently across emulators and React
-    // Native versions — checking for them causes false positives.
-    if (typeof require !== 'function') {
-      metroConnectionError = 'Metro require function not available — bundle may be corrupted';
-      return false;
-    }
-
-    // If require works, Metro is connected (or the pre-built bundle is valid).
-    // Log available indicators for diagnostics but don't block on their absence.
-    if (typeof global !== 'undefined') {
-      const indicators: string[] = [];
-      if (getErrorUtilsBridge()) indicators.push('ErrorUtils');
-      if ((global as any).__METRO_GLOBAL_PREFIX__) indicators.push('METRO_PREFIX');
-      if ((global as any).nativeExtensions) indicators.push('nativeExtensions');
-      if (indicators.length === 0) {
-        // No Metro-specific globals found — unusual but not necessarily broken.
-        // Log for diagnostics, don't fail.
-        console.info('[RootLayout] No Metro-specific globals detected (this is normal for some configs)');
-      }
-    }
-
-    return true;
-  } catch (error) {
-    metroConnectionError = `Metro connection check failed: ${error instanceof Error ? error.message : String(error)}`;
-    if (__DEV__) {
-      console.warn('[RootLayout] Metro connection check failed:', error);
-    }
-    // Default to healthy — a failed check should not block the app
-    return true;
-  }
-}
-
-// OPTIMIZATION: Defer Metro connection check - dev-only diagnostic, not needed for production startup
-if (__DEV__) {
-  setTimeout(() => {
-    metroConnectionHealthy = checkMetroConnection();
-    if (!metroConnectionHealthy && __DEV__) {
-      console.error('[RootLayout] Metro bundler connection issue detected:', metroConnectionError);
-    }
-  }, 0);
-}
+// H5: the PHASE 5.2 "Metro bundler connection health check" lived here. It was
+// assigned inside a `setTimeout`, and its only reader was a `useState` initializer
+// that had already run — so the MetroConnectionError fatal screen could never
+// fire. The check itself could only ever return `false` when `require` is not a
+// function, i.e. in a bundle that could not have executed this file. Deleted
+// rather than repaired: it was ~60 lines of unreachable dev-only diagnostic.
 
 // PHASE 5.1: Store crash recovery state for next launch
 if (typeof global !== 'undefined') {
@@ -304,11 +282,11 @@ try {
       try {
         const message = error instanceof Error ? error.message : String(error);
         const stack = error instanceof Error ? error.stack : undefined;
-        layoutEarlyError = {
+        setEarlyError({
           message: message || 'Unknown initialization error',
           stack: stack ? stack.substring(0, 200) : undefined, // Reduced truncation
           isFatal: !!isFatal,
-        } as EarlyError;
+        } as EarlyError);
 
         // Defer ALL heavy operations
         if (__DEV__) {
@@ -356,11 +334,11 @@ setTimeout(async () => {
             const errorData = data as ExceptionManagerData;
             const message = errorData.message || errorData.originalMessage || 'Unknown error';
             const stack = errorData.stack || errorData.originalStack;
-            layoutEarlyError = {
+            setEarlyError({
               message,
               stack: stack ? stack.substring(0, 500) : undefined,
               isFatal: false,
-            } as EarlyError;
+            } as EarlyError);
           }
         } catch {
           // ignore
@@ -372,11 +350,11 @@ setTimeout(async () => {
             const errorData = data as ExceptionManagerData;
             const message = errorData.message || errorData.originalMessage || 'Unknown error';
             const stack = errorData.stack || errorData.originalStack;
-            layoutEarlyError = {
+            setEarlyError({
               message,
               stack: stack ? stack.substring(0, 500) : undefined,
               isFatal: true,
-            } as EarlyError;
+            } as EarlyError);
           }
         } catch {
           // ignore
@@ -428,12 +406,14 @@ if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
       }
 
       if (!layoutEarlyError) {
-        layoutEarlyError = createErrorObject(
-          truncateError(errorObj.message || 'Unhandled Promise Rejection'),
-          {
-            stack: truncateStack(errorObj.stack),
-            isFatal: false,
-          }
+        setEarlyError(
+          createErrorObject(
+            truncateError(errorObj.message || 'Unhandled Promise Rejection'),
+            {
+              stack: truncateStack(errorObj.stack),
+              isFatal: false,
+            }
+          )
         );
       }
 
@@ -495,8 +475,16 @@ if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
 // 8) Initialize crash recovery system
 setTimeout(async () => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crashRecoveryModule = require('../utils/crashRecovery');
+    // TYPED lazy require. The DEFERRAL is deliberate — this runs 100ms after
+    // module evaluation so crash-recovery's storage access never sits on the
+    // boot path — but the untyped `require()` returned `any`, so a rename of
+    // `initializeCrashRecovery` would have compiled, read `undefined`, hit the
+    // optional-call guard below and silently disabled crash recovery at boot
+    // (2026-08-16 audit L2). `as typeof import(...)` restores the types without
+    // moving the evaluation: `import type` is erased by tsc, so this adds no
+    // runtime edge. CLAUDE.md §5, the typed-lazy-getter pattern.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, no-restricted-syntax
+    const crashRecoveryModule = require('../utils/crashRecovery') as typeof import('../utils/crashRecovery');
     if (crashRecoveryModule?.initializeCrashRecovery) {
       await crashRecoveryModule.initializeCrashRecovery();
       if (__DEV__) {
@@ -513,8 +501,13 @@ setTimeout(async () => {
 // 9) Native module audit
 setTimeout(async () => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const auditModule = require('../utils/nativeModuleAudit');
+    // TYPED lazy require — same reasoning as the crash-recovery block above
+    // (2026-08-16 audit L2). The 500ms deferral is the point: `nativeModuleAudit`
+    // reads `NativeModules` at call time, which must not happen during module
+    // evaluation. `as typeof import(...)` is erased by tsc, so the types come
+    // back without adding a runtime import edge.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, no-restricted-syntax
+    const auditModule = require('../utils/nativeModuleAudit') as typeof import('../utils/nativeModuleAudit');
     if (!auditModule) {
       if (__DEV__) {
         console.warn('[RootLayout] Native module audit module not available');
@@ -589,7 +582,9 @@ function getEarlyInitError(): EarlyInitError | null {
   }
   return null;
 }
-const earlyInitError: EarlyInitError | null = getEarlyInitError();
+// H5: deliberately NOT snapshotted into a module const here — that ran on the same
+// synchronous pass that installs the handlers, so it was always null and every
+// reader below was dead code. RootLayout reads it at mount and then subscribes.
 
 // P1-9: only suppress *known-benign* library warnings. Substring matches like
 // `[RootLayout]` and `[StatusBarWrapper]` hid real signals (state leaks, render
@@ -770,14 +765,23 @@ export default function RootLayout() {
 
   useFrameworkReady();
   const segments = useSegments();
-  const [fatalError, setFatalError] = useState<EarlyInitError | null>(
-    // Initialize with early init error if one occurred
-    earlyInitError || (!metroConnectionHealthy ? {
-      message: 'Development Server Connection Lost',
-      stack: metroConnectionError || 'Metro bundler is not responding. Please restart the development server.',
-      name: 'MetroConnectionError'
-    } : null)
-  );
+  // H5: live early-init error. Read at first render (catching anything captured
+  // between module eval and mount) and kept current by the module subscriber, so
+  // an error thrown by the global handler AFTER mount actually reaches the screen.
+  const [earlyInitError, setEarlyInitError] = useState<EarlyInitError | null>(() => getEarlyInitError());
+  const [fatalError, setFatalError] = useState<EarlyInitError | null>(() => getEarlyInitError());
+
+  useEffect(() => {
+    // Re-read on mount: an error captured between the useState initializer and
+    // the effect would otherwise be missed (no listener was registered yet).
+    const current = getEarlyInitError();
+    if (current) {
+      setEarlyInitError(current);
+    }
+    return subscribeEarlyInitError((error) => {
+      setEarlyInitError(error);
+    });
+  }, []);
   const [circuitBreakerStatus, setCircuitBreakerStatus] = useState<any>(null);
   const [isRecovering, setIsRecovering] = useState(false);
 
@@ -921,7 +925,7 @@ export default function RootLayout() {
       // If we have an early init error, make sure it's set in state
       setFatalError(earlyInitError);
     }
-  }, [fatalError, isFirstFrameRendered]);
+  }, [fatalError, isFirstFrameRendered, earlyInitError]);
 
   // CRITICAL: DO NOT set up another error handler here!
   // The early error handler (set up before imports) is the ONLY handler we need.
@@ -944,7 +948,11 @@ export default function RootLayout() {
         setCircuitBreakerStatus(null);
       }
 
-      // Reset state (earlyInitError is const, cannot be reassigned)
+      // Reset state. `earlyInitError` is now live state, so it must be cleared
+      // too — otherwise the effect above would immediately re-raise the screen
+      // the player just dismissed. The module-level capture is left intact
+      // (it is the diagnostic record); only this session's surfacing is reset.
+      setEarlyInitError(null);
       setFatalError(null);
     } catch {
       // ignore
@@ -1005,11 +1013,9 @@ export default function RootLayout() {
                     : circuitBreakerStatus.recommendedAction === 'escalate'
                       ? 'Persistent issues detected. Try restarting your device or updating the app.'
                       : 'The app is temporarily blocked to prevent crash loops. Please wait before retrying.'
-                  : fatalError?.name === 'MetroConnectionError'
-                    ? 'Development server connection lost. Please:\n1. Stop the Metro bundler (Ctrl+C)\n2. Restart with: npm start\n3. Rebuild the app'
-                    : Platform.OS === 'ios'
-                      ? 'This may be caused by an incompatible iOS version. Try updating the app or contact support.'
-                      : 'Try restarting the app. If the issue persists, please contact support.'
+                  : Platform.OS === 'ios'
+                    ? 'This may be caused by an incompatible iOS version. Try updating the app or contact support.'
+                    : 'Try restarting the app. If the issue persists, please contact support.'
                 }
               </Text>
               <TouchableOpacity

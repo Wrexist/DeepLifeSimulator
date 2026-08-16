@@ -37,6 +37,8 @@ import {
 } from '@/contexts/game/actions/weekly/applyRelationshipHealth';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
 import { DEFAULT_ATTENTION_STRENGTH_THRESHOLD } from '@/lib/contacts/aggregator';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
+import { NEUTRAL_LIFE_SKILL_MODIFIERS } from '@/lib/skillTrees/lifeSkillEffects';
 
 // ── X-3: friends ───────────────────────────────────────────────────────────
 
@@ -139,12 +141,14 @@ describe('a Spark match can become a friend', () => {
 
 function ctx(rolls: number[] = []): WeekContext {
   return {
+    newStats: { health: 50, happiness: 50, energy: 50, fitness: 50, money: 0, reputation: 50, gems: 0 },
     notifications: [],
-    preRolls: {
+    preRolls: zeroPreRolls({
       relBreakup: rolls.length ? rolls : Array.from({ length: 20 }, () => 0.99),
       relDisappointed: Array.from({ length: 20 }, () => 0.99),
-    },
-  } as unknown as WeekContext;
+    }),
+    nextWeeksLived: 100,
+  };
 }
 
 const rel = (over: Partial<Relationship>): Relationship =>
@@ -257,16 +261,16 @@ describe('friends fade, family does not', () => {
     // work, not the roll.
     const rolls = Array.from({ length: 20 }, () => 0.15);
 
-    const unskilled = {
+    const unskilled: WeekContext = {
       ...ctx(rolls),
-      lifeSkillMods: { relationshipDecayMult: 1 },
-    } as unknown as WeekContext;
+      lifeSkillMods: { ...NEUTRAL_LIFE_SKILL_MODIFIERS, relationshipDecayMult: 1 },
+    };
     expect(applyRelationshipHealth(rel(lowLong), 0, unskilled).rel).toBeNull();
 
-    const empathic = {
+    const empathic: WeekContext = {
       ...ctx(rolls),
-      lifeSkillMods: { relationshipDecayMult: 0.5 },
-    } as unknown as WeekContext;
+      lifeSkillMods: { ...NEUTRAL_LIFE_SKILL_MODIFIERS, relationshipDecayMult: 0.5 },
+    };
     expect(applyRelationshipHealth(rel(lowLong), 0, empathic).rel).not.toBeNull();
   });
 });

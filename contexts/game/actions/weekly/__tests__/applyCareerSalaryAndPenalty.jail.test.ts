@@ -10,36 +10,52 @@
  * means the helper zeroes ONLY the salary and nothing else.
  */
 import { applyCareerSalaryAndPenalty } from '../applyCareerSalaryAndPenalty';
-import type { GameState } from '@/contexts/game/types';
+import type { Career, GameState } from '@/contexts/game/types';
 import type { WeekContext } from '../weekContext';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
 function ctx(): WeekContext {
   return {
-    newStats: { money: 0, happiness: 50, health: 50 },
+    newStats: { money: 0, happiness: 50, health: 50, energy: 0, fitness: 0, reputation: 0, gems: 0 },
     notifications: [],
-  } as unknown as WeekContext;
+    preRolls: zeroPreRolls(),
+    nextWeeksLived: 100,
+  };
 }
 
-function employedState(over: Partial<GameState> = {}): GameState {
+/** A complete Career record — the fields the salary path reads, plus the ones the type requires. */
+function career(id: string, level: number, levels: Career['levels']): Career {
   return {
+    id,
+    levels,
+    level,
+    description: '',
+    requirements: {},
+    progress: 0,
+    applied: true,
+    accepted: true,
+  };
+}
+
+function employedState(over: TestGameStateOverrides = {}): GameState {
+  return createTestGameState({
     currentJob: 'engineer',
-    careers: [
-      { id: 'engineer', accepted: true, applied: true, level: 0, levels: [{ name: 'Junior Engineer', salary: 1000 }] },
-    ],
+    careers: [career('engineer', 0, [{ name: 'Junior Engineer', salary: 1000 }])],
     goldUpgrades: {},
     perks: {},
     ...over,
-  } as unknown as GameState;
+  });
 }
 
 describe('applyCareerSalaryAndPenalty — no earned income while jailed', () => {
   it('zeroes the weekly salary while incarcerated (jailWeeks > 0)', () => {
-    const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 3 } as Partial<GameState>), ctx());
+    const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 3 }), ctx());
     expect(result.careerSalary).toBe(0);
   });
 
   it('pays the normal salary once released (jailWeeks = 0)', () => {
-    const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 0 } as Partial<GameState>), ctx());
+    const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 0 }), ctx());
     expect(result.careerSalary).toBe(1000);
   });
 
@@ -51,7 +67,7 @@ describe('applyCareerSalaryAndPenalty — no earned income while jailed', () => 
 
   it('still applies the weekly career stat toll while jailed (only salary is gated)', () => {
     const c = ctx();
-    const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 2 } as Partial<GameState>), c);
+    const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 2 }), c);
     expect(result.careerSalary).toBe(0);
     // Penalty/performance logic untouched: an entry-level role still tolls
     // -3 happiness / -2 health, applied to the running stats.
@@ -67,7 +83,7 @@ describe('applyCareerSalaryAndPenalty — no earned income while jailed', () => 
         jailWeeks: 1,
         goldUpgrades: { work_boost: true },
         perks: { workBoost: true },
-      } as unknown as Partial<GameState>),
+      }),
       ctx(),
     );
     expect(result.careerSalary).toBe(0);
@@ -79,7 +95,7 @@ describe('applyCareerSalaryAndPenalty — no earned income while jailed', () => 
       jailWeeks: 0,
       goldUpgrades: { work_boost: true },
       perks: { workBoost: true },
-    } as unknown as Partial<GameState>);
+    });
     // 1000 × 1.5 (gold) × 1.5 (perk) = 2250.
     expect(applyCareerSalaryAndPenalty(boosted, ctx()).careerSalary).toBe(2250);
   });

@@ -10,7 +10,7 @@
  */
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
-import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { getAge as canonicalAge, weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 // Every week gate below asks "how far into THIS life is the player" — an
 // early-game protection window, not an age. `weeksLived` is ABSOLUTE and seeded
@@ -37,8 +37,9 @@ const hasPartner = (s: GameState) =>
     (r: any) => r.type === 'partner' || r.type === 'spouse'
   );
 
-// Helper: age in years
-const getAge = (s: GameState) => Math.floor(s.date?.age ?? 18);
+// Age in years, from the CANONICAL helper — derived from `weeksLived` rather
+// than the stored `date.age` (M10 / §4.2).
+const getAge = (s: GameState) => canonicalAge(s);
 
 // ─── Near-miss event templates ───────────────────────────────────
 

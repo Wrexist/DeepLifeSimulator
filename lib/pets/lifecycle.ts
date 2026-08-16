@@ -6,9 +6,9 @@
  */
 
 import { Pet } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { findBreed, PetBreed } from './catalog';
 
-const WEEKS_PER_YEAR = 52;
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 

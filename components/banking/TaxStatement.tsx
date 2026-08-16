@@ -51,6 +51,8 @@ import {
   weekOfTaxYear,
 } from '@/lib/economy/taxLedger';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 type Theme = ReturnType<typeof getThemeColors>;
 
 interface TaxStatementProps {
@@ -68,14 +70,6 @@ interface TaxStatementProps {
    * that opens on three paragraphs does not read as premium.
    */
   compact?: boolean;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 /**

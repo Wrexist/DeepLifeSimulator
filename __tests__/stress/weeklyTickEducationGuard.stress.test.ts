@@ -23,6 +23,7 @@ import { useGameState, useGameActions } from '@/contexts/game';
 import { UIUXProvider } from '@/contexts/UIUXContext';
 import type { Education, GameState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
+import { zeroPreRolls } from '../helpers/zeroPreRolls';
 
 // Same reason as realProviderLoop.stress.test.ts: the production save pipeline
 // (HMAC over a ~100KB payload) costs seconds per tick and is covered elsewhere.
@@ -137,7 +138,7 @@ describe('a throwing education record does not cost the player the week', () => 
           newStats: { ...createTestGameState().stats },
           notifications: [],
           nextWeeksLived: 10,
-          preRolls: undefined,
+          preRolls: zeroPreRolls(),
         },
       ),
     ).toThrow();

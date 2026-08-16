@@ -3,7 +3,12 @@ import { Platform, View, Text, TouchableOpacity, Animated, Easing } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
 import { modalEventCount } from '@/lib/events/routing';
-import { useGame } from '@/contexts/GameContext';
+// M16: read through the leaf selector channel, not `useGame()`. `useGame()`
+// subscribed the whole <Tabs> navigator — every tab screen's parent — to every
+// GameState mutation, so a money tick re-rendered the navigator. The sibling
+// app/(onboarding)/_layout.tsx documents the same reasoning (it also avoids the
+// GameContext barrel's import cycle by importing the leaf module directly).
+import { useGameSelector, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { scale } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -111,7 +116,34 @@ function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
 }
 
 export default function TabLayout() {
-  const { gameState } = useGame();
+  // The exact slices this layout reads. Each is a primitive or a stable
+  // reference, so the navigator re-renders only when one of them actually
+  // changes — not on every mutation.
+  const jailWeeks = useGameSelector((s) => s?.jailWeeks ?? 0);
+  const ownsSmartphone = useGameSelector((s) =>
+    (s?.items ?? []).some((item) => item.id === 'smartphone' && item.owned)
+  );
+  const ownsComputer = useGameSelector((s) =>
+    (s?.items ?? []).some((item) => item.id === 'computer' && item.owned)
+  );
+  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
+  const weekResult = useGameSelector((s) => s?.weekResult);
+  const showDeathPopup = useGameSelector((s) => s?.showDeathPopup === true);
+  const showWeddingPopup = useGameSelector((s) => s?.showWeddingPopup === true);
+  const pendingMoment = useGameSelector((s) => s?.lifeMoments?.pendingMoment);
+  const weekSummaryEnabled = useGameSelector(
+    (s) => s?.settings?.weeklySummaryEnabled !== false
+  );
+  // Letter-shaped events live in the mail app, so they must not inflate the
+  // pill — a player who saw "2 decisions waiting", opened the inbox and found
+  // one would have no way to find the other. One selector, shared with
+  // `WeeklyEventModal`, so the two can never disagree.
+  const pendingEventCount = useGameSelector((s) => modalEventCount(s));
+  // `WeeklyResultSheet` takes the whole GameState (it reads `weekResult`,
+  // `playStreak` and `settings.darkMode`). Read it on demand rather than
+  // subscribing: the sheet only mounts right after a week advance, and
+  // `weeksLived` above already re-renders this layout on exactly that commit.
+  const getGameState = useGameStateGetter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -130,52 +162,44 @@ export default function TabLayout() {
     resumeLifeAutosave();
   }, []);
 
-  const isInPrison = (gameState?.jailWeeks ?? 0) > 0;
+  const isInPrison = jailWeeks > 0;
   // Hide the floating tab bar while an in-phone app runs full-screen.
   const fullscreenApp = useFullscreenApp();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
-  const items = gameState?.items ?? [];
 
   // Weekly payoff sheet — shows after a week actually advances during the
   // session (never on app load), and only when the week had something worth
   // reporting. Sits below the death/wedding/life-moment/event modals.
   const [resultWeek, setResultWeek] = useState<number | null>(null);
   const prevWeekRef = useRef<number | null>(null);
-  // Player-facing on/off switch (Settings → "Week Summary"). Defaults to on;
-  // only an explicit `false` suppresses the recap sheet.
-  const weekSummaryEnabled = gameState?.settings?.weeklySummaryEnabled !== false;
+  // (`weekSummaryEnabled` is the player-facing on/off switch, Settings → "Week
+  // Summary"; it defaults to on and only an explicit `false` suppresses the sheet.)
   useEffect(() => {
-    const w = gameState?.weeksLived ?? 0;
+    const w = weeksLived;
     if (prevWeekRef.current === null) { prevWeekRef.current = w; return; } // first observe
     if (w > prevWeekRef.current) {
       prevWeekRef.current = w;
-      const wr = gameState?.weekResult;
+      const wr = weekResult;
       const meaningful = !!wr && (
         (wr.incomeEarned ?? 0) > 0 || (wr.expensesPaid ?? 0) > 0 ||
         (wr.luckyBonus ?? 0) > 0 || (wr.streakBonus ?? 0) > 0 ||
         (wr.careerProgressPercent ?? 0) > 0 || !!wr.cliffhangerTeaser
       );
-      if (meaningful && weekSummaryEnabled && !gameState?.showDeathPopup) setResultWeek(w);
+      if (meaningful && weekSummaryEnabled && !showDeathPopup) setResultWeek(w);
     } else {
       prevWeekRef.current = w;
     }
-  }, [gameState?.weeksLived, gameState?.weekResult, gameState?.showDeathPopup, weekSummaryEnabled]);
+  }, [weeksLived, weekResult, showDeathPopup, weekSummaryEnabled]);
 
   // Non-blocking weekly-event inbox: events queue but never auto-pop. The
   // player opens them from a pill; the modal walks the queue on demand.
   const [eventInboxOpen, setEventInboxOpen] = useState(false);
-  // Letter-shaped events live in the mail app, so they must not inflate the
-  // pill — a player who saw "2 decisions waiting", opened the inbox and found
-  // one would have no way to find the other. One selector, shared with
-  // `WeeklyEventModal`, so the two can never disagree.
-  const pendingEventCount = modalEventCount(gameState);
   useEffect(() => {
     if (pendingEventCount === 0 && eventInboxOpen) setEventInboxOpen(false);
   }, [pendingEventCount, eventInboxOpen]);
 
   const higherModalUp = !!(
-    gameState?.showDeathPopup || gameState?.showWeddingPopup ||
-    gameState?.lifeMoments?.pendingMoment || eventInboxOpen
+    showDeathPopup || showWeddingPopup || pendingMoment || eventInboxOpen
   );
   // The weekly sheet is a plain absolute View, so the RN Modals raised by Home
   // (goal / daily reward / welcome back / community) covered it outright and its
@@ -203,13 +227,7 @@ export default function TabLayout() {
     }
   }, [isInPrison, currentRoute, router]);
 
-  // Determine which tabs to show based on device ownership
-  const ownsSmartphone = items.some(
-    (item) => item.id === 'smartphone' && item.owned
-  );
-  const ownsComputer = items.some(
-    (item) => item.id === 'computer' && item.owned
-  );
+  // Device ownership decides which tabs show (selected above).
   // The merged Apps tab appears in the bar once the player owns any device.
   // (Which launcher shows — phone grid vs desktop — is decided inside apps.tsx.)
   const ownsAnyDevice = ownsSmartphone || ownsComputer;
@@ -356,7 +374,7 @@ export default function TabLayout() {
         modal underneath would otherwise intercept taps and soft-lock the player.
         Same for the WeddingPopup — a wedding + life-moment landing on one tick
         stacked two full-screen modals. */}
-    {(gameState.showDeathPopup || gameState.showWeddingPopup) ? null : gameState.lifeMoments?.pendingMoment ? (
+    {(showDeathPopup || showWeddingPopup) ? null : pendingMoment ? (
       <Suspense fallback={null}>
         <LifeMomentModal />
       </Suspense>
@@ -377,7 +395,7 @@ export default function TabLayout() {
       <Suspense fallback={null}>
         <WeeklyResultSheet
           visible={showWeekResult}
-          gameState={gameState}
+          gameState={getGameState()}
           onClose={() => setResultWeek(null)}
         />
       </Suspense>

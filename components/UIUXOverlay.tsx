@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { Alert, View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
-import { useGameState } from '@/contexts/GameContext';
+import { useGameSelector, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { Z_INDEX } from '@/utils/zIndexConstants';
@@ -14,8 +14,13 @@ export default function UIUXOverlay() {
     hideError,
   } = useUIUX();
   
-  // Get game state to check for death popup
-  const { gameState } = useGameState();
+  // M4: this overlay is root-mounted and used to subscribe to the ENTIRE game
+  // state for two things — one boolean it renders on, and a diagnostic payload
+  // built only when the player taps "Report". Both now read narrowly: a
+  // selector for the boolean, and an on-demand getter for the report (which
+  // must see the LIVE state, and no longer needs to be a callback dependency).
+  const showDeathPopup = useGameSelector((s) => s?.showDeathPopup === true);
+  const getGameState = useGameStateGetter();
 
   // Find the highest priority loading state (overlay > default > inline)
   const getHighestPriorityLoading = () => {
@@ -32,7 +37,7 @@ export default function UIUXOverlay() {
   
   // CRITICAL: Don't show loading overlay if death popup is showing
   // This ensures the death popup can render on top
-  const shouldShowLoading = highestPriorityLoading && !gameState?.showDeathPopup;
+  const shouldShowLoading = highestPriorityLoading && !showDeathPopup;
 
   // Real errors get a one-tap "Report" that emails us a comprehensive
   // diagnostic (build, game position, validation, recent logs). We also offer
@@ -41,7 +46,7 @@ export default function UIUXOverlay() {
   const reportError = useCallback(
     (message: string, title?: string) => {
       const error = new Error(title ? `${title}: ${message}` : message);
-      emailDiagnosticReport({ gameState, error, source: 'In-game error banner' })
+      emailDiagnosticReport({ gameState: getGameState(), error, source: 'In-game error banner' })
         .then((opened) => {
           if (!opened) {
             Alert.alert(
@@ -56,7 +61,7 @@ export default function UIUXOverlay() {
         })
         .catch(() => { /* never throw from the report path */ });
     },
-    [gameState]
+    [getGameState]
   );
 
   return (

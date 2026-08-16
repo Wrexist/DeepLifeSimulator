@@ -117,7 +117,13 @@ describe('IAPHandler require-cycle fix — BUGFIX #35', () => {
     // The cycle was triggered by importing from the barrel; verify we now
     // import from the leaf context files instead.
     expect(/from\s+['"]@\/contexts\/GameContext['"]/.test(src)).toBe(false);
-    expect(/from\s+['"]@\/contexts\/game\/GameStateContext['"]/.test(src)).toBe(true);
+    // ...and from a LEAF module under contexts/game/ instead. M4 moved the
+    // state read from `GameStateContext` to `useGameSelector` (the setter-only
+    // `useSetGameState`, so the root-mounted handler stops subscribing to the
+    // whole state); both are leaves, which is what this guard is about.
+    expect(
+      /from\s+['"]@\/contexts\/game\/(GameStateContext|useGameSelector)['"]/.test(src)
+    ).toBe(true);
     expect(/from\s+['"]@\/contexts\/game\/GameActionsContext['"]/.test(src)).toBe(true);
   });
 });

@@ -10,12 +10,13 @@ import type { RealEstate, RealEstateActivityEntry } from '@/contexts/game/types'
 import { applyRentAndHousing } from '../applyRentAndHousing';
 import type { WeekContext } from '../weekContext';
 import { UPGRADE_TIERS } from '@/lib/realEstate/housing';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 
 function ctx(): WeekContext {
   return {
-    newStats: {} as never,
+    newStats: { health: 0, happiness: 0, energy: 0, fitness: 0, money: 0, reputation: 0, gems: 0 },
     notifications: [],
-    preRolls: {} as never,
+    preRolls: zeroPreRolls(),
     nextWeeksLived: 0,
   };
 }

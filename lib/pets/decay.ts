@@ -8,10 +8,10 @@
  */
 
 import { Pet } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { PET_SICKNESSES, findBreed, PetBreed } from './catalog';
 import { bandFor } from './lifecycle';
 
-const WEEKS_PER_YEAR = 52;
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 const clamp01 = (n: number): number => Math.max(0, Math.min(100, n));

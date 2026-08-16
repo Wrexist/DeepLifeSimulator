@@ -17,6 +17,13 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*\\.(png|jpg|jpeg|gif|svg|webp))$': '<rootDir>/__mocks__/fileMock.ts',
+    // Platform-suffixed module: only `offlineManager.native.ts` / `.web.ts`
+    // exist, which Metro picks between at build time and Jest's resolver cannot
+    // — so `@/utils/offlineManager` resolved to NOTHING under Jest and any
+    // suite touching an importer of it (CloudSyncService, OfflineIndicator)
+    // died with a configuration error before running a line. Pinned to the
+    // native variant, which is what the shipped app loads on both stores.
+    '^@/utils/offlineManager$': '<rootDir>/utils/offlineManager.native.ts',
     '^@/(.*)$': '<rootDir>/$1',
     '^.+\\.(png|jpg|jpeg|gif|svg|webp)$': '<rootDir>/__mocks__/fileMock.ts',
   },
@@ -74,7 +81,6 @@ module.exports = {
     '[\\\\/]__tests__[\\\\/]stress[\\\\/]helpers[\\\\/]',
     '[\\\\/]__tests__[\\\\/]refactor[\\\\/]helpers[\\\\/]',
     '[\\\\/]__tests__[\\\\/]render[\\\\/]helpers[\\\\/]',
-    '[\\\\/]lib[\\\\/]skillTrees[\\\\/]__tests__[\\\\/]careerSkillTrees\\.test\\.ts$',
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testTimeout: 10000,

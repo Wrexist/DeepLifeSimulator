@@ -11,14 +11,27 @@ import { MENU_BACKGROUNDS, peekMenuBackgroundIndex } from '@/utils/menuBackgroun
 // main menu so reduce-motion users get the same instant (un-faded) handoff.
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
+// Minimum time the loader stays on screen. This is POLISH, not work: without it a
+// warm start flashes the splash for a frame or two, which reads as a glitch. It is
+// the ONLY intentional delay on the boot path — everything else waits on a real
+// readiness signal (preload complete, router ready, startup health gate).
+const MIN_SPLASH_MS = 600;
+
+// Health-check poll: bounded so a build where `__STARTUP_HEALTH_CHECK__` never
+// appears cannot self-schedule forever (it previously recursed at 10 Hz for the
+// lifetime of the app).
+const HEALTH_POLL_INTERVAL_MS = 100;
+const HEALTH_POLL_MAX_ATTEMPTS = 20;
+
 export default function Index() {
   const router = useRouter();
   const { isPreloaded, preloadProgress } = usePreload();
-  const [isLoading, setIsLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState('Initializing DeepLife Simulator...');
   const [routerReady, setRouterReady] = useState(false);
-  const [_startupHealthCheck, setStartupHealthCheck] = useState<any>(null);
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
+  // Diagnostics only — nothing renders from this, so it is a ref, not state
+  // (the old `useState` re-rendered the boot screen for a value no one read).
+  const startupHealthCheckRef = useRef<any>(null);
+  const healthPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Bumped to re-run the navigation effect when a health check defers navigation.
   // (Must be a real value change — `setState(prev => prev)` is a no-op React bails on.)
   const [navRetry, setNavRetry] = useState(0);
@@ -78,13 +91,19 @@ export default function Index() {
     }).start();
   };
 
-  // CRITICAL: Startup health check - verify critical modules before rendering
+  // CRITICAL: Startup health check - verify critical modules before rendering.
+  // Bounded poll: the recursive `setTimeout` used to be unstored and uncleared, so
+  // a build without `__STARTUP_HEALTH_CHECK__` polled forever, past unmount.
   useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
     const checkStartupHealth = () => {
+      if (cancelled) return;
       const healthCheck = (global as any).__STARTUP_HEALTH_CHECK__;
       if (typeof healthCheck === 'function') {
         const health = healthCheck();
-        setStartupHealthCheck(health);
+        startupHealthCheckRef.current = health;
 
         if (health && health.failedModules && health.failedModules.length > 0) {
           if (__DEV__) {
@@ -92,80 +111,60 @@ export default function Index() {
           }
           // Continue anyway - we have fallbacks
         }
-      } else {
-        // Health check not available yet, wait a bit
-        setTimeout(checkStartupHealth, 100);
+        return;
       }
+
+      attempts += 1;
+      if (attempts >= HEALTH_POLL_MAX_ATTEMPTS) {
+        if (__DEV__) {
+          console.warn('[Index] Startup health check never became available — giving up');
+        }
+        return;
+      }
+      healthPollTimerRef.current = setTimeout(checkStartupHealth, HEALTH_POLL_INTERVAL_MS);
     };
 
-    // Check immediately and also after a short delay
     checkStartupHealth();
-    const timeout = setTimeout(checkStartupHealth, 500);
-
-    return () => clearTimeout(timeout);
-  }, []);
-
-  // CRITICAL: Wait for router to be ready before navigating
-  useEffect(() => {
-    // Ensure router is ready before allowing navigation
-    const checkRouter = setTimeout(() => {
-      if (router) {
-        setRouterReady(true);
-      }
-    }, 100);
-
-    return () => clearTimeout(checkRouter);
-  }, [router]);
-
-  useEffect(() => {
-    if (!isPreloaded) return;
-
-    const loadingSteps = [
-      { progress: 20, message: 'Loading game assets...' },
-      { progress: 40, message: 'Initializing game state...' },
-      { progress: 60, message: 'Loading scaling utilities...' },
-      { progress: 80, message: 'Preparing UI components...' },
-      { progress: 95, message: 'Almost ready...' },
-      { progress: 100, message: 'Welcome to DeepLife!' },
-    ];
-
-    let currentStep = 0;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const interval = setInterval(() => {
-      if (currentStep < loadingSteps.length) {
-        const step = loadingSteps[currentStep];
-        setProgress(step.progress);
-        setLoadingMessage(step.message);
-        currentStep++;
-      } else {
-        clearInterval(interval);
-        timeoutId = setTimeout(() => {
-          setIsLoading(false);
-          timeoutId = null;
-        }, 500);
-      }
-    }, 800);
 
     return () => {
-      clearInterval(interval);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      cancelled = true;
+      if (healthPollTimerRef.current) {
+        clearTimeout(healthPollTimerRef.current);
+        healthPollTimerRef.current = null;
       }
     };
-  }, [isPreloaded]);
+  }, []);
+
+  // The router object from `useRouter()` is available as soon as this component
+  // renders inside the navigator; no timer needed to "wait" for it.
+  useEffect(() => {
+    if (router) {
+      setRouterReady(true);
+    }
+  }, [router]);
+
+  // The one intentional delay on the boot path — see MIN_SPLASH_MS.
+  useEffect(() => {
+    const timer = setTimeout(() => setMinSplashElapsed(true), MIN_SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   // CRITICAL: Programmatic navigation in useEffect, NOT in render
   // Use ref for navigation guard to avoid re-render cycles and race conditions
   useEffect(() => {
     // Guard: Only navigate once, when all conditions are met
-    if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || isLoading) {
+    if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || !minSplashElapsed) {
       return;
     }
 
-    // Small delay to ensure UI is fully rendered and all providers are initialized
-    const navigateTimeout = setTimeout(async () => {
-      // Double-check conditions before navigating (prevent race condition)
-      if (hasNavigatedRef.current || !router || !routerReady || !isPreloaded || isLoading) {
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // H9: readiness-driven. This used to sit behind a scripted 6 × 800 ms progress
+    // interval + a 500 ms hand-off + a 100 ms "ensure providers are ready" delay,
+    // none of which measured anything.
+    const run = async () => {
+      if (cancelled || hasNavigatedRef.current) {
         return;
       }
 
@@ -192,8 +191,10 @@ export default function Index() {
           // Don't navigate yet, retry in 500ms. Bump a counter (a real value
           // change) so the effect actually re-runs — `setRouterReady(prev => prev)`
           // is a no-op React bails on, which left the app stuck on the loader.
-          setTimeout(() => {
-            setNavRetry((n) => n + 1);
+          retryTimer = setTimeout(() => {
+            if (!cancelled) {
+              setNavRetry((n) => n + 1);
+            }
           }, 500);
           return;
         }
@@ -211,14 +212,24 @@ export default function Index() {
         }
         // Fallback: stay on loading screen rather than crash
       }
-    }, 100); // Increased delay to ensure all providers are ready
+    };
 
-    return () => clearTimeout(navigateTimeout);
-  }, [isLoading, isPreloaded, routerReady, router, navRetry]);
+    void run();
 
-  // ALWAYS render a safe fallback screen (never crash)
-  const currentProgress = isPreloaded ? progress : preloadProgress;
-  const currentMessage = isPreloaded ? loadingMessage : 'Initializing scaling system...';
+    return () => {
+      cancelled = true;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
+    };
+  }, [isPreloaded, routerReady, router, navRetry, minSplashElapsed]);
+
+  // ALWAYS render a safe fallback screen (never crash).
+  // H9: the bar is driven by the REAL signals it is waiting on — preload progress
+  // (80% of the bar) and router readiness (the last 20%) — instead of a scripted
+  // six-step script that narrated work nobody was doing.
+  const currentProgress = Math.round(preloadProgress * 0.8) + (routerReady ? 20 : 0);
+  const currentMessage = 'Loading…';
 
   // Dependency-light loading screen (React Native core only) so the very first
   // production render is crash-proof. This screen owns "/" — app/(tabs) must NOT

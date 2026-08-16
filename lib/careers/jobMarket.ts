@@ -41,6 +41,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { fnv1a32 } from '@/utils/seededRoll';
 
 /** How quickly promotion progress accrues, relative to the default rate. */
 export type GrowthPace = 'slow' | 'steady' | 'fast';
@@ -201,12 +202,9 @@ export function evaluateHiring(
  * same life always sees the same market.
  */
 function hash(input: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+  // FNV-1a body moved to the shared `fnv1a32` (audit H7c) — bit-identical to
+  // the hand-rolled loop that was here, so no board reshuffles.
+  return fnv1a32(input);
 }
 
 /**

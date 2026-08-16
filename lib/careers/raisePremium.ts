@@ -70,3 +70,16 @@ export function nextRaisePremium(stored: unknown): number {
 export function isRaisePremiumMaxed(stored: unknown): boolean {
   return resolveRaisePremium(stored) >= RAISE_PREMIUM_CAP;
 }
+
+/**
+ * The job-performance floor a raise request must clear.
+ *
+ * Lives here rather than next to `requestRaise` because it has two readers in
+ * different layers: the action itself (`contexts/game/actions/JobActions.ts`,
+ * which re-exports this) and the mail app's recruiter-leverage letter
+ * (`lib/mail/resolve.ts`) — an outside offer is only leverage if your manager
+ * believes you are worth keeping. `lib/` cannot import upward from `contexts/`,
+ * so the shared number has to sit at the lower layer or one of the two paths
+ * would end up with a second copy, calling a bluff the other path rewarded.
+ */
+export const RAISE_MIN_PERFORMANCE = 45;

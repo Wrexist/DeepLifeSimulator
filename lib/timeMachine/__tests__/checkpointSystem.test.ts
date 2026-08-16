@@ -12,7 +12,6 @@
  *   - slimCheckpointSnapshot never throws on malformed input.
  */
 import type { GameState } from '@/contexts/game/types';
-import { initialGameState } from '@/contexts/game/initialState';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import {
   createCheckpoint,
@@ -22,12 +21,22 @@ import {
 } from '@/lib/timeMachine/checkpointSystem';
 
 function heavyState(): GameState {
-  const base = JSON.parse(JSON.stringify(initialGameState)) as GameState;
+  // createTestGameState deep-clones initialGameState, so mutating the result
+  // below is safe (see the clone note in the factory).
+  const base = createTestGameState();
   base.weeksLived = 52;
   base.generationNumber = 3;
   base.stats = { ...base.stats, money: 50_000, gems: 0 };
   base.relationships = [
-    { id: 'rel_alex', name: 'Alex', relationshipScore: 80 } as never,
+    {
+      id: 'rel_alex',
+      name: 'Alex',
+      type: 'friend',
+      relationshipScore: 80,
+      personality: 'caring',
+      gender: 'female',
+      age: 20,
+    },
   ];
 
   // Heavy re-derivable collections that slimming must drop.
@@ -134,7 +143,7 @@ describe('checkpointSystem — create → rewind round-trip', () => {
 
     const restored = rewindToCheckpoint(live, cp.id);
     expect(restored).not.toBeNull();
-    const r = restored as GameState;
+    const r = restored!;
 
     // Gameplay-critical restored from the snapshot.
     expect(r.stats.money).toBe(50_000);

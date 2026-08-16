@@ -10,13 +10,14 @@
 import { calculatePrestigePoints } from '../prestigePoints';
 import { defaultPrestigeData, PrestigeData } from '../prestigeTypes';
 import { GameState } from '@/contexts/game/types';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 const stateWith = (earnedCount: number): GameState =>
-  ({
+  createTestGameState({
     claimedProgressAchievements: Array.from({ length: earnedCount }, (_, i) => `ach-${i}`),
     date: { age: 30 },
     generationNumber: 1,
-  } as unknown as GameState);
+  });
 
 const prestige = (overrides: Partial<PrestigeData> = {}): PrestigeData => ({
   ...defaultPrestigeData,

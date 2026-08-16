@@ -3,6 +3,19 @@ import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold
 import { carryAccountLevelEntitlements } from './accountEntitlements';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
 import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
+/**
+ * SANCTIONED layering exception (audit H6). `initialGameState` is DATA, not
+ * behaviour — a fresh save shape that this module spreads twice to build the
+ * next life. Moving it into `lib/` is out of scope (it is a protected file and
+ * the single source of truth for `STATE_VERSION`), and the alternative,
+ * injecting it as a parameter, would ripple through `GameActionsContext`,
+ * `lib/devtools/simulations.ts` and ~20 test call sites for no structural gain:
+ * the caller would just be reading the same module one layer up and handing it
+ * back down. Nothing here can close a cycle either: `initialState.ts`'s only
+ * `lib/prestige` import is `prestigeTypes`, a leaf this module already imports
+ * directly, so the edge is shared-leaf and not a knot.
+ */
+// eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
 import { nonMirrorDeposits } from '@/lib/banking/operations';

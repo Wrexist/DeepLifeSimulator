@@ -6,15 +6,12 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   loan: Loan;
   darkMode: boolean;
   onPress?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 function loanTypeLabel(type: Loan['type']): string {

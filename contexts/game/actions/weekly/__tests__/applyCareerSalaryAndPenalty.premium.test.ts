@@ -8,26 +8,42 @@
  * the entitlement lapses (the flag clears).
  */
 import { applyCareerSalaryAndPenalty } from '../applyCareerSalaryAndPenalty';
-import type { GameState } from '@/contexts/game/types';
+import type { Career, GameState } from '@/contexts/game/types';
 import type { WeekContext } from '../weekContext';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
 function ctx(): WeekContext {
   return {
-    newStats: { money: 0, happiness: 50, health: 50 },
+    newStats: { money: 0, happiness: 50, health: 50, energy: 0, fitness: 0, reputation: 0, gems: 0 },
     notifications: [],
-  } as unknown as WeekContext;
+    preRolls: zeroPreRolls(),
+    nextWeeksLived: 100,
+  };
 }
 
-function employedState(over: Partial<GameState> = {}): GameState {
+/** A complete Career record — the fields the salary path reads, plus the ones the type requires. */
+function career(id: string, level: number, levels: Career['levels']): Career {
   return {
+    id,
+    levels,
+    level,
+    description: '',
+    requirements: {},
+    progress: 0,
+    applied: true,
+    accepted: true,
+  };
+}
+
+function employedState(over: TestGameStateOverrides = {}): GameState {
+  return createTestGameState({
     currentJob: 'engineer',
-    careers: [
-      { id: 'engineer', accepted: true, applied: true, level: 0, levels: [{ name: 'Junior Engineer', salary: 1000 }] },
-    ],
+    careers: [career('engineer', 0, [{ name: 'Junior Engineer', salary: 1000 }])],
     goldUpgrades: {},
     perks: {},
     ...over,
-  } as unknown as GameState;
+  });
 }
 
 describe('applyCareerSalaryAndPenalty — DeepLife+ income boost', () => {
@@ -36,17 +52,17 @@ describe('applyCareerSalaryAndPenalty — DeepLife+ income boost', () => {
   });
 
   it('adds +25% for an active DeepLife+ subscriber', () => {
-    const state = employedState({ settings: { deepLifePlusActivated: true } } as Partial<GameState>);
+    const state = employedState({ settings: { deepLifePlusActivated: true } });
     expect(applyCareerSalaryAndPenalty(state, ctx()).careerSalary).toBe(1250);
   });
 
   it('adds +25% for a lifetime-premium owner', () => {
-    const state = employedState({ settings: { lifetimePremium: true } } as Partial<GameState>);
+    const state = employedState({ settings: { lifetimePremium: true } });
     expect(applyCareerSalaryAndPenalty(state, ctx()).careerSalary).toBe(1250);
   });
 
   it('does NOT boost when the entitlement has lapsed (flag cleared)', () => {
-    const state = employedState({ settings: { deepLifePlusActivated: false, lifetimePremium: false } } as Partial<GameState>);
+    const state = employedState({ settings: { deepLifePlusActivated: false, lifetimePremium: false } });
     expect(applyCareerSalaryAndPenalty(state, ctx()).careerSalary).toBe(1000);
   });
 
@@ -55,7 +71,7 @@ describe('applyCareerSalaryAndPenalty — DeepLife+ income boost', () => {
       settings: { deepLifePlusActivated: true },
       goldUpgrades: { work_boost: true },
       perks: { workBoost: true },
-    } as unknown as Partial<GameState>);
+    });
     expect(applyCareerSalaryAndPenalty(state, ctx()).careerSalary).toBe(2813);
   });
 });

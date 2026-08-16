@@ -124,7 +124,17 @@ export function totalBankBalance(banking: BankingState): number {
   return banking.accounts.reduce((sum, a) => sum + safe(a.balance), 0);
 }
 
-export function totalCreditCardDebt(banking: BankingState): number {
+/**
+ * Total outstanding credit-card balance.
+ *
+ * Takes only the slice it reads (`Pick<BankingState, 'creditCards'>`) rather
+ * than a whole `BankingState`: callers holding a full banking object still
+ * pass it unchanged, and callers that only have the guarded card array — the
+ * canonical `netWorth`, which must survive a partial save carrying `banking`
+ * with no `creditCards` — can pass `{ creditCards: … }` without the `as never`
+ * cast that previously erased the check (M9).
+ */
+export function totalCreditCardDebt(banking: Pick<BankingState, 'creditCards'>): number {
   return banking.creditCards.reduce((sum, c) => sum + safe(c.balance), 0);
 }
 

@@ -81,6 +81,8 @@ import {
 import type { Lobbyist, PoliticalAlliance } from '@/contexts/game/types';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 // Identity accent — sky #60A5FA. Solid only on small CTAs / badges / dots;
@@ -177,14 +179,6 @@ interface Rung {
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 // Approval band → color + label (mirrors components/politics/ApprovalGauge).
 function bandColor(a: number): string {
