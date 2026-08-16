@@ -66,6 +66,16 @@ const FIRST_NAMES = [
 /**
  * Small deterministic hash. Not cryptographic — it only needs to be stable
  * across runs and well spread across its inputs.
+ *
+ * DELIBERATELY NOT routed through the shared `fnv1a32` in `utils/seededRoll.ts`,
+ * unlike the four other copies the 2026-08-16 audit (H7c) consolidated. The FNV
+ * LOOP here is bit-identical to that one, but the RETURN is not: this returns
+ * `Math.abs(signed32)` where the shared helper returns `value >>> 0`, and those
+ * are different numbers for every input whose hash lands in the top half of the
+ * 32-bit range — i.e. about half of them. Every consumer below takes the result
+ * modulo a small list length, so swapping the finalizer would re-roll the name,
+ * gender and birth week of grandchildren already written into live saves (v34).
+ * Not worth it to delete eight lines.
  */
 function hash(input: string): number {
   let h = 2166136261;
