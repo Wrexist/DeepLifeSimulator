@@ -13,6 +13,7 @@
  */
 import type { WeeklyEvent } from './engine';
 import type { GameState } from '@/contexts/game/types';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 export interface CliffhangerDefinition {
   id: string;
@@ -159,7 +160,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_mysterious_letter',
     teaser: 'A mysterious letter with no return address arrived today...',
     weight: 0.25,
-    condition: (s) => (s.weeksLived ?? 0) > 10,
+    condition: (s) => weeksInThisLife(s) > 10,
     resolveEvent: () => ({
       id: 'ch_mysterious_letter_resolve',
       description:
@@ -208,7 +209,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_doctor_callback',
     teaser: "The doctor's office called — they need to discuss your test results...",
     weight: 0.2,
-    condition: (s) => (s.weeksLived ?? 0) > 15,
+    condition: (s) => weeksInThisLife(s) > 15,
     resolveEvent: (state) => {
       const health = state.stats?.health ?? 50;
       if (health < 40) {
@@ -365,7 +366,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_police_visit',
     teaser: 'Police officers showed up at your door asking questions...',
     weight: 0.1,
-    condition: (s) => (s.weeksLived ?? 0) > 20,
+    condition: (s) => weeksInThisLife(s) > 20,
     resolveEvent: () => ({
       id: 'ch_police_visit_resolve',
       description:
@@ -388,7 +389,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     id: 'ch_email_from_lawyer',
     teaser: 'You received an email from a lawyer you\'ve never heard of...',
     weight: 0.15,
-    condition: (s) => (s.weeksLived ?? 0) > 25,
+    condition: (s) => weeksInThisLife(s) > 25,
     resolveEvent: () => ({
       id: 'ch_email_from_lawyer_resolve',
       description:
@@ -433,8 +434,10 @@ export function rollCliffhanger(
   // constantly. Players reported the old 22%/32% rates felt like every week —
   // this cliffhanger drives BOTH the weekly-summary teaser and next week's popup,
   // so the target cadence is roughly one every 10–15 weeks.
-  const weeksLived = state.weeksLived || 0;
-  const threshold = weeksLived <= 12 ? 0.10 : 0.07;
+  // "first 12 weeks" means twelve weeks into THIS life, not twelve weeks past
+  // age 18 — `weeksLived` is absolute and seeded from the starting age, so the
+  // new-player bump never applied to any scenario that does not start at 18.
+  const threshold = weeksInThisLife(state) <= 12 ? 0.10 : 0.07;
   const roll = ((seed * 997 + 31) % 100) / 100;
   if (roll > threshold) return null;
 

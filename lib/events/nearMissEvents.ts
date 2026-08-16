@@ -10,6 +10,15 @@
  */
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+
+// Every week gate below asks "how far into THIS life is the player" — an
+// early-game protection window, not an age. `weeksLived` is ABSOLUTE and seeded
+// from the starting age (`(age - 18) * 52`), so `weeksLived > 8` is already true
+// on frame one for every scenario that does not start at 18, and these events
+// were unreachable-as-written / instantly-available accordingly. `weeksInThisLife`
+// reads the v43 `lifeStartWeek` baseline; pre-v43 saves fall back to the absolute
+// counter, i.e. exactly today's behaviour. See CLAUDE.md §4.2.
 
 // Helper: does the player own any vehicles?
 const ownsVehicle = (s: GameState) =>
@@ -37,7 +46,7 @@ const nearMissCarAccident: EventTemplate = {
   id: 'near_miss_car_accident',
   category: 'health',
   weight: 0.12,
-  condition: (s) => ownsVehicle(s) && (s.weeksLived ?? 0) > 8,
+  condition: (s) => ownsVehicle(s) && weeksInThisLife(s) > 8,
   generate: () => ({
     id: 'near_miss_car_accident',
     description:
@@ -85,7 +94,7 @@ const nearMissBullet: EventTemplate = {
   id: 'near_miss_bullet',
   category: 'health',
   weight: 0.1,
-  condition: (s) => isCriminal(s) && (s.weeksLived ?? 0) > 20,
+  condition: (s) => isCriminal(s) && weeksInThisLife(s) > 20,
   generate: () => ({
     id: 'near_miss_bullet',
     description:
@@ -109,7 +118,7 @@ const nearMissLightning: EventTemplate = {
   id: 'near_miss_lightning',
   category: 'health',
   weight: 0.06,
-  condition: (s) => (s.weeksLived ?? 0) > 10,
+  condition: (s) => weeksInThisLife(s) > 10,
   generate: () => ({
     id: 'near_miss_lightning',
     description:
@@ -133,7 +142,7 @@ const nearMissFoodPoisoning: EventTemplate = {
   id: 'near_miss_food_poisoning',
   category: 'health',
   weight: 0.1,
-  condition: (s) => (s.weeksLived ?? 0) > 5,
+  condition: (s) => weeksInThisLife(s) > 5,
   generate: () => ({
     id: 'near_miss_food_poisoning',
     description:
@@ -157,7 +166,7 @@ const nearMissFallingObject: EventTemplate = {
   id: 'near_miss_falling_object',
   category: 'health',
   weight: 0.08,
-  condition: (s) => (s.weeksLived ?? 0) > 10,
+  condition: (s) => weeksInThisLife(s) > 10,
   generate: () => ({
     id: 'near_miss_falling_object',
     description:
@@ -181,7 +190,7 @@ const nearMissRobbery: EventTemplate = {
   id: 'near_miss_robbery',
   category: 'general',
   weight: 0.1,
-  condition: (s) => (s.stats?.money ?? 0) > 5000 && (s.weeksLived ?? 0) > 15,
+  condition: (s) => (s.stats?.money ?? 0) > 5000 && weeksInThisLife(s) > 15,
   generate: () => ({
     id: 'near_miss_robbery',
     description:
@@ -205,7 +214,7 @@ const nearMissCarCrash: EventTemplate = {
   id: 'near_miss_car_crash',
   category: 'health',
   weight: 0.1,
-  condition: (s) => ownsVehicle(s) && (s.weeksLived ?? 0) > 15,
+  condition: (s) => ownsVehicle(s) && weeksInThisLife(s) > 15,
   generate: () => ({
     id: 'near_miss_car_crash',
     description:
@@ -229,7 +238,7 @@ const nearMissFireAlarm: EventTemplate = {
   id: 'near_miss_fire_alarm',
   category: 'general',
   weight: 0.08,
-  condition: (s) => (s.weeksLived ?? 0) > 8,
+  condition: (s) => weeksInThisLife(s) > 8,
   generate: () => ({
     id: 'near_miss_fire_alarm',
     description:
@@ -277,7 +286,7 @@ const nearMissDogAttack: EventTemplate = {
   id: 'near_miss_dog_attack',
   category: 'health',
   weight: 0.07,
-  condition: (s) => (s.weeksLived ?? 0) > 12,
+  condition: (s) => weeksInThisLife(s) > 12,
   generate: () => ({
     id: 'near_miss_dog_attack',
     description:
@@ -301,7 +310,7 @@ const nearMissScam: EventTemplate = {
   id: 'near_miss_scam',
   category: 'economy',
   weight: 0.1,
-  condition: (s) => (s.stats?.money ?? 0) > 2000 && (s.weeksLived ?? 0) > 10,
+  condition: (s) => (s.stats?.money ?? 0) > 2000 && weeksInThisLife(s) > 10,
   generate: () => ({
     id: 'near_miss_scam',
     description:
@@ -325,7 +334,7 @@ const nearMissWorkAccident: EventTemplate = {
   id: 'near_miss_work_accident',
   category: 'health',
   weight: 0.1,
-  condition: (s) => isEmployed(s) && (s.weeksLived ?? 0) > 15,
+  condition: (s) => isEmployed(s) && weeksInThisLife(s) > 15,
   generate: () => ({
     id: 'near_miss_work_accident',
     description:
@@ -352,7 +361,7 @@ const nearMissChoke: EventTemplate = {
   id: 'near_miss_choke',
   category: 'health',
   weight: 0.07,
-  condition: (s) => (s.weeksLived ?? 0) > 5,
+  condition: (s) => weeksInThisLife(s) > 5,
   generate: () => ({
     id: 'near_miss_choke',
     description:
@@ -376,7 +385,7 @@ const nearMissTornado: EventTemplate = {
   id: 'near_miss_tornado',
   category: 'health',
   weight: 0.04,
-  condition: (s) => (s.weeksLived ?? 0) > 20,
+  condition: (s) => weeksInThisLife(s) > 20,
   generate: () => ({
     id: 'near_miss_tornado',
     description:
@@ -400,7 +409,7 @@ const nearMissPartnerCheating: EventTemplate = {
   id: 'near_miss_partner_suspicion',
   category: 'relationship',
   weight: 0.08,
-  condition: (s) => hasPartner(s) && (s.weeksLived ?? 0) > 20,
+  condition: (s) => hasPartner(s) && weeksInThisLife(s) > 20,
   generate: () => ({
     id: 'near_miss_partner_suspicion',
     description:
@@ -424,7 +433,7 @@ const nearMissIdentityTheft: EventTemplate = {
   id: 'near_miss_identity_theft',
   category: 'economy',
   weight: 0.08,
-  condition: (s) => (s.stats?.money ?? 0) > 10000 && (s.weeksLived ?? 0) > 25,
+  condition: (s) => (s.stats?.money ?? 0) > 10000 && weeksInThisLife(s) > 25,
   generate: () => ({
     id: 'near_miss_identity_theft',
     description:
@@ -448,7 +457,7 @@ const nearMissBikeAccident: EventTemplate = {
   id: 'near_miss_bike',
   category: 'health',
   weight: 0.08,
-  condition: (s) => (s.stats?.fitness ?? 0) > 30 && (s.weeksLived ?? 0) > 8,
+  condition: (s) => (s.stats?.fitness ?? 0) > 30 && weeksInThisLife(s) > 8,
   generate: () => ({
     id: 'near_miss_bike',
     description:
@@ -472,7 +481,7 @@ const nearMissElectricalShock: EventTemplate = {
   id: 'near_miss_electrical',
   category: 'health',
   weight: 0.05,
-  condition: (s) => (s.weeksLived ?? 0) > 10,
+  condition: (s) => weeksInThisLife(s) > 10,
   generate: () => ({
     id: 'near_miss_electrical',
     description:
@@ -496,7 +505,7 @@ const nearMissAllergyReaction: EventTemplate = {
   id: 'near_miss_allergy',
   category: 'health',
   weight: 0.07,
-  condition: (s) => (s.weeksLived ?? 0) > 8,
+  condition: (s) => weeksInThisLife(s) > 8,
   generate: () => ({
     id: 'near_miss_allergy',
     description:
@@ -521,7 +530,7 @@ const nearMissGasleak: EventTemplate = {
   category: 'health',
   weight: 0.05,
   condition: (s) =>
-    (s.weeksLived ?? 0) > 15 &&
+    weeksInThisLife(s) > 15 &&
     Array.isArray(s.realEstate) &&
     s.realEstate.length > 0,
   generate: () => ({

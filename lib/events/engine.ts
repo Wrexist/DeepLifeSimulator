@@ -31,6 +31,7 @@ import {
 import { logger } from '@/utils/logger';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
 import { netWorth } from '@/lib/progress/achievements';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { initializeConsequenceState } from '@/lib/lifeMoments/consequenceTracker';
 import { PITY_THRESHOLD_WEEKLY_EVENTS } from '@/lib/randomness/randomnessConstants';
 import type { KarmaDimension } from '@/lib/karma/karmaSystem';
@@ -281,7 +282,7 @@ const weddingEvent: EventTemplate = {
   weight: 0.2,
   // Only allow wedding consideration after week 36 and if a partner exists
   // TESTFLIGHT FIX: Use weeksLived for deterministic behavior (week 1-4 resets monthly)
-  condition: state => (state.weeksLived || 0) >= 36 && state.relationships?.some(r => r.type === 'partner'),
+  condition: state => weeksInThisLife(state) >= 36 && state.relationships?.some(r => r.type === 'partner'),
   generate: state => {
     const partner = state.relationships?.find(r => r.type === 'partner');
     if (!partner) return { id: 'wedding', description: 'You think about the future.', choices: [{ id: 'wait', text: 'Continue', effects: {} }] };
@@ -502,14 +503,15 @@ const careerSpotlight: EventTemplate = {
 };
 
 // ── Early Game "Welcome" Events ────────────────────────────────────────────
-// These fire only in weeks 0-12 to hook new players with narrative from day one.
+// These fire only in the first 12 weeks OF THIS LIFE (weeksInThisLife, not the
+// age-seeded absolute counter) to hook new players with narrative from day one.
 // High weight ensures they compete well in the template pool during early game.
 
 const findCash: EventTemplate = {
   id: 'find_cash',
   category: 'economy',
   weight: 0.8,
-  condition: state => (state.weeksLived || 0) < 12,
+  condition: state => weeksInThisLife(state) < 12,
   generate: () => ({
     id: 'find_cash',
     description: 'You spot a crumpled bill on the sidewalk. Looks like $50!',
@@ -524,7 +526,7 @@ const neighborJobTip: EventTemplate = {
   id: 'neighbor_job_tip',
   category: 'economy',
   weight: 0.8,
-  condition: state => (state.weeksLived || 0) < 12,
+  condition: state => weeksInThisLife(state) < 12,
   generate: () => ({
     id: 'neighbor_job_tip',
     description: 'Your neighbor mentions a delivery gig that pays really well. "Street jobs are where the real money is early on," they say.',
@@ -539,7 +541,7 @@ const freeMeal: EventTemplate = {
   id: 'free_meal',
   category: 'health',
   weight: 0.8,
-  condition: state => (state.weeksLived || 0) < 12,
+  condition: state => weeksInThisLife(state) < 12,
   generate: () => ({
     id: 'free_meal',
     description: 'A food truck is giving away free samples to celebrate their grand opening!',
@@ -554,7 +556,7 @@ const bankingAppTip: EventTemplate = {
   id: 'banking_app_tip',
   category: 'general',
   weight: 0.7,
-  condition: state => (state.weeksLived || 0) < 12 && !state.items?.some((i: any) => i.owned && i.id?.includes('phone')),
+  condition: state => weeksInThisLife(state) < 12 && !state.items?.some((i: any) => i.owned && i.id?.includes('phone')),
   generate: () => ({
     id: 'banking_app_tip',
     description: 'You overhear someone at a café bragging about banking apps on their phone. "I earn interest just by having the app open," they say.',
@@ -569,7 +571,7 @@ const friendlyStranger: EventTemplate = {
   id: 'friendly_stranger',
   category: 'relationship',
   weight: 0.8,
-  condition: state => (state.weeksLived || 0) < 12 && (state.relationships?.length || 0) < 2,
+  condition: state => weeksInThisLife(state) < 12 && (state.relationships?.length || 0) < 2,
   generate: () => ({
     id: 'friendly_stranger',
     description: 'A friendly stranger at the park strikes up a conversation. They seem genuinely interested in getting to know you.',
@@ -584,7 +586,7 @@ const luckyCoin: EventTemplate = {
   id: 'lucky_coin',
   category: 'economy',
   weight: 0.7,
-  condition: state => (state.weeksLived || 0) < 12,
+  condition: state => weeksInThisLife(state) < 12,
   generate: state => {
     // Variable reward: $20-$100 based on seeded random for anti-exploit consistency
     const seed = (state.weeksLived || 0) * 777 + 42;
@@ -660,7 +662,7 @@ const talentScout: EventTemplate = {
   id: 'talent_scout',
   category: 'economy',
   weight: 0.2,
-  condition: state => (state.weeksLived || 0) > 4,
+  condition: state => weeksInThisLife(state) > 4,
   generate: state => {
     const seed = (state.weeksLived || 0) * 888 + 21;
     const x = Math.sin(seed) * 10000;
@@ -702,7 +704,7 @@ const viralMomentRandom: EventTemplate = {
   id: 'viral_moment_random',
   category: 'general',
   weight: 0.15,
-  condition: state => (state.weeksLived || 0) > 10,
+  condition: state => weeksInThisLife(state) > 10,
   generate: state => {
     const seed = (state.weeksLived || 0) * 666 + 17;
     const x = Math.sin(seed) * 10000;
@@ -2895,7 +2897,7 @@ export const eventTemplates: EventTemplate[] = [
   // Late-game / wealth-tier pack — the ONLY templates that declare `moneyPct`,
   // so a choice is worth a fraction of net worth instead of a flat figure that
   // has become noise. Gated on the canonical netWorth() at four tiers ($1M /
-  // $10M / $50M / $250M) plus weeksLived >= 26, so an early-game player never
+  // $10M / $50M / $250M) plus 26 weeks INTO THIS LIFE, so an early-game player never
   // sees one. See lib/events/wealthEvents.ts for the calibration.
   ...wealthEventTemplates,
 ];
@@ -2906,8 +2908,12 @@ export const eventTemplates: EventTemplate[] = [
 
 interface EventChainDefinition {
   chainId: string;
-  /** Minimum weeksLived before this chain can trigger */
+  /**
+   * Minimum weeks INTO THIS LIFE before this chain can trigger (compared
+   * against `weeksInThisLife`, not the absolute `weeksLived` — see §4.2).
+   */
   minWeeksLived: number;
+  /** Upper bound, same life-relative basis. */
   maxWeeksLived?: number;
   /** Base probability per eligible week (before pity) */
   triggerChance: number;
@@ -3173,7 +3179,11 @@ const eventChainDefinitions: EventChainDefinition[] = [
 export function rollEventChain(state: GameState): WeeklyEvent | null {
   if (state.activeEventChain) return null;
 
-  const wl = state.weeksLived || 0;
+  // Chain windows are "how far into THIS life" (15/20/25 weeks in), so they read
+  // the life-relative counter. The SEED below deliberately stays on the absolute
+  // `weeksLived` — it identifies the week, it does not gate on it.
+  const wl = weeksInThisLife(state);
+  const absoluteWeek = state.weeksLived || 0;
   const completedChainIds = (state.eventChains || [])
     .filter((c: any) => c.completed)
     .map((c: any) => c.chainId);
@@ -3184,7 +3194,7 @@ export function rollEventChain(state: GameState): WeeklyEvent | null {
     if (completedChainIds.includes(chain.chainId)) continue;
     if (chain.condition && !chain.condition(state)) continue;
 
-    const seed = (wl * 997 + chain.chainId.length * 31) % 10000;
+    const seed = (absoluteWeek * 997 + chain.chainId.length * 31) % 10000;
     const roll = Math.sin(seed) * 10000 - Math.floor(Math.sin(seed) * 10000);
     if (roll < chain.triggerChance) {
       return chain.stages[0](state, 0);
@@ -3355,13 +3365,16 @@ export function healLatchedEventChain(state: GameState): {
 }
 
 // ── ENGAGEMENT: Guaranteed starter events for new players ──
-// These fire once at specific weeks to create positive first impressions
-const starterEventTemplates: EventTemplate[] = [
+// These fire once at specific weeks OF THIS LIFE to create positive first
+// impressions. Measured with `weeksInThisLife`: the absolute `weeksLived` is
+// seeded from the starting age, so `=== 0` was only ever true for an age-18
+// start and every other scenario silently lost its starter grant.
+export const starterEventTemplates: EventTemplate[] = [
   {
     id: 'starter_luck',
     category: 'economy',
     weight: 100,
-    condition: (state) => (state.weeksLived || 0) === 0,
+    condition: (state) => weeksInThisLife(state) === 0,
     generate: () => ({
       id: 'starter_luck',
       description: 'A relative left you a small envelope with a note: "Use this wisely — the world is yours."',
@@ -3384,7 +3397,7 @@ const starterEventTemplates: EventTemplate[] = [
     category: 'economy',
     weight: 100,
     condition: (state) => {
-      const wl = state.weeksLived || 0;
+      const wl = weeksInThisLife(state);
       // Guard: validate eventLog entries have .id before comparison (prevents corrupt log bypass)
       const alreadyFired = (state.eventLog || []).some(e =>
         e && typeof e === 'object' && e.id === 'first_paycheck_bonus'
@@ -3408,7 +3421,7 @@ const starterEventTemplates: EventTemplate[] = [
     category: 'economy',
     weight: 100,
     condition: (state) => {
-      const wl = state.weeksLived || 0;
+      const wl = weeksInThisLife(state);
       return wl >= 5 && wl <= 8 &&
         !(state.eventLog || []).some(e => e.id === 'surprise_windfall');
     },
@@ -3492,10 +3505,15 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const lastEventWeeksLivedForGap = state.lastEventWeeksLived !== undefined
     ? state.lastEventWeeksLived
     : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0);
+  // The GAP is a delta between two absolute stamps — absolute on both sides.
   const weeksSinceLastEventForGap = weeksLived - lastEventWeeksLivedForGap;
-  const minEventGap = weeksLived < EARLY_GAME_THRESHOLD_WEEKS
+  // The PHASE ("is this player early / mid / late game") is life-relative: an
+  // age-25 start begins at weeksLived 364 and would otherwise be classified
+  // late-game on its very first tick.
+  const weeksThisLife = weeksInThisLife(state);
+  const minEventGap = weeksThisLife < EARLY_GAME_THRESHOLD_WEEKS
     ? EVENT_MIN_GAP_EARLY
-    : (weeksLived < 50 ? EVENT_MIN_GAP_MID : EVENT_MIN_GAP_LATE);
+    : (weeksThisLife < 50 ? EVENT_MIN_GAP_MID : EVENT_MIN_GAP_LATE);
   const inEventCooldown = weeksSinceLastEventForGap < minEventGap;
 
   if (shouldTriggerEconomicEvent(state)) {
@@ -3629,10 +3647,13 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     ? state.lastEventWeeksLived
     : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0); // Fallback for old saves
   const weeksSinceLastEvent = currentWeeksLived - lastEventWeeksLived;
-  // ENGAGEMENT: Shorter pity timer during early/mid-game to prevent long event droughts
-  const pityThreshold = currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS
+  // ENGAGEMENT: Shorter pity timer during early/mid-game to prevent long event droughts.
+  // The drought LENGTH above is a delta between absolute stamps; the PHASE it is
+  // compared against is life-relative (see the min-gap block above).
+  const weeksThisLifeForPacing = weeksInThisLife(state);
+  const pityThreshold = weeksThisLifeForPacing < EARLY_GAME_THRESHOLD_WEEKS
     ? EARLY_GAME_PITY_THRESHOLD
-    : (currentWeeksLived < 50 ? 12 : PITY_THRESHOLD_WEEKLY_EVENTS);
+    : (weeksThisLifeForPacing < 50 ? 12 : PITY_THRESHOLD_WEEKLY_EVENTS);
   // Seasonal events count as events, so they reset the pity counter (guaranteedEvent only triggers if NO events)
   const guaranteedEvent = weeksSinceLastEvent >= pityThreshold && seasonalEvents.length === 0;
 
@@ -3648,10 +3669,10 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // ENGAGEMENT: Phase-based event frequency scaling
   // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.
   let baseEventChance: number;
-  if (currentWeeksLived < EARLY_GAME_THRESHOLD_WEEKS) {
+  if (weeksThisLifeForPacing < EARLY_GAME_THRESHOLD_WEEKS) {
     baseEventChance = EARLY_GAME_EVENT_CHANCE; // ~8% — occasional surprise, not a constant interruption
-  } else if (currentWeeksLived < 50) {
-    baseEventChance = 0.10 + Math.min(0.03, currentWeeksLived * 0.001); // 10-13% rolls in weeks 8-11 after the min-gap; pity guarantees at 12 -> ~1 event/10-12 weeks
+  } else if (weeksThisLifeForPacing < 50) {
+    baseEventChance = 0.10 + Math.min(0.03, weeksThisLifeForPacing * 0.001); // 10-13% rolls in weeks 8-11 after the min-gap; pity guarantees at 12 -> ~1 event/10-12 weeks
   } else {
     baseEventChance = 0.12; // 12% — with the 8-week min-gap cooldown this lands ~1 event/15 weeks late game
   }
