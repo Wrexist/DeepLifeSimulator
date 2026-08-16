@@ -56,6 +56,23 @@ export const PURCHASED_SETTINGS_KEYS = [
   'deepLifePlusLastGemClaim',
   'deepLifePlusLastGemClaimAt',
   'deepLifePlusGemClaimDays',
+  // ── Deliberately NOT carried: the game-WEEK claim markers ────────────────
+  //
+  // `settings.deepLifePlusLastGemClaimWeek` (v40) and the top-level
+  // `lastLoginRewardWeek` (v31) are the `weeksLived` gates that close the
+  // forward-clock gem farms. They look like claim stamps — the entries above
+  // them ARE claim stamps and must carry — but they are measured in a unit
+  // that does not survive a life boundary: prestige/heir continuation rebuilds
+  // from `initialGameState`, so `weeksLived` moves DOWN (back to the heir's
+  // seeded `(age - 18) * 52`). Carrying a marker minted at, say, week 900 onto
+  // a life that starts at week 104 leaves it permanently in the future, and
+  // both faucets refuse forever — the v27/v28 "stamping a value DENIES a
+  // legitimate claim" failure mode, in its worst form.
+  //
+  // Cost of leaving them out: one extra gem claim per prestige. Accepted, and
+  // strictly the safer direction. Do NOT "fix" this by adding them here; if
+  // the extra claim ever needs closing, it needs a marker expressed in a unit
+  // that is monotonic ACROSS lives, not this list.
 ] as const;
 
 /**
@@ -63,6 +80,10 @@ export const PURCHASED_SETTINGS_KEYS = [
  * `goldUpgrades` holds the nine gem-bought permanent upgrades; `perks` holds
  * purchased perk unlocks; `youthPills` is consumable inventory the player paid
  * for and has not spent yet.
+ *
+ * `lastLoginRewardWeek` is deliberately absent — see the week-marker note at
+ * the end of `PURCHASED_SETTINGS_KEYS` for why a `weeksLived`-denominated
+ * marker must not cross a life boundary.
  */
 export const PURCHASED_STATE_KEYS = ['goldUpgrades', 'perks', 'youthPills'] as const;
 

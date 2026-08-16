@@ -4,7 +4,7 @@ import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
 import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FOR_INCOME } from '@/lib/economy/balanceConstants';
 import { validateStats, clampStatByKey } from '@/utils/statUtils';
 import { logger } from '@/utils/logger';
-import { isIncomeReason } from './actions/MoneyActions';
+import { isIncomeReason, MONEY_CEILING } from './actions/MoneyActions';
 import { getBonusPurchaseCost, canPurchaseBonus, isInertBonus, PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { purchaseLegacyUpgrade } from '@/lib/legacy/legacyShop';
 import { claimContract } from '@/lib/legacy/contracts';
@@ -426,7 +426,12 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       // credited `saleValue` for one lot of coins.
       const prevOwned = prev.cryptos?.find(c => c.id === cryptoId)?.owned ?? 0;
       if (prevOwned < amount) return prev;
-      const newMoney = prev.stats.money + saleValue;
+      // Clamp the credit like every other money path (`updateMoney` /
+      // `applyMoneyDelta` / `batchUpdateMoney` all cap at MONEY_CEILING). This
+      // line wrote `prev.stats.money + saleValue` raw, so a large enough sale
+      // could push the balance past Number.MAX_SAFE_INTEGER, where integer
+      // arithmetic stops being exact and later debits silently no-op.
+      const newMoney = Math.min(MONEY_CEILING, prev.stats.money + saleValue);
       const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
       const updatedStats = trackMoneyEarned(currentStats, saleValue);
 
@@ -488,17 +493,50 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     }
 
     // Update crypto ownership
-    setGameState(prev => ({
-      ...prev,
-      cryptos: prev.cryptos?.map(c => {
-        if (c.id === fromCryptoId) {
-          return { ...c, owned: Math.max(0, (c.owned || 0) - amount) };
-        } else if (c.id === toCryptoId) {
-          return { ...c, owned: (c.owned || 0) + toAmount };
-        }
-        return c;
-      }) || prev.cryptos,
-    }));
+    setGameState(prev => {
+      /**
+       * R3-M10: reject, do not floor.
+       *
+       * Ownership was checked against the stale `stateRef.current` and this
+       * updater floored the debit with `Math.max(0, …)` while crediting
+       * `toAmount` unconditionally — the gate → grant shape CLAUDE.md §4.4
+       * names as the repo's most repeated bug class, here as a straight COIN
+       * DUPLICATOR: two swaps in one React batch could only take the holding
+       * once (the floor absorbs the rest) but paid out the destination coin
+       * twice.
+       *
+       * Not player-reachable today (the only non-test callers are `TestRunner`
+       * behind the `__DEV__` devtools gate; the shipping crypto UI uses the
+       * correctly-atomic `CryptoTradingActions`), but these sit on the public
+       * MoneyActions context surface with no warning, so any future UI wiring
+       * them would ship a coin printer.
+       *
+       * The destination amount is re-derived from `prev` so the swap rate is
+       * the one the committed state actually pays for.
+       */
+      const prevFrom = prev.cryptos?.find(c => c.id === fromCryptoId);
+      const prevTo = prev.cryptos?.find(c => c.id === toCryptoId);
+      if (!prevFrom || !prevTo) return prev;
+      if ((prevFrom.owned || 0) < amount) return prev;
+
+      const prevFromValue = amount * prevFrom.price;
+      const prevToAmount = prevFromValue / prevTo.price;
+      if (!isFinite(prevFromValue) || !isFinite(prevToAmount) || prevFromValue <= 0 || prevToAmount <= 0) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        cryptos: prev.cryptos?.map(c => {
+          if (c.id === fromCryptoId) {
+            return { ...c, owned: (c.owned || 0) - amount };
+          } else if (c.id === toCryptoId) {
+            return { ...c, owned: (c.owned || 0) + prevToAmount };
+          }
+          return c;
+        }) || prev.cryptos,
+      };
+    });
 
     logger.info('Crypto swap completed:', {
       fromCryptoId,

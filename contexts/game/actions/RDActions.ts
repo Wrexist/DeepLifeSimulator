@@ -682,7 +682,32 @@ export const processCompetitionResults = (
   setGameState: Dispatch<SetStateAction<GameState>>,
   currentWeek?: number
 ): void => {
+  /**
+   * WP-E: pre-roll the RNG OUTSIDE the updater.
+   *
+   * The competitor count, their scores and therefore the player's rank and
+   * PRIZE MONEY were drawn with `Math.random()` inside the updater. React
+   * StrictMode double-invokes an updater (and a rebased update re-runs it), so
+   * the discarded pass and the committed pass resolved different competitions
+   * — the log line said one thing and the bank another, and the idempotence
+   * this function's docblock claims held only for the `completed` flag.
+   *
+   * Same pattern as `buildPreRolls` in `actions/weekly/preTick.ts`, minus its
+   * fixed-shape machinery: how many entries are pending is only knowable from
+   * `prev`, so the pool is drawn lazily and MEMOISED, and the cursor resets at
+   * the top of each invocation. Every draw therefore happens exactly once and
+   * any re-invocation replays the identical sequence. Distribution is
+   * unchanged: each `roll()` is one fresh `Math.random()`.
+   */
+  const rollPool: number[] = [];
+  let rollCursor = 0;
+  const roll = (): number => {
+    if (rollCursor >= rollPool.length) rollPool.push(Math.random());
+    return rollPool[rollCursor++];
+  };
+
   setGameState(prev => {
+    rollCursor = 0;
     const week = currentWeek ?? (prev.weeksLived || 0);
     const companies = prev.companies || [];
 
@@ -704,11 +729,11 @@ export const processCompetitionResults = (
         if (!competition) continue;
 
         // Generate 3–10 AI competitors scoring around the player's score (±25%).
-        const numCompetitors = Math.floor(Math.random() * 8) + 3;
+        const numCompetitors = Math.floor(roll() * 8) + 3;
         const competitorScores: number[] = [];
         const baseScore = entry.score;
         for (let i = 0; i < numCompetitors; i++) {
-          const variation = (Math.random() - 0.5) * baseScore * 0.5;
+          const variation = (roll() - 0.5) * baseScore * 0.5;
           competitorScores.push(Math.max(0, Math.floor(baseScore + variation)));
         }
         const allScores = [...competitorScores, entry.score].sort((a, b) => b - a);

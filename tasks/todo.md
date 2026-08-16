@@ -56,12 +56,25 @@ lint, routes, weekly audit). Findings triaged into work packages below.
   - sign/CRC `save_queue_persisted` (F-11)
   - `assertValidGameState` stale required fields (F-1)
   - repair fallback drift for settings/stats defaults (F-5)
-- [ ] **WP-E: economy guards**
-  - `VehicleActions.purchaseVehicle` — no inner re-check; double-tap dup ids
-  - `MoneyActionsContext.swapCrypto` — latent coin duplicator; `sellCrypto`
-    missing MONEY_CEILING clamp
-  - `RDActions.processCompetitionResults` — Math.random inside updater (prize money)
-  - `accountEntitlements` — record the v40 marker decision as a comment
+- [x] **WP-E: economy guards** — done 2026-08-16
+  - [x] `VehicleActions.purchaseVehicle` — converted to a pure resolver
+    (`resolvePurchaseVehicle`) called twice (snapshot → outcome, `prev` → state):
+    re-checks ownership + affordability against `prev` and REFUSES instead of
+    flooring the debit at 0. Ids stay equal to the template id (the whole
+    vehicle system keys on that); the ownership re-check is what stops the
+    duplicate garage entry that `sellVehicle` used to remove two-for-one.
+    Test: `__tests__/economy/purchaseVehicleDoubleTap.test.ts`
+  - [x] `MoneyActionsContext.swapCrypto` — R3-M10 inner re-check + `toAmount`
+    re-derived from `prev`; same "no production caller" warning as its
+    siblings. `sellCrypto` credit now clamps at MONEY_CEILING.
+    Test: `__tests__/economy/cryptoSwapDoubleTap.test.ts`
+  - [x] `RDActions.processCompetitionResults` — rolls hoisted out of the updater
+    into a memoised pool with a per-invocation cursor, so a StrictMode
+    double-invoke resolves the SAME competition and pays the same prize.
+    Test: `__tests__/actions/competitionResultsDeterminism.test.ts`
+  - [x] `accountEntitlements` — documented why the `weeksLived`-denominated
+    markers (`deepLifePlusLastGemClaimWeek` v40, `lastLoginRewardWeek` v31) must
+    NOT be carried across prestige. No behaviour change.
 
 ## Wave 2 — after wave 1 lands
 
