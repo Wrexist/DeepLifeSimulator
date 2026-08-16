@@ -40,7 +40,7 @@ Codebase size: ~400 files in `lib/`, ~240 components, ~535 test files.
 | `npm run lint` / `lint:errors` / `lint:fix` | ESLint (`lint:errors` = `--quiet`, used by preflight) |
 | `npm run check:routes` | expo-router conflict guard (see §5) |
 | `npm run preflight:quick` | routes + type-check — **run this during development** |
-| `npm run preflight` | routes + full 10-section preflight + `lint:errors` — **required before any release build** |
+| `npm run preflight` | `check:routes` + the full preflight script (`--platform ios`, 11 sections) + `lint:errors` + `lint:ratchet` + `check:content` — **required before any release build** |
 | `npm run audit:weekly` | Static five-domain audit → `tasks/weekly-audit-<date>.md` |
 | `npm run audit:economy` \| `:stability` \| `:save` \| `:logic` \| `:perf` | Individual audit modules |
 
@@ -117,8 +117,13 @@ Path alias: `@/*` → repo root (tsconfig + jest `moduleNameMapper` + metro).
 
 - `gameState.week` cycles **1–4** (week-of-month) — **display only**.
 - `gameState.weeksLived` is the absolute counter — **use it for every comparison,
-  cooldown, timestamp and history entry**. Helpers: `utils/weekCounters.ts`
-  (`resolveAbsoluteWeek`, `normalizeStoredWeekToAbsolute`).
+  cooldown, timestamp and history entry**. Helpers: `weeksInThisLife`
+  (`lib/progress/lifeChapters.ts`) when you hold a `GameState`, and
+  `weeksSinceLifeStart` / `resolveCalendar` / `ageFromWeeksLived`
+  (`utils/weekCounters.ts`) when you only hold the raw numbers. This list used to
+  name `resolveAbsoluteWeek` / `normalizeStoredWeekToAbsolute`, which had zero
+  production callers for their whole life — legacy cyclic 1–4 markers were never
+  actually stored, so nothing ever needed converting; they are deleted.
 - Mixing these up has shipped bugs more than once; it is the first thing to check
   in any review of time-based logic.
 - **`weeksLived` does NOT start at 0.** It is seeded from the starting age —
@@ -156,8 +161,8 @@ inside, so a double-tap in the same React batch pays once and grants twice.
 ### 4.5 Save system
 
 Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
-`saveMigrations.ts`, `saveQueue.ts`, `saveBackup.ts`, `saveCompression.ts`,
-`saveLoadMutex.ts`, `saveSigningConfig.ts`, `saveSlotMeta.ts`,
+`saveMigrations.ts`, `saveQueue.ts`, `saveBackup.ts`, `saveLoadMutex.ts`,
+`saveSigningConfig.ts`, `saveSlotMeta.ts`, `loadedStateMerge.ts`,
 `phantomSaveCleanup.ts`, `stateInvariants.ts`. See §7 for the schema rules.
 
 ### 4.6 Feature flags & native modules
@@ -711,11 +716,13 @@ plugin options that become purpose strings at prebuild time, so add a row to its
 
 ### What preflight actually checks
 
-`scripts/preflight-check.js` (10 sections): 1 type-check · 2 lint (non-blocking) ·
-3 `entry.ts` syntax & complexity · 4 Metro bundling · 5 native ad SDK config ·
-5b iOS privacy manifest · 5c iOS purpose strings · 6 IAP native module ·
-7 startup safety guardrails · 8 save signing · 8b IAP legacy entitlements flag ·
-9 IAP receipt verification (production) · 10 AdMob ad unit ids (production).
+`scripts/preflight-check.js` (11 numbered sections plus four lettered
+sub-sections): 1 type-check · 2 lint (non-blocking) · 3 `entry.ts` syntax &
+complexity · 4 Metro bundling · 5 native ad SDK config · 5b iOS privacy
+manifest · 5c iOS purpose strings · 6 IAP native module · 7 startup safety
+guardrails · 8 save signing · 8b IAP legacy entitlements flag · 9 IAP receipt
+verification (production) · 9b analytics pipeline (production) · 10 AdMob ad
+unit ids (production) · 11 shipped image payload.
 
 ### EAS profiles (`eas.json`)
 
