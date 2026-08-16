@@ -10,7 +10,7 @@ import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { AppState, AppStateStatus } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isLifeAutosaveSuspended, lifeAutosaveSuspendReason, resumeLifeAutosave } from '@/utils/autosaveSuspension';
-import { mergeLoadedSlice } from '@/utils/loadedStateMerge';
+import { hydrateLoadedState, hydrateRemoteState } from '@/utils/hydrateLoadedState';
 import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -26,7 +26,6 @@ import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
-import { enforceStateInvariants } from '@/utils/stateInvariants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
@@ -285,20 +284,41 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // fails, so the eager clone inside autoFix=true was a 30-80ms hitch on every
  // save (every 2 minutes by autosave + after every nextWeek).
  const validation = validateGameState(currentState, false);
+ // L5 (2026-08-16 audit): the repair below used to run ON `currentState` and,
+ // inside the updater, ON `prev`. `repairGameState` writes its repaired clone
+ // back onto the object it is HANDED, so both of those mutated live state in
+ // place — React's current value was changed underneath the renderer, and the
+ // updater's `{...prev}` was a fresh reference around an object that had
+ // already moved. It also only appeared to work by side effect: the outer call
+ // had already fixed that same object, so the updater's second repair found
+ // nothing to do, returned `prev` unchanged, and React was never told. What
+ // made the save correct was the mutation, not the returned value — and the
+ // re-validation read `gameStateRef.current` (the same mutated object) rather
+ // than anything the repair produced.
+ //
+ // Repair an explicit clone and thread THAT through: it is what goes to React,
+ // what is re-validated, and what is persisted. A shallow clone is enough —
+ // the write-back only ever assigns top-level keys, and every nested value it
+ // assigns is a fresh reference from `repairGameState`'s own deep clone.
+ let stateForSave: GameState = currentState;
  if (!validation.valid) {
  logger.error('[SAVE] Cannot save: state validation failed:', validation.errors);
  // Attempt repair
- const repairResult = repairGameState(currentState);
+ const repairCandidate: GameState = {...currentState };
+ const repairResult = repairGameState(repairCandidate);
  if (repairResult.repaired) {
  logger.warn('[SAVE] Repaired corrupted state before save:', repairResult.repairs);
- // Update state with repaired version before saving
- // repairGameState mutates in-place; spread to create new reference for React
- setGameState(prev => {
- const result = repairGameState(prev);
- return result.repaired ? {...prev }: prev;
- });
- // Re-validate after repair
- const revalidation = validateGameState(gameStateRef.current, false);
+ // Update state with the repaired version before saving. A new top-level
+ // reference with fresh nested refs, so React and its memos see the change.
+ stateForSave = repairCandidate;
+ // Still an updater, and still guarded: `currentState` was read from a ref
+ // before the mutex was taken, so a plain value here could clobber a newer
+ // state. If the state has moved on, the newer value stands — the repair
+ // rides along on `stateForSave` for this write either way.
+ setGameState(prev => (prev === currentState ? repairCandidate: prev));
+ // Re-validate the repaired value itself — not a ref that only happens to
+ // point at it.
+ const revalidation = validateGameState(repairCandidate, false);
  if (!revalidation.valid) {
  logger.error('[SAVE] State still invalid after repair, aborting save');
  showError('Save Error', 'Game state is corrupted and could not be repaired. Please reload your save.');
@@ -312,10 +332,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  // Validate and repair relationship graph before persisting.
- const relationshipValidation = validateRelationshipState(currentState);
+ const relationshipValidation = validateRelationshipState(stateForSave);
  const stateToPersist = relationshipValidation.isValid
- ? currentState
-: repairRelationshipState(currentState);
+ ? stateForSave
+: repairRelationshipState(stateForSave);
  if (!relationshipValidation.isValid) {
  logger.warn('[SAVE] Repaired relationship inconsistencies before save', {
  issues: relationshipValidation.issues,
@@ -4242,8 +4262,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // CRASH FIX (B-5): Pause background services to save battery/CPU
  try {
- const { cloudSyncService } = require('@/services/CloudSyncService');
- cloudSyncService.pauseSync();
+ const { getCloudSyncService } = require('@/services/CloudSyncService');
+ getCloudSyncService().pauseSync();
  } catch (e) {
  // Non-critical
  }
@@ -4297,7 +4317,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // CRASH FIX (B-5): Resume background services on foreground
  try {
- const { cloudSyncService } = require('@/services/CloudSyncService');
+ // M6: lazy accessor. The module used to construct the singleton at import
+ // time, and the constructor armed a network listener and a 30s timer, so this
+ // `require` alone started background work for an unwired feature. Constructing
+ // is now inert — only an explicit `start()` arms anything, and nothing calls
+ // it yet, so pause/resume here are no-ops until cloud sync is actually wired.
+ const { getCloudSyncService } = require('@/services/CloudSyncService');
+ const cloudSyncService = getCloudSyncService();
  cloudSyncService.resumeSync();
 
  // A-6: Register conflict callback to show native alert on sync conflict
@@ -4336,30 +4362,44 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  } catch (migErr) {
  logger.error('[CloudSync] Migration of cloud state failed (continuing with repair):', migErr);
  }
- // Validate and repair remote state before applying
- const repaired = repairGameState(remote);
- if (repaired.repaired) {
- logger.warn('[CloudSync] Remote state required repair:', repaired.repairs);
- }
- const validation = validateGameState(remote, true);
- if (!validation.valid) {
- logger.error('[CloudSync] Remote state failed validation after repair:', validation.errors);
+ // M6: the SAME hardening `loadGame` runs, plus a regression guard.
+ //
+ // This path used to lean entirely on `repairGameState` — no merge onto
+ // `initialGameState`, no `mergeLoadedSlice` for the four key-by-key
+ // sub-objects, no family↔relationships reconciliation — so a remote save
+ // missing a field that repair has no mirror for was applied with that
+ // field simply absent, and a remote `family.children` that disagreed
+ // with `relationships` stayed inconsistent. A state from ANOTHER DEVICE
+ // deserves at least what a local one gets.
+ //
+ // The guard mirrors `saveQueue.restoreQueue`'s replay check: `weeksLived`
+ // is the absolute counter (§4.2) and only ever grows, so a remote state
+ // behind the live one is a rollback of weeks the player actually played —
+ // on a destructive action whose alert only promised to pick "which
+ // version to keep". Refused with a logged reason, like the sibling
+ // future-version refusal above.
+ const decision = hydrateRemoteState(remote, {
+ localWeeksLived: gameStateRef.current?.weeksLived ?? 0,
+ source: 'cloudSync:keep-cloud',
+ logTag: '[CloudSync]',
+ });
+ if (!decision.applied) {
+ logger.error('[CloudSync] Cloud state not applied', {
+ reason: decision.reason,
+ details: decision.details,
+ localWeeks: decision.localWeeks,
+ remoteWeeks: decision.remoteWeeks,
+ });
  return;
  }
- // F-14: same last-word invariants pass as loadGame. A cloud state
- // arrives from another device and skips loadGame's merge entirely,
- // so it needs the check at least as much.
- const cloudInvariants = enforceStateInvariants(remote, 'cloudSync:keep-cloud');
- if (!cloudInvariants.clean) {
- logger.warn('[CloudSync] State invariant violations in cloud state', {
- violations: cloudInvariants.violations,
- warnings: cloudInvariants.warnings,
- repairs: cloudInvariants.repairs,
- });
- remote = cloudInvariants.state;
+ if (decision.repairs.length > 0) {
+ logger.warn('[CloudSync] Remote state required repair:', decision.repairs);
  }
- setGameState(remote);
- logger.info('[CloudSync] User chose cloud version — migrated + state replaced (validated)');
+ setGameState(decision.state);
+ logger.info('[CloudSync] User chose cloud version — migrated + hydrated + state replaced (validated)', {
+ localWeeks: decision.localWeeks,
+ remoteWeeks: decision.remoteWeeks,
+ });
  }
  } catch (err) {
  logger.error('[CloudSync] Failed to apply cloud state:', err);
@@ -4582,27 +4622,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[LOAD_GAME] Migration system failed (non-fatal, continuing with repair):', migrationError);
  }
 
- // CRITICAL: Repair and validate state before setting it
- // This prevents corrupted state from being set, even temporarily
- const repairResult = repairGameState(parsed);
- if (repairResult.repaired) {
- logger.warn('Repaired corrupted state during load:', repairResult.repairs);
- }
-
- // Validate AND auto-fix the repaired state. P0-6: passing autoFix=true runs
- // autoFixStats, which now also resets non-finite (NaN/Infinity) core stats —
- // otherwise such a save loads as "valid" but is rejected at entry (unplayable).
- const validation = validateGameState(parsed, true);
- if (!validation.valid) {
- logger.error('Loaded state failed validation:', validation.errors);
- // Still set the state (callers will validate before navigation)
- // But log the errors for debugging
- }
-
- // CRITICAL: Extract children from relationships first (before merging)
- // This ensures children created during onboarding are preserved
- const parsedRelationships = Array.isArray(parsed.relationships) ? parsed.relationships: [];
- const childRelationships = parsedRelationships.filter((r: any) => r.type === 'child');
+ // M6: the whole post-parse hardening pipeline — repair, validate + autoFix,
+ // the family↔relationships reconciliation, the merge onto `initialGameState`
+ // (with `mergeLoadedSlice` for the four key-by-key sub-objects), the
+ // userProfile identity heal, the permanent-perk application, the relationship
+ // repair and the final invariant pass — now lives in
+ // `utils/hydrateLoadedState.ts`. It was extracted verbatim so the CLOUD-apply
+ // path can run the same hardening instead of the weaker subset it had
+ // (2026-08-16 architecture audit M6). What stays here is what is specific to
+ // loading a LOCAL slot: the envelope decode and backup fallback above, the
+ // migrations, and the protected-state / stock-board restores below.
 
  // CRITICAL: Load permanent perks and apply them to game state
  let permanentPerks: string[] = [];
@@ -4616,10 +4645,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.warn('Failed to load permanent perks (non-critical):', { error });
  }
 
+ const hydrated = hydrateLoadedState(parsed, {
+ source: `loadGame:slot-${slot}`,
+ permanentPerks,
+ });
+ if (hydrated.repairs.length > 0) {
+ logger.warn('Repaired corrupted state during load:', hydrated.repairs);
+ }
+ if (!hydrated.validation.valid) {
+ logger.error('Loaded state failed validation:', hydrated.validation.errors);
+ // Still set the state (callers will validate before navigation)
+ // But log the errors for debugging
+ }
+ let safeState: GameState = hydrated.state;
+
  // B-4: Merge processed IAP transactions from save into global ledger
  // This ensures restored saves don't lose their transaction history
  try {
- const saveTxs = Array.isArray(parsed.processedIAPTransactions) ? parsed.processedIAPTransactions: [];
+ const saveTxs = Array.isArray(safeState.processedIAPTransactions) ? safeState.processedIAPTransactions: [];
  if (saveTxs.length > 0) {
  const raw = await AsyncStorage.getItem('iap_processed_transactions');
  let globalTxs: string[] = [];
@@ -4637,148 +4680,6 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  } catch (iapMergeError) {
  logger.warn('[LOAD_GAME] Failed to merge IAP transactions (non-critical):', { error: iapMergeError });
- }
-
- // CRITICAL: Merge family - ensure children from both family.children and relationships are preserved
- let mergedFamily = parsed.family ? {...parsed.family }: {...initialGameState.family };
- let mergedChildren = Array.isArray(parsed.family?.children)
- ? [...parsed.family.children]
-: [];
-
- // CRITICAL: Sync children between family.children and relationships
- // Add any children from relationships that aren't already in family.children
- childRelationships.forEach((childRel: any) => {
- if (!mergedChildren.some((c: any) => c.id === childRel.id)) {
- mergedChildren.push(childRel);
- logger.info('[LOAD_GAME] Added child from relationships to family.children', {
- childId: childRel.id,
- childName: childRel.name
- });
- }
- });
-
- // CRITICAL: Ensure all children in family.children are also in relationships
- // Add any missing children to relationships array
- const relationshipIds = new Set(parsedRelationships.map((r: any) => r.id));
- mergedChildren.forEach((child: any) => {
- if (!relationshipIds.has(child.id)) {
- parsedRelationships.push(child);
- logger.info('[LOAD_GAME] Added child from family.children to relationships', {
- childId: child.id,
- childName: child.name
- });
- }
- });
-
- mergedFamily = {
-...initialGameState.family,
-...mergedFamily,
- children: mergedChildren,
- };
-
- // CRITICAL: Build safeState, ensuring relationships and family are set AFTER all spreads
- // This prevents parsed from overwriting our carefully synced arrays
- let safeState: GameState = {
-...initialGameState,
-...parsed,
- // Deep merge for nested objects - parsed values override initial values, but null values are filtered out
- // Merged with initialGameState so every required property exists. Parsed
- // values override the defaults, a null in the save does NOT, and a key the
- // save has survives even when the defaults object has none — that last rule
- // is `loadedStateMerge.ts`, and the fields it was quietly eating are listed
- // there.
- stats: parsed.stats ? mergeLoadedSlice(parsed.stats, initialGameState.stats): initialGameState.stats,
- date: parsed.date ? mergeLoadedSlice(parsed.date, initialGameState.date): initialGameState.date,
- settings: parsed.settings ? mergeLoadedSlice(parsed.settings, initialGameState.settings): initialGameState.settings,
- // CRITICAL FIX: Ensure userProfile is properly merged and null values are filtered
- userProfile: parsed.userProfile ? mergeLoadedSlice(parsed.userProfile, initialGameState.userProfile): initialGameState.userProfile,
- };
-
- // CRITICAL: Override family and relationships AFTER all spreads to ensure our synced arrays are used
- safeState.family = mergedFamily;
- safeState.relationships = parsedRelationships.length > 0 ? parsedRelationships: (initialGameState.relationships || []);
-
- // Update item descriptions from initialGameState to ensure they're current
- if (Array.isArray(safeState.items) && Array.isArray(initialGameState.items)) {
- safeState.items = safeState.items.map(savedItem => {
- const initialItem = initialGameState.items.find(initItem => initItem.id === savedItem.id);
- if (initialItem && initialItem.description) {
- // Update description if it exists in initial state (preserves owned status and other properties)
- return {
-...savedItem,
- description: initialItem.description,
- };
- }
- return savedItem;
- });
- }
-
- // CRITICAL FIX: Ensure userProfile has firstName and lastName (required for validation)
- // If missing or empty, use defaults from name or initial state
- if (!safeState.userProfile) {
- safeState.userProfile = {...initialGameState.userProfile };
- } else {
- // Ensure firstName and lastName exist and are non-empty
- if (!safeState.userProfile.firstName || safeState.userProfile.firstName.trim() === '') {
- // Try to extract from name if available
- if (safeState.userProfile.name && safeState.userProfile.name.trim()!== '') {
- const nameParts = safeState.userProfile.name.trim().split(/\s+/);
- safeState.userProfile.firstName = nameParts[0] || 'Player';
- safeState.userProfile.lastName = nameParts.slice(1).join(' ') || 'Player';
- } else {
- safeState.userProfile.firstName = initialGameState.userProfile.firstName || 'Player';
- safeState.userProfile.lastName = initialGameState.userProfile.lastName || 'Player';
- }
- }
- if (!safeState.userProfile.lastName || safeState.userProfile.lastName.trim() === '') {
- safeState.userProfile.lastName = initialGameState.userProfile.lastName || 'Player';
- }
- // Ensure name is set if missing
- if (!safeState.userProfile.name || safeState.userProfile.name.trim() === '') {
- safeState.userProfile.name = `${safeState.userProfile.firstName} ${safeState.userProfile.lastName}`.trim() || 'Player';
- }
- }
-
- // CRITICAL: Apply permanent perks to game state
- if (permanentPerks.length > 0) {
- if (!safeState.perks) {
- safeState.perks = {};
- }
- permanentPerks.forEach(perkId => {
- if (perkId === 'workBoost') safeState.perks!.workBoost = true;
- if (perkId === 'mindset') safeState.perks!.mindset = true;
- if (perkId === 'fastLearner') safeState.perks!.fastLearner = true;
- if (perkId === 'goodCredit') safeState.perks!.goodCredit = true;
- if (perkId === 'unlockAllPerks') safeState.perks!.unlockAllPerks = true;
- });
- logger.info('Applied permanent perks to game state:', permanentPerks);
- }
-
- const relationshipValidation = validateRelationshipState(safeState);
- if (!relationshipValidation.isValid) {
- logger.warn('[LOAD_GAME] Relationship inconsistencies detected, repairing', {
- issues: relationshipValidation.issues,
- });
- safeState = repairRelationshipState(safeState);
- }
-
- // F-14: the LAST word on state sanity, after migrations, repair, autoFix and
- // the relationship repair above have all had their turn — and after the merge
- // onto `initialGameState`, so it sees the state the app will actually run.
- // It catches what the earlier stages miss (a `date.week` outside 1-4, which
- // `validateGameState` only rejects when negative; a negative or non-finite
- // `weeksLived`, which nothing else checks at all), logs every violation under
- // the grep-able `[INVARIANT]` tag, and clamps the safely-repairable ones. It
- // never rejects: a player's save must always load.
- const invariants = enforceStateInvariants(safeState, `loadGame:slot-${slot}`);
- if (!invariants.clean) {
- logger.warn('[LOAD_GAME] State invariant violations on load', {
- slot,
- violations: invariants.violations,
- warnings: invariants.warnings,
- repairs: invariants.repairs,
- });
- safeState = invariants.state;
  }
 
  // ANTI-EXPLOIT: Restore protected state from embedded data if AsyncStorage keys were deleted

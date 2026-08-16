@@ -79,14 +79,16 @@ describe('applyAmbitionPayout', () => {
 
     expect(first.granted).toBe(true);
     expect(first.state).not.toBeNull();
-    const paid = first.state as GameState;
+    const paid = first.state!;
     expect(paid.stats.money).toBe(moneyBefore + (AMBITION.payoff.money ?? 0));
     expect(paid.stats.gems ?? 0).toBe(gemsBefore + (AMBITION.payoff.gems ?? 0));
     expect(paid.ambitionRewardClaimed).toBe(true);
   });
 
   it('does not fire again on the following week', () => {
-    const paid = applyAmbitionPayout({ state: stateWithCompletedAmbition() }).state as GameState;
+    const first = applyAmbitionPayout({ state: stateWithCompletedAmbition() });
+    expect(first.state).not.toBeNull();
+    const paid = first.state!;
     const moneyAfterPayout = paid.stats.money;
 
     const second = applyAmbitionPayout({ state: paid });

@@ -1,9 +1,42 @@
+/**
+ * Cloud save sync — STATUS: transport is live, save-sync is NOT WIRED UP.
+ *
+ * What actually runs today: `lib/progress/cloud.ts` talks to the backend for
+ * the LEADERBOARD. Everything in this file that moves a SAVE — `queueSync`,
+ * `sync`, `downloadState`, `checkConflict`, `resolveConflict` — has zero
+ * callers in the app. The only members anyone calls are `pauseSync`,
+ * `resumeSync` and `setConflictCallback`, from the AppState listener in
+ * `contexts/game/GameActionsContext.tsx`, which is why the surface reads as
+ * live when it is not. Leaving it half-wired is a decision, not an oversight:
+ * turning it on is a product decision, not a refactor.
+ *
+ * What wiring it would require (README, "cloud-save backend contract"):
+ *   1. A real IDENTITY. `resolveUserId` falls back to minting a random
+ *      `player_*` id in local storage, which is a device id wearing an
+ *      account's clothes: reinstall and the saves are orphaned, and nothing
+ *      stops one device claiming another's id. Sign-in comes first.
+ *   2. The backend `/save` upload + download endpoints behind
+ *      `lib/progress/cloud.ts`, including server-side verification of the
+ *      `hash`/`signature` integrity proof this client already sends — a proof
+ *      only the client checks is decoration.
+ *   3. A call site for `queueSync` (after `saveGame`) and for `downloadState`
+ *      (at load), both inside the save/load mutex, plus the conflict UI.
+ *
+ * Until then this class must be INERT ON IMPORT. It used to arm a network
+ * listener and a 30-second `setInterval` in its constructor, and the module
+ * called `getInstance()` at the bottom — so merely importing the file (which
+ * the AppState listener does) started a timer for a feature that cannot do
+ * anything. Construction is now lazy (`getCloudSyncService()`) and the
+ * listener/timer are armed only by an explicit `start()`. 2026-08-16
+ * architecture audit M6.
+ */
 import { GameState, Relationship } from '@/contexts/game/types';
 import { uploadGameState, downloadGameState } from '@/lib/progress/cloud';
 import { logger } from '@/utils/logger';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { offlineManager } from '@/utils/offlineManager';
 import { calculateChecksum, calculateHmacSignature } from '@/utils/saveValidation';
+import { hydrateLoadedState } from '@/utils/hydrateLoadedState';
 
 export interface SyncConflict {
   localVersion: number;
@@ -34,16 +67,39 @@ class CloudSyncService {
   // A-6: Conflict detection
   private onConflictDetected: ConflictCallback | null = null;
 
-  private constructor() {
-    this.initializeNetworkListener();
-    this.startPeriodicSync();
-  }
+  /** Set by `start()`. Nothing here touches the network or a timer until then. */
+  private started = false;
+
+  // Deliberately empty: constructing the service must not observe or schedule
+  // anything. See the file header — this class is imported by a live code path
+  // for `pauseSync`/`resumeSync` while the sync feature itself is unwired.
+  private constructor() {}
 
   static getInstance(): CloudSyncService {
     if (!CloudSyncService.instance) {
       CloudSyncService.instance = new CloudSyncService();
     }
     return CloudSyncService.instance;
+  }
+
+  /**
+   * Arm the network listener and the periodic sync timer.
+   *
+   * The ONLY entry point that starts background work, and it has no caller
+   * today — by design (see the file header). Idempotent, so a future wiring
+   * can call it from a boot sequence without tracking whether it already ran.
+   */
+  start(): void {
+    if (this.started) return;
+    this.started = true;
+    this.initializeNetworkListener();
+    this.startPeriodicSync();
+    logger.debug('[CloudSync] Started (network listener + periodic sync armed)');
+  }
+
+  /** True once `start()` has armed the listener/timer and before `dispose()`. */
+  isStarted(): boolean {
+    return this.started;
   }
 
   /**
@@ -298,16 +354,16 @@ class CloudSyncService {
         return localState;
       case 'remote':
         return remoteState;
-      case 'merge':
+      case 'merge': {
         // Merge strategy: use most recent for most fields, combine arrays
         // Use optional chaining and type guards instead of 'as any'
-        const localTimestamp = ('updatedAt' in localState && typeof localState.updatedAt === 'number') 
-          ? localState.updatedAt 
+        const localTimestamp = ('updatedAt' in localState && typeof localState.updatedAt === 'number')
+          ? localState.updatedAt
           : localState.lastLogin || 0;
         const remoteTimestamp = ('updatedAt' in remoteState && typeof remoteState.updatedAt === 'number')
           ? remoteState.updatedAt
           : remoteState.lastLogin || 0;
-        return {
+        const merged: GameState = {
           ...(localTimestamp > remoteTimestamp ? localState : remoteState),
           // Merge arrays with stable key dedupe.
           achievements: Array.from(new Map(
@@ -321,6 +377,20 @@ class CloudSyncService {
             ]).values()),
           ],
         };
+        // M6: the union above merges `relationships` by id but takes
+        // `family.children` from whichever side won on TIMESTAMP, so a child
+        // present in the loser's relationships arrived with no matching
+        // `family.children` entry — the exact family↔relationships split that
+        // `loadGame` reconciles on every load and that the relationship
+        // validator reports as corruption. Hand-merging the two arrays here
+        // would be a third copy of that reconciliation; run the shared
+        // hydration instead, which owns it (and heals whatever else the
+        // union left partial).
+        return hydrateLoadedState(merged, {
+          source: 'cloudSync:resolveConflict-merge',
+          logTag: '[CloudSync]',
+        }).state;
+      }
       default:
         return localState;
     }
@@ -433,8 +503,14 @@ class CloudSyncService {
     }
   }
 
-  // CRASH FIX (B-5): Resume sync timer when app returns to foreground
+  // CRASH FIX (B-5): Resume sync timer when app returns to foreground.
+  //
+  // Resumes only what `start()` armed. Without the `started` gate this would
+  // become a second, accidental start(): the AppState listener calls it on every
+  // foreground, so a service nobody ever started would end up running a timer
+  // anyway — exactly the import-time side effect this change removes.
   resumeSync(): void {
+    if (!this.started) return;
     if (!this.syncTimer) {
       this.startPeriodicSync();
       logger.debug('[CloudSync] Resumed periodic sync (app foregrounded)');
@@ -446,6 +522,7 @@ class CloudSyncService {
   }
 
   dispose(): void {
+    this.started = false;
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
@@ -467,5 +544,18 @@ export interface SyncStatus {
   error?: string;
 }
 
-export const cloudSyncService = CloudSyncService.getInstance();
-export default cloudSyncService;
+/**
+ * The singleton, constructed on FIRST USE.
+ *
+ * This was `export const cloudSyncService = CloudSyncService.getInstance()` —
+ * evaluated at module load, and the constructor armed a network listener and a
+ * 30-second timer. Importing the file was therefore enough to start background
+ * work for a feature with no call sites. Accessing the service still costs
+ * nothing until `start()` is called.
+ */
+export function getCloudSyncService(): CloudSyncService {
+  return CloudSyncService.getInstance();
+}
+
+export type { CloudSyncService };
+export default getCloudSyncService;
