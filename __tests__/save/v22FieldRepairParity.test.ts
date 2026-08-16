@@ -254,6 +254,128 @@ describe('repairGameState backfills the fields that had no mirror at all', () =>
     expect(state.crimeSkills.lockpicking.level).toBe(1);
   });
 
+  /**
+   * F-4: migration 22's Pet `ownedToys` → `toys` collapse is the one part of that
+   * migration that MOVES data rather than defaulting it, and it had no repair
+   * counterpart. A partial save already stamped at v22-or-later still carrying
+   * `ownedToys` is skipped by the version ladder, and every reader has moved to
+   * the canonical field (`PetActions` scores from `pet.toys ?? []`) — so those
+   * toys are paid for and invisible.
+   */
+  it('collapses a legacy pet ownedToys array into toys', () => {
+    const state = partialSave();
+    state.pets = [
+      { id: 'p1', name: 'Rex', toys: ['ball'], ownedToys: ['rope', 'bone'] },
+    ];
+
+    const result = repairGameState(state);
+
+    expect(result.repaired).toBe(true);
+    // Union, never a drop: the pre-existing toy survives alongside the moved ones.
+    expect(state.pets[0].toys.sort()).toEqual(['ball', 'bone', 'rope']);
+    expect(state.pets[0].ownedToys).toEqual([]);
+  });
+
+  it('dedupes a toy present in both arrays and keeps the rest of the pet intact', () => {
+    const state = partialSave();
+    state.pets = [
+      { id: 'p1', name: 'Rex', happiness: 80, toys: ['ball'], ownedToys: ['ball', 'rope'] },
+    ];
+
+    repairGameState(state);
+
+    expect(state.pets[0].toys.sort()).toEqual(['ball', 'rope']);
+    expect(state.pets[0].happiness).toBe(80);
+    expect(state.pets[0].name).toBe('Rex');
+  });
+
+  it('is idempotent — a second repair pass finds nothing left to collapse', () => {
+    const state = partialSave();
+    state.pets = [{ id: 'p1', toys: [], ownedToys: ['rope'] }];
+
+    repairGameState(state);
+    const afterFirst = JSON.stringify(state.pets);
+    const second = repairGameState(state);
+
+    expect(JSON.stringify(state.pets)).toBe(afterFirst);
+    expect(second.repairs.filter((r) => /ownedToys/.test(r))).toEqual([]);
+  });
+
+  it('backfills a pet with no toys array at all, and skips already-clean pets', () => {
+    const state = partialSave();
+    state.pets = [
+      { id: 'clean', toys: ['ball'] }, // already canonical → untouched
+      { id: 'legacy' }, // neither array → gets an empty canonical `toys`
+    ];
+
+    const result = repairGameState(state);
+
+    expect(result.repaired).toBe(true);
+    expect(state.pets[0]).toEqual({ id: 'clean', toys: ['ball'] });
+    expect(state.pets[1].toys).toEqual([]);
+    // Only the one pet needed the collapse.
+    expect(result.repairs).toContain('Collapsed legacy pet ownedToys into toys for 1 pet(s)');
+  });
+
+  it('leaves a malformed pet entry alone rather than throwing', () => {
+    const state = partialSave();
+    state.pets = [null, { id: 'p1', toys: ['ball'] }];
+
+    expect(() => repairGameState(state)).not.toThrow();
+    expect(state.pets[0]).toBeNull();
+  });
+
+  /**
+   * F-3: `lastEventWeeksLived` has a v12 migration that seeds it from
+   * `weeksLived`, but never had a repair mirror — the last v12 field without
+   * one (`discoveredSecrets`, `ribbonCollection`, `checkpoints` and
+   * `timeMachineUsesThisLife` all had theirs).
+   */
+  it('seeds a missing lastEventWeeksLived from weeksLived, exactly like migration 12', () => {
+    const state = partialSave();
+    state.weeksLived = 417;
+    delete state.lastEventWeeksLived;
+
+    const result = repairGameState(state);
+
+    expect(result.repaired).toBe(true);
+    // NOT 0: the pity system reads `weeksLived - lastEventWeeksLived`, so a 0 on
+    // a character 417 weeks in would read as a 417-week drought and fire an
+    // event immediately. `weeksLived` means "the drought starts now".
+    expect(state.lastEventWeeksLived).toBe(417);
+    expect(state.weeksLived - state.lastEventWeeksLived).toBe(0);
+  });
+
+  it('falls back to 0 when weeksLived is itself missing or corrupt', () => {
+    const missing = partialSave();
+    delete missing.weeksLived;
+    delete missing.lastEventWeeksLived;
+    repairGameState(missing);
+    expect(missing.lastEventWeeksLived).toBe(0);
+
+    const corrupt = partialSave();
+    corrupt.weeksLived = Number.NaN;
+    delete corrupt.lastEventWeeksLived;
+    repairGameState(corrupt);
+    expect(corrupt.lastEventWeeksLived).toBe(0);
+  });
+
+  it('normalizes a non-numeric lastEventWeeksLived and never overwrites a real one', () => {
+    const corrupt = partialSave();
+    corrupt.weeksLived = 100;
+    corrupt.lastEventWeeksLived = Number.NaN;
+    repairGameState(corrupt);
+    expect(corrupt.lastEventWeeksLived).toBe(100);
+
+    // A genuine marker is left exactly where the player's last event put it.
+    const healthy = partialSave();
+    healthy.weeksLived = 100;
+    healthy.lastEventWeeksLived = 92;
+    const result = repairGameState(healthy);
+    expect(healthy.lastEventWeeksLived).toBe(92);
+    expect(result.repairs.filter((r) => /lastEventWeeksLived/.test(r))).toEqual([]);
+  });
+
   it('leaves a healthy save alone (none of these branches fire)', () => {
     const state = partialSave();
     const before = JSON.stringify({

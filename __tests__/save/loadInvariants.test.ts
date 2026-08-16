@@ -309,7 +309,7 @@ describe('loadGame enforces state invariants on a corrupted save', () => {
 
     // (c) the save still loads.
     expect(loaded).not.toBeNull();
-    const state = loaded as unknown as GameState;
+    const state: GameState = loaded!;
 
     // (b) the safely-repairable violations were repaired.
     expect(state.date.week).toBe(4);
@@ -337,7 +337,7 @@ describe('loadGame enforces state invariants on a corrupted save', () => {
     });
 
     expect(loaded).not.toBeNull();
-    const state = loaded as unknown as GameState;
+    const state: GameState = loaded!;
     expect(state.date.week).toBe(2);
     expect(state.weeksLived).toBe(364);
 

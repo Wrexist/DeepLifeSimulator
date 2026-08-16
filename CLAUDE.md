@@ -43,7 +43,6 @@ Codebase size: ~400 files in `lib/`, ~240 components, ~535 test files.
 | `npm run preflight` | routes + full 10-section preflight + `lint:errors` — **required before any release build** |
 | `npm run audit:weekly` | Static five-domain audit → `tasks/weekly-audit-<date>.md` |
 | `npm run audit:economy` \| `:stability` \| `:save` \| `:logic` \| `:perf` | Individual audit modules |
-| `npm run e2e` | Playwright (web) |
 
 `npm install` runs `scripts/fix-podspec.js` as a postinstall step.
 
@@ -98,11 +97,17 @@ Path alias: `@/*` → repo root (tsconfig + jest `moduleNameMapper` + metro).
   `contexts/game/GameProvider.tsx`: `GameState`, `GameActions`, `GameUI`, `GameData`,
   `MoneyActions`, `JobActions`, `ItemActions`, `SocialActions`, `CompanyActions`.
   Each is wrapped in a `ProviderBoundary` so a crash names the failing provider.
-- **Subscribe narrowly.** Prefer the selector hooks in `contexts/game/index.ts`
-  (`useGameStats`, `useGameMoney`, `useGameCareer`, `useGamePrestige`, …) or a
-  domain action hook over the combined `useGame()`. Pulling
-  `useGameState().setGameState` into a component re-subscribes it to the *entire*
-  state — a documented perf regression (`tasks/lessons.md`, 2026-06-09).
+- **Subscribe narrowly — and know which mechanism actually narrows.** The
+  hooks that really cut re-renders are `useGameSelector` / `useSetGameState` /
+  `useGameStateGetter` in `contexts/game/useGameSelector.ts`
+  (`useSyncExternalStore`-based; adopted in 50+ files — Pulse is the reference
+  implementation). The named hooks in `contexts/game/index.ts` (`useGameStats`,
+  `useGameMoney`, …) only stabilize the returned identity: they call
+  `useGameState()` underneath, so the component still re-renders on every
+  state mutation — do not reach for them expecting a perf win. Pulling
+  `useGameState().setGameState` into a component re-subscribes it to the
+  *entire* state — a documented perf regression (`tasks/lessons.md`,
+  2026-06-09); use `useSetGameState` instead.
 - **Never mutate.** Always `setGameState(prev => ({ ...prev, … }))`.
 - Values computed *inside* a `setGameState` updater are not visible outside it —
   don't assign to an outer variable from within the updater and read it after.
@@ -376,6 +381,15 @@ including the crash screen.
   lifetime weeks), so nothing can drift out of sync, a tick that runs twice
   cannot double-credit, and an existing save loads with its contracts already
   part-complete rather than reset to zero.
+- **v35 adds `settings.lastAdCashGrantWeek`** — the `weeksLived` marker the ad
+  orb's week gate reads, capping rewarded-ad CASH grants to one per game week.
+  The orb's only limiter was a wall-clock respawn timer, decoupled from
+  `weeksLived` entirely, so a reward worth 1.5% of net worth compounded on REAL
+  time — roughly doubling net worth every couple of hours of play, past the tax
+  brackets and the net-worth soft cap. The same "gate on game state, not the
+  device clock" fix as v28/v31/v40. Default `undefined`, so a CARVE-OUT: version
+  bumped, NO backfill and no `repairGameState` mirror — stamping the current
+  week would deny an existing player their next legitimate claim.
 - **v36 adds `dynasty`** — one object holding the bookkeeping for prestige
   tiers 2–5 (the Vault, the Endowment, Dynasty Trials, the Dynasty Seat). ONE
   optional field rather than four top-level keys, so four new systems cost one
@@ -524,9 +538,26 @@ including the crash screen.
 - When adding a repair, it **must set `repaired = true`**: the repaired clone is only
   written back onto the caller's object when that flag is set, so a backfill without
   it is computed and then silently discarded.
-- A version bump with genuinely no structural change must be listed in the
-  intentional-no-op set in `saveMigrations.ts` — otherwise a forgotten migration
-  looks identical to a deliberate one.
+- A version bump with genuinely no structural change must still be **declared**,
+  so a forgotten migration never looks identical to a deliberate one. There are
+  two mechanisms and they are not interchangeable:
+  - `NO_OP_MIGRATION_VERSIONS` — versions 2–9 only. They predate the v10
+    "initial production release" baseline and never shipped a schema, so a save
+    at one of them simply steps up to v10. Nothing new belongs in this set.
+  - A **stub migration** (`N: (state) => { state.version = N; return state; }`)
+    carrying a comment that says what the field is and why it needs no backfill.
+    This is what every carve-out since v26 uses (14 of them today), and it is
+    the form to copy: the registry entry proves the version was considered, and
+    the comment is where the reasoning lives.
+- **The inverse rule is now machine-checked.** `scripts/audit/audit-save.cjs`
+  V11 walks `initialGameState`'s top-level fields and fails on any CONCRETE
+  default with neither a migration nor a `repairGameState` mirror — the drift
+  Hard Rule #3 describes, previously caught only by eye. The 57 legacy fields
+  that predate this discipline are grandfathered in `LEGACY_PRE_MIGRATION_FIELDS`
+  (they are not live bugs: the primary load path spreads `initialGameState`
+  first). That set is a ratchet like the coverage floors — it may only shrink.
+  **Never add a new field to it to get unstuck**; write the migration and the
+  mirror.
 
 ---
 

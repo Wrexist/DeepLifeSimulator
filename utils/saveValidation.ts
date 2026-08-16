@@ -728,6 +728,32 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
+  // F-4 / v22 mirror for the Pet `ownedToys` → `toys` COLLAPSE — the one part of
+  // migration 22 that moves data rather than defaulting it, and the one part
+  // that had no repair counterpart. A partial save already stamped at v22 or
+  // later still carrying `ownedToys` is skipped by the ladder, and every reader
+  // has moved to the canonical field (`PetActions` scores the best toy from
+  // `pet.toys ?? []`), so those toys are paid for and invisible.
+  //
+  // Union-then-empty, exactly like the migration: never drops a toy, and running
+  // twice is a no-op because the second pass sees an empty `ownedToys`.
+  if (Array.isArray(s.pets)) {
+    let collapsedPets = 0;
+    s.pets = (s.pets as Record<string, unknown>[]).map((pet) => {
+      if (!pet || typeof pet !== 'object') return pet;
+      const toys = Array.isArray(pet.toys) ? (pet.toys as unknown[]) : [];
+      const owned = Array.isArray(pet.ownedToys) ? (pet.ownedToys as unknown[]) : [];
+      // Nothing to move, and `toys` is already a real array → leave it alone.
+      if (owned.length === 0 && Array.isArray(pet.toys)) return pet;
+      collapsedPets += 1;
+      return { ...pet, toys: Array.from(new Set([...toys, ...owned])), ownedToys: [] };
+    });
+    if (collapsedPets > 0) {
+      repairs.push(`Collapsed legacy pet ownedToys into toys for ${collapsedPets} pet(s)`);
+      repaired = true;
+    }
+  }
+
   // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
   // interrupted migration) — e.g. `{}` or `{ favors: null }` — is truthy, so the
   // consumers that fall back only on nullish (`favorLedger ?? emptyLedger()`,
@@ -1121,6 +1147,23 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   if (typeof s.timeMachineUsesThisLife !== 'number') {
     s.timeMachineUsesThisLife = 0;
     repairs.push('Set missing timeMachineUsesThisLife to 0');
+    repaired = true;
+  }
+  // F-3 / v12 mirror for `lastEventWeeksLived` — the event-pity spacing marker.
+  // Its migration seeds it from `weeksLived`, and it was the one v12 field with
+  // no repair counterpart, so a partial save already stamped at a later version
+  // (CloudSync field-merge / hand-edit) reached the event engine without it.
+  //
+  // Seeded from `weeksLived`, NOT 0, and that is the whole point: the pity
+  // system computes `weeksLived - lastEventWeeksLived`, so a 0 on a character
+  // 400 weeks in reads as "400 weeks since the last event" and fires a pity
+  // event immediately. `weeksLived` means "the drought starts now", which is
+  // the only honest answer for a save that never recorded when its last event
+  // was. Same expression the migration uses.
+  if (typeof s.lastEventWeeksLived !== 'number' || !isFinite(s.lastEventWeeksLived)) {
+    const weeks = typeof s.weeksLived === 'number' && isFinite(s.weeksLived) ? s.weeksLived : 0;
+    s.lastEventWeeksLived = weeks;
+    repairs.push(`Set missing lastEventWeeksLived to ${weeks}`);
     repaired = true;
   }
 

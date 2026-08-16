@@ -250,7 +250,51 @@ lint, routes, weekly audit). Findings triaged into work packages below.
     proves the V11 ratchet still BITES against fixtures — a ratchet nobody can
     show still fires is not a ratchet.
 
+- [x] **WP-K: verified-findings cleanup sweep** — done 2026-08-16
+  - **F-12: `saveQueue.clearQueue()` dropped a LIVE drain's handle.** It nulled
+    `processingPromise` while a drain could still be mid-write. Nothing cancels
+    an in-flight `performSave`, so the write kept going — it was merely no
+    longer OBSERVED: the next `addToQueue` saw a null promise and started a
+    SECOND concurrent `processQueue`, and `forceSave`'s "wait for the queue to
+    finish first" guard then awaited only the new one, so a force-save could
+    overwrite the slot mid-write. `kickProcessing`'s `finally` is now the only
+    place the handle clears. `__tests__/save/saveQueueCompletion.test.ts` +1,
+    verified discriminating (fails with the old line restored).
+  - **17 dead superseded action exports deleted** (the item this file had
+    deferred as churn-risk; each re-verified at zero production call sites
+    across the whole repo, tests included): Banking `refreshCreditScore` /
+    `recordCategorizedSpend` / `getCheckingAccount`; Loan `refreshCreditFromLoans`
+    / `payLoanWeekly` (weekly/`applyLoanAutopay`); Mining `updateMiningStatistics`
+    / `updateMiningDifficulty` (weekly/`applyMiningWarehouse`); LegacyPass
+    `unlockLegacyPassPremium` (the second door — `reconcileLegacyPassSeason` is
+    the live path `LegacyPassModal` uses); Crime `getDarkWebSkillLevel`; Dating
+    `getRelationshipStatus`; Education `clearCampusEvent`; FamilyBusiness
+    `inheritFamilyBusinesses`; Luxury `luxuryVerbItemName`; Mail
+    `lapseMailDecision` (weekly/`applyMailLapse` reimplements it); Pulse
+    `clearAllNotifications`; Vehicle `getTotalVehicleReputationBonus` /
+    `getActiveVehicleSpeedBonus`. Their now-unused imports went with them.
+    Tests that only covered a deleted export were deleted; the legacy-pass tests
+    that used `unlockLegacyPassPremium` as a SETUP helper were re-pointed at
+    `reconcileLegacyPassSeason`, so the coverage is kept on the live path.
+  - `DatingActions.cancelEngagement` deliberately KEPT — a designed half of the
+    engagement flow with a stress test but no UI entry point. Annotated in place;
+    wiring it is a product decision.
+  - Logger conformance: `lib/social/npcPosts.ts` (3) and
+    `lib/config/featureFlags.ts` (1) `console.*` → `utils/logger`. No cycle —
+    `logger` pulls only `RemoteLoggingService`, which reads no flag.
+  - Noise casts removed: two `orphan as any` in `utils/relationshipValidation.ts`
+    (`ChildInfo extends Relationship` with all-optional additions, so both
+    directions already typecheck) and `property as any` in `DatingActions`
+    (`currentResidence` is a real optional field on `RealEstate`).
+  - `EnergyBreakdownModal` used Coffee for the residence row under a comment
+    claiming "Home icon was undefined". It is not — lucide-react-native exports
+    `Home` (aliased to `House`) and eight other files in this repo import it.
+  - `utils/smartNotifications.ts`: the `weeksLived` condition key and its switch
+    arm deleted — no notification definition in the file ever set it, and the
+    conditions are authored only there.
+  - Ratchet: `updaterResultRatchet` measures 100 against RATCHET 101 after the
+    deletions — slack 1, inside the file's own ≤5 tolerance, so left as-is.
+
 ## Deliberately deferred (recorded, not done)
 
-- Dead superseded action exports (refresh* etc.) — deletion sweep is churn-risk;
-  keep list in recon reports
+- (empty — the dead-export deletion sweep listed here was done as WP-K above)
