@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import { Alert } from 'react-native';
 import {
   executeWedding,
@@ -11,7 +11,7 @@ import { updateStats as rawUpdateStats } from './actions/StatsActions';
 import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { useGameState } from './GameStateContext';
+import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useUIUX } from '@/contexts/UIUXContext';
 
 interface SocialActionsContextType {
@@ -70,17 +70,24 @@ interface SocialActionsProviderProps {
 }
 
 export function SocialActionsProvider({ children }: SocialActionsProviderProps) {
-  const { gameState, setGameState } = useGameState();
+  const setGameState = useSetGameState();
   const { showError, showInfoBanner } = useUIUX();
 
-  // Ref keeps latest state for callbacks without adding gameState to deps
-  const stateRef = useRef(gameState);
-  useEffect(() => { stateRef.current = gameState; }, [gameState]);
+  // M4: read the LIVE state on demand instead of mirroring it into a ref.
+  // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
+  // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
+  // and still handed callbacks a snapshot that was one commit stale — the
+  // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
+  // returns a stable getter over the same store, so callbacks stay stable, the
+  // memoized context value keeps its identity, and the provider no longer
+  // re-renders on every mutation. Reads are still OUTSIDE the updater, so the
+  // authoritative re-check inside `setGameState(prev => ...)` stays mandatory.
+  const getGameState = useGameStateGetter();
 
   // --- Dating & Relationships Actions ---
 
   const executeWeddingAction = useCallback((partnerId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const result = executeWedding(state, setGameState, partnerId, DATING_DEPS);
@@ -93,7 +100,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState, showError, showInfoBanner]);
 
   const startDating = useCallback((characterId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     // Check if already in a relationship
@@ -108,7 +115,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [showError, showInfoBanner]);
 
   const breakUp = useCallback((relationshipId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const relationship = state.relationships?.find(r => r.id === relationshipId);
@@ -139,7 +146,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState, showError, showInfoBanner]);
 
   const increaseRelationshipLevel = useCallback((relationshipId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const relationship = state.relationships?.find(r => r.id === relationshipId);
@@ -160,7 +167,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   // --- Social Actions ---
 
   const goOnDate = useCallback((characterId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const result = goOnDateAction(state, setGameState, characterId, 'casual', DATING_DEPS);
@@ -172,7 +179,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState, showError, showInfoBanner]);
 
   const inviteToEvent = useCallback((characterId: string, eventType: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const relationship = state.relationships?.find(r => r.id === characterId);
@@ -197,7 +204,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState, showError, showInfoBanner]);
 
   const giveGift = useCallback((characterId: string, giftId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     // Map giftId to DatingActions gift types; default to 'flowers'.
@@ -216,7 +223,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState, showError, showInfoBanner]);
 
   const startConversation = useCallback((characterId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const relationship = state.relationships?.find(r => r.id === characterId);
@@ -239,7 +246,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   // --- Family Actions ---
 
   const haveChild = useCallback((partnerId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const partner = state.relationships?.find(r => r.id === partnerId && (r.type === 'partner' || r.type === 'spouse'));
@@ -307,7 +314,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
        *
        * `isPregnant`, the 40-week cooldown, the $5,000 cost and the
        * relationship-score floor were all checked against the stale
-       * `stateRef.current`, and this updater re-checked none of them while
+       * `getGameState()`, and this updater re-checked none of them while
        * unconditionally applying +20 happiness. The only caller sits behind an
        * `Alert.alert` confirm that dismisses on first press, so landing two
        * calls in one React batch is impractical — this is the pattern being
@@ -361,7 +368,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState]);
 
   const nameChild = useCallback((childId: string, name: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     setGameState(prev => ({
@@ -380,7 +387,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   }, [setGameState]);
 
   const divorce = useCallback(() => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const spouse = state.relationships?.find(r => r.type === 'spouse');

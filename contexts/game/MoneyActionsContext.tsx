@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
 import { simulateWeek, getStockInfo } from '@/lib/economy/stockMarket';
 import { MAX_ACTIVE_RELATIONSHIPS, MAX_RELATIONSHIP_INCOME, MAX_RELATIONSHIPS_FOR_INCOME } from '@/lib/economy/balanceConstants';
@@ -16,7 +16,7 @@ import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, ge
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
 import { shouldAutoCollectRent, shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
-import { useGameState } from './GameStateContext';
+import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useGameUI } from './GameUIContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import {
@@ -25,6 +25,7 @@ import {
 import { haptic } from '@/utils/haptics';
 import { trackMoneyEarned, trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisticsTracker';
 import { memberUpgradeCost } from '@/lib/subscription/deepLifePlus';
+import { getGemUpgrade } from '@/lib/config/gemUpgrades';
 
 interface MoneyActionsContextType {
   // Money & Economy
@@ -35,7 +36,8 @@ interface MoneyActionsContextType {
   // IAP & Perks
   buyStarterPack: () => void;
   buyGoldPack: () => void;
-  buyGoldUpgrade: (upgradeId: string) => void;
+  /** Returns true only when the purchase was actually applied (M8). */
+  buyGoldUpgrade: (upgradeId: string) => boolean;
   buyRevival: () => void;
 
   // Crypto
@@ -79,14 +81,20 @@ interface MoneyActionsProviderProps {
 }
 
 export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
-  const { gameState, setGameState } = useGameState();
+  const setGameState = useSetGameState();
   const { setIsLoading, setLoadingProgress, setLoadingMessage } = useGameUI();
   const { showError } = useUIUX();
 
-  // Ref keeps latest state for callbacks without adding gameState to deps.
-  // This prevents callback recreation on every state change.
-  const stateRef = useRef(gameState);
-  useEffect(() => { stateRef.current = gameState; }, [gameState]);
+  // M4: read the LIVE state on demand instead of mirroring it into a ref.
+  // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
+  // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
+  // and still handed callbacks a snapshot that was one commit stale — the
+  // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
+  // returns a stable getter over the same store, so callbacks stay stable, the
+  // memoized context value keeps its identity, and the provider no longer
+  // re-renders on every mutation. Reads are still OUTSIDE the updater, so the
+  // authoritative re-check inside `setGameState(prev => ...)` stays mandatory.
+  const getGameState = useGameStateGetter();
 
   // Money & Economy Actions
   const updateMoney = useCallback((amount: number, reason: string, updateDailySummary = true) => {
@@ -187,7 +195,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     // Atomicity (CR): reject the WHOLE batch up-front when the NET is unaffordable, and apply the
     // money-adding leg first — so the two updateMoney calls can never half-commit (a leg only trips
     // updateMoney's overdraft guard when the net itself overdraws, which we've already rejected).
-    const currentMoney = stateRef.current?.stats?.money ?? 0;
+    const currentMoney = getGameState()?.stats?.money ?? 0;
     if (currentMoney + incomeTotal + nonIncomeTotal < -0.01) {
       logger.warn(
         `[batchUpdateMoney] Rejected: insufficient funds. Has ${currentMoney}, net ${incomeTotal + nonIncomeTotal}.`
@@ -202,7 +210,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [updateMoney]);
 
   const applyPerkEffects = useCallback((baseValue: number, perkType: string): number => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return baseValue;
 
     let multiplier = 1;
@@ -239,72 +247,69 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     logger.info('Gold pack purchase initiated');
   }, []);
 
-  const buyGoldUpgrade = useCallback((upgradeId: string) => {
-    const state = stateRef.current;
-    if (!state) {
-      logger.error('Cannot purchase upgrade: gameState is null');
-      return;
-    }
-
-    // Define valid upgrade IDs and their BASE gem costs (must match GemShopModal.tsx).
-    // DeepLife+ members pay 20% less — the discount is applied via memberUpgradeCost
-    // below so this gate and the GemShopModal price can never disagree.
-    const upgradeDefinitions: Record<string, { cost: number; name: string }> = {
-      multiplier: { cost: 5000, name: 'Money Multiplier' },
-      energy_boost: { cost: 7500, name: 'Energy Boost' },
-      happiness_boost: { cost: 6000, name: 'Happiness Boost' },
-      fitness_boost: { cost: 9000, name: 'Fitness Boost' },
-      skill_mastery: { cost: 15000, name: 'Skill Mastery' },
-      time_machine: { cost: 25000, name: 'Time Machine' },
-      immortality: { cost: 50000, name: 'Immortality' },
-      tycoon: { cost: 100000, name: 'Tycoon Empire' },
-      chronomaster: { cost: 150000, name: 'Chronomaster' },
+  /**
+   * Buy a gem upgrade. Returns TRUE only when the purchase was actually applied.
+   *
+   * M8: this used to return `void`, so `GemShopModal` alerted "Purchase
+   * Successful" for every tap — including a tap it had just refused for an
+   * invalid id, an already-owned upgrade, or too few gems. No gems were ever
+   * lost (the updater below is atomic and re-checks against `prev`), but the
+   * player was told a paid-currency purchase landed when it had not.
+   *
+   * The result is reported from a PREVIEW of the same pure decision function
+   * on the committed snapshot — never from a variable assigned inside the
+   * updater, which CLAUDE.md §4.1 says is not reliably visible outside it.
+   * Same shape as `SkillTreeModal.commitUnlock`. Residual, and identical to
+   * that reference: two taps in ONE React batch both preview against the same
+   * pre-batch snapshot, so the second reports success while the updater
+   * correctly refuses it. The authority remains the updater — nothing is
+   * double-charged.
+   */
+  const buyGoldUpgrade = useCallback((upgradeId: string): boolean => {
+    /** Pure: can this state buy this upgrade, and if not, why not? */
+    const decide = (state: GameState | null | undefined) => {
+      const upgrade = getGemUpgrade(upgradeId);
+      if (!upgrade) {
+        return { ok: false as const, title: 'Invalid Upgrade', message: `Upgrade ${upgradeId} not found.` };
+      }
+      if (!state) {
+        return { ok: false as const, title: 'Not Ready', message: 'Your game is still loading. Try again in a moment.' };
+      }
+      if (state.goldUpgrades?.[upgradeId]) {
+        return { ok: false as const, title: 'Already Owned', message: `You already own ${upgrade.name}.` };
+      }
+      // Price this player actually pays (DeepLife+ discount applied), re-derived
+      // from whichever state we are deciding against so the discount can't be
+      // dodged by a mid-batch entitlement change.
+      const cost = memberUpgradeCost(upgrade.cost, state.settings);
+      if ((state.stats?.gems || 0) < cost) {
+        return {
+          ok: false as const,
+          title: 'Insufficient Gems',
+          message: `You need ${cost.toLocaleString()} gems to purchase ${upgrade.name}.`,
+        };
+      }
+      return { ok: true as const, upgrade, cost };
     };
 
-    const upgrade = upgradeDefinitions[upgradeId];
-    if (!upgrade) {
-      logger.error('Invalid upgrade ID:', upgradeId);
-      showError('Invalid Upgrade', `Upgrade ${upgradeId} not found.`);
-      return;
+    const preview = decide(getGameState());
+    if (!preview.ok) {
+      if (!getGemUpgrade(upgradeId)) logger.error('Invalid upgrade ID:', upgradeId);
+      showError(preview.title, preview.message);
+      return false;
     }
 
-    // Price this player actually pays (DeepLife+ discount applied).
-    const cost = memberUpgradeCost(upgrade.cost, state.settings);
-
-    // Check if already owned
-    if (state.goldUpgrades?.[upgradeId as keyof typeof state.goldUpgrades]) {
-      showError('Already Owned', `You already own ${upgrade.name}.`);
-      return;
-    }
-
-    // Check if user has enough gems
-    const currentGems = state.stats?.gems || 0;
-    if (currentGems < cost) {
-      showError('Insufficient Gems', `You need ${cost.toLocaleString()} gems to purchase ${upgrade.name}.`);
-      return;
-    }
-
-    // Apply the upgrade.
-    // ANTI-EXPLOIT: Re-check inside setGameState(prev =>) so two rapid clicks
-    // in the SAME React batch don't both pass the pre-update gate above and
-    // double-deduct gems / set the flag twice. The outer check stays for fast
-    // failure + user-visible error; the inner check is the authoritative one.
+    // ANTI-EXPLOIT: re-decide against `prev` so two rapid clicks in the SAME
+    // React batch don't both pass the preview above and double-deduct gems /
+    // set the flag twice. The preview is for the UI; THIS is the authority.
     setGameState(prevState => {
-      if (prevState.goldUpgrades?.[upgradeId as keyof typeof prevState.goldUpgrades]) {
-        return prevState; // already owned by an earlier same-batch claim
-      }
-      const prevGems = prevState.stats?.gems || 0;
-      // Re-price inside the updater from the freshest settings so the discount
-      // can't be dodged by a mid-batch entitlement change.
-      const liveCost = memberUpgradeCost(upgrade.cost, prevState.settings);
-      if (prevGems < liveCost) {
-        return prevState; // not enough gems (e.g. a prior same-batch upgrade drained them)
-      }
+      const verdict = decide(prevState);
+      if (!verdict.ok) return prevState;
       return {
         ...prevState,
         stats: {
           ...prevState.stats,
-          gems: prevGems - liveCost,
+          gems: (prevState.stats?.gems || 0) - verdict.cost,
         },
         goldUpgrades: {
           ...prevState.goldUpgrades,
@@ -313,8 +318,9 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       };
     });
 
-    logger.info('Gold upgrade purchased:', { upgradeId, name: upgrade.name, cost });
-  }, [setGameState, showError]);
+    logger.info('Gold upgrade purchased:', { upgradeId, name: preview.upgrade.name, cost: preview.cost });
+    return true;
+  }, [setGameState, showError, getGameState]);
 
   const buyRevival = useCallback(() => {
     // Implementation for revival purchase
@@ -323,7 +329,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   // Crypto Actions
   const buyCrypto = useCallback((cryptoId: string, amount: number) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const crypto = state.cryptos?.find(c => c.id === cryptoId);
@@ -356,7 +362,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       /**
        * R3-M10: reject, do not floor.
        *
-       * Affordability was checked against the stale `stateRef.current` and this
+       * Affordability was checked against the stale `getGameState()` and this
        * updater floored with `Math.max(0, …)` while crediting the coins
        * unconditionally — the "goods granted, money zeroed out" pattern
        * CLAUDE.md §4.4 names as the repo's most repeated bug class. Not
@@ -397,7 +403,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const sellCrypto = useCallback((cryptoId: string, amount: number) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const crypto = state.cryptos?.find(c => c.id === cryptoId);
@@ -461,7 +467,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const swapCrypto = useCallback((fromCryptoId: string, toCryptoId: string, amount: number) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const fromCrypto = state.cryptos?.find(c => c.id === fromCryptoId);
@@ -497,7 +503,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       /**
        * R3-M10: reject, do not floor.
        *
-       * Ownership was checked against the stale `stateRef.current` and this
+       * Ownership was checked against the stale `getGameState()` and this
        * updater floored the debit with `Math.max(0, …)` while crediting
        * `toAmount` unconditionally — the gate → grant shape CLAUDE.md §4.4
        * names as the repo's most repeated bug class, here as a straight COIN
@@ -565,7 +571,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
    * costs the points.
    */
   const purchaseLegacyUpgradeAction = useCallback((upgradeId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = purchaseLegacyUpgrade(state.legacyPoints, state.legacyUpgrades, upgradeId);
@@ -591,7 +597,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
    * one React batch cannot pay twice (§4.4).
    */
   const claimLegacyContractAction = useCallback((contractId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = claimContract(state, contractId);
@@ -614,7 +620,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   //
   // Five actions, one shape, copied deliberately from
   // `purchaseLegacyUpgradeAction` above: the reducer in `lib/dynasty/` is PURE
-  // and idempotent on its id, so it is run once against `stateRef.current` for
+  // and idempotent on its id, so it is run once against `getGameState()` for
   // the caller's report and again against `prev` inside the updater. Where
   // money is involved the debit lands in the SAME updater that records the
   // purchase, and the reducer re-checks affordability against `prev`, so a
@@ -626,7 +632,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   /** Tier 2 — preserve a luxury piece across death, for a preservation fee. */
   const storeInDynastyVaultAction = useCallback((itemId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = storeInVault(state, itemId);
@@ -648,7 +654,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const removeFromDynastyVaultAction = useCallback((itemId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = removeFromVault(state, itemId);
@@ -665,7 +671,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   /** Tier 3 — money into Legacy Points, once per tranche, forever. */
   const claimDynastyEndowmentAction = useCallback((trancheId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = claimEndowment(state, trancheId);
@@ -689,7 +695,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   /** Tier 4 — swear a handicap for the next life. Costs nothing until it starts. */
   const swearDynastyTrialAction = useCallback((trialId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = addPendingTrial(state, trialId);
@@ -705,7 +711,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const withdrawDynastyTrialAction = useCallback((trialId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = removePendingTrial(state, trialId);
@@ -722,7 +728,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   /** Tier 5 — build a wing of the Dynasty Seat. The one thing money outlives. */
   const buyDynastySeatWingAction = useCallback((wingId: string): { success: boolean; message: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
 
     const preview = buySeatWing(state, wingId);
@@ -744,7 +750,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   }, [setGameState]);
 
   const purchasePrestigeBonus = useCallback((bonusId: string): { success: boolean; message?: string } => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state?.prestige) {
       return { success: false, message: 'Prestige system not available' };
     }

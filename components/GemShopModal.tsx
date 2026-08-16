@@ -22,6 +22,31 @@ import { activeGemPromo, formatPromoCountdown } from '@/lib/shop/gemPromo';
 import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
+import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
+
+/**
+ * Presentation-only companions to the gem-upgrade catalogue (M8). Artwork and
+ * ribbons are UI decisions, so they stay here; every id/name/description/price
+ * comes from `GEM_UPGRADES`, which the reducer reads too.
+ */
+const UPGRADE_ART: Record<GemUpgradeId, ReturnType<typeof require>> = {
+  multiplier: require('@/assets/images/iap/upgrades/money_multiplier.webp'),
+  energy_boost: require('@/assets/images/iap/upgrades/energy_boost.webp'),
+  happiness_boost: require('@/assets/images/iap/upgrades/happiness_boost.webp'),
+  fitness_boost: require('@/assets/images/iap/upgrades/fitness_boost.webp'),
+  skill_mastery: require('@/assets/images/iap/upgrades/skill_mastery.webp'),
+  time_machine: require('@/assets/images/iap/upgrades/time_machine.webp'),
+  immortality: require('@/assets/images/iap/upgrades/immortality.webp'),
+  tycoon: require('@/assets/images/iap/upgrades/money_multiplier.webp'),
+  chronomaster: require('@/assets/images/iap/upgrades/time_machine.webp'),
+};
+
+const UPGRADE_RIBBON: Partial<Record<GemUpgradeId, string>> = {
+  multiplier: 'Most Popular',
+  immortality: 'Ultimate',
+  tycoon: 'Prestige',
+  chronomaster: 'Prestige',
+};
 
 const LinearGradient = Gradient;
 
@@ -321,11 +346,18 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       Alert.alert('Already Owned', 'You already own this upgrade.');
       return;
     }
+    // M8: only claim success when the reducer says it APPLIED. This used to
+    // alert "Purchase Successful" unconditionally, because `buyGoldUpgrade`
+    // returned void — so a refusal (already owned / too few gems, decided
+    // against fresher state than the two gates above read) still told the
+    // player their gems had bought something. `buyGoldUpgrade` surfaces the
+    // specific reason itself via `showError`, so there is nothing to alert here
+    // on refusal.
+    if (!buyGoldUpgrade(id)) return;
     // The upgrade commits to game state synchronously here. Persisting can still
     // reject (disk/quota) — swallow it into a clear message rather than letting
     // it bubble as an unhandled rejection. Do NOT claim the purchase failed: the
     // state change stands, and the periodic autosave will retry the write.
-    buyGoldUpgrade(id);
     try {
       await saveGame();
       Alert.alert('Purchase Successful', 'Your upgrade has been activated!');
@@ -528,7 +560,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         }
         onPress={() => handleBuyUpgrade(item.id, cost)}
         owned={item.owned}
-        locked={!afford && !item.owned}
+        // `iapBusy` matches the IAP cards on this same screen: while a store
+        // purchase or a Restore is in flight the whole shop is locked, so a gem
+        // spend can't race an entitlement change mid-transaction.
+        locked={(!afford && !item.owned) || iapBusy}
       />
     );
   };
@@ -709,84 +744,19 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     },
   ];
 
-  const upgrades = [
-    {
-      id: 'multiplier',
-      name: 'Money Multiplier',
-      description: 'All earnings increased by 50% forever',
-      price: 5000,
-      image: require('@/assets/images/iap/upgrades/money_multiplier.webp'),
-      owned: goldUpgrades?.multiplier || false,
-      featured: 'Most Popular',
-    },
-    {
-      id: 'energy_boost',
-      name: 'Energy Boost',
-      description: 'Energy regenerates 50% faster',
-      price: 7500,
-      image: require('@/assets/images/iap/upgrades/energy_boost.webp'),
-      owned: goldUpgrades?.energy_boost || false,
-    },
-    {
-      id: 'happiness_boost',
-      name: 'Happiness Boost',
-      description: 'Happiness decays 50% slower',
-      price: 6000,
-      image: require('@/assets/images/iap/upgrades/happiness_boost.webp'),
-      owned: goldUpgrades?.happiness_boost || false,
-    },
-    {
-      id: 'fitness_boost',
-      name: 'Fitness Boost',
-      description: 'Fitness decays 50% slower',
-      price: 9000,
-      image: require('@/assets/images/iap/upgrades/fitness_boost.webp'),
-      owned: goldUpgrades?.fitness_boost || false,
-    },
-    {
-      id: 'skill_mastery',
-      name: 'Skill Mastery',
-      description: 'All skills level up 50% faster',
-      price: 15000,
-      image: require('@/assets/images/iap/upgrades/skill_mastery.webp'),
-      owned: goldUpgrades?.skill_mastery || false,
-    },
-    {
-      id: 'time_machine',
-      name: 'Time Machine',
-      description: 'Time-rewind costs halved',
-      price: 25000,
-      image: require('@/assets/images/iap/upgrades/time_machine.webp'),
-      owned: goldUpgrades?.time_machine || false,
-    },
-    {
-      id: 'immortality',
-      name: 'Immortality',
-      description: 'Never die of old age (skips age-80+ death rolls)',
-      price: 50000,
-      image: require('@/assets/images/iap/upgrades/immortality.webp'),
-      owned: goldUpgrades?.immortality || false,
-      featured: 'Ultimate',
-    },
-    {
-      id: 'tycoon',
-      name: 'Tycoon Empire',
-      description: 'Double all earnings — stacks on top of every other bonus',
-      price: 100000,
-      image: require('@/assets/images/iap/upgrades/money_multiplier.webp'),
-      owned: goldUpgrades?.tycoon || false,
-      featured: 'Prestige',
-    },
-    {
-      id: 'chronomaster',
-      name: 'Chronomaster',
-      description: 'Every time-rewind is free, forever',
-      price: 150000,
-      image: require('@/assets/images/iap/upgrades/time_machine.webp'),
-      owned: goldUpgrades?.chronomaster || false,
-      featured: 'Prestige',
-    },
-  ];
+  // M8: names, descriptions and prices come from the ONE catalogue in
+  // `lib/config/gemUpgrades.ts`, which `MoneyActionsContext.buyGoldUpgrade`
+  // also reads — so the price shown here and the price charged cannot drift.
+  // Only genuinely presentational data (artwork, ribbons) is mapped in here.
+  const upgrades = GEM_UPGRADES.map((u) => ({
+    id: u.id,
+    name: u.name,
+    description: u.description,
+    price: u.cost,
+    image: UPGRADE_ART[u.id],
+    owned: Boolean(goldUpgrades?.[u.id]),
+    featured: UPGRADE_RIBBON[u.id],
+  }));
 
   // "Short on gems?" bridge: if the player can't afford the cheapest upgrade they
   // don't already own (member price), offer a one-tap jump to the Gems tab.

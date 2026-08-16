@@ -47,12 +47,19 @@ export function GameStateProvider({
   // An external-store mirror of `gameState` so `useGameSelector` consumers can
   // subscribe to slices and re-render only when their slice changes. This is
   // purely additive — `useGameState()`/`useGame()` below are unchanged.
+  //
+  // The mirror is seeded once (lazy init) and thereafter advanced ONLY from the
+  // `useLayoutEffect` below. M11: it used to also be written from the render
+  // body, on the theory that a synchronous write "never tears". It does the
+  // opposite. A render is not a commit: React discards renders (StrictMode
+  // double-invokes, an interrupted/rebased lane is thrown away), so a
+  // render-phase write publishes state that may never commit — and every
+  // `useGameSelector` consumer would then be reading a value that
+  // `useGameState()` consumers never see. The two channels must agree, and the
+  // only moment they provably do is after the commit that produced the state.
   const mirrorRef = useRef<{ state: GameState; listeners: Set<() => void> } | null>(null);
   if (mirrorRef.current === null) {
     mirrorRef.current = { state: gameState, listeners: new Set() };
-  } else {
-    // Keep the mirror in sync synchronously so getSnapshot never tears.
-    mirrorRef.current.state = gameState;
   }
   // Stable store object (created once) — its identity never changes, so the
   // GameStoreContext provider never causes re-renders on its own. Its
@@ -72,7 +79,10 @@ export function GameStateProvider({
       setGameState: (update) => setterRef.current(update),
     };
   }
-  // Notify selector subscribers after the source-of-truth commit.
+  // The single sync point: advance the mirror and notify selector subscribers
+  // after the commit that produced `gameState`. `useLayoutEffect` (not
+  // `useEffect`) so the publish happens before the browser/host paints, i.e.
+  // selector consumers never show a frame of stale data.
   useLayoutEffect(() => {
     const mirror = mirrorRef.current;
     if (!mirror) return;

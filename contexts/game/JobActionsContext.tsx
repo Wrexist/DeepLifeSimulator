@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, ReactNode, useMemo, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, ReactNode, useMemo } from 'react';
 import * as JobActions from './actions/JobActions';
 import { rejectIfBlocked, isPlayerJailed } from './actions/_guards';
 import { updateStats } from './actions/StatsActions';
@@ -7,7 +7,7 @@ import { commitDeterministicRoll, getDeterministicRoll } from '@/lib/randomness/
 import { logger } from '@/utils/logger';
 import { computeBailCost } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
-import { useGameState } from './GameStateContext';
+import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useMoneyActions } from './MoneyActionsContext';
 import { CrimeSkillId, GameState, GameStats, PromotionDetails } from './types';
 import { haptic } from '@/utils/haptics';
@@ -44,12 +44,19 @@ interface JobActionsProviderProps {
 }
 
 export function JobActionsProvider({ children }: JobActionsProviderProps) {
-  const { gameState, setGameState } = useGameState();
+  const setGameState = useSetGameState();
   const { updateMoney } = useMoneyActions();
 
-  // Ref keeps latest state for callbacks without adding gameState to deps
-  const stateRef = useRef<GameState>(gameState);
-  useEffect(() => { stateRef.current = gameState; }, [gameState]);
+  // M4: read the LIVE state on demand instead of mirroring it into a ref.
+  // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
+  // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
+  // and still handed callbacks a snapshot that was one commit stale — the
+  // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
+  // returns a stable getter over the same store, so callbacks stay stable, the
+  // memoized context value keeps its identity, and the provider no longer
+  // re-renders on every mutation. Reads are still OUTSIDE the updater, so the
+  // authoritative re-check inside `setGameState(prev => ...)` stays mandatory.
+  const getGameState = useGameStateGetter();
 
   // Jobs & Careers Actions
 /**
@@ -120,7 +127,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const performStreetJob = useCallback((jobId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const result = JobActions.performStreetJob(state, setGameState, jobId, {
@@ -179,7 +186,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const applyForJob = useCallback((jobId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
 
     const result = JobActions.applyForJob(state, setGameState, jobId);
@@ -198,7 +205,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const promoteCareer = useCallback((careerId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
     if (isPlayerJailed(state)) {
       return { success: false, message: "You can't chase a promotion from a jail cell." };
@@ -215,7 +222,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const requestRaise = useCallback((careerId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
     if (isPlayerJailed(state)) {
       return { success: false, message: "You can't ask for a raise while you're in jail." };
@@ -231,7 +238,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const quitJob = useCallback(() => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state?.currentJob) return;
 
     setGameState(prevState => {
@@ -284,7 +291,7 @@ function applyCriminalXp(
 
   // Jail Actions
   const performJailActivity = useCallback((activityId: string) => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
     // A deceased player can't act, even from jail (matches sibling job actions).
     const blocked = rejectIfBlocked(state);
@@ -487,7 +494,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const payBail = useCallback(() => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state) return;
     // A deceased player's estate can't post bail (death popup is showing).
     if (rejectIfBlocked(state)) return;
@@ -544,7 +551,7 @@ function applyCriminalXp(
   }, [setGameState]);
 
   const serveJailTime = useCallback(() => {
-    const state = stateRef.current;
+    const state = getGameState();
     if (!state || state.jailWeeks <= 0) {
       return { events: [], statsChange: {} };
     }

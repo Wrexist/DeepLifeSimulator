@@ -5,13 +5,17 @@ import type { GameState } from '@/contexts/game/types';
 // imports this file — a require cycle that left `useGame` undefined during
 // onboarding boot and crashed `<Stack>` with "Element type is invalid".
 // Pulling the hooks directly from the leaf context modules breaks the cycle.
-import { useGameState } from '@/contexts/game/GameStateContext';
+import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { iapService } from '@/services/IAPService';
 import { logger } from '@/utils/logger';
 
 export function IAPHandler() {
-    const { setGameState } = useGameState();
+    // M4: `useGameState()` subscribes this root-mounted handler to the ENTIRE
+    // GameState even though it only ever WRITES — the documented re-render
+    // regression in CLAUDE.md §4.1. `useSetGameState` is the same setter with
+    // no subscription.
+    const setGameState = useSetGameState();
     const { saveGame } = useGameActions();
 
     useEffect(() => {
