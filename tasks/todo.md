@@ -14,8 +14,12 @@ PR #138 merged; branch restarted from main. Owner decisions taken (via Q&A):
       function (POST upsert + GET fetch, custom auth: payload signature check
       against CLOUD_SAVE_HMAC_KEY secret when configured, size/shape limits),
       README contract compliance.
-- [ ] Agent A: overdueBalance subtracted in canonical netWorth() + tests;
+- [x] Agent A: overdueBalance subtracted in canonical netWorth() + tests;
       assess (report, don't blindly change) the pinned preTick copy.
+      Done: `lib/progress/achievements.ts` subtracts `safeOverdueBalance` (full
+      amount, no floor, `safeCreditCardDebt`-shaped guards); 13 new tests in
+      `__tests__/economy/netWorthCompleteness.test.ts`. No existing test
+      shifted. preTick's pinned copy left untouched — assessment in the report.
 - [ ] Agent B: member gem drop epoch/banked-claim guard (v45 carve-out +
       stub migration + docs sync + tests). Free-tier v40 gate untouched.
 - [ ] Agent C: cloud client wiring — start() at boot behind a cloudSave flag
