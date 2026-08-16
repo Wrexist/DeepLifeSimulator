@@ -350,6 +350,70 @@ lint, routes, weekly audit). Findings triaged into work packages below.
   - Ratchet: `updaterResultRatchet` measures 100 against RATCHET 101 after the
     deletions — slack 1, inside the file's own ≤5 tolerance, so left as-is.
 
+## Wave 5 — the verified UI-polish tail
+
+- [x] **WP-P: clipping line boxes, the unbounded contacts list, a dev route, and
+      a dead mail branch** — four verified audit findings, one disjoint file set.
+  - **Scaled font in a RAW line box, swept repo-wide.** The harmful half of the
+    raw-pixel debt: `fontScale` clamps at 1.6 and `scale` at 1.8, so a
+    `responsiveFontSize.*` / `fontScale()` fontSize paired with a literal
+    `lineHeight` grows its glyphs toward the clamp while the box stays put and
+    clips descenders on a tablet. A raw fontSize with a raw lineHeight keeps its
+    ratio at every size and is NOT this bug — merely unscaled, deliberately left
+    alone, since converting those moves layout app-wide.
+    8 pairs in 5 files, all scaled at their existing ratio:
+    `components/work/workScreenStyles.ts` (`sectionDescription` 24,
+    `jobDescription` 16 — the two confirmed findings),
+    `components/FirstWeekGuide.tsx` (`stepDescription` 20, `tipText` 16),
+    `components/SettingsModalStyles.ts` (`settingDescription` 18),
+    `components/settings/BugReportSheet.tsx` and
+    `components/settings/DangerZone.tsx` (22 each).
+    Guarded by a repo-wide scan in `__tests__/render/hudLegibility.test.ts`
+    (the TopStatsBar suite this extends): it brace-matches every style object in
+    `components/` and `app/`, blanks nested objects so a sheet does not inherit
+    its children's properties, and fails listing any survivor. Allowlist is
+    empty. A control test re-runs the matchers over the clipping shape, the
+    raw+raw shape and the fixed shape, so a guard that quietly stopped matching
+    cannot pass forever.
+  - **`components/mobile/ContactsApp.tsx` personal tab → `FlatList`.** The one
+    list on the screen with no upper bound (every friend, ex, colleague, child
+    and grandchild of a long life), previously `.map()`ed into a ScrollView, so
+    mount cost tracked relationship count and never came back down. Restructure
+    was clean and NO nesting anti-pattern was introduced: the tab's ScrollView
+    is the OUTER scroller (its parent is a plain View holding the four tab
+    bodies), and there is exactly one section above the list — so the portfolio
+    hero moved to `ListHeaderComponent` verbatim and the empty state to
+    `ListEmptyComponent`. The header stays suppressed at zero contacts, matching
+    the old `length === 0` branch. `keyExtractor` hoisted to module scope, where
+    stability is real; `renderItem` deliberately left inline because
+    `renderPersonalCard` closes over `expandedId`, the theme and every handler —
+    a `useCallback` around it memoizes nothing (ESLint says so) and only adds
+    indirection. Virtualization is the win being bought.
+  - **`app/preview.tsx` left static, with the measurement recorded.** The
+    obvious improvement — defer its heavy imports behind the existing
+    `Platform.OS !== 'web'` check so the release native bundle drops them —
+    saves zero bytes: `AchievementToast` and `UIUXOverlay` are imported directly
+    by `app/_layout.tsx`, and `GameProvider` / `UIUXProvider` /
+    `OnboardingProvider` all arrive through `contexts/AppProviders.tsx`, which
+    `_layout.tsx` composes. The route adds no module to the native graph the app
+    does not already pull in, so a conditional require would buy nothing and add
+    a shape CLAUDE.md §5 warns about. The comment now carries the reason and
+    tells the next reader to re-measure rather than inherit the claim.
+  - **`contexts/game/actions/MailActions.ts`: dead `lapsed` branch trimmed.**
+    `resolveMailDecision` took a `mode: 'chosen' | 'lapsed'` and an optional
+    `decorate` callback; both call sites pass `'chosen'` and neither passes
+    `decorate`, and the lapse path (`weekly/applyMailLapse.ts`) stamps
+    `resolvedAs: 'lapsed'` itself rather than routing through here. Both
+    parameters removed, the unused `lapsedCopy` with them, and `resolveDecisionOn`
+    simplified to hardcode `'chosen'` with a comment naming who owns the other
+    value. `resolvedAs` stays `'chosen' | 'lapsed'` on the type — the lapse path
+    still writes it.
+  - Verification: `__tests__/render` + `mail` + `social` + `startup` + `actions`
+    = 122 suites / 1,275 tests passing. `npm run type-check` and
+    `npm run type-check:tests` both clean. ESLint on all changed files: 0 errors;
+    warning count on `ContactsApp.tsx` unchanged at 3 vs HEAD, no new warnings
+    anywhere.
+
 ## Deliberately deferred (recorded, not done)
 
 - (empty — the dead-export deletion sweep listed here was done as WP-K above)

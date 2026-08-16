@@ -104,6 +104,127 @@ describe('the HUD money/savings/gems figures are readable', () => {
   });
 });
 
+/**
+ * The same defect, hunted repo-wide.
+ *
+ * The TopStatsBar fix above was found by eye, four times in one file. The
+ * pairing it names — a `fontScale()`d fontSize sitting in a line box written as
+ * a RAW literal — is mechanical enough to scan for, so this walks every style
+ * object in `components/` and `app/` and fails on any survivor.
+ *
+ * What is IN scope: scaled font + literal `lineHeight`. `fontScale` clamps at
+ * 1.6 and `scale` at 1.8, so the glyphs grow toward the clamp while the box
+ * stays where it was written and the descenders clip on a tablet.
+ *
+ * What is deliberately NOT in scope: a RAW fontSize with a RAW lineHeight. That
+ * is merely unscaled — the pair keeps its ratio at every device size, so the
+ * text never clips. It is a separate (and much larger) debt, and converting
+ * those fontSizes would move layout app-wide.
+ */
+describe('no style anywhere pairs a scaled font with a raw line box', () => {
+  const ROOT = path.join(__dirname, '..', '..');
+
+  /**
+   * Justified survivors, `'<relative path>': '<why>'`. Empty, and it should
+   * stay that way — a scaled font in a fixed box has no good reason to exist.
+   */
+  const ALLOWLIST: Record<string, string> = {};
+
+  const SCALED_FONT =
+    /fontSize:\s*(responsiveFontSize\.[\w'"[\]]+|fontScale\(|scale\(|moderateScale\(|getResponsiveValue\()/;
+  const RAW_LINE_HEIGHT = /lineHeight:\s*(\d+(?:\.\d+)?)\s*[,\n}]/;
+
+  const walk = (dir: string, out: string[] = []): string[] => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name !== 'node_modules') walk(p, out);
+      } else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) {
+        out.push(p);
+      }
+    }
+    return out;
+  };
+
+  /**
+   * Every `{...}` in the file, reduced to its OWN properties by blanking any
+   * nested object (a `Platform.select({...})`, a `textShadowOffset`). Without
+   * that, a sheet's outer object inherits its children's properties and every
+   * style in the file reads as one giant object.
+   */
+  const ownPropertyBodies = (src: string): string[] => {
+    const open: number[] = [];
+    const bodies: string[] = [];
+    for (let i = 0; i < src.length; i++) {
+      if (src[i] === '{') open.push(i);
+      else if (src[i] === '}') {
+        const start = open.pop();
+        if (start === undefined) continue;
+        let body = src.slice(start + 1, i);
+        let prev = '';
+        while (body !== prev) {
+          prev = body;
+          body = body.replace(/\{[^{}]*\}/g, '{}');
+        }
+        bodies.push(body);
+      }
+    }
+    return bodies;
+  };
+
+  const scan = (): string[] => {
+    const files = [
+      ...walk(path.join(ROOT, 'components')),
+      ...walk(path.join(ROOT, 'app')),
+    ];
+    const found = new Set<string>();
+
+    for (const file of files) {
+      const rel = path.relative(ROOT, file).split(path.sep).join('/');
+      if (rel in ALLOWLIST) continue;
+      const src = fs.readFileSync(file, 'utf8');
+      // Cheap reject: no literal lineHeight anywhere means nothing to find.
+      if (!/lineHeight:\s*\d/.test(src)) continue;
+
+      for (const body of ownPropertyBodies(src)) {
+        const font = body.match(SCALED_FONT);
+        const line = body.match(RAW_LINE_HEIGHT);
+        if (font && line) {
+          found.add(`${rel} — fontSize: ${font[1]}… paired with lineHeight: ${line[1]}`);
+        }
+      }
+    }
+    return [...found].sort();
+  };
+
+  it('finds no scaled-font/raw-lineHeight pair in components/ or app/', () => {
+    // Listed rather than counted, so a regression names the file to open.
+    expect(scan()).toEqual([]);
+  });
+
+  it('the scanner can still see the defect it was written for (the control)', () => {
+    // A guard that silently stopped matching would pass forever. Re-run the
+    // matchers over the shape they exist to catch, and over the shape they must
+    // NOT catch (raw + raw, which keeps its ratio and is out of scope).
+    const clipping = ` fontSize: responsiveFontSize.base, color: '#000', lineHeight: 24, `;
+    expect(SCALED_FONT.test(clipping) && RAW_LINE_HEIGHT.test(clipping)).toBe(true);
+
+    const merelyUnscaled = ` fontSize: 14, color: '#000', lineHeight: 24, `;
+    expect(SCALED_FONT.test(merelyUnscaled)).toBe(false);
+
+    const fixed = ` fontSize: responsiveFontSize.base, lineHeight: fontScale(24), `;
+    expect(RAW_LINE_HEIGHT.test(fixed)).toBe(false);
+  });
+
+  it('the two work-screen styles that started this are scaled now', () => {
+    // Named explicitly: these were the confirmed findings, so a future edit
+    // that reverts them fails here with a pointer rather than only in the sweep.
+    const src = read('components/work/workScreenStyles.ts');
+    expect(src).toContain('lineHeight: fontScale(24)');
+    expect(src).toContain('lineHeight: fontScale(16)');
+  });
+});
+
 describe('the reputation stat is viewable as a number', () => {
   const CODE = read('components/IdentityCard.tsx');
 

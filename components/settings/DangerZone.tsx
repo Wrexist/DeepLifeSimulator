@@ -294,7 +294,8 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.base,
     color: '#94A3B8',
     marginBottom: responsiveSpacing.lg,
-    lineHeight: 22,
+    // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
+    lineHeight: fontScale(22),
   },
   confirmActions: {
     flexDirection: 'row',

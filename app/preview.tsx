@@ -53,6 +53,18 @@ export default function Preview() {
   // the (tabs) group from inside a leaf route, which can throw on native
   // ("another navigator is already registered for this container"). Render
   // nothing on native so the route is harmless if ever opened on a device.
+  //
+  // The imports above stay STATIC on purpose. The obvious next step is to defer
+  // them behind this platform check so a release native bundle stops carrying
+  // them — but measured, that saves nothing: every one of them is already
+  // reachable from `app/_layout.tsx`, which the real app always loads.
+  // `AchievementToast` and `UIUXOverlay` are imported there directly, and
+  // `GameProvider` / `UIUXProvider` / `OnboardingProvider` all come in through
+  // `contexts/AppProviders.tsx`, which `_layout.tsx` composes. This file adds
+  // no module to the native graph that the app does not already pull in, so a
+  // conditional require would buy zero bytes and only add a shape CLAUDE.md §5
+  // warns about. Re-measure before changing this: the reasoning is "the app
+  // already imports them", not "requires are fine here".
   if (Platform.OS !== 'web') return null;
 
   const apply = (w?: number, h?: number) => {

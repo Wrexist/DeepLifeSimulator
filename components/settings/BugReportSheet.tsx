@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { X, Mail, Share2, MessageCircle } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
-import { responsivePadding, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { responsivePadding, responsiveFontSize, responsiveBorderRadius, scale, fontScale } from '@/utils/scaling';
 import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 import {
   emailDiagnosticReport,
@@ -197,7 +197,8 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.base,
     color: '#94A3B8',
     marginBottom: responsivePadding.medium,
-    lineHeight: 22,
+    // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
+    lineHeight: fontScale(22),
   },
   input: {
     backgroundColor: 'rgba(15, 23, 42, 0.6)',

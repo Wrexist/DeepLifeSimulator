@@ -555,7 +555,9 @@ const styles = StyleSheet.create({
         fontSize: fontScale(14),
         color: '#D1D5DB',
         textAlign: 'center',
-        lineHeight: 20,
+        // Scaled font + raw line box clips descenders on a tablet (fontScale
+        // clamps at 1.6, so 14 → 22 inside a box still fixed at 20).
+        lineHeight: fontScale(20),
         paddingHorizontal: responsiveSpacing.sm,
     },
     priorityBadge: {
@@ -628,7 +630,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: fontScale(12),
         color: '#D1D5DB',
-        lineHeight: 16,
+        lineHeight: fontScale(16),
     },
 });
 

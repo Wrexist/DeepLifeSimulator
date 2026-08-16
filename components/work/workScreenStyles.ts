@@ -85,7 +85,10 @@ export const styles = StyleSheet.create({
         fontSize: responsiveFontSize.base,
         color: '#64748B',
         marginBottom: responsiveSpacing.xl,
-        lineHeight: 24,
+        // Scaled font + RAW line box clips glyphs once fontScale climbs (1.6 on
+        // a tablet): 22pt text in a 24pt box became 22pt text in a 24pt box
+        // while the glyphs grew past it. Scale the box at the same ratio.
+        lineHeight: fontScale(24),
         fontWeight: '500',
     },
     sectionDescriptionDark: {
@@ -895,7 +898,9 @@ export const styles = StyleSheet.create({
         fontSize: responsiveFontSize.sm,
         color: '#6B7280',
         marginBottom: responsiveSpacing.sm,
-        lineHeight: 16,
+        // Same pairing as `sectionDescription` above — scale the line box with
+        // the text it holds, not against it.
+        lineHeight: fontScale(16),
     },
     jobDescriptionDark: {
         color: '#CBD5E1',
