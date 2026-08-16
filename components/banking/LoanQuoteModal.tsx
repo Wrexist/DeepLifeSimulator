@@ -7,6 +7,8 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   visible: boolean;
   gameState: GameState;
@@ -30,11 +32,6 @@ const TERM_OPTIONS = [
   { weeks: 104, label: '2 yr' },
   { weeks: 260, label: '5 yr' },
 ];
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkMode, onAccept, onClose }: Props) {
   const theme = getThemeColors(darkMode);

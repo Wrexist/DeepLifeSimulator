@@ -58,6 +58,8 @@ import {
 import { highestGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultiplier, GpaBand } from '@/lib/education/gpa';
 import { meritRate } from '@/lib/education/scholarships';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 // Education identity accent — cyan. Solid only on small CTAs/badges (≤44pt);
@@ -149,14 +151,6 @@ function withAlpha(hex: string, a: number): string {
   const g = parseInt(h.substring(2, 4), 16);
   const b = parseInt(h.substring(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 /** Friendly programme length: weeks under a year, otherwise years. */

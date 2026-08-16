@@ -1,12 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GameProvider } from '@/contexts/GameContext';
-import { UIUXProvider } from '@/contexts/UIUXContext';
-import { OnboardingProvider } from '@/src/features/onboarding/OnboardingContext';
-import AchievementToast from '@/components/anim/AchievementToast';
-import UIUXOverlay from '@/components/UIUXOverlay';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setViewportOverride } from '@/utils/scaling';
 
 const PRESETS = [
@@ -54,17 +49,14 @@ export default function Preview() {
   // ("another navigator is already registered for this container"). Render
   // nothing on native so the route is harmless if ever opened on a device.
   //
-  // The imports above stay STATIC on purpose. The obvious next step is to defer
-  // them behind this platform check so a release native bundle stops carrying
-  // them — but measured, that saves nothing: every one of them is already
-  // reachable from `app/_layout.tsx`, which the real app always loads.
-  // `AchievementToast` and `UIUXOverlay` are imported there directly, and
-  // `GameProvider` / `UIUXProvider` / `OnboardingProvider` all come in through
-  // `contexts/AppProviders.tsx`, which `_layout.tsx` composes. This file adds
-  // no module to the native graph that the app does not already pull in, so a
-  // conditional require would buy zero bytes and only add a shape CLAUDE.md §5
-  // warns about. Re-measure before changing this: the reasoning is "the app
-  // already imports them", not "requires are fine here".
+  // This screen renders INSIDE the root tree: `app/_layout.tsx` wraps <Slot />
+  // in SafeAreaProvider -> AppProviders (UIUX, Game, Toast, Onboarding, ...) and
+  // renders <AchievementToast /> and <UIUXOverlay /> globally. This file used to
+  // mount its own SafeAreaProvider + GameProvider + UIUXProvider +
+  // OnboardingProvider and a second toast/overlay pair on top of those — a
+  // SECOND, independent GameState living under the real one, so anything saved
+  // from the previewed app wrote through a store the rest of the tree could not
+  // see. Consume the ambient providers; never re-mount them.
   if (Platform.OS !== 'web') return null;
 
   const apply = (w?: number, h?: number) => {
@@ -75,17 +67,7 @@ export default function Preview() {
     }
   };
 
-  return (
-    <SafeAreaProvider>
-      <GameProvider>
-        <UIUXProvider>
-          <OnboardingProvider>
-            <PreviewContent apply={apply} />
-          </OnboardingProvider>
-        </UIUXProvider>
-      </GameProvider>
-    </SafeAreaProvider>
-  );
+  return <PreviewContent apply={apply} />;
 }
 
 function PreviewContent({ apply }: { apply: (w?: number, h?: number) => void }) {
@@ -115,8 +97,6 @@ function PreviewContent({ apply }: { apply: (w?: number, h?: number) => void }) 
             <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             </Stack>
-            <AchievementToast />
-            <UIUXOverlay />
           </View>
         </View>
 

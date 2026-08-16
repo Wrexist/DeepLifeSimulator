@@ -54,7 +54,12 @@ const STATE_SUFFIX: Record<string, string> = {
   neutral: '',
 };
 
-function formatMoney(n: number): string {
+/**
+ * Per-share PRICE, not a money amount: cents matter below $1k, so this is
+ * deliberately not `formatMoney` (which floors and abbreviates). Same shape as
+ * `formatPrice` in components/mobile/StocksApp.tsx.
+ */
+function formatPrice(n: number): string {
   if (!isFinite(n)) return '$0';
   if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   return `$${n.toFixed(2)}`;
@@ -149,7 +154,7 @@ export default function StockRow({
   const stateSuffix = sectorState && sectorState !== 'neutral' ? ` · ${STATE_SUFFIX[sectorState]}` : '';
 
   const a11yLabel =
-    `${symbol}, ${formatMoney(price)}` +
+    `${symbol}, ${formatPrice(price)}` +
     (changePct != null && isFinite(changePct)
       ? `, ${up ? 'up' : down ? 'down' : 'flat'} ${(Math.abs(changePct) * 100).toFixed(2)} percent this week`
       : '') +
@@ -173,7 +178,7 @@ export default function StockRow({
         {owned ? (
           <View style={styles.metaRow}>
             <Text style={[styles.meta, { color: theme.textMuted }]} numberOfLines={1}>
-              {shares?.toFixed(2)} sh · avg {formatMoney(averagePrice ?? 0)}
+              {shares?.toFixed(2)} sh · avg {formatPrice(averagePrice ?? 0)}
             </Text>
             {pnlPct != null && (
               <Text style={[styles.metaPnl, { color: pnlPct >= 0 ? accent.success : accent.danger }]} numberOfLines={1}>
@@ -187,7 +192,7 @@ export default function StockRow({
             {dividendYield
               ? `${(dividendYield * 100).toFixed(2)}% yield`
               : prevClose != null
-                ? `Prev ${formatMoney(prevClose)}`
+                ? `Prev ${formatPrice(prevClose)}`
                 : SECTOR_LABEL[sector]}
           </Text>
         )}
@@ -197,7 +202,7 @@ export default function StockRow({
 
       <View style={styles.rightCol}>
         <Text style={[styles.price, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-          {formatMoney(price)}
+          {formatPrice(price)}
         </Text>
         <ChangeChip changePct={changePct} darkMode={darkMode} />
       </View>

@@ -6,16 +6,13 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   rule: CryptoDCARule;
   currentWeek: number;
   darkMode: boolean;
   onDelete?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 export default function DCARuleRow({ rule, currentWeek, darkMode, onDelete }: Props) {

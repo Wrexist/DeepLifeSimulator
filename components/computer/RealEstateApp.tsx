@@ -77,6 +77,8 @@ import { EVICTION_AFTER_WEEKS, getRentalTier } from '@/lib/realEstate/rentals';
 import { endRental, listRentalOptions, rentHome } from '@/contexts/game/actions/RentalActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 // Real Estate identity accent — emerald (#10B981). Used ONLY as translucent
@@ -236,14 +238,6 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
  * own catalog entries from the legacy app see them in Portfolio.
  */
 const CATALOG: RealEstate[] = PROPERTY_CATALOG;
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 function formatSignedMoney(n: number): string {
   return `${n >= 0 ? '+' : '-'}${formatMoney(Math.abs(n))}`;

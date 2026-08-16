@@ -6,15 +6,12 @@ import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } 
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   card: CreditCard;
   darkMode: boolean;
   onPress?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 // One colour per tier. This was a [dark, light] gradient pair when the tier was

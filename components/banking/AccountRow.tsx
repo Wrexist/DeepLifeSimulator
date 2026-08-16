@@ -7,6 +7,8 @@ import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getGlassButton } from '@/utils/glassmorphismStyles';
 import { isReadOnlyMirror, canCloseAccount } from '@/lib/banking/operations';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   account: BankAccount;
   currentWeek: number;
@@ -25,11 +27,6 @@ interface Props {
   variant?: 'row' | 'card';
   /** Card variant only: open the full-screen account detail page. */
   onDetail?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 export function accountTypeLabel(type: BankAccount['type']): string {

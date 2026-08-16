@@ -7,6 +7,8 @@ import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   goal: SavingsGoal;
   darkMode: boolean;
@@ -17,11 +19,6 @@ interface Props {
    * a COMPLETED goal too, which is where the money is most likely to be sitting.
    */
   onWithdraw?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 /** Visual size of the +/- circles; the hit slop below is derived from it. */

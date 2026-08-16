@@ -37,6 +37,8 @@ import {
   scale,
   fontScale,
 } from '@/utils/scaling';
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 const { width } = Dimensions.get('window');
@@ -89,22 +91,6 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
         (life.netWorth || 0) > (best?.netWorth || 0) ? life : best, previousLives[0]),
     };
   }, [previousLives]);
-
-  const formatMoney = (amount: number) => {
-    if (amount >= 1_000_000_000_000) {
-      return `$${(amount / 1_000_000_000_000).toFixed(2)}T`;
-    }
-    if (amount >= 1_000_000_000) {
-      return `$${(amount / 1_000_000_000).toFixed(2)}B`;
-    }
-    if (amount >= 1_000_000) {
-      return `$${(amount / 1_000_000).toFixed(2)}M`;
-    }
-    if (amount > 10_000) {
-      return `$${(amount / 1_000).toFixed(2)}K`;
-    }
-    return `$${amount.toLocaleString()}`;
-  };
 
   const formatDate = (timestamp?: number) => {
     if (!timestamp) return 'Unknown';

@@ -8,6 +8,8 @@ import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import { StockOrderSide, StockOrderType } from '@/lib/stocks/orderBook';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 // 2% commission — MUST match STOCK_FEE in contexts/game/actions/StockActions.ts
@@ -33,7 +35,11 @@ interface Props {
   }) => void;
 }
 
-function formatMoney(n: number): string {
+/**
+ * Per-share PRICE — cents matter below $1k, so this stays separate from the
+ * canonical `formatMoney` used for the cash/order-value figures below.
+ */
+function formatPrice(n: number): string {
   if (!isFinite(n)) return '$0';
   if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   return `$${n.toFixed(2)}`;
@@ -96,7 +102,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
 
           <ScrollView contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-              Mid {formatMoney(midPrice)} · You own {ownedShares.toFixed(2)} sh · Cash {formatMoney(cash)}
+              Mid {formatPrice(midPrice)} · You own {ownedShares.toFixed(2)} sh · Cash {formatMoney(cash)}
             </Text>
 
             <SegRow

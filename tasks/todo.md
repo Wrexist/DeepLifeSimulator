@@ -1,40 +1,43 @@
-# Architecture-audit fix waves (2026-08-16) — waves 1 & 2 COMPLETE
+# Architecture-audit fix waves (2026-08-16) — waves 1–3 COMPLETE
 
-Source: tasks/architecture-audit-2026-08-16.md. All items below landed on
-claude/codebase-architecture-audit-dy6c5m, each batch verified before commit;
-final combined tree: both type-checks clean, lint:errors clean, audit-save all
-clear, preflight passes on a clean checkout, tooling+save+startup 531 tests green.
+Source: tasks/architecture-audit-2026-08-16.md. All landed on
+claude/codebase-architecture-audit-dy6c5m, each batch verified before commit.
+Final wave-3 combined tree: both type-checks, lint:errors, check:routes,
+preflight, audit-save and audit-logic all green.
 
-## Wave 1 (fix-order items 1–6)
-- [x] C1 welcome-back forward-clock exploit (v44 carve-out + tests)
-- [x] C2 check:routes in the production OTA workflow
-- [x] C3 audit-save V11 assignment-based matching + 8 repair mirrors
-- [x] C4 factory scan widened; all 25 raw `as GameState` casts burned down
-- [x] H3 test:integration → real save/integration suites
-- [x] H4 src/** in tsconfig.typecheck.json
-- [x] H1 discoverySystem typed reads + `as unknown as … any` lint closure
-- [x] H7a payoffRoll → seeded makeWeeklyRoll
+## Wave 1
+- [x] C1 welcome-back exploit (v44) · C2 OTA check:routes · C3 audit matcher +
+      8 mirrors · C4 factory scan + 25-cast burn-down · H3 real integration
+      gate · H4 src/ typecheck · H1 discovery typed reads + lint closure ·
+      H7a seeded payoffRoll
 
 ## Wave 2
-- [x] H2 preflight resolves eas.json profile env (warn-not-fail for EAS-store-only
-      secrets; NEW hard fail on Google test ad units in production)
-- [x] H5 boot-error surfacing live (subscriber model); Metro dead code deleted
-- [x] H9 cold start ~6s faster (readiness-driven; MIN_SPLASH_MS=600); bounded health poll
-- [x] M2 tick failure actually aborts (no silent pre-tick save)
-- [x] M3 relationship pass per-entry containment
-- [x] M1 breakUp/moveIn stat deltas atomic in-updater
-- [x] H8/L10 forceSave + quota-retry protected-state parity
-- [x] H6 lib boundary: 3 symbols moved down, 2 sanctioned in place, eslint
-      boundary rule over lib/** (documented in CLAUDE.md §5)
-- [x] M12 carveOutRoundTrip.test.ts — all 14 carve-outs + 3 full envelope round trips
-- [x] Discovery follow-up: seeded Mom/Dad no longer credit 'relationships'
+- [x] H2 preflight eas.json env · H5 live boot-error surfacing · H9 ~6s cold
+      start · M1/M2/M3 tick+action correctness · H8/L10 forceSave parity ·
+      H6 lib boundary + eslint rule · M12 carve-out round-trip suite
 
-## Wave 3 candidates (from the report, not started)
-- M4 whole-state subscriptions (IAPHandler, AchievementToast, UIUXOverlay,
-  provider stateRef pattern → useGameStateGetter)
-- M5 useAchievements recompute; M7 formatMoney ×35; M8 gem catalog + false success
-- M6 cloud-sync half-wired path; M9 net-worth consolidation; M10 age dual-source
-- M11 render-phase mirror write; M13 zeroPreRolls adoption; M14 audit-logic G5
-- M15 EAS preview profile flags; M16 tabs layout selectors; M17 preview.tsx
-- M18 EventChoice.special union; M19 constants/order-book dedup; M20 nested audit walk
-- H7(b/c) event payload seeded rolls + RNG consolidation; LOW items L1–L18
+## Wave 3
+- [x] M4 narrow subscriptions (5 providers, root overlays; GameActionsContext
+      deliberately kept — documented) · M5 useAchievements · M8 gem catalog +
+      honest results · M11 mirror render-write · M16 tabs selectors
+- [x] M7 formatMoney dedup (33 copies; fixed missing B/T tier, $-1.2M signs,
+      $NaN) · M15 preview=Boring Build, iap/att opt-in, notifications flag
+      deleted · M17 preview.tsx nested providers removed
+- [x] M18 EventSpecial union · H7b 23 seeded payloads · H7c RNG consolidation
+      (grandchildren copy deliberately kept — save-format)
+- [x] M9 net worth · M10 getAge · M19 constants/order-book/stock registry
+- [x] M13 zeroPreRolls (18 files + audit check) · M14 producer-matching
+      detector + RealEstateActions NaN-fallbacks deleted · M20 nested audit
+      walk (9 mirrors incl. settings.autoSave) · L3/L4/L16 dead code
+
+## Remaining candidates (wave 4, not started)
+- M6 cloud-sync half-wired path (route through the loadGame merge or delete)
+- Raw Math.random in careerEvents/personalCrises/travelEvents/lifeEvents
+  generate() (same class as H7b; personalCrises decides add_disease,
+  careerEvents decides layoffs) · TravelActions sixth FNV copy
+- LOW backlog: L1 weekCounters unused helpers, L2 lint-selector require
+  bypasses, L5-L9 save-pipeline LOWs, L11 BUILD_TAG, L12 fix-podspec,
+  L13 versionCode validation, L14 metro polyfill/entry export, L15 stock
+  board module state, L17 ambition wasDue test, L18 doc drift
+- Owner decisions queued: overdueBalance in the net-worth SUM; extending the
+  DeepLife+ member gem drop gate (v40 note)

@@ -5,20 +5,14 @@ import { PACPoolState } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   pac: PACPoolState;
   darkMode: boolean;
   onRaiseClean?: () => void;
   onRaiseDirty?: () => void;
   onSpend?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `$${(n / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 export default function PACCard({ pac, darkMode, onRaiseClean, onRaiseDirty, onSpend }: Props) {

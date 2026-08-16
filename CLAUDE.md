@@ -166,8 +166,20 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   `EXPO_PUBLIC_*` env vars. `BORING_BUILD_MODE` (default **on in `__DEV__`**)
   disables AdMob, IAP, analytics, notifications and ATT for a stable baseline.
 - Native-SDK flags are **opt-in** (`=== 'true'`): `adMob`, `firebaseAnalytics`,
-  `revenueCat`. Sentry `analytics` is hard-disabled (iOS 26 TurboModule crash).
-  Production values are set per-profile in `eas.json`.
+  `revenueCat`, `iap`, `att`. Sentry `analytics` is hard-disabled (iOS 26
+  TurboModule crash). Production values are set per-profile in `eas.json`.
+  `iap` and `att` were the two exceptions until 2026-08-16 — they read
+  `!== 'false'`, so they were ON in any profile that simply did not mention the
+  variable, which is exactly what `preview` and `development` do. An internal
+  preview build therefore armed StoreKit with no products and burned the
+  one-shot ATT prompt with no ad integration behind it. Both are `=== 'true'`
+  now, `preview` carries `EXPO_PUBLIC_BORING_BUILD=true`, and
+  `__tests__/tooling/nativeSdkFlagDefaults.test.ts` pins the per-profile truth
+  table against `eas.json` so a profile that drops its explicit `"true"` fails
+  in CI rather than on TestFlight.
+- There is **no `notifications` flag**. `expo-notifications` was removed to fix a
+  TurboModule crash and `utils/notifications.ts` is a no-op stub, so the flag had
+  zero readers — a kill switch nobody consults reads as working protection.
 - Load native modules lazily via `require()` in a try/catch, never at module top level.
 
 ---

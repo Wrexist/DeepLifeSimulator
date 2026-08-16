@@ -12,6 +12,8 @@ import { X, Crown, Calendar, DollarSign, TrendingUp, Users, RotateCcw } from 'lu
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { safeSettings } from '@/utils/safeGameState';
 import { PrestigeRecord } from '@/lib/prestige/prestigeTypes';
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -49,13 +51,6 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
       scaleAnim.setValue(0.8);
     }
   }, [visible, fadeAnim, scaleAnim]);
-
-  const formatMoney = (amount: number) => {
-    if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(2)}B`;
-    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-    if (amount > 10_000) return `$${(amount / 1_000).toFixed(2)}K`;
-    return `$${Math.floor(amount).toLocaleString()}`;
-  };
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -509,5 +504,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-
 

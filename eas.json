@@ -26,7 +26,8 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_ENABLE_DEVTOOLS": "true"
+        "EXPO_PUBLIC_ENABLE_DEVTOOLS": "true",
+        "EXPO_PUBLIC_BORING_BUILD": "true"
       },
       "ios": {
         "simulator": false

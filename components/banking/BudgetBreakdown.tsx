@@ -4,6 +4,8 @@ import { BudgetCategory, BudgetWeekBucket } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   buckets: BudgetWeekBucket[];
   darkMode: boolean;
@@ -47,11 +49,6 @@ const CATEGORY_COLOR: Record<BudgetCategory, string> = {
   taxes: '#71717a',
   other: '#94a3b8',
 };
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 export default function BudgetBreakdown({ buckets, darkMode, weeks = 4, targets, onSetTarget }: Props) {
   const theme = getThemeColors(darkMode);

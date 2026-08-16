@@ -13,6 +13,8 @@ import {
   DOWN_PAYMENT_FRACTIONS,
 } from '@/contexts/game/actions/RealEstateActions';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   visible: boolean;
   property: RealEstate | null;
@@ -38,13 +40,6 @@ const TERM_LABEL: Record<MortgageTerm, string> = {
   '15y': '15-year',
   '30y': '30-year',
 };
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 export default function BuyPropertyModal({ visible, property, gameState, weeklyIncome, darkMode, onClose, onConfirm }: Props) {
   // Commercial listings (office tower, warehouse) can't be a home — the rest

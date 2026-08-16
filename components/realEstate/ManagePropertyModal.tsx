@@ -10,6 +10,8 @@ import { maintenanceCost } from '@/lib/realEstate/operations';
 import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier } from '@/lib/realEstate/housing';
 import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 interface Props {
   visible: boolean;
   property: RealEstate | null;
@@ -29,13 +31,6 @@ interface Props {
   onInstallDecor?: (decorId: string) => void;
   onAddRoom?: (roomId: string) => void;
   onUpgrade?: () => void;
-}
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 const MODE_LABEL: Record<RentMode, string> = {

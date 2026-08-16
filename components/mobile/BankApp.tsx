@@ -83,6 +83,8 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import WatchAdRewardButton from '@/components/WatchAdRewardButton';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
+import { formatMoney } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 interface BankAppProps {
@@ -91,14 +93,6 @@ interface BankAppProps {
 
 /** Local list→detail routing (presentational only — reads existing state). */
 type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | { kind: 'tax' } | null;
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 function formatMoneyExact(n: number): string {
   if (!isFinite(n)) return '$0';

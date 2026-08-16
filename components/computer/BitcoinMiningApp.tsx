@@ -88,6 +88,8 @@ import {
   removeCryptoDCA,
 } from '@/contexts/game/actions/CryptoTradingActions';
 
+import { formatMoneyCompact } from '@/utils/moneyFormatting';
+
 const LinearGradient = Gradient;
 
 // Identity accent for the Crypto app — amber #F59E0B (rgb 245,158,11).
@@ -141,14 +143,6 @@ const MINER_TIERS: { id: string; label: string; weeklyEarnings: number; hashrate
   { id: 'giga',       label: 'Giga Miner',       weeklyEarnings: 140000, hashrate: 560000 },
   { id: 'tera',       label: 'Tera Miner',       weeklyEarnings: 700000, hashrate: 2800000 },
 ];
-
-function formatMoney(n: number): string {
-  if (!isFinite(n)) return '$0';
-  const abs = Math.abs(n);
-  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(2)}M`;
-  if (abs >= 10_000) return `${n < 0 ? '-' : ''}$${(abs / 1000).toFixed(1)}k`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 function formatPrice(n: number): string {
   if (!isFinite(n) || n <= 0) return '—';
@@ -366,7 +360,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleBuyMiner = (tierId: string) => {
     const price = MINER_PRICES[tierId];
     if (price == null || cash < price) {
-      Alert.alert('Insufficient funds', `Need ${formatMoney(price)} to buy this miner.`);
+      Alert.alert('Insufficient funds', `Need ${formatMoneyCompact(price)} to buy this miner.`);
       return;
     }
     setGameState((prev) => {
@@ -662,7 +656,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           <View style={{ flex: 1 }}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>MINING YIELD</Text>
             <Text style={[styles.heroValue, { color: theme.text }]}>
-              {formatMoney(mineEstimate.usdPerWeek)}
+              {formatMoneyCompact(mineEstimate.usdPerWeek)}
               <Text style={[styles.heroValueUnit, { color: theme.textMuted }]}>/wk</Text>
             </Text>
             <Text style={[styles.heroSub, { color: theme.textMuted }]}>
@@ -671,7 +665,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             </Text>
             <View style={styles.pillRow}>
               <StatPill icon={Activity} label="Difficulty" value={`${difficultyMultiplier.toFixed(1)}×`} theme={theme} />
-              <StatPill icon={Zap} label="Power" value={`${formatMoney(mineEstimate.electricityUsd)}/wk`} theme={theme} />
+              <StatPill icon={Zap} label="Power" value={`${formatMoneyCompact(mineEstimate.electricityUsd)}/wk`} theme={theme} />
               <StatPill
                 label={totalMiners > 0 ? fleetBand.label : 'No rigs'}
                 value={totalMiners > 0 ? `${Math.round(fleetHealth)}%` : '—'}
@@ -849,7 +843,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 {/* Marginal yield for the SELECTED mining coin (honest — reflects
                     the coin's difficulty multiplier, halving, price, and the
                     $100K/wk fleet cap, so it reads ~$0 once the fleet is capped). */}
-                <StatPill label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoney(tierMarginal)}/wk`} theme={theme} />
+                <StatPill label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoneyCompact(tierMarginal)}/wk`} theme={theme} />
               </View>
 
               {owned > 0 && <DurabilityBar value={dur} theme={theme} />}
@@ -865,13 +859,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 accessibilityLabel={
                   fleetAtCap
                     ? 'Fleet at $100K per week cap — buying adds no yield'
-                    : `Buy ${tier.label} miner for ${formatMoney(price)}`
+                    : `Buy ${tier.label} miner for ${formatMoneyCompact(price)}`
                 }
                 accessibilityState={{ disabled: buyDisabled }}
               >
                 <Plus size={scale(13)} color={buyDisabled ? theme.textMuted : amber.solid} />
                 <Text style={[styles.buyBtnText, { color: buyDisabled ? theme.textMuted : amber.solid }]}>
-                  {fleetAtCap ? 'Fleet at $100K/wk cap' : `Buy · ${formatMoney(price)}`}
+                  {fleetAtCap ? 'Fleet at $100K/wk cap' : `Buy · ${formatMoneyCompact(price)}`}
                 </Text>
               </TouchableOpacity>
             </TouchableOpacity>
@@ -978,12 +972,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                       onPress={() => handleBuyMinerUpgrade(def.id, effectiveTierId)}
                       style={[styles.buyBtn, { backgroundColor: disabled ? theme.surfaceElevated : amber.chip }]}
                       accessibilityRole="button"
-                      accessibilityLabel={maxed ? `${def.name} at maximum level` : `Buy ${def.name} for ${formatMoney(cost)}`}
+                      accessibilityLabel={maxed ? `${def.name} at maximum level` : `Buy ${def.name} for ${formatMoneyCompact(cost)}`}
                       accessibilityState={{ disabled }}
                     >
                       <Plus size={scale(13)} color={disabled ? theme.textMuted : amber.solid} />
                       <Text style={[styles.buyBtnText, { color: disabled ? theme.textMuted : amber.solid }]}>
-                        {maxed ? 'Maxed out' : cash < cost ? `Need ${formatMoney(cost)}` : `Upgrade · ${formatMoney(cost)}`}
+                        {maxed ? 'Maxed out' : cash < cost ? `Need ${formatMoneyCompact(cost)}` : `Upgrade · ${formatMoneyCompact(cost)}`}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1174,11 +1168,11 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                   onPress={() => handleUpgradeEnergy(et)}
                   style={[styles.buyBtn, { backgroundColor: disabled ? theme.surfaceElevated : amber.chip }]}
                   accessibilityRole="button"
-                  accessibilityLabel={installed ? `${energy.name} already installed` : `Install ${energy.name} for ${formatMoney(cost)}`}
+                  accessibilityLabel={installed ? `${energy.name} already installed` : `Install ${energy.name} for ${formatMoneyCompact(cost)}`}
                   accessibilityState={{ disabled }}
                 >
                   <Text style={[styles.buyBtnText, { color: disabled ? theme.textMuted : amber.solid }]}>
-                    {installed ? 'Installed' : cash < cost ? `Need ${formatMoney(cost)}` : `Install · ${formatMoney(cost)}`}
+                    {installed ? 'Installed' : cash < cost ? `Need ${formatMoneyCompact(cost)}` : `Install · ${formatMoneyCompact(cost)}`}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1206,12 +1200,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
               onPress={handleUpgradeAutomation}
               style={[styles.buyBtn, { backgroundColor: automationDisabled ? theme.surfaceElevated : amber.chip }]}
               accessibilityRole="button"
-              accessibilityLabel={automationMaxed ? 'Automation at maximum level' : `Upgrade automation for ${formatMoney(automationCost)}`}
+              accessibilityLabel={automationMaxed ? 'Automation at maximum level' : `Upgrade automation for ${formatMoneyCompact(automationCost)}`}
               accessibilityState={{ disabled: automationDisabled }}
             >
               <Plus size={scale(13)} color={automationDisabled ? theme.textMuted : amber.solid} />
               <Text style={[styles.buyBtnText, { color: automationDisabled ? theme.textMuted : amber.solid }]}>
-                {automationMaxed ? 'Maxed out' : cash < automationCost ? `Need ${formatMoney(automationCost)}` : `Upgrade · ${formatMoney(automationCost)}`}
+                {automationMaxed ? 'Maxed out' : cash < automationCost ? `Need ${formatMoneyCompact(automationCost)}` : `Upgrade · ${formatMoneyCompact(automationCost)}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1257,10 +1251,10 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>PORTFOLIO VALUE</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoney(portfolioTotalValue)}</Text>
+            <Text style={[styles.heroValue, { color: theme.text }]}>{formatMoneyCompact(portfolioTotalValue)}</Text>
             <Text style={[styles.heroSub, { color: portfolioUnrealizedPL >= 0 ? accent.success : accent.danger }]}>
               {portfolioUnrealizedPL >= 0 ? '+' : ''}
-              {formatMoney(portfolioUnrealizedPL)} unrealized
+              {formatMoneyCompact(portfolioUnrealizedPL)} unrealized
             </Text>
           </View>
         </View>
@@ -1272,7 +1266,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           <Text style={[styles.btcLabel, { color: theme.text }]}>
             {formatCoin(btcOwned)} <Text style={{ color: theme.textMuted }}>BTC</Text>
           </Text>
-          <Text style={[styles.btcValue, { color: theme.textMuted }]}>· {formatMoney(btcOwned * btcPrice)}</Text>
+          <Text style={[styles.btcValue, { color: theme.textMuted }]}>· {formatMoneyCompact(btcOwned * btcPrice)}</Text>
           <View style={{ flex: 1 }} />
           <Text style={[styles.btcPrice, { color: theme.text }]}>{formatPrice(btcPrice)}</Text>
           <ChangeChip change={btcChange} />
@@ -1295,7 +1289,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           <View style={styles.noticeInner}>
             <View style={styles.noticeBody}>
               <Text style={[styles.dirtyTitle, { color: amber.solid }]}>
-                ⚠️ {dirtyBtc.toFixed(4)} ₿ tainted ({formatMoney(dirtyBtcUSD)})
+                ⚠️ {dirtyBtc.toFixed(4)} ₿ tainted ({formatMoneyCompact(dirtyBtcUSD)})
               </Text>
               <Text style={[styles.subText, { color: theme.textMuted }]}>
                 Exchanges refuse dirty BTC. Launder it in the Onion app before it can be sold here.
@@ -1317,19 +1311,19 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       </View>
 
       <View style={styles.statGrid}>
-        <StatCard theme={theme} darkMode={darkMode} label="Cost basis" value={formatMoney(portfolioCostBasis)} />
+        <StatCard theme={theme} darkMode={darkMode} label="Cost basis" value={formatMoneyCompact(portfolioCostBasis)} />
         <StatCard
           theme={theme}
           darkMode={darkMode}
           label="Realized YTD"
-          value={formatMoney(market.realizedGainsThisYear)}
+          value={formatMoneyCompact(market.realizedGainsThisYear)}
           negative={market.realizedGainsThisYear < 0}
         />
         <StatCard
           theme={theme}
           darkMode={darkMode}
           label="Lifetime realized"
-          value={formatMoney(market.totalRealizedGains)}
+          value={formatMoneyCompact(market.totalRealizedGains)}
           negative={market.totalRealizedGains < 0}
         />
       </View>
@@ -1446,7 +1440,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 {owned > 0 ? `${band.label} · ${Math.round(dur)}% health` : 'Not deployed'}
               </Text>
               <View style={styles.pillRow}>
-                <StatPill icon={Zap} label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoney(unitYield)}/wk`} theme={theme} />
+                <StatPill icon={Zap} label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoneyCompact(unitYield)}/wk`} theme={theme} />
               </View>
             </View>
           </View>
@@ -1455,8 +1449,8 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         <View style={styles.statGrid}>
           <StatCard theme={theme} darkMode={darkMode} label="Owned" value={`${owned}`} />
           <StatCard theme={theme} darkMode={darkMode} label="Fleet hashrate" value={formatHashrate(fleetHash)} />
-          <StatCard theme={theme} darkMode={darkMode} label="Fleet yield" value={`${formatMoney(fleetYield)}/wk`} />
-          <StatCard theme={theme} darkMode={darkMode} label="Unit price" value={formatMoney(price)} />
+          <StatCard theme={theme} darkMode={darkMode} label="Fleet yield" value={`${formatMoneyCompact(fleetYield)}/wk`} />
+          <StatCard theme={theme} darkMode={darkMode} label="Unit price" value={formatMoneyCompact(price)} />
         </View>
 
         <View style={{ gap: responsiveSpacing.sm }}>
@@ -1487,7 +1481,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                     { backgroundColor: canRepair ? amber.chip : theme.surfaceElevated, marginTop: responsiveSpacing.xs },
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={`Repair ${tier.label} for ${formatMoney(repairNow)}`}
+                  accessibilityLabel={`Repair ${tier.label} for ${formatMoneyCompact(repairNow)}`}
                   accessibilityState={{ disabled: !canRepair }}
                 >
                   <Wrench size={scale(13)} color={canRepair ? amber.solid : theme.textMuted} />
@@ -1495,15 +1489,15 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                     {dur >= 100
                       ? 'Fully repaired'
                       : cash < repairNow
-                        ? `Repair · need ${formatMoney(repairNow)}`
-                        : `Repair now · ${formatMoney(repairNow)}`}
+                        ? `Repair · need ${formatMoneyCompact(repairNow)}`
+                        : `Repair now · ${formatMoneyCompact(repairNow)}`}
                   </Text>
                 </TouchableOpacity>
               </>
             ) : (
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
                 No units deployed. Rigs degrade 2–5% per week; keep durability up or yield drops.
-                Full repair runs {formatMoney(repairFull)} per unit at 0%.
+                Full repair runs {formatMoneyCompact(repairFull)} per unit at 0%.
               </Text>
             )}
           </View>
@@ -1516,13 +1510,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             fleetAtCap
               ? 'Fleet at $100K/wk cap'
               : canAfford
-                ? `Buy ${tier.label} · ${formatMoney(price)}`
-                : `Need ${formatMoney(price)}`
+                ? `Buy ${tier.label} · ${formatMoneyCompact(price)}`
+                : `Need ${formatMoneyCompact(price)}`
           }
           accessibilityLabel={
             fleetAtCap
               ? 'Fleet at $100K per week cap — buying adds no yield'
-              : `Buy ${tier.label} miner for ${formatMoney(price)}`
+              : `Buy ${tier.label} miner for ${formatMoneyCompact(price)}`
           }
           onPress={() => handleBuyMiner(tier.id)}
         />
@@ -1592,13 +1586,13 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             label="Holdings"
             value={`${formatCoin(coin.owned)} ${coin.symbol}`}
           />
-          <StatCard theme={theme} darkMode={darkMode} label="Position value" value={formatMoney(ownedUsd)} />
+          <StatCard theme={theme} darkMode={darkMode} label="Position value" value={formatMoneyCompact(ownedUsd)} />
           <StatCard theme={theme} darkMode={darkMode} label="Avg cost" value={avgCost > 0 ? formatPrice(avgCost) : '—'} />
           <StatCard
             theme={theme}
             darkMode={darkMode}
             label="Unrealized P/L"
-            value={cb ? `${unrealized >= 0 ? '+' : ''}${formatMoney(unrealized)}` : '—'}
+            value={cb ? `${unrealized >= 0 ? '+' : ''}${formatMoneyCompact(unrealized)}` : '—'}
             negative={!!cb && unrealized < 0}
           />
         </View>
@@ -1634,7 +1628,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </TouchableOpacity>
         <Text style={[styles.appTitle, { color: theme.text }]} numberOfLines={1}>{detailTitle}</Text>
         <View style={[styles.cashChip, { backgroundColor: amber.chipSoft, borderColor: amber.rim }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
+          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoneyCompact(cash)}</Text>
         </View>
       </View>
 
