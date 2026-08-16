@@ -29,6 +29,7 @@ import {
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, fontScale } from '@/utils/scaling';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Achievement } from '@/contexts/game/types';
 const LinearGradient = Gradient;
@@ -407,7 +408,11 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <X size={scale(16)} color={darkMode ? '#94A3B8' : '#94A3B8'} />
             </TouchableOpacity>
           )}
@@ -416,6 +421,9 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
         <TouchableOpacity
           style={[styles.sortButton, darkMode && styles.sortButtonDark]}
           onPress={() => setShowSortDropdown(!showSortDropdown)}
+          accessibilityRole="button"
+          accessibilityLabel="Sort achievements"
+          accessibilityState={{ expanded: showSortDropdown }}
         >
           <Filter size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
           <ChevronDown size={scale(14)} color={darkMode ? '#94A3B8' : '#6B7280'} />
@@ -654,7 +662,7 @@ const styles = StyleSheet.create({
       },
     }),
     elevation: 8,
-    zIndex: 100,
+    zIndex: Z_INDEX.DROPDOWN,
     minWidth: scale(180),
   },
   sortDropdownDark: {

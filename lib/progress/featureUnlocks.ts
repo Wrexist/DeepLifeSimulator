@@ -65,7 +65,7 @@
  * not reshuffle underneath the player as things unlock.
  */
 import type { GameState } from '@/contexts/game/types';
-import { LIFE_CHAPTERS, wealthMark } from './lifeChapters';
+import { LIFE_CHAPTERS, wealthMark, weeksInThisLife } from './lifeChapters';
 
 /**
  * Tier 0 is "before you have finished anything" — the state a brand-new
@@ -199,12 +199,25 @@ export function unlockTier(state: GameState | undefined | null): UnlockTier {
     byChapters += 1;
   }
 
-  const weeksLived = num(state.weeksLived);
+  // Weeks into THIS life, not the absolute counter. `weeksLived` is seeded from
+  // the starting age (`(age - 18) * 52`), so an age-25 scenario begins at 364 and
+  // an age-40 one at 1,144 — both sailed past the 120-week hatch below on frame
+  // one and opened the entire game, padlocks and chapter ladder skipped, for a
+  // character who had not lived a week. CLAUDE.md §4.2.
+  //
+  // The hatch is per-LIFE on purpose. Its job is "do not re-teach the game to a
+  // save that is past the chapter arc", and the two ways to be past it are
+  // covered separately: a player who has prestiged is caught by `prestiged`
+  // (which survives every life), and a player deep into the current life is
+  // caught by the week count. A pre-v43 save has no `lifeStartWeek`, so
+  // `weeksInThisLife` returns the absolute counter and those saves keep exactly
+  // the tier they have today.
+  const weeksThisLife = num(weeksInThisLife(state));
   const prestiged = num(state.prestige?.totalPrestiges) > 0
     || num(state.generationNumber) > 1;
 
   // The veteran escape hatch. Anything past the chapter arc gets everything.
-  if (prestiged || weeksLived >= 120) return 5;
+  if (prestiged || weeksThisLife >= 120) return 5;
 
   // Milestone fallbacks, for saves whose chapter flags never got written.
   //
@@ -224,7 +237,7 @@ export function unlockTier(state: GameState | undefined | null): UnlockTier {
   const everEmployed =
     num(state.lifetimeStatistics?.totalWeeksWorked) > 0
     || (state.lifetimeStatistics?.careerHistory?.length ?? 0) > 0;
-  if (state.currentJob || everEmployed || wealth >= 500 || weeksLived >= 4) byMilestone = 1;
+  if (state.currentJob || everEmployed || wealth >= 500 || weeksThisLife >= 4) byMilestone = 1;
   if (wealth >= 2_000) byMilestone = 2;
   if (wealth >= 10_000) byMilestone = 3;
   if (wealth >= 50_000) byMilestone = 4;
@@ -269,7 +282,7 @@ export function featuresUnlockedAtTier(tier: UnlockTier): FeatureUnlock[] {
  * Why this is a separate axis rather than tiers 6–10 on `UnlockTier`.
  *
  * The chapter spine hard-stops: `unlockTier` returns 5 for anyone who has
- * prestiged at all, or simply reached `weeksLived >= 120`. That escape hatch is
+ * prestiged at all, or simply lived 120 weeks in this life. That escape hatch is
  * correct — a veteran should not be re-taught the game — but it means the
  * chapter scale is *saturated* long before the late game, and extending it to
  * 10 would make the veteran shortcut skip five tiers at once.

@@ -11,6 +11,7 @@
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 /**
  * Net worth, from the CANONICAL implementation. This was a byte-identical copy
@@ -113,7 +114,7 @@ const cleanSlate: EventTemplate = {
  weight: 100,
  condition: (s) => {
  const nw = getNetWorth(s);
- return nw === 0 && (s.weeksLived ?? 0) > 50;
+ return nw === 0 && weeksInThisLife(s) > 50;
  },
  generate: () => ({
  id: 'secret_clean_slate',

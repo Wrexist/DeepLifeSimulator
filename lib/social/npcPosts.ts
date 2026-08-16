@@ -9,6 +9,9 @@ import { Relationship, SocialPost, GameState } from '@/contexts/game/types';
 import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 import { generateRandomProfilePosts } from '@/lib/social/randomProfiles';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
+import { logger } from '@/utils/logger';
+
+const log = logger.scope('NPCPosts');
 
 // Post templates by personality type
 const POST_TEMPLATES: Record<string, string[]> = {
@@ -246,17 +249,17 @@ export function generateWeeklyNPCPosts(
  if (randomPosts && randomPosts.length > 0) {
  posts.push(...randomPosts);
  if (__DEV__) {
- console.log(`[NPC Posts] Generated ${randomPosts.length} random profile posts for week ${week}`);
+ log.debug(`Generated ${randomPosts.length} random profile posts for week ${week}`);
  }
  } else {
  if (__DEV__) {
- console.warn(`[NPC Posts] No random posts generated for week ${week}`);
+ log.warn(`No random posts generated for week ${week}`);
  }
  }
  } catch (error) {
  // Log error but don't fail completely
  if (__DEV__) {
- console.warn('Error generating random profile posts:', error);
+ log.warn('Error generating random profile posts:', { error: error instanceof Error ? error.message : String(error) });
  }
  }
  }

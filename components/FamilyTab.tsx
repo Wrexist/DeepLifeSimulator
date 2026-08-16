@@ -26,6 +26,7 @@ import {
  Heart,
  Baby,
  Gem as Ring,
+ HeartCrack,
  Home,
  GraduationCap,
  DollarSign,
@@ -65,7 +66,7 @@ import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { childParentSources } from '@/lib/avatar/family';
 import RingSelectionModal from '@/components/mobile/RingSelectionModal';
 import WeddingPlanningModal from '@/components/mobile/WeddingPlanningModal';
-import { proposeMarriage } from '@/contexts/game/actions/DatingActions';
+import { proposeMarriage, cancelEngagement } from '@/contexts/game/actions/DatingActions';
 import { updateMoney as rawUpdateMoney, applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats as rawUpdateStats } from '@/contexts/game/actions/StatsActions';
 import { colors, accent } from '@/lib/config/theme';
@@ -370,6 +371,47 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  }
  }, [partner, gameState, setGameState, saveGame]);
 
+ /**
+ * Call off an engagement — the other half of the propose → plan → wed flow.
+ *
+ * `DatingActions.cancelEngagement` shipped fully written and fully tested
+ * (`__tests__/stress/marriageFlow.stress.test.ts`) with no caller anywhere in
+ * `components/` or `app/`, so an engaged player's only way out was "Break up",
+ * which ends the relationship entirely. This is the softer exit the action was
+ * designed for: the ring comes off, the partner stays.
+ *
+ * Destructive, so it confirms first — the same Alert shape as Move In and Try
+ * for Baby above, with `style: 'destructive'` on the action. The cost is stated
+ * in the prompt rather than discovered afterwards: the action itself applies
+ * -15 happiness and -20 bond.
+ */
+ const handleCancelEngagement = useCallback(() => {
+ if (!partner) return;
+
+ Alert.alert(
+ 'Call Off the Engagement',
+ `Call off your engagement to ${partner.name}?\n\nYou stay together — the wedding is off, not the relationship. It will cost you 15 happiness and 20% of your bond.`,
+ [
+ { text: 'Stay Engaged', style: 'cancel' },
+ {
+ text: 'Call It Off',
+ style: 'destructive',
+ onPress: () => {
+ const result = cancelEngagement(gameState, setGameState, partner.id, {
+ updateStats: rawUpdateStats,
+ });
+ if (result.success) {
+ saveGame();
+ Alert.alert('Engagement Called Off', result.message);
+ } else {
+ Alert.alert('Cannot Call It Off', result.message);
+ }
+ },
+ },
+ ]
+ );
+ }, [partner, gameState, setGameState, saveGame]);
+
  const handleMoveIn = useCallback(() => {
  if (!partner) return;
 
@@ -594,6 +636,16 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Heart size={scale(16)} color={accent.success} />
  <Text style={styles.scheduledBannerText}>Wedding scheduled — it happens on its week</Text>
  </View>
+ )}
+
+ {isEngaged && (
+ <ActionRow
+ icon={HeartCrack}
+ label="Call off the engagement"
+ hint="Stay together, but cancel the wedding"
+ tone="secondary"
+ onPress={handleCancelEngagement}
+ />
  )}
 
  {!partner.isPregnant && (

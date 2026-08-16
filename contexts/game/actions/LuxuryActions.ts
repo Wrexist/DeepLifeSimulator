@@ -288,10 +288,6 @@ export const performLuxuryVerb = (
   };
 };
 
-/** Re-export so the UI can label the item a verb belongs to. */
-export const luxuryVerbItemName = (verbId: string): string | undefined =>
-  getLuxuryItem(getLuxuryVerb(verbId)?.itemId ?? '')?.name;
-
 
 /**
  * Host an event at a luxury venue — a dinner, a party, a charity gala.

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { MotiView } from '@/components/anim/MotiStub';
 import { Loader } from 'lucide-react-native';
+import { Z_INDEX } from '@/utils/zIndexConstants';
 const LinearGradient = Gradient;
 
 interface LoadingSpinnerProps {
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 500, // Z_INDEX.LOADING
+    zIndex: Z_INDEX.LOADING,
   },
   overlayGradient: {
     flex: 1,

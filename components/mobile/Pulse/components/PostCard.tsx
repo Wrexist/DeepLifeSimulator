@@ -2,8 +2,8 @@
  * PostCard — single Pulse post in the feed.
  *
  * Renders a `PulseRecentPost` with author handle, content, optional photo,
- * and an engagement row (like / repost / comment counts). Tap on like or
- * repost calls into `PulseActions` and gives haptic feedback.
+ * and an engagement row (like / repost / comment / bookmark counts). Tap on
+ * like, repost or bookmark calls into `PulseActions` and gives haptic feedback.
  *
  * Viral posts get a 1pt magenta→indigo gradient border treatment.
  *
@@ -12,7 +12,7 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Heart, MessageCircle, Repeat2, Zap } from 'lucide-react-native';
+import { Bookmark, Heart, MessageCircle, Repeat2, Zap } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import ImageWithFallback from '@/components/ui/ImageWithFallback';
 import { useGameActions } from '@/contexts/GameContext';
@@ -20,7 +20,7 @@ import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
-import { likePost, repostPost } from '@/contexts/game/actions/PulseActions';
+import { bookmarkPost, likePost, repostPost } from '@/contexts/game/actions/PulseActions';
 import { formatPulseNumber } from '../utils/formatPulseNumber';
 import { formatRelativeWeek } from '../utils/formatRelativeTime';
 import { pulseHaptics } from '../utils/pulseHaptics';
@@ -98,6 +98,22 @@ function PostCard({
     setTimeout(() => { void saveGame?.(); }, 0);
   }, [onRepostOverride, setGameState, saveGame, post.id]);
 
+  /**
+   * Bookmarks. `bookmarkPost` shipped with ZERO call sites while
+   * `ProfileScreen`'s Bookmarks tab read `p.isBookmarked` — so the tab could
+   * only ever say "No bookmarks yet" (tasks/lessons.md: a leaf with green
+   * tests, a context that exposes it, and nothing that calls it). Only rendered
+   * for the player's own posts: ambient/NPC posts are not in `recentPosts`, so
+   * the action would no-op and the profile tab could never show them.
+   */
+  const handleBookmark = useCallback(() => {
+    pulseHaptics.light();
+    bookmarkPost(setGameState, post.id);
+    // Same post-commit deferral as `handleLike` — `saveGame` reads a ref that
+    // is synced in a post-commit effect.
+    setTimeout(() => { void saveGame?.(); }, 0);
+  }, [setGameState, saveGame, post.id]);
+
   const card = (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       {/* Author row */}
@@ -168,6 +184,17 @@ function PostCard({
           onPress={handleRepost}
           label="Repost"
         />
+        {isPlayerPost ? (
+          <EngagementButton
+            Icon={Bookmark}
+            count={post.bookmarks ?? 0}
+            active={!!post.isBookmarked}
+            activeColor={PULSE_COLORS.bookmark}
+            mutedColor={theme.textSecondary}
+            onPress={handleBookmark}
+            label="Bookmark"
+          />
+        ) : null}
         {/* Boost — player's own posts only; gem cost shown in the modal */}
         {isPlayerPost && onBoost ? (
           <Pressable
@@ -233,12 +260,13 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
 
   const isLikeBtn = Icon === Heart;
   const isRepostBtn = Icon === Repeat2;
+  const isBookmarkBtn = Icon === Bookmark;
 
   const reduced = useReducedMotion();
   const animatedPress = useCallback(() => {
     onPress?.();
     if (reduced) return;
-    if (isLikeBtn) {
+    if (isLikeBtn || isBookmarkBtn) {
       Animated.sequence([
         Animated.spring(scaleAnim, { toValue: 1.3, useNativeDriver: true, speed: 50, bounciness: 12 }),
         Animated.spring(scaleAnim, { toValue: 1.0, useNativeDriver: true, speed: 30, bounciness: 8 }),
@@ -247,7 +275,7 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
       spinAnim.setValue(0);
       Animated.timing(spinAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
     }
-  }, [onPress, isLikeBtn, isRepostBtn, scaleAnim, spinAnim, reduced]);
+  }, [onPress, isLikeBtn, isRepostBtn, isBookmarkBtn, scaleAnim, spinAnim, reduced]);
 
   const transform: any[] = [{ scale: scaleAnim }];
   if (isRepostBtn) {
@@ -263,7 +291,7 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
           size={fontScale(16)}
           color={active ? activeColor : mutedColor}
           strokeWidth={active ? 2.4 : 2}
-          fill={active && isLikeBtn ? activeColor : 'transparent'}
+          fill={active && (isLikeBtn || isBookmarkBtn) ? activeColor : 'transparent'}
         />
       </Animated.View>
       <Text style={[styles.engagementCount, { color: active ? activeColor : mutedColor }]}>

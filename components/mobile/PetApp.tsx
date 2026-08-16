@@ -1057,6 +1057,9 @@ export default function PetApp({ onBack }: PetAppProps) {
               onChangeText={setPetName}
               placeholder="e.g. Rex"
               placeholderTextColor={theme.textMuted}
+              // Unbounded, and the name renders in every pet card and event
+              // line afterwards. 20 matches the character-name cap.
+              maxLength={20}
               style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
             />
             <View style={styles.modalActions}>

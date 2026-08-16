@@ -48,7 +48,6 @@ export interface SmartNotification {
     hasDiseases?: boolean;
     hasCriticalDisease?: boolean;
     hasDeathWarning?: boolean;
-    weeksLived?: number;
   };
   cooldown?: number; // hours between notifications
   lastShown?: number;
@@ -582,9 +581,6 @@ class SmartNotificationSystem {
             'weeksUntilDeath' in d && typeof d.weeksUntilDeath === 'number' && d.weeksUntilDeath <= 4
           );
           if (hasDeathWarning !== (value as boolean)) return false;
-          break;
-        case 'weeksLived':
-          if (gameState.weeksLived < (value as number)) return false;
           break;
       }
     }

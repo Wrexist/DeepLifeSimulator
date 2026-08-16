@@ -454,43 +454,34 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     s = state as Record<string, any>;
   }
 
+  // F-5: the emergency defaults below are CLONED FROM `initialGameState`, not
+  // hand-written. They used to be a copy taken at some point in the past and
+  // never re-synced: `darkMode: false` where the app ships `true`, `health: 50`
+  // where a new life starts at 100, and no key at all for anything added since.
+  // A player whose `settings` block was lost therefore came back from repair
+  // with a light-themed app and a silently different set of toggles — a repair
+  // that is itself a small corruption. There is exactly one definition of a
+  // default in this codebase and this file already imports it.
+  const defaultsFor = <T,>(key: string): T =>
+    JSON.parse(JSON.stringify((initialGameState as unknown as Record<string, unknown>)[key])) as T;
+
   // Ensure stats object exists
   if (!s.stats || typeof s.stats !== 'object') {
-    s.stats = {
-      health: 50,
-      happiness: 50,
-      energy: 50,
-      fitness: 50,
-      money: 0,
-      reputation: 50,
-      gems: 0,
-    };
+    s.stats = defaultsFor<Record<string, unknown>>('stats');
     repairs.push('Created missing stats object');
     repaired = true;
   }
 
   // Ensure date object exists
   if (!s.date || typeof s.date !== 'object') {
-    s.date = {
-      year: 2025,
-      month: 'January',
-      week: 1,
-      age: 18,
-    };
+    s.date = defaultsFor<Record<string, unknown>>('date');
     repairs.push('Created missing date object');
     repaired = true;
   }
 
   // Ensure settings object exists
   if (!s.settings || typeof s.settings !== 'object') {
-    s.settings = {
-      darkMode: false,
-      soundEnabled: true,
-      notificationsEnabled: true,
-      autoSave: true,
-      language: 'English',
-      maxStats: false,
-    };
+    s.settings = defaultsFor<Record<string, unknown>>('settings');
     repairs.push('Created missing settings object');
     repaired = true;
   }
@@ -735,6 +726,32 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     s.travel.passportMilestones = [];
     repairs.push('Backfilled missing travel.passportMilestones from defaults');
     repaired = true;
+  }
+
+  // F-4 / v22 mirror for the Pet `ownedToys` → `toys` COLLAPSE — the one part of
+  // migration 22 that moves data rather than defaulting it, and the one part
+  // that had no repair counterpart. A partial save already stamped at v22 or
+  // later still carrying `ownedToys` is skipped by the ladder, and every reader
+  // has moved to the canonical field (`PetActions` scores the best toy from
+  // `pet.toys ?? []`), so those toys are paid for and invisible.
+  //
+  // Union-then-empty, exactly like the migration: never drops a toy, and running
+  // twice is a no-op because the second pass sees an empty `ownedToys`.
+  if (Array.isArray(s.pets)) {
+    let collapsedPets = 0;
+    s.pets = (s.pets as Record<string, unknown>[]).map((pet) => {
+      if (!pet || typeof pet !== 'object') return pet;
+      const toys = Array.isArray(pet.toys) ? (pet.toys as unknown[]) : [];
+      const owned = Array.isArray(pet.ownedToys) ? (pet.ownedToys as unknown[]) : [];
+      // Nothing to move, and `toys` is already a real array → leave it alone.
+      if (owned.length === 0 && Array.isArray(pet.toys)) return pet;
+      collapsedPets += 1;
+      return { ...pet, toys: Array.from(new Set([...toys, ...owned])), ownedToys: [] };
+    });
+    if (collapsedPets > 0) {
+      repairs.push(`Collapsed legacy pet ownedToys into toys for ${collapsedPets} pet(s)`);
+      repaired = true;
+    }
   }
 
   // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
@@ -1130,6 +1147,23 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   if (typeof s.timeMachineUsesThisLife !== 'number') {
     s.timeMachineUsesThisLife = 0;
     repairs.push('Set missing timeMachineUsesThisLife to 0');
+    repaired = true;
+  }
+  // F-3 / v12 mirror for `lastEventWeeksLived` — the event-pity spacing marker.
+  // Its migration seeds it from `weeksLived`, and it was the one v12 field with
+  // no repair counterpart, so a partial save already stamped at a later version
+  // (CloudSync field-merge / hand-edit) reached the event engine without it.
+  //
+  // Seeded from `weeksLived`, NOT 0, and that is the whole point: the pity
+  // system computes `weeksLived - lastEventWeeksLived`, so a 0 on a character
+  // 400 weeks in reads as "400 weeks since the last event" and fires a pity
+  // event immediately. `weeksLived` means "the drought starts now", which is
+  // the only honest answer for a save that never recorded when its last event
+  // was. Same expression the migration uses.
+  if (typeof s.lastEventWeeksLived !== 'number' || !isFinite(s.lastEventWeeksLived)) {
+    const weeks = typeof s.weeksLived === 'number' && isFinite(s.weeksLived) ? s.weeksLived : 0;
+    s.lastEventWeeksLived = weeks;
+    repairs.push(`Set missing lastEventWeeksLived to ${weeks}`);
     repaired = true;
   }
 
@@ -2121,10 +2155,39 @@ export async function doubleBufferSave(
       return { success: false, error: `Double-buffer write verification failed on buffer ${inactiveBuffer}` };
     }
 
-    // Step 4: Flip pointer to newly written buffer
-    // This is the critical moment — if crash happens here, both buffers exist
-    // and we fall back to the one with a valid checksum + newer timestamp
+    // Step 4: Flip the pointer to the newly written buffer. THIS is the commit:
+    // the buffer write above is invisible until the pointer moves, so a crash
+    // before this line leaves the previous save active and intact — the whole
+    // point of the scheme.
+    //
+    // Verified by read-back for the same reason the buffer write is (AsyncStorage
+    // has been observed to accept a write that is not yet readable). An
+    // unverified flip is the one failure that loses committed data: the newer
+    // payload sits in a buffer nothing points at, the load returns the older
+    // one, and the NEXT save — which targets the inactive buffer — overwrites
+    // the newer payload. Reporting failure instead lets the caller retry, and
+    // the retry re-writes the same inactive buffer, so nothing is lost.
+    // (The pointer is a single character; this read-back is free.)
+    // 2026-08-16 audit F-10.
     await storage.setItem(pointerKey, inactiveBuffer);
+    let pointerCommitted = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, 10 * attempt));
+        await storage.setItem(pointerKey, inactiveBuffer);
+      }
+      if ((await storage.getItem(pointerKey)) === inactiveBuffer) {
+        pointerCommitted = true;
+        break;
+      }
+    }
+
+    if (!pointerCommitted) {
+      return {
+        success: false,
+        error: `Double-buffer pointer flip failed for ${slotKey} (buffer ${inactiveBuffer} written but not activated)`,
+      };
+    }
 
     return { success: true, buffer: inactiveBuffer };
   } catch (error) {
@@ -2170,6 +2233,32 @@ export interface SaveSlotReadResult {
 }
 
 /**
+ * When was this save written? Reads the stamps `saveGame` puts on every write
+ * (`updatedAt`, epoch ms; `lastSaved`, ISO). Returns `-Infinity` when neither is
+ * present or parseable, so a buffer with no usable timestamp never displaces one
+ * that has a real timestamp, and two of them fall back to pointer order.
+ *
+ * Only ever called on the pointer-lost path in `doubleBufferLoad` — it parses
+ * the whole state string, which is not something to do on every load.
+ */
+function extractSaveTimestamp(dataString: string | undefined): number {
+  if (typeof dataString !== 'string') return -Infinity;
+  try {
+    const parsed = JSON.parse(dataString) as { updatedAt?: unknown; lastSaved?: unknown };
+    if (typeof parsed?.updatedAt === 'number' && Number.isFinite(parsed.updatedAt)) {
+      return parsed.updatedAt;
+    }
+    if (typeof parsed?.lastSaved === 'string') {
+      const parsedDate = Date.parse(parsed.lastSaved);
+      if (!Number.isNaN(parsedDate)) return parsedDate;
+    }
+  } catch {
+    // A payload we cannot parse has no timestamp to offer.
+  }
+  return -Infinity;
+}
+
+/**
  * Double-buffer load: reads from the active buffer with fallback to the other.
  * Also handles migration from legacy single-key saves.
  */
@@ -2194,7 +2283,28 @@ export async function doubleBufferLoad(
     // skipped the buffers entirely and fell straight through to the legacy key
     // — reporting "no data" for a slot holding two intact megabyte saves
     // (2026-07-29 audit SAVE-OW-3).
+    const pointerKnown = currentActive === 'A' || currentActive === 'B';
     const order: Array<'A' | 'B'> = currentActive === 'B' ? ['B', 'A'] : ['A', 'B'];
+
+    /** Heal a wrong or missing pointer so the next read goes straight there. */
+    const repoint = async (buffer: 'A' | 'B') => {
+      if (currentActive === buffer) return;
+      try {
+        await storage.setItem(pointerKey, buffer);
+        logger.warn(`[DOUBLE_BUFFER] Repointed ${slotKey} to buffer ${buffer}`);
+      } catch (pointerError) {
+        logger.warn('[DOUBLE_BUFFER] Could not repair active pointer (non-critical)', {
+          error: pointerError,
+        });
+      }
+    };
+
+    // Candidates kept only while the POINTER IS MISSING. With a usable pointer
+    // the first verifying buffer in pointer order is the answer and the loop
+    // returns from inside — comparing timestamps there would mean reading and
+    // HMAC-verifying a second multi-megabyte buffer on every single load, to
+    // decide something the pointer already decides correctly.
+    const candidates: { buffer: 'A' | 'B'; raw: string; timestamp: number }[] = [];
 
     for (const buffer of order) {
       const bufferKey = buffer === 'A' ? keyA : keyB;
@@ -2208,18 +2318,37 @@ export async function doubleBufferLoad(
         continue;
       }
 
-      // Heal a wrong or missing pointer so the next read goes straight there.
-      if (currentActive !== buffer) {
-        try {
-          await storage.setItem(pointerKey, buffer);
-          logger.warn(`[DOUBLE_BUFFER] Repointed ${slotKey} to buffer ${buffer}`);
-        } catch (pointerError) {
-          logger.warn('[DOUBLE_BUFFER] Could not repair active pointer (non-critical)', {
-            error: pointerError,
-          });
-        }
+      if (pointerKnown) {
+        await repoint(buffer);
+        return { data: bufferData, source: buffer, blobPresent: true };
       }
-      return { data: bufferData, source: buffer, blobPresent: true };
+
+      candidates.push({
+        buffer,
+        raw: bufferData,
+        timestamp: extractSaveTimestamp(decoded.data),
+      });
+    }
+
+    if (candidates.length > 0) {
+      // The pointer is gone or corrupt, so buffer ORDER carries no information:
+      // 'A' is not "the active one", it is just the one we happen to try first.
+      // Picking it would silently adopt the OLDER save when B held the newer —
+      // and then heal the pointer to A and let the next save overwrite B. Both
+      // buffers verified here, so the save's own `updatedAt` decides; pointer
+      // order is only the tiebreak when neither carries a usable timestamp.
+      // 2026-08-16 audit F-10.
+      let chosen = candidates[0];
+      for (const candidate of candidates.slice(1)) {
+        if (candidate.timestamp > chosen.timestamp) chosen = candidate;
+      }
+      if (candidates.length > 1) {
+        logger.warn(
+          `[DOUBLE_BUFFER] No active pointer for ${slotKey}; chose buffer ${chosen.buffer} by timestamp`
+        );
+      }
+      await repoint(chosen.buffer);
+      return { data: chosen.raw, source: chosen.buffer, blobPresent: true };
     }
 
     // Both buffers absent or unverifiable — check the legacy single-key save.

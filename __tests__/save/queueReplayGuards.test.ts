@@ -46,8 +46,12 @@ const played = (weeksLived: number) => ({
   userProfile: { ...initialGameState.userProfile, firstName: 'Mara', lastName: 'Okonkwo' },
 });
 
+// The persisted queue is signed exactly like a save (F-11), so the fixture has
+// to be built the same way the app builds it — a raw JSON array is refused.
 function persistQueueOf(ops: unknown[]) {
-  store.set('save_queue_persisted', JSON.stringify(ops));
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createSaveEnvelope } = require('@/utils/saveValidation');
+  store.set('save_queue_persisted', createSaveEnvelope(JSON.stringify(ops)));
 }
 
 beforeEach(() => {
@@ -146,5 +150,72 @@ describe('replaying a queue from a previous session', () => {
     // Let the queue's own post-save bookkeeping finish before the environment
     // is torn down, so the drain doesn't dangle past the suite.
     await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+});
+
+/**
+ * F-11 — the persisted queue was the one unsigned door into the signed save
+ * file. Its entries are whole GameStates, and the replay hands them to
+ * `performSave`, which signs whatever it is given: edit the plain-JSON blob,
+ * relaunch, and the tampered state comes back out as a validly-signed save.
+ */
+describe('the persisted queue is signed', () => {
+  it('persists an envelope, not raw JSON', async () => {
+    await queueSave(1, played(120));
+
+    // The blob is removed again once the queue drains, so read what was
+    // actually written rather than what survives.
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const writes = (AsyncStorage.setItem as jest.Mock).mock.calls.filter(
+      ([key]) => key === 'save_queue_persisted'
+    );
+    const raw = writes.at(-1)?.[1] as string | undefined;
+    expect(raw).toBeDefined();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.v).toBe(2);
+    expect(typeof parsed.checksum).toBe('string');
+    expect(typeof parsed.hmac).toBe('string');
+    // The operations themselves live INSIDE the signed payload.
+    expect(JSON.parse(parsed.data)[0].slot).toBe(1);
+  });
+
+  it('refuses — and clears — a hand-edited queue', async () => {
+    const { createSaveEnvelope } = await import('@/utils/saveValidation');
+    const envelope = JSON.parse(
+      createSaveEnvelope(
+        JSON.stringify([{ id: 'a', slot: 1, data: played(100), timestamp: Date.now(), retryCount: 0 }])
+      )
+    );
+    // Same signature, richer player: the exact edit the signing layer exists to
+    // refuse on `save_slot_N`.
+    envelope.data = JSON.stringify([
+      {
+        id: 'a',
+        slot: 1,
+        data: { ...played(100), stats: { ...initialGameState.stats, money: 99_999_999 } },
+        timestamp: Date.now(),
+        retryCount: 0,
+      },
+    ]);
+    store.set('save_queue_persisted', JSON.stringify(envelope));
+
+    await saveQueue.restoreOnStartup();
+
+    expect(saveQueue.getStatus().queueLength).toBe(0);
+    expect(store.has('save_queue_persisted')).toBe(false);
+    expect(store.has('save_slot_1_A')).toBe(false);
+    expect(store.has('save_slot_1_B')).toBe(false);
+  });
+
+  it('refuses an unsigned raw-JSON queue (the old format, and the attacker\'s)', async () => {
+    store.set(
+      'save_queue_persisted',
+      JSON.stringify([{ id: 'a', slot: 1, data: played(100), timestamp: Date.now(), retryCount: 0 }])
+    );
+
+    await saveQueue.restoreOnStartup();
+
+    expect(saveQueue.getStatus().queueLength).toBe(0);
+    expect(store.has('save_queue_persisted')).toBe(false);
   });
 });

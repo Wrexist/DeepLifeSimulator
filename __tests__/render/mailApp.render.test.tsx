@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import React from 'react';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import MailApp from '@/components/mobile/Mail/MailApp';
@@ -139,5 +141,75 @@ describe('render — the list row carries the deadline', () => {
     expect(renderRow(row({ decision: pending(101) }), 100)).toContain(
       'Needs a reply, 1 week left.'
     );
+  });
+});
+
+/**
+ * `MailRow` is wrapped in `React.memo`, and the list renders up to 50 of them.
+ *
+ * The list passed `onPress={() => openMessage(m.id)}` and
+ * `onToggleStar={() => toggleMailStar(setGameState, m.id)}` — a fresh pair of
+ * closures per row on every render, so the memo compared unequal every single
+ * time and re-rendered all 50 rows for a keystroke in the search field. The row
+ * now takes the id back as an argument (Pulse's FeedScreen pattern), which lets
+ * the list hand every row the SAME two functions.
+ */
+describe('the mail list does not defeat MailRow\'s memo', () => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'components/mobile/Mail/MailApp.tsx'),
+    'utf8',
+  );
+
+  it('hands the row stable handlers rather than minting closures per row', () => {
+    expect(src).toMatch(/onPress=\{openMessage\}/);
+    expect(src).toMatch(/onToggleStar=\{toggleStar\}/);
+    expect(src).not.toMatch(/onPress=\{\(\) => openMessage\(m\.id\)\}/);
+    expect(src).not.toMatch(/onToggleStar=\{\(\) => toggleMailStar\(setGameState, m\.id\)\}/);
+  });
+
+  it('and both are memoized, so their identity survives a re-render', () => {
+    // Stable call sites are worth nothing if the functions themselves are new
+    // each render — that is the same bug one level up.
+    expect(src).toMatch(/const toggleStar = useCallback\(/);
+    expect(src).toMatch(/const openMessage = useCallback\(/);
+  });
+
+  it('the row passes its own id back, so one handler can serve every row', () => {
+    const pressed: string[] = [];
+    const starred: string[] = [];
+
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+    act(() => {
+      tree = TestRenderer.create(
+        <MailRow
+          message={row({ id: 'm-42' })}
+          darkMode
+          currentWeek={100}
+          onPress={(id) => pressed.push(id)}
+          onToggleStar={(id) => starred.push(id)}
+        />,
+      );
+    });
+
+    const pressables = tree!.root.findAll((n) => typeof n.props?.onPress === 'function', {
+      deep: true,
+    });
+    act(() => {
+      for (const p of pressables) p.props.onPress();
+    });
+
+    expect(pressed).toContain('m-42');
+    expect(starred).toContain('m-42');
+
+    act(() => tree!.unmount());
+  });
+
+  it('MailRow is still memoized (the premise)', () => {
+    // If the memo were dropped the fix above would be measuring nothing.
+    const rowSrc = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'components/mobile/Mail/MailRow.tsx'),
+      'utf8',
+    );
+    expect(rowSrc).toMatch(/export default React\.memo\(MailRow\)/);
   });
 });

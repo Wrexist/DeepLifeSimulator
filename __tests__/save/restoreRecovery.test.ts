@@ -301,6 +301,62 @@ describe('the pre-prestige snapshot exists at all', () => {
     expect(after.length).toBe(before.length);
   });
 
+  it('does the same post-write bookkeeping on the retry path as on the happy path (F-13)', async () => {
+    // The retry path returned the id and stopped: no `recordBackupTime`, no
+    // `rotateBackups`. So a backup that only landed on the second attempt left
+    // the throttle stamp stale (pushing `isAutoBackupThrottled` back onto
+    // parsing every backup blob — on a device that has just proved it is short
+    // on storage) and never rotated, growing the ring past its cap on exactly
+    // the device that cannot afford it.
+    const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
+    const realSetItem = AsyncStorage.setItem;
+
+    // Fill the ring beyond the rotation cap with plain rotatable backups.
+    for (let i = 0; i < 9; i += 1) {
+      await createBackup(
+        SLOT,
+        createSaveEnvelope(JSON.stringify(alive({ weeksLived: 100 + i }))),
+        'corruption_recovery',
+      );
+    }
+    store.delete(`last_backup_time_${SLOT}`);
+    const countBefore = (await listBackups(SLOT)).length;
+
+    // Two failures, so `safeSetItem` returns false and createBackup takes its
+    // own cleanup-and-retry branch; the retry's write lands.
+    let failsLeft = 2;
+    AsyncStorage.setItem = jest.fn(async (k: string, v: string) => {
+      if (failsLeft > 0) {
+        failsLeft -= 1;
+        const err: Error & { name: string } = new Error('quota exceeded');
+        err.name = 'QuotaExceededError';
+        throw err;
+      }
+      return realSetItem(k, v);
+    });
+
+    let id: string | null;
+    try {
+      id = await createBackup(
+        SLOT,
+        createSaveEnvelope(JSON.stringify(alive({ weeksLived: 2500 }))),
+        'corruption_recovery',
+      );
+    } finally {
+      AsyncStorage.setItem = realSetItem;
+    }
+
+    expect(id).not.toBeNull();
+    // The throttle stamp is maintained. This is the half that discriminates:
+    // the quota branch's own aggressive cleanup already trims the ring to one
+    // entry per slot, so rotation has little left to do HERE — but it is the
+    // same unconditional post-write step, and skipping it was the same bug.
+    expect(store.get(`last_backup_time_${SLOT}`)).toBeTruthy();
+    const after = await listBackups(SLOT);
+    expect(after.length).toBeLessThanOrEqual(countBefore);
+    expect(after.some((b) => b.id === id)).toBe(true);
+  });
+
   it('restores the pre-prestige life as a recovery', async () => {
     const beforePrestige = alive({ userProfile: { firstName: 'Mara', lastName: 'O' }, generationNumber: 2 });
     const id = await createBackup(SLOT, createSaveEnvelope(JSON.stringify(beforePrestige)), 'before_prestige');

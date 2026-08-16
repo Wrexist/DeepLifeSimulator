@@ -80,11 +80,306 @@
  * the shape itself is to be retired.
  *
  * 2026-08-01 audit round 4.
+ *
+ * ── WHAT THIS SCANS, AND WHY IT IS NOW THREE TREES ────────────────────────
+ *
+ * Until 2026-08-16 the scan read `contexts/game/actions/*.ts` — one directory,
+ * NON-recursively, top-level `export` declarations only. Everything the class
+ * can live in outside that one directory was invisible to it, and the class
+ * was in fact alive there: `components/AdRewardOrb.tsx` read a `let allowed`
+ * flag across the stamping updater and dropped a reward a player had just
+ * watched a full ad for; `contexts/game/company.ts` reported "Unknown error"
+ * for purchases that committed. Those were found by hand, fixed in 2d99a22,
+ * and would have gone on being invisible here.
+ *
+ * The scan now walks `contexts/game/` (so `actions/weekly/`, the `*Context.tsx`
+ * providers and `company.ts` are all in), `components/` and `app/`, recursively,
+ * over every `.ts`/`.tsx` that is not a test. Entries are keyed by REPO-RELATIVE
+ * PATH rather than bare filename, because two `index.ts` files are no longer a
+ * hypothetical.
+ *
+ * Two extraction passes, unioned, and the split is deliberate:
+ *
+ *   (A) the ORIGINAL top-level `^export (const|function)` slice-to-next-export.
+ *       Kept byte-for-byte so that the 93 entries this file has been counting
+ *       still mean exactly what they meant yesterday. A re-extraction that
+ *       "improved" them would have silently re-based the ratchet.
+ *   (B) a structural pass over EVERY function head at any indentation, with
+ *       brace-matched extents. This is what reaches a `useCallback` handler
+ *       inside a component — the AdRewardOrb shape, which pass (A) cannot see
+ *       because a component is one export and its handlers' `let`s are indented
+ *       past the detector's two-space anchor.
+ *
+ * Pass (B) counts only the INNERMOST function holding a dispatch, so a provider
+ * is not counted for its own handlers' shapes; pass (A) drops a match for the
+ * same reason. Bodies from (B) are re-indented so the function's own statements
+ * sit at two spaces — `GameActionsContext.tsx` is written with ONE-space
+ * indentation, and without normalising it the capture detector would be blind
+ * to a 4,100-line file while reporting zero.
+ *
+ * The DETECTORS themselves (`reportsUnconditionalSuccess`,
+ * `bodyHasCrossUpdaterCapture`) are untouched: they were widened on 2026-08-15
+ * and are proved on the fixtures below. Only what gets fed to them changed.
  */
 import fs from 'fs';
 import path from 'path';
 
-const ACTIONS_DIR = path.join(__dirname, '..', '..', 'contexts/game/actions');
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+/** Relative prefix of the original scope — the CONTROLS below live here. */
+const ACTIONS_REL = 'contexts/game/actions';
+const ACTIONS_DIR = path.join(REPO_ROOT, ACTIONS_REL);
+
+/**
+ * The three trees. `lib/` is deliberately NOT here: it is pure game logic and
+ * takes no `setGameState`, so a scan of it would be a scan of nothing. If a
+ * `lib/` module ever grows a dispatch, add the root — the walker needs no
+ * other change.
+ */
+const ROOTS = ['contexts/game', 'components', 'app'];
+
+const SKIP_DIRS = new Set(['node_modules', '__tests__', '__mocks__', '__fixtures__']);
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      walk(full, out);
+    } else if (/\.tsx?$/.test(entry.name) && !/\.(test|spec)\.tsx?$/.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/** Every scanned source file, repo-relative, sorted. Read once. */
+const SOURCE_FILES: string[] = ROOTS.flatMap((r) => walk(path.join(REPO_ROOT, r)))
+  .map((f) => path.relative(REPO_ROOT, f))
+  .sort();
+
+const SOURCES = new Map<string, string>(
+  SOURCE_FILES.map((rel) => [rel, fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8')]),
+);
+
+/**
+ * Blank out comments and string/template TEXT, keeping every byte offset (and
+ * every newline) so the offsets computed here index the RAW source unchanged.
+ * Lifted from `__tests__/stress/weeklyTickGuards.test.ts`, for the same reason:
+ * brace matching must not be confused by a `{` inside a docblock, and this repo
+ * writes code samples in its docblocks constantly.
+ *
+ * Note what is masked and what is not: the mask is used ONLY to locate function
+ * heads and extents. Every body handed to a detector is sliced from the RAW
+ * text, so the detectors see exactly the bytes they saw before.
+ */
+function maskCommentsAndStrings(src: string): string {
+  const out = src.split('');
+  const n = src.length;
+  const blank = (from: number, to: number) => {
+    for (let k = from; k < to && k < n; k++) if (out[k] !== '\n') out[k] = ' ';
+  };
+  let i = 0;
+  while (i < n) {
+    const c = src[i];
+    const c2 = src[i + 1];
+    if (c === '/' && c2 === '/') {
+      let j = src.indexOf('\n', i);
+      if (j < 0) j = n;
+      blank(i, j);
+      i = j;
+      continue;
+    }
+    if (c === '/' && c2 === '*') {
+      let j = src.indexOf('*/', i);
+      j = j < 0 ? n : j + 2;
+      blank(i, j);
+      i = j;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < n && src[j] !== c && src[j] !== '\n') {
+        if (src[j] === '\\') j++;
+        j++;
+      }
+      blank(i + 1, j);
+      i = j + 1;
+      continue;
+    }
+    if (c === '`') {
+      let j = i + 1;
+      let textStart = i + 1;
+      while (j < n) {
+        if (src[j] === '\\') { j += 2; continue; }
+        if (src[j] === '`') break;
+        if (src[j] === '$' && src[j + 1] === '{') {
+          blank(textStart, j);
+          let depth = 1;
+          let k = j + 2;
+          while (k < n && depth > 0) {
+            if (src[k] === '{') depth++;
+            else if (src[k] === '}') depth--;
+            else if (src[k] === '`') {
+              let m = k + 1;
+              while (m < n && src[m] !== '`') {
+                if (src[m] === '\\') m++;
+                m++;
+              }
+              k = m;
+            }
+            k++;
+          }
+          j = k;
+          textStart = k;
+          continue;
+        }
+        j++;
+      }
+      blank(textStart, j);
+      i = j + 1;
+      continue;
+    }
+    i++;
+  }
+  return out.join('');
+}
+
+interface FnExtent {
+  name: string;
+  indent: number;
+  start: number;
+  end: number;
+}
+
+/**
+ * Anything that could open a function body: `function f(`, `const f = … => {`,
+ * `const f = useCallback((…) => {`, at ANY indentation. Deliberately loose on
+ * the right-hand side — the head is only a candidate; what makes it a function
+ * is that a body brace is found below.
+ */
+const FN_HEAD =
+  /^([ \t]*)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s+(\w+)|(?:const|let)\s+(\w+)\s*(?::[^=\n]*)?=)/gm;
+
+/**
+ * Every function in `code` (which must be MASKED source), with brace-matched
+ * extents.
+ *
+ * The body brace is the first `{` at paren depth 0, or one immediately after an
+ * arrow — the second case is what makes `useCallback((x) => {` work, where the
+ * body opens while still inside `useCallback(`'s parenthesis. A `;` at depth 0
+ * before any brace means this was an ordinary declaration, not a function.
+ */
+function findFunctions(code: string): FnExtent[] {
+  const heads: FnExtent[] = [];
+  FN_HEAD.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = FN_HEAD.exec(code)) !== null) {
+    const start = m.index;
+    const name = m[2] || m[3];
+    const indent = m[1].length;
+    let depth = 0;
+    let open = -1;
+    for (let i = start + m[0].length; i < code.length; i++) {
+      const ch = code[i];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth--;
+      else if (ch === '{') {
+        if (depth === 0 || code.slice(Math.max(0, i - 3), i).trimEnd().endsWith('=>')) {
+          open = i;
+          break;
+        }
+      } else if (ch === ';' && depth === 0) break;
+    }
+    if (open === -1) continue;
+    let d = 0;
+    let end = code.length;
+    for (let i = open; i < code.length; i++) {
+      if (code[i] === '{') d++;
+      else if (code[i] === '}') {
+        d--;
+        if (!d) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    heads.push({ name, indent, start, end });
+  }
+  return heads;
+}
+
+/**
+ * Re-indent an extracted body so the function's OWN statements sit at two
+ * spaces, which is where `bodyHasCrossUpdaterCapture` looks for a capture.
+ *
+ * Without this the detector's anchor means "two spaces from the left margin"
+ * rather than "this function's top level", which is only the same thing for a
+ * top-level function in a two-space-indented file. `GameActionsContext.tsx` is
+ * written with ONE-space indentation and every handler in it is nested, so the
+ * anchor would have missed the whole file — silently, which is the failure mode
+ * this file's history keeps recording.
+ */
+export function normalizeIndent(body: string, headIndent: number): string {
+  const lines = body.split('\n');
+  let base = Infinity;
+  // Skip the head line and the closing brace line: both sit at the head's own
+  // indent and would drag the base down to it.
+  for (let i = 1; i < lines.length - 1; i++) {
+    const l = lines[i];
+    if (!l.trim()) continue;
+    const ind = l.length - l.replace(/^ */, '').length;
+    if (ind > headIndent && ind < base) base = ind;
+  }
+  if (!isFinite(base)) return body;
+  const shift = 2 - base;
+  if (shift === 0 && headIndent === 0) return body;
+  return lines
+    .map((l, i) => {
+      if (i === 0) return l.replace(/^ +/, '');
+      if (!l.trim()) return l;
+      if (shift >= 0) return ' '.repeat(shift) + l;
+      return l.startsWith(' '.repeat(-shift)) ? l.slice(-shift) : l.replace(/^ +/, '');
+    })
+    .join('\n');
+}
+
+/**
+ * The two extraction passes, unioned, for one file. See the header for why
+ * there are two and why (A) is preserved verbatim.
+ *
+ * Exported so the fixtures below can prove the component-shaped case really is
+ * reached — a scan whose new scope finds nothing is indistinguishable from a
+ * scan that never ran.
+ */
+export function functionBodies(raw: string): { name: string; body: string }[] {
+  const code = maskCommentsAndStrings(raw);
+  const fns = findFunctions(code);
+  const holdsDispatch = (f: FnExtent) => code.slice(f.start, f.end).includes('setGameState(');
+  const out: { name: string; body: string }[] = [];
+
+  // (A) the original pass: top-level exports, sliced to the next top-level
+  // export. Unchanged, except that a declaration whose shape actually belongs
+  // to a nested function is left to pass (B) to report under the real name.
+  const decl = /^export (?:const|function) (\w+)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = decl.exec(raw)) !== null) {
+    const start = m.index;
+    const next = /^export (?:const|function) /m.exec(raw.slice(start + 10));
+    const end = next ? start + 10 + next.index : raw.length;
+    const nestedOwnsIt = fns.some((f) => f.indent > 0 && f.start > start && f.end <= end && holdsDispatch(f));
+    if (nestedOwnsIt) continue;
+    out.push({ name: m[1], body: raw.slice(start, end) });
+  }
+
+  // (B) the structural pass: innermost function holding the dispatch, body
+  // re-indented to the detector's frame of reference.
+  for (const fn of fns) {
+    if (fns.some((o) => o !== fn && o.start > fn.start && o.end <= fn.end && holdsDispatch(o))) continue;
+    out.push({ name: fn.name, body: normalizeIndent(raw.slice(fn.start, fn.end), fn.indent) });
+  }
+
+  return out;
+}
 
 /**
  * Functions that BOTH reject from inside a `setGameState` updater AND end with
@@ -124,17 +419,8 @@ export function reportsUnconditionalSuccess(afterUpdater: string): boolean {
 function suspects(): string[] {
   const found: string[] = [];
 
-  for (const file of fs.readdirSync(ACTIONS_DIR).filter((f) => f.endsWith('.ts'))) {
-    const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
-    const decl = /^export (?:const|function) (\w+)/gm;
-
-    let m: RegExpExecArray | null;
-    while ((m = decl.exec(src)) !== null) {
-      const name = m[1];
-      const start = m.index;
-      const next = /^export (?:const|function) /m.exec(src.slice(start + 10));
-      const body = src.slice(start, next ? start + 10 + next.index : src.length);
-
+  for (const [file, src] of SOURCES) {
+    for (const { name, body } of functionBodies(src)) {
       if (!body.includes('setGameState')) continue;
       if (!/return prev(?:State)?;/.test(body)) continue;
 
@@ -186,7 +472,7 @@ function suspects(): string[] {
     }
   }
 
-  return found.sort();
+  return Array.from(new Set(found)).sort();
 }
 
 /**
@@ -273,32 +559,24 @@ function dispatchRanges(body: string): [number, number][] {
 export function captureSuspects(): string[] {
   const found: string[] = [];
 
-  for (const file of fs.readdirSync(ACTIONS_DIR).filter((f) => f.endsWith('.ts'))) {
-    const src = fs.readFileSync(path.join(ACTIONS_DIR, file), 'utf8');
-    const decl = /^export (?:const|function) (\w+)/gm;
-
-    let m: RegExpExecArray | null;
-    while ((m = decl.exec(src)) !== null) {
-      const name = m[1];
-      const start = m.index;
-      const next = /^export (?:const|function) /m.exec(src.slice(start + 10));
-      const body = src.slice(start, next ? start + 10 + next.index : src.length);
-
-      const dispatch = body.indexOf('setGameState(');
-      if (dispatch === -1) continue;
+  for (const [file, src] of SOURCES) {
+    for (const { name, body } of functionBodies(src)) {
+      if (body.indexOf('setGameState(') === -1) continue;
 
       /**
        * Only declarations at the FUNCTION's top level (two-space indent) can be
        * read across the updater boundary. A `let` inside the updater body is
        * indented further and is an ordinary local — that is the false-positive
        * class (`let next: GameState = …`, `let working = …`) which makes a
-       * naive sweep for this shape unusable.
+       * naive sweep for this shape unusable. `normalizeIndent` is what makes
+       * "two-space indent" mean "this function's top level" for a nested
+       * handler, or in a file that is not indented in twos.
        */
       if (bodyHasCrossUpdaterCapture(body)) found.push(`${file}::${name}`);
     }
   }
 
-  return found.sort();
+  return Array.from(new Set(found)).sort();
 }
 
 /** Everything whose REPORT is not a pure function of the caller's snapshot. */
@@ -351,8 +629,37 @@ function allSuspects(): string[] {
  * What is left to work down is real: the object-capture sites listed by
  * `captureSuspects`, which need a state snapshot to report from (several take
  * only `setGameState` today, so they cannot answer their caller at all).
+ *
+ * ── 93 → 101, and why that is a SCOPE change, not a regression ────────────
+ *
+ * 2026-08-16 (WP-G): the scan grew from one non-recursive directory to three
+ * trees (see the header). Not one line of production code changed for this
+ * bump, and every one of the 93 previous members is still a member — the
+ * original extraction pass is preserved verbatim precisely so that claim is
+ * checkable. The 8 additions are all code that existed all along, in files the
+ * scan simply never opened:
+ *
+ *   contexts/game/company.ts::sellCompany, ::sellMiner, ::upgradeWarehouse
+ *   contexts/game/GameActionsContext.tsx::proposeToPartner, ::moveInTogether
+ *   contexts/game/ItemActionsContext.tsx::performHack
+ *   contexts/game/MoneyActionsContext.tsx::purchasePrestigeBonus
+ *   contexts/game/SocialActionsContext.tsx::haveChild
+ *
+ * Seven are the same benign shape as the bulk of the 92 — every inner
+ * `return prev` mirrors an outer guard that already reported the failure, so
+ * the unconditional success tail is correct on the single tap that is nearly
+ * all real play. `performHack` and `haveChild` say so in their own comments.
+ * The eighth, `upgradeWarehouse`, was a live cross-updater capture when the
+ * widened scope first found it; it was converted to the same
+ * preview/commit resolver as its three siblings in the same commit that
+ * landed this scope, so it now counts as an ordinary resolver-shaped member.
+ *
+ * `components/` and `app/` contributed ZERO, which is the expected answer and
+ * not a broken scan: the shapes that lived there (`AdRewardOrb`,
+ * `SkillTreeModal`) were fixed in 2d99a22, and the fixtures below prove the
+ * extraction still reaches a component-shaped handler.
  */
-const RATCHET = 93;
+const RATCHET = 101;
 
 describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
@@ -360,18 +667,25 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     expect(suspects().length).toBeGreaterThan(0);
   });
 
-  it('the cross-updater capture survives in exactly ONE dead-code site', () => {
+  it('the cross-updater capture survives in exactly ONE pinned site', () => {
     /**
      * It was the detector's exclusion until 2026-08-15, then its own bucket.
      * All 43 live members were converted to outer-guard reporting or to a pure
      * preview/commit resolver.
      *
-     * The single survivor is `processVehicleWeekly`, which has NO production
-     * caller — the live weekly path is `weekly/applyVehicles.ts`, whose own
-     * comment calls this "the pre-WeekContext version". Only the stress and
-     * insurance suites reach it, through a synchronous stub. It is pinned here
-     * by name rather than deleted so that wiring it into the tick trips this
-     * assertion first; the function itself carries the same warning.
+     * `processVehicleWeekly` has NO production caller — the live weekly path is
+     * `weekly/applyVehicles.ts`, whose own comment calls this "the
+     * pre-WeekContext version". Only the stress and insurance suites reach it,
+     * through a synchronous stub. It is pinned here by name rather than deleted
+     * so that wiring it into the tick trips this assertion first; the function
+     * itself carries the same warning.
+     *
+     * `company.ts::upgradeWarehouse` was the one live capture the widened
+     * 2026-08-16 scope found — the Mining app's warehouse upgrade button. It
+     * was briefly pinned here, then converted to `resolveUpgradeWarehouse`,
+     * the same preview/commit pair as its three siblings in the file, in the
+     * same change that landed this scope. Nothing capture-shaped remains on a
+     * player path.
      *
      * ── Why this list was briefly, wrongly, empty ──────────────────────────
      *
@@ -383,7 +697,9 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      * detector narrower than the defect is worse than none, because its zero
      * gets quoted as proof.
      */
-    expect(captureSuspects()).toEqual(['VehicleActions.ts::processVehicleWeekly']);
+    expect(captureSuspects()).toEqual([
+      'contexts/game/actions/VehicleActions.ts::processVehicleWeekly',
+    ]);
   });
 
   describe('the capture detector still works at zero (fixtures)', () => {
@@ -481,6 +797,97 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     });
   });
 
+  /**
+   * The SCOPE, checked the same way the detector is: on fixtures.
+   *
+   * `components/` and `app/` currently contribute nothing to the count, which is
+   * the correct answer — and also exactly what a scan that silently reads no
+   * files would report. These fixtures are what tells the two apart. They feed
+   * `functionBodies` the shapes the widened scope exists for and require the
+   * real detector to fire on the extracted body.
+   */
+  describe('the extraction reaches the shapes the old scope could not', () => {
+    /** AdRewardOrb's pre-2d99a22 shape: a capture inside a nested handler. */
+    const COMPONENT = [
+      'function AdRewardOrb() {',
+      '  const setGameState = useSetGameState();',
+      '',
+      '  const grant = useCallback(async () => {',
+      '    let allowed = false;',
+      '    setGameState((prev) => {',
+      '      if (claimed(prev)) return prev;',
+      '      allowed = true;',
+      '      return { ...prev, settings: stamp(prev) };',
+      '    });',
+      '    if (!allowed) return;',
+      '    updateMoney(reward);',
+      '  }, [setGameState]);',
+      '',
+      '  return <View onPress={grant} />;',
+      '}',
+      '',
+      'export default React.memo(AdRewardOrb);',
+      '',
+    ].join('\n');
+
+    const bodyOf = (src: string, name: string) =>
+      functionBodies(src).filter((f) => f.name === name);
+
+    it('finds a `useCallback` handler nested inside a component', () => {
+      expect(bodyOf(COMPONENT, 'grant')).toHaveLength(1);
+    });
+
+    it('and the capture detector fires on that handler', () => {
+      // The whole point of the 2026-08-16 scope change. If this ever goes false
+      // the scan is walking components/ and seeing through them.
+      expect(bodyHasCrossUpdaterCapture(bodyOf(COMPONENT, 'grant')[0].body)).toBe(true);
+    });
+
+    it('but NOT on the component that merely contains it (innermost wins)', () => {
+      // Otherwise every provider and screen would be counted for its handlers'
+      // shapes, and the failure message would name the wrong function.
+      expect(bodyOf(COMPONENT, 'AdRewardOrb')).toHaveLength(0);
+    });
+
+    it('sees a capture in a ONE-space-indented file (GameActionsContext.tsx)', () => {
+      // Not hypothetical: `contexts/game/GameActionsContext.tsx` — 4,100 lines,
+      // the week loop and ~40 actions — is indented in ones. Without
+      // `normalizeIndent` the detector's two-space anchor lands on nothing there
+      // and the whole file reports clean.
+      const oneSpace = [
+        'export function Provider() {',
+        ' const doThing = useCallback(() => {',
+        '  let applied = false;',
+        '  setGameState(prev => {',
+        '   applied = true;',
+        '   return next;',
+        '  });',
+        '  return { success: applied };',
+        ' }, []);',
+        ' return null;',
+        '}',
+        '',
+      ].join('\n');
+      const doThing = functionBodies(oneSpace).filter((f) => f.name === 'doThing');
+      expect(doThing).toHaveLength(1);
+      expect(bodyHasCrossUpdaterCapture(doThing[0].body)).toBe(true);
+    });
+
+    it('the walker actually opened the new trees', () => {
+      // A path-shaped assertion, because "0 suspects in components/" is only
+      // meaningful if components/ was read at all.
+      const roots = (prefix: string) => SOURCE_FILES.filter((f) => f.startsWith(prefix)).length;
+      expect(roots('components/')).toBeGreaterThan(200);
+      expect(roots('app/')).toBeGreaterThan(20);
+      expect(roots('contexts/game/actions/weekly/')).toBeGreaterThan(30);
+      expect(SOURCE_FILES).toContain('contexts/game/company.ts');
+      expect(SOURCE_FILES).toContain('contexts/game/JobActionsContext.tsx');
+      expect(SOURCE_FILES).toContain('components/AdRewardOrb.tsx');
+      // …and no test files, which would count their own fixtures.
+      expect(SOURCE_FILES.filter((f) => /\.test\.tsx?$/.test(f))).toEqual([]);
+    });
+  });
+
   it('no NEW function reads its outcome out of an updater', () => {
     const current = allSuspects();
 
@@ -539,7 +946,9 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      * source check below is what tells those two apart.
      */
     for (const [file, fn] of CONTROLS) {
-      expect(captureSuspects()).not.toContain(`${file}::${fn}`);
+      // Keyed by repo-relative path since the 2026-08-16 scope change — a bare
+      // filename can no longer be a member, so it could not fail.
+      expect(captureSuspects()).not.toContain(`${ACTIONS_REL}/${file}::${fn}`);
     }
   });
 
@@ -591,7 +1000,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
    * both are asserted against the real files rather than a fixture.
    */
   it('sees an all-success ternary tail (the defect it was blind to)', () => {
-    expect(suspects()).toContain('CrimeActions.ts::buyMarketListing');
+    expect(suspects()).toContain(`${ACTIONS_REL}/CrimeActions.ts::buyMarketListing`);
 
     // And that really is the shape — both branches report success.
     const src = fs.readFileSync(path.join(ACTIONS_DIR, 'CrimeActions.ts'), 'utf8');
@@ -654,7 +1063,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     // `claimAdCashBonus` ends with `granted > 0 ? success : failure`. That is a
     // real conditional outcome — the fixed shape — and counting it would make
     // the ratchet punish the very pattern it is trying to encourage.
-    expect(suspects()).not.toContain('BankingActions.ts::claimAdCashBonus');
+    expect(suspects()).not.toContain(`${ACTIONS_REL}/BankingActions.ts::claimAdCashBonus`);
 
     const src = fs.readFileSync(path.join(ACTIONS_DIR, 'BankingActions.ts'), 'utf8');
     const i = src.indexOf('export const claimAdCashBonus');

@@ -9,7 +9,7 @@
  * - Divorce
  */
 
-import { GameState, Relationship, WeddingPlan } from '../types';
+import { GameState, WeddingPlan } from '../types';
 import { logger } from '@/utils/logger';
 import { applyMoneyDelta, updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
@@ -1018,8 +1018,7 @@ export const fileDivorce = (
           return property;
         }
 
-        const propertyAny = property as any;
-        const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = propertyAny;
+        const { currentResidence: _ignoredCurrentResidence, ...withoutResidence } = property;
         return {
           ...withoutResidence,
           owned: false,
@@ -1251,7 +1250,14 @@ export const fileDivorce = (
   };
 };
 /**
- * Cancel engagement
+ * Cancel engagement.
+ *
+ * Wired into the Family screen's partner card (`components/FamilyTab.tsx`,
+ * "Call off the engagement", behind a destructive confirm) on 2026-08-16. For
+ * most of its life it had NO caller in `components/` or `app/` — the engagement
+ * screens offered only propose / plan / execute, so an engaged player's only
+ * exit was "Break up", which ends the relationship outright. This is the softer
+ * one it was designed for: the ring comes off, the partner stays.
  */
 export const cancelEngagement = (
   gameState: GameState,
@@ -1370,24 +1376,4 @@ export const checkAnniversary = (
   return { isAnniversary: false };
 };
 
-/**
- * Get relationship status summary
- */
-export const getRelationshipStatus = (relationship: Relationship): {
-  status: 'dating' | 'engaged' | 'married';
-  canPropose: boolean;
-  canPlanWedding: boolean;
-  canExecuteWedding: boolean;
-} => {
-  const isMarried = relationship.type === 'spouse';
-  const isEngaged = Boolean(relationship.engagementWeek);
-  const hasWeddingPlan = Boolean(relationship.weddingPlanned);
-
-  return {
-    status: isMarried ? 'married' : isEngaged ? 'engaged' : 'dating',
-    canPropose: !isMarried && !isEngaged && relationship.relationshipScore >= 60,
-    canPlanWedding: isEngaged && !hasWeddingPlan,
-    canExecuteWedding: hasWeddingPlan,
-  };
-};
 

@@ -23,7 +23,7 @@ import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { useGameSelector, useSetGameState, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game';
 import { useTheme } from '@/hooks/useTheme';
-import { updateMoney } from '@/contexts/game/actions/MoneyActions';
+import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { adsAvailable, areAdsRemoved, runRewardedAd, isGranted, isNoFillGrant } from '@/lib/ads/rewardedAd';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
@@ -95,6 +95,52 @@ function computeReward(state: GameState): number {
   return Math.max(REWARD_MIN, Math.round(clamped / 10) * 10);
 }
 
+/**
+ * Has the CASH orb already been claimed for the game week `state` is in?
+ *
+ * Pure, and exported, for two reasons. It is the OUTER guard that mirrors the
+ * inner `return prev` in `applyAdCashGrant` — the C-9 pattern
+ * (`__tests__/actions/innerOnlyRejections.test.ts`), which replaces the
+ * `let allowed` capture this function used to read across the updater boundary.
+ * And it lets the SPAWNER refuse to offer a cash orb that cannot be redeemed,
+ * so the "$0 with a success sheet" case never reaches the player at all.
+ */
+export function cashGrantClaimed(
+  state: Pick<GameState, 'settings' | 'weeksLived'> | null | undefined
+): boolean {
+  const week =
+    typeof state?.weeksLived === 'number' && Number.isFinite(state.weeksLived)
+      ? state.weeksLived
+      : 0;
+  return state?.settings?.lastAdCashGrantWeek === week;
+}
+
+/**
+ * Stamp the week marker AND credit the reward in ONE updater (§4.4).
+ *
+ * Previously the stamp and the credit were two separate `setGameState` calls
+ * with a captured `allowed` flag between them, which had two failure modes: a
+ * DEFERRED updater read `allowed === false` and dropped a legitimate reward
+ * while the stamp still committed, and a second cash orb in the same
+ * `weeksLived` (the spawner never consulted the marker) stamped nothing,
+ * granted nothing, and still played the success sheet.
+ *
+ * Returns `prev` unchanged when the week is already claimed, so a double tap
+ * inside one React batch cannot pay twice.
+ */
+export function applyAdCashGrant(prev: GameState, reward: number): GameState {
+  const week =
+    typeof prev.weeksLived === 'number' && Number.isFinite(prev.weeksLived) ? prev.weeksLived : 0;
+  if (prev.settings?.lastAdCashGrantWeek === week) return prev;
+  const credited = applyMoneyDelta(prev, reward, 'Rewarded ad bonus');
+  if (!credited) return prev;
+  return {
+    ...prev,
+    ...credited,
+    settings: { ...prev.settings, lastAdCashGrantWeek: week },
+  };
+}
+
 function AdRewardOrb() {
   /**
    * PERF-7: this component is mounted in the tab-tree root for the entire
@@ -129,6 +175,9 @@ function AdRewardOrb() {
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
+  // The week's cash orb was already taken — the sheet says so instead of
+  // claiming a reward that was not paid.
+  const [claimBlocked, setClaimBlocked] = useState(false);
 
   // Hard off-switch: a player who paid to remove ads never sees the orb.
   // Selected as a BOOLEAN, so buying Remove Ads still re-renders immediately
@@ -197,10 +246,17 @@ function AdRewardOrb() {
       if (noFillOnCooldown(snapshot) && adsAvailable(areAdsRemoved(snapshot))) {
         return;
       }
-      const nextKind = pickKind();
+      // Never OFFER a cash orb the player cannot redeem. The cash reward is
+      // gated to one per game week, and the spawner used to ignore that: orbs
+      // respawn every 6-10 minutes, so the second cash orb of a week showed
+      // "Reward added! $X was added to your wallet" for a $0 grant. Vitality is
+      // deliberately ungated, so it is always a redeemable substitute.
+      const claimed = cashGrantClaimed(snapshot);
+      const nextKind = claimed ? 'vitality' : pickKind();
       setKind(nextKind);
-      setReward(nextKind === 'cash' ? computeReward(getGameState()) : 0);
+      setReward(nextKind === 'cash' ? computeReward(snapshot) : 0);
       setGranted(false);
+      setClaimBlocked(false);
       setPhase('orb');
     }, delay);
   }, [getGameState]);
@@ -299,29 +355,25 @@ function AdRewardOrb() {
       // so tapping every orb compounded net worth ~1.5% each time and doubled
       // it roughly every 2.2 hours of REAL time, invisible to the tax brackets
       // and the net-worth soft cap. One cash grant per game week turns it from
-      // a faucet into a top-up.
+      // a faucet into a top-up. Vitality orbs are deliberately ungated: they
+      // cannot be banked or compounded.
       //
-      // Stamp-and-reserve: the updater that records the week IS the gate. It
-      // returns `prev` unchanged when the week is already claimed, and the
-      // `allowed` flag is captured INSIDE it — the established pattern here for
-      // pairing a guard with the module-form `updateMoney` (§4.4). Vitality
-      // orbs are deliberately ungated: they cannot be banked or compounded.
-      let allowed = false;
-      setGameState(prev => {
-        const week = prev.weeksLived ?? 0;
-        if (prev.settings?.lastAdCashGrantWeek === week) return prev;
-        allowed = true;
-        return {
-          ...prev,
-          settings: { ...prev.settings, lastAdCashGrantWeek: week },
-        };
-      });
-      if (!allowed) {
-        setGranted(true);
-        haptic.success();
+      // OUTER guard, mirroring the inner `return prev` inside
+      // `applyAdCashGrant` — read from the provider's LIVE snapshot, so no
+      // value crosses the updater boundary. The captured `allowed` flag this
+      // replaced was wrong in both directions: on a DEFERRED updater it read
+      // its `false` default and silently dropped a legitimate reward while the
+      // week stamp committed, and on a refusal it played the success sheet for
+      // a $0 grant.
+      if (cashGrantClaimed(getGameState())) {
+        setGranted(false);
+        setClaimBlocked(true);
+        haptic.error();
         return;
       }
-      updateMoney(setGameState, reward, 'Rewarded ad bonus');
+      // Stamp + credit in ONE updater, re-checking the gate against `prev`
+      // (§4.4), so two taps in one React batch cannot pay twice.
+      setGameState(prev => applyAdCashGrant(prev, reward));
     } else {
       // +100 to each caps Health/Happiness/Energy at 100 — a full vitality refill.
       updateStats(setGameState, {
@@ -330,9 +382,10 @@ function AdRewardOrb() {
         energy: VITALITY_BOOST,
       });
     }
+    setClaimBlocked(false);
     setGranted(true);
     haptic.success();
-  }, [kind, reward, setGameState]);
+  }, [kind, reward, setGameState, getGameState]);
 
   // (sheetDismissResolver is declared above, near the other refs, so the
   // adsRemoved effect can resolve a pending waiter.)
@@ -435,14 +488,22 @@ function AdRewardOrb() {
   const orbA11y = isCash
     ? `Watch an ad to earn ${formatMoney(reward)}`
     : 'Watch an ad to refill health, happiness and energy';
-  const sheetTitle = granted ? 'Reward added!' : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
-  const sheetSubtitle = granted
-    ? isCash
-      ? `${formatMoney(reward)} was added to your wallet.`
-      : 'Health, Happiness and Energy topped up to full.'
-    : isCash
-      ? 'Watch a short video ad to collect a cash bonus.'
-      : 'Watch a short video ad to refill Health, Happiness and Energy.';
+  // `claimBlocked` wins over `granted`: the copy must never announce money that
+  // was not paid. It is only ever set on the cash path.
+  const sheetTitle = claimBlocked
+    ? 'Already collected this week'
+    : granted
+      ? 'Reward added!'
+      : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
+  const sheetSubtitle = claimBlocked
+    ? "You've already taken a cash orb this game week — nothing was charged. Live another week and it's back."
+    : granted
+      ? isCash
+        ? `${formatMoney(reward)} was added to your wallet.`
+        : 'Health, Happiness and Energy topped up to full.'
+      : isCash
+        ? 'Watch a short video ad to collect a cash bonus.'
+        : 'Watch a short video ad to refill Health, Happiness and Energy.';
   const GrantedIcon = isCash ? DollarSign : Sparkles;
 
   return (
@@ -492,12 +553,20 @@ function AdRewardOrb() {
             </View>
 
             <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBadge}>
-              {granted ? <GrantedIcon size={scale(34)} color="#FFFFFF" strokeWidth={2.6} /> : <Play size={scale(34)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />}
+              {claimBlocked
+                ? <Gift size={scale(34)} color="#FFFFFF" strokeWidth={2.4} />
+                : granted
+                  ? <GrantedIcon size={scale(34)} color="#FFFFFF" strokeWidth={2.6} />
+                  : <Play size={scale(34)} color="#FFFFFF" strokeWidth={2.4} fill="#FFFFFF" />}
             </LinearGradient>
 
             <Text style={[styles.title, { color: theme.text }]}>{sheetTitle}</Text>
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{sheetSubtitle}</Text>
 
+            {/* The reward card is a PROMISE of a payout. Suppress it when the
+                week's cash orb was already taken — showing "+$X cash" above a
+                refusal is the same lie the success sheet used to tell. */}
+            {claimBlocked ? null : (
             <View style={[styles.rewardCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
               {isCash ? (
                 <>
@@ -527,8 +596,9 @@ function AdRewardOrb() {
                 </>
               )}
             </View>
+            )}
 
-            {!granted ? (
+            {!granted && !claimBlocked ? (
               <Pressable onPress={handleWatch} accessibilityRole="button" accessibilityLabel="Watch ad" style={styles.cta}>
                 <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
                   <Text style={styles.ctaText}>Watch ad ▶</Text>
@@ -537,7 +607,7 @@ function AdRewardOrb() {
             ) : (
               <Pressable onPress={dismissAd} accessibilityRole="button" accessibilityLabel="Done" style={styles.cta}>
                 <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaFill}>
-                  <Text style={styles.ctaText}>Nice!</Text>
+                  <Text style={styles.ctaText}>{claimBlocked ? 'Got it' : 'Nice!'}</Text>
                 </LinearGradient>
               </Pressable>
             )}

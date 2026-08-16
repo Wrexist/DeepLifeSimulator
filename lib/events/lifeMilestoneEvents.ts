@@ -11,6 +11,7 @@
  */
 import type { EventTemplate } from './engine';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 // ---------------------------------------------------------------------------
 // Romantic relationship events
@@ -563,7 +564,7 @@ const raiseNegotiation: EventTemplate = {
   id: 'raise_negotiation',
   category: 'economy',
   weight: 0.15,
-  condition: state => !!state.currentJob && (state.weeksLived || 0) > 52,
+  condition: state => !!state.currentJob && weeksInThisLife(state) > 52,
   generate: () => ({
     id: 'raise_negotiation',
     description: "You feel underpaid. Annual reviews are coming up.",

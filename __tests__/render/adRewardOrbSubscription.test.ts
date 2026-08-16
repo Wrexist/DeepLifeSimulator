@@ -72,7 +72,14 @@ describe('it still reads FRESH state when a timer fires', () => {
     // A timer scheduled minutes earlier must not pay out on stale wealth, and
     // the post-dismissal entitlement re-read is what stops a player who just
     // bought Remove Ads from being shown an ad.
-    expect(code).toMatch(/computeReward\(getGameState\(\)\)/);
+    // WP-A: the spawner now takes ONE fresh read (`const snapshot =
+    // getGameState()`) and prices the reward off it, because the same read also
+    // answers `cashGrantClaimed` — a cash orb that cannot be redeemed this game
+    // week is never offered. Still the getter, still fresh at fire time; what
+    // must not come back is pricing off a value captured when the timer was
+    // scheduled.
+    expect(code).toMatch(/const snapshot = getGameState\(\);/);
+    expect(code).toMatch(/computeReward\((?:getGameState\(\)|snapshot)\)/);
     expect(code).toMatch(/areAdsRemoved\(getGameState\(\)\)/);
   });
 });

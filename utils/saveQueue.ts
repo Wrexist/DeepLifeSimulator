@@ -16,6 +16,14 @@ interface SaveOperation {
   data: any;
   timestamp: number;
   retryCount: number;
+  /**
+   * Settles the promise `addToQueue` returns, once THIS operation has finished
+   * processing (written, permanently failed, or been dropped as invalid). Not
+   * part of the persisted shape — `JSON.stringify` drops function-valued keys,
+   * so a restored operation simply has none. See `addToQueue` for why the
+   * enqueuer needs to know when the write actually landed.
+   */
+  onSettled?: () => void;
 }
 
 type ToastCallback = (message: string, type: 'success' | 'error') => void;
@@ -30,6 +38,8 @@ const MAX_REPLAYABLE_QUEUE_AGE_MS = 6 * 60 * 60 * 1000; // 6 hours
 class SaveQueue {
   private queue: SaveOperation[] = [];
   private processingPromise: Promise<void> | null = null;
+  /** Set by `restoreQueue`: drop the persisted blob once the replay drains. */
+  private clearPersistedAfterDrain = false;
   private maxRetries = 3;
   private retryDelay = 1000; // 1 second
   private toastCallback: ToastCallback | null = null;
@@ -56,12 +66,40 @@ class SaveQueue {
       throw new Error(`Cannot save: invalid save slot (${String(slot)})`);
     }
 
+    // F-9: RESOLVE ON COMPLETION, NOT ON ENQUEUE.
+    //
+    // This used to return as soon as the operation was pushed. `saveGame` holds
+    // the save/load mutex across its `await queueSave(...)` and releases it in a
+    // `finally` — so the mutex came off while `performSave` was still writing
+    // the slot, and a `loadGame` that acquired next read the slot mid-write.
+    // The lock protected the ENQUEUE, which needs no protection at all.
+    //
+    // Why this shape rather than having `performSave` acquire the mutex itself:
+    // the enqueuer is normally still holding it, and the mutex is not reentrant,
+    // so the drain would block on a lock only the (now blocked) enqueuer can
+    // release — a hard deadlock on every autosave. Making the enqueuer's own
+    // await span the write keeps the single existing holder and needs no lock
+    // inside the queue. Nothing on the `performSave` path acquires the mutex,
+    // so the drain can never wait on the enqueuer.
+    //
+    // Bounded: three retries with a 1s/2s/3s backoff is ~6s worst case, well
+    // inside the mutex's 30s watchdog.
+    let settled = false;
+    let settle: () => void = () => {};
+    const completed = new Promise<void>(resolve => {
+      settle = () => {
+        settled = true;
+        resolve();
+      };
+    });
+
     const operation: SaveOperation = {
       id: `save_${Date.now()}_${Math.random()}`,
       slot,
       data,
       timestamp: Date.now(),
       retryCount: 0,
+      onSettled: settle,
     };
 
     // Immutable push to prevent mid-iteration mutation
@@ -72,12 +110,56 @@ class SaveQueue {
       this.log.warn('Failed to persist queue after add (non-critical):', err);
     });
 
-    // Chain onto existing processing promise to guarantee serialized processing
-    if (!this.processingPromise) {
-      this.processingPromise = this.processQueue().finally(() => {
-        this.processingPromise = null;
-      });
+    // F-9b: race the LIVE drain, not a captured one, until OUR operation
+    // settles. The first drain promise this sees can be a PREVIOUS drain in
+    // its dying microtasks: `processQueue` returns on an empty queue a moment
+    // before `processingPromise` clears, so an operation pushed in that window
+    // gets the old drain back from `kickProcessing()`. That old drain resolves
+    // without ever touching this operation (the `finally` re-kick processes it
+    // on a NEW drain), and racing it resolved this await while the slot write
+    // was still in flight — reopening the exact mid-write window the await
+    // above exists to close. Looping on `settled` keeps both properties:
+    // completion is the only success exit, and a drain that rejects outright
+    // still propagates instead of hanging the caller (and, with it, the
+    // mutex). Each pass awaits a full drain lifecycle, so this cannot spin.
+    while (!settled) {
+      await Promise.race([completed, this.kickProcessing()]);
+      if (!settled) {
+        // A drain finished without settling us — yield one microtask so the
+        // finally's re-kick (or `processingPromise = null`) lands before we
+        // fetch the live drain.
+        await Promise.resolve();
+      }
     }
+  }
+
+  /**
+   * Start draining the queue if nothing is draining it already, and return the
+   * promise for the drain in flight.
+   *
+   * The re-kick in the `finally` closes a window that pre-dates F-9 and that
+   * F-9's await would otherwise turn from "a save lands late" into "the caller
+   * hangs": `processQueue` returns as soon as it observes an empty queue, but
+   * `processingPromise` is only cleared one microtask later, so an operation
+   * pushed in between saw a non-null `processingPromise`, started no drain of
+   * its own, and sat in the queue until some unrelated save arrived.
+   */
+  private kickProcessing(): Promise<void> {
+    if (this.processingPromise) return this.processingPromise;
+
+    this.processingPromise = this.processQueue().finally(() => {
+      this.processingPromise = null;
+      if (this.clearPersistedAfterDrain && this.queue.length === 0) {
+        this.clearPersistedAfterDrain = false;
+        // Best-effort remove the persisted queue after a successful drain. If
+        // processQueue threw we keep the persisted entry so the next session
+        // can retry.
+        void safeRemoveItem('save_queue_persisted').catch(() => {});
+      }
+      if (this.queue.length > 0) void this.kickProcessing().catch(() => {});
+    });
+
+    return this.processingPromise;
   }
 
   private async processQueue(): Promise<void> {
@@ -90,6 +172,7 @@ class SaveQueue {
       // Validate operation has valid slot
       if (typeof operation.slot !== 'number' || isNaN(operation.slot) || operation.slot < 1 || operation.slot > 3) {
         this.log.error(`Invalid slot in queue operation: ${operation.slot}. Skipping operation.`);
+        this.settleOperation(operation);
         continue;
       }
 
@@ -110,6 +193,7 @@ class SaveQueue {
         }
 
         // Don't show success toast - silent saves
+        this.settleOperation(operation);
       } catch (error) {
         this.log.error(`Save failed for slot ${operation.slot}:`, error);
 
@@ -129,8 +213,29 @@ class SaveQueue {
           if (this.toastCallback) {
             this.toastCallback('Save Failed! Please try again.', 'error');
           }
+          this.settleOperation(operation);
         }
       }
+    }
+  }
+
+  /**
+   * Release the enqueuer waiting on this operation.
+   *
+   * RESOLVES on a permanent failure too, rather than rejecting: the queue
+   * already owns the user-facing failure report (the error toast above), and
+   * rejecting would make `saveGame` raise a SECOND "Save Error" dialog for the
+   * same write. The contract `addToQueue` keeps is "your operation is no longer
+   * pending" — which is exactly what the mutex holder needs to know.
+   */
+  private settleOperation(operation: SaveOperation): void {
+    const settle = operation.onSettled;
+    if (!settle) return;
+    operation.onSettled = undefined;
+    try {
+      settle();
+    } catch {
+      // A settle callback cannot fail, but it must never break the drain.
     }
   }
 
@@ -526,8 +631,26 @@ class SaveQueue {
 
   // Clear queue (useful for testing or emergency situations)
   clearQueue(): void {
+    const dropped = this.queue;
     this.queue = [];
-    this.processingPromise = null;
+    // F-12: do NOT null `processingPromise` here.
+    //
+    // This used to drop the handle on a drain that was still running. The drain
+    // itself kept going (nothing cancels an in-flight `performSave`), but it was
+    // no longer OBSERVED: the very next `addToQueue` saw a null promise, started
+    // a SECOND concurrent `processQueue`, and `forceSave`'s "wait for the queue
+    // to finish first" guard awaited only the new one — so a force-save could
+    // overwrite the slot while the original drain's `doubleBufferSave` was still
+    // writing it, which is the concurrent-write case that guard exists to
+    // prevent. `kickProcessing`'s `finally` clears the handle when the drain
+    // actually ends (and re-kicks if anything was queued after), so leaving it
+    // alone keeps the running drain observable without stranding anything: the
+    // emptied queue makes `processQueue`'s loop exit on its next pass.
+    //
+    // Anything waiting on a dropped operation must still be told it is no longer
+    // pending, or it waits forever — and, since F-9, holds the save/load mutex
+    // while it does.
+    for (const operation of dropped) this.settleOperation(operation);
   }
 
   private async persistQueue(): Promise<void> {
@@ -543,8 +666,30 @@ class SaveQueue {
         return;
       }
       
+      // F-11: SIGN THE PERSISTED QUEUE.
+      //
+      // Each entry carries a WHOLE GameState that `restoreQueue` replays
+      // through `performSave` — which wraps it in a canonical envelope and
+      // SIGNS it. Persisted as plain JSON, this key was therefore a laundry for
+      // arbitrary state: edit `save_queue_persisted` (unsigned, no checksum),
+      // relaunch, and the next save turns the edit into a validly-signed save
+      // file. That defeats the entire HMAC layer protecting `save_slot_N`.
+      //
+      // The queue blob now goes through the same envelope as a save — CRC32 for
+      // corruption, HMAC-SHA256 for tampering — and `restoreQueue` refuses
+      // anything that does not verify. `createSaveEnvelope` throws on a build
+      // that requires signing but cannot sign; the catch below then leaves the
+      // queue unpersisted, which is the right way to fail: a blob we could not
+      // sign is a blob we would have to refuse on the way back in anyway.
+      //
+      // Cost: one extra HMAC-SHA256 pass over the serialized queue, on a path
+      // that already pays a full `JSON.stringify` of the same state — the same
+      // order of magnitude as work this path already does, and it stays off the
+      // awaited save path (this whole method is fire-and-forget from
+      // `addToQueue`).
       const queueData = JSON.stringify(operationsToPersist);
-      await safeSetItem('save_queue_persisted', queueData);
+      const { createSaveEnvelope } = await import('@/utils/saveValidation');
+      await safeSetItem('save_queue_persisted', createSaveEnvelope(queueData));
       this.log.debug(`Persisted ${operationsToPersist.length} queue operations`);
     } catch (error) {
       this.log.warn('Failed to persist queue (non-critical):', { error: error instanceof Error ? error.message : String(error) });
@@ -568,8 +713,26 @@ class SaveQueue {
       if (!queueData) {
         return;
       }
-      
-      const operations: SaveOperation[] = JSON.parse(queueData);
+
+      // F-11: verify before trusting a single byte of it. `allowLegacy: false`
+      // is explicit — the unsigned raw-JSON form this key used to hold is
+      // exactly the shape an attacker (or an older build) leaves behind, and
+      // replaying it would sign whatever it says. A blob that does not verify
+      // is dropped, not replayed: at worst a device upgrading across this
+      // change loses one queued write that it had already survived a kill
+      // without, which the age/pristine/regression guards below would have
+      // second-guessed anyway.
+      const { decodePersistedSaveEnvelope } = await import('@/utils/saveValidation');
+      const decodedQueue = decodePersistedSaveEnvelope(queueData, { allowLegacy: false });
+      if (!decodedQueue.valid || typeof decodedQueue.data !== 'string') {
+        this.log.error('[SAVE_SECURITY] Persisted save queue failed verification — discarding', {
+          error: decodedQueue.error,
+        });
+        await safeRemoveItem('save_queue_persisted');
+        return;
+      }
+
+      const operations: SaveOperation[] = JSON.parse(decodedQueue.data);
       if (Array.isArray(operations) && operations.length > 0) {
         // A persisted operation is a WHOLE GameState from a previous session,
         // replayed on the next launch. The only thing checked was the slot
@@ -645,19 +808,11 @@ class SaveQueue {
         // P2-12: only clear the persisted queue once processing has actually
         // finished. The previous code removed it eagerly here, so if the app
         // was killed between restore and processQueue completing, those
-        // operations were lost permanently.
-        if (!this.processingPromise) {
-          this.processingPromise = this.processQueue().finally(() => {
-            this.processingPromise = null;
-            // Best-effort remove the persisted queue after a successful drain.
-            // If processQueue threw we keep the persisted entry so the next
-            // session can retry.
-            void safeRemoveItem('save_queue_persisted').catch(() => {});
-          });
-        } else {
-          // Another process is already draining; let its finally block clear
-          // the persisted queue.
-        }
+        // operations were lost permanently. The flag is honoured by whichever
+        // drain finishes last (`kickProcessing`), so an already-running drain
+        // clears it just the same.
+        this.clearPersistedAfterDrain = true;
+        void this.kickProcessing().catch(() => {});
       }
     } catch (error) {
       this.log.warn('Failed to restore queue (non-critical):', { error: error instanceof Error ? error.message : String(error) });

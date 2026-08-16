@@ -287,15 +287,16 @@ function resolveDecisionOn(
   prev: GameState,
   id: string,
   chosenId: string,
-  resolvedAs: 'chosen' | 'lapsed',
   outcome: string
 ): GameState {
   return patchMessage(prev, id, (m) => {
     if (!m.decision || m.decision.chosenId) return null;
+    // Always `'chosen'`: this path IS the player tapping a choice. The lapse
+    // path (`applyMailLapse`) stamps `'lapsed'` itself, in the week loop.
     return {
       ...m,
       read: true,
-      decision: { ...m.decision, chosenId, resolvedAs, outcome },
+      decision: { ...m.decision, chosenId, resolvedAs: 'chosen', outcome },
     };
   });
 }
@@ -356,28 +357,24 @@ function resolveMailDecision(
   state: GameState,
   id: string,
   choiceId: string,
-  mode: 'chosen' | 'lapsed',
-  decorate?: (resolverKind: string, outcome: string) => string,
 ): { result: DecisionResult; next: GameState | null } {
   const message = getMailState(state).messages.find((m) => m.id === id);
   if (!message?.decision || message.decision.chosenId) return { result: { outcome: '' }, next: null };
 
   const { resolver } = message.decision;
-  const lapsedCopy = 'No reply sent.';
-  const baseCopy = mode === 'chosen' ? 'Answered.' : lapsedCopy;
+  const baseCopy = 'Answered.';
 
   if (resolver.kind === 'event') {
     return {
       result: { outcome: baseCopy, delegateToEvent: { eventId: resolver.eventId, choiceId } },
-      next: resolveDecisionOn(state, id, choiceId, mode, baseCopy),
+      next: resolveDecisionOn(state, id, choiceId, baseCopy),
     };
   }
 
   const applied = applyResolver(state, resolver, choiceId);
-  const outcome = decorate ? decorate(resolver.kind, applied.outcome) : applied.outcome;
   return {
-    result: { outcome },
-    next: resolveDecisionOn(applied.state, id, choiceId, mode, outcome),
+    result: { outcome: applied.outcome },
+    next: resolveDecisionOn(applied.state, id, choiceId, applied.outcome),
   };
 }
 
@@ -388,29 +385,9 @@ export function chooseMailDecision(
   choiceId: string,
   onResolved: (result: DecisionResult) => void
 ): void {
-  const preview = resolveMailDecision(gameState, id, choiceId, 'chosen');
+  const preview = resolveMailDecision(gameState, id, choiceId);
   if (preview.next) {
-    setGameState((prev) => resolveMailDecision(prev, id, choiceId, 'chosen').next ?? prev);
-  }
-  onResolved(preview.result);
-}
-
-export function lapseMailDecision(
-  gameState: GameState,
-  setGameState: SetGameState,
-  id: string,
-  onResolved: (result: DecisionResult) => void
-): void {
-  const decorate = (kind: string, outcome: string) =>
-    kind === 'careerOffer' ? `You started without replying. ${outcome}` : outcome;
-
-  const lapseChoice = (state: GameState) =>
-    getMailState(state).messages.find((m) => m.id === id)?.decision?.lapseChoiceId ?? '';
-
-  const preview = resolveMailDecision(gameState, id, lapseChoice(gameState), 'lapsed', decorate);
-  if (preview.next) {
-    setGameState((prev) =>
-      resolveMailDecision(prev, id, lapseChoice(prev), 'lapsed', decorate).next ?? prev);
+    setGameState((prev) => resolveMailDecision(prev, id, choiceId).next ?? prev);
   }
   onResolved(preview.result);
 }

@@ -19,6 +19,7 @@
 
 import { maybeShowInterstitialForWeek, __resetInterstitialCadence } from '@/lib/ads/interstitial';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs');
@@ -48,24 +49,31 @@ describe('the banner leaves a new player alone', () => {
     // thing the grace exists to prevent. CLAUDE.md §7 records the same class of
     // hazard on `overdueBalance` (an absent key made `cash - undefined` = NaN).
     //
-    // Exercised as the selector's own arithmetic rather than through a render,
-    // because the component needs the AdMob native module to mount.
-    const clamp = (raw: unknown): number =>
-      typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, raw) : 0;
-
+    // Exercised against the REAL helper the component's selector calls
+    // (weeksSinceLifeStart), not a local copy of the clamp, so the assertion
+    // cannot drift from the shipped arithmetic. The component itself needs the
+    // AdMob native module to mount, so this is not driven through a render.
     for (const bad of [NaN, Infinity, -Infinity, undefined, null, '52', {}]) {
-      expect(clamp(bad)).toBe(0);
-      expect(clamp(bad) < WEEKS_PER_YEAR).toBe(true); // → banner hidden
+      expect(weeksSinceLifeStart(bad, 0)).toBe(0);
+      expect(weeksSinceLifeStart(bad, 0) < WEEKS_PER_YEAR).toBe(true); // → banner hidden
     }
-    expect(clamp(-5)).toBe(0);
-    expect(clamp(0)).toBe(0);
-    expect(clamp(WEEKS_PER_YEAR - 1) < WEEKS_PER_YEAR).toBe(true);
-    expect(clamp(WEEKS_PER_YEAR) < WEEKS_PER_YEAR).toBe(false); // → banner allowed
+    expect(weeksSinceLifeStart(-5, 0)).toBe(0);
+    expect(weeksSinceLifeStart(0, 0)).toBe(0);
+    // A corrupt lifeStartWeek must not un-hide the banner either.
+    for (const bad of [NaN, Infinity, -Infinity, null, '52', {}]) {
+      expect(weeksSinceLifeStart(3, bad)).toBe(3);
+    }
+    expect(weeksSinceLifeStart(WEEKS_PER_YEAR - 1, 0) < WEEKS_PER_YEAR).toBe(true);
+    expect(weeksSinceLifeStart(WEEKS_PER_YEAR, 0) < WEEKS_PER_YEAR).toBe(false); // → banner allowed
+    // The grace is measured in weeks into THIS life: an age-25 start
+    // (weeksLived seeded to 364) is still brand-new.
+    expect(weeksSinceLifeStart(364, 364)).toBe(0);
   });
 
   it('keeps that clamp in the component, not just in this test', () => {
-    expect(bannerSrc).toMatch(/Number\.isFinite\(raw\)/);
-    expect(bannerSrc).toMatch(/Math\.max\(0, raw\)/);
+    // The selector must route through the clamping helper tested above.
+    expect(bannerSrc).toMatch(/weeksSinceLifeStart\(/);
+    expect(bannerSrc).toMatch(/from '@\/utils\/weekCounters'/);
   });
 
   it('checks the grace AFTER every hook, so hook order stays fixed', () => {
@@ -111,6 +119,27 @@ describe('interstitials leave a new player alone', () => {
   it('shows nothing at all to a player who removed ads', async () => {
     await expect(
       maybeShowInterstitialForWeek(WEEKS_PER_YEAR * 4, { adsRemoved: true, blocked: false })
+    ).resolves.toBe(false);
+  });
+
+  it('the grace measures weeks into THIS life, not the age-seeded counter', async () => {
+    // An age-25 start begins at weeksLived 364 — past the two-year grace on
+    // the absolute counter, so it used to meet an interstitial at its first
+    // year boundary. With weeksThisLife supplied, the same boundary is silent
+    // until two years of that life have actually been played.
+    await expect(
+      maybeShowInterstitialForWeek(WEEKS_PER_YEAR * 8, { ...opts, weeksThisLife: WEEKS_PER_YEAR })
+    ).resolves.toBe(false);
+    await expect(
+      maybeShowInterstitialForWeek(WEEKS_PER_YEAR * 8, { ...opts, weeksThisLife: WEEKS_PER_YEAR * 2 - 1 })
+    ).resolves.toBe(false);
+  });
+
+  it('a pre-v43 caller that supplies no weeksThisLife keeps the old gate', async () => {
+    // Absence falls back to the absolute counter, so old saves (which have no
+    // lifeStartWeek) behave exactly as they do today. NaN falls back too.
+    await expect(
+      maybeShowInterstitialForWeek(WEEKS_PER_YEAR - 1, { ...opts, weeksThisLife: NaN })
     ).resolves.toBe(false);
   });
 });

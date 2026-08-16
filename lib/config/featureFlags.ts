@@ -5,6 +5,11 @@
  * Used for "Boring Build" mode to disable optional systems that may cause crashes.
  */
 
+// No import cycle: `utils/logger` pulls only `services/RemoteLoggingService`,
+// which imports react-native and lazily requires AsyncStorage — neither reads
+// a feature flag, so this file is not on its own import graph.
+import { logger } from '@/utils/logger';
+
 // Boring Build Mode: Disables all optional systems for maximum stability
 // Set to true to disable: AdMob, IAP, Analytics, Notifications, ATT
 // This helps isolate crash causes and provides a stable baseline
@@ -80,7 +85,7 @@ export function getAllFeatureFlags(): typeof FEATURE_FLAGS {
  */
 export function logFeatureFlags(): void {
   if (__DEV__) {
-    console.log('[Feature Flags] Status:', {
+    logger.debug('[Feature Flags] Status:', {
       boringBuildMode: BORING_BUILD_MODE,
       flags: FEATURE_FLAGS,
     });

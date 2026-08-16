@@ -15,9 +15,18 @@ import { usePathname } from 'expo-router';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameUI } from '@/contexts/game/GameUIContext';
 import { track, analytics } from '@/lib/analytics';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export function AnalyticsTracker(): null {
   const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
+  // `week_advanced` fires on the DELTA of the absolute counter, which is right.
+  // `first_week_completed` is a funnel milestone — "this player played a week" —
+  // and must measure weeks into THIS life: `weeksLived` is seeded from the
+  // starting age, so `>= 1` was already true at mount for every scenario that
+  // does not start at 18, the ref armed itself, and the event never fired for
+  // them. It is the first-session funnel that was blind. CLAUDE.md §4.2.
+  const lifeStartWeek = useGameSelector((s) => s.lifeStartWeek);
+  const weeksThisLife = weeksSinceLifeStart(weeksLived, lifeStartWeek);
   const generation = useGameSelector((s) => s.generationNumber ?? 1);
   const showDeathPopup = useGameSelector((s) => !!s.showDeathPopup);
   const deathReason = useGameSelector((s) => s.deathReason ?? '');
@@ -32,25 +41,25 @@ export function AnalyticsTracker(): null {
   const prevWeeks = useRef(weeksLived);
   const prevGeneration = useRef(generation);
   const prevDeath = useRef(showDeathPopup);
-  const firstWeekFired = useRef(weeksLived >= 1); // already past week 1 on load → don't fire
+  const firstWeekFired = useRef(weeksThisLife >= 1); // already past week 1 on load → don't fire
 
   // week_advanced — fire once per actual week increment; first_week_completed once.
   useEffect(() => {
     if (!ready) {
       // Keep refs armed from the (hydrating) values; do not emit.
       prevWeeks.current = weeksLived;
-      firstWeekFired.current = weeksLived >= 1;
+      firstWeekFired.current = weeksThisLife >= 1;
       return;
     }
     if (weeksLived > prevWeeks.current) {
       track('week_advanced', { weeksLived, age });
     }
-    if (!firstWeekFired.current && weeksLived >= 1) {
+    if (!firstWeekFired.current && weeksThisLife >= 1) {
       track('first_week_completed', { age });
       firstWeekFired.current = true;
     }
     prevWeeks.current = weeksLived;
-  }, [weeksLived, age, ready]);
+  }, [weeksLived, weeksThisLife, age, ready]);
 
   // screen_view — fire on route change (no-op unless telemetry is enabled).
   useEffect(() => {

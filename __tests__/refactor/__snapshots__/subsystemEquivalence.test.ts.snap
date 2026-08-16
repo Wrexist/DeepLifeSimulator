@@ -2810,10 +2810,10 @@ exports[`pre-tick equivalence — applyEducationStress empty educations: 0 count
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress energy NOT clamped at 0 here (legacy intentional) 1`] = `
+exports[`pre-tick equivalence — applyEducationStress energy clamped at 0, like its happiness/health neighbours 1`] = `
 {
   "newStats": {
-    "energy": -2,
+    "energy": 0,
     "fitness": 60,
     "gems": 0,
     "happiness": 74,
@@ -2959,6 +2959,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics all undefined accumula
     "peakNetWorthWeek": 10,
     "totalChildren": 1,
     "totalJailTime": 1,
+    "totalMoneyEarned": 200,
     "totalRelationships": 0,
     "totalWeeksWorked": 1,
     "weeklyEarningsHistory": [
@@ -2998,6 +2999,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics full state: everything
     "totalAchievementsUnlocked": 3,
     "totalChildren": 2,
     "totalJailTime": 6,
+    "totalMoneyEarned": 800,
     "totalRelationships": 0,
     "totalWeeksWorked": 51,
     "weeklyEarningsHistory": [

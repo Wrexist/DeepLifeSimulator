@@ -47,7 +47,9 @@
  * | TYCOON    | $50M      | inside the `elite` luxury band ($15M-$65M); also ~5 weeks of the fully-capped passive income ceiling (`PER_SOURCE_CAPS` totals ~$950K/wk) |
  * | DYNASTY   | $250M     | inside the `ultra` luxury band ($120M-$500M); above the $100M prestige achievement |
  *
- * Every template additionally requires `weeksLived >= MIN_WEEKS_LIVED` (26), so
+ * Every template additionally requires `weeksInThisLife >= MIN_WEEKS_LIVED` (26)
+ * — weeks into THIS life, NOT the age-seeded absolute `weeksLived`, which is
+ * already 364 on frame one of an age-25 start (CLAUDE.md §4.2) — so
  * a scenario that STARTS the player rich still plays half a year of ordinary
  * life before the tycoon pool opens, and these can never compete with the
  * weeks-0-12 welcome events.
@@ -75,6 +77,7 @@
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { resolveEventMoney } from './moneyScaling';
 
 // ── Gates ──────────────────────────────────────────────────────────────────
@@ -89,17 +92,18 @@ export const TYCOON_NET_WORTH = 50_000_000;
 export const DYNASTY_NET_WORTH = 250_000_000;
 
 /**
- * No wealth beat before half a year of play, whatever the balance sheet says.
+ * No wealth beat before half a year of play THIS LIFE, whatever the balance
+ * sheet says.
  * Keeps a rich-start scenario from skipping straight past the ordinary early
  * game and stops this pack competing with the weeks-0-12 welcome events.
  */
 export const MIN_WEEKS_LIVED = 26;
 
-/** Every template's gate: age of the life AND the wealth tier, plus extras. */
+/** Every template's gate: weeks into this life AND the wealth tier, plus extras. */
 const gate =
   (minNetWorth: number, extra?: (state: GameState) => boolean) =>
     (state: GameState): boolean => {
-      if ((state.weeksLived || 0) < MIN_WEEKS_LIVED) return false;
+      if (weeksInThisLife(state) < MIN_WEEKS_LIVED) return false;
       if (netWorth(state) < minNetWorth) return false;
       return extra ? extra(state) : true;
     };

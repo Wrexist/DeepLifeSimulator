@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   applyIdentityDraftToOnboardingState,
   canContinueFromIdentityDraft,
@@ -128,5 +130,52 @@ describe('Customize identity logic', () => {
       expect(nextState.challengeScenarioId).toBe('rags_to_riches');
       expect(nextState.perks).toEqual(['legacy_builder']);
     });
+  });
+});
+
+/**
+ * Player-typed names were UNBOUNDED.
+ *
+ * The character's name is not confined to the screen that collects it — it goes
+ * to the HUD, the ID card, save-slot metadata, the obituary and every event
+ * line, none of which reserve room for a pasted paragraph. Pulse already caps a
+ * whole display name at 40 (`ProfileEditModal`), so 20 per field keeps the same
+ * total budget rather than inventing a new one.
+ *
+ * `onboardingValidation` only requires the names be non-empty — it has no
+ * length rule to contradict, and none was added, so no message can now be
+ * wrong about a limit.
+ */
+describe('typed names are bounded', () => {
+  const read = (rel: string) => fs.readFileSync(path.join(__dirname, '../..', rel), 'utf8');
+
+  it('both name fields on Customize carry a cap', () => {
+    const code = read('app/(onboarding)/Customize.tsx');
+
+    expect(code).toMatch(/const NAME_MAX_LENGTH = 20;/);
+    expect((code.match(/maxLength=\{NAME_MAX_LENGTH\}/g) ?? [])).toHaveLength(2);
+  });
+
+  it('validation still says nothing about length, so nothing contradicts it', () => {
+    // A cap in the UI plus a different cap in validation is how an honest
+    // error message turns into a lie.
+    const validation = read('utils/onboardingValidation.ts');
+
+    expect(validation).not.toMatch(/firstName.*length\s*>/);
+    expect(validation).not.toMatch(/lastName.*length\s*>/);
+  });
+
+  it('the other free-text names the player supplies are capped too', () => {
+    // Same class, same blast radius: both render back into lists afterwards.
+    expect(read('components/mobile/PetApp.tsx')).toMatch(/maxLength=\{20\}/);
+    expect(read('components/banking/OpenAccountModal.tsx')).toMatch(/maxLength=\{30\}/);
+  });
+
+  it('the ID card clamps the name to one line', () => {
+    // The cap bounds new names; it cannot shorten one already saved, and the
+    // card sits above a badge that a two-line name would push down.
+    const card = read('components/IdentityCard.tsx');
+
+    expect(card).toMatch(/styles\.name, styles\.nameDark\]\} numberOfLines=\{1\}/);
   });
 });

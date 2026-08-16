@@ -126,3 +126,35 @@ export function resolveCalendar(absoluteWeek: number, startMonthNumber = 1): Res
 
   return { monthNumber, monthsElapsed, weekOfMonth };
 }
+
+/**
+ * Weeks elapsed since THIS life began, from the two raw counters.
+ *
+ * The primitive behind `weeksInThisLife` (`lib/progress/lifeChapters.ts`), which
+ * is the form to reach for when you hold a `GameState`. This one exists for the
+ * call sites that only have the two numbers — components subscribing through
+ * `useGameSelector`, where pulling the whole state object in to answer an
+ * arithmetic question would re-subscribe the component to everything.
+ *
+ * Why it is needed at all: `weeksLived` is ABSOLUTE and seeded from the starting
+ * age (`computeWeeksLived` = `(age - 18) * 52`), so an age-25 character begins at
+ * 364. Comparing it to a small number asks "is this character more than N weeks
+ * past 18", which is already true on frame one for every scenario that does not
+ * start at 18 — see CLAUDE.md §4.2.
+ *
+ * `lifeStartWeek` (v43) is absent on older saves; 0 there keeps exactly the
+ * behaviour those saves already have.
+ */
+export function weeksSinceLifeStart(
+  weeksLived: unknown,
+  lifeStartWeek: unknown
+): number {
+  // Strict typeof, matching resolveAbsoluteWeek above: a corrupt counter
+  // (including a numeric STRING from a hand-edited save) resolves to week
+  // zero, which errs toward the quieter, more-protected first session.
+  const now = weeksLived;
+  if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) return 0;
+  const start = lifeStartWeek;
+  if (typeof start !== 'number' || !Number.isFinite(start) || start < 0) return now;
+  return Math.max(0, now - start);
+}

@@ -30,6 +30,7 @@ import {
 import { getIncomeMultiplier } from '@/lib/prestige/applyBonuses';
 import { perks as perksCatalog } from '@/src/features/onboarding/perksData';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 /**
  * Upper bound on the combined onboarding-perk income multiplier. Individual
@@ -143,7 +144,22 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
   // device engine (Hermes) and CI (V8). Route through the audited integer-only
   // seeded RNG (makeWeeklyRoll), keyed by the same absolute week — reproducible
   // from the save seed and engine-independent.
-  if (input.weeksLivedNow < BEGINNER_LUCK_WEEKS) {
+  //
+  // The GATE counts weeks into THIS LIFE; the SEED stays on the absolute week.
+  // `weeksLived` is seeded from the starting age (CLAUDE.md §4.3), so an
+  // age-20 character begins at 104 and `weeksLivedNow < 20` was already false
+  // before the first tick: beginner luck paid out for age-18 starts and for
+  // nothing else. Measured on the real tick — an age-18 passive life gains
+  // $22-34/wk for its first 20 weeks, an age-20/25/40 one gains exactly $0.
+  // Prestige heirs (who start at 20) never saw it either.
+  //
+  // Splitting gate from seed keeps every existing paycheck reproducible: the
+  // roll for a given absolute week is unchanged, only whether it is consumed.
+  // A pre-v43 save has no `lifeStartWeek`, and `weeksSinceLifeStart` falls back
+  // to the absolute counter there — such a save is not a first session, so the
+  // window stays closed for it exactly as it is today.
+  const weeksThisLife = weeksSinceLifeStart(input.weeksLivedNow, input.prevState?.lifeStartWeek);
+  if (weeksThisLife < BEGINNER_LUCK_WEEKS) {
     const luckRoll = makeWeeklyRoll(input.weeksLivedNow)('beginner-luck');
     const luckBonus = BEGINNER_LUCK_BASE_BONUS + Math.floor(luckRoll * BEGINNER_LUCK_RANDOM_MAX);
     baseTotalIncome += luckBonus;

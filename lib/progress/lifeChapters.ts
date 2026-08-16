@@ -13,6 +13,7 @@ import { netWorth } from '@/lib/progress/achievements';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { outstandingDebt } from '@/lib/progress/wealthRatchet';
 import { logger } from '@/utils/logger';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0;
@@ -73,13 +74,14 @@ let netWorthFailureLogged = false;
  *
  * `lifeStartWeek` (v43) is stamped when the life is built. Absent on older
  * saves, where 0 keeps exactly the behaviour they already have.
+ *
+ * The arithmetic lives in `utils/weekCounters.ts` so call sites that only hold
+ * the two raw counters (components subscribing through `useGameSelector`) can
+ * reach it without importing this module's graph. This remains the canonical
+ * form whenever a `GameState` is in hand.
  */
 export function weeksInThisLife(state: GameState | undefined | null): number {
-  const now = Number(state?.weeksLived);
-  if (!Number.isFinite(now) || now < 0) return 0;
-  const start = Number(state?.lifeStartWeek);
-  if (!Number.isFinite(start) || start < 0) return now;
-  return Math.max(0, now - start);
+  return weeksSinceLifeStart(state?.weeksLived, state?.lifeStartWeek);
 }
 
 /** Money EARNED in this life. Starts at 0 every life; only increases. */
@@ -398,7 +400,11 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
 
 /** Get the currently active chapter for a game state */
 export function getActiveChapter(state: GameState): LifeChapter | undefined {
-  const weeksLived = state.weeksLived || 0;
+  // `weekRange` is measured in weeks INTO THIS LIFE — chapter 1 opens at 0 and
+  // chapter 5 at 60. Compared against the raw absolute `weeksLived`, an age-25
+  // start (364) cleared every range on frame one and the loop handed back
+  // chapter 5 to a brand-new character. See CLAUDE.md §4.2.
+  const weeksLived = weeksInThisLife(state);
   const completedChapters = state.completedChapters || [];
 
   // Find the first incomplete chapter whose week range includes current time

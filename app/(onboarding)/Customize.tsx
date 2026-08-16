@@ -54,6 +54,16 @@ const LinearGradient = Gradient;
 
 type SexualityOption = IdentitySexuality;
 
+/**
+ * Per-field cap on the player's typed name. Both fields were unbounded, so a
+ * pasted paragraph became the character's name and then flowed into every
+ * surface that renders it — the HUD, the ID card, the obituary, save-slot
+ * metadata. Pulse caps a whole display name at 40 (ProfileEditModal); first +
+ * last at 20 each keeps the same total budget. `onboardingValidation` only
+ * requires the names be non-empty, so nothing downstream contradicts this.
+ */
+const NAME_MAX_LENGTH = 20;
+
 const SEX_OPTIONS: { value: AvatarSex; label: string }[] = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
@@ -455,6 +465,7 @@ export default function Customize() {
                       style={styles.inputText}
                       value={firstName}
                       onChangeText={handleFirstNameChange}
+                      maxLength={NAME_MAX_LENGTH}
                     />
                   </View>
                 </View>
@@ -468,6 +479,7 @@ export default function Customize() {
                       style={styles.inputText}
                       value={lastName}
                       onChangeText={handleLastNameChange}
+                      maxLength={NAME_MAX_LENGTH}
                     />
                   </View>
                 </View>

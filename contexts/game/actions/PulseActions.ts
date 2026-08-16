@@ -264,7 +264,27 @@ export const composePost = (
 
     // Stats & money fold in here so they cannot land without the post, and the
     // post cannot land without them.
-    let next: GameState = { ...prev, socialMedia: sm };
+    //
+    // `lifetimeStatistics.totalPostsMade` / `totalViralPosts` had NO production
+    // writer — `trackPost` in `lib/statistics/statisticsTracker.ts` was only
+    // ever called from a stress test — so StatisticsApp's "Posts" counter read
+    // a permanent 0 and the `viral` milestone (10 gems) was unearnable.
+    // Incremented inside THIS updater, past the fresh weekly-cap guard above,
+    // so a double-tapped compose cannot count a post that was refused
+    // (CLAUDE.md §4.4). `socialMedia.totalPosts`/`viralPosts` are the
+    // per-life counters; these are the lifetime ones the Statistics app reads.
+    let next: GameState = {
+      ...prev,
+      socialMedia: sm,
+      lifetimeStatistics: prev.lifetimeStatistics
+        ? {
+            ...prev.lifetimeStatistics,
+            totalPostsMade: (prev.lifetimeStatistics.totalPostsMade ?? 0) + 1,
+            totalViralPosts:
+              (prev.lifetimeStatistics.totalViralPosts ?? 0) + (isViral ? 1 : 0),
+          }
+        : prev.lifetimeStatistics,
+    };
     next = { ...next, ...applyStatsDelta(next, {
       energy: -getEnergyCost(args.contentType),
       health: -getHealthCost(args.contentType),
@@ -1414,12 +1434,3 @@ export const markAllNotificationsRead = (
   });
 };
 
-export const clearAllNotifications = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-): void => {
-  setGameState((prev) => {
-    const sm = { ...ensureSocial(prev) };
-    sm.notifications = [];
-    return { ...prev, socialMedia: sm };
-  });
-};

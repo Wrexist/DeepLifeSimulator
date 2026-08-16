@@ -241,7 +241,8 @@ export const styles = StyleSheet.create({
   settingDescription: {
     fontSize: responsiveFontSize.sm,
     color: '#6B7280',
-    lineHeight: 18,
+    // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
+    lineHeight: fontScale(18),
     ...Platform.select({
       web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
       default: {

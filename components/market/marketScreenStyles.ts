@@ -174,6 +174,35 @@ export const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
+  // Named dead end for a filter chip that matches nothing — "Owned" in week 1
+  // rendered nothing at all under the filter bar, which reads as a broken
+  // screen rather than an empty shelf. Shape mirrors the Mail app's empty
+  // state (icon, title, one line of why, an action back to something).
+  emptyState: {
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    paddingHorizontal: responsiveSpacing.lg,
+    paddingTop: scale(48),
+    paddingBottom: scale(24),
+  },
+  emptyStateTitle: {
+    fontSize: fontScale(15),
+    fontWeight: '700',
+    color: TEXT,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: fontScale(12.5),
+    color: TEXT_SECONDARY,
+    textAlign: 'center',
+    lineHeight: fontScale(18),
+  },
+  emptyStateAction: {
+    marginTop: responsiveSpacing.sm,
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: accent.info,
+  },
   itemCard: {
     backgroundColor: GLASS_BG,
     padding: responsiveSpacing.md,

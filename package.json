@@ -38,8 +38,6 @@
     "audit:perf": "node scripts/audit/audit-perf.cjs",
     "audit:weekly": "node scripts/audit/run-weekly-audit.cjs",
     "audit:weekly:full": "node scripts/audit/run-weekly-audit.cjs --run-tests",
-    "e2e": "playwright test",
-    "e2e:install": "playwright install --with-deps",
     "postinstall": "node scripts/fix-podspec.js",
     "android": "expo run:android",
     "lint:ratchet": "node scripts/check-lint.js",

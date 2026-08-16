@@ -7,6 +7,7 @@ import { IAP_PRODUCTS } from '@/utils/iapConfig';
 import { useGameSettings } from '@/contexts/game';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { getThemeColors } from '@/lib/config/theme';
 import { scale } from '@/utils/scaling';
@@ -90,10 +91,15 @@ export default function BannerAd({ style }: BannerAdProps) {
   // FALSE — so a corrupt counter would fail toward showing an ad to a brand-new
   // player, the exact thing the grace exists to prevent. Anything not finite is
   // treated as week zero, which errs toward the quieter first session.
-  const weeksLived = useGameSelector((st) => {
-    const raw = st?.weeksLived;
-    return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, raw) : 0;
-  });
+  //
+  // Measured in weeks into THIS life, not the absolute counter: `weeksLived` is
+  // seeded from the starting age ((age - 18) * 52), so every scenario starting
+  // past 18 was already a year "in" on frame one and got banner ads in its first
+  // session — the grace applied to exactly one of the eight scenario ages.
+  // CLAUDE.md §4.2.
+  const weeksLived = useGameSelector((st) =>
+    weeksSinceLifeStart(st?.weeksLived, st?.lifeStartWeek)
+  );
 
   if (adError || !isReady || adsRemoved) return null;
   // New players get a clean first year. See BANNER_GRACE_WEEKS.

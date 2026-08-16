@@ -102,6 +102,15 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
     currentJobTitle(input.prevState),
   );
 
+  // Income actually earned this week, sanitised. A non-finite or negative
+  // `totalIncome` must contribute nothing rather than poison a counter that
+  // only ever accumulates — a single NaN here would make the Chapter 1 goal
+  // and every Legacy Contract permanently unreadable for that save.
+  const weeklyEarned =
+    typeof input.totalIncome === 'number' && Number.isFinite(input.totalIncome)
+      ? Math.max(0, input.totalIncome)
+      : 0;
+
   const shouldSampleHistory = input.nextWeeksLived % HISTORY_SAMPLE_INTERVAL_WEEKS === 0;
   const netWorthHistory = shouldSampleHistory
     ? [
@@ -128,6 +137,33 @@ export function applyLifetimeStatistics(input: LifetimeStatisticsInput): Lifetim
   return {
     updatedLifetimeStatistics: {
       ...ls,
+      /**
+       * WP-O: `totalMoneyEarned` had a reader and no writer on the paycheck
+       * path — the same shape as `totalRelationships` above and the WP-F
+       * counters (`totalPropertiesOwned`, `totalPostsMade`).
+       *
+       * The only production writer was `useMoneyActions().updateMoney`, which
+       * the weekly tick does not use: the tick writes `newStats.money`
+       * directly, so salary, passive income, partner contribution, Pulse
+       * earnings and the pension were never counted. Measured on the real
+       * tick: 758 weeks of paid work, $121,765 accumulated, counter still $0.
+       *
+       * That is not cosmetic. `earnedThisLife` (lib/progress/lifeChapters)
+       * reads it for Chapter 1's "Earn $500", the FIRST goal of the tutorial
+       * chapter — permanently unreachable, taking its per-goal reward and the
+       * chapter completion reward with it. `readMetric` (lib/legacy/contracts)
+       * reads it as `lifetimeEarnings`, so those contracts could never be
+       * claimed, and `StatisticsApp`'s "Lifetime money" card rendered
+       * "Earned $0" for every player forever.
+       *
+       * Credits `totalIncome` — the same figure `weeklyEarningsHistory` below
+       * already samples, and the one the tick actually pays into cash. It
+       * cannot double-count against `updateMoney`: no tick path calls it.
+       * Deliberately NOT including `housingRentalIncome` or the luxury yield,
+       * which the caller adds to cash separately; widening the input is a
+       * bigger change than this defect warrants and is noted for follow-up.
+       */
+      totalMoneyEarned: (ls.totalMoneyEarned ?? 0) + weeklyEarned,
       totalJailTime: (ls.totalJailTime ?? 0) + (jailedThisWeek ? 1 : 0),
       totalChildren: (ls.totalChildren ?? 0) + input.newBornChildrenCount,
       /**

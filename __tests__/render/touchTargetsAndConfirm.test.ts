@@ -110,6 +110,41 @@ describe('a screen reader can name the controls', () => {
     }
   });
 
+  it('the icon-only controls on the main flows announce themselves', () => {
+    // A bare icon in a TouchableOpacity is focusable and silent — VoiceOver
+    // lands on it and reads nothing at all. These are the back/send/filter/
+    // close controls on flows the player passes through constantly.
+    const cases: [string, RegExp[]][] = [
+      [
+        'components/mobile/social/DMSystem.tsx',
+        [
+          /accessibilityLabel="Back"/,
+          /accessibilityLabel="Back to messages"/,
+          /accessibilityLabel="Send message"/,
+        ],
+      ],
+      [
+        'components/ProgressOverview.tsx',
+        [/accessibilityLabel="Clear search"/, /accessibilityLabel="Sort achievements"/],
+      ],
+      [
+        'components/Journal.tsx',
+        [
+          /accessibilityLabel="Close entry"/,
+          /accessibilityLabel="Filter entries by category"/,
+        ],
+      ],
+    ];
+
+    for (const [rel, patterns] of cases) {
+      const code = read(rel);
+      for (const pattern of patterns) {
+        expect(`${rel} ${pattern.source}: ${pattern.test(code)}`)
+          .toBe(`${rel} ${pattern.source}: true`);
+      }
+    }
+  });
+
   it('the four DESTRUCTIVE icon-only buttons say what they destroy', () => {
     // "Delete" is not enough when the row is one of several identical icons —
     // a screen-reader user could not tell evict from cancel.
@@ -155,14 +190,17 @@ describe('a life skill is confirmed before the point is spent', () => {
   });
 
   it('still reports success (the control)', () => {
-    // Moving the report inside the updater must not have deleted it.
+    // Moving the report out of the updater must not have deleted it. WP-A: the
+    // Alert and the haptic fire from a PREVIEW run of the same pure reducer on
+    // the snapshot — inside the updater they were double-fired by StrictMode's
+    // double-invoke (two buzzes, two stacked alerts, one purchase).
     expect(CODE).toMatch(/Alert\.alert\('Skill Unlocked'/);
-    expect(CODE).toMatch(/if \(result\.purchased\)/);
+    expect(CODE).toMatch(/if \(preview\.purchased\)/);
   });
 
   it('the atomic reducer is still what performs the purchase', () => {
     // The confirm step must not have reintroduced a gate-then-grant.
-    expect(CODE).toMatch(/purchaseLifeSkill\(prev, \{/);
+    expect(CODE).toMatch(/purchaseLifeSkill\(prev, args\)\.state/);
   });
 });
 
@@ -234,5 +272,61 @@ describe('A1 — the transaction sheets have one named way out', () => {
       expect(`${rel}: ${code.includes('accessibilityElementsHidden')}`)
         .toBe(`${rel}: true`);
     }
+  });
+});
+
+/**
+ * The savings-goal +/- pair.
+ *
+ * Two 28pt circles side by side, both moving REAL money and in OPPOSITE
+ * directions, with no `hitSlop` and nothing for a screen reader to announce:
+ * 28pt is well under the 44pt minimum, and VoiceOver focused each in turn and
+ * said nothing.
+ *
+ * The interesting half is the slop shape. `hitSlopToMinTarget` returns a
+ * symmetric object, and these two are only `responsiveSpacing.sm` apart — so
+ * applying it verbatim would make their hit rectangles OVERLAP, and RN
+ * hit-tests the last-rendered child first. That trades "too small to hit" for
+ * "hit the wrong one", which on a withdraw/deposit pair is the worse bug. The
+ * inner edge is capped at half the gap and the remainder pushed outward.
+ */
+describe('the savings-goal money buttons are hittable and named', () => {
+  const CODE = strip(read('components/banking/SavingsGoalCard.tsx'));
+
+  it('derives its slop from the shared helper, not a raw literal', () => {
+    expect(CODE).toContain('hitSlopToMinTarget');
+    expect(/hitSlop=\{\d+\}/.test(CODE)).toBe(false);
+  });
+
+  it('both buttons carry one', () => {
+    expect(CODE).toMatch(/hitSlop=\{WITHDRAW_HIT_SLOP\}/);
+    expect(CODE).toMatch(/hitSlop=\{DEPOSIT_HIT_SLOP\}/);
+  });
+
+  it('each still reaches 44pt on both axes', () => {
+    const size = scale(28);
+    const base = hitSlopToMinTarget(size);
+    const inner = Math.min(base.left, Math.floor(scale(8) / 2));
+    const outer = base.left + base.right - inner;
+
+    expect(size + inner + outer).toBeGreaterThanOrEqual(scale(MIN_TOUCH_TARGET));
+    expect(size + base.top + base.bottom).toBeGreaterThanOrEqual(scale(MIN_TOUCH_TARGET));
+  });
+
+  it('and their hit areas never overlap, so a withdraw cannot deposit', () => {
+    // The two facing edges together must not exceed the gap between the
+    // buttons, or the region between them belongs to whichever renders last.
+    const base = hitSlopToMinTarget(scale(28));
+    const inner = Math.min(base.left, Math.floor(scale(8) / 2));
+
+    expect(inner * 2).toBeLessThanOrEqual(scale(8));
+  });
+
+  it('says which direction the money moves, and for which goal', () => {
+    // "Add" and "Remove" on an unnamed card is not enough when a screen shows
+    // several goals — the label has to identify the one being changed.
+    expect(CODE).toMatch(/accessibilityLabel=\{`Withdraw from \$\{goal\.name\}`\}/);
+    expect(CODE).toMatch(/accessibilityLabel=\{`Add to \$\{goal\.name\}`\}/);
+    expect((CODE.match(/accessibilityRole="button"/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 });

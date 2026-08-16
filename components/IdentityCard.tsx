@@ -115,7 +115,19 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
   );
 }
 
-function IdentityCard() {
+interface IdentityCardProps {
+  /**
+   * Opens the Prestige Shop. Optional so the card still renders standalone (the
+   * render smoke test mounts it with no props); when it is absent the prestige
+   * badge is a plain, non-interactive View rather than a button that does
+   * nothing. Wired from `app/(tabs)/home.tsx`, which already owns the
+   * `PrestigeShopModal` instance — the badge reuses it instead of mounting a
+   * second copy of that modal's graph.
+   */
+  onOpenPrestigeShop?: () => void;
+}
+
+function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // Sprint 2 perf: subscribe only to the slices this card reads (directly,
   // through the destructure below, in the cash-flow modal JSX, and via the
   // economy helpers) instead of the whole gameState. One shallow-equal
@@ -525,28 +537,50 @@ function IdentityCard() {
               (prestige badge owns the top-right). Self-hides for members. */}
           <DeepLifePlusUpsell variant="badge" surface="player_card" style={styles.premiumAvatarCrown} />
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
-            <TouchableOpacity
-              style={styles.prestigeBadge}
-              onPress={() => {
-                // Open prestige shop - this would need to be passed as a prop or accessed via context
-                // For now, just show the badge
-              }}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#FCD34D', '#F59E0B', '#D97706']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.prestigeBadgeGradient}
+            /* The badge used to be a TouchableOpacity whose onPress was an empty
+               body with a comment admitting it did nothing — it dimmed on press
+               and read as a button while going nowhere. It now opens the
+               Prestige Shop through `onOpenPrestigeShop`, and degrades to a
+               plain View when no handler is supplied. */
+            onOpenPrestigeShop ? (
+              <TouchableOpacity
+                style={styles.prestigeBadge}
+                onPress={onOpenPrestigeShop}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Prestige level ${gameState?.prestige?.prestigeLevel ?? 0}`}
+                accessibilityHint="Opens the Prestige Shop"
               >
-                <Crown size={14} color="#FFFFFF" />
-                <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#FCD34D', '#F59E0B', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.prestigeBadgeGradient}
+                >
+                  <Crown size={14} color="#FFFFFF" />
+                  <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.prestigeBadge}>
+                <LinearGradient
+                  colors={['#FCD34D', '#F59E0B', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.prestigeBadgeGradient}
+                >
+                  <Crown size={14} color="#FFFFFF" />
+                  <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
+                </LinearGradient>
+              </View>
+            )
           )}
         </View>
         <View style={styles.nameContainer}>
-          <Text style={[styles.name, styles.nameDark]}>{name}</Text>
+          {/* Player-typed name — clamp to one line so a long one cannot push
+              the streak badge and everything under it down the card
+              (DeathPopup's obituary name does the same). */}
+          <Text style={[styles.name, styles.nameDark]} numberOfLines={1}>{name}</Text>
           {/* Persistent login-streak badge — surfaces the daily-reward streak
               outside the popup so loss aversion can do its job. */}
           {(gameState?.loginStreak ?? 0) >= 2 && (

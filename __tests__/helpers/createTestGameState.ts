@@ -179,9 +179,20 @@ export function createTestGameState(overrides: TestGameStateOverrides = {}): Gam
 }
 
 /**
- * Type guard to verify GameState is complete
- * Use this in tests to catch incomplete GameState objects at runtime
- * 
+ * Runtime completeness check for a GameState built by a test.
+ *
+ * The required set is DERIVED from `initialGameState` rather than hand-listed.
+ * The hand-written list had drifted into naming two fields that are not keys of
+ * GameState at all — `stocksOwned` and `perks` — so this threw on every
+ * correct state, and its one caller opted out with a comment saying the list
+ * "may be stale". A list that has to be maintained in parallel with
+ * `initialState.ts` will always lose that race; the initial state IS the
+ * definition of a complete state, so it is what we compare against.
+ *
+ * Fields whose default is `undefined` (the §7 carve-outs — `ambitionId`,
+ * `lifeStartWeek`, `mail`, `dynasty`, …) are correctly absent here: they are not
+ * keys of `initialGameState`, and an absent key already equals their default.
+ *
  * @example
  * ```typescript
  * const state = createTestGameState({ week: 10 });
@@ -189,80 +200,12 @@ export function createTestGameState(overrides: TestGameStateOverrides = {}): Gam
  * ```
  */
 export function assertValidGameState(state: GameState): asserts state is GameState {
-  const requiredFields: (keyof GameState)[] = [
-    'revivalPack',
-    // v31 arrears bucket. Listed because it is ARITHMETIC in the weekly cash
-    // line — a test state missing it computes NaN money and the failure surfaces
-    // three subsystems away from the cause.
-    'overdueBalance',
-    'stats',
-    'day',
-    'week',
-    'date',
-    'streetJobs',
-    'jailActivities',
-    'careers',
-    'hobbies',
-    'items',
-    'darkWebItems',
-    'hacks',
-    'relationships',
-    'pets',
-    'hasPhone',
-    'computerPreviouslyOwned',
-    'foods',
-    'healthActivities',
-    'dietPlans',
-    'educations',
-    'companies',
-    'userProfile',
-    'youthPills',
-    'showWelcomePopup',
-    'hasSeenJobTutorial',
-    'settings',
-    'cryptos',
-    'diseases',
-    'realEstate',
-    'social',
-    'economy',
-    'family',
-    'generationNumber',
-    'lineageId',
-    'ancestors',
-    'activeTraits',
-    'memories',
-    'lifeStage',
-    'wantedLevel',
-    'jailWeeks',
-    'escapedFromJail',
-    'criminalXp',
-    'criminalLevel',
-    'crimeSkills',
-    'bankSavings',
-    'stocksOwned',
-    'perks',
-    'achievements',
-    'claimedProgressAchievements',
-    'lastLogin',
-    'streetJobsCompleted',
-    'happinessZeroWeeks',
-    'healthZeroWeeks',
-    'showZeroStatPopup',
-    'showDeathPopup',
-    'showSicknessModal',
-    'showCureSuccessModal',
-    'curedDiseases',
-    'version',
-    'pendingEvents',
-    'eventLog',
-    'progress',
-    'journal',
-  ];
+  const requiredFields = Object.keys(initialGameState) as (keyof GameState)[];
 
   const missingFields: string[] = [];
   for (const field of requiredFields) {
     if (!(field in state)) {
-      missingFields.push(field);
+      missingFields.push(String(field));
     }
   }
 

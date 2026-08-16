@@ -19,7 +19,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert } from 'react-native';
 import {
   ArrowLeft,
   Heart,
@@ -117,6 +117,9 @@ const DATE_TIER_META: {
 interface ContactsAppProps {
   onBack: () => void;
 }
+
+/** Module scope, so it is genuinely stable across renders. */
+const personalKeyExtractor = (c: ContactView) => c.id;
 
 export default function ContactsApp({ onBack }: ContactsAppProps) {
   const {
@@ -1084,9 +1087,33 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
     );
   };
 
+  // The personal tab is the one list on this screen with NO upper bound: every
+  // friend, colleague, ex, child and grandchild a long life accumulates lands
+  // here, and `.map()` inside a ScrollView mounted the lot — each row an avatar,
+  // a strength ring and, when expanded, a dense profile. Mount cost tracked
+  // relationship count, so it grew for the whole life and never came back down.
+  //
+  // A FlatList, and it is the tab's OUTER scroller — never nested inside another
+  // scroll view — so virtualization actually engages rather than warning. That is
+  // only possible because the tab has exactly ONE section above the list: the
+  // portfolio hero moves to `ListHeaderComponent` verbatim and the empty state to
+  // `ListEmptyComponent`, so no restructuring of the screen was needed. The header
+  // stays suppressed at zero contacts (a portfolio summary of nothing), which is
+  // what the old `length === 0` branch did.
+  //
+  // `renderItem` is deliberately NOT wrapped in `useCallback`: `renderPersonalCard`
+  // closes over `expandedId`, the theme and every handler, so its identity turns
+  // over on most renders and a memo around it would carry the same churn behind
+  // one more indirection. Virtualization is the win; `keyExtractor` is hoisted to
+  // module scope, where stability is real.
   const renderPersonal = () => (
-    <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {personalContacts.length === 0 ? (
+    <FlatList
+      style={styles.flex1}
+      contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
+      data={personalContacts}
+      keyExtractor={personalKeyExtractor}
+      renderItem={({ item }) => renderPersonalCard(item)}
+      ListEmptyComponent={
         <EmptyHero
           Icon={Users}
           title="No relationships yet"
@@ -1098,9 +1125,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           theme={theme}
           darkMode={darkMode}
         />
-      ) : (
-        <>
-          {statsHero('Relationship portfolio', (
+      }
+      ListHeaderComponent={
+        personalContacts.length === 0 ? null : (
+          statsHero('Relationship portfolio', (
             <>
               {topPersonal.length > 0 ? (
                 <View style={styles.clusterRow}>
@@ -1138,11 +1166,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 <Stat label="At risk" value={personalAttention} color={personalAttention > 0 ? accent.warning : theme.textMuted} theme={theme} />
               </View>
             </>
-          ))}
-          {personalContacts.map(renderPersonalCard)}
-        </>
-      )}
-    </ScrollView>
+          ))
+        )
+      }
+    />
   );
 
   const renderNetwork = () => (

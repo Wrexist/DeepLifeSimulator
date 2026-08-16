@@ -29,6 +29,10 @@ process.env.EXPO_PUBLIC_SAVE_HMAC_KEY = 'test-key-for-slot-read-outcomes';
 
 const store = new Map<string, string>();
 let failNextRead = false;
+/** Accept the pointer write and quietly drop it — see the F-10 block below. */
+let swallowPointerWrites = false;
+/** Reject the pointer write outright. */
+let throwOnPointerWrite = false;
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
@@ -38,6 +42,10 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
       return store.has(k) ? store.get(k)! : null;
     }),
     setItem: jest.fn(async (k: string, v: string) => {
+      if (k.endsWith('_active')) {
+        if (throwOnPointerWrite) throw new Error('storage unavailable');
+        if (swallowPointerWrites) return;
+      }
       store.set(k, v);
     }),
     removeItem: jest.fn(async (k: string) => {
@@ -55,6 +63,8 @@ const envelope = (name: string) =>
 beforeEach(() => {
   store.clear();
   failNextRead = false;
+  swallowPointerWrites = false;
+  throwOnPointerWrite = false;
 });
 
 describe('a slot read says WHY it found nothing', () => {
@@ -257,5 +267,133 @@ describe('the callers that inherited the same blindness', () => {
     expect(await purgeSlotIfPhantom(1)).toBe(false);
     expect(store.get(`${SLOT_KEY}_A`)).toBe('corrupt-but-maybe-recoverable');
     expect(store.get('lastSlot')).toBe('1');
+  });
+});
+
+/**
+ * F-10 — the pointer flip is the COMMIT, so it has to be verified, and a load
+ * with no pointer must not guess.
+ *
+ * `doubleBufferSave` wrote the inactive buffer, verified it by read-back, then
+ * flipped the pointer and reported success without checking that the flip
+ * landed. A flip that is accepted but does not persist leaves the newest save
+ * in a buffer nothing points at: the next load returns the OLDER buffer, and
+ * the save after that targets the inactive one — overwriting the newest data.
+ *
+ * The load side had the mirror problem. Its comment promised a fallback to
+ * "the buffer with a valid checksum + newer timestamp", but it ordered strictly
+ * by the pointer, and when the pointer is MISSING that order is arbitrary — 'A'
+ * first, whether or not A is the newer save. It then healed the pointer to that
+ * choice, making the wrong guess permanent.
+ */
+describe('the pointer flip is the commit (F-10)', () => {
+  const stamped = (name: string, updatedAt: number) =>
+    createSaveEnvelope(
+      JSON.stringify({
+        userProfile: { firstName: name },
+        weeksLived: 900,
+        version: 43,
+        updatedAt,
+        lastSaved: new Date(updatedAt).toISOString(),
+      })
+    );
+
+  const nameIn = (blob: string | null | undefined): string | undefined => {
+    if (!blob) return undefined;
+    const decoded = decodePersistedSaveEnvelope(blob, { allowLegacy: false });
+    if (!decoded.valid || typeof decoded.data !== 'string') return undefined;
+    return (JSON.parse(decoded.data) as { userProfile?: { firstName?: string } }).userProfile
+      ?.firstName;
+  };
+
+  it('reports FAILURE when the pointer write does not persist', async () => {
+    await doubleBufferSave(SLOT_KEY, stamped('Mara', 1_000));
+    swallowPointerWrites = true;
+
+    const result = await doubleBufferSave(SLOT_KEY, stamped('Newer', 2_000));
+
+    // Reported as failed, so the queue retries instead of the caller believing
+    // a save landed that no load will ever return.
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/pointer/i);
+  });
+
+  it('reports FAILURE when the pointer write throws', async () => {
+    await doubleBufferSave(SLOT_KEY, stamped('Mara', 1_000));
+    throwOnPointerWrite = true;
+
+    const result = await doubleBufferSave(SLOT_KEY, stamped('Newer', 2_000));
+
+    expect(result.success).toBe(false);
+  });
+
+  it('still returns the last COMMITTED save after a failed flip', async () => {
+    await doubleBufferSave(SLOT_KEY, stamped('Mara', 1_000));
+    swallowPointerWrites = true;
+    await doubleBufferSave(SLOT_KEY, stamped('Newer', 2_000));
+    swallowPointerWrites = false;
+
+    // The pointer never moved, so the committed save is the older one — which
+    // is exactly right: the newer write was reported as failed.
+    const result = await doubleBufferLoad(SLOT_KEY);
+    expect(nameIn(result.data)).toBe('Mara');
+
+    // And a retry commits properly, with nothing lost.
+    const retry = await doubleBufferSave(SLOT_KEY, stamped('Newer', 3_000));
+    expect(retry.success).toBe(true);
+    expect(nameIn((await doubleBufferLoad(SLOT_KEY)).data)).toBe('Newer');
+  });
+
+  it('prefers the NEWER buffer when the pointer is missing', async () => {
+    // Both buffers verify and neither is "active". Pointer order would take A.
+    store.set(`${SLOT_KEY}_A`, stamped('Older', 1_000));
+    store.set(`${SLOT_KEY}_B`, stamped('Newer', 2_000));
+
+    const result = await doubleBufferLoad(SLOT_KEY);
+
+    expect(nameIn(result.data)).toBe('Newer');
+    expect(result.source).toBe('B');
+    // …and the healed pointer makes that stick.
+    expect(store.get(`${SLOT_KEY}_active`)).toBe('B');
+  });
+
+  it('prefers the newer buffer when the newer one is A', async () => {
+    store.set(`${SLOT_KEY}_A`, stamped('Newer', 5_000));
+    store.set(`${SLOT_KEY}_B`, stamped('Older', 4_000));
+
+    const result = await doubleBufferLoad(SLOT_KEY);
+
+    expect(nameIn(result.data)).toBe('Newer');
+    expect(result.source).toBe('A');
+  });
+
+  it('falls back to pointer order when neither buffer carries a timestamp', async () => {
+    store.set(`${SLOT_KEY}_A`, envelope('First'));
+    store.set(`${SLOT_KEY}_B`, envelope('Second'));
+
+    const result = await doubleBufferLoad(SLOT_KEY);
+
+    expect(result.source).toBe('A');
+  });
+
+  it('never displaces a timestamped buffer with an untimestamped one', async () => {
+    store.set(`${SLOT_KEY}_A`, envelope('NoStamp'));
+    store.set(`${SLOT_KEY}_B`, stamped('Stamped', 1_000));
+
+    expect((await doubleBufferLoad(SLOT_KEY)).source).toBe('B');
+  });
+
+  it('still trusts a PRESENT pointer over timestamps', async () => {
+    // A valid pointer is the commit record. It stays authoritative — the
+    // timestamp comparison exists only for the case where it is gone, and
+    // reading the second buffer on every load would cost a full extra verify.
+    store.set(`${SLOT_KEY}_A`, stamped('Pointed', 1_000));
+    store.set(`${SLOT_KEY}_B`, stamped('Unpointed', 9_000));
+    store.set(`${SLOT_KEY}_active`, 'A');
+
+    const result = await doubleBufferLoad(SLOT_KEY);
+
+    expect(result.source).toBe('A');
+    expect(nameIn(result.data)).toBe('Pointed');
   });
 });

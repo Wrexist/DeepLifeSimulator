@@ -93,119 +93,146 @@ export const getDriversLicense = (
 };
 
 /**
- * Purchase a vehicle
+ * Purchase a vehicle — the outcome and the state, as ONE pure function of the
+ * state handed to it.
+ *
+ * Written as a resolver called twice (once against the caller's snapshot for
+ * the report, once against `prev` for the state) rather than gating outside and
+ * mutating inside. Two defects made that necessary:
+ *
+ *  1. Every gate (licence, reputation, affordability, already-owned) read the
+ *     stale render-time snapshot and the updater re-checked NOTHING, so two
+ *     taps in one React batch pushed TWO garage entries. Both shared an id —
+ *     `createVehicleFromTemplate` stamps `id: template.id` — and `sellVehicle`
+ *     filters by id, so selling removed BOTH copies while crediting ONE sale
+ *     price.
+ *  2. The debit floored at zero (`Math.max(0, prevMoney - vehiclePrice)`), so
+ *     the second tap handed over a car and silently forgave the shortfall —
+ *     the gate → grant class of CLAUDE.md §4.4.
+ *
+ * Vehicle ids stay equal to the template id on purpose: the whole vehicle
+ * system keys on that identity (the already-own gate, `sellVehicle`'s
+ * `VEHICLE_TEMPLATES` price lookup, auto loans via `loan.vehicleId`, insurance,
+ * weekly processing). One-per-template IS the design; the ownership re-check is
+ * what enforces it, and unique ids would break every one of those lookups for
+ * no additional safety.
+ *
+ * Nothing crosses the updater boundary — the capture shape that
+ * `__tests__/refactor/updaterResultRatchet.test.ts` exists to keep out, and
+ * that a previous VehicleActions conversion had to be reverted for.
  */
-export const purchaseVehicle = (
-  gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>,
-  vehicleId: string,
-  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
-  _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
-): { success: boolean; message: string } => {
+const resolvePurchaseVehicle = (
+  state: GameState,
+  vehicleId: string
+): { result: { success: boolean; message: string }; next: GameState } => {
+  const reject = (message: string) => ({ result: { success: false, message }, next: state });
+
   // Find vehicle template
   const template = VEHICLE_TEMPLATES.find(v => v.id === vehicleId);
   if (!template) {
-    log.error(`Vehicle template ${vehicleId} not found`);
-    return { success: false, message: 'Vehicle not found.' };
+    return reject('Vehicle not found.');
   }
 
   // Licence gate. Aircraft need a PILOT licence — a driving licence is neither
   // sufficient nor required to own a helicopter, and gating the aircraft ladder
   // behind its own qualification is what makes it feel earned.
   if (isAircraftVehicleId(vehicleId)) {
-    if (!gameState.hasPilotLicense) {
-      return { success: false, message: 'You need a pilot\'s license to buy an aircraft.' };
+    if (!state.hasPilotLicense) {
+      return reject('You need a pilot\'s license to buy an aircraft.');
     }
-  } else if (!gameState.hasDriversLicense) {
-    return { success: false, message: 'You need a driver\'s license to purchase a vehicle!' };
+  } else if (!state.hasDriversLicense) {
+    return reject('You need a driver\'s license to purchase a vehicle!');
   }
 
   // CRITICAL: Validate template price before comparison
   const vehiclePrice = typeof template.price === 'number' && isFinite(template.price) && template.price >= 0 ? template.price : 0;
   if (vehiclePrice === 0) {
-    log.error(`Invalid price for vehicle ${vehicleId}: ${template.price}`);
-    return { success: false, message: 'Invalid vehicle price' };
+    return reject('Invalid vehicle price');
   }
 
   // Check reputation requirement
   const requiredReputation = typeof template.requiredReputation === 'number' && isFinite(template.requiredReputation) && template.requiredReputation >= 0 ? template.requiredReputation : 0;
-  const currentReputation = typeof gameState.stats.reputation === 'number' && isFinite(gameState.stats.reputation) && gameState.stats.reputation >= 0 ? gameState.stats.reputation : 0;
+  const currentReputation = typeof state.stats.reputation === 'number' && isFinite(state.stats.reputation) && state.stats.reputation >= 0 ? state.stats.reputation : 0;
   if (requiredReputation > 0 && currentReputation < requiredReputation) {
-    return { success: false, message: `You need ${requiredReputation} reputation to purchase this vehicle.` };
+    return reject(`You need ${requiredReputation} reputation to purchase this vehicle.`);
   }
 
-  // CRITICAL: Validate money before comparison
-  const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
-  
-  // Check if can afford
+  // Check if already owns this vehicle. Against `prev` this is also the
+  // same-batch duplicate guard.
+  if ((state.vehicles || []).some(v => v.id === vehicleId)) {
+    return reject('You already own this vehicle!');
+  }
+
+  // CRITICAL: Validate money before comparison. Refuse, never clamp.
+  const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) && state.stats.money >= 0 ? state.stats.money : 0;
   if (currentMoney < vehiclePrice) {
-    return { success: false, message: `You need $${vehiclePrice.toLocaleString()} to purchase this vehicle.` };
+    return reject(`You need $${vehiclePrice.toLocaleString()} to purchase this vehicle.`);
   }
 
-  // Check if already owns this vehicle
-  const existingVehicle = (gameState.vehicles || []).find(v => v.id === vehicleId);
-  if (existingVehicle) {
-    return { success: false, message: 'You already own this vehicle!' };
+  const newVehicle = createVehicleFromTemplate(template, state.weeksLived || 0);
+  const newMoney = currentMoney - vehiclePrice;
+  const moneyChange = newMoney - currentMoney;
+
+  const vehicles = [...(state.vehicles || []), newVehicle];
+  // Set as active if it's the first vehicle
+  const activeVehicleId = state.activeVehicleId || newVehicle.id;
+
+  // Update daily summary
+  let dailySummary = state.dailySummary;
+  if (dailySummary) {
+    dailySummary = {
+      ...dailySummary,
+      moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
+      totalMoneySpent: (dailySummary.totalMoneySpent || 0) + Math.max(0, -moneyChange),
+      statsChange: { ...(dailySummary.statsChange || {}) },
+      events: [...(dailySummary.events || [])],
+    };
   }
 
-  // Create vehicle and add to state
-  const newVehicle = createVehicleFromTemplate(template, gameState.weeksLived || 0);
+  // Budget tab: vehicle purchases are transport spending.
+  const banking = state.banking?.budgetSpend
+    ? trackBudgetSpend(state.banking, state.weeksLived ?? 0, 'transport', vehiclePrice)
+    : state.banking;
 
-  // CRITICAL FIX: Combine money update and vehicle update into a single atomic state update
-  // This prevents race conditions where the second setGameState might overwrite the money update
-  setGameState(prev => {
-    // Validate and calculate new money value
-    const prevMoney = typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) 
-      ? prev.stats.money 
-      : 0;
-    const newMoney = Math.max(0, prevMoney - vehiclePrice);
-    const moneyChange = newMoney - prevMoney;
-
-    // Update vehicles
-    const vehicles = [...(prev.vehicles || []), newVehicle];
-    // Set as active if it's the first vehicle
-    const activeVehicleId = prev.activeVehicleId || newVehicle.id;
-
-    // Update daily summary
-    let dailySummary = prev.dailySummary;
-    if (dailySummary) {
-      dailySummary = {
-        ...dailySummary,
-        moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
-        totalMoneySpent: (dailySummary.totalMoneySpent || 0) + Math.max(0, -moneyChange),
-        statsChange: { ...(dailySummary.statsChange || {}) },
-        events: [...(dailySummary.events || [])],
-      };
-    }
-
-    // Log significant transactions
-    if (Math.abs(moneyChange) > 1000) {
-      log.info(`Vehicle purchase: ${moneyChange > 0 ? '+' : ''}${moneyChange} (Vehicle Purchase: ${template.name})`);
-    }
-
-    // Budget tab: vehicle purchases are transport spending.
-    const banking = prev.banking?.budgetSpend
-      ? trackBudgetSpend(prev.banking, prev.weeksLived ?? 0, 'transport', vehiclePrice)
-      : prev.banking;
-
-    return {
-      ...prev,
+  return {
+    result: { success: true, message: `Congratulations! You are now the proud owner of a ${template.name}!` },
+    next: {
+      ...state,
       banking,
       stats: {
-        ...prev.stats,
+        ...state.stats,
         money: newMoney,
         reputation: template.reputationBonus > 0
-          ? Math.min(100, (prev.stats.reputation || 0) + template.reputationBonus)
-          : (prev.stats.reputation || 0),
+          ? Math.min(100, (state.stats.reputation || 0) + template.reputationBonus)
+          : (state.stats.reputation || 0),
       },
       vehicles,
       activeVehicleId,
       dailySummary,
-    };
-  });
+    },
+  };
+};
 
-  log.info(`Player purchased vehicle: ${template.name}`);
-  return { success: true, message: `Congratulations! You are now the proud owner of a ${template.name}!` };
+export const purchaseVehicle = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  vehicleId: string,
+  /** Unused — the resolver above applies the charge atomically. Optional so callers need not fake it. */
+  _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
+): { success: boolean; message: string } => {
+  // Outcome from the caller's snapshot: what the player can be told.
+  const preview = resolvePurchaseVehicle(gameState, vehicleId);
+  if (!preview.result.success) {
+    log.warn(`Vehicle purchase refused (${vehicleId}): ${preview.result.message}`);
+    return preview.result;
+  }
+
+  // State from `prev`: the authority. Re-runs every gate, so a second tap in
+  // the same batch is refused and `prev` is returned unchanged.
+  setGameState(prev => resolvePurchaseVehicle(prev, vehicleId).next);
+
+  log.info(`Player purchased vehicle: ${vehicleId}`);
+  return preview.result;
 };
 
 /**
@@ -814,24 +841,6 @@ export const processVehicleWeekly = (
   }
 
   return { totalCosts: resultTotalCosts, expiredInsurance: resultExpiredInsurance };
-};
-
-/**
- * Get total reputation bonus from all owned vehicles
- */
-export const getTotalVehicleReputationBonus = (gameState: GameState): number => {
-  const vehicles = gameState.vehicles || [];
-  return vehicles.reduce((total, vehicle) => total + (vehicle.reputationBonus || 0), 0);
-};
-
-/**
- * Get active vehicle's speed bonus (travel time reduction)
- */
-export const getActiveVehicleSpeedBonus = (gameState: GameState): number => {
-  if (!gameState.activeVehicleId) return 0;
-  const vehicle = (gameState.vehicles || []).find(v => v.id === gameState.activeVehicleId);
-  if (!vehicle || vehicle.condition < 20 || vehicle.fuelLevel < 10) return 0; // Must be in usable condition
-  return vehicle.speedBonus || 0;
 };
 
 const newLoanId = (): string =>

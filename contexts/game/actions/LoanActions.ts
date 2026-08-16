@@ -12,9 +12,7 @@ import { initialGameState } from '../initialState';
 import { isPlayerBlocked } from './_guards';
 import { applyMoneyDelta } from './MoneyActions';
 import {
-  applyLoanPayment,
   quoteLoan,
-  recomputeCreditScore,
   MIRRORED_ACCOUNT_IDS,
 } from '@/lib/banking/operations';
 import {
@@ -278,39 +276,6 @@ export const acceptLoan = (
 };
 
 /**
- * Apply one weekly payment to a specific loan from a specific account.
- * Used by the weekly auto-pay tick (Phase B).
- */
-export const payLoanWeekly = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  loanId: string,
-  fromAccountId: string
-) => {
-  setGameState((prev) => {
-    const state = ensureBanking(prev);
-    if (!state.banking || !state.loans) return prev;
-    const loanIdx = state.loans.findIndex((l) => l.id === loanId);
-    if (loanIdx === -1) return prev;
-
-    const loan = state.loans[loanIdx];
-    if (loan.remaining <= 0) return prev;
-
-    const result = applyLoanPayment(state.banking, loan, fromAccountId, state.weeksLived);
-
-    const loans = [...state.loans];
-    if (result.loan.remaining <= 0.01) {
-      // Paid off — drop the loan and credit a "payoff" event later in the UI.
-      loans.splice(loanIdx, 1);
-      log.info(`Loan ${loan.name} paid off`);
-    } else {
-      loans[loanIdx] = result.loan;
-    }
-
-    return { ...state, loans, banking: result.banking };
-  });
-};
-
-/**
  * Prepay a chunk against a loan's principal (no penalty in this game).
  */
 export const prepayLoan = (
@@ -448,16 +413,3 @@ export const refinanceLoan = (
   });
 };
 
-/** Refresh credit score after any loan change. UI can call this on demand. */
-export const refreshCreditFromLoans = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>
-) => {
-  setGameState((prev) => {
-    const state = ensureBanking(prev);
-    if (!state.banking) return prev;
-    return {
-      ...state,
-      banking: recomputeCreditScore(state.banking, state.loans ?? [], state.weeksLived),
-    };
-  });
-};

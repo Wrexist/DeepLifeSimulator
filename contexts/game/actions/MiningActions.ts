@@ -3,7 +3,7 @@
  * Enhanced mining system with upgrades, pools, staking, and more
  */
 import { Dispatch, SetStateAction } from 'react';
-import { GameState, Warehouse, MinerUpgrade, MiningPool, StakingPosition, MiningStatistics } from '../types';
+import { GameState, Warehouse, MinerUpgrade, MiningPool, StakingPosition } from '../types';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { MINER_REPAIR_COSTS } from './weekly/applyMiningWarehouse';
 import { applyMoneyDelta } from './MoneyActions';
@@ -828,103 +828,4 @@ export function upgradeAutomation(
   });
 
   return { success: true, message: `Automation upgraded to level ${currentLevel + 1}` };
-}
-
-/**
- * Update mining statistics
- */
-export function updateMiningStatistics(
-  gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>,
-  earnings: number,
-  powerCost: number,
-  cryptoMined: Record<string, number>
-): void {
-  if (!gameState.warehouse) return;
-
-  setGameState(prev => {
-    if (!prev.warehouse) return prev;
-
-    const stats = prev.warehouse.statistics || {
-      totalCryptoMined: {},
-      totalEarnings: 0,
-      totalPowerCost: 0,
-      miningHistory: [],
-      minerPerformance: {},
-    };
-
-    // Update totals
-    const updatedStats: MiningStatistics = {
-      ...stats,
-      totalEarnings: stats.totalEarnings + earnings,
-      totalPowerCost: stats.totalPowerCost + powerCost,
-      totalCryptoMined: {
-        ...stats.totalCryptoMined,
-        ...Object.entries(cryptoMined).reduce((acc, [cryptoId, amount]) => {
-          acc[cryptoId] = (stats.totalCryptoMined[cryptoId] || 0) + amount;
-          return acc;
-        }, {} as Record<string, number>),
-      },
-      miningHistory: [
-        ...(stats.miningHistory || []).slice(-99), // Keep last 100 entries
-        {
-          // Absolute week so history is time-ordered. `prev.week` is the 1-4
-          // week-of-month cycle and would corrupt the chronological order.
-          week: prev.weeksLived || 0,
-          earnings,
-          cryptoMined,
-          powerCost,
-        },
-      ],
-    };
-
-    return {
-      ...prev,
-      warehouse: {
-        ...prev.warehouse,
-        statistics: updatedStats,
-      },
-    };
-  });
-}
-
-/**
- * Update mining difficulty (called weekly)
- */
-export function updateMiningDifficulty(
-  gameState: GameState,
-  setGameState: Dispatch<SetStateAction<GameState>>
-): void {
-  if (!gameState.warehouse) return;
-
-  const absoluteWeek = gameState.weeksLived || 0;
-  // P0-12: `gameState.week` cycles 1-4 (UI display only). For legacy saves where
-  // `lastDifficultyUpdate` was stored as the cyclic value, we can't recover the
-  // original absolute week — bail to `absoluteWeek` so the next difficulty tick
-  // fires correctly from now on.
-  const legacyLastUpdateWeek = typeof gameState.warehouse.lastDifficultyUpdate === 'number'
-    ? Math.min(gameState.warehouse.lastDifficultyUpdate, absoluteWeek)
-    : absoluteWeek;
-  const lastUpdate = gameState.warehouse.lastDifficultyUpdateAbsoluteWeek ?? legacyLastUpdateWeek;
-  const weeksSinceUpdate = absoluteWeek - lastUpdate;
-
-  // Update difficulty every 10 weeks
-  if (weeksSinceUpdate >= 10) {
-    const currentDifficulty = gameState.warehouse.difficultyMultiplier || 1.0;
-    const newDifficulty = Math.min(2.0, currentDifficulty * 1.1); // Max 2x difficulty
-
-    setGameState(prev => {
-      if (!prev.warehouse) return prev;
-
-      return {
-        ...prev,
-        warehouse: {
-          ...prev.warehouse,
-          difficultyMultiplier: newDifficulty,
-          lastDifficultyUpdate: prev.weeksLived || 0,
-          lastDifficultyUpdateAbsoluteWeek: prev.weeksLived || 0,
-        },
-      };
-    });
-  }
 }

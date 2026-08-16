@@ -3,7 +3,7 @@
  * Static module-level StyleSheet.
  */
 import { Platform, StyleSheet } from 'react-native';
-import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, touchTargets, scale, isIPad } from '@/utils/scaling';
+import { responsivePadding, responsiveFontSize, responsiveSpacing, responsiveBorderRadius, touchTargets, scale, fontScale, isIPad } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 
 export const styles = StyleSheet.create({
@@ -334,25 +334,34 @@ export const styles = StyleSheet.create({
  gap: 6,
  marginTop: 2,
  },
+ /**
+  * The date block's three lines paired a SCALED `fontSize` with a RAW
+  * `lineHeight` — the same bug shape already annotated on `chipText` above and
+  * fixed once in `FirstWeekGuide`. `fontScale` clamps at 1.6 on a tablet, so
+  * `responsiveFontSize.lg` renders 26pt glyphs inside a 20pt line box (month
+  * 22 in 18, age 19 in 16) and the HUD — which is on screen at all times —
+  * clips. Each line box keeps its original ratio to its font size and now
+  * scales with it, so the box always leads the glyphs.
+  */
  yearText: {
  fontSize: responsiveFontSize.lg,
  fontWeight: '800',
  color: '#FFFFFF',
- lineHeight: 20,
+ lineHeight: fontScale(20),
  },
  monthText: {
  fontSize: responsiveFontSize.base,
  fontWeight: '700',
  color: '#FFFFFF',
  textAlign: 'center',
- lineHeight: 18,
+ lineHeight: fontScale(18),
  marginTop: 2,
  },
  ageText: {
  fontSize: responsiveFontSize.sm,
  fontWeight: '700',
  color: '#FFFFFF',
- lineHeight: 16,
+ lineHeight: fontScale(16),
  marginTop: 2,
  },
 

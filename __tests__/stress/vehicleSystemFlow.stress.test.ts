@@ -9,7 +9,6 @@
  *   - setActiveVehicle: switch active, reject unknown id
  *   - processAccident: damage / health-loss, totaling removes vehicle
  *   - processVehicleWeekly: fuel/mileage/condition decay, insurance expiry
- *   - getTotalVehicleReputationBonus, getActiveVehicleSpeedBonus
  *   - INVARIANT: dead-vehicle (condition 0) does NOT silently regenerate
  *     (the `?? 100` fix from the prior turn)
  */
@@ -623,50 +622,6 @@ describe('Vehicle system deep audit', () => {
     expect(captured!.state.vehicles?.find(v => v.id === v1.id)).toBeUndefined();
     expect(captured!.state.stats.money).toBeGreaterThan(moneyBefore);
     expect(captured!.state.activeVehicleId).toBe(v2.id);
-  });
-
-  // ── HELPERS ────────────────────────────────────────────────────────────
-  it("getTotalVehicleReputationBonus: sums template reputation bonuses across owned vehicles", async () => {
-    mounted = mountGame();
-    seedDriver(1_000_000_000);
-    const { purchaseVehicle, getTotalVehicleReputationBonus } = await import('@/contexts/game/actions/VehicleActions');
-    const deps = await libDeps();
-
-    expect(getTotalVehicleReputationBonus(captured!.state)).toBe(0);
-    act(() => { purchaseVehicle(captured!.state, captured!.setGameState, 'economy_sedan', deps); });
-    const bonus = getTotalVehicleReputationBonus(captured!.state);
-    expect(typeof bonus).toBe('number');
-    expect(bonus).toBeGreaterThanOrEqual(0);
-    expect(Number.isFinite(bonus)).toBe(true);
-  });
-
-  it("getActiveVehicleSpeedBonus: returns 0 when no active vehicle, finite when active", async () => {
-    mounted = mountGame();
-    seedDriver(1_000_000);
-    const { purchaseVehicle, getActiveVehicleSpeedBonus } = await import('@/contexts/game/actions/VehicleActions');
-    const deps = await libDeps();
-
-    expect(getActiveVehicleSpeedBonus(captured!.state)).toBe(0);
-    act(() => { purchaseVehicle(captured!.state, captured!.setGameState, 'economy_sedan', deps); });
-    const bonus = getActiveVehicleSpeedBonus(captured!.state);
-    expect(Number.isFinite(bonus)).toBe(true);
-    expect(bonus).toBeGreaterThanOrEqual(0);
-  });
-
-  it("getActiveVehicleSpeedBonus: low fuel/condition disables the bonus", async () => {
-    mounted = mountGame();
-    seedDriver(1_000_000);
-    const { purchaseVehicle, getActiveVehicleSpeedBonus } = await import('@/contexts/game/actions/VehicleActions');
-    const deps = await libDeps();
-    act(() => { purchaseVehicle(captured!.state, captured!.setGameState, 'economy_sedan', deps); });
-    const vid = captured!.state.vehicles![0].id;
-
-    // Drop condition + fuel to disable bonus.
-    act(() => captured!.setGameState(prev => ({
-      ...prev,
-      vehicles: prev.vehicles?.map(v => v.id === vid ? { ...v, condition: 10, fuelLevel: 5 } : v),
-    })));
-    expect(getActiveVehicleSpeedBonus(captured!.state)).toBe(0);
   });
 
   // ── CROSS-SYSTEM ───────────────────────────────────────────────────────

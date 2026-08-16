@@ -21,6 +21,7 @@ import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { nonMirrorDeposits } from '@/lib/banking/operations';
 import Gradient from '@/components/ui/Gradient';
@@ -1007,6 +1008,9 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  const settings = useGameSelector((s) => s?.settings, shallowEqual);
  // For the interstitial breakpoint: current in-game week + whether ads are removed.
  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
+ // The grace half of the gate measures weeks into THIS life (CLAUDE.md §4.2);
+ // pre-v43 saves have no lifeStartWeek and fall back to the absolute counter.
+ const lifeStartWeek = useGameSelector((s) => s?.lifeStartWeek);
  const adsRemoved = useGameSelector((s) => s?.settings?.adsRemoved === true);
  // A blocking result modal (death/wedding/jail) — or an auto-mounted
  // LifeMomentModal (app/(tabs)/_layout.tsx renders one whenever the tick sets
@@ -1280,6 +1284,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  void maybeShowInterstitialForWeek(weeksBefore + 1, {
  adsRemoved,
  blocked: blockedRef.current,
+ weeksThisLife: weeksSinceLifeStart(weeksBefore + 1, lifeStartWeek),
  });
  } finally {
  if (timeoutRef.current) {

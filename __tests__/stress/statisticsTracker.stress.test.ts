@@ -48,12 +48,9 @@ import {
   trackNewRelationship,
   trackNewChild,
   trackNewCompany,
-  trackNewProperty,
   trackCrime,
   trackJailTime,
   trackTravelDestination,
-  trackPost,
-  trackHobbyLearned,
   trackAchievement,
   getDefaultStatistics,
   formatStatNumber,
@@ -164,10 +161,8 @@ describe('Statistics Tracker audit', () => {
     s = trackNewRelationship(s); expect(s.totalRelationships).toBe(2);
     s = trackNewChild(s); expect(s.totalChildren).toBe(1);
     s = trackNewCompany(s); expect(s.totalCompaniesOwned).toBe(1);
-    s = trackNewProperty(s); expect(s.totalPropertiesOwned).toBe(1);
     s = trackCrime(s); expect(s.totalCrimesCommitted).toBe(1);
     s = trackTravelDestination(s); expect(s.totalTravelDestinations).toBe(1);
-    s = trackHobbyLearned(s); expect(s.totalHobbiesLearned).toBe(1);
     s = trackAchievement(s); expect(s.totalAchievementsUnlocked).toBe(1);
   });
 
@@ -235,15 +230,12 @@ describe('Statistics Tracker audit', () => {
   });
 
   // ── POSTS / VIRAL ──────────────────────────────────────────────────────
-  it('trackPost: increments total; viral flag bumps viral counter too', () => {
-    let s = getDefaultStatistics();
-    s = trackPost(s, false);
-    expect(s.totalPostsMade).toBe(1);
-    expect(s.totalViralPosts).toBe(0);
-    s = trackPost(s, true);
-    expect(s.totalPostsMade).toBe(2);
-    expect(s.totalViralPosts).toBe(1);
-  });
+  // The `trackPost` / `trackNewProperty` / `trackHobbyLearned` helpers were
+  // deleted (2026-08-16, WP-F): they had no production caller, so the counters
+  // they claimed to maintain were permanently 0 and two gem milestones were
+  // unearnable. The counters are now written inline at their real event sites;
+  // their coverage lives in
+  // `__tests__/statistics/lifetimeCountersWired.test.ts`.
 
   // ── NET WORTH HISTORY ──────────────────────────────────────────────────
   it('addNetWorthSnapshot: only adds on 10-week intervals; bounded at 100 entries', () => {
@@ -375,7 +367,7 @@ describe('Statistics Tracker audit', () => {
   it('All trackers: 500 random operations keep stats JSON-safe', () => {
     let s = getDefaultStatistics();
     for (let i = 0; i < 500; i++) {
-      const op = i % 13;
+      const op = i % 11;
       switch (op) {
         case 0: s = trackMoneyEarned(s, Math.floor(Math.random() * 10000)); break;
         case 1: s = trackMoneySpent(s, -Math.floor(Math.random() * 5000)); break;
@@ -387,9 +379,7 @@ describe('Statistics Tracker audit', () => {
         case 7: s = trackNewCompany(s); break;
         case 8: s = trackCrime(s); break;
         case 9: s = trackJailTime(s, Math.floor(Math.random() * 5)); break;
-        case 10: s = trackPost(s, Math.random() < 0.1); break;
-        case 11: s = trackHobbyLearned(s); break;
-        case 12: s = trackAchievement(s); break;
+        case 10: s = trackAchievement(s); break;
       }
     }
     const issues = deepCheck(s);

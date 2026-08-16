@@ -26,6 +26,7 @@ import { tickProfiler } from '@/utils/tickProfiler';
 import { simulateWeek, getStockPricesSnapshot } from '@/lib/economy/stockMarket';
 import { isPristineUnstartedState, repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
+import { enforceStateInvariants } from '@/utils/stateInvariants';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { clampStatByKey } from '@/utils/statUtils';
 import { initialGameState, STATE_VERSION } from './initialState';
@@ -852,7 +853,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // newStats === weeklyCtx.newStats, so the helper's student-loan deduction lands
  // on this same object; snapshot money on either side to recover the real charge.
  const moneyBeforeEducation = typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0;
- const progressionResult = applyEducationProgression({
+ // Guarded (§4.3): this helper is money-bearing (student-loan charge via
+ // chargeOrDefer) and reads player-supplied education records, so a malformed
+ // enrolment must cost the player their education tick — not their whole week.
+ // Fallback = the educations exactly as they were, i.e. "progression skipped
+ // this week"; `educationWeeklyCost` is still derived from the money delta, so a
+ // partial charge made before the throw is accounted for rather than invented.
+ const progressionResult = guardTick('educationProgression', () => applyEducationProgression({
    prevEducations: updatedEducations,
    nextWeeksLived,
    goldFastLearner: Boolean(prevState.goldUpgrades?.fast_learner),
@@ -860,7 +867,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // GL-1: the prestige learning bonuses finally reach the thing they claim to
    // speed up. `getExperienceMultiplier` had zero call sites.
    experienceMultiplier: getExperienceMultiplier(prevState.prestige?.unlockedBonuses || []),
- }, weeklyCtx);
+ }, weeklyCtx), { updatedEducations, pendingCampusEvent: undefined });
  updatedEducations = progressionResult.updatedEducations;
  educationWeeklyCost = Math.max(0, moneyBeforeEducation - (typeof newStats.money === 'number' && isFinite(newStats.money) ? newStats.money : 0));
  if (progressionResult.pendingCampusEvent) {
@@ -914,7 +921,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // (applyRentAndHousing → housingRentalIncome). Including the legacy
  // property.rent stream here too double-paid rent and let an unbounded
  // player-set rent print money — so it's excluded from the cash total.
- const passiveIncomeResult = calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true });
+ // Guarded (§4.3). The helper already wraps its own body and returns zeros on a
+ // throw, but that is a property of today's implementation, not a contract the
+ // caller can rely on — and the `breakdown` fields are read unconditionally
+ // below, so anything but a full zeroed shape would throw HERE and lose the week.
+ const passiveIncomeResult = guardTick(
+   'passiveIncome',
+   () => calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true }),
+   {
+     total: 0,
+     breakdown: {
+       stocks: 0,
+       realEstate: 0,
+       socialMedia: 0,
+       patents: 0,
+       businessOpportunities: 0,
+       political: 0,
+       cryptoMining: 0,
+       companies: 0,
+       gamingStreaming: 0,
+     },
+     reinvested: undefined,
+   },
+ );
  let passiveIncome = passiveIncomeResult.total || 0;
  // No earned income while incarcerated: a jailed owner earns no company profit
  // this week. Companies carry no managed/passive-mode flag, so ALL company profit
@@ -2909,7 +2938,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // careerHistory, peakNetWorth, peakNetWorthWeek, netWorthHistory,
  // weeklyEarningsHistory), same 10-week sample interval, same 100-entry
  // cap, same passthrough when no lifetimeStatistics slice.
- lifetimeStatistics: applyLifetimeStatistics({
+ // Guarded (§4.3). It runs INSIDE the returned state object, so a throw here
+ // would abort building the next state entirely — the most expensive place in
+ // the tick to be unguarded. Fallback = the previous slice untouched, i.e. the
+ // accumulators simply do not move this week (the same passthrough the helper
+ // itself does when there is no `lifetimeStatistics`).
+ lifetimeStatistics: guardTick('lifetimeStatistics', () => applyLifetimeStatistics({
    prevState,
    newBornChildrenCount: newBornChildren.length,
    // R3-F4: the post-tick relationship array, so the lifetime counter can see
@@ -2924,7 +2958,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    safeNetWorth,
    totalIncome,
    nextWeeksLived,
- }).updatedLifetimeStatistics,
+ }).updatedLifetimeStatistics, prevState.lifetimeStatistics),
  // Wanted level decay
  wantedLevel: newWantedLevel,
  // v31: unpaid bills carried into next week. Written unconditionally so a
@@ -4250,6 +4284,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  logger.error('[CloudSync] Remote state failed validation after repair:', validation.errors);
  return;
  }
+ // F-14: same last-word invariants pass as loadGame. A cloud state
+ // arrives from another device and skips loadGame's merge entirely,
+ // so it needs the check at least as much.
+ const cloudInvariants = enforceStateInvariants(remote, 'cloudSync:keep-cloud');
+ if (!cloudInvariants.clean) {
+ logger.warn('[CloudSync] State invariant violations in cloud state', {
+ violations: cloudInvariants.violations,
+ warnings: cloudInvariants.warnings,
+ repairs: cloudInvariants.repairs,
+ });
+ remote = cloudInvariants.state;
+ }
  setGameState(remote);
  logger.info('[CloudSync] User chose cloud version — migrated + state replaced (validated)');
  }
@@ -4652,6 +4698,25 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  issues: relationshipValidation.issues,
  });
  safeState = repairRelationshipState(safeState);
+ }
+
+ // F-14: the LAST word on state sanity, after migrations, repair, autoFix and
+ // the relationship repair above have all had their turn — and after the merge
+ // onto `initialGameState`, so it sees the state the app will actually run.
+ // It catches what the earlier stages miss (a `date.week` outside 1-4, which
+ // `validateGameState` only rejects when negative; a negative or non-finite
+ // `weeksLived`, which nothing else checks at all), logs every violation under
+ // the grep-able `[INVARIANT]` tag, and clamps the safely-repairable ones. It
+ // never rejects: a player's save must always load.
+ const invariants = enforceStateInvariants(safeState, `loadGame:slot-${slot}`);
+ if (!invariants.clean) {
+ logger.warn('[LOAD_GAME] State invariant violations on load', {
+ slot,
+ violations: invariants.violations,
+ warnings: invariants.warnings,
+ repairs: invariants.repairs,
+ });
+ safeState = invariants.state;
  }
 
  // ANTI-EXPLOIT: Restore protected state from embedded data if AsyncStorage keys were deleted

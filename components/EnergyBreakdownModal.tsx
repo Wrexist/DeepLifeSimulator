@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { TrendingDown, TrendingUp, Briefcase, GraduationCap, Coffee, Utensils } from 'lucide-react-native';
+import { TrendingDown, TrendingUp, Briefcase, GraduationCap, Coffee, Home, Utensils } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { scale, fontScale, responsiveBorderRadius } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -117,7 +117,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       incomes.push({
         label: `Living in ${currentResidence.name}`,
         value: currentResidence.weeklyEnergy,
-        icon: Coffee, // Home icon was undefined; using Coffee as placeholder
+        icon: Home,
         color: '#10B981',
         description: `Your current residence provides ${currentResidence.weeklyEnergy} energy per week`,
       });

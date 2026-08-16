@@ -280,6 +280,22 @@ function resolveBuyProperty(
         banking,
         realEstate: updatedRealEstate,
         loans: updatedLoans,
+        /**
+         * `totalPropertiesOwned` had NO production writer — `trackNewProperty`
+         * in `lib/statistics/statisticsTracker.ts` was only ever called from a
+         * stress test. StatisticsApp's "Properties" counter therefore read a
+         * permanent 0, and the `first-property` milestone (15 gems) was
+         * unearnable. Incremented HERE, inside the same transition that flips
+         * the property to `owned: true` and debits the down payment, so it
+         * cannot drift from ownership (CLAUDE.md §4.4). Lifetime counter, so it
+         * is never decremented on sale.
+         */
+        lifetimeStatistics: state.lifetimeStatistics
+          ? {
+              ...state.lifetimeStatistics,
+              totalPropertiesOwned: (state.lifetimeStatistics.totalPropertiesOwned ?? 0) + 1,
+            }
+          : state.lifetimeStatistics,
         // A mortgage is debt. See `debtProgress`.
         ...debtProgress(state, updatedLoans.length > (state.loans ?? []).length),
       },

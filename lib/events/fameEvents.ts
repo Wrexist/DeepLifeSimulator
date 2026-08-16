@@ -13,6 +13,7 @@ import type { GameState ,
   PulseScandalType,
   PulseTrendingHashtag,
 } from '@/contexts/game/types';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 
 // ─── Pulse surfacing (v13+) ──────────────────────────────────────────────
 //
@@ -110,7 +111,7 @@ const stalkerEncounter: EventTemplate = {
   id: 'fame_stalker',
   category: 'general',
   weight: 0.15,
-  condition: (s) => isCelebrity(s) && (s.weeksLived ?? 0) > 30,
+  condition: (s) => isCelebrity(s) && weeksInThisLife(s) > 30,
   generate: () => ({
     id: 'fame_stalker',
     description:

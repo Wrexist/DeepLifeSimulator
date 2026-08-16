@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Target, Plus, Minus } from 'lucide-react-native';
 import { SavingsGoal } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer } from '@/utils/glassmorphismStyles';
 
@@ -22,6 +23,38 @@ function formatMoney(n: number): string {
   if (!isFinite(n)) return '$0';
   return `$${Math.round(n).toLocaleString()}`;
 }
+
+/** Visual size of the +/- circles; the hit slop below is derived from it. */
+const BTN_SIZE = scale(28);
+
+/**
+ * The two circles are adjacent and only `responsiveSpacing.sm` apart, so the
+ * SYMMETRIC slop `hitSlopToMinTarget` returns would make their hit rectangles
+ * OVERLAP — and RN hit-tests the last-rendered child first, so a tap just right
+ * of the minus would deposit instead of withdraw. These move real money in
+ * opposite directions, which makes the overlap the one thing worth avoiding.
+ *
+ * So: take the helper's per-side figure as the requirement, cap the edge that
+ * FACES the neighbour at half the gap between them, and push the remainder onto
+ * the outward edge. The horizontal total is unchanged, so both buttons still
+ * clear 44pt on both axes, and their hit areas meet without ever overlapping.
+ */
+const BASE_SLOP = hitSlopToMinTarget(BTN_SIZE);
+const HIT_INNER = Math.min(BASE_SLOP.left, Math.floor(responsiveSpacing.sm / 2));
+const HIT_OUTER = BASE_SLOP.left + BASE_SLOP.right - HIT_INNER;
+/** Withdraw (−) sits left of deposit (+), so its inner edge is the right one. */
+const WITHDRAW_HIT_SLOP = {
+  top: BASE_SLOP.top,
+  bottom: BASE_SLOP.bottom,
+  left: HIT_OUTER,
+  right: HIT_INNER,
+};
+const DEPOSIT_HIT_SLOP = {
+  top: BASE_SLOP.top,
+  bottom: BASE_SLOP.bottom,
+  left: HIT_INNER,
+  right: HIT_OUTER,
+};
 
 const CATEGORY_COLOR: Record<string, string> = {
   emergency: accent.danger,
@@ -63,9 +96,20 @@ export default function SavingsGoalCard({ goal, darkMode, onContribute, onWithdr
             {formatMoney(goal.currentAmount)} of {formatMoney(goal.targetAmount)}
           </Text>
         </View>
+        {/*
+          Two 28pt circles sitting side by side, both moving REAL money in
+          opposite directions, with no hit slop and nothing for a screen reader
+          to read out. The hit slops above grow each one to the repo's
+          `MIN_TOUCH_TARGET` (44pt) without changing the visual size, and
+          the labels name the goal so "Add to" is unambiguous when a screen has
+          several cards.
+        */}
         {onWithdraw && goal.currentAmount > 0 && (
           <TouchableOpacity
             onPress={onWithdraw}
+            hitSlop={WITHDRAW_HIT_SLOP}
+            accessibilityRole="button"
+            accessibilityLabel={`Withdraw from ${goal.name}`}
             style={[styles.addBtn, { backgroundColor: `rgba(${rgb}, 0.15)`, borderColor: `rgba(${rgb}, 0.30)` }]}
           >
             <Minus size={scale(14)} color={color} />
@@ -74,6 +118,9 @@ export default function SavingsGoalCard({ goal, darkMode, onContribute, onWithdr
         {onContribute && !complete && (
           <TouchableOpacity
             onPress={onContribute}
+            hitSlop={DEPOSIT_HIT_SLOP}
+            accessibilityRole="button"
+            accessibilityLabel={`Add to ${goal.name}`}
             style={[styles.addBtn, { backgroundColor: `rgba(${rgb}, 0.15)`, borderColor: `rgba(${rgb}, 0.30)` }]}
           >
             <Plus size={scale(14)} color={color} />
@@ -110,9 +157,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   addBtn: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(14),
+    width: BTN_SIZE,
+    height: BTN_SIZE,
+    borderRadius: BTN_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

@@ -14,7 +14,7 @@
 // Mock logger before any imports that depend on it
 import { GameState } from '@/contexts/game/types';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
-import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
+import { createTestGameState, assertValidGameState } from '@/__tests__/helpers/createTestGameState';
 import {
   calculateChecksum,
   validateGameState,
@@ -112,7 +112,11 @@ describe('Critical Path: New Game → First Week', () => {
   it('should create a valid initial game state', () => {
     const state = createGameState();
 
-    // Verify core structure exists (don't use assertValidGameState — its required fields list may be stale)
+    // Every field `initialGameState` defines is present. The required set is
+    // derived from it, so this cannot go stale the way the old hand-written
+    // list did (F-1).
+    assertValidGameState(state);
+
     expect(state.stats).toBeDefined();
     expect(state.date).toBeDefined();
     expect(state.settings).toBeDefined();

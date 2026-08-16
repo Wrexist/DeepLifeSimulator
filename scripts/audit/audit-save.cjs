@@ -20,6 +20,9 @@
  *   V10 A new life can never guess its save slot: no numeric slot fallback, every
  *       entry into onboarding assigns one, and the write itself re-checks
  *       occupancy (2026-07-29 player save-loss report).
+ *   V11 The INVERSE of V8 (Hard Rule #3, the direction that was never machine-checked):
+ *       every top-level `initialGameState` field with a CONCRETE stored default is
+ *       migration- or repair-covered, or is an explicitly grandfathered legacy field.
  */
 'use strict';
 
@@ -48,6 +51,47 @@ const FACTORY_ALLOWLIST = [
  * would also hide an ACCIDENTAL cast added to it later.
  */
 const { isDeliberateCast } = require('../lib/deliberateCast');
+
+/**
+ * V11 grandfather list — top-level `initialGameState` fields that carry a
+ * CONCRETE stored default and have neither a migration nor a `repairGameState`
+ * mirror.
+ *
+ * They are one class, not a grab-bag: every one of them predates the v22+
+ * discipline in CLAUDE.md §7 ("a field added to initialState ships its migration
+ * and its repair mirror in the SAME change"). They are not live bugs, because
+ * the primary load path reconstitutes a save as `{ ...initialGameState, ...parsed }`
+ * — an absent key is filled from the defaults object before anything reads it.
+ * What they lack is the SECOND line of defence the rule exists to provide: a
+ * save that arrives partial through a path that does not spread (a CloudSync
+ * field-merge, a hand-edited or truncated blob) is healed by neither the version
+ * ladder nor repair.
+ *
+ * The list is a RATCHET, exactly like the coverage floors and the test-type
+ * baseline: it is seeded with what was already there so the audit is green
+ * today, and it must only ever SHRINK.
+ *
+ * **Never add a field here.** A NEW field without a migration and a repair
+ * mirror is precisely the GameState drift Hard Rule #3 exists to catch — fix it
+ * by writing the migration and the mirror, not by widening this set. Removing an
+ * entry (by giving that field its coverage) is always welcome; V11b flags stale
+ * entries so the list cannot silently rot.
+ */
+const LEGACY_PRE_MIGRATION_FIELDS = new Set([
+  'activityCommitments', 'ancestors', 'activeTraits', 'claimedProgressAchievements',
+  'completedGoals', 'computerPreviouslyOwned', 'criminalLevel', 'criminalXp',
+  'curedDiseases', 'discoveredSystems', 'dmConversations', 'dynastyStats',
+  'escapedFromJail', 'generationNumber', 'happinessZeroWeeks', 'hasDriversLicense',
+  'hasPhone', 'hasSeenJobTutorial', 'healthWeeks', 'healthZeroWeeks', 'journal',
+  'karma', 'lastDiseaseWeek', 'lastLogin', 'legacyBonuses', 'lifeMilestones',
+  'lifeMoments', 'lifeStage', 'lifetimeStatistics', 'lineageId', 'memories',
+  'mindset', 'pendingChainedEvents', 'pendingEvents', 'petFood', 'politics',
+  'prestigeAvailable', 'previousLives', 'revealedDMClues', 'seasonalEvents',
+  'showCureSuccessModal', 'showDeathPopup', 'showSicknessModal', 'showWeddingPopup',
+  'showWelcomePopup', 'showZeroStatPopup', 'socialPosts', 'streetJobsCompleted',
+  'totalHappiness', 'unlockedLifeSkills', 'updatedAt', 'vaccinations', 'vehicles',
+  'weeklyJailActivities', 'weeklyStreetJobs', 'weeklyStudySessions', 'youthPills',
+]);
 
 function build() {
   const a = new L.Audit(3, 'Save & State Integrity');
@@ -193,6 +237,46 @@ function build() {
       'utils/saveValidation.ts');
   }
 
+  // --- V11: the INVERSE of V8 ---------------------------------------------
+  // V8 walks the migrations and asks "is each backfill mirrored in repair?".
+  // That only ever sees fields someone already remembered to migrate. The rule
+  // CLAUDE.md §7 actually states runs the other way: EVERY field added to
+  // `initialState` with a concrete stored default ships a migration AND a repair
+  // mirror in the same change. Nothing checked that direction, so the only thing
+  // standing between a forgotten pair and a player was the fact that the primary
+  // load path spreads `initialGameState` first — which a partial/field-merged
+  // save does not go through. This closes it: the grandfathered legacy set is
+  // frozen in LEGACY_PRE_MIGRATION_FIELDS above, and anything NEW fails.
+  if (mig != null && sv != null) {
+    const concrete = topLevelInitialFields(initial).filter((f) => f.concrete).map((f) => f.name);
+    const uncovered = uncoveredConcreteFields(initial, mig, sv);
+    const undocumented = uncovered.filter((name) => !LEGACY_PRE_MIGRATION_FIELDS.has(name));
+
+    a.assert(undocumented.length === 0, 'high',
+      `All ${concrete.length} concrete-default initialState fields are migration/repair-covered `
+        + `(${LEGACY_PRE_MIGRATION_FIELDS.size} grandfathered)`,
+      `${undocumented.length} initialState field(s) with a concrete default have neither a migration nor a repairGameState mirror`,
+      undocumented.join(', ')
+        + ' — GameState drift (Hard Rule #3). Ship the migration (bumping STATE_VERSION) and the'
+        + ' repairGameState mirror in the same change; do NOT add the field to'
+        + ' LEGACY_PRE_MIGRATION_FIELDS, which is frozen and may only shrink.',
+      'contexts/game/initialState.ts');
+
+    // V11b: a grandfather entry that no longer describes reality. Either the
+    // field gained its coverage (great — drop the entry so the ratchet locks the
+    // win in) or it was renamed/removed. A stale baseline silently leaves room
+    // for a regression to creep back up to it, the same failure mode the
+    // test-type ratchet keeps a DOWN branch for.
+    const uncoveredSet = new Set(uncovered);
+    const stale = [...LEGACY_PRE_MIGRATION_FIELDS].filter((name) => !uncoveredSet.has(name));
+    a.assert(stale.length === 0, 'low',
+      'LEGACY_PRE_MIGRATION_FIELDS has no stale entries',
+      `${stale.length} grandfathered field(s) no longer need the exemption`,
+      stale.join(', ')
+        + ' — each is now covered (or gone). Remove it from LEGACY_PRE_MIGRATION_FIELDS so the ratchet holds the ground.',
+      'scripts/audit/audit-save.cjs');
+  }
+
   // --- V9: a repair that never sets the flag is a repair that is discarded ---
   // repairGameState works on a CLONE and writes it back only when `repaired` is
   // true, so a branch that assigns a default but leaves the flag alone is
@@ -281,9 +365,7 @@ function repairBranchesMissingFlag(src) {
   const clean = L.stripNoise(src);
   const fnStart = clean.indexOf('export function repairGameState');
   if (fnStart === -1) return [];
-  // Body ends at the first column-0 `}` after the declaration.
-  const bodyEnd = clean.indexOf('\n}', fnStart);
-  const body = clean.slice(fnStart, bodyEnd === -1 ? clean.length : bodyEnd);
+  const body = repairGameStateBody(src);
   const startLine = src.slice(0, fnStart).split('\n').length;
 
   const out = [];
@@ -350,6 +432,139 @@ function concreteBackfillPaths(src) {
   return [...paths].sort();
 }
 
+/**
+ * The comment/string-stripped body of `repairGameState`, or '' when absent.
+ * Character offsets match the original source, so callers can still translate an
+ * index back into a line number. Used both by the flag check (V9) and by V11,
+ * which needs to ask about repair coverage WITHOUT matching the rest of
+ * saveValidation.ts — `validateGameState` names many fields it never heals, and
+ * counting those as covered would make V11 pass on fields repair never touches.
+ * The `requiredArrays` / `catalogArrays` / `subsystemObjects` lists all live
+ * inside this body, so table-driven backfills count exactly as they should.
+ */
+function repairGameStateBody(src) {
+  const clean = L.stripNoise(src);
+  const fnStart = clean.indexOf('export function repairGameState');
+  if (fnStart === -1) return '';
+  // BRACE-MATCHED, not "the first column-0 `}`". That older heuristic ended the
+  // body ~400 lines early here, because `stripNoise` deletes `//` comments
+  // outright (length is NOT preserved) so character offsets in the cleaned text
+  // no longer line up with anything in the original — the search happened to
+  // land mid-function. V11 reads this body as the authority on what repair
+  // covers, so a short read would report healthy fields as uncovered.
+  // The body's `{` is the first one that ENDS a line — the earlier braces on the
+  // declaration belong to the return type (`: { repaired: boolean; … }`), and
+  // matching those yields a "body" one signature long.
+  const decl = clean.slice(fnStart).match(/^export function repairGameState[\s\S]*?\{[ \t]*\r?\n/);
+  if (!decl) return clean.slice(fnStart);
+  const open = fnStart + decl[0].lastIndexOf('{');
+  let depth = 0;
+  for (let i = open; i < clean.length; i++) {
+    if (clean[i] === '{') depth++;
+    else if (clean[i] === '}') {
+      depth--;
+      if (depth === 0) return clean.slice(fnStart, i);
+    }
+  }
+  return clean.slice(fnStart);
+}
+
+/**
+ * The V11 verdict as a PURE function of the three sources, so the rule can be
+ * exercised against fixtures (`__tests__/tooling/initialStateFieldCoverage.test.ts`)
+ * rather than only against whatever the repo happens to look like today — a
+ * ratchet nobody can prove still bites is not a ratchet.
+ *
+ * Returns the top-level `initialGameState` fields that have a CONCRETE default
+ * and are named by neither the migration registry nor `repairGameState`
+ * (body or table). The grandfather list is applied by the CALLER, so this stays
+ * a statement about the code rather than about the exemptions.
+ */
+function uncoveredConcreteFields(initialSrc, migSrc, repairSrc) {
+  const repairBody = repairGameStateBody(repairSrc);
+  const repairTables = repairTableFields(repairSrc);
+  return topLevelInitialFields(initialSrc)
+    .filter((f) => f.concrete)
+    .map((f) => f.name)
+    .filter((name) => !mentionsField(migSrc, name)
+      && !mentionsField(repairBody, name)
+      && !repairTables.has(name));
+}
+
+/**
+ * Field names covered by repairGameState's TABLE-DRIVEN backfills.
+ *
+ * `repairGameStateBody` runs through `stripNoise`, which blanks string literals
+ * — so the twenty-odd fields repair heals via a loop over a list of names
+ * (`requiredArrays`, `catalogArrays`, `subsystemObjects`) are invisible to a
+ * body scan and would be reported as uncovered. Read from the RAW source, and
+ * only for those three known tables: scanning every quoted string in the
+ * function would also match field names that merely appear inside a
+ * `repairs.push('Created missing … object')` message, which proves nothing.
+ */
+function repairTableFields(src) {
+  const names = new Set();
+  for (const table of ['requiredArrays', 'catalogArrays', 'subsystemObjects']) {
+    const m = src.match(new RegExp(`const\\s+${table}\\s*=\\s*\\[([^\\]]*)\\]`));
+    if (!m) continue;
+    for (const entry of m[1].matchAll(/['"]([A-Za-z_$][\w$]*)['"]/g)) names.add(entry[1]);
+  }
+  return names;
+}
+
+/**
+ * Every TOP-LEVEL key of the `initialGameState` object literal, with whether its
+ * default is CONCRETE (anything but a literal `undefined`).
+ *
+ * Depth-tracked rather than indentation-matched: nested subsystem literals are
+ * full of keys, and a two-space heuristic would break the moment the file is
+ * reformatted. Comments and string/template literals are blanked first (length
+ * preserved) so a brace inside either cannot skew the depth counter.
+ */
+function topLevelInitialFields(initialSrc) {
+  if (initialSrc == null) return [];
+  const clean = L.stripNoise(initialSrc);
+  const decl = clean.match(/initialGameState\s*:\s*GameState\s*=\s*\{/);
+  if (!decl) return [];
+  const open = decl.index + decl[0].length - 1;
+
+  let depth = 0;
+  let end = clean.length;
+  for (let i = open; i < clean.length; i++) {
+    const ch = clean[i];
+    if (ch === '{' || ch === '[' || ch === '(') depth++;
+    else if (ch === '}' || ch === ']' || ch === ')') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  const body = clean.slice(open + 1, end);
+
+  // Depth at each character of the body (an opener's own index is the OUTER depth).
+  const depthAt = new Array(body.length);
+  let d = 0;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (ch === '{' || ch === '[' || ch === '(') { depthAt[i] = d; d++; }
+    else if (ch === '}' || ch === ']' || ch === ')') { d--; depthAt[i] = d; }
+    else depthAt[i] = d;
+  }
+
+  const out = [];
+  const re = /([A-Za-z_$][\w$]*)\s*:/g;
+  let m;
+  while ((m = re.exec(body))) {
+    if (depthAt[m.index] !== 0) continue;
+    // Must START a property — only whitespace since the previous `,`/`{`/newline.
+    // Keeps a `?:` ternary's colon or a type annotation from registering as a key.
+    const before = body.slice(0, m.index);
+    if (before.trim() !== '' && !/[,{\n]\s*$/.test(before)) continue;
+    const rhs = body.slice(m.index + m[0].length).split('\n')[0].trim();
+    out.push({ name: m[1], concrete: !/^undefined\s*,?$/.test(rhs) });
+  }
+  return out;
+}
+
 /** Does `src` reference this field name at all (property read, key, or index)? */
 function mentionsField(src, leaf) {
   return new RegExp(`\\b${leaf}\\b`).test(src);
@@ -373,5 +588,12 @@ function parseNoOpVersions(src) {
   return m[1].split(',').map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
 }
 
-module.exports = { build };
+module.exports = {
+  build,
+  // Exported for `__tests__/tooling/initialStateFieldCoverage.test.ts`, which
+  // proves the V11 ratchet still fires and that the grandfather list has not rotted.
+  LEGACY_PRE_MIGRATION_FIELDS,
+  topLevelInitialFields,
+  uncoveredConcreteFields,
+};
 if (require.main === module) L.runStandalone(build);
