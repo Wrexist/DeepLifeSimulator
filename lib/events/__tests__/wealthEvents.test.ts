@@ -93,7 +93,7 @@ function extras(): Partial<GameState> {
     companies: [company],
     realEstate: [property],
     relationships: [partner],
-    family: { children: [child] } as GameState['family'],
+    family: { children: [child] },
     luxuryItems: ['rare_watch_collection'],
   };
 }
@@ -335,7 +335,7 @@ describe('wealth events — gating', () => {
       companies: [],
       realEstate: [],
       relationships: [],
-      family: { children: [] } as GameState['family'],
+      family: { children: [] },
       luxuryItems: [],
     });
     const openBare = wealthEventTemplates.filter(t => t.condition?.(bare)).length;

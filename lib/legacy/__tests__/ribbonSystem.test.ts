@@ -8,7 +8,7 @@
  * cross-life repeats of the same ribbon are preserved.
  */
 import type { GameState } from '@/contexts/game/types';
-import { initialGameState } from '@/contexts/game/initialState';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 import {
   addRibbonToCollection,
   classifyLife,
@@ -17,9 +17,8 @@ import {
   type RibbonDefinition,
 } from '@/lib/legacy/ribbonSystem';
 
-function freshState(overrides: Partial<GameState> = {}): GameState {
-  const base = JSON.parse(JSON.stringify(initialGameState)) as GameState;
-  return { ...base, ...overrides };
+function freshState(overrides: TestGameStateOverrides = {}): GameState {
+  return createTestGameState(overrides);
 }
 
 const ordinary = RIBBONS.find((r) => r.id === 'ribbon_ordinary') as RibbonDefinition;
@@ -82,6 +81,9 @@ describe('ribbonSystem — addRibbonToCollection', () => {
 
   it('tolerates a malformed collection without throwing', () => {
     // A collection missing the arrays (CloudSync merge / hand-edit) must not crash.
+    // DELIBERATE-CORRUPTION: the garbage shape IS the fixture — a save that
+    // arrived without the arrays is exactly what this test proves survivable,
+    // and no valid value can express it.
     const malformed = { foo: 'bar' } as unknown as GameState['ribbonCollection'];
     const state = freshState({ generationNumber: 1 });
     expect(() => addRibbonToCollection(malformed, centenarian, state)).not.toThrow();

@@ -22,24 +22,29 @@ import { purchaseLuxuryItem, sellLuxuryItem } from '@/contexts/game/actions/Luxu
 import { applyLuxuryItemsForWeek } from '@/contexts/game/actions/weekly/applyLuxuryItems';
 import { netWorth } from '@/lib/progress/achievements';
 import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
 // --- test helpers -----------------------------------------------------------
 
 /** Minimal React-setState-like store so we can exercise the real actions. */
-function makeStore(initial: Partial<GameState>) {
-  let state = initial as GameState;
+function makeStore(initial: GameState) {
+  let state = initial;
   const setGameState = (updater: any) => {
     state = typeof updater === 'function' ? updater(state) : updater;
   };
   return { get: () => state, setGameState };
 }
 
-function baseState(over: Partial<GameState> = {}): GameState {
-  return {
-    stats: { money: 0, happiness: 50, energy: 50, fitness: 50, health: 50, reputation: 10, gems: 0 },
+function baseState(over: TestGameStateOverrides = {}): GameState {
+  // Stats are merged rather than replaced so a caller naming only `money` still
+  // gets this file's pinned baseline (reputation 10, happiness 50, …) instead of
+  // initialState's defaults — the behaviour the hand-built literal had.
+  const { stats, ...rest } = over;
+  return createTestGameState({
     luxuryItems: [],
-    ...over,
-  } as unknown as GameState;
+    ...rest,
+    stats: { money: 0, happiness: 50, energy: 50, fitness: 50, health: 50, reputation: 10, gems: 0, ...(stats ?? {}) },
+  });
 }
 
 function makeCtx(stats: Partial<GameState['stats']>): WeekContext {
@@ -47,7 +52,7 @@ function makeCtx(stats: Partial<GameState['stats']>): WeekContext {
     newStats: {
       money: 0, happiness: 0, energy: 0, fitness: 0, health: 0, reputation: 0, gems: 0,
       ...stats,
-    } as GameState['stats'],
+    },
     notifications: [],
     preRolls: {} as any,
     nextWeeksLived: 1,
@@ -105,7 +110,7 @@ describe('luxury catalog integrity', () => {
 
 describe('purchaseLuxuryItem', () => {
   it('deducts exactly the price from stats.money and grants the item', () => {
-    const store = makeStore(baseState({ stats: { money: 300_000 } as any }));
+    const store = makeStore(baseState({ stats: { money: 300_000 } }));
     const res = purchaseLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     expect(res.success).toBe(true);
     expect(store.get().stats.money).toBe(50_000); // 300k - 250k
@@ -113,7 +118,7 @@ describe('purchaseLuxuryItem', () => {
   });
 
   it('rejects when unaffordable — no deduction, no grant', () => {
-    const store = makeStore(baseState({ stats: { money: 100_000 } as any }));
+    const store = makeStore(baseState({ stats: { money: 100_000 } }));
     const res = purchaseLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     expect(res.success).toBe(false);
     expect(store.get().stats.money).toBe(100_000);
@@ -121,7 +126,7 @@ describe('purchaseLuxuryItem', () => {
   });
 
   it('rejects a duplicate purchase of an already-owned item', () => {
-    const store = makeStore(baseState({ stats: { money: 1_000_000 } as any }));
+    const store = makeStore(baseState({ stats: { money: 1_000_000 } }));
     purchaseLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     const moneyAfterFirst = store.get().stats.money;
     const res = purchaseLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
@@ -131,7 +136,7 @@ describe('purchaseLuxuryItem', () => {
   });
 
   it('is atomic against a double-tap using a stale snapshot (charges once)', () => {
-    const store = makeStore(baseState({ stats: { money: 300_000 } as any }));
+    const store = makeStore(baseState({ stats: { money: 300_000 } }));
     const stale = store.get(); // both taps read this pre-update snapshot
     purchaseLuxuryItem(stale, store.setGameState, 'rare_watch_collection');
     purchaseLuxuryItem(stale, store.setGameState, 'rare_watch_collection');
@@ -144,7 +149,7 @@ describe('purchaseLuxuryItem', () => {
 
 describe('sellLuxuryItem', () => {
   it('refunds the resale fraction and removes the item', () => {
-    const store = makeStore(baseState({ stats: { money: 0 } as any, luxuryItems: ['rare_watch_collection'] }));
+    const store = makeStore(baseState({ stats: { money: 0 }, luxuryItems: ['rare_watch_collection'] }));
     const res = sellLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     expect(res.success).toBe(true);
     expect(store.get().stats.money).toBe(Math.floor(250_000 * LUXURY_RESALE_FRACTION)); // 150k
@@ -152,7 +157,7 @@ describe('sellLuxuryItem', () => {
   });
 
   it('buy→sell loses value (a sink, never a farm)', () => {
-    const store = makeStore(baseState({ stats: { money: 250_000 } as any }));
+    const store = makeStore(baseState({ stats: { money: 250_000 } }));
     purchaseLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     sellLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     expect(store.get().stats.money).toBeLessThan(250_000); // round-trip is lossy
@@ -205,11 +210,11 @@ describe('applyLuxuryItemsForWeek', () => {
 
 describe('net worth contribution', () => {
   it('owned luxury adds its resale value to net worth', () => {
-    const withLux = baseState({ stats: { money: 1_000_000 } as any, luxuryItems: ['sports_team_stake'] });
+    const withLux = baseState({ stats: { money: 1_000_000 }, luxuryItems: ['sports_team_stake'] });
     const resale = getTotalLuxuryResaleValue(['sports_team_stake']); // 0.6 * 500M = 300M
     expect(netWorth(withLux)).toBe(1_000_000 + resale);
 
-    const noLux = baseState({ stats: { money: 1_000_000 } as any, luxuryItems: [] });
+    const noLux = baseState({ stats: { money: 1_000_000 }, luxuryItems: [] });
     expect(netWorth(noLux)).toBe(1_000_000);
   });
 

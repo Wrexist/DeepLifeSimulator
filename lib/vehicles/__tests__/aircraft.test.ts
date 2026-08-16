@@ -22,21 +22,23 @@ import {
 import { AIRCRAFT_TEMPLATES, VEHICLE_TEMPLATES } from '../vehicles';
 import { transportationMods } from '@/lib/travel/transportation';
 import type { GameState, RealEstate, Vehicle } from '@/contexts/game/types';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
 const aircraft = (id: string): Vehicle => ({ id, owned: true, type: 'plane' }) as unknown as Vehicle;
 
 const propertyWith = (rooms: string[]): RealEstate =>
   ({ id: 'luxury_private_island', name: 'Island', owned: true, rooms }) as unknown as RealEstate;
 
-function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
+function makeState(overrides: TestGameStateOverrides = {}): GameState {
+  const { stats, ...rest } = overrides;
+  return createTestGameState({
     weeksLived: 400,
-    stats: { money: 1_000_000, energy: 100 },
     vehicles: [],
     realEstate: [],
     luxuryItems: [],
-    ...overrides,
-  } as unknown as GameState;
+    ...rest,
+    stats: { money: 1_000_000, energy: 100, ...(stats ?? {}) },
+  });
 }
 
 describe('aircraft catalog', () => {
@@ -102,6 +104,8 @@ describe('getAircraftTier', () => {
     const unowned = { id: 'light_jet', owned: false } as unknown as Vehicle;
     expect(getAircraftTier(makeState({ vehicles: [unowned] }))).toBe('none');
     expect(getAircraftTier(null)).toBe('none');
+    // DELIBERATE-CORRUPTION: `vehicles` as a string is the malformed-save shape
+    // this assertion exists to prove survivable; no valid GameState expresses it.
     expect(getAircraftTier({ vehicles: 'nope' } as unknown as GameState)).toBe('none');
   });
 

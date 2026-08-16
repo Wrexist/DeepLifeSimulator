@@ -162,10 +162,21 @@ describe('event gates are relative to the life, not the absolute clock', () => {
 
     it('the wedding gate (>=36 weeks) does not open on week 0 of an age-25 life', () => {
       const wedding = templateById('wedding');
+      // A real Relationship literal, not a cast partial: the previous fixture
+      // carried a `level` field that is not on Relationship at all (the gate
+      // reads `type === 'partner'`), which only compiled because of the cast.
       const partnered: Parameters<typeof createTestGameState>[0] = {
         relationships: [
-          { id: 'r1', name: 'Alex', type: 'partner', level: 80 },
-        ] as unknown as GameState['relationships'],
+          {
+            id: 'r1',
+            name: 'Alex',
+            type: 'partner',
+            relationshipScore: 80,
+            personality: 'caring',
+            gender: 'female',
+            age: 25,
+          },
+        ],
       };
       expect(wedding.condition?.(life(AGE_25_START, 0, partnered))).toBeFalsy();
       expect(wedding.condition?.(life(AGE_25_START, 40, partnered))).toBeTruthy();

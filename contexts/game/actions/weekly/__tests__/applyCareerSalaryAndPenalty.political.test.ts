@@ -16,8 +16,9 @@
  */
 import { applyCareerSalaryAndPenalty } from '../applyCareerSalaryAndPenalty';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
-import type { GameState } from '@/contexts/game/types';
+import type { Career, GameState } from '@/contexts/game/types';
 import type { WeekContext } from '../weekContext';
+import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 function ctx(): WeekContext {
   return {
@@ -26,16 +27,29 @@ function ctx(): WeekContext {
   } as unknown as WeekContext;
 }
 
+
+/** A complete Career record — the fields the salary path reads, plus the ones the type requires. */
+function career(id: string, level: number, levels: Career['levels']): Career {
+  return {
+    id,
+    levels,
+    level,
+    description: '',
+    requirements: {},
+    progress: 0,
+    applied: true,
+    accepted: true,
+  };
+}
+
 describe('applyCareerSalaryAndPenalty — political office is not double-paid', () => {
   it('pays $0 weekly salary for a sitting President (owned by passiveIncome)', () => {
-    const state = {
+    const state = createTestGameState({
       currentJob: 'political',
-      careers: [
-        { id: 'political', accepted: true, applied: true, level: 5, levels: POLITICAL_CAREER.levels },
-      ],
+      careers: [career('political', 5, POLITICAL_CAREER.levels)],
       goldUpgrades: {},
       perks: {},
-    } as unknown as GameState;
+    });
 
     const result = applyCareerSalaryAndPenalty(state, ctx());
     // Would have been 100000 (annual figure paid weekly) before the fix.
@@ -44,37 +58,35 @@ describe('applyCareerSalaryAndPenalty — political office is not double-paid', 
 
   it('pays $0 weekly salary for any political level (Council … President)', () => {
     for (let level = 0; level < POLITICAL_CAREER.levels.length; level++) {
-      const state = {
+      const state = createTestGameState({
         currentJob: 'political',
-        careers: [{ id: 'political', accepted: true, applied: true, level, levels: POLITICAL_CAREER.levels }],
+        careers: [career('political', level, POLITICAL_CAREER.levels)],
         goldUpgrades: {},
         perks: {},
-      } as unknown as GameState;
+      });
       expect(applyCareerSalaryAndPenalty(state, ctx()).careerSalary).toBe(0);
     }
   });
 
   it('still applies the weekly office stat toll (regression-proofs the salary skip)', () => {
-    const state = {
+    const state = createTestGameState({
       currentJob: 'political',
-      careers: [{ id: 'political', accepted: true, applied: true, level: 5, levels: POLITICAL_CAREER.levels }],
+      careers: [career('political', 5, POLITICAL_CAREER.levels)],
       goldUpgrades: {},
       perks: {},
-    } as unknown as GameState;
+    });
     const result = applyCareerSalaryAndPenalty(state, ctx());
     expect(result.careerHappinessPenalty).toBeLessThan(0);
     expect(result.careerHealthPenalty).toBeLessThan(0);
   });
 
   it('still pays a normal (non-political) career its weekly salary', () => {
-    const state = {
+    const state = createTestGameState({
       currentJob: 'engineer',
-      careers: [
-        { id: 'engineer', accepted: true, applied: true, level: 0, levels: [{ name: 'Junior Engineer', salary: 1000 }] },
-      ],
+      careers: [career('engineer', 0, [{ name: 'Junior Engineer', salary: 1000 }])],
       goldUpgrades: {},
       perks: {},
-    } as unknown as GameState;
+    });
 
     const result = applyCareerSalaryAndPenalty(state, ctx());
     expect(result.careerSalary).toBe(1000);

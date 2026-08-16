@@ -17,55 +17,60 @@ import {
   QUIET_MS,
   MAX_WAIT_MS,
 } from '../reviewMoments';
-import type { GameState } from '@/contexts/game/types';
+import type { Career, GameState } from '@/contexts/game/types';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
-// The detector reads a handful of fields, each null-safely, so a partial object
-// cast to GameState is sufficient (same approach as the ambitions tests).
-function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
+// The detector reads a handful of fields, each null-safely. Built through the
+// factory (Hard Rule #3) with the two fields these tests pin held fixed.
+function makeState(overrides: TestGameStateOverrides = {}): GameState {
+  const { stats, ...rest } = overrides;
+  return createTestGameState({
     weeksLived: 100,
-    stats: { money: 10000 },
     careers: [],
-    ...overrides,
-  } as unknown as GameState;
+    ...rest,
+    stats: { money: 10000, ...(stats ?? {}) },
+  });
 }
 
-const career = (id: string, level: number, accepted = true) => ({
+const career = (id: string, level: number, accepted = true): Career => ({
   id,
   level,
   accepted,
+  applied: true,
+  description: '',
+  requirements: {},
   progress: 0,
   levels: [],
 });
 
 describe('detectReviewMoment — promotion', () => {
   it('fires when an accepted career climbs a level', () => {
-    const prev = makeState({ careers: [career('dev', 2)] as never });
-    const next = makeState({ careers: [career('dev', 3)] as never });
+    const prev = makeState({ careers: [career('dev', 2)] });
+    const next = makeState({ careers: [career('dev', 3)] });
     expect(detectReviewMoment(prev, next)).toMatchObject({ trigger: 'promotion' });
   });
 
   it('does not fire when a career appears for the first time (that is a hire)', () => {
-    const prev = makeState({ careers: [] as never });
-    const next = makeState({ careers: [career('dev', 1)] as never });
+    const prev = makeState({ careers: [] });
+    const next = makeState({ careers: [career('dev', 1)] });
     expect(detectReviewMoment(prev, next)).toBeNull();
   });
 
   it('does not fire on progress that has not yet become a level', () => {
-    const prev = makeState({ careers: [{ ...career('dev', 2), progress: 10 }] as never });
-    const next = makeState({ careers: [{ ...career('dev', 2), progress: 95 }] as never });
+    const prev = makeState({ careers: [{ ...career('dev', 2), progress: 10 }] });
+    const next = makeState({ careers: [{ ...career('dev', 2), progress: 95 }] });
     expect(detectReviewMoment(prev, next)).toBeNull();
   });
 
   it('ignores level changes on careers the player never accepted', () => {
-    const prev = makeState({ careers: [career('dev', 2, false)] as never });
-    const next = makeState({ careers: [career('dev', 5, false)] as never });
+    const prev = makeState({ careers: [career('dev', 2, false)] });
+    const next = makeState({ careers: [career('dev', 5, false)] });
     expect(detectReviewMoment(prev, next)).toBeNull();
   });
 
   it('does not fire when a career level goes DOWN', () => {
-    const prev = makeState({ careers: [career('dev', 4)] as never });
-    const next = makeState({ careers: [career('dev', 2)] as never });
+    const prev = makeState({ careers: [career('dev', 4)] });
+    const next = makeState({ careers: [career('dev', 2)] });
     expect(detectReviewMoment(prev, next)).toBeNull();
   });
 });
@@ -160,22 +165,24 @@ describe('detectReviewMoment — safety', () => {
   });
 
   it('tolerates malformed slices without throwing', () => {
+    // DELIBERATE-CORRUPTION: each slice here is the wrong TYPE on purpose —
+    // that garbage is the fixture, and no valid GameState can express it.
     const junk = {
       careers: 'not-an-array',
       stocks: { realizedGains: NaN },
       ambitionCompletedMilestones: null,
-    } as unknown as GameState;
+    } as unknown as GameState; // DELIBERATE-CORRUPTION
     expect(() => detectReviewMoment(junk, junk)).not.toThrow();
     expect(detectReviewMoment(junk, junk)).toBeNull();
   });
 
   it('prefers the promotion when several beats land in one tick', () => {
     const prev = makeState({
-      careers: [career('dev', 1)] as never,
+      careers: [career('dev', 1)],
       ambitionCompletedMilestones: [],
     });
     const next = makeState({
-      careers: [career('dev', 2)] as never,
+      careers: [career('dev', 2)],
       ambitionCompletedMilestones: ['m1'],
     });
     expect(detectReviewMoment(prev, next)).toMatchObject({ trigger: 'promotion' });
@@ -183,22 +190,19 @@ describe('detectReviewMoment — safety', () => {
 });
 
 describe('detectReviewMoment — intensity scoring', () => {
-  const ladder = (id: string, level: number, rungs: number) => ({
-    id,
-    level,
-    accepted: true,
-    progress: 0,
+  const ladder = (id: string, level: number, rungs: number): Career => ({
+    ...career(id, level),
     levels: Array.from({ length: rungs }, (_, i) => ({ name: `L${i}`, salary: 100 })),
   });
 
   it('scores a promotion higher the further up the ladder it lands', () => {
     const early = detectReviewMoment(
-      makeState({ careers: [ladder('dev', 1, 6)] as never }),
-      makeState({ careers: [ladder('dev', 2, 6)] as never }),
+      makeState({ careers: [ladder('dev', 1, 6)] }),
+      makeState({ careers: [ladder('dev', 2, 6)] }),
     );
     const top = detectReviewMoment(
-      makeState({ careers: [ladder('dev', 4, 6)] as never }),
-      makeState({ careers: [ladder('dev', 5, 6)] as never }),
+      makeState({ careers: [ladder('dev', 4, 6)] }),
+      makeState({ careers: [ladder('dev', 5, 6)] }),
     );
     expect(top!.intensity).toBeGreaterThan(early!.intensity);
     expect(top!.intensity).toBe(1);
@@ -284,14 +288,16 @@ describe('detectSourMoment', () => {
 
 describe('isCalmEnoughToAsk', () => {
   it('rejects a screen that already has (or is about to have) a modal', () => {
-    expect(isCalmEnoughToAsk(makeState({ pendingEvents: [{ id: 'e1' }] as never }))).toBe(false);
+    expect(isCalmEnoughToAsk(makeState({
+      pendingEvents: [{ id: 'e1', description: 'Something happened', choices: [] }],
+    }))).toBe(false);
     expect(isCalmEnoughToAsk(makeState({ showDeathPopup: true }))).toBe(false);
     expect(isCalmEnoughToAsk(makeState({ jailWeeks: 2 }))).toBe(false);
     expect(isCalmEnoughToAsk(null)).toBe(false);
   });
 
   it('accepts an idle screen', () => {
-    expect(isCalmEnoughToAsk(makeState({ pendingEvents: [] as never }))).toBe(true);
+    expect(isCalmEnoughToAsk(makeState({ pendingEvents: [] }))).toBe(true);
   });
 });
 

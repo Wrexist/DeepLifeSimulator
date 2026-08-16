@@ -66,6 +66,9 @@ describe('the signing week is not charged twice', () => {
       weeksLived: 30,
       realEstate: [],
       // A tenancy written before `startedWeek` existed.
+      // DELIBERATE-CORRUPTION: `startedWeek` is required on the v32 shape, so
+      // the pre-v32 save this test exists to cover cannot be expressed without
+      // the cast — the missing field IS the fixture.
       rental: { tierId: TIER.id } as GameState['rental'],
     });
     expect(run(state).result.rent).toBe(TIER.weeklyRent);

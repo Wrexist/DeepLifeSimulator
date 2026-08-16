@@ -22,19 +22,21 @@ import {
 } from '../verbs';
 import { getLuxuryItem } from '../operations';
 import type { GameState, LuxuryHolding } from '@/contexts/game/types';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
 const RACE = getLuxuryVerb('race_horse')!;
 const TRACK = getLuxuryVerb('track_day')!;
 const LOAN = getLuxuryVerb('museum_loan')!;
 
-function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
+function makeState(overrides: TestGameStateOverrides = {}): GameState {
+  const { stats, ...rest } = overrides;
+  return createTestGameState({
     weeksLived: 500,
-    stats: { money: 10_000_000, energy: 100, happiness: 50, reputation: 20 },
     luxuryItems: ['racehorse', 'supercar', 'museum_diamond'],
     luxuryHoldings: {},
-    ...overrides,
-  } as unknown as GameState;
+    ...rest,
+    stats: { money: 10_000_000, energy: 100, happiness: 50, reputation: 20, ...(stats ?? {}) },
+  });
 }
 
 describe('verb catalog', () => {

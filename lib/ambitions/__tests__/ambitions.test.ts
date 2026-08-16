@@ -12,14 +12,19 @@ import {
   reconcileReachedMilestones,
 } from '../progress';
 import type { GameState } from '@/contexts/game/types';
+import { createTestGameState, type TestGameStateOverrides } from '@/__tests__/helpers/createTestGameState';
 
-// A minimal state factory — the pure predicates only touch a handful of fields,
-// each read null-safely, so a partial object cast to GameState is sufficient.
-function makeState(overrides: Partial<GameState> = {}): GameState {
-  return {
+// A minimal state factory. Routes through createTestGameState (Hard Rule #3) but
+// keeps the two fields the ambition predicates actually read pinned to the
+// "empty life" values these tests were written against: zeroed stats, and NO
+// relationships (initialState ships two parents, which is not the blank slate
+// the milestone-counting assertions below assume).
+function makeState(overrides: TestGameStateOverrides = {}): GameState {
+  return createTestGameState({
     stats: { money: 0, gems: 0, happiness: 0, reputation: 0 },
+    relationships: [],
     ...overrides,
-  } as unknown as GameState;
+  });
 }
 
 describe('ambitions — catalogue integrity', () => {
@@ -213,13 +218,18 @@ describe('ambitions — one-time payoff idempotency', () => {
   });
 
   it('is safe when the state has no prestige record (grants money + gems, skips PP)', () => {
-    const s0 = makeState({
-      ambitionId: 'true_love',
-      relationships: [{ type: 'romantic' }] as any,
-      family: { spouse: { name: 'Sam' }, children: [] } as any,
-      stats: { money: 0, gems: 0, happiness: 95, reputation: 0 } as any,
-      // no prestige field
-    });
+    // The factory always materialises a prestige record, so the "no prestige"
+    // shape this test exists to exercise is produced by dropping the (optional)
+    // field afterwards — no cast needed, `prestige` is optional on GameState.
+    const s0: GameState = {
+      ...makeState({
+        ambitionId: 'true_love',
+        relationships: [{ type: 'romantic' }] as any,
+        family: { spouse: { name: 'Sam' }, children: [] } as any,
+        stats: { money: 0, gems: 0, happiness: 95, reputation: 0 } as any,
+      }),
+      prestige: undefined,
+    };
     const s1 = grantAmbitionPayout(s0);
     const payoff = getAmbitionById('true_love')!.payoff;
     expect(s1.ambitionRewardClaimed).toBe(true);
