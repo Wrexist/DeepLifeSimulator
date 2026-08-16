@@ -2502,11 +2502,19 @@ const weightPayoffReady = (state: GameState, id: string): boolean => {
   return triggered && !resolved;
 };
 
-/** Deterministic 0..1 roll seeded on the absolute week + a per-event salt. */
-const payoffRoll = (state: GameState, salt: number): number => {
-  const x = Math.sin((state.weeksLived || 0) * 1013 + salt) * 10000;
-  return x - Math.floor(x);
-};
+/**
+ * Deterministic 0..1 roll seeded on the absolute week + a per-event salt.
+ *
+ * DETERMINISM FIX: this was `Math.sin(seed) * 10000` fractional parts — the exact
+ * construction the weekly selection roll below abandoned, and for the same reason:
+ * ECMAScript does not require bit-exact `Math.sin`, so a device on Hermes and CI on
+ * V8 could disagree on which payoff branch a given week produces. Routed through
+ * the same audited, integer-only seeded RNG (`makeWeeklyRoll` → mulberry32
+ * finalizer); the numeric salt becomes a distinct key, which the helper keys on
+ * collision-free. 2026-08-16 audit H7a.
+ */
+const payoffRoll = (state: GameState, salt: number): number =>
+  makeWeeklyRoll(state.weeksLived || 0)(`payoff-${salt}`);
 
 // Payoff to: tipping a street musician $5 (unlock_event, +5 weeks). A warm,
 // low-stakes callback that rewards a small act of kindness.

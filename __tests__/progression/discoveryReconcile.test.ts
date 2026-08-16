@@ -94,6 +94,109 @@ describe('a played life is credited for what it has actually done', () => {
   });
 });
 
+/**
+ * H1 (2026-08-16 audit): the function reached through
+ * `gameState as unknown as Record<string, any>` and read six names that exist
+ * nowhere in `contexts/game/types.ts` — `bankAccounts`, `visitedCountries`,
+ * `currentTrip` (it lives on `travel`), `rdProjects`, `research`,
+ * `darkWebPurchases` — plus `pursuits` as an array (it is a Record),
+ * `socialMedia.posts` (it is `totalPosts`) and `gamingStreaming.streams` (it is
+ * `streamHistory`). Every one read `undefined`, so those systems were
+ * undiscoverable by their own evidence. The escape hatch is gone; these pin the
+ * REAL paths so a rename cannot silently re-open the hole.
+ */
+describe('every system is detected through its real GameState path', () => {
+  const played = (over: Partial<GameState>) =>
+    idsOf(reconcileDiscoveredSystems(createTestGameState({ weeksLived: 300, ...over } as Partial<GameState>)));
+
+  it('banking: a funded account, a card, a goal or a bill rule marks `bank`', () => {
+    const base = createTestGameState();
+    const bank = base.banking!;
+    expect(played({ banking: { ...bank, accounts: [{ ...bank.accounts[0], balance: 5_000 }] } })).toContain('bank');
+    expect(played({ banking: { ...bank, creditCards: [{ id: 'c' }] as never } })).toContain('bank');
+    expect(played({ banking: { ...bank, savingsGoals: [{ id: 'g' }] as never } })).toContain('bank');
+    // Legacy pre-v14 saves keep working through the flat balance.
+    expect(played({ bankSavings: 1 })).toContain('bank');
+  });
+
+  it('banking: the two accounts `initialGameState` SEEDS are not evidence', () => {
+    // `has(banking.accounts)` would credit the bank on week 1 of every save.
+    const fresh = idsOf(reconcileDiscoveredSystems(createTestGameState({ weeksLived: 0 })));
+    expect(fresh).not.toContain('bank');
+  });
+
+  it('travel: a visited destination, an in-flight trip or a passport marks `travel`', () => {
+    const base = createTestGameState();
+    const t = base.travel!;
+    expect(played({ travel: { ...t, visitedDestinations: ['tokyo'] } })).toContain('travel');
+    expect(played({ travel: { ...t, currentTrip: { destinationId: 'tokyo', returnWeek: 5, startWeek: 1 } } })).toContain('travel');
+    expect(played({ travel: { ...t, passportOwned: true } })).toContain('travel');
+    expect(idsOf(reconcileDiscoveredSystems(createTestGameState({ weeksLived: 0 })))).not.toContain('travel');
+  });
+
+  it('rd: a company that built a lab marks `rd`', () => {
+    expect(
+      played({ companies: [{ id: 'acme', name: 'Acme', rdLab: { type: 'basic', builtWeek: 3, researchProjects: [], completedResearch: [] } }] as never }),
+    ).toContain('rd');
+    expect(played({ companies: [{ id: 'acme', name: 'Acme', patents: [{ id: 'p1' }] }] as never })).toContain('rd');
+    // A company with no lab is a company, not R&D.
+    expect(played({ companies: [{ id: 'acme', name: 'Acme' }] as never })).not.toContain('rd');
+  });
+
+  it('darkWeb: an OWNED dark-web item or a raised criminal level marks `darkWeb`', () => {
+    const base = createTestGameState();
+    expect(played({ darkWebItems: base.darkWebItems.map((i, n) => (n === 0 ? { ...i, owned: true } : i)) })).toContain('darkWeb');
+    expect(played({ criminalLevel: 3 })).toContain('darkWeb');
+  });
+
+  it('darkWeb: the shipped CATALOGUE and the default criminalLevel of 1 are not evidence', () => {
+    // `darkWebItems` ships in full on every save with `owned: false`, and
+    // `criminalLevel` starts at 1 — the old `> 0` test credited everyone.
+    const fresh = createTestGameState({ weeksLived: 0 });
+    expect(fresh.darkWebItems.length).toBeGreaterThan(0);
+    expect(fresh.criminalLevel).toBe(1);
+    expect(idsOf(reconcileDiscoveredSystems(fresh))).not.toContain('darkWeb');
+  });
+
+  it('politics: the `politics` slice, not a career id that does not exist', () => {
+    const base = createTestGameState();
+    // `careers` is the 30-entry catalogue and holds no `political` entry, so the
+    // old read could never fire.
+    expect(base.careers.some((c) => c.id === 'political')).toBe(false);
+    expect(played({ politics: { ...base.politics!, careerLevel: 2 } })).toContain('politics');
+    expect(played({ politics: { ...base.politics!, electionsWon: 1 } })).toContain('politics');
+    expect(idsOf(reconcileDiscoveredSystems(createTestGameState({ weeksLived: 0 })))).not.toContain('politics');
+  });
+
+  it('hobbies: `pursuits` is a Record, so it is counted by keys', () => {
+    expect(played({ pursuits: { chess: { xp: 10, level: 1 } } })).toContain('hobbies');
+    expect(played({ pursuits: {} })).not.toContain('hobbies');
+  });
+
+  it('socialMedia: `totalPosts` counts even before the first follower', () => {
+    const base = createTestGameState();
+    expect(played({ socialMedia: { ...base.socialMedia!, totalPosts: 3 } })).toContain('socialMedia');
+  });
+
+  it('gamingStreaming: `streamHistory` / subscribers / views mark it', () => {
+    const base = createTestGameState();
+    const g = base.gamingStreaming!;
+    expect(played({ gamingStreaming: { ...g, subscribers: 5 } })).toContain('gamingStreaming');
+    expect(played({ gamingStreaming: { ...g, totalViews: 900 } })).toContain('gamingStreaming');
+    expect(played({ gamingStreaming: { ...g, streamHistory: [{ id: 's1' }] as never } })).toContain('gamingStreaming');
+    expect(idsOf(reconcileDiscoveredSystems(createTestGameState({ weeksLived: 0 })))).not.toContain('gamingStreaming');
+  });
+
+  it('streetJobs: the typed counter', () => {
+    expect(played({ streetJobsCompleted: 4 })).toContain('streetJobs');
+    expect(played({ streetJobsCompleted: 0 })).not.toContain('streetJobs');
+  });
+
+  it('stocks: the modern holdings array OR the legacy `stocksOwned` map', () => {
+    expect(played({ stocksOwned: { ACME: 10 } })).toContain('stocks');
+  });
+});
+
 describe('it is safe to run every tick', () => {
   it('is idempotent — running twice adds nothing', () => {
     const played = createTestGameState({

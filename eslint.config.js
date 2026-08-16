@@ -60,8 +60,17 @@ module.exports = [
     rules: {
       'no-restricted-syntax': ['warn',
         {
-          selector: 'TSAsExpression > TSAnyKeyword',
-          message: "No `as any` casts (CLAUDE.md Hard Rule #2) — use a real type or a type guard. For RN-web style shadows, use a typed helper.",
+          // DESCENDANT, not `>`. The child selector only saw a bare `as any`, so
+          // the whole `as unknown as Record<string, any>` family walked straight
+          // past Hard Rule #2 — and that is the shape that actually does damage:
+          // it erases the type AND invents a plausible-looking index signature,
+          // so fabricated field names compile and read `undefined` forever
+          // (`lib/depth/discoverySystem.ts` had six of them; 2026-08-16 audit H1).
+          // `TSAsExpression > TSAnyKeyword` is a strict subset of this, so the
+          // old rule is subsumed rather than kept alongside it (which would
+          // double-report every bare `as any`).
+          selector: 'TSAsExpression TSAnyKeyword',
+          message: "No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard. For RN-web style shadows, use a typed helper.",
         },
         {
           selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
@@ -139,8 +148,10 @@ module.exports = [
     rules: {
       'no-restricted-syntax': ['error',
         {
-          selector: 'TSAsExpression > TSAnyKeyword',
-          message: "No `as any` casts (CLAUDE.md Hard Rule #2) — use a real type or a type guard.",
+          // Descendant, mirroring the app-wide block above: catches
+          // `as unknown as Record<string, any>` as well as a bare `as any`.
+          selector: 'TSAsExpression TSAnyKeyword',
+          message: "No `any` inside a type assertion (CLAUDE.md Hard Rule #2) — this covers `as any` AND `as unknown as Record<string, any>`. Use a real type or a type guard.",
         },
         {
           selector: "CallExpression[callee.name='require'][arguments.0.value=/^@.(lib|utils|contexts)/]",
