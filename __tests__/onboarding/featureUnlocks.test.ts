@@ -25,7 +25,7 @@ import {
   unlockTier,
   featuresUnlockedAtTier,
 } from '@/lib/progress/featureUnlocks';
-import { LIFE_CHAPTERS, getChapterProgress } from '@/lib/progress/lifeChapters';
+import { LIFE_CHAPTERS, getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -736,5 +736,116 @@ describe("Life's Stats segment is the one gated surface outside the grids", () =
     const fresh = createTestGameState({ weeksLived: 1, completedChapters: [] });
     expect(isFeatureUnlocked(fresh, 'tab:health')).toBe(true);
     expect(isFeatureUnlocked(fresh, 'tab:market')).toBe(true);
+  });
+});
+
+/**
+ * ── The seeded-`weeksLived` trap ──────────────────────────────────────────
+ *
+ * `weeksLived` is ABSOLUTE and seeded from the starting age
+ * (`computeWeeksLived` = `(age - 18) * 52`), so an age-25 scenario begins at
+ * 364 and the age-40 one at 1,144. `unlockTier` compared that raw counter to
+ * 120 ("this save is past the chapter arc") and to 4 ("this player has lived a
+ * month"), so EVERY scenario that does not start at 18 — and the shipped set
+ * starts at 19, 20, 22, 25, 28, 30 and 40 — opened tier 5 on frame one: every
+ * app unlocked, the padlocks gone, and the whole chapter onboarding ladder
+ * skipped for a character who had not lived a week.
+ *
+ * The fix is `weeksInThisLife`, which subtracts the v43 `lifeStartWeek`
+ * baseline. This is the fourth time this class has shipped; see CLAUDE.md §4.2.
+ */
+describe('a fresh life is tier 0 whatever age it starts at', () => {
+  /** A brand-new life, seeded the way `gameStateBuilder` seeds one. */
+  const freshAtAge = (age: number): GameState => {
+    const start = (age - 18) * 52;
+    return createTestGameState({
+      ...fresh(),
+      weeksLived: start,
+      lifeStartWeek: start,
+    });
+  };
+
+  it.each([18, 19, 20, 22, 25, 28, 30, 40])(
+    'an age-%i start opens at tier 0, not tier 5',
+    (age) => {
+      expect(unlockTier(freshAtAge(age))).toBe(0);
+    }
+  );
+
+  it('the deep end really is padlocked for an age-25 start', () => {
+    const state = freshAtAge(25);
+    for (const id of ['app:onion', 'app:political', 'app:luxury', 'tab:progression']) {
+      expect(`${id}: ${isFeatureUnlocked(state, id)}`).toBe(`${id}: false`);
+    }
+    expect(unlockRequirement(state, 'tab:progression'))
+      .toBe('Finish Chapter 1: Fresh Start');
+  });
+
+  it('the age-40 start — 1,144 absolute weeks — is not a veteran either', () => {
+    const state = freshAtAge(40);
+    expect(state.weeksLived).toBe(1144);
+    expect(unlockTier(state)).toBe(0);
+    expect(isFeatureUnlocked(state, 'app:onion')).toBe(false);
+  });
+
+  it('the 4-week milestone measures weeks PLAYED, not weeks since 18', () => {
+    // `byMilestone = 1` on `weeksLived >= 4`. An age-25 start cleared it at
+    // birth, handing out the Progression tab, Contacts and Bank for nothing.
+    const start = (25 - 18) * 52;
+    const week3 = createTestGameState({
+      ...fresh(), weeksLived: start + 3, lifeStartWeek: start,
+    });
+    const week4 = createTestGameState({
+      ...fresh(), weeksLived: start + 4, lifeStartWeek: start,
+    });
+
+    expect(unlockTier(week3)).toBe(0);
+    expect(unlockTier(week4)).toBe(1);
+    expect(isFeatureUnlocked(week4, 'app:bank')).toBe(true);
+  });
+
+  it('and the veteran hatch still opens — 120 weeks INTO the life', () => {
+    const start = (25 - 18) * 52;
+    const justShort = createTestGameState({
+      ...fresh(), weeksLived: start + 119, lifeStartWeek: start,
+    });
+    const veteran = createTestGameState({
+      ...fresh(), weeksLived: start + 120, lifeStartWeek: start,
+    });
+
+    expect(unlockTier(justShort)).toBeLessThan(5);
+    expect(unlockTier(veteran)).toBe(5);
+    for (const feature of FEATURE_UNLOCKS) {
+      expect(`${feature.id}: ${isFeatureUnlocked(veteran, feature.id)}`)
+        .toBe(`${feature.id}: true`);
+    }
+  });
+
+  it('a pre-v43 save has no baseline and keeps EXACTLY the tier it has today', () => {
+    // The carve-out reasoning (CLAUDE.md §7, v43): a save written before this
+    // cannot grow a `lifeStartWeek`, so `weeksInThisLife` falls back to the
+    // absolute counter and nothing is taken away from an existing player.
+    const legacyVeteran = createTestGameState({
+      ...fresh(), weeksLived: 300, lifeStartWeek: undefined,
+    });
+    expect(unlockTier(legacyVeteran)).toBe(5);
+  });
+
+  it('an age-18 start is unchanged — the baseline is 0', () => {
+    const state = freshAtAge(18);
+    expect(state.lifeStartWeek).toBe(0);
+    expect(unlockTier(state)).toBe(0);
+    expect(unlockTier(createTestGameState({
+      ...fresh(), weeksLived: 130, lifeStartWeek: 0,
+    }))).toBe(5);
+  });
+
+  it('the chapter card opens on Chapter 1, not Chapter 5', () => {
+    // `getActiveChapter` walks `weekRange`, which is measured in weeks into the
+    // life: chapter 5 starts at 60. Against the raw counter an age-25 start
+    // cleared every range at birth and was handed the Legacy chapter.
+    expect(getActiveChapter(freshAtAge(25))?.id).toBe('ch1_fresh_start');
+    expect(getActiveChapter(freshAtAge(40))?.id).toBe('ch1_fresh_start');
+    expect(getActiveChapter(freshAtAge(18))?.id).toBe('ch1_fresh_start');
   });
 });

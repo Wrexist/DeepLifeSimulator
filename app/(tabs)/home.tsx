@@ -55,6 +55,7 @@ import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
+import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
 
 // Lazy load heavy modals and popups
@@ -137,6 +138,11 @@ function HomeScreenContent() {
       currentJob: s?.currentJob,
       bankSavings: s?.bankSavings,
       weeksLived: s?.weeksLived,
+      // The v43 baseline that turns the absolute `weeksLived` into "weeks into
+      // this life". Required by `weeksInThisLife` below AND by `unlockTier`;
+      // omitting it silently degrades every gate on this screen back to the
+      // absolute counter, which is the bug being fixed. CLAUDE.md §4.2.
+      lifeStartWeek: s?.lifeStartWeek,
       week: s?.week,
       jailWeeks: s?.jailWeeks,
       date: s?.date,
@@ -213,6 +219,16 @@ function HomeScreenContent() {
   // Contextual tips hook for showing help when player is stuck
   const { activeTip, dismissTip } = useContextualTip(gameState);
 
+  // Every "how far into the game is this player" gate on this screen measures
+  // weeks in THIS LIFE, never the raw `weeksLived`, which is seeded from the
+  // starting age ((age - 18) * 52) and so is already 364 on frame one for an
+  // age-25 scenario. Before this, every first-session affordance below was
+  // resolved wrong for every scenario that does not start at 18: the tutorial
+  // and the First Week Guide (`<= 1` / `<= 3`) never appeared at all, while the
+  // "settled in" surfaces (`> 4`, `> 5`, `> 20`) appeared immediately.
+  // CLAUDE.md §4.2.
+  const weeksThisLife = weeksInThisLife(gameState);
+
   const router = useRouter();
   // Redirects that run on this screen's first commit throw "Attempted to
   // navigate before mounting the Root Layout component" when this screen IS
@@ -242,7 +258,7 @@ function HomeScreenContent() {
 
   // Show tutorial for new users
   useEffect(() => {
-    if (!hasCompletedTutorial && (gameState.weeksLived || 0) <= 1 && gameState.showWelcomePopup) {
+    if (!hasCompletedTutorial && weeksThisLife <= 1 && gameState.showWelcomePopup) {
       dismissWelcomePopup();
       const timer = setTimeout(() => {
         startTutorial(getEnhancedTutorialSteps('game'));
@@ -250,11 +266,11 @@ function HomeScreenContent() {
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [hasCompletedTutorial, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
+  }, [hasCompletedTutorial, weeksThisLife, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
 
   // ENGAGEMENT: Daily login reward with streak system
   useEffect(() => {
-    if ((gameState.weeksLived || 0) < 1 || !hasCompletedTutorial) return undefined;
+    if (weeksThisLife < 1 || !hasCompletedTutorial) return undefined;
     if (gameState.showDailyRewardPopup) return undefined;
 
     // FARMABLE ON THE DEVICE CLOCK. The only gate here was
@@ -341,6 +357,7 @@ function HomeScreenContent() {
     return () => clearTimeout(timer);
   }, [
     gameState.weeksLived,
+    weeksThisLife,
     gameState.lastLoginRewardDate,
     gameState.lastLoginRewardAt,
     gameState.lastLoginRewardWeek,
@@ -377,7 +394,7 @@ function HomeScreenContent() {
 
   // Show welcome back popup for returning players
   useEffect(() => {
-    if ((gameState.weeksLived || 0) > 1 && gameState.lastLogin) {
+    if (weeksThisLife > 1 && gameState.lastLogin) {
       const lastLogin = gameState.lastLogin || Date.now();
       const hoursAway = (Date.now() - lastLogin) / (1000 * 60 * 60);
 
@@ -392,7 +409,7 @@ function HomeScreenContent() {
       }
     }
     return undefined;
-  }, [gameState.lastLogin, gameState.weeksLived, gameState.week, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
+  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
 
   // ENGAGEMENT: one-time, low-key invite to join the Discord for a cash reward.
   // Subtle by design — only once the player is settled in (tutorial done + a few
@@ -401,7 +418,7 @@ function HomeScreenContent() {
   // dismissed (`discord_popup_seen`). The Settings entry stays as the fallback.
   useEffect(() => {
     if (!hasCompletedTutorial) return undefined;
-    if ((gameState.weeksLived || 0) < 4) return undefined;
+    if (weeksThisLife < 4) return undefined;
     if (gameState.showDailyRewardPopup || showWelcomeBack || showCommunityReward) return undefined;
 
     let cancelled = false;
@@ -427,7 +444,7 @@ function HomeScreenContent() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [hasCompletedTutorial, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
+  }, [hasCompletedTutorial, weeksThisLife, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
 
   // FINDING 1: derive the reward from the FULL state's net worth, not home's
   // PROJECTED selector slice (which omits properties, companies, stocks, vehicles
@@ -647,10 +664,9 @@ function HomeScreenContent() {
 
         {/* FTUE: prominent "Find Your First Job" CTA for brand-new players. */}
         {(() => {
-          const weeksLived = gameState.weeksLived || 0;
           const hasJob = !!gameState.currentJob;
           const hasDoneStreetJob = (gameState.streetJobsCompleted ?? 0) > 0;
-          const isBrandNew = weeksLived <= 5 && !hasJob && !hasDoneStreetJob;
+          const isBrandNew = weeksThisLife <= 5 && !hasJob && !hasDoneStreetJob;
           if (!isBrandNew) return null;
           return (
             <FadeInUp delay={30}>
@@ -692,7 +708,7 @@ function HomeScreenContent() {
             established (week 20+ AND some net worth), so early game isn't
             upsold a system it can't use yet. */}
         {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) &&
-          (gameState.weeksLived || 0) > 20 &&
+          weeksThisLife > 20 &&
           (((gameState.stats?.money ?? 0) + (gameState.bankSavings ?? 0)) > 25000) && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
@@ -763,7 +779,7 @@ function HomeScreenContent() {
             doesn't grow unbounded on an established save. */}
         {showMore && (
           <>
-            {(gameState.weeksLived || 0) > 5 && (
+            {weeksThisLife > 5 && (
               <DiscoveryIndicator
                 gameState={gameState}
                 compact={false}
@@ -789,7 +805,7 @@ function HomeScreenContent() {
         </TouchableOpacity>
 
         {/* First Week Guide — leave space so the overlay doesn't clip cards. */}
-        {(gameState.weeksLived || 0) <= 3 && !hasCompletedTutorial && (
+        {weeksThisLife <= 3 && !hasCompletedTutorial && (
           <View style={{ height: 200 }} />
         )}
 
@@ -801,8 +817,8 @@ function HomeScreenContent() {
       </ScrollView>
 
       {/* First Week Guide Overlay - Floating at bottom */}
-      {(gameState.weeksLived ?? 0) <= 3 && !hasCompletedTutorial && (
-        <FirstWeekGuide currentWeek={gameState.weeksLived ?? 0} />
+      {weeksThisLife <= 3 && !hasCompletedTutorial && (
+        <FirstWeekGuide currentWeek={weeksThisLife} />
       )}
 
       {/* NOISE: light popup coordination. The root layout owns blocking modals

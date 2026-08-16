@@ -32,6 +32,7 @@
 import { Platform } from 'react-native';
 import { lazyAsyncStorage as AsyncStorage } from './storageWrapper';
 import { logger } from './logger';
+import { weeksSinceLifeStart } from './weekCounters';
 import type { GameState } from '@/contexts/game/types';
 import type { ReviewTrigger } from './reviewMoments';
 
@@ -204,7 +205,13 @@ export async function maybeRequestReview(
       return { requested: false, reason: 'invalid-state' };
     }
 
-    if (weeksLived < MIN_WEEKS_PLAYED) {
+    // Progress is measured in weeks into THIS life. `weeksLived` is absolute and
+    // seeded from the starting age ((age - 18) * 52), so an age-25 scenario read
+    // 364 before the player had pressed anything and every "have they played
+    // enough to have an opinion" check passed on frame one — the store prompt
+    // could fire in the first session. CLAUDE.md §4.2. The cooldown below keeps
+    // the ABSOLUTE counter: it is a delta between two stamps, not progress.
+    if (weeksSinceLifeStart(weeksLived, gameState?.lifeStartWeek) < MIN_WEEKS_PLAYED) {
       return { requested: false, reason: 'not-enough-progress' };
     }
 

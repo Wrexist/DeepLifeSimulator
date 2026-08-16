@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import Gradient from '@/components/ui/Gradient';
 
 const LinearGradient = Gradient;
@@ -180,10 +181,11 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
     }, [hasSeenGuide, visible, fadeAnim]);
 
     // Get relevant steps for current week.
-    // `currentWeek` is the absolute weeksLived, which is 0 for age-18 starts and
-    // 100+ for older starts — so clamp it into the guide's 1-3 "life week" range.
-    // Without this, age-18 players saw 0 steps (blank card) and older starts were
-    // hidden entirely by the currentWeek > 3 gate below.
+    // `currentWeek` is weeks into THIS life (`weeksInThisLife`), so it starts at
+    // 0 for every scenario. The clamp into 1-3 stays: 0 would select no steps and
+    // render a blank card. It used to be handed the ABSOLUTE `weeksLived`, which
+    // is 100+ for any start past age 18 — the clamp hid the symptom here (all
+    // three steps at once) while the caller's `<= 3` gate hid the guide outright.
     const relevantSteps = useMemo(() => {
         const guideWeek = Math.min(Math.max(currentWeek, 1), 3);
         return GUIDE_STEPS.filter(step => step.week <= guideWeek);
@@ -411,6 +413,12 @@ export function useContextualTip(gameState: any) {
     const money = gameState?.stats?.money ?? 0;
     const currentJob = gameState?.currentJob;
     const weeksLived = gameState?.weeksLived || 0;
+    // Weeks into THIS life, for the "has the player had time to do X yet" gates.
+    // `weeksLived` is absolute and seeded from the starting age, so an age-25
+    // start reads 364 on frame one and the no-job nudge below fired instantly.
+    // The dismissal cooldown above deliberately keeps using the ABSOLUTE
+    // counter: it is a timestamp delta, not progress. CLAUDE.md §4.2.
+    const weeksThisLife = weeksSinceLifeStart(gameState?.weeksLived, gameState?.lifeStartWeek);
     const careers = gameState?.careers;
     // R10-perf: derive the one career-dependent signal as a primitive so the memo
     // below doesn't list the `careers` array (new identity every decay tick) and
@@ -439,7 +447,7 @@ export function useContextualTip(gameState: any) {
         if (energy < 15 && !suppressed('low_energy')) {
             return 'low_energy';
         }
-        if (!currentJob && weeksLived > 2 && !suppressed('no_job')) {
+        if (!currentJob && weeksThisLife > 2 && !suppressed('no_job')) {
             return 'no_job';
         }
         if (money < 50 && !suppressed('low_money')) {
@@ -453,7 +461,7 @@ export function useContextualTip(gameState: any) {
 
         return null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [health, happiness, energy, money, currentJob, weeksLived, promotionReady, dismissedTips]);
+    }, [health, happiness, energy, money, currentJob, weeksLived, weeksThisLife, promotionReady, dismissedTips]);
 
     const dismissTip = (tipType: string) => {
         setDismissedTips(prev => ({ ...prev, [tipType]: weeksLived }));

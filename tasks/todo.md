@@ -15,13 +15,35 @@ lint, routes, weekly audit). Findings triaged into work packages below.
   - `contexts/game/company.ts` buyMiner/buyWarehouse — no outer guard, capture read
   - `contexts/game/JobActionsContext.tsx` performJailActivity resultMessage capture
   - Regression tests for each
-- [ ] **WP-B: raw-weeksLived class (bug #4 of CLAUDE.md §4.2)**
-  - `lib/progress/featureUnlocks.ts:207,227` → `weeksInThisLife`
-  - `app/(tabs)/home.tsx:651` isBrandNew; `components/FirstWeekGuide.tsx:442`;
-    `lib/analytics/AnalyticsTracker.tsx` first_week_completed
-  - Repo sweep for remaining raw "played N weeks" comparisons; tests incl. a
-    non-18 scenario start
-- [ ] **WP-C: weekly tick guard completeness**
+- [x] **WP-B: raw-weeksLived class (bug #4 of CLAUDE.md §4.2)**
+  - [x] `lib/progress/featureUnlocks.ts:207,227` → `weeksInThisLife` (both fed by
+        one local, now `weeksThisLife`); `getActiveChapter` in `lifeChapters.ts`
+        had the same defect — `weekRange` is per-life, so an age-25 start was
+        handed Chapter 5 at birth
+  - [x] `app/(tabs)/home.tsx` — one `weeksThisLife` for all 9 gates on the screen
+        (tutorial, daily reward, welcome-back, Discord, first-job CTA, prestige
+        preview, discovery, First Week Guide ×2); `lifeStartWeek` added to the
+        screen's selector slice, which `unlockTier` also needs
+  - [x] `components/FirstWeekGuide.tsx:442` no-job tip (the dismissal cooldown at
+        :429 stays absolute — it is a delta, not progress)
+  - [x] `lib/analytics/AnalyticsTracker.tsx` first_week_completed
+  - [x] Sweep: also fixed `components/BannerAd.tsx` (ad grace year applied to
+        exactly one of eight scenario ages), `components/AchievementsProgress.tsx`
+        (early-game sort bias), `utils/ratingPrompt.ts` (store-review sheet could
+        fire in the first session)
+  - [x] New primitive `weeksSinceLifeStart` in `utils/weekCounters.ts` for the
+        `useGameSelector` call sites; `weeksInThisLife` delegates to it
+  - [x] Tests: `__tests__/onboarding/featureUnlocks.test.ts` (+15, all eight
+        shipped scenario ages), `__tests__/analytics/firstWeekCompletedThisLife.test.tsx`,
+        `__tests__/progression/weeksInThisLifeSweep.test.tsx` (incl. a source
+        guard over the six gate files)
+  - NOT done, deliberately: ~45 event-availability gates in `lib/events/*`
+    (`nearMissEvents`, `cliffhangerEvents`, `engine`, `wealthEvents`,
+    `fameEvents`, `secretEvents`, `lifeMilestoneEvents`) have the same defect —
+    early-game events (`weeksLived < 12`) are unreachable for non-18 starts and
+    late-game ones (`> 20`, `> 30`) fire immediately. Same one-word fix each, but
+    it is a content-pacing change across seven files and wants its own WP.
+- [x] **WP-C: weekly tick guard completeness** (2026-08-16)
   - guardTick `applyEducationProgression`, `applyLifetimeStatistics`,
     `calcWeeklyPassiveIncome`
   - Replace `weeklyTickGuards.test.ts` allowlist with a full scan of all apply*

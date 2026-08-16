@@ -36,6 +36,7 @@ import {
 } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
 import usePressableScale from '@/hooks/usePressableScale';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import {
   responsiveFontSize,
   responsiveSpacing,
@@ -174,6 +175,7 @@ export default function AchievementsProgress() {
   // weeksLived change rarely, so it now stays put during routine stat decay ticks.
   const settings = useGameSelector((s) => s?.settings, shallowEqual);
   const weeksLived = useGameSelector((s) => s?.weeksLived);
+  const lifeStartWeek = useGameSelector((s) => s?.lifeStartWeek);
   const achievementUnlocks = useGameSelector((s) => s?.achievementUnlocks);
   const darkMode = settings?.darkMode;
   const { achievements } = useAchievements();
@@ -212,7 +214,10 @@ export default function AchievementsProgress() {
   // ENGAGEMENT: for the first 12 weeks, bias the not-started list to show
   // beginner-tier achievements first. Otherwise a brand-new player sees a wall
   // of $1B-cash targets at the top and feels the game is unwinnable.
-  const isEarlyGame = (weeksLived ?? 0) <= 12;
+  // Weeks into THIS life. The absolute `weeksLived` is seeded from the starting
+  // age, so this bias never applied to any scenario starting past 18 — the
+  // players it was written for. CLAUDE.md §4.2.
+  const isEarlyGame = weeksSinceLifeStart(weeksLived, lifeStartWeek) <= 12;
 
   // Sort achievements - show completed ones first, then by sort option
   const sortedAchievements = useMemo(() => {
