@@ -1088,6 +1088,27 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 43;
     return state;
   },
+
+  // Version 44: `settings.lastWelcomeBackWeek` — the game-week marker capping
+  // the welcome-back cash bonus to one per game week.
+  //
+  // The bonus (`0.5 × weekly salary × min(daysAway, 7)`, floor $100) was gated
+  // purely on `Date.now() - lastLogin`. That refuses a REWOUND clock and
+  // nothing else, so scrubbing the device date FORWARD a week at a time paid
+  // 3.5 weeks of salary per scrub with zero game weeks played — past the tax
+  // brackets, past the net-worth soft cap and outside the weekly tick
+  // entirely. `weeksLived` only advances by playing, which is the same fix as
+  // v28's `lastNoFillGrantWeek`, v31's `lastLoginRewardWeek`, v35's
+  // `lastAdCashGrantWeek` and v40's `deepLifePlusLastGemClaimWeek`.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+  // and no `repairGameState` mirror. An absent key already means "no bonus
+  // claimed in the current week", and stamping the current week onto an
+  // existing save would deny that player their next legitimate bonus.
+  44: (state) => {
+    state.version = 44;
+    return state;
+  },
 };
 
 /**

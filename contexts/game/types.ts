@@ -1891,6 +1891,23 @@ export interface GameSettings {
    * player their next legitimate claim.
    */
   lastAdCashGrantWeek?: number;
+  /**
+   * Game-week marker capping the WELCOME-BACK cash bonus to one per game week
+   * (v44).
+   *
+   * The bonus (`0.5 × weekly salary × min(daysAway, 7)`) was gated purely on
+   * `Date.now() - lastLogin`, which refuses a REWOUND clock and nothing else —
+   * so scrubbing the device date forward a week at a time paid 3.5 weeks of
+   * salary per scrub with zero game weeks played, bypassing the tax brackets,
+   * the net-worth soft cap and the weekly tick. Gating on `weeksLived` is the
+   * one clock a scrubber cannot touch, exactly as v28's `lastNoFillGrantWeek`,
+   * v31's `lastLoginRewardWeek`, v35's `lastAdCashGrantWeek` and v40's
+   * `deepLifePlusLastGemClaimWeek` do.
+   *
+   * Default `undefined` — a carve-out. Stamping a week would deny an existing
+   * player their next legitimate bonus.
+   */
+  lastWelcomeBackWeek?: number;
   hasRevivalPack?: boolean; // IAP: Revival Pack purchased
   moneyMultiplier?: boolean; // IAP: Money multiplier from bundles
   everythingUnlocked?: boolean; // IAP: Mega bundle

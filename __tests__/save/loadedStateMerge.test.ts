@@ -82,18 +82,24 @@ describe('the carve-out fields survive a load', () => {
     // `deepLifePlusLastGemClaimWeek` (v40) is the same shape: the game-week gate
     // on the free daily-gem faucet. If the load erased it, the forward-clock farm
     // it closes would reopen on the next app launch.
+    // `lastWelcomeBackWeek` (v44) is the game-week gate on the welcome-back cash
+    // bonus. Erasing it on load would reopen the forward-clock scrub it closes on
+    // the very next launch — the same failure `lastNoFillGrantWeek` already had.
     expect('deepLifePlusLastGemClaimWeek' in initialGameState.settings).toBe(false);
+    expect('lastWelcomeBackWeek' in initialGameState.settings).toBe(false);
     const out = mergeLoadedSlice(
       {
         ...initialGameState.settings,
         lastNoFillGrantWeek: 41,
         quickActionWeeks: { hustle: 41 },
         deepLifePlusLastGemClaimWeek: 41,
+        lastWelcomeBackWeek: 41,
       },
       initialGameState.settings
     );
     expect((out as { lastNoFillGrantWeek?: number }).lastNoFillGrantWeek).toBe(41);
     expect((out as { quickActionWeeks?: unknown }).quickActionWeeks).toEqual({ hustle: 41 });
     expect((out as { deepLifePlusLastGemClaimWeek?: number }).deepLifePlusLastGemClaimWeek).toBe(41);
+    expect((out as { lastWelcomeBackWeek?: number }).lastWelcomeBackWeek).toBe(41);
   });
 });

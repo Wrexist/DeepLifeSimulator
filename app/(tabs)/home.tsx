@@ -51,9 +51,9 @@ import {
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
 import { DISCORD_URL } from '@/lib/config/appConfig';
-import { discordJoinRewardMoney, MS_PER_DAY } from '@/lib/config/gameConstants';
+import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
-import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
+import { applyWelcomeBackBonus, welcomeBackClaimed } from '@/utils/welcomeBackBonus';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
@@ -392,6 +392,11 @@ function HomeScreenContent() {
     return () => clearTimeout(id);
   }, [gameState.lastLoginRewardDate, saveGame]);
 
+  // v44: the game-week marker gating the welcome-back cash bonus. Selected on
+  // its own (a primitive) rather than pulling `settings` into the slice above,
+  // which would re-render this screen on every unrelated settings mutation.
+  const lastWelcomeBackWeek = useGameSelector((s) => s?.settings?.lastWelcomeBackWeek);
+
   // Show welcome back popup for returning players
   useEffect(() => {
     if (weeksThisLife > 1 && gameState.lastLogin) {
@@ -401,7 +406,18 @@ function HomeScreenContent() {
       // Only after a genuine day-plus away. `lastLogin` is reset to now on
       // close, so this naturally fires at most once per ~24h absence — which
       // also gates the cash bonus granted on close (no grindable faucet).
-      if (hoursAway > 24 && !gameState.showDailyRewardPopup && !showWelcomeBack && hasCompletedTutorial) {
+      //
+      // `welcomeBackClaimed` mirrors the inner rejection in
+      // `applyWelcomeBackBonus` (the AdRewardOrb spawner pattern, v35): once the
+      // bonus has been paid in this `weeksLived`, the popup is not offered at
+      // all, so the player never sees one that would credit nothing.
+      if (
+        hoursAway > 24 &&
+        !welcomeBackClaimed({ settings: { lastWelcomeBackWeek }, weeksLived: gameState.weeksLived }) &&
+        !gameState.showDailyRewardPopup &&
+        !showWelcomeBack &&
+        hasCompletedTutorial
+      ) {
         const timer = setTimeout(() => {
           setShowWelcomeBack(true);
         }, 1500);
@@ -409,7 +425,7 @@ function HomeScreenContent() {
       }
     }
     return undefined;
-  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
+  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
 
   // ENGAGEMENT: one-time, low-key invite to join the Discord for a cash reward.
   // Subtle by design — only once the player is settled in (tutorial done + a few
@@ -870,22 +886,15 @@ function HomeScreenContent() {
             // previously only displayed, never credited). Atomic single updater:
             // compute from the OLD lastLogin, then stamp lastLogin=now so the
             // popup (and bonus) can't re-fire until another ~24h away.
-            setGameState(prev => {
-              const last = prev.lastLogin || Date.now();
-              const daysAway = Math.floor((Date.now() - last) / MS_PER_DAY);
-              // Reject re-entry against `prev`, not against an outer flag. The
-              // updater stamps lastLogin=now, so a second onClose in the same
-              // React batch sees daysAway=0 — and computeWelcomeBackBonus
-              // floors it back to 1 (`Math.max(daysAway, 1)`), paying a second
-              // half-week of salary. Returning prev unchanged is the rejection.
-              if (daysAway < 1) return prev;
-              const bonus = computeWelcomeBackBonus(prev, daysAway);
-              return {
-                ...prev,
-                lastLogin: Date.now(),
-                stats: { ...prev.stats, money: (prev.stats?.money || 0) + bonus },
-              };
-            });
+            //
+            // Both rejections live inside `applyWelcomeBackBonus` and are read
+            // off `prev`, not off an outer flag: the daysAway<1 re-entry guard
+            // (a second onClose in the same React batch), and the v44
+            // forward-clock gate on `settings.lastWelcomeBackWeek` — the v35
+            // `lastAdCashGrantWeek` pattern, since the day count alone only
+            // refuses a REWOUND clock and a forward scrub farmed the bonus with
+            // no game weeks played. Rejection is `prev` returned unchanged.
+            setGameState(prev => applyWelcomeBackBonus(prev, Date.now()));
           }}
         />
       </Suspense>
