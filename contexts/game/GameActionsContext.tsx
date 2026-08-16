@@ -2343,9 +2343,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // into banking.budgetSpend so the bank's Budget tab reflects real spending.
  // Bill-pay rules and manual loan payments track themselves; not repeated here.
  spendEvents: [
- { category: 'housing', amount: weeklyRent + housingUpkeep },
+ // `housingWellbeing.rent` is the v32 TENANCY rent, and it belongs here for the
+ // same reason it belongs in `weeklyBillsDue` a few hundred lines above: it is
+ // charged. Without it the Budget tab reported a renting player's housing spend
+ // as upkeep alone — $0 for most of them — while the tick took $45-$950 a week
+ // and could evict them over the arrears. Same omission the identity card had.
+ { category: 'housing', amount: weeklyRent + housingWellbeing.rent + housingUpkeep },
  { category: 'food', amount: dietWeeklyCost },
  { category: 'taxes', amount: incomeTax },
+ // Student-loan payments, charged by `applyEducationProgression`. There was no
+ // education row at all, so tuition debt service was invisible in the budget.
+ { category: 'education', amount: educationWeeklyCost },
  { category: 'debt', amount: totalLoanAutoPaid },
  // Actual charged amounts (floored at $0 by the helpers), so the Budget tab
  // reflects real spending on a broke week — not the nominal sticker upkeep.
