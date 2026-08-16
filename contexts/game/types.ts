@@ -1842,6 +1842,23 @@ export interface GameSettings {
   deepLifePlusGemClaimDays?: string[]; // Recent UTC day keys claimed (pruned) — powers the weekly streak strip
   deepLifePlusLastGemClaimAt?: number; // Monotonic epoch-ms high-water mark of the last claim — blocks backward-clock farming
   deepLifePlusLastGemClaimWeek?: number; // `weeksLived` of the last claim — the game-week gate that blocks FORWARD-clock farming (the two above only refuse a rewind). v40 carve-out; mirrors `lastLoginRewardWeek` on the sibling login faucet.
+  /**
+   * `weeksLived` at which a DeepLife+ MEMBER last spent their banked grace claim
+   * — a daily-gem claim that was NOT backed by a played game week (v45).
+   *
+   * The member drop (250/day, the premium currency that is otherwise an IAP)
+   * deliberately keeps its calendar-day grace: a paying member may claim on a
+   * quiet day without playing. But that grace had no cap, so scrubbing the
+   * device date forward one day at a time COMPOUNDED it — the day-key and epoch
+   * guards only refuse a REWOUND clock. This marker caps it at ONE unplayed
+   * claim per played week: a claim backed by play never touches it, an unplayed
+   * claim spends it, and only `weeksLived` advancing re-arms it — the one clock
+   * a scrubber cannot move.
+   *
+   * Default `undefined` — a carve-out. Stamping a week onto an existing save
+   * would refuse a member's next legitimate claim.
+   */
+  deepLifePlusLastMemberClaimWeek?: number;
   // Absolute `weeksLived` of the last Bank sponsored-bonus claim. Optional with
   // an undefined default (the sanctioned pattern — an absent key already equals
   // "never claimed"), so no migration or STATE_VERSION bump is owed. Keyed on

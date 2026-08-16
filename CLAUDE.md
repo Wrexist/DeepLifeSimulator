@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 44`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 45`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -323,7 +323,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 44`** — single source of truth in
+- **Canonical `STATE_VERSION = 45`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -571,6 +571,27 @@ including the crash screen.
   `AdRewardOrb` spawner pattern. Default `undefined`, so a CARVE-OUT: version
   bumped, NO backfill and no `repairGameState` mirror — stamping the current
   week would deny an existing player their next legitimate bonus.
+- **v45 adds `settings.deepLifePlusLastMemberClaimWeek`** — the `weeksLived`
+  marker capping the DeepLife+ MEMBER daily-gem grace at ONE claim per played
+  game week. v40 gated the FREE faucet and deliberately left the member drop
+  (250/day) on its calendar-day grace, because claiming on a quiet day without
+  playing is a paid perk. The perk stays; what it lacked was a cap. The day-key
+  and epoch guards only refuse a REWOUND clock, so scrubbing the device date
+  FORWARD a day at a time compounded that one-day courtesy into an unbounded
+  250-gems/day faucet on the premium currency that is otherwise an IAP. The rule
+  is now: a claim BACKED BY PLAY (`weeksLived` advanced since the last claim)
+  is always allowed and never touches the grace; an unplayed claim spends the
+  grace and stamps this marker; a second unplayed claim at the same `weeksLived`
+  is refused. Only playing re-arms it — the same "gate on game state, not the
+  device clock" fix as v28/v31/v35/v40/v44. The truth table lives next to
+  `isPlayBackedGemClaim` in `contexts/game/actions/SubscriptionActions.ts`; the
+  gate and the stamp run in ONE updater and the CTA (`DailyGemClaim`) consults
+  the same predicate, so an unclaimable drop is never offered. Default
+  `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+  `repairGameState` mirror — stamping the current week would refuse a paying
+  member's next legitimate claim. It is deliberately NOT in
+  `PURCHASED_SETTINGS_KEYS`: a `weeksLived` marker must not cross a life
+  boundary (see the note there).
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

@@ -5,6 +5,7 @@ import {
   claimDailyGems,
   canClaimDailyGems,
   canClaimDailyGemsFor,
+  isPlayBackedGemClaim,
 } from '@/contexts/game/actions/SubscriptionActions';
 import {
   DEEP_LIFE_PLUS_PLANS,
@@ -213,6 +214,149 @@ describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () 
   });
 });
 
+/**
+ * v45 — the DeepLife+ MEMBER grace is capped at ONE unplayed claim per played
+ * game week. The perk (claim on a quiet day without playing) stays; what it
+ * lacked was a cap, so a forward clock scrub compounded it into an unbounded
+ * 250-gems/day faucet on the premium currency.
+ *
+ * Truth table (day-key/epoch guards already passed): a claim BACKED BY PLAY
+ * (`weeksLived` > `deepLifePlusLastGemClaimWeek`) always claims and never spends
+ * the grace; an unplayed claim spends it (stamping
+ * `deepLifePlusLastMemberClaimWeek`); a second unplayed claim at the same
+ * `weeksLived` is refused.
+ */
+describe('claimDailyGems — DeepLife+ member grace cap (v45)', () => {
+  const D1 = '2026-07-21';
+  const D2 = '2026-07-22';
+  const D3 = '2026-07-23';
+  const member = (weeksLived: number, over: Partial<GameSettings> = {}): GameState =>
+    createTestGameState({
+      stats: { gems: 0 },
+      weeksLived,
+      settings: { deepLifePlusActivated: true, ...over },
+    });
+
+  it('(a) a member who plays a week between claims claims every day — grace untouched', () => {
+    // Day 1 (first ever claim): allowed, and it spends the grace (nothing was
+    // played to earn it).
+    let s = member(100);
+    expect(canClaimDailyGems(s, D1)).toBe(true);
+    s = claimDailyGems(s, D1);
+    expect(s.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(s.settings.deepLifePlusLastGemClaimWeek).toBe(100);
+    expect(s.settings.deepLifePlusLastMemberClaimWeek).toBe(100);
+
+    // Day 2 after playing a week: play-backed → claims, and the grace marker is
+    // NOT re-stamped (the perk is not consumed by a claim that was earned).
+    s = { ...s, weeksLived: 101 };
+    expect(canClaimDailyGems(s, D2)).toBe(true);
+    s = claimDailyGems(s, D2);
+    expect(s.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2);
+    expect(s.settings.deepLifePlusLastGemClaimWeek).toBe(101);
+    expect(s.settings.deepLifePlusLastMemberClaimWeek).toBe(100); // still day 1's
+
+    // Day 3 after playing again: still claiming daily, exactly as before v45.
+    s = { ...s, weeksLived: 102 };
+    s = claimDailyGems(s, D3);
+    expect(s.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 3);
+    expect(s.settings.deepLifePlusLastMemberClaimWeek).toBe(100);
+  });
+
+  it('(b) the ONE banked grace claim works, and the second unplayed day is refused', () => {
+    let s = member(100);
+    s = claimDailyGems(s, D1); // banked grace spent here
+    expect(s.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(s.settings.deepLifePlusLastMemberClaimWeek).toBe(100);
+
+    // New calendar day, no game week played → the grace is already spent at 100.
+    expect(canClaimDailyGems(s, D2)).toBe(false);
+    expect(claimDailyGems(s, D2)).toBe(s); // no-op, no gems minted
+  });
+
+  it('(c) plays a week, claims, then a quiet day still claims — that is the perk', () => {
+    // Claimed at week 100, then a week is played (weeksLived 101) and claimed
+    // (play-backed). The NEXT quiet day still claims out of the banked grace.
+    let s = member(101, { deepLifePlusLastGemClaim: D1, deepLifePlusLastGemClaimWeek: 100 });
+    s = claimDailyGems(s, D2); // play-backed
+    expect(s.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(s.settings.deepLifePlusLastMemberClaimWeek).toBeUndefined();
+
+    expect(canClaimDailyGems(s, D3)).toBe(true); // quiet day: the banked claim
+    const quiet = claimDailyGems(s, D3);
+    expect(quiet.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2);
+    expect(quiet.settings.deepLifePlusLastMemberClaimWeek).toBe(101);
+
+    // And the day after that, still without playing, is refused.
+    expect(canClaimDailyGems(quiet, '2026-07-24')).toBe(false);
+  });
+
+  it('(d) a FORWARD clock scrub cannot compound the grace once it is spent', () => {
+    const spent = member(101, {
+      deepLifePlusLastGemClaim: D1,
+      deepLifePlusLastGemClaimWeek: 101,
+      deepLifePlusLastMemberClaimWeek: 101,
+    });
+    // Every future calendar day passes the day-key and epoch guards (a scrub only
+    // moves them forward); the game-week gate is what refuses.
+    for (const day of ['2026-07-22', '2026-08-01', '2027-01-01']) {
+      expect(canClaimDailyGems(spent, day)).toBe(false);
+      expect(claimDailyGems(spent, day)).toBe(spent);
+    }
+  });
+
+  it('claims again once a game week is actually played', () => {
+    const spent = member(101, {
+      deepLifePlusLastGemClaim: D1,
+      deepLifePlusLastGemClaimWeek: 101,
+      deepLifePlusLastMemberClaimWeek: 101,
+    });
+    const played = { ...spent, weeksLived: 102 };
+    expect(canClaimDailyGems(played, D2)).toBe(true);
+    const next = claimDailyGems(played, D2);
+    expect(next.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
+    expect(next.settings.deepLifePlusLastGemClaimWeek).toBe(102);
+    // Play-backed → the grace is re-armed at the new week, not spent.
+    expect(next.settings.deepLifePlusLastMemberClaimWeek).toBe(101);
+    // …and it can then be spent once on the next quiet day.
+    expect(canClaimDailyGems(next, D3)).toBe(true);
+    expect(canClaimDailyGems(claimDailyGems(next, D3), '2026-07-24')).toBe(false);
+  });
+
+  it('a REWOUND clock is still refused by the existing day-key / epoch guards', () => {
+    const claimed = member(105, {
+      deepLifePlusLastGemClaim: D3,
+      deepLifePlusLastGemClaimAt: Date.parse('2026-07-23T12:00:00Z'),
+      deepLifePlusLastGemClaimWeek: 100, // a week HAS been played — not the blocker
+    });
+    // Same day, and an earlier day: both refused regardless of the grace.
+    expect(canClaimDailyGems(claimed, D3, Date.parse('2026-07-23T13:00:00Z'))).toBe(false);
+    expect(canClaimDailyGems(claimed, D2, Date.parse('2026-07-22T12:00:00Z'))).toBe(false);
+  });
+
+  it('the FREE tier is untouched by the grace — every claim must be play-backed', () => {
+    const free = createTestGameState({
+      stats: { gems: 0 },
+      weeksLived: 100,
+      settings: { deepLifePlusLastGemClaim: D1, deepLifePlusLastGemClaimWeek: 100 },
+    });
+    expect(canClaimDailyGems(free, D2)).toBe(false); // no grace for free players
+    expect(claimDailyGems(free, D2)).toBe(free);
+    // A free claim never writes the member marker.
+    const played = claimDailyGems({ ...free, weeksLived: 101 }, D2);
+    expect(played.stats.gems).toBe(DAILY_GEMS_BASE);
+    expect(played.settings.deepLifePlusLastMemberClaimWeek).toBeUndefined();
+  });
+
+  it('isPlayBackedGemClaim: undefined marker is NOT play-backed (first claim spends the grace)', () => {
+    expect(isPlayBackedGemClaim(100, undefined)).toBe(false);
+    expect(isPlayBackedGemClaim(100, 100)).toBe(false);
+    expect(isPlayBackedGemClaim(101, 100)).toBe(true);
+    expect(isPlayBackedGemClaim(undefined, 0)).toBe(false);
+    expect(isPlayBackedGemClaim(100, NaN)).toBe(false); // garbage marker never blocks
+  });
+});
+
 describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)', () => {
   const TODAY = '2026-07-23';
   const YESTERDAY = '2026-07-22';
@@ -269,7 +413,10 @@ describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)
     // Claim yesterday 23:59, then today 00:02 — both legit, strictly increasing.
     const afterY = claimDailyGems(member(), YESTERDAY, d23_2359);
     expect(afterY.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
-    const afterT = claimDailyGems(afterY, TODAY, d24_0002);
+    // Play a game week between the two days: this test is about the DAY-KEY
+    // guard, and the v45 member grace allows only ONE claim not backed by play
+    // (the first one, above), which would otherwise settle day two here.
+    const afterT = claimDailyGems({ ...afterY, weeksLived: afterY.weeksLived + 1 }, TODAY, d24_0002);
     expect(afterT.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2); // two legit days
     expect(afterT.settings.deepLifePlusLastGemClaim).toBe(TODAY);
     // Now rewind to 23:59 and try to reclaim YESTERDAY's key — must be refused

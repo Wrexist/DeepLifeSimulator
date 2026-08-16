@@ -146,6 +146,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   const lastClaim = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaim, shallowEqual);
   const lastClaimAt = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaimAt);
   const lastClaimWeek = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaimWeek);
+  const lastMemberClaimWeek = useGameSelector((s) => s.settings?.deepLifePlusLastMemberClaimWeek);
   const weeksLived = useGameSelector((s) => s.weeksLived);
   const entitled = useGameSelector((s) => hasDeepLifePlusEntitlement(s.settings));
   const claimDays = useGameSelector((s) => s.settings?.deepLifePlusGemClaimDays, shallowEqual);
@@ -164,9 +165,17 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   // Pass the same game-week gate the reducer uses (see canClaimDailyGems), so the
   // CTA and `claimDailyGems` can never disagree: without it the button would offer
   // a claim the reducer now refuses for a free player when no game-week has passed
-  // (a forward-clock scrub), and tapping it would silently no-op. Free tier only —
-  // members keep the day-key grace, exactly as the reducer does.
-  const weekGate = entitled ? undefined : { current: weeksLived, lastClaim: lastClaimWeek };
+  // (a forward-clock scrub), and tapping it would silently no-op. Members keep the
+  // day-key grace, but capped at one unplayed claim per played week (v45), so the
+  // CTA settles once that banked claim is spent instead of offering a no-op.
+  const weekGate = entitled
+    ? {
+        current: weeksLived,
+        lastClaim: lastClaimWeek,
+        allowOneGraceClaim: true,
+        lastGraceClaim: lastMemberClaimWeek,
+      }
+    : { current: weeksLived, lastClaim: lastClaimWeek };
   const now = Date.now();
   const claimSettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, now, weekGate);
   // Distinguish the two reasons a claim is settled, so the chip doesn't tell a

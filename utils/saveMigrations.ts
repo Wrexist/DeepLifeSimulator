@@ -1109,6 +1109,32 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 44;
     return state;
   },
+
+  // Version 45: `settings.deepLifePlusLastMemberClaimWeek` — the `weeksLived`
+  // marker capping the DeepLife+ MEMBER daily-gem grace at one unplayed claim
+  // per played game week.
+  //
+  // v40 gated the FREE tier on `weeksLived` and deliberately left the member
+  // drop (250/day) on its calendar-day grace — claiming on a quiet day without
+  // playing is a paid perk. But the grace had no cap, and the day-key and epoch
+  // guards only refuse a REWOUND clock, so scrubbing the device date FORWARD a
+  // day at a time compounded that one-day courtesy into an unbounded 250/day
+  // faucet on the premium currency that is otherwise an IAP. The perk stays;
+  // this marker just stops it repeating: a claim backed by a played week never
+  // touches it, an unplayed claim spends it, and only `weeksLived` advancing
+  // re-arms it — the one clock a scrubber cannot move. Same fix shape as v28,
+  // v31, v35, v40 and v44.
+  //
+  // Default `undefined`, so this is a CARVE-OUT: version bumped, NO backfill
+  // and no `repairGameState` mirror. An absent key already means "the grace is
+  // unspent", and stamping the current week onto an existing save would refuse
+  // a paying member's next legitimate claim (the v27/v28 reasoning). The key
+  // still has to survive the load round-trip, which `loadedStateMerge`
+  // guarantees by keeping the saved object's own keys.
+  45: (state) => {
+    state.version = 45;
+    return state;
+  },
 };
 
 /**
