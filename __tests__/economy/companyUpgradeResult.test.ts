@@ -146,7 +146,7 @@ describe('C-8 — a rejected purchase says so', () => {
     // The case the caller can actually be told about, because the snapshot
     // shows it. This is what the outer guard is for.
     const empty = withCompany(100_000_000);
-    const snapshot = { ...empty, companies: [] } as GameState;
+    const snapshot: GameState = { ...empty, companies: [] };
     const { setState } = batched(snapshot);
 
     const r = buyCompanyUpgrade(snapshot, setState, UPGRADE.id, deps, COMPANY_ID);
