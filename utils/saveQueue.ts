@@ -633,8 +633,21 @@ class SaveQueue {
   clearQueue(): void {
     const dropped = this.queue;
     this.queue = [];
-    this.processingPromise = null;
-    // Anything waiting on a dropped operation must be told it is no longer
+    // F-12: do NOT null `processingPromise` here.
+    //
+    // This used to drop the handle on a drain that was still running. The drain
+    // itself kept going (nothing cancels an in-flight `performSave`), but it was
+    // no longer OBSERVED: the very next `addToQueue` saw a null promise, started
+    // a SECOND concurrent `processQueue`, and `forceSave`'s "wait for the queue
+    // to finish first" guard awaited only the new one — so a force-save could
+    // overwrite the slot while the original drain's `doubleBufferSave` was still
+    // writing it, which is the concurrent-write case that guard exists to
+    // prevent. `kickProcessing`'s `finally` clears the handle when the drain
+    // actually ends (and re-kicks if anything was queued after), so leaving it
+    // alone keeps the running drain observable without stranding anything: the
+    // emptied queue makes `processQueue`'s loop exit on its next pass.
+    //
+    // Anything waiting on a dropped operation must still be told it is no longer
     // pending, or it waits forever — and, since F-9, holds the save/load mutex
     // while it does.
     for (const operation of dropped) this.settleOperation(operation);

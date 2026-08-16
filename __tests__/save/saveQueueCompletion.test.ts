@@ -156,4 +156,41 @@ describe('queueSave resolves on completion, not on enqueue', () => {
     await Promise.all([first, second]);
     expect(secondResolved).toBe(true);
   });
+
+  it('keeps a running drain observed after clearQueue (F-12)', async () => {
+    // `clearQueue` used to null `processingPromise` outright. Nothing cancels an
+    // in-flight `performSave`, so the drain kept writing — it was merely no
+    // longer OBSERVED. The next enqueue then saw a null promise and started a
+    // SECOND concurrent drain, and `forceSave`'s "wait for queue processing to
+    // complete" guard awaited only that new one, so it could overwrite the slot
+    // while the original `doubleBufferSave` was still writing it.
+    const first = queueSave(1, state);
+    await settleEventLoop();
+    expect(writeStarted).toBe(1);
+    const finishFirst = takeRelease();
+
+    saveQueue.clearQueue();
+
+    // The drain is still running, so the queue must still say so.
+    expect(saveQueue.getStatus().isProcessing).toBe(true);
+
+    releaseWrite = null;
+    const second = queueSave(1, state);
+    await settleEventLoop();
+
+    // The new operation joins the LIVE drain instead of opening a second
+    // concurrent write onto the same slot. Before the fix this was 2.
+    expect(writeStarted).toBe(1);
+    expect(takeRelease()).toBeNull();
+
+    finishFirst?.();
+    await settleEventLoop();
+
+    // Only once the first write finished does the drain pick the next one up.
+    expect(writeStarted).toBe(2);
+    takeRelease()?.();
+
+    await Promise.all([first, second]);
+    expect(saveQueue.getStatus().queueLength).toBe(0);
+  });
 });
