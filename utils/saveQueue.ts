@@ -254,6 +254,54 @@ class SaveQueue {
     }
   }
 
+  // ANTI-EXPLOIT (H8, 2026-08-16): embed the critical protected state INSIDE the
+  // save blob, so deleting the AsyncStorage `protected_state` keys does not erase
+  // the death/jail/wanted high-water marks — `loadGame` restores from the embed
+  // when the standalone keys are missing.
+  //
+  // Extracted from `performSave` because `forceSave` never did it, and `forceSave`
+  // is the app-background/app-kill, IAP-grant, redeem-code, death-popup and
+  // onboarding path — i.e. the most recent blob on disk frequently had no embed
+  // at all, leaving the restore with nothing to restore from.
+  //
+  // Best-effort by contract: a failure here must NEVER fail the save, which is why
+  // it returns the un-embedded copy rather than throwing. The `await import` stays
+  // lazy — `saveBackup` pulls in the storage layer and must not be on this
+  // module's static graph.
+  private async embedProtectedState(slot: number, data: unknown): Promise<Record<string, unknown>> {
+    const dataWithProtection: Record<string, unknown> = { ...(data as Record<string, unknown>) };
+    try {
+      const { getProtectedState } = await import('./saveBackup');
+      const protectedState = await getProtectedState(slot);
+      if (protectedState) {
+        dataWithProtection._embeddedProtectedState = protectedState;
+      }
+    } catch (err) {
+      this.log.warn('Failed to embed protected state (non-critical):', { error: err instanceof Error ? err.message : String(err) });
+    }
+    return dataWithProtection;
+  }
+
+  // BRC-7 / H8 / L10: advance the protected-state high-water marks. Called ONLY
+  // after a write actually succeeded, so a failed save cannot ratchet them.
+  // Awaited, not fire-and-forget: a dangling dynamic import can resolve after the
+  // surrounding context is gone. Errors are swallowed — this is bookkeeping and
+  // must never change the save's success/failure semantics.
+  //
+  // Extracted so all three success paths share it: `performSave`, `forceSave`
+  // (which never called it — H8) and the quota-cleanup retry branches (which
+  // returned success while skipping it — L10).
+  private async advanceProtectedState(slot: number, data: unknown): Promise<void> {
+    try {
+      const { updateProtectedState } = await import('./saveBackup');
+      await updateProtectedState(slot, data);
+    } catch (err) {
+      this.log.warn('Failed to update protected state (non-critical):', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   private async performSave(operation: SaveOperation): Promise<void> {
     // D-4: Save duration telemetry
     const saveStartTime = Date.now();
@@ -270,16 +318,7 @@ class SaveQueue {
 
     // ANTI-EXPLOIT: Embed critical protected state inside the save data itself
     // This prevents bypass by deleting AsyncStorage protected_state keys
-    const dataWithProtection: Record<string, unknown> = { ...operation.data };
-    try {
-      const { getProtectedState } = await import('./saveBackup');
-      const protectedState = await getProtectedState(operation.slot);
-      if (protectedState) {
-        dataWithProtection._embeddedProtectedState = protectedState;
-      }
-    } catch (err) {
-      this.log.warn('Failed to embed protected state (non-critical):', { error: err instanceof Error ? err.message : String(err) });
-    }
+    const dataWithProtection = await this.embedProtectedState(operation.slot, operation.data);
 
     // Prune save data to reduce size
     const prunedData = this.pruneSaveData(dataWithProtection);
@@ -357,20 +396,8 @@ class SaveQueue {
       // BRC-7: bootstrap the protected-state keys. Nothing wrote them, so
       // `getProtectedState` returned null for the whole lifetime of the app —
       // which made the embed above a closed loop (nothing to embed, so nothing
-      // ever got written) and left the anti-exploit layer inert. Written AFTER
-      // the save succeeds so a failed write cannot advance the high-water marks.
-      // Non-blocking and non-critical: this must never fail a save.
-      // Awaited, not fire-and-forget: everything after this point is already
-      // awaited post-save bookkeeping, and a dangling dynamic import can
-      // resolve after the surrounding context is gone.
-      try {
-        const { updateProtectedState } = await import('./saveBackup');
-        await updateProtectedState(operation.slot, operation.data);
-      } catch (err) {
-        this.log.warn('Failed to update protected state (non-critical):', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+      // ever got written) and left the anti-exploit layer inert.
+      await this.advanceProtectedState(operation.slot, operation.data);
 
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
@@ -410,6 +437,9 @@ class SaveQueue {
             const retryEnvelope = createSaveEnvelope(serializedData);
             const retrySaveResult = await doubleBufferSave(key, retryEnvelope);
             if (retrySaveResult.success) {
+              // L10: this branch returns SUCCESS, so it owes the same post-success
+              // bookkeeping as the happy path — it used to skip it entirely.
+              await this.advanceProtectedState(operation.slot, operation.data);
               const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
               await safeSetItem('lastSaveTime', Date.now().toString());
@@ -485,8 +515,14 @@ class SaveQueue {
       }
     });
 
+    // ANTI-EXPLOIT (H8): embed the protected state here too. `performSave` always
+    // did; `forceSave` did not — and `forceSave` is the app-kill / IAP / redeem /
+    // death / onboarding path, so the newest blob on disk routinely carried no
+    // embed for `loadGame`'s anti-exploit restore to read.
+    const dataWithProtection = await this.embedProtectedState(slot, data);
+
     // Prune save data to reduce size
-    const prunedData = this.pruneSaveData(data);
+    const prunedData = this.pruneSaveData(dataWithProtection);
     let serializedData: string;
     
     // Protect JSON.stringify from circular references and other errors
@@ -551,6 +587,12 @@ class SaveQueue {
         throw new Error(saveResult.error || 'Double-buffer save failed');
       }
 
+      // H8: advance the protected-state high-water marks, exactly as `performSave`
+      // does. Written AFTER the successful write so a failed save cannot ratchet
+      // them, and passed the RAW `data` (not the embedded copy) so the marks are
+      // derived from game state rather than from a previous save's embed.
+      await this.advanceProtectedState(slot, data);
+
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
       await safeSetItem('lastSlot', slotToSave.toString());
@@ -580,6 +622,9 @@ class SaveQueue {
             const retryEnvelope = createSaveEnvelope(serializedData);
             const retrySaveResult = await doubleBufferSave(key, retryEnvelope);
             if (retrySaveResult.success) {
+              // L10: same as the `performSave` retry — a branch that reports
+              // success owes the same post-success bookkeeping.
+              await this.advanceProtectedState(slot, data);
               const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
               await safeSetItem('lastSaveTime', Date.now().toString());

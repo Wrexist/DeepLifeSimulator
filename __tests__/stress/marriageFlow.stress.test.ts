@@ -658,4 +658,74 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     }
     assertClean('hook breakUp');
   });
+
+  // ── M1 (§4.4 gate→grant), 2026-08-16 architecture audit ──────────────────
+  //
+  // `breakUpWithPartner` and `moveInTogether` each applied their relationship
+  // change in one updater and then fired `updateStats({ happiness: ±N })` as a
+  // SECOND, unconditional dispatch. The relationship write is idempotent — the
+  // partner is already gone / already moved in on the second pass — but the
+  // stat dispatch is not, and the outer guard reads `gameStateRef`, which lags
+  // by one commit. So a double-tap inside one React batch moved happiness twice
+  // for one breakup / one move-in. Both stat deltas now live inside the same
+  // updater, re-checked against `prev`, the way `proposeToPartner` does it.
+  //
+  // Both calls go in ONE `act()` on purpose: that is what keeps `gameStateRef`
+  // stale between them, which is the whole mechanism being tested.
+  it('M1: a same-batch double breakUpWithPartner costs happiness only once', () => {
+    mounted = mountGame();
+    seedPartner('lover_alex', 90); // seedPartner sets happiness to 100
+    const happinessBefore = captured!.state.stats.happiness;
+    expect(happinessBefore).toBe(100);
+
+    act(() => {
+      captured!.game.breakUpWithPartner('lover_alex');
+      captured!.game.breakUpWithPartner('lover_alex');
+    });
+
+    expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')).toBeUndefined();
+    expect(captured!.state.stats.happiness).toBe(happinessBefore - 20); // not -40
+    assertClean('double breakup');
+  });
+
+  it('M1: a same-batch double moveInTogether pays happiness only once', () => {
+    mounted = mountGame();
+    seedPartner('lover_alex', 90);
+    // Give the player a home to move into, and leave headroom under the
+    // happiness clamp so a doubled +10 would actually be visible.
+    act(() => {
+      captured!.setGameState(prev => ({
+        ...prev,
+        stats: { ...prev.stats, happiness: 50 },
+        realEstate: [
+          ...(prev.realEstate || []),
+          { id: 'home_1', name: 'Starter Home', owned: true, status: 'owner', purchasePrice: 100000, currentValue: 100000 } as unknown as NonNullable<GameState['realEstate']>[number],
+        ],
+      }));
+    });
+    const happinessBefore = captured!.state.stats.happiness;
+    expect(happinessBefore).toBe(50);
+
+    act(() => {
+      captured!.game.moveInTogether('lover_alex');
+      captured!.game.moveInTogether('lover_alex');
+    });
+
+    expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')?.livingTogether).toBe(true);
+    expect(captured!.state.stats.happiness).toBe(happinessBefore + 10); // not +20
+    assertClean('double move-in');
+  });
+
+  it('M1: the single-tap happiness effects are unchanged', () => {
+    mounted = mountGame();
+    seedPartner('lover_alex', 90);
+    act(() => {
+      captured!.setGameState(prev => ({ ...prev, stats: { ...prev.stats, happiness: 50 } }));
+    });
+
+    act(() => { captured!.game.breakUpWithPartner('lover_alex'); });
+    expect(captured!.state.stats.happiness).toBe(30);
+    expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')).toBeUndefined();
+    assertClean('single breakup');
+  });
 });

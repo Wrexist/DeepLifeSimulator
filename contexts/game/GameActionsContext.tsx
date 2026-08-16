@@ -44,7 +44,7 @@ import { awardLegacyPassXp } from './actions/LegacyPassActions';
 import { LEGACY_PASS_XP, getCurrentSeasonId, getClaimableCount } from '@/lib/legacyPass/legacyPass';
 import { track } from '@/lib/analytics';
 import { updateMoney as updateMoneyAction, applyMoneyDelta, MONEY_CEILING } from './actions/MoneyActions';
-import { updateStats as updateStatsAction } from './actions/StatsActions';
+import { updateStats as updateStatsAction, applyStatsDelta } from './actions/StatsActions';
 import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
 import { runDarkWebWeeklyTick } from '@/lib/darkweb/weeklyTick';
@@ -489,7 +489,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // Track if death was triggered during state update
  let deathTriggered = false;
- let stateUpdateError: Error | null = null;
+ // M2 (2026-08-16 architecture audit): a mutable HOLDER, not a bare `let`.
+ // The value is assigned inside the setGameState updater, which React only runs
+ // eagerly for the first functional update of a batch — on any deferred dispatch
+ // the old `if (stateUpdateError)` read (which sat immediately after the
+ // dispatch, with nothing awaited in between) saw `null` no matter what, so the
+ // abort/showError path built for exactly this could never fire and the
+ // *pre-tick* state was validated and saved. The holder survives the closure the
+ // same way `postTickState` does, and the check now sits AFTER the macrotask
+ // yield below, next to the `postTickState` read it belongs with.
+ const tickFailure: { error: Error | null } = { error: null };
  // PERF (freeze fix): capture the exact post-tick state the updater computes so
  // the post-update validation/automation/save can use it WITHOUT waiting on the
  // gameStateRef (which only updates via a post-commit useEffect — the reason the
@@ -1364,6 +1373,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  processedRelationships = (prevState.relationships || []).map((rel, relIdx) => {
  if (!rel || typeof rel!== 'object') return rel;
 
+ // M3 (2026-08-16 architecture audit): containment is PER ENTRY, not per pass.
+ // The outer try/catch below is a backstop and stays, but on its own it made a
+ // single malformed relationship freeze EVERY relationship — and since nothing
+ // repairs the bad entry, it threw again every week: no pregnancies, no
+ // weddings, no child aging, silently, for the rest of the life. Now one bad
+ // entry is carried over unchanged for THIS week only and its siblings keep
+ // ticking. The accumulator snapshot below is what makes "only that entry's
+ // contributions are lost" true even if a future branch accumulates before it
+ // throws (today each branch accumulates and returns in one uninterruptible
+ // step, so the restore is defensive rather than load-bearing).
+ const bornCountBefore = newBornChildren.length;
+ const showBirthBefore = newShowBirthPopup;
+ const birthMessageBefore = birthMessage;
+ const showWeddingBefore = newShowWeddingPopup;
+ const weddingPartnerBefore = newWeddingPartnerName;
+ const weddingSpouseBefore = newWeddingSpouse;
+ const happinessPenaltyBefore = relationshipHappinessPenalty;
+ const neglectDragBefore = neglectDragTotal;
+
+ try {
+
  // R7 Phase 2 step 2.6-iii-D: pregnancy progression + birth extracted to
  // applyPregnancyProgression. Same birth math (5000 cost, +30 happiness,
  // +15 relationship), same late/mid pregnancy stat ramps, same childId
@@ -1430,6 +1460,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
  return healthResult.rel;
+ } catch (relEntryErr) {
+ // Roll back anything this entry managed to contribute before throwing, so a
+ // half-processed relationship cannot birth a child, queue a wedding popup or
+ // apply a partial happiness penalty.
+ newBornChildren.length = bornCountBefore;
+ newShowBirthPopup = showBirthBefore;
+ birthMessage = birthMessageBefore;
+ newShowWeddingPopup = showWeddingBefore;
+ newWeddingPartnerName = weddingPartnerBefore;
+ newWeddingSpouse = weddingSpouseBefore;
+ relationshipHappinessPenalty = happinessPenaltyBefore;
+ neglectDragTotal = neglectDragBefore;
+ // The id read is itself guarded: the entries that reach this catch are by
+ // definition malformed, and a throwing getter must not escalate a contained
+ // per-entry failure back into a whole-pass one.
+ let relLabel: string;
+ try { relLabel = String((rel as { id?: unknown }).id ?? `#${relIdx}`); } catch { relLabel = `#${relIdx}`; }
+ logger.error(`[RELATIONSHIP TICK] Entry ${relLabel} failed; carried over unchanged this week:`, relEntryErr);
+ return rel;
+ }
  }).filter((rel): rel is Relationship => rel != null && typeof rel === 'object'); // Remove null/undefined/non-object relationships (breakups + corruption guard)
 
  // Add newborn children to relationships
@@ -1456,6 +1506,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  processedRelationships.length = 0;
  processedRelationships.push(...npcDepthResult.relationships);
  } catch (relErr) {
+ // BACKSTOP ONLY (M3). Per-entry failures are contained inside the map callback
+ // above; reaching here means the pass itself failed — the `.filter`, the
+ // newborn append, or `applyNPCDepthTick` — which is genuinely all-or-nothing.
  logger.error('[RELATIONSHIP TICK] Failed:', relErr);
  // Carry the relationships over untouched and drop every partial output of
  // this pass, so a half-finished run can't birth a child, queue a birth
@@ -3311,8 +3364,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return nextState;
  } catch (error) {
  // CRITICAL: If state update fails, log error and return previous state
- stateUpdateError = error instanceof Error ? error: new Error(String(error));
- logger.error('[WEEK PROGRESSION] Error in setGameState callback:', stateUpdateError);
+ tickFailure.error = error instanceof Error ? error: new Error(String(error));
+ logger.error('[WEEK PROGRESSION] Error in setGameState callback:', tickFailure.error);
         // CR: close the profiling window on the error path too (idempotent via the started flag).
         tickProfiler.endTick();
  // Return previous state unchanged to prevent corruption
@@ -3322,12 +3375,22 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  setLoadingProgress(100);
 
+ // PERF: yield ONE macrotask so React has processed the updater. This populates
+ // both `postTickState` (used by the validation/automation/save below instead of
+ // waiting on the gameStateRef's post-commit useEffect — the reason the old code
+ // stalled a hard 50ms every Next Week) and `tickFailure.error`. M2 moved this
+ // yield ABOVE the failure check: reading the outcome of a dispatch without
+ // awaiting anything is reading it before React necessarily ran it.
+ await new Promise(resolve => setTimeout(resolve, 0));
+
  // CRITICAL: Check if state update failed
- if (stateUpdateError) {
- logger.error('[WEEK PROGRESSION] State update failed, aborting week progression:', stateUpdateError);
+ if (tickFailure.error) {
+ logger.error('[WEEK PROGRESSION] State update failed, aborting week progression:', tickFailure.error);
  setIsLoading(false);
  showError('Progression Error', 'Failed to update game state. Please try again.');
- // The updater bailed, so the week did not advance.
+ // The updater bailed, so the week did not advance. Nothing below runs — in
+ // particular no notification flush, no validation and no save of the
+ // pre-tick state, which is what the dead guard used to let through.
  return;
  }
 
@@ -3375,10 +3438,9 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // as nagging. Progress toward goals is already visible passively on the
  // dashboard (Active Goals card + the Last Week recap), so the nudge is gone.
 
- // Validate state after update to ensure no corruption. PERF: yield ONE
- // macrotask so React has processed the updater (which populates postTickState),
- // then use that captured state directly — no arbitrary 50ms stall every week.
- await new Promise(resolve => setTimeout(resolve, 0));
+ // Validate state after update to ensure no corruption, using the state the
+ // updater actually produced (captured above after the single macrotask yield)
+ // — no arbitrary 50ms stall every week.
  // Publish the post-tick state to the ref IMMEDIATELY.
  //
  // `gameStateRef` is otherwise refreshed only by a post-commit `useEffect`, and
@@ -4897,22 +4959,31 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  return { success: false, message: 'Partner not found.' };
  }
 
- setGameState(prev => ({
+ // M1 (§4.4): the -20 happiness used to be a SECOND, unconditional
+ // `updateStats` dispatch. The outer guard above reads `gameStateRef`, which
+ // lags by one commit, so a same-batch double-tap passed it twice: the filter
+ // is idempotent (the partner is already gone the second time) but the stat
+ // dispatch is not, and the player lost 40 happiness for one breakup. Folded
+ // into the same updater, re-checked against `prev`, matching `proposeToPartner`.
+ setGameState(prev => {
+ const stillPresent = (prev.relationships || []).some(r => r.id === partnerId && r.type === 'partner');
+ if (!stillPresent) return prev; // already broken up in this batch — no second hit
+ return {
 ...prev,
+...applyStatsDelta(prev, { happiness: -20 }),
  relationships: (prev.relationships || []).filter(r => r.id!== partnerId),
  // Clear the backing Spark match's `promoted` flag so the ex stops rendering
  // as your partner in Spark and can be re-dated later.
  sparkApp: clearPromotedSparkMatch(prev.sparkApp, partnerId),
- }));
-
- updateStats({ happiness: -20 });
+ };
+ });
 
  logger.info(`Broke up with partner: ${partner.name}`);
  return {
  success: true,
  message: `You broke up with ${partner.name}.`
  };
- }, [setGameState, updateStats]);
+ }, [setGameState]);
 
  // C-7: Use gameStateRef to prevent stale closure
  const proposeToPartner = useCallback((partnerId: string): { success: boolean; message: string } => {
@@ -5011,26 +5082,32 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  };
  }
 
+ // M1 (§4.4): the +10 happiness used to be a SECOND, unconditional
+ // `updateStats` dispatch. The relationship write is idempotent, but the stat
+ // one is not — a same-batch double-tap (the outer guard reads the lagging
+ // `gameStateRef`) paid +20 for one move-in. Folded into the same updater and
+ // re-checked against `prev`, matching `proposeToPartner`.
  setGameState(prev => {
  // ANTI-BIGAMY recheck inside the updater — a same-batch double-tap must
  // not end up cohabiting with two people.
  if (findCommittedPartner(prev.relationships, partnerId)) return prev;
+ const p = (prev.relationships || []).find(r => r.id === partnerId && r.type === 'partner');
+ if (!p || p.livingTogether) return prev; // partner gone, or already moved in this batch
  return {
 ...prev,
+...applyStatsDelta(prev, { happiness: 10 }),
  relationships: (prev.relationships || []).map(r =>
  r.id === partnerId ? {...r, livingTogether: true }: r
  ),
  };
  });
 
- updateStats({ happiness: 10 });
-
  logger.info(`Moved in with partner: ${partner.name}`);
  return {
  success: true,
  message: `You and ${partner.name} are now living together!`
  };
- }, [setGameState, updateStats]);
+ }, [setGameState]);
 
  // C-7: Use gameStateRef to prevent stale closure
  const fileDivorceAction = useCallback((spouseId: string, lawyerId?: string) => {
