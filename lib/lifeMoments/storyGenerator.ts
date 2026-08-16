@@ -6,7 +6,8 @@
  */
 
 import { GameState, JournalEntry, Relationship } from '@/contexts/game/types';
-import { WEEKS_PER_YEAR, ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { getAge as canonicalAge } from '@/lib/progress/lifeChapters';
+import { ageFromWeeksLived } from '@/utils/weekCounters';
 
 export interface StoryChapter {
  title: string;
@@ -25,9 +26,15 @@ export interface LifeStory {
 // Age helpers
 // ---------------------------------------------------------------------------
 
-function weeksToAge(weeksLived: number): number {
- return Math.floor(ADULTHOOD_AGE + weeksLived / WEEKS_PER_YEAR);
-}
+/**
+ * Age at a HISTORICAL `weeksLived` stamp — the shared primitive behind the
+ * canonical `getAge` (M10). Identical arithmetic to the private copy this
+ * replaces (`floor(18 + weeksLived / 52)`), with the malformed-input guard the
+ * shared helper adds. It takes a week number rather than a `GameState` on
+ * purpose: these call sites ask how old the player was when a journal entry or
+ * event was written, so there is no live age to read.
+ */
+const weeksToAge = ageFromWeeksLived;
 
 function ageLabel(age: number): string {
  if (age < 25) return 'Early Twenties';
@@ -117,7 +124,7 @@ function journalHighlights(journal: JournalEntry[]): string[] {
 
 function closingParagraph(state: GameState): string {
  const name = [state.userProfile?.firstName, state.userProfile?.lastName].filter(Boolean).join('') || state.userProfile?.name || 'Alex';
- const age = Math.floor(state.date?.age || ADULTHOOD_AGE);
+ const age = canonicalAge(state);
  const karma = state.karma;
 
  let legacy = '';
@@ -140,7 +147,7 @@ function closingParagraph(state: GameState): string {
 
 export function generateLifeStory(state: GameState): LifeStory {
  const name = [state.userProfile?.firstName, state.userProfile?.lastName].filter(Boolean).join('') || state.userProfile?.name || 'Alex';
- const age = Math.floor(state.date?.age || ADULTHOOD_AGE);
+ const age = canonicalAge(state);
  const events = state.eventLog || [];
  const journal = state.journal || [];
  const relationships = state.relationships || [];

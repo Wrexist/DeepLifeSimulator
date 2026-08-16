@@ -13,6 +13,7 @@
 import type { GameState, LifeMilestone } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { netWorth } from '@/lib/progress/achievements';
+import { getAge as canonicalAge } from '@/lib/progress/lifeChapters';
 import { calculateFIRETracker } from '@/lib/statistics/fireTracker';
 import {
   RETIREMENT_AGE,
@@ -28,9 +29,17 @@ import {
 const num = (v: unknown, fallback = 0): number =>
   typeof v === 'number' && isFinite(v) ? v : fallback;
 
-/** Player age in whole years (floored). Defaults to 18 for malformed state. */
+/**
+ * Player age in whole years (floored). Defaults to 18 for malformed state.
+ *
+ * M10: delegates to the canonical `getAge` (`lib/progress/lifeChapters.ts`),
+ * which derives the age from the absolute `weeksLived` counter instead of the
+ * stored `date.age` this used to read — see §4.2 and the helper's own note.
+ * Re-exported under this name because `isElder`/`RETIREMENT_AGE` and the
+ * pension tests are the module's public surface and callers import it here.
+ */
 export function getAge(state: GameState): number {
-  return Math.floor(num(state?.date?.age, 18));
+  return canonicalAge(state);
 }
 
 /** True once the player is at/over the standard retirement age (elder surface gate). */

@@ -7,6 +7,7 @@ import {
   sectorTiltFor,
   STOCK_SECTORS,
 } from '../sectors';
+import { DEFAULT_PRICES } from '@/lib/economy/stockMarket';
 
 describe('sectorForSymbol', () => {
   it('returns the correct sector for known symbols', () => {
@@ -27,10 +28,17 @@ describe('sectorForSymbol', () => {
 });
 
 describe('STOCK_SECTORS coverage', () => {
-  it('tags all 20 default stocks', () => {
-    const expected = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'META', 'NVDA', 'NFLX', 'WMT', 'JPM', 'JNJ', 'PG', 'KO', 'DIS', 'V', 'MA', 'HD', 'BA', 'CAT', 'IBM'];
-    for (const sym of expected) {
-      expect(STOCK_SECTORS[sym]).toBeDefined();
+  // M19: the registry is `Record<StockSymbol, Sector>`, keyed off
+  // `DEFAULT_PRICES` — the universe. A missing symbol is now a COMPILE error,
+  // so this asserts the two registries actually cover the same set (a stale
+  // hard-coded list of 20 was what let five symbols go untagged unnoticed).
+  it('tags every symbol in the universe, and nothing else', () => {
+    expect(Object.keys(STOCK_SECTORS).sort()).toEqual(Object.keys(DEFAULT_PRICES).sort());
+  });
+
+  it('every tag is a real sector', () => {
+    for (const sector of Object.values(STOCK_SECTORS)) {
+      expect(ALL_SECTORS).toContain(sector);
     }
   });
 });

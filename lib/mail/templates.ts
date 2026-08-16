@@ -19,6 +19,7 @@
  */
 
 import type { GameState, MailAttachment, MailMessage } from '@/contexts/game/types';
+import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { SENDERS } from './senders';
 import { docDate, docMoney, docPercent, docReference, docWhole } from './format';
 import { characterName, getMailState } from './state';
@@ -42,7 +43,6 @@ const PERIOD = 4;
  * month is a document, a bank statement every month on top of it is a pile.
  */
 const LONG_PERIOD = 8;
-const WEEKS_PER_YEAR = 52;
 
 /** Build a message with the fields every template repeats. */
 function compose(

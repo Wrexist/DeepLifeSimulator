@@ -8,6 +8,8 @@
  * Persists across prestiges in ribbonCollection.
  */
 import type { GameState } from '@/contexts/game/types';
+import { netWorth } from '@/lib/progress/achievements';
+import { getAge as canonicalAge } from '@/lib/progress/lifeChapters';
 
 export interface RibbonDefinition {
   id: string;
@@ -21,31 +23,32 @@ export interface RibbonDefinition {
   condition: (state: GameState) => boolean;
 }
 
-// Helper: rough net worth calculation
-function getNetWorth(s: GameState): number {
-  const cash = s.stats?.money ?? 0;
-  const bank = s.bankSavings ?? 0;
-  const holdings = Array.isArray(s.stocks) ? s.stocks : (s.stocks?.holdings ?? []);
-  const stocks = Array.isArray(holdings)
-    ? holdings.reduce(
-        (sum: number, st: any) => sum + (st.shares ?? 0) * (st.currentPrice ?? 0),
-        0
-      )
-    : 0;
-  // RealEstate has no `value` field (it's price/currentValue), so the old
-  // `r.value ?? 0` made property worth $0 toward the ribbon net-worth tiers.
-  // Skip sold entries (owned:false) and use the live value.
-  const realEstate = Array.isArray(s.realEstate)
-    ? s.realEstate.reduce(
-        (sum: number, r: any) =>
-          r?.owned === false ? sum : sum + (r?.currentValue ?? r?.price ?? 0),
-        0
-      )
-    : 0;
-  return cash + bank + stocks + realEstate;
-}
+/**
+ * Net worth, from the CANONICAL implementation (`lib/progress/achievements.ts`).
+ *
+ * M9: this was a private "rough net worth" copy summing cash + bank + stocks +
+ * realEstate only — the exact shape already deleted from `weeklyChallenges.ts`
+ * as audit GP-2, and NOT a deliberate reduction (nothing here wanted a
+ * cash-only figure; the copy had already taken one bug-fix of its own for
+ * real-estate valuation). It omitted crypto, laundered BTC, bank accounts,
+ * savings goals, luxury, companies, vehicles, loans and card debt, so the
+ * $1M / $10M / $1B ribbon tiers and the "millionaire by 25" ribbon asked for a
+ * different, larger number than the one the HUD, the prestige gate and the
+ * leaderboard show the player — a crypto-heavy or business-heavy life could be
+ * shown as a ten-figure fortune and still earn no wealth ribbon. Converted, so
+ * every surface reads one figure.
+ */
+const getNetWorth = netWorth;
 
-const getAge = (s: GameState) => Math.floor(s.date?.age ?? 18);
+/**
+ * Age, from the CANONICAL helper (`weeksInThisLife`'s neighbour in
+ * `lib/progress/lifeChapters.ts`) — derived from `weeksLived`, not read off
+ * the stored `date.age`. See M10 / §4.2: `date.age` is advanced by `+1/52`
+ * every tick, so it accumulates float skew and one corrupt value would have
+ * reset this file's age gates (the centenarian, "millionaire by 25", the
+ * golden-anniversary and the frail-elder ribbons) to 18.
+ */
+const getAge = (s: GameState) => canonicalAge(s);
 
 // The live claim store is authoritative; gameState.achievements[].completed is
 // never set in normal play (so this used to always be 0 → "Achiever" ribbon

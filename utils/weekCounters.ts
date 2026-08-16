@@ -1,4 +1,4 @@
-import { WEEKS_PER_MONTH, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { ADULTHOOD_AGE, WEEKS_PER_MONTH, WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 /**
  * Use absolute week for gameplay logic and fall back to legacy week values only
@@ -157,4 +157,29 @@ export function weeksSinceLifeStart(
   const start = lifeStartWeek;
   if (typeof start !== 'number' || !Number.isFinite(start) || start < 0) return now;
   return Math.max(0, now - start);
+}
+
+/**
+ * Age in whole years, derived from the ABSOLUTE `weeksLived` counter.
+ *
+ * The primitive behind `getAge` (`lib/progress/lifeChapters.ts`), which is the
+ * form to reach for when you hold a `GameState`. This one exists for the call
+ * sites that only have a week number — notably the story generator, which asks
+ * "how old was the player when this happened?" of a HISTORICAL `weeksLived`
+ * stamped on an event, where there is no state to read an age off at all.
+ *
+ * The inverse of `computeWeeksLived` (`lib/config/gameConstants.ts`), which
+ * seeds the counter as `(startingAge - 18) * 52` at the start of every life —
+ * onboarding (`gameStateBuilder`) and BOTH prestige paths, each of which resets
+ * `weeksLived` to `computeWeeksLived(newAge)` rather than letting it run on. So
+ * `18 + weeksLived / 52` is the player's age in every life, heirs included, and
+ * no `lifeStartWeek` term is needed: `lifeStartWeek` is stamped to the same
+ * value, making `startingAge + weeksInThisLife / 52` algebraically identical.
+ */
+export function ageFromWeeksLived(weeksLived: unknown): number {
+  const weeks = weeksLived;
+  if (typeof weeks !== 'number' || !Number.isFinite(weeks) || weeks < 0) {
+    return ADULTHOOD_AGE;
+  }
+  return Math.floor(ADULTHOOD_AGE + weeks / WEEKS_PER_YEAR);
 }

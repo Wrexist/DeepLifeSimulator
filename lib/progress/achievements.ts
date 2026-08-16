@@ -18,24 +18,45 @@ export interface AchievementProgress {
  */
 export const ACHIEVEMENTS: AchievementProgress[] = [];
 
-// Memoization cache for net worth
+/**
+ * Memoization cache for net worth.
+ *
+ * M9: every slice was typed `any`, so a field could be added to the SUM and
+ * silently omitted from the key (or keyed on the wrong slice) with nothing to
+ * catch it. The fields are the real `GameState` slice types now — identity
+ * comparison is all the cache does, so the types cost nothing at runtime and a
+ * renamed/removed slice becomes a compile error here.
+ *
+ * RULE: every slice read by `netWorth` below must appear here. Comparison is by
+ * REFERENCE (state is never mutated in place — §4.1), so a slice that changes
+ * produces a new object identity and invalidates the memo.
+ */
 interface NetWorthCacheKey {
   money: number;
   bank: number;
-  stocks: any;
-  realEstate: any;
-  companies: any;
-  loans: any;
-  vehicles: any;
-  luxury: any;
+  stocks: GameState['stocks'];
+  /** The legacy fallback path (`else if (state.stocksOwned)`) reads this, so a
+   *  change to it must invalidate the memo on a save with no modern holdings. */
+  stocksOwned: GameState['stocksOwned'];
+  realEstate: GameState['realEstate'];
+  companies: GameState['companies'];
+  loans: GameState['loans'];
+  vehicles: GameState['vehicles'];
+  luxury: GameState['luxuryItems'];
   /** Holdings drift weekly through appreciation WITHOUT the id list changing,
    *  so keying on `luxuryItems` alone would serve a stale net worth forever. */
-  luxuryHoldings: any;
+  luxuryHoldings: GameState['luxuryHoldings'];
   /** R3-M4: crypto and the modern banking slice were absent entirely. */
-  cryptos: any;
-  banking: any;
+  cryptos: GameState['cryptos'];
+  banking: GameState['banking'];
   /** D-5: laundered BTC is spendable value and moves independently of `cryptos`. */
-  darkWeb: any;
+  darkWeb: GameState['darkWeb'];
+  /**
+   * M9: keyed but deliberately NOT summed — see the note at the total below.
+   * Keying it costs one comparison and means that if arrears are ever made a
+   * liability, an existing memo cannot serve a stale figure across the change.
+   */
+  overdueBalance: GameState['overdueBalance'];
 }
 
 let lastCacheKey: NetWorthCacheKey | null = null;
@@ -53,6 +74,8 @@ export const netWorth = (state: GameState): number => {
       lastCacheKey.money === money &&
       lastCacheKey.bank === bank &&
       lastCacheKey.stocks === state.stocks &&
+      lastCacheKey.stocksOwned === state.stocksOwned &&
+      lastCacheKey.overdueBalance === state.overdueBalance &&
       lastCacheKey.realEstate === state.realEstate &&
       lastCacheKey.companies === state.companies &&
       lastCacheKey.loans === state.loans &&
@@ -289,9 +312,14 @@ export const netWorth = (state: GameState): number => {
     // `totalCreditCardDebt` dereferences `.creditCards` directly, and a partial
     // save can carry a `banking` object without it. `netWorth` is called from
     // the leaderboard and the HUD, so a throw here is a blank screen.
-    ...(state.banking ?? {}),
+    //
+    // M9: this used to be spread + `as never`, which erased the argument type
+    // entirely — the ONE thing this call has to get right (that `creditCards`
+    // is a real array) was the thing the cast stopped checking. The helper now
+    // takes `Pick<BankingState, 'creditCards'>`, so the guarded array is passed
+    // on its own and the shape is verified.
     creditCards: state.banking?.creditCards ?? [],
-  } as never);
+  });
   const safeCreditCardDebt = isFinite(creditCardDebt) ? Math.max(0, creditCardDebt) : 0;
 
   /**
@@ -316,6 +344,19 @@ export const netWorth = (state: GameState): number => {
   const safeLuxuryValue = isFinite(luxuryValue) ? luxuryValue : 0;
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
 
+  /**
+   * OPEN QUESTION (M9) — `state.overdueBalance` is NOT subtracted here.
+   *
+   * v31 added it as the arrears bucket for unpayable weekly bills, so it is a
+   * real debt the player owes, and every other liability in this sum (loans,
+   * card balances) IS subtracted. Whether arrears should reduce net worth is a
+   * GAME-BALANCE decision, not a bookkeeping one: this figure gates prestige
+   * availability and the prestige points award, the ultra-rich passive-income
+   * soft cap, bail cost and ad-reward scaling, so subtracting it would push a
+   * struggling player further from the prestige that resets their debts.
+   * Deliberately left for the owner to decide; the field is in the cache key
+   * above so the memo cannot serve a stale figure if that decision changes.
+   */
   const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue + safeDarkWebBtcValue - safeCreditCardDebt + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
@@ -329,6 +370,8 @@ export const netWorth = (state: GameState): number => {
     money,
     bank,
     stocks: state.stocks,
+    stocksOwned: state.stocksOwned,
+    overdueBalance: state.overdueBalance,
     realEstate: state.realEstate,
     companies: state.companies,
     loans: state.loans,

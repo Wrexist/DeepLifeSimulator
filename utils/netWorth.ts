@@ -1,3 +1,30 @@
+/**
+ * Portfolio VALUATION ENGINE — not the canonical net-worth figure.
+ *
+ * The canonical number is `netWorth(state)` in `lib/progress/achievements.ts`:
+ * it takes a whole `GameState`, decides WHICH slices count (laundered BTC but
+ * not dirty BTC, non-mirror deposits only, unsold property only, …), and is the
+ * figure prestige, ambitions, the leaderboard, bail cost and ad-reward scaling
+ * all read. There is exactly one of those and this is not it.
+ *
+ * This module is the other half of that job: given an already-selected list of
+ * {@link Asset}s and {@link Liability}s, price each one — depreciation curves,
+ * an earnings multiple for businesses, condition/illiquidity adjustment and an
+ * optional liquidation haircut — and report the per-asset contribution
+ * (`perAsset`) alongside the totals. It knows nothing about `GameState`.
+ *
+ * Its ONE production caller is `utils/netWorthItemisation.ts`, which builds the
+ * asset list out of `GameState` for `NetWorthBreakdownModal` and passes
+ * `transactionFee: 0` precisely so the headline agrees with the canonical
+ * figure. The per-asset split is what the modal needs and what `netWorth()`
+ * cannot give: `netWorth()` returns a single number.
+ *
+ * M9 (2026-08-16): kept deliberately. It is a different question ("what is each
+ * holding worth, and what would liquidating cost?"), not a fifth answer to the
+ * same one. Anything wanting THE net worth must call the canonical function —
+ * `IdentityCard.tsx` once built its own list here and reported a sixth,
+ * divergent number (2026-07-28 audit UX-3).
+ */
 export interface Asset {
   id: string;
   type: string;

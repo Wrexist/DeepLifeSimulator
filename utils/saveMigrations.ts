@@ -10,7 +10,7 @@
  */
 import { logger } from '@/utils/logger';
 import { STATE_VERSION } from '@/contexts/game/initialState';
-import { DEFAULT_PRICES } from '@/lib/economy/stockMarket';
+import { defaultStockFor } from '@/lib/economy/stockMarket';
 
 // Import from initialState.ts to prevent manual sync drift
 /**
@@ -1163,7 +1163,7 @@ function healCollapsedMarket(state: any): void {
 
   const ratios: number[] = [];
   for (const [symbol, data] of Object.entries(saved)) {
-    const base = DEFAULT_PRICES[String(symbol).toUpperCase()]?.price;
+    const base = defaultStockFor(String(symbol).toUpperCase())?.price;
     const persisted = (data as { price?: unknown })?.price;
     if (typeof base !== 'number' || base <= 0) continue;
     if (typeof persisted !== 'number' || !isFinite(persisted) || persisted <= 0) continue;

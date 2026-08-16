@@ -1,9 +1,23 @@
+import { fnv1a32, mulberry32 } from '@/utils/seededRoll';
+
 export interface StockData {
   price: number;
   dividendYield: number;
 }
 
-export const DEFAULT_PRICES: Record<string, StockData> = {
+/**
+ * THE stock universe. Adding a symbol here is what adds it to the game.
+ *
+ * `satisfies` rather than a `Record<string, StockData>` annotation (M19): the
+ * annotation widened the keys to `string`, so `keyof typeof DEFAULT_PRICES`
+ * was useless and the two satellite registries — `STOCK_SECTORS`
+ * (`lib/stocks/sectors.ts`) and the volatility tiers below — were plain
+ * `Record<string, …>` maps hand-synced with this one. A 26th symbol added here
+ * silently got no sector and default volatility. They are typed off
+ * {@link StockSymbol} now, so a missing or misspelled symbol is a compile
+ * error. The value type is still checked, by the `satisfies` clause.
+ */
+export const DEFAULT_PRICES = {
   AAPL: { price: 150.25, dividendYield: 0.006 },
   GOOGL: { price: 2750.80, dividendYield: 0.0 },
   MSFT: { price: 310.45, dividendYield: 0.008 },
@@ -33,7 +47,23 @@ export const DEFAULT_PRICES: Record<string, StockData> = {
   // Healthcare — thickens a sector that was JNJ-only.
   PFE: { price: 27.60, dividendYield: 0.061 },
   UNH: { price: 512.30, dividendYield: 0.015 },
-};
+} satisfies Record<string, StockData>;
+
+/**
+ * Every symbol the game trades, as a literal union derived from the registry
+ * above — the single source of truth for the stock universe (M19).
+ */
+export type StockSymbol = keyof typeof DEFAULT_PRICES;
+
+/**
+ * Catalogue lookup for a symbol that is NOT known to be one of ours — a value
+ * off a save, a URL, or user input. Returns `undefined` for anything not in
+ * the universe, which is exactly what indexing used to do before the keys were
+ * narrowed; callers holding a real {@link StockSymbol} should index directly.
+ */
+export function defaultStockFor(symbol: string): StockData | undefined {
+  return (DEFAULT_PRICES as Record<string, StockData>)[symbol];
+}
 
 // Per-share ceiling. It exists to stop a corrupt multiplier compounding to
 // Infinity (which `validateGameState` treats as critical and resets), NOT to
@@ -144,46 +174,47 @@ Object.entries(DEFAULT_PRICES).forEach(([symbol, data]) => {
 });
 
 // --- Seeded PRNG (Mulberry32) to prevent save/reload stock price manipulation ---
-// Same weeksLived + symbol always produces the same price change
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// Same weeksLived + symbol always produces the same price change.
+// Both the mulberry32 stream and the FNV-1a seed hash used to be hand-copied
+// here; they are now the shared primitives in `utils/seededRoll.ts` (audit
+// H7c). The arithmetic is bit-identical, so no stock price moved.
 
 // FNV-1a hash for combining weeksLived + stock index into a unique seed
 function hashSeed(weeksLived: number, index: number): number {
-  let hash = 2166136261;
-  const combined = `${weeksLived}:${index}`;
-  for (let i = 0; i < combined.length; i++) {
-    hash ^= combined.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
+  return fnv1a32(`${weeksLived}:${index}`);
 }
 
-// Pre-calculate volatility map to avoid recalculation every tick
+// Pre-calculate volatility map to avoid recalculation every tick.
+//
+// The tier arrays are `StockSymbol[]` (M19), so a typo or a symbol removed from
+// DEFAULT_PRICES fails the type-check here instead of silently dropping the
+// stock to the 5% default tier. The tiers stay ARRAYS, checked in order, rather
+// than one exhaustive map: the `else` default is deliberate — a symbol added to
+// the universe without a volatility opinion gets a sane middle value, and the
+// board keeps working.
+const HIGH_VOLATILITY: StockSymbol[] = ['TSLA', 'NVDA', 'META', 'NFLX'];
+const MEDIUM_VOLATILITY: StockSymbol[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN'];
+/** Higher-beta energy services / healthcare insurer. */
+const MEDIUM_VOLATILITY_BETA: StockSymbol[] = ['SLB', 'UNH'];
+/** Blue chips, dividend stocks, energy majors. */
+const LOW_VOLATILITY: StockSymbol[] = [
+  'JPM', 'JNJ', 'PG', 'KO', 'WMT', 'V', 'MA', 'HD', 'CAT', 'IBM', 'XOM', 'CVX', 'PFE',
+];
+
 const volatilityMap: Record<string, number> = {};
 
 Object.keys(stocks).forEach(symbol => {
+  const known = symbol as StockSymbol;
   // High volatility stocks (tech, growth stocks)
-  if (['TSLA', 'NVDA', 'META', 'NFLX'].includes(symbol)) {
+  if (HIGH_VOLATILITY.includes(known)) {
     volatilityMap[symbol] = 0.08; // 8% volatility
   }
   // Medium volatility stocks
-  else if (['AAPL', 'GOOGL', 'MSFT', 'AMZN'].includes(symbol)) {
-    volatilityMap[symbol] = 0.06; // 6% volatility
-  }
-  // Higher-beta energy services / healthcare insurer
-  else if (['SLB', 'UNH'].includes(symbol)) {
+  else if (MEDIUM_VOLATILITY.includes(known) || MEDIUM_VOLATILITY_BETA.includes(known)) {
     volatilityMap[symbol] = 0.06; // 6% volatility
   }
   // Low volatility stocks (blue chips, dividend stocks, energy majors)
-  else if (['JPM', 'JNJ', 'PG', 'KO', 'WMT', 'V', 'MA', 'HD', 'CAT', 'IBM', 'XOM', 'CVX', 'PFE'].includes(symbol)) {
+  else if (LOW_VOLATILITY.includes(known)) {
     volatilityMap[symbol] = 0.04; // 4% volatility
   }
   else {
@@ -223,7 +254,7 @@ export function restoreStockPrices(savedPrices?: Record<string, { price: number;
       // no schema changes: the field simply returns to the only value it should
       // ever have held. Below-default values are still honoured, so a future
       // yield-cut mechanic would not be silently reverted.
-      const catalogueYield = DEFAULT_PRICES[normalizedSymbol]?.dividendYield;
+      const catalogueYield = defaultStockFor(normalizedSymbol)?.dividendYield;
       if (typeof data.dividendYield === 'number' && isFinite(data.dividendYield) && data.dividendYield >= 0) {
         stocks[normalizedSymbol].dividendYield =
           typeof catalogueYield === 'number'

@@ -9,13 +9,29 @@
  * Pure functions, no game state.
  */
 
+import type { StockSymbol } from '@/lib/economy/stockMarket';
+
 const safe = (n: number, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 
 export type Sector = 'tech' | 'finance' | 'healthcare' | 'consumer' | 'industrial' | 'energy';
 
-/** Stock symbol → sector mapping for the 20 default stocks. */
-export const STOCK_SECTORS: Record<string, Sector> = {
+/**
+ * Stock symbol → sector, for EVERY symbol in the universe.
+ *
+ * Keyed by {@link StockSymbol}, derived from `DEFAULT_PRICES` in
+ * `lib/economy/stockMarket.ts` — the registry that defines which stocks exist
+ * (M19). `Record<StockSymbol, Sector>` is exhaustive in both directions: a
+ * symbol added to the universe without a sector fails the type-check here, and
+ * a sector entry for a symbol that no longer exists does too. It used to be
+ * `Record<string, Sector>` hand-synced with a comment saying "the 20 default
+ * stocks" while the universe had grown to 25 — a 26th would have rendered in
+ * the sector UI as an untagged stock with no rotation tilt, silently.
+ *
+ * The import is `import type`, so it is erased at compile time and cannot form
+ * a runtime cycle between `lib/stocks` and `lib/economy`.
+ */
+export const STOCK_SECTORS: Record<StockSymbol, Sector> = {
   // Tech
   AAPL: 'tech',
   GOOGL: 'tech',
@@ -102,7 +118,12 @@ export function sampleDuration(state: SectorState, roll: number): number {
  * Resolve the sector tag for a stock symbol. Unknown symbols → 'tech' (most common).
  */
 export function sectorForSymbol(symbol: string): Sector {
-  return STOCK_SECTORS[symbol?.toUpperCase()] ?? 'tech';
+  // Widened deliberately: the argument is an arbitrary string (a symbol off a
+  // save or a UI list), and the point of this function is to answer for one
+  // that may not be in the universe. Callers holding a real `StockSymbol` can
+  // index `STOCK_SECTORS` directly and get the exhaustiveness check.
+  const table = STOCK_SECTORS as Record<string, Sector>;
+  return table[symbol?.toUpperCase()] ?? 'tech';
 }
 
 /**

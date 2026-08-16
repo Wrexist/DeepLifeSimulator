@@ -12,11 +12,11 @@
  * GameState) is the caller's job.
  */
 import type { LegacyPassState } from '@/contexts/game/types';
+import { MS_PER_WEEK } from '@/lib/config/gameConstants';
 
 // ── Season clock ─────────────────────────────────────────────────────────────
 /** Season length. Matches the strategy's 6-week cadence. */
 export const SEASON_LENGTH_WEEKS = 6;
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 /** Fixed epoch so season ids are stable across devices/timezones (UTC). */
 const SEASON_EPOCH_MS = Date.UTC(2026, 0, 5); // Mon 2026-01-05
 

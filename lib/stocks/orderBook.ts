@@ -1,13 +1,23 @@
 /**
- * Stock order book — limit + stop orders. Reuses the same model as crypto but
- * with stock-specific defaults.
+ * Stock order book — limit + stop orders.
  *
- * Spread is tight (1–5 bps) since these are big-cap equities. Slippage kicks in
- * only on huge orders (>$1M notional).
+ * A thin wrapper over the shared core in `lib/markets/orderBook.ts` (M19): this
+ * module owns the equity-specific parameters (a fixed 8 bps spread, a $1M
+ * liquidity ceiling, a 0.005 slippage coefficient) and the `StockOrder` types.
+ * The five exported functions kept their exact signatures and their exact
+ * numeric behaviour — `__tests__/economy/orderBookParity.test.ts` pins that.
+ *
+ * Spread is tight since these are big-cap equities; slippage kicks in only on
+ * huge orders (>$1M notional).
  */
-
-const safe = (n: number, fb = 0): number =>
-  typeof n === 'number' && isFinite(n) ? n : fb;
+import {
+  askPriceFor,
+  bidPriceFor,
+  limitOrderShouldFillFor,
+  marketFillPriceFor,
+  stopOrderShouldTriggerFor,
+  type OrderBookLiquidity,
+} from '@/lib/markets/orderBook';
 
 export type StockOrderType = 'market' | 'limit' | 'stop';
 export type StockOrderSide = 'buy' | 'sell';
@@ -31,37 +41,35 @@ export interface StockOrder {
 /** Spread (bid/ask gap as a fraction of price). Big-cap equities are tight. */
 export const DEFAULT_SPREAD = 0.0008; // 8 bps
 
-/** Notional above which slippage starts. Stocks are deeper than crypto. */
-const LIQUIDITY_CEILING = 1_000_000;
+/**
+ * Depth parameters for the equity book. Stocks are far deeper than crypto:
+ * slippage only starts above $1M notional and costs half as much per unit of
+ * excess size. See `lib/markets/orderBook.ts` for the shared arithmetic.
+ */
+const STOCK_LIQUIDITY: OrderBookLiquidity = {
+  liquidityCeiling: 1_000_000,
+  slippageCoefficient: 0.005,
+};
 
 export function bidPrice(mid: number): number {
-  return mid * (1 - DEFAULT_SPREAD / 2);
+  return bidPriceFor(mid, DEFAULT_SPREAD);
 }
 
 export function askPrice(mid: number): number {
-  return mid * (1 + DEFAULT_SPREAD / 2);
+  return askPriceFor(mid, DEFAULT_SPREAD);
 }
 
 /**
  * Effective fill price for a market order with size-based slippage on top of the spread.
  */
 export function marketFillPrice(midPrice: number, side: StockOrderSide, notionalUSD: number): number {
-  const mid = Math.max(0.0001, safe(midPrice, 1));
-  const notional = Math.max(0, safe(notionalUSD));
-  const slippage = Math.max(0, notional / LIQUIDITY_CEILING - 1) * 0.005;
-  const halfSpread = DEFAULT_SPREAD / 2;
-  if (side === 'buy') return mid * (1 + halfSpread + slippage);
-  return mid * (1 - halfSpread - slippage);
+  return marketFillPriceFor(midPrice, side, notionalUSD, DEFAULT_SPREAD, STOCK_LIQUIDITY);
 }
 
 export function limitOrderShouldFill(order: StockOrder, midPrice: number): boolean {
-  if (order.type !== 'limit' || order.limitPrice == null) return false;
-  if (order.side === 'buy') return askPrice(midPrice) <= order.limitPrice;
-  return bidPrice(midPrice) >= order.limitPrice;
+  return limitOrderShouldFillFor(order, midPrice, DEFAULT_SPREAD);
 }
 
 export function stopOrderShouldTrigger(order: StockOrder, midPrice: number): boolean {
-  if (order.type !== 'stop' || order.stopPrice == null) return false;
-  if (order.side === 'sell') return midPrice <= order.stopPrice;
-  return midPrice >= order.stopPrice;
+  return stopOrderShouldTriggerFor(order, midPrice);
 }
