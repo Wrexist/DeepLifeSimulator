@@ -33,10 +33,11 @@
  *
  * ## Scope note
  *
- * Only `engine.ts`'s own templates were converted. `careerEvents.ts`,
- * `personalCrises.ts`, `travelEvents.ts` and `lifeEvents.ts` still roll
- * `Math.random()` in `generate()` and are deliberately EXCLUDED below rather
- * than silently passing — see CONVERTED_EVENT_IDS.
+ * This suite covers `engine.ts`'s OWN templates (see CONVERTED_EVENT_IDS). The
+ * event PACKS — `careerEvents.ts`, `personalCrises.ts`, `travelEvents.ts` and
+ * `lifeEvents.ts` — were converted in the second H7b pass and are covered by
+ * `packPayloadDeterminism.test.ts`, so the filtering below is now a scoping
+ * choice rather than a quarantine.
  */
 import type { GameState, Relationship, ChildInfo, Pet, Vehicle } from '@/contexts/game/types';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
@@ -267,10 +268,9 @@ describe('rollWeeklyEvents — repeated calls agree on the payload', () => {
    * The tick's own selection roll was already seeded (H7a / the Math.sin fix),
    * so re-running a week must now reproduce the payloads too.
    *
-   * Filtered to the converted ids on purpose: the packs in `careerEvents.ts`,
-   * `personalCrises.ts`, `travelEvents.ts` and `lifeEvents.ts` still call
-   * `Math.random()` inside `generate()`, so including them would make this
-   * suite flaky rather than make those files correct.
+   * Filtered to the engine-owned ids on purpose: this suite pins THIS file's
+   * conversion. The packs are seeded too now (second H7b pass) and are pinned
+   * by `packPayloadDeterminism.test.ts`.
    */
   const converted = new Set<string>(CONVERTED_EVENT_IDS);
 

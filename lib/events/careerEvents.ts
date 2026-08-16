@@ -7,6 +7,7 @@
  */
 import type { EventTemplate } from './engine';
 import type { GameState } from '@/contexts/game/types';
+import { payloadRoll } from './seededPayload';
 
 /** Helper: get current career performance (or estimate from stats) */
 function getPerformance(state: GameState): number {
@@ -234,6 +235,7 @@ const surpriseRaise: EventTemplate = {
     const career = careers.find(c => c && c.id === state.currentJob && c.accepted);
     const salary = career?.levels?.[career.level]?.salary || 100;
     const raiseAmount = Math.round(salary * 4); // ~4 weeks salary as bonus
+    const roll = payloadRoll(state, 'surprise_raise');
 
     return {
       id: 'surprise_raise',
@@ -248,8 +250,12 @@ const surpriseRaise: EventTemplate = {
           id: 'negotiate_more',
           text: 'Push for even more',
           effects: {
-            money: Math.random() > 0.4 ? Math.round(raiseAmount * 1.5) : Math.round(raiseAmount * 0.5),
-            stats: { reputation: Math.random() > 0.4 ? 3 : -5 },
+            // Two INDEPENDENT draws before this change (you could win the bigger
+            // cheque and still annoy management, or take the smaller one and be
+            // respected for asking), so they keep independent salts rather than
+            // being welded into one decision. H7b.
+            money: roll('negotiate-money') > 0.4 ? Math.round(raiseAmount * 1.5) : Math.round(raiseAmount * 0.5),
+            stats: { reputation: roll('negotiate-reputation') > 0.4 ? 3 : -5 },
           },
         },
       ],
@@ -353,6 +359,7 @@ const bossFavoritism: EventTemplate = {
   condition: (state) => Boolean(state.currentJob) && getWeeksEmployed(state) >= 12,
   generate: (state) => {
     const name = getCareerName(state);
+    const roll = payloadRoll(state, 'boss_favoritism');
     return {
       id: 'boss_favoritism',
       description: `Your boss at ${name} is clearly showing favoritism to another employee, giving them the best projects and praising them in meetings.`,
@@ -360,7 +367,7 @@ const bossFavoritism: EventTemplate = {
         {
           id: 'speak_up',
           text: 'Speak to your boss about it',
-          effects: { stats: { reputation: Math.random() > 0.5 ? 5 : -5, happiness: -5 } },
+          effects: { stats: { reputation: roll('speak-up-outcome') > 0.5 ? 5 : -5, happiness: -5 } },
           karma: { dimension: 'honesty', amount: 1, reason: 'Addressed workplace favoritism' },
         },
         {
@@ -397,7 +404,11 @@ const companyLayoffs: EventTemplate = {
     // for surviving and be fired anyway. Each player saw a self-contradictory
     // result 2 × p × (1-p) of the time (~42% at the 50-performance band).
     // 2026-07-28 audit GL-4.
-    const survivedLayoffs = Math.random() < surviveChance;
+    // SEEDED (H7b): this decides whether the player is FIRED, and it ran inside
+    // the weekly `setGameState` updater — React 19's double invocation drew a
+    // different number each time, so the committed outcome was whichever render
+    // React kept, and a reload re-rolled it. Now a pure function of the week.
+    const survivedLayoffs = payloadRoll(state, 'company_layoffs')('survive') < surviveChance;
 
     return {
       id: 'company_layoffs',

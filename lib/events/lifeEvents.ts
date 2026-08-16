@@ -5,6 +5,7 @@
  */
 
 import type { PendingChainedEvent, ChainedEvent } from '@/contexts/game/types';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 
 /**
  * Registry of chained events
@@ -161,6 +162,8 @@ export function checkForChainedEvent(
   choiceId: string,
   currentWeek: number
 ): PendingChainedEvent | null {
+  const chainRoll = makeWeeklyRoll(currentWeek || 0);
+
   // Map choice IDs to conditions
   const conditionMap: Record<string, string[]> = {
     has_reconnected: ['reconnect', 'dinner'],
@@ -180,8 +183,14 @@ export function checkForChainedEvent(
     const matchingChoices = chain.condition ? conditionMap[chain.condition] : [];
     if (matchingChoices && !matchingChoices.includes(choiceId)) continue;
     
-    // Random chance (70%) to trigger chain
-    if (Math.random() > 0.7) continue;
+    // Random chance (70%) to trigger chain.
+    // SEEDED (H7b): called from `resolveEvent`'s `setGameState` updater with
+    // `prevState.weeksLived`, so the raw draw was re-rolled by React 19's double
+    // invocation and by a reload. No `state` is in scope here — `currentWeek` IS
+    // `weeksLived`, which is what `payloadRoll` seeds on — so the weekly roll is
+    // built directly. Salted with the resolved event + choice + follow-up id so
+    // each chain is an independent decision.
+    if (chainRoll(`chain-${eventId}-${choiceId}-${chain.followUpEventId}`) > 0.7) continue;
     
     return {
       eventId: chain.followUpEventId,

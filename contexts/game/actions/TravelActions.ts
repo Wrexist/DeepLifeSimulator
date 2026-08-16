@@ -9,6 +9,7 @@ import { TravelEventDef } from '@/lib/travel/events';
 import { quoteActivity } from '@/lib/travel/activities';
 import { evaluateTravelMilestones, TravelMilestoneTier } from '@/lib/travel/milestones';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { fnv1a32 } from '@/utils/seededRoll';
 import type { Dispatch, SetStateAction } from 'react';
 
 const log = logger.scope('TravelActions');
@@ -16,18 +17,26 @@ const log = logger.scope('TravelActions');
 /** Cap travel history at write time (matches the save-prune cap) to bound growth. */
 const TRAVEL_HISTORY_CAP = 100;
 
-/** Deterministic per-trip RNG — same trip + week always rolls the same events. */
+/**
+ * Deterministic per-trip RNG — same trip + week always rolls the same events.
+ *
+ * The FNV-1a loop was the SIXTH hand-copy of the one in `utils/seededRoll.ts`
+ * and was verified bit-identical before being deleted (2026-08-16 audit H7c
+ * follow-up): the omitted intra-loop `>>> 0` is a no-op because `^` and
+ * `Math.imul` read only the low 32 bits, and both end on `h >>> 0`. An
+ * exhaustive-shaped sweep over 200k mixed-charset strings (ASCII, punctuation,
+ * accented and astral code points) found zero disagreements — see
+ * `__tests__/utils/seededRoll.test.ts`. Unlike `lib/parenting/grandchildren.ts`
+ * (which returns `Math.abs` of a SIGNED hash and therefore genuinely differs),
+ * this one folds onto the shared export with no roll moving.
+ *
+ * The `% 1_000_000 / 1_000_000` mapping is deliberately KEPT rather than swapped
+ * for `makeWeeklyRoll`'s mulberry32 finalizer: trip event outcomes are written
+ * into the save, so changing the mapping would move already-rolled trips.
+ */
 function makeTripRoller(seedKey: string): (key: string) => number {
-  const hash = (s: string): number => {
-    let h = 2166136261 >>> 0;
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-  };
   return (suffix: string) => {
-    const v = hash(`${seedKey}::${suffix}`);
+    const v = fnv1a32(`${seedKey}::${suffix}`);
     return (v % 1_000_000) / 1_000_000;
   };
 }

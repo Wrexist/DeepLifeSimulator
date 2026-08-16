@@ -148,4 +148,42 @@ describe('shared RNG primitives — bit-identical to the copies they replaced', 
     }
     expect(differ).toBeGreaterThan(0);
   });
+  it('the TravelActions copy WAS this function (H7b follow-up dedupe)', () => {
+    // contexts/game/actions/TravelActions.ts carried the sixth hand-copy inside
+    // `makeTripRoller`. It omitted the intra-loop `>>> 0` — a no-op, because `^`
+    // and `Math.imul` read only the low 32 bits — and ended on `h >>> 0` like
+    // this one, so it is bit-identical and was folded onto the shared export.
+    // The mirror image of the grandchildren case above: this asserts they NEVER
+    // disagree, over ASCII, punctuation, accented and astral inputs.
+    const legacyTripHash = (s: string): number => {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    };
+    const alphabet = 'abcXYZ019_:-/ \u00e9\u00ff\u4e2d\ud83d\ude00';
+    let compared = 0;
+    for (let i = 0; i < 20_000; i++) {
+      let str = '';
+      const len = i % 20;
+      for (let j = 0; j < len; j++) str += alphabet[(i * 7 + j * 13) % alphabet.length];
+      expect(legacyTripHash(str)).toBe(fnv1a32(str));
+      compared++;
+    }
+    expect(compared).toBe(20_000);
+
+    // And the roller's own `% 1e6 / 1e6` mapping is preserved end to end, so no
+    // trip event that is already written into a save moves.
+    const legacyRoller = (seedKey: string) => (suffix: string) =>
+      (legacyTripHash(`${seedKey}::${suffix}`) % 1_000_000) / 1_000_000;
+    const nowRoller = (seedKey: string) => (suffix: string) =>
+      (fnv1a32(`${seedKey}::${suffix}`) % 1_000_000) / 1_000_000;
+    for (const seed of ['trip-paris-104', 'trip-tokyo-957', 'trip-\u00e9\u00e9-0']) {
+      for (const k of ['event-0', 'event-1', 'activity-3', 'mishap']) {
+        expect(nowRoller(seed)(k)).toBe(legacyRoller(seed)(k));
+      }
+    }
+  });
 });
