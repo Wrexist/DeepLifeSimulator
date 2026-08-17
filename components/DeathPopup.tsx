@@ -1,5 +1,18 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, Animated, ScrollView, Alert, Share, Dimensions } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  ScrollView,
+  Alert,
+  Share,
+  Dimensions,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 import { useRouter } from 'expo-router';
@@ -451,9 +464,41 @@ function DeathPopup() {
     }
   }, [gameState]);
 
+  // ── One scroll surface ─────────────────────────────────────────────────────
+  // The whole card scrolls: tombstone, verdict, identity card, segmented
+  // control, the active page AND its actions all live inside ONE ScrollView.
+  //
+  // The control is deliberately NOT a sticky header. The card is a gradient and
+  // the segmented control is translucent glass, so pinning it would need an
+  // opaque band that seams against the gradient sliding underneath. Instead we
+  // remember where the control sits and, on a tab switch, jump to it ONLY if it
+  // has already scrolled off the top: a player reading the bottom of Summary
+  // lands on Legacy with the control at the top, and a player still up at the
+  // hero is not yanked anywhere.
+  const scrollRef = useRef<ScrollView | null>(null);
+  const tabBarY = useRef(0);
+  const scrollY = useRef(0);
+
+  const handleTabBarLayout = useCallback((e: LayoutChangeEvent) => {
+    tabBarY.current = e.nativeEvent.layout.y;
+  }, []);
+
+  // Offset lives in a ref, not state: this fires on every frame of a drag and
+  // must not re-render the most crash-sensitive screen in the game.
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollY.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
+  const selectTab = useCallback((tab: 'summary' | 'legacy') => {
+    setActiveTab(tab);
+    if (scrollY.current > tabBarY.current) {
+      scrollRef.current?.scrollTo({ y: tabBarY.current, animated: false });
+    }
+  }, []);
+
   // Memoized handlers for the tab bar + secondary actions (passed to children).
-  const handleSelectSummaryTab = useCallback(() => setActiveTab('summary'), []);
-  const handleSelectLegacyTab = useCallback(() => setActiveTab('legacy'), []);
+  const handleSelectSummaryTab = useCallback(() => selectTab('summary'), [selectTab]);
+  const handleSelectLegacyTab = useCallback(() => selectTab('legacy'), [selectTab]);
   const handleShowLifeStory = useCallback(() => setShowLifeStory(true), []);
   const handleHideLifeStory = useCallback(() => setShowLifeStory(false), []);
 
@@ -623,763 +668,781 @@ function DeathPopup() {
             colors={[c.background, c.surface, c.surfaceElevated]}
             style={styles.card}
           >
-            {/* ── Hero ──────────────────────────────────────────────────────
-                The illustration, the verdict, and the cause. Centred, because
-                this is the one screen in the game that is not a dashboard: it
-                is an ending, and an ending reads down the middle.
+            {/* ── The one scroll surface ────────────────────────────────────
+                Everything from the tombstone down is inside this ScrollView:
+                hero, identity card, tab bar, the active page and its actions.
 
-                `DeathHero` draws the gravestone today and accepts the painted
-                asset via `source` the moment one exists — see
-                `docs/DEATH_SCREEN_ASSETS.md`. */}
-            <DeathHero
-              height={heroHeight}
-              mood={quality.mood}
-              source={require('@/assets/images/death/gravestone.webp')}
-            />
+                The card used to pin the hero AND the action footer outside the
+                scroller, leaving it only the space left over. That space is
+                what broke: `flex: 1` on the scroller is flexBasis 0 + grow, and
+                RN defaults flexShrink to 0, so a footer taller than the
+                left-over space takes ALL of it — the scroll area resolves to
+                zero height and the footer's tail (the purple "Start New Life"
+                button) is clipped away by the card's `overflow: 'hidden'`, with
+                nothing scrollable to reach it. The Summary footer — revive,
+                revival pack, gems, one row per checkpoint, new life, secondary
+                actions — is exactly that tall on a small phone. */}
+            <ScrollView
+              ref={scrollRef}
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={true}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              bounces={true}
+            >
+              {/* ── Hero ──────────────────────────────────────────────────────
+                  The illustration, the verdict, and the cause. Centred, because
+                  this is the one screen in the game that is not a dashboard: it
+                  is an ending, and an ending reads down the middle.
 
-            <View style={styles.hero}>
-              <Text style={styles.heroTitle} numberOfLines={1} adjustsFontSizeToFit>
-                {deathTitle}
-              </Text>
-              <Text style={styles.heroSubtitle}>{deathSubtitle}</Text>
-              <Text style={styles.heroCause}>{deathMessage}</Text>
-            </View>
+                  `DeathHero` draws the gravestone today and accepts the painted
+                  asset via `source` the moment one exists — see
+                  `docs/DEATH_SCREEN_ASSETS.md`. */}
+              <DeathHero
+                height={heroHeight}
+                mood={quality.mood}
+                source={require('@/assets/images/death/gravestone.webp')}
+              />
 
-            {/* Identity card — the portrait belongs here. A player who spent
-                sixty years as this character should see their face, not a
-                generic skull, and certainly not be eulogised as "Player":
-                `userProfile.name` is the HANDLE and defaults to that string.
-                `characterName` is the one resolver, shared with mail. */}
-            <View style={styles.identityCard}>
-              <View style={styles.identityAvatarRing}>
-                <CharacterAvatar
-                  source={safeUserProfile(gameState)}
-                  seed={displayName}
-                  sex={safeUserProfile(gameState).sex || 'male'}
-                  age={age}
-                  size={scale(54)}
-                />
-              </View>
-              <View style={styles.identityText}>
-                <Text style={styles.identityName} numberOfLines={1}>
-                  {displayName}
+              <View style={styles.hero}>
+                <Text style={styles.heroTitle} numberOfLines={1} adjustsFontSizeToFit>
+                  {deathTitle}
                 </Text>
-                <Text style={styles.identityDetails} numberOfLines={1}>
-                  <Text style={styles.identityAge}>Age {age}</Text>
-                  {'  •  '}
-                  {yearsLived > 0 ? `${yearsLived} yrs` : `${weeksLived} wks`} lived
-                </Text>
+                <Text style={styles.heroSubtitle}>{deathSubtitle}</Text>
+                <Text style={styles.heroCause}>{deathMessage}</Text>
               </View>
-            </View>
 
-            {/* TOP MENU BAR — segmented control switching between the two pages */}
-            <View style={styles.topBar}>
-              <View style={styles.segmented}>
-                <TouchableOpacity
-                  style={[styles.segment, activeTab === 'summary' && styles.segmentActive]}
-                  onPress={handleSelectSummaryTab}
-                  activeOpacity={0.8}
-                >
-                  <Sparkles size={15} color={activeTab === 'summary' ? '#FFF' : c.textSecondary} />
-                  <Text style={[styles.segmentText, activeTab === 'summary' && styles.segmentTextActive]}>
-                    Summary
+              {/* Identity card — the portrait belongs here. A player who spent
+                  sixty years as this character should see their face, not a
+                  generic skull, and certainly not be eulogised as "Player":
+                  `userProfile.name` is the HANDLE and defaults to that string.
+                  `characterName` is the one resolver, shared with mail. */}
+              <View style={styles.identityCard}>
+                <View style={styles.identityAvatarRing}>
+                  <CharacterAvatar
+                    source={safeUserProfile(gameState)}
+                    seed={displayName}
+                    sex={safeUserProfile(gameState).sex || 'male'}
+                    age={age}
+                    size={scale(54)}
+                  />
+                </View>
+                <View style={styles.identityText}>
+                  <Text style={styles.identityName} numberOfLines={1}>
+                    {displayName}
                   </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.segment, activeTab === 'legacy' && styles.segmentActive]}
-                  onPress={handleSelectLegacyTab}
-                  activeOpacity={0.8}
-                >
-                  <Crown size={15} color={activeTab === 'legacy' ? '#FFF' : c.textSecondary} />
-                  <Text style={[styles.segmentText, activeTab === 'legacy' && styles.segmentTextActive]}>
-                    Legacy
+                  <Text style={styles.identityDetails} numberOfLines={1}>
+                    <Text style={styles.identityAge}>Age {age}</Text>
+                    {'  •  '}
+                    {yearsLived > 0 ? `${yearsLived} yrs` : `${weeksLived} wks`} lived
                   </Text>
-                </TouchableOpacity>
+                </View>
               </View>
-            </View>
 
-            {/* ───────────────────────────── SUMMARY PAGE ───────────────────────────── */}
-            {activeTab === 'summary' && (
-              <View style={styles.page}>
-                <ScrollView
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                  bounces={true}
-                >
-                  {/* ── Life Summary verdict ────────────────────────────────
-                      The earned ribbon and the score, side by side, because
-                      they are two readings of the same life and separating
-                      them is how a LEGENDARY ribbon ends up sitting above a
-                      30% gauge with nothing to reconcile them. `lifeQuality`
-                      scores the same signals `classifyLife` judges. */}
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <View style={styles.sectionIcon}>
-                        <Sparkles size={16} color={settings.darkMode ? '#A78BFA' : '#7C3AED'} />
+              {/* TOP MENU BAR — segmented control switching between the two pages.
+                  Scrolls with the rest of the card; `onLayout` records where it
+                  sits so a tab switch can bring it back to the top. */}
+              <View style={styles.topBar} onLayout={handleTabBarLayout}>
+                <View style={styles.segmented}>
+                  <TouchableOpacity
+                    style={[styles.segment, activeTab === 'summary' && styles.segmentActive]}
+                    onPress={handleSelectSummaryTab}
+                    activeOpacity={0.8}
+                  >
+                    <Sparkles size={15} color={activeTab === 'summary' ? '#FFF' : c.textSecondary} />
+                    <Text style={[styles.segmentText, activeTab === 'summary' && styles.segmentTextActive]}>
+                      Summary
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.segment, activeTab === 'legacy' && styles.segmentActive]}
+                    onPress={handleSelectLegacyTab}
+                    activeOpacity={0.8}
+                  >
+                    <Crown size={15} color={activeTab === 'legacy' ? '#FFF' : c.textSecondary} />
+                    <Text style={[styles.segmentText, activeTab === 'legacy' && styles.segmentTextActive]}>
+                      Legacy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* ───────────────────────────── SUMMARY PAGE ───────────────────────────── */}
+              {activeTab === 'summary' && (
+                <>
+                  <View style={styles.pageContent}>
+                    {/* ── Life Summary verdict ────────────────────────────────
+                        The earned ribbon and the score, side by side, because
+                        they are two readings of the same life and separating
+                        them is how a LEGENDARY ribbon ends up sitting above a
+                        30% gauge with nothing to reconcile them. `lifeQuality`
+                        scores the same signals `classifyLife` judges. */}
+                    <View style={styles.section}>
+                      <View style={styles.sectionHeader}>
+                        <View style={styles.sectionIcon}>
+                          <Sparkles size={16} color={settings.darkMode ? '#A78BFA' : '#7C3AED'} />
+                        </View>
+                        <Text style={styles.sectionTitle}>Life Summary</Text>
                       </View>
-                      <Text style={styles.sectionTitle}>Life Summary</Text>
-                    </View>
 
-                    <View style={styles.verdictCard}>
-                      <View style={styles.verdictText}>
-                        <Text
-                          style={[
-                            styles.verdictName,
-                            lifeRibbon ? { color: lifeRibbon.color } : null,
-                          ]}
-                        >
-                          {lifeRibbon
-                            ? lifeRibbon.hidden &&
-                              !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
-                              ? 'NEW RIBBON DISCOVERED!'
-                              : lifeRibbon.name.toUpperCase()
-                            : quality.verdict.toUpperCase()}
-                        </Text>
-                        <Text style={styles.verdictDesc}>
-                          {lifeRibbon ? lifeRibbon.description : deathMessage}
-                        </Text>
-                      </View>
-
-                      <LifeQualityGauge quality={quality} darkMode={settings.darkMode} />
-                    </View>
-                  </View>
-
-                  {/* Life details */}
-                  <View style={styles.section}>
-                    <View style={styles.summaryCard}>
-                      {/* Career */}
-                      {currentJob && (
-                        <View style={styles.summaryRow}>
-                          <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                            <Briefcase size={18} color={accent.info} />
-                          </View>
-                          <View style={styles.summaryContent}>
-                            <Text style={styles.summaryLabel}>Final Career</Text>
-                            <Text style={styles.summaryValue}>
-                              {('name' in currentJob ? currentJob.name : currentJob.levels?.[currentJob.level]?.name) || 'Unknown'}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Education */}
-                      {highestEducation && (
-                        <View style={styles.summaryRow}>
-                          <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                            <GraduationCap size={18} color={theme.palette.fitness} />
-                          </View>
-                          <View style={styles.summaryContent}>
-                            <Text style={styles.summaryLabel}>Education</Text>
-                            <Text style={styles.summaryValue}>
-                              {highestEducation.name || 'None'}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Family */}
-                      <View style={styles.summaryRow}>
-                        <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
-                          <Users size={18} color={theme.palette.reputation} />
-                        </View>
-                        <View style={styles.summaryContent}>
-                          <Text style={styles.summaryLabel}>Family</Text>
-                          <Text style={styles.summaryValue}>
-                            {spouse ? `Married to ${spouse.name}` : 'Single'} • {children.length} {children.length === 1 ? 'child' : 'children'}
+                      <View style={styles.verdictCard}>
+                        <View style={styles.verdictText}>
+                          <Text
+                            style={[
+                              styles.verdictName,
+                              lifeRibbon ? { color: lifeRibbon.color } : null,
+                            ]}
+                          >
+                            {lifeRibbon
+                              ? lifeRibbon.hidden &&
+                                !gameState.ribbonCollection?.discoveredIds?.includes(lifeRibbon.id)
+                                ? 'NEW RIBBON DISCOVERED!'
+                                : lifeRibbon.name.toUpperCase()
+                              : quality.verdict.toUpperCase()}
+                          </Text>
+                          <Text style={styles.verdictDesc}>
+                            {lifeRibbon ? lifeRibbon.description : deathMessage}
                           </Text>
                         </View>
+
+                        <LifeQualityGauge quality={quality} darkMode={settings.darkMode} />
                       </View>
+                    </View>
 
-                      {/* Properties */}
-                      {ownedProperties.length > 0 && (
-                        <View style={styles.summaryRow}>
-                          <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                            <Home size={18} color={accent.success} />
-                          </View>
-                          <View style={styles.summaryContent}>
-                            <Text style={styles.summaryLabel}>Properties Owned</Text>
-                            <Text style={styles.summaryValue}>
-                              {ownedProperties.length} {ownedProperties.length === 1 ? 'property' : 'properties'}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Companies */}
-                      {ownedCompanies.length > 0 && (
-                        <View style={styles.summaryRow}>
-                          <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
-                            <Building2 size={18} color={accent.warning} />
-                          </View>
-                          <View style={styles.summaryContent}>
-                            <Text style={styles.summaryLabel}>Companies Owned</Text>
-                            <Text style={styles.summaryValue}>
-                              {ownedCompanies.length} {ownedCompanies.length === 1 ? 'company' : 'companies'}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Achievements */}
-                      {totalAchievements > 0 && (
-                        <View style={styles.summaryRow}>
-                          <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
-                            <Trophy size={18} color={accent.purple} />
-                          </View>
-                          <View style={styles.summaryContent}>
-                            <Text style={styles.summaryLabel}>Achievements</Text>
-                            <Text style={styles.summaryValue}>
-                              {totalAchievements} {totalAchievements === 1 ? 'achievement' : 'achievements'} unlocked
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Top Achievements */}
-                      {topAchievements.length > 0 && (
-                        <View style={styles.achievementsList}>
-                          {topAchievements.map((ach, idx) => (
-                            <View key={ach.id || idx} style={styles.achievementBadge}>
-                              <Trophy size={12} color={accent.warning} />
-                              <Text style={styles.achievementText}>{ach.name}</Text>
+                    {/* Life details */}
+                    <View style={styles.section}>
+                      <View style={styles.summaryCard}>
+                        {/* Career */}
+                        {currentJob && (
+                          <View style={styles.summaryRow}>
+                            <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                              <Briefcase size={18} color={accent.info} />
                             </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  </View>
+                            <View style={styles.summaryContent}>
+                              <Text style={styles.summaryLabel}>Final Career</Text>
+                              <Text style={styles.summaryValue}>
+                                {('name' in currentJob ? currentJob.name : currentJob.levels?.[currentJob.level]?.name) || 'Unknown'}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
 
-                  {/* Stats Cards */}
-                  <View style={styles.statsContainer}>
-                    <View style={styles.statCard}>
-                      <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                        <DollarSign size={20} color={accent.success} />
-                      </View>
-                      <View style={styles.statContent}>
-                        <Text style={styles.statLabel}>Net Worth</Text>
-                        <Text style={styles.statValue}>
-                          {formatMoney(inheritanceSummary.totalNetWorth)}
-                        </Text>
-                      </View>
-                    </View>
+                        {/* Education */}
+                        {highestEducation && (
+                          <View style={styles.summaryRow}>
+                            <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+                              <GraduationCap size={18} color={theme.palette.fitness} />
+                            </View>
+                            <View style={styles.summaryContent}>
+                              <Text style={styles.summaryLabel}>Education</Text>
+                              <Text style={styles.summaryValue}>
+                                {highestEducation.name || 'None'}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
 
-                    <View style={styles.statCard}>
-                      <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                        <Crown size={20} color={theme.palette.fitness} />
-                      </View>
-                      <View style={styles.statContent}>
-                        <Text style={styles.statLabel}>Generation</Text>
-                        <Text style={styles.statValue}>
-                          {gameState.generationNumber || 1}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Life Statistics */}
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Calendar size={20} color={settings.darkMode ? theme.palette.fitness : theme.palette.primary} />
-                      <Text style={styles.sectionTitle}>Life Statistics</Text>
-                    </View>
-
-                    <View style={styles.statsGrid}>
-                      <View style={styles.statBox}>
-                        <Text style={styles.statBoxLabel}>Weeks Lived</Text>
-                        <Text style={styles.statBoxValue}>{weeksLived}</Text>
-                      </View>
-
-                      <View style={styles.statBox}>
-                        <Text style={styles.statBoxLabel}>Relationships</Text>
-                        <Text style={styles.statBoxValue}>{totalRelationships}</Text>
-                      </View>
-
-                      {careerLevel && (
-                        <View style={styles.statBox}>
-                          <Text style={styles.statBoxLabel}>Career Level</Text>
-                          <Text style={styles.statBoxValue}>{careerLevel}</Text>
-                        </View>
-                      )}
-
-                      <View style={styles.statBox}>
-                        <Text style={styles.statBoxLabel}>Peak Net Worth</Text>
-                        <Text style={styles.statBoxValue}>{formatMoney(maxNetWorth)}</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* ENGAGEMENT: Prestige Points Preview — reframes death as investment */}
-                  {(() => {
-                    /**
-                     * F1: quote the REAL award, not a lookalike.
-                     *
-                     * This preview used its own formula —
-                     * `(netWorth/10000) + (weeksLived/5) + (achievements*20) +
-                     * (prestigeLevel*100)` — which shares not one term with
-                     * `calculatePrestigePoints`, the function that actually
-                     * awards the points. It invented a `weeksLived/5` term and a
-                     * flat `prestigeLevel*100`, paid DOUBLE per achievement and
-                     * paid for every achievement rather than only the newly
-                     * credited ones, and omitted the generation, age, career,
-                     * property, company and child bonuses, the 1.1^level
-                     * multiplier and the +25% child-path bonus entirely.
-                     *
-                     * This number is shown at the exact moment the player
-                     * decides whether to prestige, and `PrestigeModal` already
-                     * calls the real function. The two screens quoted different
-                     * figures for the same decision.
-                     */
-                    const earnedPoints = calculatePrestigePoints(
-                      gameState,
-                      totalNetWorth,
-                      gameState.prestige || defaultPrestigeData,
-                      'reset',
-                    ).total;
-                    const canBuySmallInheritance = earnedPoints >= 500;
-                    const canBuyStatBoost = earnedPoints >= 1000;
-                    const canBuyModestInheritance = earnedPoints >= 2000;
-                    return earnedPoints > 0 ? (
-                      <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                          <Crown size={20} color={accent.warning} />
-                          <Text style={styles.sectionTitle}>Prestige Points Earned</Text>
-                        </View>
-                        <View style={styles.prestigePreviewCard}>
-                          <Text style={styles.prestigePointsValue}>
-                            {earnedPoints.toLocaleString()} pts
-                          </Text>
-                          <Text style={styles.prestigeHint}>
-                            Use prestige points to start your next life stronger
-                          </Text>
-                          <View style={styles.prestigeBuyList}>
-                            {canBuySmallInheritance && (
-                              <View style={styles.prestigeBuyItem}>
-                                <DollarSign size={14} color={accent.success} />
-                                <Text style={styles.prestigeBuyText}>
-                                  +$10,000 starting money (500 pts)
-                                </Text>
-                              </View>
-                            )}
-                            {canBuyStatBoost && (
-                              <View style={styles.prestigeBuyItem}>
-                                <TrendingUp size={14} color={accent.info} />
-                                <Text style={styles.prestigeBuyText}>
-                                  +5 to all starting stats (1,000 pts)
-                                </Text>
-                              </View>
-                            )}
-                            {canBuyModestInheritance && (
-                              <View style={styles.prestigeBuyItem}>
-                                <Sparkles size={14} color={accent.warning} />
-                                <Text style={styles.prestigeBuyText}>
-                                  +$50,000 starting money (2,000 pts)
-                                </Text>
-                              </View>
-                            )}
+                        {/* Family */}
+                        <View style={styles.summaryRow}>
+                          <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
+                            <Users size={18} color={theme.palette.reputation} />
+                          </View>
+                          <View style={styles.summaryContent}>
+                            <Text style={styles.summaryLabel}>Family</Text>
+                            <Text style={styles.summaryValue}>
+                              {spouse ? `Married to ${spouse.name}` : 'Single'} • {children.length} {children.length === 1 ? 'child' : 'children'}
+                            </Text>
                           </View>
                         </View>
+
+                        {/* Properties */}
+                        {ownedProperties.length > 0 && (
+                          <View style={styles.summaryRow}>
+                            <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                              <Home size={18} color={accent.success} />
+                            </View>
+                            <View style={styles.summaryContent}>
+                              <Text style={styles.summaryLabel}>Properties Owned</Text>
+                              <Text style={styles.summaryValue}>
+                                {ownedProperties.length} {ownedProperties.length === 1 ? 'property' : 'properties'}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Companies */}
+                        {ownedCompanies.length > 0 && (
+                          <View style={styles.summaryRow}>
+                            <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                              <Building2 size={18} color={accent.warning} />
+                            </View>
+                            <View style={styles.summaryContent}>
+                              <Text style={styles.summaryLabel}>Companies Owned</Text>
+                              <Text style={styles.summaryValue}>
+                                {ownedCompanies.length} {ownedCompanies.length === 1 ? 'company' : 'companies'}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Achievements */}
+                        {totalAchievements > 0 && (
+                          <View style={styles.summaryRow}>
+                            <View style={[styles.summaryIconContainer, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
+                              <Trophy size={18} color={accent.purple} />
+                            </View>
+                            <View style={styles.summaryContent}>
+                              <Text style={styles.summaryLabel}>Achievements</Text>
+                              <Text style={styles.summaryValue}>
+                                {totalAchievements} {totalAchievements === 1 ? 'achievement' : 'achievements'} unlocked
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Top Achievements */}
+                        {topAchievements.length > 0 && (
+                          <View style={styles.achievementsList}>
+                            {topAchievements.map((ach, idx) => (
+                              <View key={ach.id || idx} style={styles.achievementBadge}>
+                                <Trophy size={12} color={accent.warning} />
+                                <Text style={styles.achievementText}>{ach.name}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
-                    ) : null;
-                  })()}
-                </ScrollView>
+                    </View>
 
-                {/* ── Summary footer ──────────────────────────────────────────
-                    Three ways to keep this life, then one to leave it. Each is
-                    a full-width row that states what it does and what it costs
-                    on the same line, rather than a pill with the price crammed
-                    into its label.
+                    {/* Stats Cards */}
+                    <View style={styles.statsContainer}>
+                      <View style={styles.statCard}>
+                        <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                          <DollarSign size={20} color={accent.success} />
+                        </View>
+                        <View style={styles.statContent}>
+                          <Text style={styles.statLabel}>Net Worth</Text>
+                          <Text style={styles.statValue}>
+                            {formatMoney(inheritanceSummary.totalNetWorth)}
+                          </Text>
+                        </View>
+                      </View>
 
-                    Every priced row stays PRESSABLE when it cannot be afforded,
-                    and dims only its price. A `disabled` button swallows the
-                    tap, and that tap is the only route into the "not enough
-                    gems → store" bridge the handlers already implement — so
-                    disabling it turned the shortest path to a purchase into a
-                    dead end. The rewind row already worked this way; revive now
-                    matches it. */}
-                <View style={styles.footer}>
-                  {hasBankedRevive && (
+                      <View style={styles.statCard}>
+                        <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+                          <Crown size={20} color={theme.palette.fitness} />
+                        </View>
+                        <View style={styles.statContent}>
+                          <Text style={styles.statLabel}>Generation</Text>
+                          <Text style={styles.statValue}>
+                            {gameState.generationNumber || 1}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Life Statistics */}
+                    <View style={styles.section}>
+                      <View style={styles.sectionHeader}>
+                        <Calendar size={20} color={settings.darkMode ? theme.palette.fitness : theme.palette.primary} />
+                        <Text style={styles.sectionTitle}>Life Statistics</Text>
+                      </View>
+
+                      <View style={styles.statsGrid}>
+                        <View style={styles.statBox}>
+                          <Text style={styles.statBoxLabel}>Weeks Lived</Text>
+                          <Text style={styles.statBoxValue}>{weeksLived}</Text>
+                        </View>
+
+                        <View style={styles.statBox}>
+                          <Text style={styles.statBoxLabel}>Relationships</Text>
+                          <Text style={styles.statBoxValue}>{totalRelationships}</Text>
+                        </View>
+
+                        {careerLevel ? (
+                          <View style={styles.statBox}>
+                            <Text style={styles.statBoxLabel}>Career Level</Text>
+                            <Text style={styles.statBoxValue}>{careerLevel}</Text>
+                          </View>
+                        ) : null}
+
+                        <View style={styles.statBox}>
+                          <Text style={styles.statBoxLabel}>Peak Net Worth</Text>
+                          <Text style={styles.statBoxValue}>{formatMoney(maxNetWorth)}</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* ENGAGEMENT: Prestige Points Preview — reframes death as investment */}
+                    {(() => {
+                      /**
+                       * F1: quote the REAL award, not a lookalike.
+                       *
+                       * This preview used its own formula —
+                       * `(netWorth/10000) + (weeksLived/5) + (achievements*20) +
+                       * (prestigeLevel*100)` — which shares not one term with
+                       * `calculatePrestigePoints`, the function that actually
+                       * awards the points. It invented a `weeksLived/5` term and a
+                       * flat `prestigeLevel*100`, paid DOUBLE per achievement and
+                       * paid for every achievement rather than only the newly
+                       * credited ones, and omitted the generation, age, career,
+                       * property, company and child bonuses, the 1.1^level
+                       * multiplier and the +25% child-path bonus entirely.
+                       *
+                       * This number is shown at the exact moment the player
+                       * decides whether to prestige, and `PrestigeModal` already
+                       * calls the real function. The two screens quoted different
+                       * figures for the same decision.
+                       */
+                      const earnedPoints = calculatePrestigePoints(
+                        gameState,
+                        totalNetWorth,
+                        gameState.prestige || defaultPrestigeData,
+                        'reset',
+                      ).total;
+                      const canBuySmallInheritance = earnedPoints >= 500;
+                      const canBuyStatBoost = earnedPoints >= 1000;
+                      const canBuyModestInheritance = earnedPoints >= 2000;
+                      return earnedPoints > 0 ? (
+                        <View style={styles.section}>
+                          <View style={styles.sectionHeader}>
+                            <Crown size={20} color={accent.warning} />
+                            <Text style={styles.sectionTitle}>Prestige Points Earned</Text>
+                          </View>
+                          <View style={styles.prestigePreviewCard}>
+                            <Text style={styles.prestigePointsValue}>
+                              {earnedPoints.toLocaleString()} pts
+                            </Text>
+                            <Text style={styles.prestigeHint}>
+                              Use prestige points to start your next life stronger
+                            </Text>
+                            <View style={styles.prestigeBuyList}>
+                              {canBuySmallInheritance && (
+                                <View style={styles.prestigeBuyItem}>
+                                  <DollarSign size={14} color={accent.success} />
+                                  <Text style={styles.prestigeBuyText}>
+                                    +$10,000 starting money (500 pts)
+                                  </Text>
+                                </View>
+                              )}
+                              {canBuyStatBoost && (
+                                <View style={styles.prestigeBuyItem}>
+                                  <TrendingUp size={14} color={accent.info} />
+                                  <Text style={styles.prestigeBuyText}>
+                                    +5 to all starting stats (1,000 pts)
+                                  </Text>
+                                </View>
+                              )}
+                              {canBuyModestInheritance && (
+                                <View style={styles.prestigeBuyItem}>
+                                  <Sparkles size={14} color={accent.warning} />
+                                  <Text style={styles.prestigeBuyText}>
+                                    +$50,000 starting money (2,000 pts)
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      ) : null;
+                    })()}
+                  </View>
+
+                  {/* ── Summary actions ─────────────────────────────────────────
+                      The tail of the scroll, not a pinned footer — see the
+                      ScrollView comment above for why pinning it was what made
+                      this page unscrollable.
+
+                      Three ways to keep this life, then one to leave it. Each is
+                      a full-width row that states what it does and what it costs
+                      on the same line, rather than a pill with the price crammed
+                      into its label.
+
+                      Every priced row stays PRESSABLE when it cannot be afforded,
+                      and dims only its price. A `disabled` button swallows the
+                      tap, and that tap is the only route into the "not enough
+                      gems → store" bridge the handlers already implement — so
+                      disabling it turned the shortest path to a purchase into a
+                      dead end. The rewind row already worked this way; revive now
+                      matches it. */}
+                  <View style={styles.actions}>
+                    {hasBankedRevive && (
+                      <TouchableOpacity
+                        style={[styles.optionRow, styles.optionRevive]}
+                        onPress={handleReviveWithPack}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel="Use your Revival Pack to come back to life"
+                      >
+                        <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                          <Heart size={20} color="#F472B6" fill="#F472B6" />
+                        </View>
+                        <View style={styles.optionText}>
+                          <Text style={styles.optionTitle}>Use Revival Pack</Text>
+                          <Text style={styles.optionSubtitle}>You already paid for this one.</Text>
+                        </View>
+                        <View style={[styles.optionPill, styles.optionPillRevive]}>
+                          <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>Free</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                       style={[styles.optionRow, styles.optionRevive]}
-                      onPress={handleReviveWithPack}
+                      onPress={handleRevive}
                       activeOpacity={0.85}
                       accessibilityRole="button"
-                      accessibilityLabel="Use your Revival Pack to come back to life"
+                      accessibilityLabel={`Revive for ${REVIVE_GEM_COST.toLocaleString()} gems`}
+                      accessibilityHint={!canAffordRevive ? 'Not enough gems' : undefined}
                     >
                       <View style={[styles.optionIcon, styles.optionIconRevive]}>
                         <Heart size={20} color="#F472B6" fill="#F472B6" />
                       </View>
                       <View style={styles.optionText}>
-                        <Text style={styles.optionTitle}>Use Revival Pack</Text>
-                        <Text style={styles.optionSubtitle}>You already paid for this one.</Text>
-                      </View>
-                      <View style={[styles.optionPill, styles.optionPillRevive]}>
-                        <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>Free</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity
-                    style={[styles.optionRow, styles.optionRevive]}
-                    onPress={handleRevive}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Revive for ${REVIVE_GEM_COST.toLocaleString()} gems`}
-                    accessibilityHint={!canAffordRevive ? 'Not enough gems' : undefined}
-                  >
-                    <View style={[styles.optionIcon, styles.optionIconRevive]}>
-                      <Heart size={20} color="#F472B6" fill="#F472B6" />
-                    </View>
-                    <View style={styles.optionText}>
-                      <Text style={styles.optionTitle}>Revive</Text>
-                      <Text style={styles.optionSubtitle}>Start over and try again.</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.optionPill,
-                        styles.optionPillRevive,
-                        !canAffordRevive && styles.optionPillShort,
-                      ]}
-                    >
-                      <Gem size={13} color="#F472B6" />
-                      <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
-                        {REVIVE_GEM_COST.toLocaleString()}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* ── Revive with real money ──────────────────────────────
-                      Shown only while the pack can still be bought. It is a
-                      NON-CONSUMABLE, so it is purchasable exactly once per
-                      Apple/Google account, ever — after that the row would be
-                      a button that cannot do anything, which is worse than no
-                      row. (Making it repeatable is a store-side product change,
-                      not a code one.)
-
-                      It says the price is better than the gem route because it
-                      is: the pack is a few dollars and REVIVE_GEM_COST is
-                      thousands of gems. A death screen that hid that while
-                      showing the expensive option first would be taking
-                      advantage of the moment. */}
-                  {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
-                    <TouchableOpacity
-                      style={[styles.optionRow, styles.optionRevive]}
-                      onPress={handleBuyRevivalPack}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and revive without gems`}
-                    >
-                      <View style={[styles.optionIcon, styles.optionIconRevive]}>
-                        <Heart size={20} color="#F472B6" fill="#F472B6" />
-                      </View>
-                      <View style={styles.optionText}>
-                        <Text style={styles.optionTitle}>Revival Pack</Text>
-                        <Text style={styles.optionSubtitle}>
-                          Revive without spending gems. One-time purchase.
-                        </Text>
-                      </View>
-                      <View style={[styles.optionPill, styles.optionPillRevive]}>
-                        <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
-                          {revivalPackPrice}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ) : null}
-
-                  {/* The store bridge. No urgency copy, and the store is still
-                      never opened automatically — this is a row you can tap,
-                      not a thing that happens to you. */}
-                  <TouchableOpacity
-                    style={styles.optionRow}
-                    onPress={handleGetMoreGems}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                    accessibilityLabel="Get more gems in the shop"
-                  >
-                    <View style={styles.optionIcon}>
-                      <Gem size={20} color={c.textSecondary} />
-                    </View>
-                    <View style={styles.optionText}>
-                      <Text style={styles.optionTitle}>Get more gems</Text>
-                      <Text style={styles.optionSubtitle}>Stock up and come back stronger.</Text>
-                    </View>
-                    <ChevronRight size={18} color={c.textSecondary} />
-                  </TouchableOpacity>
-
-                  {/* Time Machine — rewind to a checkpoint, cheaper than revive. */}
-                  {checkpoints.slice().reverse().map((cp: { id: string; label: string; age: number }) => (
-                    <TouchableOpacity
-                      key={cp.id}
-                      style={[styles.optionRow, styles.optionRewind]}
-                      onPress={() => handleRewind(cp.id)}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Rewind time to ${cp.label}, age ${cp.age}, for ${rewindCost.toLocaleString()} gems`}
-                      accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
-                    >
-                      <View style={[styles.optionIcon, styles.optionIconRewind]}>
-                        <RotateCcw size={20} color={accent.warning} />
-                      </View>
-                      <View style={styles.optionText}>
-                        <Text style={[styles.optionTitle, styles.optionTitleRewind]}>Rewind Time</Text>
-                        <Text style={[styles.optionSubtitle, styles.optionSubtitleRewind]}>
-                          Go back to {cp.label.toLowerCase()} (Age {cp.age}).
-                        </Text>
+                        <Text style={styles.optionTitle}>Revive</Text>
+                        <Text style={styles.optionSubtitle}>Start over and try again.</Text>
                       </View>
                       <View
                         style={[
                           styles.optionPill,
-                          styles.optionPillRewind,
-                          !canAffordRewind && styles.optionPillShort,
+                          styles.optionPillRevive,
+                          !canAffordRevive && styles.optionPillShort,
                         ]}
                       >
-                        <Gem size={13} color={accent.warning} />
-                        <Text style={[styles.optionPillText, styles.optionPillTextRewind]}>
-                          {rewindCost.toLocaleString()}
+                        <Gem size={13} color="#F472B6" />
+                        <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
+                          {REVIVE_GEM_COST.toLocaleString()}
                         </Text>
                       </View>
                     </TouchableOpacity>
-                  ))}
 
-                  {startNewLifeButton}
-                  {secondaryActions}
-                </View>
-              </View>
-            )}
+                    {/* ── Revive with real money ──────────────────────────────
+                        Shown only while the pack can still be bought. It is a
+                        NON-CONSUMABLE, so it is purchasable exactly once per
+                        Apple/Google account, ever — after that the row would be
+                        a button that cannot do anything, which is worse than no
+                        row. (Making it repeatable is a store-side product change,
+                        not a code one.)
 
-            {/* ───────────────────────────── LEGACY PAGE ───────────────────────────── */}
-            {activeTab === 'legacy' && (
-              <View style={styles.page}>
-                <ScrollView
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                  bounces={true}
-                >
-                  {/* Inheritance Breakdown */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Inheritance Breakdown</Text>
-
-                    <View style={styles.breakdownCard}>
-                      <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Cash</Text>
-                        <Text style={styles.breakdownValue}>
-                          {formatMoney(inheritanceSummary.cash)}
-                        </Text>
-                      </View>
-
-                      <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Savings</Text>
-                        <Text style={styles.breakdownValue}>
-                          {formatMoney(inheritanceSummary.bankSavings)}
-                        </Text>
-                      </View>
-
-                      {inheritanceSummary.realEstateIds.length > 0 && (
-                        <View style={styles.breakdownRow}>
-                          <Text style={styles.breakdownLabel}>Properties</Text>
-                          <Text style={styles.breakdownValue}>
-                            {inheritanceSummary.realEstateIds.length}
+                        It says the price is better than the gem route because it
+                        is: the pack is a few dollars and REVIVE_GEM_COST is
+                        thousands of gems. A death screen that hid that while
+                        showing the expensive option first would be taking
+                        advantage of the moment. */}
+                    {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
+                      <TouchableOpacity
+                        style={[styles.optionRow, styles.optionRevive]}
+                        onPress={handleBuyRevivalPack}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and revive without gems`}
+                      >
+                        <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                          <Heart size={20} color="#F472B6" fill="#F472B6" />
+                        </View>
+                        <View style={styles.optionText}>
+                          <Text style={styles.optionTitle}>Revival Pack</Text>
+                          <Text style={styles.optionSubtitle}>
+                            Revive without spending gems. One-time purchase.
                           </Text>
                         </View>
-                      )}
-
-                      {inheritanceSummary.companyIds.length > 0 && (
-                        <View style={styles.breakdownRow}>
-                          <Text style={styles.breakdownLabel}>Companies</Text>
-                          <Text style={styles.breakdownValue}>
-                            {inheritanceSummary.companyIds.length}
+                        <View style={[styles.optionPill, styles.optionPillRevive]}>
+                          <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
+                            {revivalPackPrice}
                           </Text>
                         </View>
-                      )}
+                      </TouchableOpacity>
+                    ) : null}
 
-                      {inheritanceSummary.debts > 0 && (
-                        <View style={styles.breakdownRow}>
-                          <Text style={[styles.breakdownLabel, { color: accent.danger }]}>Debts</Text>
-                          <Text style={[styles.breakdownValue, { color: accent.danger }]}>
-                            -{formatMoney(inheritanceSummary.debts)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Legacy Bonuses */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Legacy Bonuses</Text>
-
-                    <View style={styles.bonusesCard}>
-                      <View style={styles.bonusItem}>
-                        <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                          <TrendingUp size={16} color={accent.success} />
-                        </View>
-                        <View style={styles.bonusContent}>
-                          <Text style={styles.bonusLabel}>Income</Text>
-                          <Text style={styles.bonusValue}>
-                            +{((inheritanceSummary.legacyBonuses.incomeMultiplier - 1) * 100).toFixed(1)}%
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.bonusItem}>
-                        <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                          <Brain size={16} color={theme.palette.fitness} />
-                        </View>
-                        <View style={styles.bonusContent}>
-                          <Text style={styles.bonusLabel}>Learning</Text>
-                          <Text style={styles.bonusValue}>
-                            +{((inheritanceSummary.legacyBonuses.learningMultiplier - 1) * 100).toFixed(1)}%
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.bonusItem}>
-                        <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                          <Award size={16} color={accent.info} />
-                        </View>
-                        <View style={styles.bonusContent}>
-                          <Text style={styles.bonusLabel}>Reputation</Text>
-                          <Text style={styles.bonusValue}>
-                            +{inheritanceSummary.legacyBonuses.reputationBonus}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Children Selection */}
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Users size={20} color={theme.palette.reputation} />
-                      <Text style={styles.sectionTitle}>Continue Legacy</Text>
-                    </View>
-
-                    {heirs.length > 0 ? (
-                      <>
-                        <Text style={styles.childrenNote}>
-                          Select a child to continue your legacy. Children under 18 will be simulated to age 18.
-                        </Text>
-                        <View style={styles.childrenList}>
-                          {heirs.map(({ child, inheritance, educationLevel, careerPath, savings, age }) => {
-                            const isSelected = selectedHeirId === child.id;
-                            const childTotalNetWorth = inheritance + savings;
-
-                            return (
-                              <TouchableOpacity
-                                key={child.id}
-                                style={[
-                                  styles.childCard,
-                                  isSelected && styles.childCardSelected
-                                ]}
-                                onPress={() => setSelectedHeirId(child.id)}
-                                activeOpacity={0.8}
-                              >
-                                <View style={styles.childCardHeader}>
-                                  <View style={styles.childImage}>
-                                    <CharacterAvatar
-                                      seed={child.id}
-                                      sex={child.gender}
-                                      age={age}
-                                      size={scale(56)}
-                                      parents={childParentSources(gameState)}
-                                    />
-                                  </View>
-                                  <View style={styles.childInfo}>
-                                    <Text style={styles.childName}>{child.name}</Text>
-                                    <Text style={styles.childDetails}>
-                                      Age {age} • {child.gender === 'male' ? 'Son' : 'Daughter'}
-                                    </Text>
-                                    {educationLevel && educationLevel !== 'none' && (
-                                      <View style={styles.badgeContainer}>
-                                        <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                                          <Text style={[styles.badgeText, { color: accent.info }]}>
-                                            {educationLevel === 'university' ? 'University' :
-                                             educationLevel === 'specialized' ? 'Specialized' : 'High School'}
-                                          </Text>
-                                        </View>
-                                      </View>
-                                    )}
-                                    {careerPath && (
-                                      <View style={styles.badgeContainer}>
-                                        <View style={[styles.badge, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                                          <Text style={[styles.badgeText, { color: theme.palette.fitness }]}>
-                                            {careerPath === 'entrepreneur' ? 'Entrepreneur' :
-                                             careerPath === 'professional' ? 'Professional' :
-                                             careerPath === 'whiteCollar' ? 'White Collar' : 'Blue Collar'}
-                                          </Text>
-                                        </View>
-                                      </View>
-                                    )}
-                                  </View>
-                                  {isSelected && (
-                                    <View style={styles.selectedBadge}>
-                                      <Check size={20} color={accent.success} />
-                                    </View>
-                                  )}
-                                </View>
-
-                                <View style={styles.childNetWorthCard}>
-                                  <View style={styles.childNetWorthRow}>
-                                    <DollarSign size={16} color={accent.success} />
-                                    <Text style={styles.childNetWorthLabel}>Net Worth</Text>
-                                    <Text style={styles.childNetWorthValue}>
-                                      {formatMoney(childTotalNetWorth)}
-                                    </Text>
-                                  </View>
-                                  {inheritance > 0 && (
-                                    <Text style={styles.childInheritanceText}>
-                                      Inheritance: {formatMoney(inheritance)}
-                                    </Text>
-                                  )}
-                                  {savings > 0 && (
-                                    <Text style={styles.childInheritanceText}>
-                                      Savings: {formatMoney(savings)}
-                                    </Text>
-                                  )}
-                                </View>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </>
-                    ) : (
-                      <View style={styles.noChildrenCard}>
-                        <Users size={32} color={c.textSecondary} />
-                        <Text style={styles.noChildrenText}>
-                          You have no children to continue your legacy.
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </ScrollView>
-
-                {/* Legacy footer — continue the bloodline, or start fresh */}
-                <View style={styles.footer}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, !canContinueLegacy && styles.disabledButton]}
-                    onPress={handleContinueLegacy}
-                    disabled={!canContinueLegacy}
-                    activeOpacity={0.8}
-                  >
-                    <LinearGradient
-                      colors={!canContinueLegacy ? ['#94A3B8', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
-                      style={styles.buttonGradient}
+                    {/* The store bridge. No urgency copy, and the store is still
+                        never opened automatically — this is a row you can tap,
+                        not a thing that happens to you. */}
+                    <TouchableOpacity
+                      style={styles.optionRow}
+                      onPress={handleGetMoreGems}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel="Get more gems in the shop"
                     >
-                      <Crown size={18} color="#FFF" />
-                      <Text style={styles.buttonText}>
-                        {heirs.length === 0 ? 'No Children Available' : !selectedHeirId ? 'Select a Child First' : 'Continue Legacy'}
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      <View style={styles.optionIcon}>
+                        <Gem size={20} color={c.textSecondary} />
+                      </View>
+                      <View style={styles.optionText}>
+                        <Text style={styles.optionTitle}>Get more gems</Text>
+                        <Text style={styles.optionSubtitle}>Stock up and come back stronger.</Text>
+                      </View>
+                      <ChevronRight size={18} color={c.textSecondary} />
+                    </TouchableOpacity>
 
-                  {startNewLifeButton}
-                  {secondaryActions}
-                </View>
-              </View>
-            )}
+                    {/* Time Machine — rewind to a checkpoint, cheaper than revive. */}
+                    {checkpoints.slice().reverse().map((cp: { id: string; label: string; age: number }) => (
+                      <TouchableOpacity
+                        key={cp.id}
+                        style={[styles.optionRow, styles.optionRewind]}
+                        onPress={() => handleRewind(cp.id)}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rewind time to ${cp.label}, age ${cp.age}, for ${rewindCost.toLocaleString()} gems`}
+                        accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
+                      >
+                        <View style={[styles.optionIcon, styles.optionIconRewind]}>
+                          <RotateCcw size={20} color={accent.warning} />
+                        </View>
+                        <View style={styles.optionText}>
+                          <Text style={[styles.optionTitle, styles.optionTitleRewind]}>Rewind Time</Text>
+                          <Text style={[styles.optionSubtitle, styles.optionSubtitleRewind]}>
+                            Go back to {cp.label.toLowerCase()} (Age {cp.age}).
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.optionPill,
+                            styles.optionPillRewind,
+                            !canAffordRewind && styles.optionPillShort,
+                          ]}
+                        >
+                          <Gem size={13} color={accent.warning} />
+                          <Text style={[styles.optionPillText, styles.optionPillTextRewind]}>
+                            {rewindCost.toLocaleString()}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+
+                    {startNewLifeButton}
+                    {secondaryActions}
+                  </View>
+                </>
+              )}
+
+              {/* ───────────────────────────── LEGACY PAGE ───────────────────────────── */}
+              {activeTab === 'legacy' && (
+                <>
+                  <View style={styles.pageContent}>
+                    {/* Inheritance Breakdown */}
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Inheritance Breakdown</Text>
+
+                      <View style={styles.breakdownCard}>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Cash</Text>
+                          <Text style={styles.breakdownValue}>
+                            {formatMoney(inheritanceSummary.cash)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Savings</Text>
+                          <Text style={styles.breakdownValue}>
+                            {formatMoney(inheritanceSummary.bankSavings)}
+                          </Text>
+                        </View>
+
+                        {inheritanceSummary.realEstateIds.length > 0 && (
+                          <View style={styles.breakdownRow}>
+                            <Text style={styles.breakdownLabel}>Properties</Text>
+                            <Text style={styles.breakdownValue}>
+                              {inheritanceSummary.realEstateIds.length}
+                            </Text>
+                          </View>
+                        )}
+
+                        {inheritanceSummary.companyIds.length > 0 && (
+                          <View style={styles.breakdownRow}>
+                            <Text style={styles.breakdownLabel}>Companies</Text>
+                            <Text style={styles.breakdownValue}>
+                              {inheritanceSummary.companyIds.length}
+                            </Text>
+                          </View>
+                        )}
+
+                        {inheritanceSummary.debts > 0 && (
+                          <View style={styles.breakdownRow}>
+                            <Text style={[styles.breakdownLabel, { color: accent.danger }]}>Debts</Text>
+                            <Text style={[styles.breakdownValue, { color: accent.danger }]}>
+                              -{formatMoney(inheritanceSummary.debts)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Legacy Bonuses */}
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Legacy Bonuses</Text>
+
+                      <View style={styles.bonusesCard}>
+                        <View style={styles.bonusItem}>
+                          <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                            <TrendingUp size={16} color={accent.success} />
+                          </View>
+                          <View style={styles.bonusContent}>
+                            <Text style={styles.bonusLabel}>Income</Text>
+                            <Text style={styles.bonusValue}>
+                              +{((inheritanceSummary.legacyBonuses.incomeMultiplier - 1) * 100).toFixed(1)}%
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.bonusItem}>
+                          <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+                            <Brain size={16} color={theme.palette.fitness} />
+                          </View>
+                          <View style={styles.bonusContent}>
+                            <Text style={styles.bonusLabel}>Learning</Text>
+                            <Text style={styles.bonusValue}>
+                              +{((inheritanceSummary.legacyBonuses.learningMultiplier - 1) * 100).toFixed(1)}%
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.bonusItem}>
+                          <View style={[styles.bonusIconContainer, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                            <Award size={16} color={accent.info} />
+                          </View>
+                          <View style={styles.bonusContent}>
+                            <Text style={styles.bonusLabel}>Reputation</Text>
+                            <Text style={styles.bonusValue}>
+                              +{inheritanceSummary.legacyBonuses.reputationBonus}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Children Selection */}
+                    <View style={styles.section}>
+                      <View style={styles.sectionHeader}>
+                        <Users size={20} color={theme.palette.reputation} />
+                        <Text style={styles.sectionTitle}>Continue Legacy</Text>
+                      </View>
+
+                      {heirs.length > 0 ? (
+                        <>
+                          <Text style={styles.childrenNote}>
+                            Select a child to continue your legacy. Children under 18 will be simulated to age 18.
+                          </Text>
+                          <View style={styles.childrenList}>
+                            {heirs.map(({ child, inheritance, educationLevel, careerPath, savings, age }) => {
+                              const isSelected = selectedHeirId === child.id;
+                              const childTotalNetWorth = inheritance + savings;
+
+                              return (
+                                <TouchableOpacity
+                                  key={child.id}
+                                  style={[
+                                    styles.childCard,
+                                    isSelected && styles.childCardSelected
+                                  ]}
+                                  onPress={() => setSelectedHeirId(child.id)}
+                                  activeOpacity={0.8}
+                                >
+                                  <View style={styles.childCardHeader}>
+                                    <View style={styles.childImage}>
+                                      <CharacterAvatar
+                                        seed={child.id}
+                                        sex={child.gender}
+                                        age={age}
+                                        size={scale(56)}
+                                        parents={childParentSources(gameState)}
+                                      />
+                                    </View>
+                                    <View style={styles.childInfo}>
+                                      <Text style={styles.childName}>{child.name}</Text>
+                                      <Text style={styles.childDetails}>
+                                        Age {age} • {child.gender === 'male' ? 'Son' : 'Daughter'}
+                                      </Text>
+                                      {educationLevel && educationLevel !== 'none' && (
+                                        <View style={styles.badgeContainer}>
+                                          <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                                            <Text style={[styles.badgeText, { color: accent.info }]}>
+                                              {educationLevel === 'university' ? 'University' :
+                                               educationLevel === 'specialized' ? 'Specialized' : 'High School'}
+                                            </Text>
+                                          </View>
+                                        </View>
+                                      )}
+                                      {careerPath && (
+                                        <View style={styles.badgeContainer}>
+                                          <View style={[styles.badge, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+                                            <Text style={[styles.badgeText, { color: theme.palette.fitness }]}>
+                                              {careerPath === 'entrepreneur' ? 'Entrepreneur' :
+                                               careerPath === 'professional' ? 'Professional' :
+                                               careerPath === 'whiteCollar' ? 'White Collar' : 'Blue Collar'}
+                                            </Text>
+                                          </View>
+                                        </View>
+                                      )}
+                                    </View>
+                                    {isSelected && (
+                                      <View style={styles.selectedBadge}>
+                                        <Check size={20} color={accent.success} />
+                                      </View>
+                                    )}
+                                  </View>
+
+                                  <View style={styles.childNetWorthCard}>
+                                    <View style={styles.childNetWorthRow}>
+                                      <DollarSign size={16} color={accent.success} />
+                                      <Text style={styles.childNetWorthLabel}>Net Worth</Text>
+                                      <Text style={styles.childNetWorthValue}>
+                                        {formatMoney(childTotalNetWorth)}
+                                      </Text>
+                                    </View>
+                                    {inheritance > 0 && (
+                                      <Text style={styles.childInheritanceText}>
+                                        Inheritance: {formatMoney(inheritance)}
+                                      </Text>
+                                    )}
+                                    {savings > 0 && (
+                                      <Text style={styles.childInheritanceText}>
+                                        Savings: {formatMoney(savings)}
+                                      </Text>
+                                    )}
+                                  </View>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </>
+                      ) : (
+                        <View style={styles.noChildrenCard}>
+                          <Users size={32} color={c.textSecondary} />
+                          <Text style={styles.noChildrenText}>
+                            You have no children to continue your legacy.
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Legacy actions — continue the bloodline, or start fresh */}
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, !canContinueLegacy && styles.disabledButton]}
+                      onPress={handleContinueLegacy}
+                      disabled={!canContinueLegacy}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={!canContinueLegacy ? ['#94A3B8', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
+                        style={styles.buttonGradient}
+                      >
+                        <Crown size={18} color="#FFF" />
+                        <Text style={styles.buttonText}>
+                          {heirs.length === 0 ? 'No Children Available' : !selectedHeirId ? 'Select a Child First' : 'Continue Legacy'}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    {startNewLifeButton}
+                    {secondaryActions}
+                  </View>
+                </>
+              )}
+            </ScrollView>
           </LinearGradient>
         </Animated.View>
       </View>

@@ -30,8 +30,8 @@ import type {
   InGameSubscriptionPlan,
 } from '../types';
 import { logger } from '@/utils/logger';
-import { updateStats, applyStatsDelta } from './StatsActions';
-import { updateMoney, applyMoneyDelta } from './MoneyActions';
+import { applyStatsDelta } from './StatsActions';
+import { applyMoneyDelta } from './MoneyActions';
 import {
   rollMatch,
   isCatfish,
@@ -42,7 +42,19 @@ import {
 } from '@/lib/dating/sparkLogic';
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import { findRomanticPartner } from '@/lib/dating/relationshipGuards';
-import { getNpcReplyPool, pickNpcReply } from '@/lib/dating/npcReplyPool';
+import {
+  clampRapport,
+  findConversationOption,
+  findDateVenue,
+  listConversationOptions,
+  listDateVenues,
+  playerAppeal,
+  readRapport,
+  resolveConversationOption,
+  resolveOptionAvailability,
+  type SparkConversationOptionId,
+  type SparkDateVenueId,
+} from '@/lib/spark/conversation';
 
 const log = logger.scope('SparkActions');
 
@@ -366,112 +378,34 @@ export const unmatch = (
   });
 };
 
-export const sendSparkMessage = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  gameState: GameState,
-  matchId: string,
-  text: string,
-): { success: boolean; message: string; messageId?: string } => {
-  const trimmed = (text || '').trim();
-  if (!trimmed) return { success: false, message: 'Message cannot be empty' };
-  if ((gameState.stats?.energy ?? 0) < 2) {
-    return { success: false, message: 'Need 2 energy to send a message' };
-  }
-
-  const weeksLived = gameState.weeksLived ?? 0;
-  const messageId = genId('spmsg');
-
-  setGameState((prev) => {
-    const s = ensureSpark(prev);
-    const match = s.matches.find((m) => m.id === matchId);
-    if (!match) return prev;
-
-    const playerMsg: SparkMessage = {
-      id: messageId,
-      matchId,
-      from: 'player',
-      text: trimmed,
-      timestamp: Date.now(),
-      gameWeek: weeksLived,
-    };
-
-    const existing = s.messages[matchId] ?? [];
-    const updatedThread = [...existing, playerMsg].slice(-MESSAGE_HISTORY_CAP);
-
-    return {
-      ...prev,
-      sparkApp: {
-        ...s,
-        matches: s.matches.map((m) =>
-          m.id === matchId
-            ? { ...m, lastMessageTimestamp: Date.now(), unreadByNpc: (m.unreadByNpc ?? 0) + 1 }
-            : m,
-        ),
-        messages: { ...s.messages, [matchId]: updatedThread },
-      },
-    };
-  });
-
-  updateStats(setGameState, { energy: -2 });
-  return { success: true, message: 'Sent', messageId };
-};
-
 /**
- * Generate an NPC reply to the player's latest message. Called from the UI
- * after `sendSparkMessage` to simulate the NPC writing back.
+ * FREE-TEXT CHAT IS GONE (v45).
+ *
+ * `sendSparkMessage` (a 2-energy free-text send) and `generateNpcReply` (its
+ * ~1.8s delayed auto-reply) used to live here and were called by ChatScreen's
+ * composer. The owner asked for OPTIONS instead of typing, so the composer was
+ * removed and both functions lost their only caller.
+ *
+ * They are deleted rather than left exported, for two reasons beyond tidiness.
+ * `sendSparkMessage` charged its energy in a SECOND `setGameState` after the
+ * message updater — the gate-then-grant shape CLAUDE.md §4.4 exists to stop —
+ * and neither function touched rapport, so anything still calling them would
+ * write messages into a thread the conversation engine then reasons about as
+ * if they had never happened.
+ *
+ * The replacement is `playConversationOption` below: one updater, rapport
+ * aware, cooldown stamped.
+ *
+ * `lib/dating/npcReplyPool.ts` went with them (2026-08-17). It was the reply
+ * catalog those two functions read, so once they were deleted nothing in
+ * production referenced it — the only remaining importer was its own
+ * coverage test, which enforced a per-personality pool for a module no screen
+ * could reach and would have failed CI the next time a personality was added
+ * to `DATING_PROFILES`. A gate on dead code is a trap, not protection. Its
+ * successor is `lib/spark/conversationContent.ts`, where every line the chat
+ * can say now lives, keyed by TONE rather than by personality so a new
+ * personality cannot fall through to an empty pool.
  */
-export const generateNpcReply = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  gameState: GameState,
-  matchId: string,
-): void => {
-  const sp = gameState.sparkApp;
-  const match = sp?.matches.find((m) => m.id === matchId);
-  if (!sp || !match) return;
-  const profile = findProfile(match.profileId);
-  if (!profile) return;
-
-  // Reply pool based on profile personality. Pools are content — they live in
-  // lib/dating/npcReplyPool.ts and cover every catalog personality (see PREREQ
-  // BUG FIX there), so replies vary by who you match with instead of collapsing
-  // to the generic `friendly` pool. `pickNpcReply` additionally skips the line
-  // the NPC last sent in THIS chat so consecutive replies never duplicate.
-  const pool = getNpcReplyPool(profile.personality);
-  const thread = sp.messages[matchId] ?? [];
-  let lastNpcText: string | undefined;
-  for (let i = thread.length - 1; i >= 0; i--) {
-    if (thread[i].from === 'npc') { lastNpcText = thread[i].text; break; }
-  }
-  const reply = pickNpcReply(pool, lastNpcText, Math.random());
-  const weeksLived = gameState.weeksLived ?? 0;
-
-  setGameState((prev) => {
-    const s = ensureSpark(prev);
-    const m = s.matches.find((x) => x.id === matchId);
-    if (!m) return prev;
-    const npcMsg: SparkMessage = {
-      id: genId('spnpc'),
-      matchId,
-      from: 'npc',
-      text: reply,
-      timestamp: Date.now(),
-      gameWeek: weeksLived,
-    };
-    const existing = s.messages[matchId] ?? [];
-    return {
-      ...prev,
-      sparkApp: {
-        ...s,
-        matches: s.matches.map((mm) =>
-          mm.id === matchId
-            ? { ...mm, lastMessageTimestamp: Date.now(), unreadByPlayer: (mm.unreadByPlayer ?? 0) + 1, unreadByNpc: 0 }
-            : mm,
-        ),
-        messages: { ...s.messages, [matchId]: [...existing, npcMsg].slice(-MESSAGE_HISTORY_CAP) },
-      },
-    };
-  });
-};
 
 export const markMatchRead = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -590,64 +524,111 @@ export const dismissLikedYou = (
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Promote a Spark match into a full `Relationship` (partner). Required
- * before the player can go on dates, give gifts, or propose via the
- * existing DatingActions. The match remains in `sparkApp.matches` flagged
- * `promoted: true` so the chat history stays accessible.
+ * The whole match → partner decision, as a PURE function of a state snapshot.
+ *
+ * Extracted so there is exactly one place that knows the anti-bigamy rule and
+ * exactly one place that knows what a promoted match looks like. Two callers
+ * need it and they need it at different moments:
+ *
+ *   - `promoteMatchToRelationship` (the bare API — see its own note) calls it
+ *     once outside the updater for the message it reports, and again inside
+ *     against `prev` as the same-batch race guard.
+ *   - `playConversationOption`'s `go_steady` move needs the promotion to land
+ *     in the SAME updater that charges the energy and appends the two chat
+ *     messages (CLAUDE.md §4.4). Dispatching a second time would have opened a
+ *     real hole: a double tap whose first roll MISSED and second roll LANDED
+ *     could promote without ever paying, because the charge updater rejects on
+ *     cooldown while a separate promote dispatch would not.
+ *
+ * Returning the next state rather than mutating keeps it composable — the
+ * conversation path feeds it a state that already carries the charges.
  */
-export const promoteMatchToRelationship = (
-  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
-  gameState: GameState,
+export function resolveMatchPromotion(
+  prev: GameState,
   matchId: string,
-): { success: boolean; message: string; relationshipId?: string } => {
-  const sp = gameState.sparkApp;
-  const match = sp?.matches.find((m) => m.id === matchId);
-  if (!sp || !match) return { success: false, message: 'Match not found' };
-  if (match.promoted) return { success: false, message: 'Already dating this person' };
+):
+  | { ok: true; next: GameState; relationshipId: string; partnerName: string }
+  | { ok: false; message: string } {
+  const s = ensureSpark(prev);
+  const match = s.matches.find((m) => m.id === matchId);
+  if (!prev.sparkApp || !match) return { ok: false, message: 'Match not found' };
+  if (match.promoted) return { ok: false, message: 'Already dating this person' };
   // ANTI-BIGAMY: exclusivity — can't start dating while already with someone
   // (same rule + message style as SocialActionsContext.startDating).
-  const existingPartner = findRomanticPartner(gameState.relationships);
+  const existingPartner = findRomanticPartner(prev.relationships);
   if (existingPartner) {
-    return { success: false, message: `You are already with ${existingPartner.name}.` };
+    return { ok: false, message: `You are already with ${existingPartner.name}.` };
   }
   const profile = findProfile(match.profileId);
-  if (!profile) return { success: false, message: 'Profile no longer exists' };
+  if (!profile) return { ok: false, message: 'Profile no longer exists' };
 
   const relationshipId = match.id; // share the id so future ops can find both sides
+  const newRelationship = {
+    id: relationshipId,
+    name: profile.name,
+    type: 'partner' as const,
+    relationshipScore: 55, // matched + chatted enough to escalate
+    personality: profile.personality,
+    gender: profile.gender,
+    age: profile.age,
+    income: profile.income,
+    job: profile.job,
+    datesCount: 0,
+  };
 
-  setGameState((prev) => {
-    // ANTI-BIGAMY recheck inside the updater — a same-batch double-tap (or a
-    // promote racing another relationship-creating action) must not append a
-    // second partner.
-    if (findRomanticPartner(prev.relationships)) return prev;
-    const s = ensureSpark(prev);
-    const newRelationship = {
-      id: relationshipId,
-      name: profile.name,
-      type: 'partner' as const,
-      relationshipScore: 55, // matched + chatted enough to escalate
-      personality: profile.personality,
-      gender: profile.gender,
-      age: profile.age,
-      income: profile.income,
-      job: profile.job,
-      datesCount: 0,
-    };
-
-    return {
+  return {
+    ok: true,
+    relationshipId,
+    partnerName: profile.name,
+    next: {
       ...prev,
       sparkApp: {
         ...s,
         matches: s.matches.map((m) => (m.id === matchId ? { ...m, promoted: true } : m)),
       },
       relationships: [...(prev.relationships ?? []), newRelationship],
-    };
+    },
+  };
+}
+
+/**
+ * Promote a Spark match into a full `Relationship` (partner). Required
+ * before the player can go on dates, give gifts, or propose via the
+ * existing DatingActions. The match remains in `sparkApp.matches` flagged
+ * `promoted: true` so the chat history stays accessible.
+ *
+ * NO UI CALLS THIS TODAY, deliberately. ChatScreen's header heart used to, and
+ * that made it a free instant promotion sitting next to the `go_steady` chip,
+ * which costs 5 energy, needs 75 rapport and can be refused — the gate was
+ * decoration as long as an ungated door stood beside it. The heart now plays
+ * `go_steady` through `playConversationOption` like the chip does.
+ *
+ * This stays exported as the bare promotion API — one dispatch, no rapport
+ * economy — for a future surface that legitimately has no conversation behind
+ * it (a story event, a scenario setup). Anything player-facing that represents
+ * "ask them out" must go through the conversation path instead, or it
+ * re-creates the same bypass.
+ */
+export const promoteMatchToRelationship = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+  matchId: string,
+): { success: boolean; message: string; relationshipId?: string } => {
+  const preview = resolveMatchPromotion(gameState, matchId);
+  if (!preview.ok) return { success: false, message: preview.message };
+
+  setGameState((prev) => {
+    // Re-resolved against `prev`, not the snapshot above — a same-batch
+    // double-tap (or a promote racing another relationship-creating action)
+    // must not append a second partner.
+    const committed = resolveMatchPromotion(prev, matchId);
+    return committed.ok ? committed.next : prev;
   });
 
   return {
     success: true,
-    message: `You and ${profile.name} are now officially dating`,
-    relationshipId,
+    message: `You and ${preview.partnerName} are now officially dating`,
+    relationshipId: preview.relationshipId,
   };
 };
 
@@ -768,6 +749,296 @@ export const promoteMatchToFriend = (
   });
 
   return { success: true, message: `${profile.name} is now a friend`, relationshipId };
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// Choice-driven conversation (v45)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * What a promoted match became — read off the relationship it created, which is
+ * the single source of truth (`SparkMatch.promoted` is a plain boolean, so
+ * friend and partner look identical there). A promoted match shares its id with
+ * its relationship, so this is a lookup and not a search.
+ *
+ * `undefined` for an un-promoted match, and also for a promoted one whose
+ * relationship is gone (a breakup removes it) — the caller degrades to generic
+ * copy rather than guessing.
+ */
+const promotionKindOf = (
+  state: GameState,
+  matchId: string,
+): 'partner' | 'friend' | undefined => {
+  const rel = (state.relationships ?? []).find((r) => r?.id === matchId);
+  if (!rel) return undefined;
+  return rel.type === 'friend' ? 'friend' : 'partner';
+};
+
+/** Everything ChatScreen needs to draw the option panel, in one read. */
+export interface SparkConversationView {
+  rapport: number;
+  options: ReturnType<typeof listConversationOptions>;
+}
+
+/**
+ * Assemble the conversation gate input from a `GameState`.
+ *
+ * Lives here rather than in the screen so the UI and the action agree on what
+ * "available" means by construction — the disabled reason a chip shows is
+ * produced by the same call the action re-checks against `prev`.
+ */
+export const getSparkConversationView = (
+  gameState: GameState,
+  matchId: string,
+): SparkConversationView | null => {
+  const sp = gameState.sparkApp;
+  const match = sp?.matches?.find((m) => m.id === matchId);
+  if (!sp || !match) return null;
+  const rapport = readRapport(match);
+  return {
+    rapport,
+    options: listConversationOptions({
+      rapport,
+      energy: gameState.stats?.energy ?? 0,
+      money: gameState.stats?.money ?? 0,
+      weeksLived: gameState.weeksLived ?? 0,
+      cooldowns: match.conversationCooldowns,
+      messageCount: sp.messages?.[matchId]?.length ?? 0,
+      promoted: Boolean(match.promoted),
+      promotedAs: promotionKindOf(gameState, matchId),
+    }),
+  };
+};
+
+export interface PlayConversationResult {
+  success: boolean;
+  message: string;
+  /** Present only when the move was actually played. */
+  outcome?: 'success' | 'miss';
+  /**
+   * NO `rapport` FIELD ON PURPOSE. It used to be reported here from the
+   * pre-dispatch resolution, while the value actually COMMITTED is recomputed
+   * from `prev` inside the updater — so the two could disagree on any queued
+   * second change. Nothing read it (the screen renders rapport from
+   * `getSparkConversationView`, which reads the committed state), so it was a
+   * wrong number nobody was looking at. Read rapport from state, not from here.
+   */
+  /** Set when a `go_steady` landed — the caller opens the partner profile. */
+  relationshipId?: string;
+}
+
+/**
+ * Play one conversation option.
+ *
+ * ALL state movement lands in ONE `setGameState` updater (CLAUDE.md §4.4):
+ * the energy charge, the cash charge for a date, the rapport change, the
+ * cooldown stamp, both chat messages, the unread counters, the
+ * `totalDatesGoneOn` increment and — for `go_steady` — the promotion itself.
+ * The updater re-resolves the gate against `prev` and returns `prev` unchanged
+ * to reject, so a double tap in one React batch charges once.
+ *
+ * The COOLDOWN stamp is what makes that work in general: every option carries a
+ * cooldown of at least one game week, so the second updater of a batch sees the
+ * option already played this week and bails before touching money or energy.
+ *
+ * The outcome is rolled OUTSIDE the updater (`resolveConversationOption`),
+ * because an updater must be pure and may run twice. A resolution whose commit
+ * is rejected is simply discarded — nothing was charged and nothing was said.
+ *
+ * Both messages are appended together rather than paced by a timer. The UI can
+ * animate the reveal if it wants; the state must not depend on a timer that a
+ * screen unmount can cancel mid-transaction.
+ */
+export const playConversationOption = (
+  setGameState: React.Dispatch<React.SetStateAction<GameState>>,
+  gameState: GameState,
+  matchId: string,
+  optionId: SparkConversationOptionId,
+  venueId?: SparkDateVenueId,
+  rand: () => number = Math.random,
+): PlayConversationResult => {
+  const sp = gameState.sparkApp;
+  const match = sp?.matches?.find((m) => m.id === matchId);
+  if (!sp || !match) return { success: false, message: 'Match not found' };
+  const profile = findProfile(match.profileId);
+  if (!profile) return { success: false, message: 'Profile no longer exists' };
+
+  const option = findConversationOption(optionId);
+  if (!option) return { success: false, message: 'That is not something you can say' };
+
+  // The generic gate below prices a date at its CHEAPEST venue, so the CHOSEN
+  // venue is checked separately and FIRST. Without this, picking dinner with
+  // coffee money passed the outer gate, resolved an outcome, and was then
+  // rejected inside the updater by `applyMoneyDelta` — reporting success while
+  // nothing happened.
+  if (option.requiresVenue) {
+    const venue = findDateVenue(venueId);
+    if (!venue) return { success: false, message: 'Pick where you are taking them first' };
+    const row = listDateVenues(
+      { energy: gameState.stats?.energy ?? 0, money: gameState.stats?.money ?? 0 },
+      option,
+    ).find((v) => v.venue.id === venue.id);
+    if (row && !row.available) {
+      return { success: false, message: row.reason ?? 'You cannot afford that date' };
+    }
+  }
+
+  const weeksLived = gameState.weeksLived ?? 0;
+  const gate = resolveOptionAvailability(option, {
+    rapport: readRapport(match),
+    energy: gameState.stats?.energy ?? 0,
+    money: gameState.stats?.money ?? 0,
+    weeksLived,
+    cooldowns: match.conversationCooldowns,
+    messageCount: sp.messages?.[matchId]?.length ?? 0,
+    promoted: Boolean(match.promoted),
+    promotedAs: promotionKindOf(gameState, matchId),
+  });
+  if (!gate.available) {
+    return { success: false, message: gate.reason ?? 'Not right now' };
+  }
+
+  const resolution = resolveConversationOption({
+    optionId,
+    venueId,
+    rapport: readRapport(match),
+    profile: {
+      name: profile.name,
+      personality: profile.personality,
+      interests: profile.interests,
+    },
+    appeal: playerAppeal(gameState.stats),
+    rand,
+  });
+  if (!resolution) return { success: false, message: 'Not right now' };
+
+  // The anti-bigamy refusal is reported BEFORE anything is charged, from the
+  // one authority (`resolveMatchPromotion`). Without this the player would pay
+  // 5 energy for a proposal that could never have been accepted.
+  if (optionId === 'go_steady' && resolution.success) {
+    const preview = resolveMatchPromotion(gameState, matchId);
+    if (!preview.ok) return { success: false, message: preview.message };
+  }
+
+  const playerMsgId = genId('spmsg');
+  const npcMsgId = genId('spnpc');
+  const now = Date.now();
+
+  setGameState((prev) => {
+    const s = ensureSpark(prev);
+    const m = s.matches.find((x) => x.id === matchId);
+    if (!m) return prev;
+
+    // Re-gate against `prev`. This is the same call the UI used to draw the
+    // chip, so the two cannot drift — and on a same-batch second tap the
+    // cooldown stamped by the first updater fails it here.
+    const fresh = resolveOptionAvailability(option, {
+      rapport: readRapport(m),
+      energy: prev.stats?.energy ?? 0,
+      money: prev.stats?.money ?? 0,
+      weeksLived: prev.weeksLived ?? 0,
+      cooldowns: m.conversationCooldowns,
+      messageCount: (s.messages[matchId] ?? []).length,
+      promoted: Boolean(m.promoted),
+      promotedAs: promotionKindOf(prev, matchId),
+    });
+    if (!fresh.available) return prev;
+
+    // `resolveOptionAvailability` prices a date at its CHEAPEST venue, so the
+    // actual configuration is checked here against `prev` as well.
+    if ((prev.stats?.energy ?? 0) < resolution.energyCost) return prev;
+
+    let next: GameState = prev;
+    if (resolution.cashCost > 0) {
+      const spend = applyMoneyDelta(next, -resolution.cashCost, `Spark date (${resolution.venueId})`);
+      if (!spend) return prev; // funds moved since the preview — reject atomically
+      next = { ...next, ...spend };
+    }
+    next = {
+      ...next,
+      ...applyStatsDelta(next, {
+        energy: -resolution.energyCost,
+        ...(resolution.happinessDelta !== 0 ? { happiness: resolution.happinessDelta } : {}),
+      }),
+    };
+
+    const playerMsg: SparkMessage = {
+      id: playerMsgId,
+      matchId,
+      from: 'player',
+      text: resolution.playerText,
+      timestamp: now,
+      gameWeek: prev.weeksLived ?? 0,
+    };
+    const npcMsg: SparkMessage = {
+      id: npcMsgId,
+      matchId,
+      from: 'npc',
+      text: resolution.npcText,
+      timestamp: now + 1,
+      gameWeek: prev.weeksLived ?? 0,
+    };
+    const thread = [...(s.messages[matchId] ?? []), playerMsg, npcMsg].slice(-MESSAGE_HISTORY_CAP);
+
+    // Rapport is recomputed from `prev`'s value, not carried over from the
+    // pre-dispatch resolution, so a queued second change cannot be applied to a
+    // stale base. `clampRapport` keeps it inside 0-100.
+    const rapportAfter = clampRapport(readRapport(m) + resolution.rapportDelta);
+
+    next = {
+      ...next,
+      sparkApp: {
+        ...s,
+        matches: s.matches.map((mm) =>
+          mm.id === matchId
+            ? {
+                ...mm,
+                rapport: rapportAfter,
+                conversationCooldowns: {
+                  ...(mm.conversationCooldowns ?? {}),
+                  [optionId]: prev.weeksLived ?? 0,
+                },
+                lastMessageTimestamp: now,
+                // The player is looking at the thread — both sides are read.
+                unreadByPlayer: 0,
+                unreadByNpc: 0,
+              }
+            : mm,
+        ),
+        messages: { ...s.messages, [matchId]: thread },
+        lifetimeStats: {
+          ...s.lifetimeStats,
+          totalDatesGoneOn:
+            s.lifetimeStats.totalDatesGoneOn + (resolution.countsAsDate ? 1 : 0),
+        },
+      },
+    };
+
+    // go_steady, committed in the SAME updater through the one authority.
+    if (optionId === 'go_steady' && resolution.success) {
+      const promo = resolveMatchPromotion(next, matchId);
+      // Refusing here rejects the whole move — no charge, no messages — rather
+      // than banking a proposal that was never accepted.
+      if (!promo.ok) return prev;
+      next = promo.next;
+    }
+
+    return next;
+  });
+
+  log.info(
+    `spark conversation ${optionId}${venueId ? `/${venueId}` : ''} on ${profile.name} → ${resolution.success ? 'landed' : 'missed'}`,
+  );
+
+  return {
+    success: true,
+    message: resolution.npcText,
+    outcome: resolution.success ? 'success' : 'miss',
+    // The relationship shares the match's id by construction
+    // (`resolveMatchPromotion`), so this needs no value read back out of the
+    // updater — which would be unreliable for any deferred dispatch.
+    relationshipId: optionId === 'go_steady' && resolution.success ? matchId : undefined,
+  };
 };
 
 export const subscribeSparkPremium = (

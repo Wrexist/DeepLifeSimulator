@@ -6,7 +6,6 @@ import {
   swipeOnProfile,
   rewindLastSwipe,
   unmatch,
-  sendSparkMessage,
   promoteMatchToRelationship,
   subscribeSparkPremium,
   cancelSparkPremium,
@@ -147,7 +146,7 @@ describe('premium-less (legacy) sparkApp — no crash on premium.perks reads', (
   });
 });
 
-describe('unmatch / sendSparkMessage', () => {
+describe('unmatch', () => {
   it('unmatch removes the match and its message thread', () => {
     const state = freshState({ weeksLived: 1 });
     state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
@@ -158,25 +157,6 @@ describe('unmatch / sendSparkMessage', () => {
     expect(getState().sparkApp!.messages['m1']).toBeUndefined();
   });
 
-  it('sendSparkMessage appends to the thread and spends energy', () => {
-    const state = freshState({ weeksLived: 1 });
-    state.stats.energy = 100;
-    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
-    const { setGameState, getState } = makeHarness(state);
-    const r = sendSparkMessage(setGameState, state, 'm1', 'hey there');
-    expect(r.success).toBe(true);
-    expect(getState().sparkApp!.messages['m1']).toHaveLength(1);
-    expect(getState().sparkApp!.messages['m1'][0].text).toBe('hey there');
-    expect(getState().stats.energy).toBe(98);
-  });
-
-  it('sendSparkMessage rejects empty content', () => {
-    const state = freshState({ weeksLived: 1 });
-    state.stats.energy = 100;
-    state.sparkApp!.matches = [{ id: 'm1', profileId: SAMPLE_ID, matchedWeek: 1, superLiked: false, promoted: false }];
-    const { setGameState } = makeHarness(state);
-    expect(sendSparkMessage(setGameState, state, 'm1', '   ').success).toBe(false);
-  });
 });
 
 describe('promoteMatchToRelationship', () => {

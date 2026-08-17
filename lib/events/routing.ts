@@ -65,6 +65,17 @@ export const LETTER_EVENT_IDS: ReadonlySet<string> = new Set([
   'legal_speeding_notice',
   'legal_small_claim',
   'legal_settlement_offer',
+  // Inbox pack — authored FOR this channel rather than rescued into it. Every
+  // one is a letter, an invitation or a parcel in its own copy, and together
+  // they are what stops the mail app's decision surface being nothing but
+  // bills, summonses and fraud (see lib/events/inboxEvents.ts).
+  'inbox_reunion_invite',
+  'inbox_mystery_parcel',
+  'inbox_time_capsule',
+  'inbox_charity_appeal',
+  'inbox_wallet_returned',
+  'inbox_game_show_casting',
+  'inbox_neighbour_petition',
 ]);
 
 export function isLetterEvent(eventId: string | undefined | null): boolean {

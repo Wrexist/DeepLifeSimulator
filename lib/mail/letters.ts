@@ -97,6 +97,60 @@ const FRAMES: Record<string, LetterFrame> = {
     subject: 'Offer to settle — open for four weeks',
     category: 'primary',
   },
+
+  // ------------------------------------------------------------------
+  // The inbox pack — post worth opening.
+  //
+  // None of these carry the verified badge, and that is not an oversight: the
+  // badge means "the game vouches for this sender" and is reserved for the
+  // player's own bank, employer and government. A reunion committee and a
+  // courier depot are exactly the kind of ordinary correspondence that should
+  // NOT have it, or the badge stops meaning anything and the fraud tell it
+  // exists to support goes with it.
+  // ------------------------------------------------------------------
+  inbox_reunion_invite: {
+    senderName: 'Reunion Committee',
+    senderEmail: 'committee@classof-reunion.org',
+    subject: 'You are invited — the reunion',
+    category: 'social',
+  },
+  inbox_mystery_parcel: {
+    senderName: 'Parcel Depot',
+    senderEmail: 'deliveries@parceldepot.com',
+    subject: 'A parcel was left for you',
+    lede: 'Delivery attempted and completed. No sender details were provided.',
+    category: 'primary',
+  },
+  inbox_time_capsule: {
+    senderName: 'Time Capsule Scheme',
+    senderEmail: 'archive@timecapsule-scheme.org',
+    subject: 'A letter you wrote, returned to you',
+    category: 'primary',
+  },
+  inbox_charity_appeal: {
+    senderName: 'The Northside Appeal',
+    senderEmail: 'appeals@northside-trust.org',
+    subject: 'A small thing, asked properly',
+    category: 'social',
+  },
+  inbox_wallet_returned: {
+    senderName: 'A stranger',
+    senderEmail: 'no-reply@post.deepmail.com',
+    subject: 'I think this is yours',
+    category: 'primary',
+  },
+  inbox_game_show_casting: {
+    senderName: 'Casting — Quiz Format',
+    senderEmail: 'casting@brightlineproductions.tv',
+    subject: 'We would like to put you on television',
+    category: 'social',
+  },
+  inbox_neighbour_petition: {
+    senderName: 'Residents’ Association',
+    senderEmail: 'residents@millroad-association.org',
+    subject: 'Petition: the extension at number 14',
+    category: 'social',
+  },
 };
 
 const FALLBACK: LetterFrame = {

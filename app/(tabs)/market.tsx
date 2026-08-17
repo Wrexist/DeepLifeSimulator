@@ -19,6 +19,7 @@ import { clampStat, clampStatByKey } from '@/utils/statUtils';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { accent } from '@/lib/config/theme';
 import { styles } from '@/components/market/marketScreenStyles';
+import StatEffectChips from '@/components/market/StatEffectChips';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -53,6 +54,31 @@ const FILTER_CATEGORIES = [
 
 type MarketFilter = (typeof FILTER_CATEGORIES)[number]['id'];
 
+type MarketTab = 'items' | 'food' | 'gym' | 'housing';
+
+// Help text, one entry per tab. This used to live as a per-segment `accessory`
+// InfoButton inside the tab bar — four "?" badges competing with four labels.
+// The copy is unchanged; only the affordance moved (one button beside the row,
+// showing the active tab's entry).
+const TAB_INFO: Record<MarketTab, { title: string; content: string }> = {
+  items: {
+    title: 'Market Items',
+    content: "Buy essential items to improve your life! Computer unlocks mobile apps, smartphone gives you access to banking and social features, and other items provide various benefits.",
+  },
+  food: {
+    title: 'Food & Health',
+    content: 'Buy food to restore your health and energy! Different foods provide different amounts of health and energy restoration. Keep your character healthy to avoid penalties!',
+  },
+  housing: {
+    title: 'Renting a Home',
+    content: "A home gives you weekly health, happiness and energy. Rent is charged every week — fall behind for too long and you'll be evicted. Moving between tiers is free, so upgrade whenever you can afford it.",
+  },
+  gym: {
+    title: 'Gym Training',
+    content: 'Train at the gym to increase your fitness, health, and happiness! Each session costs $50 and provides +5 fitness, +3 health, and +2 happiness. Higher fitness unlocks better career opportunities.',
+  },
+};
+
 function MarketScreen() {
   return (
     <ErrorBoundary>
@@ -70,7 +96,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // the entry route (restored URL / deep link), which surfaces as the crash
   // screen. See hooks/useNavigationReady.ts.
   const navReady = useNavigationReady();
-  const [activeTab, setActiveTab] = useState<'items' | 'food' | 'gym' | 'housing'>('items');
+  const [activeTab, setActiveTab] = useState<MarketTab>('items');
   const { gameState, setGameState, buyItem, sellItem, buyFood, saveGame } = useGame();
 
   // Prevent staying on market screen when in prison - redirect to work tab.
@@ -370,12 +396,19 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             {formatMoney(getInflatedPrice(food.price, gameState.economy?.priceIndex ?? 1))}
           </Text>
 
-          <View style={styles.bonusInfo}>
-            <Text style={[styles.bonusTitle, settings.darkMode && styles.bonusTitleDark]}>{t('market.restores')}</Text>
-            <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.healthRestore} {t('game.health')}</Text>
-            <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{food.energyRestore} {t('game.energy')}</Text>
-            <Text style={[styles.bonusText, settings.darkMode && styles.bonusTextDark]}>+{happinessRestore} {t('game.happiness')}</Text>
-          </View>
+          {/* One chip per stat, in the HUD's own colors — see
+              components/market/StatEffectChips.tsx. The three identical blue
+              lines this replaces gave the player no way to tell at a glance
+              which bar a card feeds. */}
+          <StatEffectChips
+            caption={t('market.restores')}
+            darkMode={settings.darkMode}
+            effects={[
+              { key: 'health', value: food.healthRestore },
+              { key: 'energy', value: food.energyRestore },
+              { key: 'happiness', value: happinessRestore },
+            ]}
+          />
         </View>
 
         <LoadingButton
@@ -459,42 +492,30 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
   return (
     <View style={[styles.container, settings.darkMode && styles.containerDark]}>
-      {/* Fixed Tab Bar. Embedded in the Life tab it renders as a subordinate
+      {/* Fixed tab bar. Embedded in the Life tab it renders as a subordinate
           (compact) control so it doesn't mirror the primary Health/Shop/Stats
-          bar sitting just above it. */}
-      <SegmentedControl
-        style={embedded ? styles.marketTabsEmbedded : styles.marketTabs}
-        compact={embedded}
-        value={activeTab}
-        onChange={setActiveTab}
-        segments={[
-          {
-            key: 'items',
-            label: t('market.items'),
-            icon: ShoppingBag,
-            accessory: (
-              <InfoButton
-                title="Market Items"
-                content="Buy essential items to improve your life! Computer unlocks mobile apps, smartphone gives you access to banking and social features, and other items provide various benefits."
-                size="small"
-                darkMode={settings.darkMode}
-              />
-            ),
-          },
-          {
-            key: 'food',
-            label: t('market.food'),
-            icon: Apple,
-            accessory: (
-              <InfoButton
-                title="Food & Health"
-                content="Buy food to restore your health and energy! Different foods provide different amounts of health and energy restoration. Keep your character healthy to avoid penalties!"
-                size="small"
-                darkMode={settings.darkMode}
-              />
-            ),
-          },
-          {
+          bar sitting just above it.
+
+          ONE info button for the row, not four. Every segment used to carry its
+          own "?" accessory inside the tab, which (a) competed with the label for
+          the eye and (b) ate 24pt of each slot — with four segments in the
+          compact embedded bar that truncated the labels themselves. The single
+          button sits outside the control and describes whichever tab is active,
+          so no help text was lost.
+
+          The row also has a solid background and its own bottom gap: the bar is
+          translucent and there is no backdrop blur on native, so scrolled
+          content used to ghost straight through it and the section header below
+          read as sliding under the tabs. */}
+      <View style={[styles.tabsRow, embedded && styles.tabsRowEmbedded]}>
+        <SegmentedControl
+          style={styles.tabsControl}
+          compact={embedded}
+          value={activeTab}
+          onChange={setActiveTab}
+          segments={[
+            { key: 'items', label: t('market.items'), icon: ShoppingBag },
+            { key: 'food', label: t('market.food'), icon: Apple },
             // HOUSING. Renting used to live as tab 2 of the Real Estate app —
             // which is DESKTOP-ONLY (a $5,000 computer) and gated at tier 3
             // ("Finish Chapter 3"). So a player in their first 30 weeks, bleeding
@@ -503,33 +524,19 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             // happiness and energy and carries an eviction failure state.
             // Market is always reachable, needs no device and has no tier gate,
             // which is what a week-1 survival need requires.
-            key: 'housing',
-            label: 'Housing',
-            icon: Home,
-            accessory: (
-              <InfoButton
-                title="Renting a Home"
-                content="A home gives you weekly health, happiness and energy. Rent is charged every week — fall behind for too long and you'll be evicted. Moving between tiers is free, so upgrade whenever you can afford it."
-                size="small"
-                darkMode={settings.darkMode}
-              />
-            ),
-          },
-          {
-            key: 'gym',
-            label: t('market.gym'),
-            icon: Dumbbell,
-            accessory: (
-              <InfoButton
-                title="Gym Training"
-                content="Train at the gym to increase your fitness, health, and happiness! Each session costs $50 and provides +5 fitness, +3 health, and +2 happiness. Higher fitness unlocks better career opportunities."
-                size="small"
-                darkMode={settings.darkMode}
-              />
-            ),
-          },
-        ]}
-      />
+            { key: 'housing', label: 'Housing', icon: Home },
+            { key: 'gym', label: t('market.gym'), icon: Dumbbell },
+          ]}
+        />
+        {/* Keyed on the active tab so the modal's copy follows the tab. */}
+        <InfoButton
+          key={activeTab}
+          title={TAB_INFO[activeTab].title}
+          content={TAB_INFO[activeTab].content}
+          size="small"
+          darkMode={settings.darkMode}
+        />
+      </View>
 
       {/* Scrollable Content */}
       <ScrollView
@@ -699,6 +706,18 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                               ? option.reason || 'Not available yet'
                               : `${formatMoney(t2.weeklyRent)} / week`}
                         </Text>
+                        {/* A tenancy's whole point is the weekly stat grant, and
+                            the card never showed it — the same chips the food
+                            and gym cards use say it in one line. */}
+                        <StatEffectChips
+                          caption="Per week"
+                          darkMode={settings.darkMode}
+                          effects={[
+                            { key: 'health', value: t2.health },
+                            { key: 'energy', value: t2.energy },
+                            { key: 'happiness', value: t2.happiness },
+                          ]}
+                        />
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -728,20 +747,19 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 </View>
               ) : (
                 <>
-                  <View style={styles.gymStatsContainer}>
-                    <View style={styles.gymStatChip}>
-                      <Text style={[styles.gymStatValue, { color: accent.purple }]}>+5</Text>
-                      <Text style={styles.gymStatLabel}>{t('game.fitness')}</Text>
-                    </View>
-                    <View style={styles.gymStatChip}>
-                      <Text style={[styles.gymStatValue, { color: accent.success }]}>+3</Text>
-                      <Text style={styles.gymStatLabel}>{t('game.health')}</Text>
-                    </View>
-                    <View style={styles.gymStatChip}>
-                      <Text style={[styles.gymStatValue, { color: accent.warning }]}>+2</Text>
-                      <Text style={styles.gymStatLabel}>{t('game.happiness')}</Text>
-                    </View>
-                  </View>
+                  {/* Same chip row as the food cards — the gym's three big
+                      number tiles said the same thing in a third visual
+                      language, and coloured health green while the HUD's
+                      health bar is red. */}
+                  <StatEffectChips
+                    caption="Per session"
+                    darkMode={settings.darkMode}
+                    effects={[
+                      { key: 'fitness', value: 5 },
+                      { key: 'health', value: 3 },
+                      { key: 'happiness', value: 2 },
+                    ]}
+                  />
 
                   <View style={styles.gymCostRow}>
                     <Text style={styles.gymCostLabel}>Session Cost</Text>

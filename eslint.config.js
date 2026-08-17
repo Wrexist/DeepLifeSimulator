@@ -132,6 +132,12 @@ module.exports = [
      * with a line-level disable and the measurements behind it in a comment.
      * It is a weight argument, not a cycle, and it was already typed.
      *
+     * `lib/markets` and `lib/spark` joined on 2026-08-17. Both are directories
+     * added AFTER the 2026-08-14 sweep and both were already clean, so the
+     * enumeration had drifted behind `lib/` again — the list is meant to be
+     * "every clean directory", and a new directory silently outside it is the
+     * same unlocked-in state the sweep was fixing.
+     *
      * Only `lib/simulation` remains. Its requires are not a cycle either — they
      * reach into `contexts/game/*`, so making them static would bake a
      * lib → contexts inversion into the module graph, and it is ~10k LOC of
@@ -150,14 +156,15 @@ module.exports = [
       "lib/education/**/*.{ts,tsx}", "lib/events/**/*.{ts,tsx}",
       "lib/karma/**/*.{ts,tsx}",
       "lib/legacy/**/*.{ts,tsx}", "lib/legacyPass/**/*.{ts,tsx}", "lib/lifeMoments/**/*.{ts,tsx}",
-      "lib/luxury/**/*.{ts,tsx}", "lib/mail/**/*.{ts,tsx}", "lib/mindset/**/*.{ts,tsx}",
+      "lib/luxury/**/*.{ts,tsx}", "lib/mail/**/*.{ts,tsx}", "lib/markets/**/*.{ts,tsx}",
+      "lib/mindset/**/*.{ts,tsx}",
       "lib/notifications/**/*.{ts,tsx}", "lib/parenting/**/*.{ts,tsx}", "lib/pets/**/*.{ts,tsx}",
       "lib/politics/**/*.{ts,tsx}", "lib/prestige/**/*.{ts,tsx}",
       "lib/progress/**/*.{ts,tsx}", "lib/pursuits/**/*.{ts,tsx}",
       "lib/randomness/**/*.{ts,tsx}", "lib/rd/**/*.{ts,tsx}", "lib/realEstate/**/*.{ts,tsx}",
       "lib/reputation/**/*.{ts,tsx}", "lib/retirement/**/*.{ts,tsx}", "lib/scenarios/**/*.{ts,tsx}",
       "lib/shop/**/*.{ts,tsx}", "lib/skillTrees/**/*.{ts,tsx}", "lib/social/**/*.{ts,tsx}",
-      "lib/statistics/**/*.{ts,tsx}",
+      "lib/spark/**/*.{ts,tsx}", "lib/statistics/**/*.{ts,tsx}",
       "lib/stocks/**/*.{ts,tsx}", "lib/subscription/**/*.{ts,tsx}",
       "lib/timeMachine/**/*.{ts,tsx}", "lib/travel/**/*.{ts,tsx}",
       "lib/types/**/*.{ts,tsx}", "lib/utils/**/*.{ts,tsx}", "lib/validation/**/*.{ts,tsx}",
