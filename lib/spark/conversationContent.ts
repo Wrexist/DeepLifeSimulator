@@ -3,7 +3,8 @@
  *
  * "Content is data": every line the choice-driven chat can put in the thread
  * lives here rather than inside an action, so the copy can be coverage-tested
- * against `DATING_PROFILES` the same way `lib/dating/npcReplyPool.ts` is.
+ * against `DATING_PROFILES`. This replaced `lib/dating/npcReplyPool.ts`, the
+ * free-text chat's reply catalog, which was deleted with its callers.
  *
  * Why a TONE layer instead of one pool per personality: the catalog carries 27
  * concrete personality slugs, and the conversation has 7 options × 2 outcomes.
@@ -39,7 +40,7 @@ export const DEFAULT_TONE: SparkTone = 'warm';
  *
  * A missing entry is not a crash — `resolveTone` falls back to DEFAULT_TONE —
  * but the test suite fails on it, because a new catalog personality quietly
- * inheriting "warm" is exactly the drift the npcReplyPool comment warns about.
+ * inheriting "warm" is exactly the drift a tone map exists to prevent.
  */
 export const PERSONALITY_TONE: Record<string, SparkTone> = {
   active: 'bold',

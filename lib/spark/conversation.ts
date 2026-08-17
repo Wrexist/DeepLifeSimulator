@@ -315,6 +315,26 @@ export interface ConversationGateInput {
   /** Messages already in this thread — drives the `break_ice` gate. */
   messageCount: number;
   promoted: boolean;
+  /**
+   * WHAT the match was promoted into, when it was. Purely for the refusal copy
+   * on an `unpromotedOnly` option, and passed in rather than derived because
+   * this module is pure and does not see `GameState.relationships`.
+   *
+   * It matters because the two cases read completely differently to a player.
+   * Befriending sets the same `promoted` flag a partner promotion does, so
+   * `go_steady` used to disappear behind "Already in your contacts" — which
+   * reads as a bug when the person is a friend and the player never chose to
+   * close the romance off. `undefined` keeps the old generic wording for a
+   * caller that cannot tell (a promoted match whose relationship is gone).
+   */
+  promotedAs?: 'partner' | 'friend';
+}
+
+/** Why an `unpromotedOnly` option is gone, in the player's terms. */
+export function promotedReason(promotedAs: 'partner' | 'friend' | undefined): string {
+  if (promotedAs === 'friend') return 'You made this one a friend';
+  if (promotedAs === 'partner') return "You're already together";
+  return 'Already in your contacts';
 }
 
 export interface ConversationOptionAvailability {
@@ -362,7 +382,7 @@ export function resolveOptionAvailability(
   };
 
   if (option.unpromotedOnly && input.promoted) {
-    return { ...base, visible: false, reason: 'Already in your contacts' };
+    return { ...base, visible: false, reason: promotedReason(input.promotedAs) };
   }
   if (option.freshChatOnly && input.messageCount > 0) {
     return { ...base, visible: false, reason: 'The ice is already broken' };

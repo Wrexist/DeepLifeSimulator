@@ -26,7 +26,7 @@
  *      commit is one atomic updater in `playConversationOption`.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowLeft,
   CalendarHeart,
@@ -52,7 +52,6 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
   markMatchRead,
   playConversationOption,
-  promoteMatchToRelationship,
   promoteMatchToFriend,
   getSparkConversationView,
 } from '@/contexts/game/actions/SparkActions';
@@ -176,29 +175,43 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     [play],
   );
 
+  /** The `go_steady` row of the SAME gate the chips render from. */
+  const goSteady = useMemo(
+    () => view?.options.find((o) => o.option.id === 'go_steady'),
+    [view],
+  );
+
+  /**
+   * The header heart IS the `go_steady` chip.
+   *
+   * It used to call `promoteMatchToRelationship` directly, which knows only the
+   * anti-bigamy rule — so a free, instant, un-refusable promotion sat 40px from
+   * a chip that costs 5 energy, needs 75 rapport and can be turned down. Every
+   * player would take the heart, and the whole rapport economy below it was
+   * decoration. It now resolves through the same availability row and dispatches
+   * through the same handler, so the two cannot diverge: whatever the chip would
+   * do, the heart does, including the refusal copy.
+   */
   const handlePromote = useCallback(() => {
-    const result = promoteMatchToRelationship(setGameState, gameState, matchId);
-    if (result.success && result.relationshipId) {
-      sparkHaptics.match();
-      onOpenPartnerProfile(result.relationshipId);
-      saveGame?.();
-    } else {
+    setError(null);
+    if (!goSteady) return;
+    if (!goSteady.available) {
       sparkHaptics.error();
-      // Surface WHY (e.g. already dating someone) — a silent haptic made the
-      // header heart read as a dead button.
-      setError(result.message);
+      setError(goSteady.reason ?? 'Not right now');
+      return;
     }
-  }, [setGameState, gameState, matchId, onOpenPartnerProfile, saveGame]);
+    handleOptionPress('go_steady', Boolean(goSteady.option.requiresVenue));
+  }, [goSteady, handleOptionPress]);
 
   /**
    * The other destination for a match.
    *
-   * Without this, `promoteMatchToRelationship`'s anti-bigamy guard meant every
-   * match after the first had nowhere to go — the player could keep matching and
-   * none of them became a contact. Friendship costs nothing and is not
-   * exclusive, so this button never refuses on "already with someone".
+   * Without this, `resolveMatchPromotion`'s anti-bigamy guard meant every match
+   * after the first had nowhere to go — the player could keep matching and none
+   * of them became a contact. Friendship costs nothing and is not exclusive, so
+   * this button never refuses on "already with someone".
    */
-  const handleBefriend = useCallback(() => {
+  const confirmBefriend = useCallback(() => {
     const result = promoteMatchToFriend(setGameState, gameState, matchId);
     if (result.success) {
       sparkHaptics.tap();
@@ -209,6 +222,28 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
       setError(result.message);
     }
   }, [setGameState, gameState, matchId, saveGame]);
+
+  /**
+   * Befriending is a ONE-WAY DOOR and the button never said so.
+   *
+   * `promoteMatchToFriend` sets the same `promoted` flag the partner path does,
+   * which is what hides `go_steady` — so a tap meant as "keep in touch" quietly
+   * ended the romance for this match, with no warning and no way back. A
+   * confirmation is the minimum: the cost is one extra tap on a rare action, and
+   * the thing it protects is unrecoverable.
+   */
+  const handleBefriend = useCallback(() => {
+    setError(null);
+    const who = profile?.name.split(' ')[0] ?? 'them';
+    Alert.alert(
+      `Add ${who} as a friend?`,
+      `Friends stay in your contacts for good — but this ends the romance with ${who}. You will not be able to ask them to go steady afterwards.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Add friend', onPress: confirmBefriend },
+      ],
+    );
+  }, [profile?.name, confirmBefriend]);
 
   if (!match || !profile || !view) {
     return (
@@ -255,9 +290,10 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
           </View>
         </View>
         {/* Two destinations for an un-promoted match, not one. Befriending is
-            offered first because it never refuses — dating is exclusive, so on
-            a second match the heart bounces off the anti-bigamy guard and the
-            person-plus is the only thing that can actually do something. */}
+            offered first because it never refuses — dating is exclusive AND
+            gated on rapport, so on a second match (or an early one) the heart
+            reports why it cannot happen yet and the person-plus is the only
+            thing that can actually do something. */}
         {!isPromoted && (
           <Pressable
             onPress={handleBefriend}
@@ -272,7 +308,13 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
         <Pressable
           onPress={isPromoted ? () => onOpenPartnerProfile(matchId) : handlePromote}
           accessibilityRole="button"
-          accessibilityLabel={isPromoted ? 'View profile' : 'Start dating'}
+          accessibilityLabel={
+            isPromoted
+              ? 'View profile'
+              : goSteady && !goSteady.available
+                ? `Ask to go steady. Locked: ${goSteady.reason ?? 'not right now'}`
+                : 'Ask to go steady'
+          }
           hitSlop={8}
           style={styles.headerBtn}
         >

@@ -395,6 +395,16 @@ export const unmatch = (
  *
  * The replacement is `playConversationOption` below: one updater, rapport
  * aware, cooldown stamped.
+ *
+ * `lib/dating/npcReplyPool.ts` went with them (2026-08-17). It was the reply
+ * catalog those two functions read, so once they were deleted nothing in
+ * production referenced it — the only remaining importer was its own
+ * coverage test, which enforced a per-personality pool for a module no screen
+ * could reach and would have failed CI the next time a personality was added
+ * to `DATING_PROFILES`. A gate on dead code is a trap, not protection. Its
+ * successor is `lib/spark/conversationContent.ts`, where every line the chat
+ * can say now lives, keyed by TONE rather than by personality so a new
+ * personality cannot fall through to an empty pool.
  */
 
 export const markMatchRead = (
@@ -520,9 +530,9 @@ export const dismissLikedYou = (
  * exactly one place that knows what a promoted match looks like. Two callers
  * need it and they need it at different moments:
  *
- *   - `promoteMatchToRelationship` (the header heart) calls it once outside the
- *     updater for the message it reports, and again inside against `prev` as
- *     the same-batch race guard.
+ *   - `promoteMatchToRelationship` (the bare API — see its own note) calls it
+ *     once outside the updater for the message it reports, and again inside
+ *     against `prev` as the same-batch race guard.
  *   - `playConversationOption`'s `go_steady` move needs the promotion to land
  *     in the SAME updater that charges the energy and appends the two chat
  *     messages (CLAUDE.md §4.4). Dispatching a second time would have opened a
@@ -586,6 +596,18 @@ export function resolveMatchPromotion(
  * before the player can go on dates, give gifts, or propose via the
  * existing DatingActions. The match remains in `sparkApp.matches` flagged
  * `promoted: true` so the chat history stays accessible.
+ *
+ * NO UI CALLS THIS TODAY, deliberately. ChatScreen's header heart used to, and
+ * that made it a free instant promotion sitting next to the `go_steady` chip,
+ * which costs 5 energy, needs 75 rapport and can be refused — the gate was
+ * decoration as long as an ungated door stood beside it. The heart now plays
+ * `go_steady` through `playConversationOption` like the chip does.
+ *
+ * This stays exported as the bare promotion API — one dispatch, no rapport
+ * economy — for a future surface that legitimately has no conversation behind
+ * it (a story event, a scenario setup). Anything player-facing that represents
+ * "ask them out" must go through the conversation path instead, or it
+ * re-creates the same bypass.
  */
 export const promoteMatchToRelationship = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -733,6 +755,25 @@ export const promoteMatchToFriend = (
 // Choice-driven conversation (v45)
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * What a promoted match became — read off the relationship it created, which is
+ * the single source of truth (`SparkMatch.promoted` is a plain boolean, so
+ * friend and partner look identical there). A promoted match shares its id with
+ * its relationship, so this is a lookup and not a search.
+ *
+ * `undefined` for an un-promoted match, and also for a promoted one whose
+ * relationship is gone (a breakup removes it) — the caller degrades to generic
+ * copy rather than guessing.
+ */
+const promotionKindOf = (
+  state: GameState,
+  matchId: string,
+): 'partner' | 'friend' | undefined => {
+  const rel = (state.relationships ?? []).find((r) => r?.id === matchId);
+  if (!rel) return undefined;
+  return rel.type === 'friend' ? 'friend' : 'partner';
+};
+
 /** Everything ChatScreen needs to draw the option panel, in one read. */
 export interface SparkConversationView {
   rapport: number;
@@ -764,6 +805,7 @@ export const getSparkConversationView = (
       cooldowns: match.conversationCooldowns,
       messageCount: sp.messages?.[matchId]?.length ?? 0,
       promoted: Boolean(match.promoted),
+      promotedAs: promotionKindOf(gameState, matchId),
     }),
   };
 };
@@ -773,7 +815,14 @@ export interface PlayConversationResult {
   message: string;
   /** Present only when the move was actually played. */
   outcome?: 'success' | 'miss';
-  rapport?: number;
+  /**
+   * NO `rapport` FIELD ON PURPOSE. It used to be reported here from the
+   * pre-dispatch resolution, while the value actually COMMITTED is recomputed
+   * from `prev` inside the updater — so the two could disagree on any queued
+   * second change. Nothing read it (the screen renders rapport from
+   * `getSparkConversationView`, which reads the committed state), so it was a
+   * wrong number nobody was looking at. Read rapport from state, not from here.
+   */
   /** Set when a `go_steady` landed — the caller opens the partner profile. */
   relationshipId?: string;
 }
@@ -843,6 +892,7 @@ export const playConversationOption = (
     cooldowns: match.conversationCooldowns,
     messageCount: sp.messages?.[matchId]?.length ?? 0,
     promoted: Boolean(match.promoted),
+    promotedAs: promotionKindOf(gameState, matchId),
   });
   if (!gate.available) {
     return { success: false, message: gate.reason ?? 'Not right now' };
@@ -890,6 +940,7 @@ export const playConversationOption = (
       cooldowns: m.conversationCooldowns,
       messageCount: (s.messages[matchId] ?? []).length,
       promoted: Boolean(m.promoted),
+      promotedAs: promotionKindOf(prev, matchId),
     });
     if (!fresh.available) return prev;
 
@@ -983,7 +1034,6 @@ export const playConversationOption = (
     success: true,
     message: resolution.npcText,
     outcome: resolution.success ? 'success' : 'miss',
-    rapport: resolution.rapportAfter,
     // The relationship shares the match's id by construction
     // (`resolveMatchPromotion`), so this needs no value read back out of the
     // updater — which would be unreliable for any deferred dispatch.

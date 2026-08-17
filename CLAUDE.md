@@ -219,11 +219,15 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   the router resolves through a lookup map at module top.
 - **Logging:** `utils/logger.ts`, not `console.*`.
 - **Lint guardrails** (`eslint.config.js`), which encode the hard rules:
-  - `as any` → warn app-wide, **error in 57 of `lib/`'s 58 directories** — every
-    one that is fully clean of `as any` and internal `require()`. `lib/travel`
+  - `as any` → warn app-wide, **error in 58 of `lib/`'s 59 directories** — every
+    one that is fully clean of `as any` and internal `require()`, i.e. all but
+    `lib/simulation`. `lib/travel`
     was the first and sat alone for months; a count on 2026-08-14 found 48 more
     were ALREADY clean and simply unprotected, so the burndown had been
     happening as a side effect of ordinary work with nothing locking it in.
+    The enumeration drifts behind `lib/` whenever a directory is ADDED —
+    `lib/markets` and `lib/spark` were both born clean and both sat outside the
+    list until 2026-08-17 — so re-count it when you add one.
     **The rule earns its keep: each of the two directories cleared by hand so
     far turned up a real player-facing bug** — the obituary naming no job
     (`career.name`, which `Career` does not have) and the 8,000-point

@@ -1,73 +1,67 @@
-# UI/UX pass 2 (2026-08-16) — three owner-reported issues, orchestrated
+# UI/UX pass 2 (2026-08-16) — three owner-reported issues — COMPLETE
 
-Branch: `claude/ui-improvements-polish-lhw1rg` (continues the previous polish
-pass). Orchestrator: Fable 5. Implementation + audit: Opus 5 agents, one per
-workstream — the three touch disjoint files, so they run in parallel and land
-as separate commits.
+Branch: `claude/ui-improvements-polish-lhw1rg`. Orchestrated: Fable 5
+orchestrator, Opus 5 implementation/audit/fix agents. Landed as per-workstream
+commits (`b46ff7f` death screen, `1f56435` market, `dd3d7a8` Spark v45, plus
+the audit-fix commit).
 
-## Workstream A — Death screen scrolling (`components/DeathPopup.tsx` + Styles)
-Owner report: Summary tab cannot scroll at all — the purple Start New Life
-button is unreachable; Legacy tab's scroll region is a small strip. Root cause
-(recon): the hero block (tombstone art → "You Died" → cause → character card →
-Summary/Legacy segmented control) is pinned ABOVE the per-tab ScrollViews, so
-only the leftover ~40% of the card scrolls.
-- [ ] Restructure so the ENTIRE card content scrolls: hero + tab content in one
-      scroll surface per tab (or one ScrollView with a sticky segmented control)
-- [ ] Both tabs: every action reachable (Start New Life, Read Story, Share,
-      Revive, Revival Pack, Get More Gems)
-- [ ] Keep the flex-chain lesson documented in DeathPopupStyles.ts (definite
-      height on `content`) intact or consciously replace it
-- [ ] Verify: type-check, lint, `__tests__/render` + any death/legacy suites
+## Workstream A — Death screen scrolling — DONE
+- [x] Whole card content scrolls: hero (tombstone/title/cause/identity card),
+      tab bar, active page and its actions all live inside ONE ScrollView;
+      the pinned hero + pinned footer structure is gone. Every action
+      reachable on both tabs (Revive / Revival Pack / gems / mindset picker /
+      Start New Life / Read Story / Share)
+- [x] The definite-height flex-chain lesson in DeathPopupStyles.ts re-derived
+      and kept true; audit confirmed the restructure is a pure re-parent
+      (padding conserved, no absolute element moved inside scroll content)
 
-## Workstream B — Life tab structure + Market restore chips
-Owner report: Life tab should be more structured/clean; food items' RESTORES
-lines should be color-coded with icons per stat.
-- [ ] `app/(tabs)/market.tsx` food cards: replace the plain blue "+3 Health /
-      +2 Energy / +2 Happiness" text stack with compact icon chips —
-      Heart/red, Zap/blue, Smile/amber, matching the HUD stat colors
-- [ ] Same treatment for any other card in the market that lists stat restores
-      (gym/items) so the pattern is consistent
-- [ ] Fix the clipped "Buy Food" header sliding under the category tab bar
-      (visible in the screenshot) and content scrolling under the bottom tab bar
-- [ ] Tidy the two stacked tab rows (segmented control + category tabs with
-      per-tab "?" buttons) into something calmer
-- [ ] Verify: type-check, lint, render suite for life/market
+## Workstream B — Life tab market — DONE
+- [x] StatEffectChips (new shared component): per-stat pills with lucide
+      icons in the HUD's stat colors (Heart red / Zap blue / Smile amber /
+      Dumbbell purple). Applied to food, gym AND housing (rentals never
+      showed their weekly grant; gym tiles mis-colored health green)
+- [x] "Sliding under the bars" was TRANSPARENCY, not clipping: the tab bar's
+      glass blur only exists on web, so 0.7 alpha read straight through on
+      device → 0.96. Market category row now an opaque band
+- [x] Four per-tab "?" badges consolidated to one info button (also fixes
+      "Housing"/"Items" label truncation); all help copy preserved verbatim
 
-## Workstream C — Spark chat: keyboard + choice-based conversations
-Owner report: keyboard covers the composer (can't see what you typed, can't
-send/close); wants OPTIONS instead of free text — compliment, ask on a date,
-etc. — a fully functional, fun, interactive system.
-- [ ] C1 Keyboard: `KeyboardAvoidingView` following the Pulse pattern
-      (`components/mobile/Pulse/screens/PostDetailScreen.tsx`), thread scrolled
-      to end on keyboard open — fixes the shipped bug regardless of C2
-- [ ] C2 Conversation options replace the free-text composer:
-      - `lib/spark/conversation.ts` (new): option catalog (icebreaker, ask
-        about interests, compliment, joke, flirt, ask on a date, go steady),
-        availability gated on per-match rapport + game state, success odds from
-        charisma/personality fit, NPC responses per personality per outcome
-      - Per-match `rapport` (0–100) + option cooldowns on `SparkMatch` —
-        optional fields, absent = fresh match ⇒ STATE_VERSION 45 carve-out
-        stub migration per §7 (comment in saveMigrations, CLAUDE.md/DEV.md/
-        WORKFLOW.md version sync, types.ts docs)
-      - Date flow: ask on a date → venue choice (coffee/dinner/adventure, cash
-        + energy costs) → outcome lands as chat messages + rapport/happiness
-        moves; charge inside the same updater that applies the effect (§4.4)
-      - Going steady routes through the existing `promoteMatchToRelationship`
-        (anti-bigamy guard intact); befriending through `promoteMatchToFriend`
-      - Actions injectable-rng for tests; UI renders option chips above the
-        (removed) composer, energy costs shown on the chips
-- [ ] C3 Tests: new suite for conversation actions — §4.4 double-tap
-      atomicity, energy/cash gating, rapport bounds, cooldowns, availability
-      gates, migration round-trip for the new carve-out
-- [ ] Verify: type-check both configs, lint, spark/save suites
+## Workstream C — Spark chat — DONE (STATE_VERSION 45)
+- [x] Keyboard bug structurally removed: no TextInput remains, so no
+      keyboard can rise; option panel pinned above the home indicator
+- [x] Choice-driven conversation: break the ice / ask about their real
+      interests / compliment / joke / flirt (25 rapport) / date at 45
+      (coffee $25, dinner $120, reckless $300) / go steady at 75. Rapport
+      0-100 with header band label; per-option weeksLived cooldowns; success
+      odds from rapport + happiness/reputation/fitness + personality fit
+      (27 personalities → 10 tones, full default coverage); injectable rng
+- [x] §4.4: one updater commits charge + rapport + cooldown + messages +
+      promotion, re-checked against prev; anti-bigamy stays a single pure
+      authority (resolveMatchPromotion). sendSparkMessage/generateNpcReply
+      deleted with their only caller (the composer)
+- [x] v45 carve-out: rapport + conversationCooldowns optional on SparkMatch,
+      stub migration, no backfill/mirror; docs synced (CLAUDE.md/DEV.md/
+      WORKFLOW.md); carve-out round-trip suite extended (14→16)
+- [x] New suite __tests__/dating/sparkConversation.test.ts (74 tests)
 
-## Phase 2 — Audit (Opus 5 agent)
-- [ ] Review the combined diff against CLAUDE.md hard rules: §4.4 gate→grant,
-      §4.2 week counters, Hard Rule #7 (no one-sided accent borders), §7 save
-      format discipline, z-index constants, scaling — plus the usual
-      over-grading check (re-read sources before believing findings)
+## Phase 2 — Audit — DONE (0 critical, 4 moderate all fixed, 7 nits triaged)
+- [x] M1: header heart no longer bypasses the rapport economy — routes
+      through the same go_steady gate/handler as the chip, shows the gate
+      reason when locked. promoteMatchToRelationship now has no production
+      caller (kept exported, documented)
+- [x] M2: befriending an unpromoted match asks for confirmation (it closes
+      the dating path); availability reason now honest per promotion kind
+      ("You made this one a friend" / "You're already together")
+- [x] M3: orphaned lib/dating/npcReplyPool.ts (+ its live CI gate) deleted;
+      deletion comment records the successor (lib/spark/conversationContent)
+- [x] M4: lib/spark AND lib/markets added to the eslint error block (both
+      verified clean); CLAUDE.md §5 count corrected to 58-of-59
+- [x] N3 (dead result field) removed; N7 (glass comment premise) corrected.
+      N1/N2/N5/N6 recorded as accepted/deliberate; pre-existing lint:ratchet
+      overage (933 base → 931 HEAD, this branch net -2) flagged, not ours
 
-## Phase 3 — Orchestrator verification & landing
-- [ ] `npm run type-check` + `type-check:tests` + `lint:errors`
-- [ ] Full Jest suite, `check:routes`, `node scripts/audit/audit-save.cjs`
-- [ ] Three commits (one per workstream), push
+## Phase 3 — Verification — DONE
+- [x] Both type-checks clean · lint clean on all touched files
+- [x] Full Jest: 586 suites / 7,627 tests passing (1 skipped) — count down
+      one suite from mid-pass because npcReplyPool.test.ts was deleted
+- [x] check:routes clean · audit-save all clear (v45 canonical)
