@@ -57,8 +57,8 @@ the build. Doing this now costs one minute; forgetting it costs a full cycle.
 grep '"version"' package.json
 ```
 
-Currently `2.8.0`. **If 2.8.0 has already been uploaded to TestFlight, raise it**
-(2.8.1). If you are not sure, raise it anyway — the number only has to climb.
+Currently `2.9.0`. **If 2.9.0 has already been uploaded to TestFlight, raise it**
+(2.9.1). If you are not sure, raise it anyway — the number only has to climb.
 
 That one field is the single source of truth: `app.config.js` derives the
 displayed version and iOS `CFBundleShortVersionString` from it. The iOS build

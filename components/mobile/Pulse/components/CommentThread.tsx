@@ -83,7 +83,7 @@ export default function CommentThread({
 
 function orderForDisplay(
   comments: PulseComment[],
-): Array<{ comment: PulseComment; depth: number }> {
+): { comment: PulseComment; depth: number }[] {
   const byParent = new Map<string | undefined, PulseComment[]>();
   for (const c of comments) {
     const k = c.parentCommentId;
@@ -97,7 +97,7 @@ function orderForDisplay(
   }
 
   const roots = byParent.get(undefined) ?? [];
-  const out: Array<{ comment: PulseComment; depth: number }> = [];
+  const out: { comment: PulseComment; depth: number }[] = [];
 
   for (const root of roots) {
     out.push({ comment: root, depth: 0 });

@@ -210,7 +210,7 @@ describe('Achievement / Progress audit', () => {
   // ── ACCESSOR SAFETY: fresh state ───────────────────────────────────────
   it('All accessors handle a fresh state without throwing or returning NaN/Infinity', () => {
     const state = freshState();
-    const failures: Array<{ id: string; error: string }> = [];
+    const failures: { id: string; error: string }[] = [];
 
     for (const a of achievements) {
       try {
@@ -235,7 +235,7 @@ describe('Achievement / Progress audit', () => {
   // ── ACCESSOR SAFETY: fat state ─────────────────────────────────────────
   it('All accessors handle a fat populated state cleanly', () => {
     const state = fatState();
-    const failures: Array<{ id: string; error: string }> = [];
+    const failures: { id: string; error: string }[] = [];
 
     for (const a of achievements) {
       try {
@@ -272,7 +272,7 @@ describe('Achievement / Progress audit', () => {
         .toBe(`${key}: false`);
     }
 
-    const failures: Array<{ id: string; error: string }> = [];
+    const failures: { id: string; error: string }[] = [];
     for (const a of achievements) {
       try {
         if (a.progressSpec.kind === 'counter') {

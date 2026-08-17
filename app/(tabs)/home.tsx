@@ -822,11 +822,6 @@ function HomeScreenContent() {
             : <ChevronDown size={scale(15)} color="#94A3B8" />}
         </TouchableOpacity>
 
-        {/* First Week Guide — leave space so the overlay doesn't clip cards. */}
-        {weeksThisLife <= 3 && !hasCompletedTutorial && (
-          <View style={{ height: 200 }} />
-        )}
-
         {/* Banner ad at the end of the scroll content — non-obscuring (scrolls
             with content, never overlaps the tab bar). Self-gating: BannerAd
             renders nothing unless the AdMob SDK is configured and the player
@@ -834,7 +829,9 @@ function HomeScreenContent() {
         <BannerAd style={{ marginTop: scale(12) }} />
       </ScrollView>
 
-      {/* First Week Guide Overlay - Floating at bottom */}
+      {/* First Week Guide — presents its own Modal, so it sits above the HUD
+          and the tab bar rather than under them. No spacer is reserved in the
+          feed for it any more; it no longer occupies feed space. */}
       {weeksThisLife <= 3 && !hasCompletedTutorial && (
         <FirstWeekGuide currentWeek={weeksThisLife} />
       )}

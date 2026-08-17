@@ -47,13 +47,13 @@ const PROFILE: Record<HustleIndustry, { growth: string; volatility: string; moat
   bank: { growth: 'Slow', volatility: 'Low', moat: 'High' },
 };
 
-const INDUSTRIES: Array<{
+const INDUSTRIES: {
   id: HustleIndustry;
   name: string;
   icon: any;
   description: string;
   cost: number;
-}> = [
+}[] = [
   { id: 'factory', name: 'Manufacturing', icon: Factory, description: 'Industrial production, hard assets, slow & steady growth.', cost: 50_000 },
   { id: 'ai', name: 'AI / Tech', icon: Briefcase, description: 'High R&D leverage, fast scale, prone to media swings.', cost: 90_000 },
   { id: 'restaurant', name: 'Restaurant', icon: Utensils, description: 'Brand-driven, local footprint, sensitive to reviews.', cost: 130_000 },

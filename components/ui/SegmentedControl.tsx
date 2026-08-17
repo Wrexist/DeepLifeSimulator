@@ -4,8 +4,12 @@
  * segment, muted inactive text. Replaces three near-identical hand-rolled bars.
  *
  * Each segment may carry an optional `icon` (leading) and an optional
- * `accessory` (a sibling rendered next to the touchable — e.g. Market's
- * InfoButton, which must sit outside the tap target so it doesn't switch tabs).
+ * `accessory` (a sibling rendered next to the touchable, outside the tap target
+ * so it doesn't switch tabs). No caller uses `accessory` today: Market did, with
+ * a per-tab InfoButton, and four "?" badges in a four-segment row both competed
+ * with the labels and squeezed them to truncation. Market now renders ONE info
+ * button beside the whole control. Prefer that shape; per-segment accessories
+ * only pay off when the segments genuinely differ in what they offer.
  */
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';

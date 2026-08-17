@@ -64,10 +64,10 @@ export interface RcPurchaseResult {
 }
 
 // ── Lazy, crash-proof module load ───────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let Purchases: any | null = null;
 let loadAttempted = false;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function loadPurchases(): any | null {
   if (loadAttempted) return Purchases;
   loadAttempted = true;
@@ -94,10 +94,10 @@ function apiKey(): string | undefined {
 
 // react-native-purchases-ui (prebuilt Paywall + Customer Center). Lazy-required
 // like the core SDK so its absence can never crash the app.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let PurchasesUI: any | null = null;
 let uiLoadAttempted = false;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function loadPurchasesUI(): any | null {
   if (uiLoadAttempted) return PurchasesUI;
   uiLoadAttempted = true;
@@ -111,7 +111,7 @@ function loadPurchasesUI(): any | null {
   return PurchasesUI;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function readEntitlements(customerInfo: any): RcEntitlements {
   const active = customerInfo?.entitlements?.active ?? {};
   const premium = !!active[RC_ENTITLEMENT_PREMIUM] || !!active[RC_ENTITLEMENT_PRO];
@@ -141,7 +141,7 @@ class RevenueCatService {
     return this.cache;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private cacheFrom(customerInfo: any): RcEntitlements {
     this.cache = readEntitlements(customerInfo);
     this.everFetched = true;
@@ -202,7 +202,7 @@ class RevenueCatService {
    * Fire-and-forget and fully guarded: an older SDK without the method, a
    * rejected promise, or a throw must never affect a purchase flow.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private enableAppleAdsAttribution(P: any): void {
     if (Platform.OS !== 'ios') return;
     try {
@@ -235,7 +235,7 @@ class RevenueCatService {
    * The current offering (packages for the paywall — annual/monthly/lifetime).
    * Returns null when disabled or on error; callers fall back to static prices.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   async getCurrentOffering(): Promise<any | null> {
     if (!(await this.configure())) return null;
     try {
@@ -248,7 +248,7 @@ class RevenueCatService {
   }
 
   /** Purchase a package from an offering (subscriptions / lifetime). */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   async purchasePackage(pkg: any): Promise<RcPurchaseResult> {
     if (!(await this.configure())) return { success: false, message: 'Store unavailable.' };
     try {
@@ -282,7 +282,7 @@ class RevenueCatService {
       if (isSubscriptionProduct(productId)) {
         const offering = await this.getCurrentOffering();
         const pkg = offering?.availablePackages?.find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           (p: any) =>
             p.storeProduct?.productIdentifier === storeId || p.identifier === storeId,
         );
@@ -434,7 +434,7 @@ class RevenueCatService {
   addEntitlementsListener(cb: (e: RcEntitlements) => void): () => void {
     if (!this.isEnabled()) return () => {};
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const handler = (info: any) => cb(this.cacheFrom(info));
       loadPurchases().addCustomerInfoUpdateListener(handler);
       return () => {
@@ -513,7 +513,7 @@ class RevenueCatService {
     return this.track('trackAdFailedToLoad', payload);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private mapPurchaseError(error: any): RcPurchaseResult {
     if (error?.userCancelled) return { success: false, cancelled: true, message: 'Purchase cancelled.' };
     log.warn('purchase failed', { error });

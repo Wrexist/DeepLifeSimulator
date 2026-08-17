@@ -104,7 +104,7 @@ function injectEvent(event: {
   description?: string;
   category?: string;
   relationId?: string;
-  choices: Array<{ id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string }>;
+  choices: { id: string; label?: string; effects?: Record<string, unknown>; special?: string; diseaseId?: string }[];
 }) {
   act(() => captured!.setGameState(prev => ({
     ...prev,

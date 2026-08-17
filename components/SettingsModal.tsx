@@ -52,7 +52,7 @@ const LinearGradient = Gradient;
 // featureFlags) so Metro can statically fold the branch and drop the chain.
 const DEV_TOOLS_ENABLED =
   __DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEVTOOLS === 'true';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+
 const DevToolsModal: React.ComponentType<{ visible: boolean; onClose: () => void }> | null =
   DEV_TOOLS_ENABLED ? require('./DevToolsModal').default : null;
 
@@ -151,7 +151,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const rewardScaleAnim = useRef(new Animated.Value(0)).current;
   const rewardOpacityAnim = useRef(new Animated.Value(0)).current;
   const rewardGemAnim = useRef(new Animated.Value(0)).current;
-  
+
   // Check if Discord reward has been claimed. Treat BOTH a finalized marker AND
   // a pending (in-flight) claim as claimed — a claim already begun must never
   // re-offer the reward (the home reconciler will complete a pending one).
@@ -162,7 +162,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     };
     checkDiscordReward();
   }, []);
-  
+
   // Animate Discord button glow
   useEffect(() => {
     if (!discordRewardClaimed) {
@@ -239,7 +239,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         [settingId]: value,
       },
     }));
-    
+
     // Handle sound-specific settings
     if (settingId === 'soundEnabled') {
       setSoundEnabled(value);
@@ -256,11 +256,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     }
 
     setIsRestoringPurchases(true);
-    
+
     try {
       logger.info('Starting purchase restoration from Settings...');
       const { success, restoredCount } = await iapService.restorePurchases();
-      
+
       if (success) {
         // Reload IAP state to refresh purchases
         await iapService.loadPurchases();
@@ -494,7 +494,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </View>
                 )}
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.settingsTab, activeSettingsTab === 'lifeGoals' && styles.activeSettingsTab]}
                 onPress={() => setActiveSettingsTab('lifeGoals')}

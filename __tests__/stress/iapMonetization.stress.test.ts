@@ -122,7 +122,7 @@ describe('IAP / Monetization audit', () => {
   // ── EVERY PRODUCT APPLIES WITHOUT CRASH ─────────────────────────────────
   it('applyProductToState: every product applies cleanly to fresh state', () => {
     const ids = getAllProductIds();
-    const failures: Array<{ id: string; issues: string[] }> = [];
+    const failures: { id: string; issues: string[] }[] = [];
 
     for (const id of ids) {
       const state = freshState();
@@ -254,7 +254,7 @@ describe('IAP / Monetization audit', () => {
 
   // ── BANKING PRODUCTS ───────────────────────────────────────────────────
   it('PREMIUM_CREDIT_CARD / FINANCIAL_PLANNING / BUSINESS_BANKING / PRIVATE_BANKING flip their flags', () => {
-    const tests: Array<[string, keyof NonNullable<GameState['settings']>]> = [
+    const tests: [string, keyof NonNullable<GameState['settings']>][] = [
       [IAP_PRODUCTS.PREMIUM_CREDIT_CARD, 'premiumCreditCard' as never],
       [IAP_PRODUCTS.FINANCIAL_PLANNING, 'financialPlanning' as never],
       [IAP_PRODUCTS.BUSINESS_BANKING, 'businessBanking' as never],
@@ -322,7 +322,7 @@ describe('IAP / Monetization audit', () => {
   // ── SAVE PIPELINE COMPATIBILITY ────────────────────────────────────────
   it('Post-IAP state passes validateGameState for every product', () => {
     const ids = getAllProductIds();
-    const failures: Array<{ id: string; errors: string[] }> = [];
+    const failures: { id: string; errors: string[] }[] = [];
     for (const id of ids) {
       const state = freshState();
       iapService.applyProductToState(state, id);

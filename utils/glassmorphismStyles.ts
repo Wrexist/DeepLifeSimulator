@@ -141,12 +141,32 @@ export function getGlassHeader(darkMode: boolean = false): ViewStyle {
 
 /**
  * Glass tab bar container style
+ *
+ * The fill is near-opaque on purpose. `backdropFilter` below is web-only —
+ * there is no backdrop blur on iOS or Android — so on device the alpha is doing
+ * all the work, and what it produced was plain transparency rather than glass:
+ * the bottom bar sits `position: 'absolute'` over the scroll views, and cards
+ * scrolling past read straight through the nav (reported from a live build: a
+ * food card legible through the tab bar on the Life tab).
+ *
+ * Read the number as the STACK, not as one layer. `app/(tabs)/_layout.tsx`
+ * spreads this helper into BOTH `tabBarStyle` and the `tabBarBackground` view,
+ * so the fill is composited twice: the effective opacity is 1 - (1 - a)^2. At
+ * the old a = 0.7 that is 0.91 — 9% of the scrolling content still coming
+ * through, which is exactly what was visible. At a = 0.96 it is 0.998, opaque
+ * for practical purposes. That doubling is also why the single-layer value
+ * looks higher than it needs to be; do not "simplify" it back down without
+ * accounting for the second call site.
+ *
+ * The list padding already clears the bar (`getTabBarSafePadding`), so this is
+ * only about what shows while scrolling. The hairline top border and the web
+ * blur keep the glass reading intact.
  */
 export function getGlassTabBar(darkMode: boolean = false): ViewStyle {
   return {
     backgroundColor: darkMode
-      ? 'rgba(15, 23, 42, 0.7)'
-      : 'rgba(255, 255, 255, 0.7)',
+      ? 'rgba(15, 23, 42, 0.96)'
+      : 'rgba(255, 255, 255, 0.96)',
     borderTopWidth: 1,
     borderTopColor: darkMode
       ? 'rgba(255, 255, 255, 0.1)'

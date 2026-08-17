@@ -85,7 +85,7 @@ describe('the carve-out fields survive a load', () => {
     // `lastWelcomeBackWeek` (v44) is the game-week gate on the welcome-back cash
     // bonus. Erasing it on load would reopen the forward-clock scrub it closes on
     // the very next launch — the same failure `lastNoFillGrantWeek` already had.
-    // `deepLifePlusLastMemberClaimWeek` (v45) caps the DeepLife+ MEMBER grace at
+    // `deepLifePlusLastMemberClaimWeek` (v46) caps the DeepLife+ MEMBER grace at
     // one unplayed claim per played week. Erasing it on load would re-arm that
     // banked claim on every launch — the compounding forward-scrub it closes.
     expect('deepLifePlusLastGemClaimWeek' in initialGameState.settings).toBe(false);

@@ -24,13 +24,12 @@
 //   --selftest  Build and print the App Store Connect JWT from the provided
 //               creds WITHOUT calling Apple (to debug auth setup), then exit.
 
-import crypto from 'node:crypto';
-import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
 import { Buffer } from 'node:buffer';
+import { AscClient, loadCredentials, makeToken } from './lib/ascClient.mjs';
 
 const ARGS = process.argv.slice(2);
 const has = (flag) => ARGS.includes(flag);
@@ -52,73 +51,10 @@ function getAscAppId() {
   }
 }
 
-function b64url(input) {
-  return Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
-
-// Accepts the .p8 either as raw PEM contents or as base64-encoded PEM (a common
-// way to store a multi-line key in a single CI secret).
-function loadP8() {
-  const inline = process.env.ASC_KEY_P8;
-  const file = process.env.ASC_KEY_P8_PATH;
-  let raw = null;
-  if (inline && inline.trim()) raw = inline;
-  else if (file && fs.existsSync(file)) raw = fs.readFileSync(file, 'utf8');
-  if (!raw) return null;
-  raw = raw.trim();
-  if (!raw.includes('BEGIN')) {
-    try {
-      raw = Buffer.from(raw, 'base64').toString('utf8');
-    } catch {
-      /* fall through with the original */
-    }
-  }
-  return raw;
-}
-
-function makeAscJwt({ keyId, issuerId, p8 }) {
-  const header = { alg: 'ES256', kid: keyId, typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = { iss: issuerId, iat: now, exp: now + 1200, aud: 'appstoreconnect-v1' };
-  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
-  const key = crypto.createPrivateKey({ key: p8, format: 'pem' });
-  // ES256 (ECDSA P-256/SHA-256). JWT requires the raw r||s signature, so use
-  // the IEEE-P1363 encoding rather than Node's default DER.
-  const sig = crypto.sign('sha256', Buffer.from(signingInput), { key, dsaEncoding: 'ieee-p1363' });
-  return `${signingInput}.${b64url(sig)}`;
-}
-
-function httpsGetJson(reqUrl, token) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(reqUrl);
-    const req = https.request(
-      {
-        method: 'GET',
-        hostname: u.hostname,
-        path: u.pathname + u.search,
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      },
-      (res) => {
-        let body = '';
-        res.on('data', (c) => (body += c));
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(body));
-            } catch (e) {
-              reject(e);
-            }
-          } else {
-            reject(new Error(`ASC API HTTP ${res.statusCode}: ${body.slice(0, 300)}`));
-          }
-        });
-      },
-    );
-    req.on('error', reject);
-    req.setTimeout(20000, () => req.destroy(new Error('ASC API timeout')));
-    req.end();
-  });
-}
+// Credential loading, the ES256 JWT and the HTTP plumbing all live in
+// scripts/lib/ascClient.mjs — asc-release.mjs needs the same auth against the
+// same host, and two copies of a signer that answers every mistake with an
+// opaque 401 is how they drift apart.
 
 function maxBuildFromAscPayload(payload) {
   const data = Array.isArray(payload?.data) ? payload.data : [];
@@ -132,12 +68,10 @@ function maxBuildFromAscPayload(payload) {
 }
 
 async function fromAppStoreConnect() {
-  const keyId = process.env.ASC_KEY_ID;
-  const issuerId = process.env.ASC_ISSUER_ID;
-  const p8 = loadP8();
+  const credentials = loadCredentials();
   const appId = getAscAppId();
 
-  if (!keyId || !issuerId || !p8) {
+  if (!credentials) {
     log('ASC creds not set (need ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) — skipping App Store Connect lookup.');
     return null;
   }
@@ -146,23 +80,23 @@ async function fromAppStoreConnect() {
     return null;
   }
 
-  const token = makeAscJwt({ keyId, issuerId, p8 });
-
   if (has('--selftest')) {
-    const [h, p, s] = token.split('.');
+    const [h, p, s] = makeToken(credentials).split('.');
     log('JWT header :', Buffer.from(h, 'base64').toString());
     log('JWT payload:', Buffer.from(p, 'base64').toString());
     log('JWT signature bytes:', Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').length, '(ES256 expects 64)');
     process.exit(0);
   }
 
+  const client = new AscClient({ credentials, log: (...a) => log(...a) });
+
   // Sort by most-recently-uploaded so the highest numbers are in the first page;
   // compute the max client-side regardless of sort. Sparse fieldset keeps it light.
   const api =
-    `https://api.appstoreconnect.apple.com/v1/builds` +
+    `/v1/builds` +
     `?filter%5Bapp%5D=${encodeURIComponent(appId)}` +
     `&sort=-uploadedDate&limit=200&fields%5Bbuilds%5D=version`;
-  const payload = await httpsGetJson(api, token);
+  const payload = await client.get(api);
   const max = maxBuildFromAscPayload(payload);
   log(`App Store Connect highest build for app ${appId}: ${max} (scanned ${payload?.data?.length ?? 0} builds).`);
   return max + 1;

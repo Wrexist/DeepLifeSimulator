@@ -1110,7 +1110,36 @@ const migrations: Record<number, (state: any) => any> = {
     return state;
   },
 
-  // Version 45: `settings.deepLifePlusLastMemberClaimWeek` — the `weeksLived`
+  // Version 45: `rapport` and `conversationCooldowns` on `SparkMatch` — the
+  // per-match state behind Spark's choice-driven chat.
+  //
+  // The chat used to be a free-text box wired to a personality reply pool:
+  // whatever the player typed, the NPC answered from a fixed list and NOTHING
+  // about the match changed. It is now a short game — `rapport` (0-100) moves
+  // on every move, gates `flirt` / `ask on a date` / `ask to go steady` behind
+  // rising thresholds, and `conversationCooldowns` (optionId -> `weeksLived`)
+  // stops the cheapest move being tapped ten times to ratchet it. That map is
+  // keyed on `weeksLived` (absolute) and never on the cyclic `week` or the
+  // device clock — a wall-clock gate here would be farmable, and this one
+  // paces happiness, money and ultimately a relationship.
+  //
+  // Default `undefined` for both, so this is a CARVE-OUT: version bumped, NO
+  // backfill and no `repairGameState` mirror. Two independent reasons, either
+  // sufficient. Absence already RESOLVES: `readRapport`
+  // (`lib/spark/conversation.ts`) applies the fresh-match baseline at read
+  // time, and an absent cooldown map already means "nothing on cooldown",
+  // which is what a match that predates the feature should mean. And writing a
+  // value would be a guess in either direction — a save has no record of how
+  // its chats actually went, so a low number would erase a conversation the
+  // player had already invested in, while a high one would hand out the date
+  // and go-steady moves for free. Stamping cooldowns would be worse still: it
+  // would lock every existing match out of moves it has never played.
+  45: (state) => {
+    state.version = 45;
+    return state;
+  },
+
+  // Version 46: `settings.deepLifePlusLastMemberClaimWeek` — the `weeksLived`
   // marker capping the DeepLife+ MEMBER daily-gem grace at one unplayed claim
   // per played game week.
   //
@@ -1131,8 +1160,12 @@ const migrations: Record<number, (state: any) => any> = {
   // a paying member's next legitimate claim (the v27/v28 reasoning). The key
   // still has to survive the load round-trip, which `loadedStateMerge`
   // guarantees by keeping the saved object's own keys.
-  45: (state) => {
-    state.version = 45;
+  //
+  // Numbered 46, not 45: this landed alongside the Spark chat carve-out below,
+  // which reached `main` first and owns 45. A version number means one schema
+  // shape, so the later change renumbers rather than sharing the slot.
+  46: (state) => {
+    state.version = 46;
     return state;
   },
 };

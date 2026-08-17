@@ -28,7 +28,7 @@ const mockDisk: { state: unknown } = { state: null };
 const LEDGER_KEY = 'iap_processed_transactions';
 
 /** Every ledger write, in order, plus a switch to make them fail. */
-const writes: Array<{ key: string; value: string }> = [];
+const writes: { key: string; value: string }[] = [];
 let writesSucceed = true;
 /** Interleaved log of ledger writes and grant persists, to assert ORDER. */
 const events: string[] = [];

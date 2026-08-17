@@ -45,12 +45,12 @@ export function createStyles(darkMode: boolean) {
     content: {
       width: width * 0.9,
       maxWidth: 420,
-      // A DEFINITE height (not just maxHeight) is required: the card lays out as
-      // a flex column with a flex:1 "page" containing a flex:1 ScrollView. A
-      // ScrollView has no intrinsic height, so without a bounded parent height
-      // the flex:1 page collapses to 0 and the tab content + footer vanish
-      // (card ends right after the tab bar). Pinning the height resolves the
-      // flex chain so the scroll area fills and the footer pins to the bottom.
+      // A DEFINITE height (not just maxHeight) is still required. The chain is
+      // content → card (flex:1) → ScrollView (flex:1), and a ScrollView has no
+      // intrinsic height: without a bounded ancestor the card sizes to its
+      // children, the children are a ScrollView measuring 0, and the whole card
+      // collapses. Pinning the height here is what gives the single scroll
+      // surface something definite to fill.
       height: height * 0.9,
     },
     card: {
@@ -64,19 +64,27 @@ export function createStyles(darkMode: boolean) {
       ...getPlatformShadows(12, 0.3, 8, 24),
       flexDirection: 'column',
     },
-    // Each tab renders a full "page": a flex-filling scroll area above a pinned
-    // footer. flex:1 lets the page consume all space between the top menu bar
-    // and the bottom of the card so nothing overflows or gets clipped.
-    page: {
-      flex: 1,
-      minHeight: 0,
-    },
+    // The card is ONE scroll surface: hero, identity card, tab bar, the active
+    // page and its actions all scroll together. Nothing is pinned.
+    //
+    // The previous shape pinned the hero above the scroller and the action rows
+    // below it, so the scroller only got what was left over — and on a small
+    // phone the Summary action stack alone is taller than that, which left the
+    // scroll area at zero height and clipped "Start New Life" off the card.
     scrollView: {
       flex: 1,
     },
+    // No horizontal padding here: the hero illustration is full-bleed and the
+    // identity card / tab bar carry their own insets, exactly as they did when
+    // they were direct children of the card. The per-tab content is padded by
+    // `pageContent` instead.
     scrollContent: {
+      paddingBottom: scale(8),
+    },
+    // The body of whichever tab is active.
+    pageContent: {
       padding: scale(20),
-      paddingBottom: scale(16),
+      paddingBottom: scale(4),
     },
     // ── Hero: the verdict, centred under the illustration ──────────────────
     // Centred rather than left-aligned because this is the one screen in the
@@ -414,8 +422,11 @@ export function createStyles(darkMode: boolean) {
       fontWeight: '700',
       color: accent.success,
     },
-    // Pinned action footer at the bottom of each page.
-    footer: {
+    // The action block that closes each page. It is the TAIL OF THE SCROLL, not
+    // a pinned footer — pinning it is what made the Summary tab unscrollable.
+    // The hairline above it is a section divider (a Rule #7 exception), not a
+    // decorative accent bar.
+    actions: {
       padding: scale(16),
       paddingTop: scale(14),
       gap: scale(10),

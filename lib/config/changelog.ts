@@ -45,6 +45,111 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.9.0',
+    date: 'August 2026',
+    headline: 'New faces, real conversations, nothing left locked',
+    summary:
+      'Rebuilt character creation, real Spark conversations, and a lot of stuck things moving again.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Character creation, rebuilt',
+        bullets: [
+          'Your face is built from features you choose, not picked from a gallery of portraits.',
+          'Every option shows your own face wearing it, so you choose by looking, not by reading.',
+          'Your face ages with you instead of being swapped for a stranger at each age band.',
+          "Children look like children now, and they inherit their parents' features.",
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Spark chats are a real conversation',
+        bullets: [
+          'The text box is gone. Pick a move: break the ice, compliment, joke, or flirt.',
+          'Each match keeps its own rapport. Flirting opens at 25, dates at 45, going steady at 75.',
+          'Ask them out for coffee, dinner or something reckless — each with its own cost and payoff.',
+          'Not feeling it? Any match can become a friend instead.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'The game could lock you out of itself',
+        bullets: [
+          'Buying a house or a company could take away the very app that manages it.',
+          'Two life chapters asked for apps that those same chapters were the only way to unlock.',
+          'Spending money no longer moves you backwards. Progress only ever goes up.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Your starting age no longer breaks the early game',
+        bullets: [
+          'Beginner luck, first-month events and the early grace period only ever worked at age 18.',
+          'Week goals like "Survive 4 Weeks" were already complete before you had played a week.',
+          'Chapter 1 opened two-thirds done and paid you for it. It starts at zero now.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'The dark web sells gear',
+        bullets: [
+          'The tool shop had no way in, so 18 of the 19 street jobs sat locked behind it.',
+          'Deliveries hand over the item you paid for, not the next one on the shelf.',
+          'Getting scammed earns buyer standing, and listings rotate instead of freezing for weeks.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Friends, favours, and people who notice you are gone',
+        bullets: [
+          'Only your first Spark match could ever become a contact. Now any of them can.',
+          'Network contacts can be asked for a favour: influence, a discount, heat relief, an intro.',
+          'Neglecting family and friends costs happiness, and a neglected friend can drift away.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Money numbers that match what you are charged',
+        bullets: [
+          'Weekly Expenses and the Budget tab left out rent, income tax and student loan payments.',
+          'The Net Worth breakdown did not add up to the Net Worth on the card. Now it does.',
+          'Billions displayed as "$1500.00M", and losses printed as "$-1.2M" across the game.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Six more money fixes',
+        bullets: [
+          'A $40M save was told "Need $10,000" for a business action it had already paid for.',
+          'A fast double-tap could buy a vehicle twice, or duplicate coins in a crypto swap.',
+          'Savings had no way to pay into it, so the piggy bank sat at zero for a whole life.',
+          'Buying out a rival added no revenue, and one achievement asked for more than the cap.',
+          'Ad rewards read your wallet, not your worth — a property millionaire was offered $50.',
+          'The poverty scholarship promised free education and paid respect. It covers tuition now.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Small things that were quietly wrong',
+        bullets: [
+          'Your obituary named a job you no longer held after you were voted out of office.',
+          "An heir's age and the game clock disagreed from the moment they took over.",
+          'Two ways of farming rewards by winding your device clock forward are closed.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Faster to open, easier to read',
+        bullets: [
+          'Cold start is about six seconds quicker — the loading bar was waiting on nothing.',
+          'The death screen scrolls properly, so every option is reachable on both tabs.',
+          'Food, gym and housing cards show what they do to each stat, in the same colours as the HUD.',
+          'Life Goals fits in a page or two instead of a dozen, and Contacts stays smooth in a long life.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.8.0',
     date: 'August 2026',
     headline: 'A faster start, and a fairer economy',
@@ -568,13 +673,7 @@ export interface UpcomingItem {
   bullets: string[];
 }
 
-export const UPCOMING: UpcomingItem[] = [
-  {
-    title: 'Character customization, rebuilt',
-    bullets: [
-      'Face, hair and style choices that actually carry into the game.',
-      'A redesigned look-builder with a proper preview.',
-      'Your appearance stays consistent as your character ages.',
-    ],
-  },
-];
+// Empty on purpose. The one item that lived here — "Character customization,
+// rebuilt" — shipped in 2.9.0, and this file's own rule is to clear an item out
+// as it lands. Add the next thing here only once it is actually being built.
+export const UPCOMING: UpcomingItem[] = [];

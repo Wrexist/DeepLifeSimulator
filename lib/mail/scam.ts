@@ -34,6 +34,7 @@
  */
 
 import type { GameState, MailMessage } from '@/contexts/game/types';
+import { fnv1a32 } from '@/utils/seededRoll';
 import { docMoney } from './format';
 import { riskMultiplier } from './security';
 import type { MailContext } from './types';
@@ -41,11 +42,69 @@ import type { MailContext } from './types';
 /** Ceiling on how much of the player's cash any single scam can take. */
 export const SCAM_LOSS_CAP_FRACTION = 0.25;
 
-/** Absolute floor for the risk — everyone gets phished occasionally. */
-const BASE_RISK = 0.04;
+/**
+ * How often a scam may even be ATTEMPTED, in game weeks.
+ *
+ * ## Why a window rather than a lower probability
+ *
+ * The risk used to be rolled every single week. That made the ceiling the real
+ * problem: a player who had traded on the dark web, been burned once and picked
+ * up some heat sat near 0.42 PER WEEK — a scam roughly every other week,
+ * indefinitely. Mail stopped being a paper trail with a hazard in it and became
+ * a phishing simulator, which is the report this addresses.
+ *
+ * Lowering the probability alone would not have fixed it: a low per-week roll
+ * still clusters, so "two scams in three weeks" stays possible and that is
+ * exactly what reads as constant. A window makes the spacing a GUARANTEE — at
+ * most one attempt per six weeks, no matter how badly the player has behaved —
+ * and leaves the probability free to express how exposed they are.
+ *
+ * ## Why it needs no save field
+ *
+ * The eligible week is derived from the week number itself (see
+ * `scamWindowOpen`), so there is nothing to store, nothing to migrate, and
+ * nothing `emptyMailBin` can reset. It also keeps the generator's contract
+ * intact: still a pure function of `(week, salt)`, so a replayed or
+ * double-invoked tick lands in the same place.
+ */
+export const SCAM_WINDOW_WEEKS = 6;
 
-/** Hard ceiling, so no combination of bad decisions makes scams every-week. */
-const MAX_RISK = 0.42;
+/**
+ * Chance for a player who has done nothing to earn it.
+ *
+ * Read as "per attempt window", not per week — so with the window above this is
+ * roughly one generic phish a game-year. Everyone gets those; nobody should get
+ * them monthly.
+ */
+const BASE_RISK = 0.12;
+
+/**
+ * Hard ceiling. With the window, the worst-behaved save in the game tops out at
+ * an attempt roughly every fifteen weeks.
+ */
+const MAX_RISK = 0.4;
+
+/**
+ * Which week inside each window a scam may land on.
+ *
+ * Hashing the window INDEX (not the week) is what makes the answer stable for
+ * every week in the same window, which is what stops the offset moving under
+ * its own gate. Without it the eligible week would be re-drawn every tick and
+ * the cadence would be back to a per-week roll wearing a hat.
+ *
+ * `ctx.rand` cannot be used here for the same reason — it is seeded on the
+ * current week by construction.
+ */
+function scamWindowOffset(week: number): number {
+  const windowIndex = Math.floor(week / SCAM_WINDOW_WEEKS);
+  return fnv1a32(`mail-scam-window:${windowIndex}`) % SCAM_WINDOW_WEEKS;
+}
+
+/** True on the one week per window when a scam may be rolled at all. */
+export function scamWindowOpen(week: number): boolean {
+  const w = Math.max(0, Math.floor(week));
+  return w % SCAM_WINDOW_WEEKS === scamWindowOffset(w);
+}
 
 export interface ScamRisk {
   /** Probability a scam arrives this week, 0..1. */
@@ -91,7 +150,7 @@ export function scamRisk(
 
   const burnedBy = vendors.filter((v) => v && v.flaggedScam).length;
   if (burnedBy > 0) {
-    chance += Math.min(0.2, 0.1 * burnedBy);
+    chance += Math.min(0.12, 0.06 * burnedBy);
     reasons.push(
       `${burnedBy} vendor${burnedBy === 1 ? ' has' : 's have'} already scammed you — ` +
         'that address gets sold on.'
@@ -102,19 +161,19 @@ export function scamRisk(
   const proceeds = Math.max(0, darkWeb?.dirtyBtc ?? 0) + Math.max(0, darkWeb?.cleanBtc ?? 0);
   const bought = Math.max(0, darkWeb?.playerReputation ?? 0) > 0;
   if (jobsRun > 0 || proceeds > 0 || bought) {
-    chance += 0.1;
+    chance += 0.06;
     reasons.push('You have traded on the dark web. Buyers get listed and resold.');
   }
 
   const heat = Math.max(0, Math.min(100, darkWeb?.heat ?? 0));
   if (heat >= 30) {
-    chance += Math.min(0.12, (heat - 30) / 400);
+    chance += Math.min(0.08, (heat - 30) / 600);
     reasons.push('Your investigation heat makes you a visible target.');
   }
 
   const netWorth = Math.max(0, state?.stats?.money ?? 0) + Math.max(0, state?.bankSavings ?? 0);
   if (netWorth >= 250_000) {
-    chance += 0.05;
+    chance += 0.04;
     reasons.push('Visible wealth attracts targeted fraud.');
   }
 
@@ -303,6 +362,10 @@ const BLUEPRINTS: ScamBlueprint[] = [
  * rather than rolling again for a second chance at the player's money.
  */
 export function generateScam(ctx: MailContext): MailMessage | null {
+  // The spacing guarantee comes first: outside the window there is nothing to
+  // roll, so no combination of exposure can produce back-to-back scams.
+  if (!scamWindowOpen(ctx.week)) return null;
+
   const risk = scamRisk(ctx.state, ctx.week);
   if (ctx.rand('scam-fire') > risk.chance) return null;
 

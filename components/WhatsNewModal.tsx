@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { Megaphone, X, Sparkles, TrendingUp, Wrench, Hammer } from 'lucide-react-native';
+import { Megaphone, X, Sparkles, TrendingUp, Wrench, Hammer, ChevronDown } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CHANGELOG, LATEST_VERSION, UPCOMING, type ChangeCategory } from '@/lib/config/changelog';
 import { markWhatsNewSeen } from '@/utils/whatsNewSeen';
@@ -48,15 +48,31 @@ const UPCOMING_TINT = 'rgba(167, 139, 250, 0.14)';
  * a fixed header and a scrolling body. Tap-to-dismiss lives on a backdrop
  * BEHIND the sheet so the ScrollView keeps its gestures (a ScrollView wrapped
  * in a Touchable loses scrolling to the touchable's press responder).
+ *
+ * Only the LATEST release is expanded. A player opening this wants to know what
+ * changed in the update they just took, and every older entry sits between that
+ * and the "Coming next" section — a big release (2.9.0 ships ten groups) pushed
+ * the previous four out of reach and made the newest one look like the whole
+ * history. Older entries collapse to a tappable row showing their headline, so
+ * the log is still complete and still one tap deep.
  */
 function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
+  const [openVersions, setOpenVersions] = useState<Record<string, boolean>>({});
+
+  const toggleVersion = useCallback((version: string) => {
+    haptic.light();
+    setOpenVersions((prev) => ({ ...prev, [version]: !prev[version] }));
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
     // Opening the log counts as "seen" — clears the Main Menu NEW badge.
     void markWhatsNewSeen();
+    // Every open starts on the latest release. Carrying the previous session's
+    // expansions forward would reopen an old entry above the new one.
+    setOpenVersions({});
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
@@ -133,26 +149,55 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
             >
               {CHANGELOG.map((entry, entryIndex) => {
                 const isLatest = entry.version === LATEST_VERSION;
+                // The latest entry is always open and never a button. Older ones
+                // collapse to their headline until tapped.
+                const collapsible = !isLatest;
+                const expanded = !collapsible || openVersions[entry.version] === true;
                 return (
                   <View
                     key={entry.version}
                     style={[styles.versionBlock, entryIndex > 0 && styles.versionBlockDivider]}
                   >
-                    <View style={styles.verbar}>
-                      <Text style={styles.versionText}>v{entry.version}</Text>
-                      {isLatest ? (
-                        <View style={styles.latestChip}>
-                          <Text style={styles.latestChipText}>LATEST</Text>
-                        </View>
+                    <TouchableOpacity
+                      activeOpacity={collapsible ? 0.7 : 1}
+                      disabled={!collapsible}
+                      onPress={collapsible ? () => toggleVersion(entry.version) : undefined}
+                      accessibilityRole={collapsible ? 'button' : undefined}
+                      accessibilityState={collapsible ? { expanded } : undefined}
+                      accessibilityLabel={
+                        collapsible ? `Version ${entry.version}, ${entry.headline}` : undefined
+                      }
+                      testID={collapsible ? `whats-new-toggle-${entry.version}` : undefined}
+                    >
+                      <View style={styles.verbar}>
+                        <Text style={styles.versionText}>v{entry.version}</Text>
+                        {isLatest ? (
+                          <View style={styles.latestChip}>
+                            <Text style={styles.latestChipText}>LATEST</Text>
+                          </View>
+                        ) : null}
+                        <View style={styles.verbarSpacer} />
+                        <Text style={styles.versionDate}>{entry.date}</Text>
+                        {collapsible ? (
+                          <View style={[styles.chevron, expanded && styles.chevronOpen]}>
+                            <ChevronDown size={scale(16)} color="#64748B" />
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {entry.headline ? (
+                        <Text style={styles.headline} numberOfLines={expanded ? undefined : 2}>
+                          {entry.headline}
+                        </Text>
                       ) : null}
-                      <View style={styles.verbarSpacer} />
-                      <Text style={styles.versionDate}>{entry.date}</Text>
-                    </View>
+                    </TouchableOpacity>
 
-                    {entry.headline ? <Text style={styles.headline}>{entry.headline}</Text> : null}
-                    {entry.summary ? <Text style={styles.summary}>{entry.summary}</Text> : null}
+                    {expanded && entry.summary ? (
+                      <Text style={styles.summary}>{entry.summary}</Text>
+                    ) : null}
+                    {!expanded ? <View style={styles.collapsedSpacer} /> : null}
 
-                    {entry.changes.map((change, changeIndex) => {
+                    {expanded && entry.changes.map((change, changeIndex) => {
                       const meta = CATEGORY[change.category];
                       const TagIcon = meta.icon;
                       return (
@@ -360,6 +405,19 @@ const styles = StyleSheet.create({
   },
   verbarSpacer: {
     flex: 1,
+  },
+  // The affordance for an older, collapsed entry. Rotates rather than swapping
+  // to a second icon so the two states read as one control.
+  chevron: {
+    marginLeft: scale(2),
+  },
+  chevronOpen: {
+    transform: [{ rotate: '180deg' }],
+  },
+  // A collapsed entry ends on its headline, whose own marginBottom is 4 — too
+  // tight against the divider below it. Restores the gap the summary was giving.
+  collapsedSpacer: {
+    height: scale(10),
   },
   versionDate: {
     fontSize: fontScale(12),

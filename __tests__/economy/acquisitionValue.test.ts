@@ -184,7 +184,7 @@ describe('the modal quotes the number the action applies', () => {
     // Comments stripped before matching — same reason as `uiTruthF5toF8`: the
     // JSDoc above the fixed markup QUOTES the old expression to explain what was
     // wrong with it, so a raw search finds the very string it is documenting.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const src = (
       require('fs').readFileSync(
         require('path').join(__dirname, '../../components/mobile/Hustle/modals/AcquireModal.tsx'),

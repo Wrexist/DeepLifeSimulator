@@ -404,7 +404,7 @@ describe('NPC depth audit', () => {
 
   // ── MOOD HELPERS ───────────────────────────────────────────────────────
   it('getMoodEmoji / getMoodLabel: return strings for every mood + undefined', () => {
-    const moods: Array<Relationship['npcMood']> = ['happy', 'stressed', 'sad', 'angry', 'neutral', undefined];
+    const moods: Relationship['npcMood'][] = ['happy', 'stressed', 'sad', 'angry', 'neutral', undefined];
     for (const m of moods) {
       expect(typeof getMoodEmoji(m)).toBe('string');
       expect(typeof getMoodLabel(m)).toBe('string');

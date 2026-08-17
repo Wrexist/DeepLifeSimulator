@@ -162,9 +162,17 @@ const MEASURED = {
 const CURRENT = {
   medianAbsHappiness: 6,
   soloHappinessMedian: 5,
-  bigStakesShare: 0.0507,
+  // 2026-08-16: the inbox event pack (lib/events/inboxEvents.ts) added 18
+  // happiness outcomes at once, and the gate caught it — every one was under
+  // the threshold, which dropped the share to 0.0491 and failed the floor. The
+  // finding was correct content criticism, not a measurement artefact: a pack
+  // of seven letters whose very best outcome decays away in a month is a pack
+  // of seven letters that do not matter. Three top branches were raised (the
+  // reunion, the time capsule, the television appearance) rather than the floor
+  // being lowered, which moved the corpus to 0.0548.
+  bigStakesShare: 0.0548,
   cliffhangerBadShare: 0.4,
-  inertEventShare: 0.0085,
+  inertEventShare: 0.0083,
 };
 
 /**

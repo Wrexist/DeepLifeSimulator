@@ -113,7 +113,7 @@ describe('State Growth Audit', () => {
     mounted = mountGame();
     const initial = sizeByKey(captured!.state);
 
-    const snapshots: Array<{ week: number; byKey: Record<string, number>; total: number }> = [];
+    const snapshots: { week: number; byKey: Record<string, number>; total: number }[] = [];
     snapshots.push({ week: 0, byKey: initial, total: JSON.stringify(captured!.state).length });
 
     for (let i = 1; i <= 1000; i++) {
@@ -128,7 +128,7 @@ describe('State Growth Audit', () => {
     }
 
     const final = snapshots[snapshots.length - 1];
-    const deltas: Array<[string, number]> = [];
+    const deltas: [string, number][] = [];
     for (const k of Object.keys(final.byKey)) {
       const delta = final.byKey[k] - (initial[k] ?? 0);
       deltas.push([k, delta]);

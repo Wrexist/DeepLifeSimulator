@@ -254,6 +254,18 @@ const CARVE_OUTS: CarveOut[] = [
   },
   {
     version: 45,
+    path: 'sparkApp.matches.0.rapport',
+    value: 73,
+    build: () => sparkMatchState(),
+  },
+  {
+    version: 45,
+    path: 'sparkApp.matches.0.conversationCooldowns',
+    value: { compliment: 3_777 },
+    build: () => sparkMatchState(),
+  },
+  {
+    version: 46,
     path: 'settings.deepLifePlusLastMemberClaimWeek',
     value: 3_777,
     build: () =>
@@ -264,11 +276,40 @@ const CARVE_OUTS: CarveOut[] = [
   },
 ];
 
+/**
+ * A save with one Spark match carrying both v45 carve-outs. Shared by the two
+ * rows above so they describe the same on-disk shape rather than two shapes
+ * that happen to agree.
+ */
+function sparkMatchState(): GameState {
+  const s = base();
+  if (!s.sparkApp) {
+    throw new Error('sparkMatchState: base() returned a state without sparkApp');
+  }
+  return {
+    ...s,
+    sparkApp: {
+      ...s.sparkApp,
+      matches: [
+        {
+          id: 'spm-1',
+          profileId: '1',
+          matchedWeek: 3_000,
+          superLiked: false,
+          promoted: false,
+          rapport: 73,
+          conversationCooldowns: { compliment: 3_777 },
+        },
+      ],
+    },
+  };
+}
+
 describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(15);
+    expect(CARVE_OUTS).toHaveLength(17);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });
@@ -388,5 +429,36 @@ describe('a full save → envelope → load → migrate → repair round trip', 
     expect(out.family.children[0]?.grandchildren).toEqual([
       { id: 'gc-1', name: 'Nia', birthWeeksLived: 3_777 },
     ]);
+  });
+
+  it('v44 → v45 migration keeps rapport and conversationCooldowns absent (carve-outs)', async () => {
+    // A v44 save with a Spark match but without the v45 fields, passed through
+    // the migration and load path to assert both fields remain absent.
+    const v44state = createTestGameState({ version: 44 });
+    if (!v44state.sparkApp) {
+      throw new Error('v44 → v45 test: base state has no sparkApp');
+    }
+    const withMatch: GameState = {
+      ...v44state,
+      sparkApp: {
+        ...v44state.sparkApp,
+        matches: [
+          {
+            id: 'spm-v44',
+            profileId: '2',
+            matchedWeek: 3_000,
+            superLiked: false,
+            promoted: false,
+            // Deliberately NO rapport or conversationCooldowns — that is the test.
+          },
+        ],
+      },
+      version: 44,
+    };
+
+    const out = await roundTrip(withMatch);
+    expect(out.version).toBe(STATE_VERSION);
+    expect(out.sparkApp?.matches[0]?.rapport).toBeUndefined();
+    expect(out.sparkApp?.matches[0]?.conversationCooldowns).toBeUndefined();
   });
 });

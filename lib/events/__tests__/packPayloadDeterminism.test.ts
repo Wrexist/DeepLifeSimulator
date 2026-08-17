@@ -71,7 +71,7 @@ function travelling(weeksLived: number): GameState {
 }
 
 /** Every converted pack decision, as (template, fixture) pairs. */
-const CONVERTED: ReadonlyArray<{ id: string; template: EventTemplate; state: (w: number) => GameState }> = [
+const CONVERTED: readonly { id: string; template: EventTemplate; state: (w: number) => GameState }[] = [
   { id: 'surprise_raise', template: surpriseRaise, state: employed },
   { id: 'boss_favoritism', template: bossFavoritism, state: employed },
   { id: 'company_layoffs', template: companyLayoffs, state: employed },

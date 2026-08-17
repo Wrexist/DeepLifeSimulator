@@ -160,7 +160,7 @@ describe('Real-Provider Loop Stress', () => {
       finalSizes[k] = JSON.stringify(v ?? null).length;
     }
 
-    const deltas: Array<[string, number]> = [];
+    const deltas: [string, number][] = [];
     for (const k of Object.keys(finalSizes)) {
       const d = finalSizes[k] - (initialSizes[k] ?? 0);
       if (d > 100) deltas.push([k, d]);
@@ -210,7 +210,7 @@ describe('Real-Provider Loop Stress', () => {
         const parsed = parseSaveData(env.data, env.checksum, env.signature, env.hmac);
         if (!parsed.valid) {
           saveFailuresAtWeek.push(i);
-          // eslint-disable-next-line no-console
+
           console.error(`[real-loop] save failed at week ${i}: ${parsed.errors.join('; ')}`);
         }
 
@@ -219,7 +219,7 @@ describe('Real-Provider Loop Stress', () => {
           if (typeof v === 'number') {
             if (!Number.isFinite(v) || Number.isNaN(v)) {
               nanFailuresAtWeek.push(i);
-              // eslint-disable-next-line no-console
+
               console.error(`[real-loop] NaN/Infinity at ${path}=${v} (week ${i})`);
               return false;
             }
@@ -262,7 +262,7 @@ describe('Real-Provider Loop Stress', () => {
 
     const result = validateGameState(captured!.state);
     if (!result.valid) {
-      // eslint-disable-next-line no-console
+
       console.error('[real-loop] final validation errors:', result.errors);
     }
     expect(result.valid).toBe(true);

@@ -4,6 +4,7 @@ import { TutorialStep, EnhancedTutorialStep } from '@/types/tutorial';
 import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
 import { track } from '@/lib/analytics';
 import { logger } from '@/utils/logger';
+import { stripEmoji } from '@/utils/notificationText';
 
 interface LoadingState {
   id: string;
@@ -172,12 +173,24 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
       logger.warn(`[UIUX] dropped empty ${severity} banner (id: ${id})`);
       return;
     }
+    // Same rule as the toast channel: emoji are stripped at the channel, not at
+    // the call site, because banner copy is assembled upstream (subsystem
+    // notifications carry titles like "🏠 Property Alert"). Length is NOT
+    // capped here — a banner is the taller surface and owns the multi-line
+    // weekly summary, so truncating it would lose real content.
+    const cleanMessage = stripEmoji(message);
+    const cleanTitle = title === undefined ? undefined : stripEmoji(title);
+    if (isBlankNotification(cleanMessage, cleanTitle)) {
+      logger.warn(`[UIUX] dropped ${severity} banner with no text after sanitising (id: ${id})`);
+      return;
+    }
+
     setState(prev => {
       const next: ErrorState = {
         id,
-        message,
+        message: cleanMessage,
         severity,
-        title,
+        title: cleanTitle,
         onRetry,
         autoDismiss: severity === 'info',
       };

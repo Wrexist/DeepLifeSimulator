@@ -1,5 +1,123 @@
 # What's New — DeepLife Simulator
 
+## v2.9.0 — New faces, real conversations, nothing left locked
+
+**Covers:** everything since **v2.8.0** (cut 2026-08-11) up to 2026-08-17.
+**Compatibility:** every existing save loads. The save format moves **v38 → v45**
+in seven steps, all of which run automatically on first load. Nothing needs a
+backfill, so no existing value is overwritten — your face, your matches and your
+claims are read as they already are.
+
+---
+
+### Store "What's New" (copy-paste ready)
+
+```text
+New faces, real conversations, and nothing left locked.
+
+• Character creation, rebuilt. Your face is now built from features you choose
+  rather than picked from a gallery of portraits, and it ages with you instead
+  of being swapped for a stranger's at each age band. Children look like
+  children, and they inherit their parents' features.
+• Spark chats are a real conversation. Break the ice, compliment, joke, flirt,
+  ask them out for coffee, dinner or something reckless, or ask them to go
+  steady. Every match keeps its own rapport, so a relationship is built rather
+  than announced — and any match you'd rather not date can become a friend.
+• Fixed a trap that could lock you out of the game. Buying a house or a company
+  could take away the very app that manages it, and two life chapters asked for
+  apps those same chapters were the only way to unlock. Progress only ever goes
+  up now.
+• Your starting age no longer breaks the early game. Beginner luck, the early
+  grace period, the first-month events and the week-count goals were all
+  measured against your age instead of your life, so anyone who didn't start at
+  18 lost them — and Chapter 1 opened two-thirds done.
+• The dark web sells gear. The tool shop had no way in, which left 18 of the 19
+  street jobs locked behind tools nobody could buy. Deliveries now hand over the
+  item you paid for, and listings rotate instead of freezing for weeks.
+• The money you're shown is the money you're charged. Weekly Expenses and the
+  Budget tab left out rent, income tax and student loan payments; the Net Worth
+  breakdown didn't add up to the Net Worth above it. Both add up now.
+• Friends are real. Only your first Spark match could ever become a contact,
+  network contacts had no action at all, and neglecting people cost nothing.
+  All three are fixed — and a neglected friend can now drift out of your life.
+• Six more money fixes: a false "Need $10,000" on family business actions, a
+  double-tap that could buy a vehicle twice or duplicate coins in a swap,
+  savings with no way to pay into it, buy-outs that added no revenue, ad rewards
+  that offered a property millionaire $50, and a poverty scholarship that
+  promised free education and delivered respect.
+• Faster and clearer. About six seconds off a cold start, a death screen that
+  scrolls, food/gym/housing cards that show what they do to each stat, a Life
+  Goals list that fits on a page, and a Contacts app that stays smooth in a long
+  life.
+```
+
+---
+
+### What changed, and why
+
+**Character creation was a gallery, not a creator.** You tapped one of ~12
+pre-baked portraits in a 60px strip, and crossing an age band swapped your
+character for a different rendered person at the same index — the "my character
+turned into someone else" report. Faces are now assembled from illustrator-drawn
+modular parts under a fixed key light, so appearance is a set of choices that
+ages with the character. The appearance editor was a list of *words* — 28 hair
+options each reading "Fro" or "Long Bob"; every shape option now renders your own
+face with that one field swapped, so the thumbnail is the answer to "what does
+this look like on me".
+
+**Spark's chat was a free-text box wired to a fixed reply pool.** Whatever you
+typed, the match answered from a list, nothing about them changed, and there was
+no reason to send a second message. It is a short game now: rapport moves on
+every move and gates flirting (25), dates (45) and going steady (75), with
+per-move cooldowns so the cheapest option can't be tapped ten times. The keyboard
+bug went with the text box — there is nothing focusable left on the screen.
+
+**Two ways the game could park you.** A player 52 weeks in reported being unable
+to use most phone and PC apps with a save that validated clean. The chapter spine
+was circular — chapter 3 wanted a stock or a property while the Stocks and Real
+Estate apps unlocked at chapter 3 — and the fallback route read your *current
+balance*, so buying a $200k property padlocked the app that manages it. Both now
+read a figure that can only go up.
+
+**The starting-age class, found by playing rather than reading.** `weeksLived` is
+seeded from the starting age, so an age-25 character begins at 364 and every
+"have you played N weeks" check was already true on frame one. That silently
+covered the first-month events (unreachable for 7 of 8 scenario ages), beginner
+luck, the 8-week decay grace (an age-25 passive life died in week 13 instead of
+16), the four week-count achievements, the average-happiness achievement, and
+Chapter 1 — which opened at 2/3 complete and paid its per-goal reward for two
+things nobody did. All of them now measure weeks into *this life*.
+
+**Dead features hide their own bugs.** The dark web's 20-item tool store had no
+call site anywhere in the app, so 18 of 19 street jobs were locked behind tools
+nobody could buy. The savings account had three writers and none of them a
+deposit, so the piggy bank earned interest on zero for a whole life. The poverty
+scholarship's condition read a field nothing ever wrote, and once it could fire,
+its "Free education!" choice turned out to grant reputation. Network contacts had
+no action, and the favour system they were declared for produced nothing.
+
+**Displays that disagreed with the game.** Weekly Expenses omitted income tax and
+student loans and — since the tenancy moved out of the property list — rent, the
+largest recurring bill a renting player has. The Net Worth breakdown ran on a
+second engine that shaved a 1% fee off every asset and dropped savings goals and
+card debt. Ribbon tiers demanded a bigger number than the HUD showed. Each now
+reads through the same function the game itself uses.
+
+---
+
+### If v2.8.0 never reached the App Store
+
+2.8.0 was cut on 2026-08-11 and its notes are below. If it was never submitted,
+players go straight from 2.7.0 to this build, and the store text should open with
+2.8.0's two headline items before the list above:
+
+```text
+• Tap Play and you're in a life — no setup screens first, and a guide walks you
+  to your first paycheck. Your first year has no banner ads at all.
+```
+
+---
+
 ## v2.8.0 — A faster start, and a fairer economy
 
 **Covers:** everything since **v2.7.0**.

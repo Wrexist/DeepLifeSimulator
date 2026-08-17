@@ -71,7 +71,7 @@ describe('a clock moved BACKWARD cannot re-arm the reward', () => {
 describe('the string compare the old gate used is not sufficient', () => {
   it('a bare `key !== today` test would have passed every one of these', () => {
     // Everything the old gate let through, enumerated. Each is now refused.
-    const exploits: Array<[string, number]> = [
+    const exploits: [string, number][] = [
       ['2026-07-29', T0 - DAY],
       ['2020-01-01', T0 - 2000 * DAY],
       ['2026-07-31', T0 - 30 * DAY],
