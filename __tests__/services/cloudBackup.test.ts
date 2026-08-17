@@ -71,6 +71,9 @@ type CloudBackupModule = typeof import('@/services/cloudBackup');
 const CLOUD_ENV = {
   EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true',
   EXPO_PUBLIC_CLOUD_SAVE_URL: 'https://example.test/functions/v1',
+  // All three are required: without the token the transport refuses every
+  // read and write in a release build, so a two-var profile would be half-on.
+  EXPO_PUBLIC_CLOUD_AUTH_TOKEN: 'test-token',
 };
 
 /**
@@ -123,6 +126,14 @@ describe('cloud backup flag gate', () => {
   it('is OFF when the flag is set but the URL is missing — the UI would be a dead end', () => {
     const mod = loadCloudBackup({ EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true' });
     expect(mod.isCloudBackupEnabled()).toBe(false);
+  });
+
+  it('is OFF when the auth token is missing — every write would be refused', () => {
+    // The token is supplied by the EAS env store, not eas.json, so a profile
+    // that declares the flag and URL alone resolves to off rather than
+    // rendering Back up / Restore buttons whose every tap fails.
+    const { EXPO_PUBLIC_CLOUD_AUTH_TOKEN: _omitted, ...withoutToken } = CLOUD_ENV;
+    expect(loadCloudBackup(withoutToken).isCloudBackupEnabled()).toBe(false);
   });
 
   it('is ON with both, even under Boring Build — it is not a native SDK', () => {

@@ -35,6 +35,9 @@ jest.mock('@/services/CloudSyncService', () => ({
 const CLOUD_ENV = {
   EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true',
   EXPO_PUBLIC_CLOUD_SAVE_URL: 'https://example.test/functions/v1',
+  // The flag needs all three; the token comes from the EAS env store in a
+  // real build (see lib/config/featureFlags.ts).
+  EXPO_PUBLIC_CLOUD_AUTH_TOKEN: 'test-token',
 };
 
 describe('render — Settings cloud backup row', () => {

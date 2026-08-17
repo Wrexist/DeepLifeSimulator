@@ -52,8 +52,11 @@ Key files:
   `EXPO_PUBLIC_CLOUD_SAVE_URL`, plus `EXPO_PUBLIC_CLOUD_AUTH_TOKEN`)
 - `components/settings/CloudBackupRow.tsx` — Settings UI
 - `app/(onboarding)/SaveSlots.tsx` — the restore offer on the slot list
-- `eas.json` — `preview` profile carries the three cloud env vars; `production`
-  deliberately does not
+- `eas.json` — `preview` carries the flag and URL; `production` deliberately
+  carries neither. The auth token is an EAS environment variable on the
+  profile, NOT in the repo — all three are required for the feature to enable
+  (`lib/config/featureFlags.ts`), so a build missing the token has cloud backup
+  cleanly off rather than half-on
 
 ### Task 1 — Validate locally (do this first, it is the fastest loop)
 
@@ -62,7 +65,7 @@ Key files:
    ```bash
    EXPO_PUBLIC_ENABLE_CLOUD_SAVE=true
    EXPO_PUBLIC_CLOUD_SAVE_URL=https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1
-   EXPO_PUBLIC_CLOUD_AUTH_TOKEN=<the value in eas.json's preview profile>
+   EXPO_PUBLIC_CLOUD_AUTH_TOKEN=<ask the owner; it is an EAS env var, not in the repo>
    ```
    Note `BORING_BUILD_MODE` defaults ON in `__DEV__`, but the `cloudSave`
    flag is deliberately exempt from it, so dev runs should still sync. If the
@@ -139,9 +142,12 @@ Copy these three lines from the `preview` profile's `env` into the
 
 ```json
 "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
-"EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
-"EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "<same value as preview>"
+"EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1"
 ```
+
+and set `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` on the `production` profile in EAS
+(`eas env:create`) — it is not repo config. All three are required, so
+forgetting it leaves the feature off rather than half-on.
 
 Then `npm run preflight`, commit, push. Note
 `__tests__/tooling/nativeSdkFlagDefaults.test.ts` pins the per-profile flag

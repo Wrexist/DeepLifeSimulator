@@ -64,8 +64,14 @@ tables with the service role. The Supabase linter reports this as INFO
 ## Auth model — read this before treating the token as a secret
 
 Both functions require `Authorization: Bearer <token>`, compared against
-`backend_config.cloud_auth_token`. The same value ships to the app as
-`EXPO_PUBLIC_CLOUD_AUTH_TOKEN` (see the `preview` profile in `eas.json`).
+`backend_config.cloud_auth_token`. The same value reaches the app as
+`EXPO_PUBLIC_CLOUD_AUTH_TOKEN`, set as an **EAS environment variable** on the
+profile — deliberately NOT in `eas.json`. It ships inlined in the bundle
+either way, so keeping it out of the repo costs nothing and avoids it living
+in git history permanently. Set it with `eas env:create` (or the EAS
+dashboard) on the `preview` profile before building; `lib/config/featureFlags.ts`
+requires it, so a build without it turns cloud backup cleanly OFF rather than
+rendering buttons that cannot work.
 
 `EXPO_PUBLIC_*` values are **inlined into the JS bundle**, so this token is
 extractable from any installed build. It is an *abuse barrier* — it stops
@@ -78,7 +84,7 @@ sends. The server currently **checks their shape, not their cryptography**
 (see *Future work*).
 
 To rotate: `update public.backend_config set value = '<new>' where key =
-'cloud_auth_token';`, update `eas.json`, ship a build. Old builds stop
+'cloud_auth_token';`, update the EAS environment variable, ship a build. Old builds stop
 syncing at that moment — rotate on a release boundary, not mid-cycle.
 
 ## Endpoint contract
@@ -125,7 +131,7 @@ dropped afterwards):
 Test rows were deleted; both tables are empty.
 
 To re-run from a machine with network access, replace `<TOKEN>` with the
-`EXPO_PUBLIC_CLOUD_AUTH_TOKEN` value in `eas.json`:
+`cloud_auth_token` value (from `backend_config`, or the EAS env var):
 
 ```bash
 BASE="https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1"
@@ -138,23 +144,27 @@ curl -s "$BASE/save?userId=player_curl_1&slotId=slot_1" -H "Authorization: Beare
 
 ## Rollout
 
-`preview` carries the flag, URL and token today; `production` deliberately
-does not. Promoting is three lines copied from the `preview` profile's `env`
-into `production`'s in `eas.json`:
+`preview` carries the flag and URL today; `production` deliberately does not.
+The auth token is an EAS environment variable on the profile, not repo config.
+Promoting means two lines copied from the `preview` profile's `env` into
+`production`'s in `eas.json`:
 
 ```json
 "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
-"EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
-"EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "<same value as preview>"
+"EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1"
 ```
+
+plus setting `EXPO_PUBLIC_CLOUD_AUTH_TOKEN` on the `production` profile in EAS.
+All three are required (`lib/config/featureFlags.ts`), so forgetting the token
+leaves the feature off rather than half-on.
 
 Do that only after a preview build has actually backed up and restored on a
 device (§ *Task 1* in `tasks/cowork-handoff-cloud-backup.md` — step 5,
 same-install restore, is the one that must pass).
 
-The client refuses to enable itself unless **both** the flag and a non-empty
-URL are present (`lib/config/featureFlags.ts`), so a half-filled profile
-silently stays off rather than rendering buttons that cannot work.
+The client refuses to enable itself unless the flag, a non-empty URL **and**
+the auth token are all present (`lib/config/featureFlags.ts`), so a half-filled
+profile stays off rather than rendering buttons that cannot work.
 
 ## Future work
 
