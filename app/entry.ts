@@ -22,6 +22,9 @@
  */
 import 'expo-router/entry';
 
-export default function Entry() {
+/**
+ * Satisfies expo-router's route collector. Always returns null.
+ */
+export default function Entry(): null {
   return null;
 }

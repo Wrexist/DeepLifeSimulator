@@ -245,18 +245,29 @@ export default function SaveSlots() {
   useEffect(() => {
     if (!cloudEnabled || !slotsLoaded) return undefined;
     let cancelled = false;
+    // Depend on a stable key derived from slots data instead of the array identity.
+    const slotsKey = slots.map((s) => `${s.id}:${s.hasData ? safeStatNumber(s.weeksLived) : 0}`).join(',');
     void (async () => {
+      // Probe all slots concurrently (Promise.all), not sequentially, to minimize total latency.
+      const probeResults = await Promise.all(
+        slots.map(async (slot) => {
+          const probe = await probeCloudSlot(slot.id, slot.hasData ? safeStatNumber(slot.weeksLived) : 0);
+          return { slotId: slot.id, probe };
+        })
+      );
+      if (cancelled) return;
+      // Aggregate offers from results — only include slots with newer cloud saves.
       const offers: Record<number, number> = {};
-      for (const slot of slots) {
-        const probe = await probeCloudSlot(slot.id, slot.hasData ? safeStatNumber(slot.weeksLived) : 0);
-        if (probe?.newer) offers[slot.id] = probe.remoteWeeks;
+      for (const { slotId, probe } of probeResults) {
+        if (probe?.newer) offers[slotId] = probe.remoteWeeks;
       }
-      if (!cancelled) setCloudOffers(offers);
+      setCloudOffers(offers);
     })();
     return () => {
       cancelled = true;
     };
-  }, [cloudEnabled, slots, slotsLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudEnabled, slotsLoaded, slots.map((s) => `${s.id}:${s.hasData ? safeStatNumber(s.weeksLived) : 0}`).join(',')]);
 
   const restoreSlotFromCloud = useCallback(
     async (slotId: number) => {

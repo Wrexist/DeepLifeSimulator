@@ -33,7 +33,8 @@ is your job.
 
 Scope is device backup, not cross-device sync: identity is an anonymous
 per-install id stored in AsyncStorage under `cloud_user_id`, so a backup
-restores onto the same install or a reinstall on that device.
+restores onto the same install only (AsyncStorage is cleared on uninstall, so
+reinstall is not currently supported without extra identity persistence).
 
 Key files:
 - `services/cloudBackup.ts` — debounce scheduler (5 min), restore candidate fetch
@@ -51,7 +52,7 @@ Key files:
 
 1. `npm install` if needed, then start the app with the cloud vars set, e.g.
    put them in `.env.local` or export them before `npm start`:
-   ```
+   ```bash
    EXPO_PUBLIC_ENABLE_CLOUD_SAVE=true
    EXPO_PUBLIC_CLOUD_SAVE_URL=https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1
    EXPO_PUBLIC_CLOUD_AUTH_TOKEN=<the value in eas.json's preview profile>
@@ -110,7 +111,7 @@ Only after Task 1 passes.
 Copy these three lines from the `preview` profile's `env` into the
 `production` profile's `env` in `eas.json`:
 
-```
+```json
 "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
 "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
 "EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "<same value as preview>"

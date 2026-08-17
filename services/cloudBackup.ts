@@ -134,27 +134,38 @@ export function hasPendingCloudBackup(): boolean {
  * The Settings "Back up now" button: upload immediately and report what
  * happened. Resets the debounce window so the manual push counts as the most
  * recent upload.
+ *
+ * Always resolves with a result shape (never rejects), so `handleBackUp` in
+ * CloudBackupRow can always display a message instead of throwing/crashing.
  */
 export async function backUpNow(state: GameState): Promise<{ success: boolean; message: string }> {
   if (!isCloudBackupEnabled()) {
     return { success: false, message: 'Cloud backup is not available in this build.' };
   }
   lastUploadStartedAt = Date.now();
-  const result = await getCloudSyncService().backupNow(state);
-  if (result.success) {
+  try {
+    const result = await getCloudSyncService().backupNow(state);
+    if (result.success) {
+      return {
+        success: true,
+        message: result.skipped
+          ? 'Your cloud backup is already up to date.'
+          : 'Your game was backed up to the cloud.',
+      };
+    }
     return {
-      success: true,
-      message: result.skipped
-        ? 'Your cloud backup is already up to date.'
-        : 'Your game was backed up to the cloud.',
+      success: false,
+      message: result.error
+        ? `Backup failed: ${result.error}`
+        : 'Backup failed. Check your connection and try again.',
+    };
+  } catch (error) {
+    logger.error('[CloudBackup] backUpNow rejected', { error });
+    return {
+      success: false,
+      message: error instanceof Error ? `Backup failed: ${error.message}` : 'Backup failed. Check your connection and try again.',
     };
   }
-  return {
-    success: false,
-    message: result.error
-      ? `Backup failed: ${result.error}`
-      : 'Backup failed. Check your connection and try again.',
-  };
 }
 
 /** Epoch ms of the last successful upload from this device, or null. */

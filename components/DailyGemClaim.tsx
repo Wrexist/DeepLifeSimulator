@@ -166,7 +166,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   // CTA and `claimDailyGems` can never disagree: without it the button would offer
   // a claim the reducer now refuses for a free player when no game-week has passed
   // (a forward-clock scrub), and tapping it would silently no-op. Members keep the
-  // day-key grace, but capped at one unplayed claim per played week (v45), so the
+  // day-key grace, but capped at one unplayed claim per played week (v46), so the
   // CTA settles once that banked claim is spent instead of offering a no-op.
   const weekGate = entitled
     ? {

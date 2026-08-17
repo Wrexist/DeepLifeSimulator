@@ -1869,7 +1869,7 @@ export interface GameSettings {
   deepLifePlusLastGemClaimWeek?: number; // `weeksLived` of the last claim — the game-week gate that blocks FORWARD-clock farming (the two above only refuse a rewind). v40 carve-out; mirrors `lastLoginRewardWeek` on the sibling login faucet.
   /**
    * `weeksLived` at which a DeepLife+ MEMBER last spent their banked grace claim
-   * — a daily-gem claim that was NOT backed by a played game week (v45).
+   * — a daily-gem claim that was NOT backed by a played game week (v46).
    *
    * The member drop (250/day, the premium currency that is otherwise an IAP)
    * deliberately keeps its calendar-day grace: a paying member may claim on a

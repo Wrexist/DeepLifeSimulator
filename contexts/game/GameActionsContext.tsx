@@ -17,6 +17,7 @@ import {
   backUpNow,
   fetchCloudRestoreCandidate,
   isCloudBackupEnabled,
+  resetCloudBackupSchedule,
   scheduleCloudBackup,
   type CloudRestoreOutcome,
 } from '@/services/cloudBackup';
@@ -481,6 +482,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  if (outcome.status !== 'applied') return outcome;
 
+ // Clear any queued backup containing the pre-restore state before applying
+ // the restored state — a queued upload carrying the old state must not run
+ // after the restore.
+ resetCloudBackupSchedule();
  setGameState(outcome.state);
  // `saveGame` reads `gameStateRef.current`, which lags the commit by one
  // passive-effect cycle — yield so the RESTORED state is what hits disk,
@@ -489,6 +494,13 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const saved = await saveGame(true);
  if (!saved) {
  logger.warn('[CloudBackup] Restored state could not be persisted; it is live but unsaved');
+ return {
+ status: 'applied',
+ state: outcome.state,
+ localWeeks: outcome.localWeeks,
+ remoteWeeks: outcome.remoteWeeks,
+ message: 'Your cloud backup was restored but could not be saved to disk. The game is live but unsaved.',
+ };
  }
  logger.info('[CloudBackup] Cloud backup restored over the live game', {
  localWeeks: outcome.localWeeks,

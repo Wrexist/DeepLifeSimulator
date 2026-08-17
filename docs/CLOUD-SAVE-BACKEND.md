@@ -5,9 +5,10 @@ The backend behind **cloud device backup** (`services/cloudBackup.ts`,
 **leaderboard** (`components/LeaderboardModal.tsx`).
 
 Scope today is **device backup**, not cross-device sync: identity is an
-anonymous per-install id, so a backup restores onto the same device (or a
-reinstall on it), and there is no account to carry a save to a second phone.
-Cross-device requires sign-in — see *Future work*.
+anonymous per-install id stored in AsyncStorage, so a backup restores onto the
+same device **only within the same install** (AsyncStorage is cleared on app
+uninstall). Cross-device or reinstall requires a securely persisted identity
+mechanism (e.g., sign-in) — see *Future work*.
 
 ---
 
@@ -128,7 +129,7 @@ curl -s "$BASE/save?userId=player_curl_1&slotId=slot_1" -H "Authorization: Beare
 does not. Promoting is three lines copied from the `preview` profile's `env`
 into `production`'s in `eas.json`:
 
-```
+```json
 "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
 "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
 "EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "<same value as preview>"
