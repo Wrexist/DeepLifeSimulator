@@ -1,103 +1,74 @@
-# App Store Screenshots — DeepLife Simulator
+# Screenshots
 
-Immersive, ready-to-upload marketing screenshots for the App Store, designed for
-the life-sim genre and built from the app's real theme tokens + real in-game art
-(character portraits, supercars, mansions, scenario icons).
+Everything here is **generated**. Nothing in this directory ships in the app —
+preflight §11 (`scripts/lib/assetBudget.js`) counts only files under `assets/`
+reachable through a static `require()`, so this tree is repo weight, never
+download size.
 
-## Folders & sizes (verified against Apple's spec)
+---
 
-| Folder | Device class | Resolution | Notes |
-|--------|--------------|------------|-------|
-| `iphone-6.9/` | iPhone 6.9" (16/15 Pro Max …) | **1320 × 2868** | Apple's current required iPhone base size. Auto-scales to all smaller iPhones. |
-| `iphone-hero/` | iPhone 6.5" (hero set) | **1284 × 2778** | Premium "hero" presentation — a 3D-tilted titanium phone, ambient accent glow, and floating glass "live" chips. 5 frames. |
-| `iphone-gameplay/` | iPhone 6.5" (gameplay set) | **1284 × 2778** | Clean, full-bleed captures of the actual game UI (no marketing chrome) — what a real device screenshot looks like. 6 frames. |
-| `ipad-13/` | iPad 13" (Pro M4 / 12.9") | **2064 × 2752** | Required for iPad apps (this app has `supportsTablet: true`). Auto-scales to 12.9" (2048×2732) and smaller iPads. |
+## What to upload to App Store Connect
 
-All sets are portrait PNG with a `_contact-sheet.png` preview (the contact sheet
-is **not** for upload). Frame counts: `iphone-6.9/` and `ipad-13/` have **6**
-each, `iphone-hero/` has **5**, `iphone-gameplay/` has **6**.
+**`appstore-2026/`** — and nothing else in this repo. Three sets, ten frames
+each, uploaded **in filename order** (`01…` first; the first two are the only
+ones most store visitors ever see).
 
-> 1290 × 2796 (6.7") is also an accepted iPhone size; 1320 × 2868 is the current
-> primary and is what's generated here so there's zero ambiguity at upload.
+| Upload to | Folder | Size |
+|---|---|---|
+| iPhone 6.9" Display **(required)** | `appstore-2026/iphone-6.9/` | 1320 × 2868 |
+| iPhone 6.5" Display | `appstore-2026/iphone-6.5/` | 1284 × 2778 |
+| iPad 13" Display | `appstore-2026/ipad-13/` | 2064 × 2752 |
 
-## The six screens (same story on both devices)
+They are composed from 28 real captures of the shipping UI, which is what makes
+them compliant with **Guideline 2.3.3** (screenshots must show the current
+version). `docs/RELEASE_RUNBOOK.md` carries the upload checklist;
+`appstore-2026/README.md` carries the pipeline and the ten-frame narrative;
+`docs/store-screenshot-design.md` carries the design rationale.
 
-| # | Headline | Showcases |
-|---|----------|-----------|
-| 01 | Live a Life. Any Life. | Identity, stats, goals, achievements (core loop) |
-| 02 | Your Story Starts Here. | Starting scenarios / replayability |
-| 03 | Build an Empire. | Net worth, crypto, stocks, luxury assets, passive income |
-| 04 | Find Love. Or Lose It. | Dating & relationships |
-| 05 | Leave a Dynasty. | Multi-generation family tree & inheritance |
-| 06 | Go Viral. Get Famous. | Social media, followers, fame |
+## The inputs — do not delete
 
-Upload order: 01 → 06 (01 is the primary/hero shot). The iPhone set uses tall
-single-column app screens; the iPad set uses native wide two-column tablet layouts.
+| Folder | What it is |
+|---|---|
+| `appstore-2026/rich-captures/` | 28 iPhone captures (1290 × 2796) of a rich late-game save |
+| `appstore-2026/rich-captures-ipad/` | the same 28 at iPad size (2048 × 2732) |
 
-## The hero set (`iphone-hero/`)
+These are the source frames the two composers read. Recomposing the ten store
+frames from them is cheap and deterministic; **re-capturing is not** — the
+capture script drives the app by its on-screen labels, so it goes stale whenever
+the UI is reworded, and it goes stale *silently* (a missed label leaves the
+previous run's file in place). Three such bugs were found and fixed in 2026-08.
+That failure mode is recorded at the top of `appstore-2026/README.md` and is the
+reason the captures are committed rather than treated as scratch.
 
-Five premium, immersive frames built for maximum scroll-stopping appeal — the
-modern App-Store "hero" style: a titanium iPhone tilted in 3D, one ambient
-accent color per frame, a bold accent-word caption, and floating glass "live"
-chips that pop forward off the device for depth. The on-device art is the app's
-own real screens (reused from the base generator), so it never drifts from the UI.
+## Rebuilding
 
-| # | Caption | Accent | Showcases |
-|---|---------|--------|-----------|
-| 01 | Live any **life.** | purple | Identity, stats, goals, achievements |
-| 02 | Build the **empire.** | emerald | Net worth, crypto, stocks, passive income |
-| 03 | Find your **person.** | pink | Dating & relationships |
-| 04 | Go **viral.** | cyan | Social feed, followers, fame |
-| 05 | Leave a **dynasty.** | gold | Multi-generation family tree & inheritance |
-
-## The gameplay set (`iphone-gameplay/`)
-
-Six clean, full-bleed captures of the **actual game UI** — no headline, no tilt,
-no floating chips — exactly what a real on-device screenshot looks like. The same
-real `screen1…6` builders feed all three sets, so these match the hero/base art
-1:1. On-screen values are tuned to be aspirational (impressive net worth,
-followers and stats) to maximise install appeal while staying believable for a
-rags-to-riches life sim.
-
-| # | Screen | Highlights |
-|---|--------|------------|
-| 01 | Your life | Identity, stats (96–98%), goals, achievements (47/60) |
-| 02 | Choose your origin | 13 starting scenarios / replayability |
-| 03 | Build wealth | $8.42M net worth, +$72,400/mo passive, crypto, stocks, assets |
-| 04 | Dating | 97% match profile card, swipe deck |
-| 05 | Family dynasty | 4-generation tree, $48.6M total wealth, inheritance |
-| 06 | Go viral | 842.6K followers, viral feed, #1 trending |
-
-> The same aspirational values flow through the hero and base sets too, so the
-> story stays consistent everywhere a player sees a number.
-
-## Regenerating
-
-The first three are **synthetic** (SVG→PNG, no app required):
+Recompose the store frames from the committed captures — the common case, and
+the only step you need after a design change:
 
 ```bash
-node scripts/generate-app-store-screenshots.mjs   # iphone-6.9/ + ipad-13/ (12 PNGs)
-node scripts/generate-hero-screenshots.mjs        # iphone-hero/ (5 hero PNGs)
-node scripts/generate-gameplay-screenshots.mjs    # iphone-gameplay/ (6 gameplay PNGs)
+node scripts/generate-appstore-2026-set.mjs    # iPhone 6.9" + 6.5"
+node scripts/generate-appstore-2026-ipad.mjs   # iPad 13"
 ```
 
-Requirements: `sharp` (SVG→PNG) and the **Inter** font available to fontconfig.
-The base sets are data-driven at the top of the script (`THEMES`, `COPY`) and in
-the per-screen builders (`screen1…6` for iPhone, `ipadScreen1…6` for iPad). The
-hero set is data-driven via the `FRAMES` array at the top of
-`generate-hero-screenshots.mjs` (caption, accent, tilt direction, and the
-floating-chip stats per frame) and reuses the base screens via `buildDeviceLayer()`.
+Both import `scripts/lib/storeFrameSystem.mjs` — change the palette, type scale
+or frame list **there**, never in one generator, or the two device sets drift
+apart.
 
-The `iphone-real/` set is **captured from the live app**, not synthesized — it
-drives the actual Expo web build with Playwright. Start the app first, then run
-the capture (it walks New Game → Scenario → Customize → Perks → each tab):
+Re-capture from the running app — only when the UI itself has changed enough
+that the captures no longer show the shipping build. Full procedure (Expo web
+export → static server → Playwright drive) is in `appstore-2026/README.md`.
 
-```bash
-npx expo start --web                              # serve the app on :8081 first
-node scripts/capture-real-screenshots.mjs         # iphone-real/ (real-UI PNGs)
-```
+## Preview captures are not committed
 
-Requirements: a Playwright Chromium (`PLAYWRIGHT_BROWSERS_PATH` set if using a
-shared install) and the dev server reachable at `http://localhost:8081`.
+Design-review previews (`avatar-*`, `onboarding-*`, `slate-glass-*`, `dna-*`,
+`tab-*`, `vitals-*`, the creator-flow sweep, and the superseded 2026-07 hero
+sets) used to live here — 193 MB of PNGs across 14 sibling directories, with no
+index saying which set was the real one. They were regenerable output committed
+by reflex, and the stale index in their place named the *wrong* folders as the
+upload set, which is a live risk of shipping outdated screenshots to Apple.
 
-> For a Google Play set, add a 1080×1920 (or 1080×2400) target to `main()`.
+They are removed and `.gitignore` now keeps them out. Each one still has its
+generator in `scripts/generate-*.mjs` — run the script, look at the PNG, leave
+it untracked. The decisions they informed are written down in
+`docs/avatar-art-direction-research.md`, `docs/avatar-approach-research.md` and
+`docs/store-screenshot-design.md`; the images were the working, not the record.

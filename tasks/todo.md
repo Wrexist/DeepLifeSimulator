@@ -1,120 +1,83 @@
-# Wave 5 — owner decisions + review follow-ups (2026-08-16) — COMPLETE
+# Repo cleanup — screenshots and stale material (2026-08-17)
 
-All landed on claude/codebase-architecture-audit-dy6c5m (restarted from merged
-main after PR #138). Final tree: both type-checks, lint:errors, check:routes,
-audit-save all clear, full preflight exit 0, 1936 tests green across
-services/save/startup/tooling/economy/actions.
+Goal: delete regenerable/superseded binaries, make the App Store screenshot set
+findable, and stop the class from re-accumulating.
 
-- [x] Backend (Supabase project deeplife-backend, gyxmoqanjdvvllwjfsst):
-      /functions/v1/save (POST upsert + GET, bearer auth via backend_config,
-      3MB cap, stale-revision 409, per-slot write throttle) and
-      /functions/v1/leaderboard/{category} (best-score upsert + top-50) both
-      ACTIVE, matching lib/progress/cloud.ts's real contract. DB round-trip
-      verified via SQL; HTTP smoke test blocked by sandbox network policy —
-      owner has the curl commands (chat, 2026-08-16).
-- [x] Agent A: overdueBalance subtracted in canonical netWorth() (full, no
-      floor) + 13 tests; preTick snapshot copy deliberately untouched.
-- [x] Agent B: DeepLife+ member gem drop capped at one unplayed claim per
-      played week (v46 carve-out `deepLifePlusLastMemberClaimWeek`), free
-      tier untouched, truth-table suite.
-- [x] Agent C: cloud device backup wired — cloudSave flag (opt-in + URL
-      required, Boring-Build-exempt), boot start via startup orchestrator,
-      5-min debounced auto-upload off successful saves, Settings
-      CloudBackupRow, SaveSlots restore offer (only when cloud is ahead),
-      restore via migrate + hydrateRemoteState (regression refused with
-      honest message). Fixed a real identity bug: resolveUserId preferred
-      username (default 'player' — every install one cloud key); now the
-      anonymous device id, test-pinned.
-- [x] Agent D: entry.ts default export restored (expo-router 6.0.24 collects
-      entry.ts as /entry; evidence quoted in file header); welcome-back
-      credit through applyMoneyDelta (ceiling + summary bookkeeping).
-- [x] Orchestrator: EXPO_PUBLIC_CLOUD_AUTH_TOKEN added to eas.json preview
-      (pairs with backend_config.cloud_auth_token server-side).
+## Ground truth established first
 
-- [x] Endpoint smoke test DONE (2026-08-16) — run from inside the project's
-      own network via a temporary `http` extension, since the sandbox blocks
-      outbound HTTP to the functions host. All 8 behaviours verified: 401
-      unauth, POST 200, GET byte-identical round trip, absent slot -> null,
-      invalid slot 400, stale revision 409, two writes in 5s -> 429, stub
-      integrity proof 400, leaderboard POST+GET in the client's shape. Test
-      rows deleted, extension dropped. Results table in
-      docs/CLOUD-SAVE-BACKEND.md.
-- [x] docs/CLOUD-SAVE-BACKEND.md — deployment, schema, auth model (why the
-      token is an abuse barrier, not a secret), full endpoint contract,
-      rollout steps, and the three future-work items (server-side signature
-      verification, cross-device identity, retention/GDPR).
+- `screenshots/` is **193 MB / 284 tracked files**. Nothing in it ships: preflight
+  §11 (`scripts/lib/assetBudget.js`) counts only `assets/` reachable through a
+  static `require()`, so this is repo weight and clone time, not download size.
+- Every directory in `screenshots/` is written by a `scripts/generate-*.mjs` or
+  `scripts/capture-*.mjs`. The scripts are the regeneration path and all stay.
+- No markdown file `![]()`-embeds any screenshot, so deleting them breaks no
+  rendered doc. Two docs mention a path in prose — fixed in step 4.
+- The asset tool's "18 unreferenced images in `assets/`" list is **not** safe to
+  act on: it scans static requires only, so `icon.png`, `adaptive-icon.png` and
+  `favicon.png` read as unreferenced while `app.config.js` uses all three. Only
+  the one file the repo itself declares unused is removed.
 
-## Handed off — needs a real machine (see tasks/cowork-handoff-cloud-backup.md)
-That file contains a ready-to-paste Cowork prompt covering: local validation
-of the backup/restore flow in the running app, the preview TestFlight build
-and on-device checks, and the production promotion (three env lines +
-the nativeSdkFlagDefaults truth-table update).
+## KEEP — the live App Store set and its inputs
 
-## Open questions the device validation will settle
-- Does `cloud_user_id` survive an iOS reinstall? AsyncStorage does not. If it
-  doesn't, the id belongs in Keychain (expo-secure-store) — small change, but
-  it changes what "device backup" promises, so owner sign-off, not a silent fix.
-- Should restore be offered proactively on first launch after a reinstall?
-- Retention/GDPR: no delete-my-backup path exists yet.
-
----
-
-# Automate the App Store Connect release (2026-08-17)
-
-Branch: `claude/app-store-whats-new-cmjnec` (PR #140). Goal: create and fill the
-1.5.0 App Store version record from the repo, with no hand-copying into the
-App Store Connect UI.
-
-## Why this shape
-
-The release copy already exists three times — `lib/config/changelog.ts` (in-app),
-`WHATS_NEW.md` (prose) and, until now, nowhere the tooling can read. Anything
-that retypes it into App Store Connect adds a fourth copy that drifts. So the
-store text becomes DATA in `marketing/aso/metadata.mjs`, `check:aso` validates
-it, and the release script sends that exact value to Apple.
-
-`scripts/next-build-number.mjs` already carries a working ES256 JWT client for
-the same API. Two implementations of one auth path is the duplication CLAUDE.md
-warns about, so the client is extracted and both callers share it.
-
-## Schemas (verified against Apple's docs JSON, not from memory)
-
-- `POST /v1/appStoreVersions` — attrs `versionString` [req], `platform` [req],
-  `copyright`, `releaseType`, `earliestReleaseDate`, `reviewType`, `usesIdfa`;
-  rels `app` [req], `build`, `appStoreVersionLocalizations`.
-- `PATCH /v1/appStoreVersions/{id}` — same attrs minus platform, plus
-  `downloadable`; rel `build` is how a build is attached to an existing version.
-- `appStoreVersionLocalization` attrs: `locale` [req on create], `whatsNew`,
-  `description`, `keywords`, `promotionalText`, `marketingUrl`, `supportUrl`.
-  **`whatsNew` lives here, NOT on the version** — the version has no
-  `releaseNotes` attribute despite what a summary of the docs claimed.
-- Submission is the 3-step flow. `appStoreVersionSubmissions` is deprecated:
-  `POST /v1/reviewSubmissions` (rel `app` [req], attr `platform`) →
-  `POST /v1/reviewSubmissionItems` (rel `reviewSubmission` [req] +
-  `appStoreVersion`) → `PATCH /v1/reviewSubmissions/{id}` `{submitted: true}`.
+- [x] `screenshots/appstore-2026/iphone-6.9/` · `iphone-6.5/` · `ipad-13/` (10 each)
+      — the upload sets named by `docs/RELEASE_RUNBOOK.md` and `marketing/aso/README.md`
+- [x] `screenshots/appstore-2026/rich-captures/` + `rich-captures-ipad/` (28 each)
+      — the real-gameplay source frames the two composers read. Recomposing from
+      these is cheap; re-capturing is documented in that dir's README as silently
+      stale-prone, which is the whole reason it exists.
+- [x] `screenshots/appstore-2026/README.md` — the pipeline record
 
 ## Steps
 
-- [x] Verify the request schemas against Apple's documentation JSON API
-- [x] `scripts/lib/ascClient.mjs` — credentials, ES256 JWT, request/paginate,
-      typed errors, dry-run recording
-- [x] Repoint `scripts/next-build-number.mjs` at the shared client without
-      changing its stdout contract or its epoch fallback
-- [x] `whatsNew` for en-US and es-MX in `marketing/aso/metadata.mjs`
-- [x] `check:aso` validates and emits `whatsNew` (Apple's limit is 4000)
-- [x] `scripts/asc-release.mjs` — plan/apply/submit, idempotent, dry by default
-- [x] npm scripts: `asc:status`, `asc:release`, `asc:release:apply`
-- [x] Tests for the pure logic (version ordering, state gating, payload shapes)
-- [x] Docs: how to run it, and what it deliberately will not do
+- [x] 1. Delete superseded store sets (the pre-`appstore-2026` generation, 2026-07-24)
+      `iphone-6.9/` `ipad-13/` `app-store/` `hero-3d/` `iphone-hero/`
+      `iphone-real-hero/` `iphone-real/` `iphone-gameplay/` `flawless-final/`
+      and `appstore-2026/style-samples/` (its own README calls it superseded)
+- [x] 2. Delete dev design-review captures (regenerable, one script each)
+      66 root-level PNGs · `screenshots/app/` · `avatar-centered/` · `bbq-fixes/`
+- [x] 3. Delete stale non-screenshot material
+      `dev/.expo/` (TestFlight crash logs for 2.2.5; binary is 2.9.0) ·
+      `output/playwright/` · `.playwright-cli/` (2026-03-09 probes) ·
+      `tsc-current.txt` (388 KB tsc dump) · `.bolt/` · `.idea/` ·
+      `feedbackapple.txt` · `assets/images/backupMain_Menu.png` (`.easignore`
+      already records it as verified-unused) ·
+      `__tests__/Apple iphone 13 screenshots/` (evidence for the IAP bug fixed
+      in #90; 5 MB of an error dialog sitting in the test tree)
+- [x] 4. Repoint the three prose references at their generator scripts rather
+      than at deleted files (`docs/avatar-art-direction-research.md`,
+      `docs/avatar-approach-research.md`, `tasks/iap-fix.md`)
+- [x] 5. Add `screenshots/README.md` — an index saying which set is the App Store
+      upload, which are inputs, and how to rebuild. There is no index today.
+- [x] 6. `.gitignore`: ignore regenerable preview output so the 193 MB cannot
+      re-accumulate, and un-ignore the config that is deliberately tracked
+      (`.claude/settings.json`, `.cursor/rules/`, `.vscode/`) so it stops
+      showing as ignored-but-tracked.
+- [x] 7. Verify: `npm run check:routes`, `npm run type-check`, targeted Jest.
 
-## Rules this must hold
+## Verification (actual output)
 
-- **Dry-run by default.** Nothing mutates without `--apply`. Submitting for
-  review needs `--submit` ON TOP of `--apply`, because it is the one step that
-  puts the app in front of Apple.
-- **Idempotent.** Re-running with the record already correct performs no writes
-  and says so.
-- **Refuses rather than guesses.** If 1.5.0 does not beat the highest RELEASED
-  version, or the version is in a non-editable state, it stops and prints what
-  it found.
-- **No secrets in output.** The JWT and the .p8 never reach stdout or logs.
+- `npm install` — exit 0. A cold container has no `node_modules`;
+  `tasks/lessons.md` records mistaking that for a failing suite twice.
+- `npm run check:routes` — `OK — 18 routes, no conflicts, all groups anchored`
+- `npm run type-check` — clean, no output
+- `npx jest __tests__/tooling __tests__/startup --ci` — **21 suites, 230 tests,
+  all passed** (20.5 s)
+- preflight §11 image payload — **156 images / 22.1 MB shipped, unchanged**,
+  which is the point: nothing deleted was reachable from a static `require()`.
+  Unreferenced-in-`assets/` warning drops 18 → 17 (`backupMain_Menu.png`).
+
+## Result
+
+- `screenshots/` 193 MB → 62 MB; 284 tracked files → 88
+- repo excluding `.git`/`node_modules` 284 MB → 144 MB
+- 251 files deleted
+
+## One correction worth recording
+
+`git rm 'screenshots/*.png'` deleted 86 files it should not have: a git
+**pathspec** `*` matches across `/`, unlike a shell glob, so it swept
+`appstore-2026/**/*.png` — the entire live App Store set — not just the 66 PNGs
+at the top level. Caught by counting tracked files against the expected 88
+before committing; restored with `git checkout HEAD -- screenshots/appstore-2026`
+and the one genuinely superseded folder re-removed on its own. Appended to
+`tasks/lessons.md`.

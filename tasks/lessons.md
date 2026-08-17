@@ -3235,3 +3235,24 @@ watched a rewarded ad that the bonus was unavailable while the cash landed.
   asserted by name in the ratchet — wiring it into the tick trips that test
   before it can hurt anyone. "Zero except the one we know about" is only a
   useful statement if the exception is written down.
+
+## 2026-08-17 — a git pathspec `*` is not a shell glob
+
+Cleaning out regenerable preview PNGs, `git rm -q 'screenshots/*.png'` was meant
+to take the 66 files at the top of `screenshots/`. It took 86 more: the entire
+live App Store upload set under `screenshots/appstore-2026/`.
+
+- Rule: **git pathspec wildcards match across `/`.** The quoting was correct —
+  the glob had to reach git rather than the shell — but git's own fnmatch runs
+  without `FNM_PATHNAME`, so `dir/*.png` is recursive, not one level. Shell
+  habits read it as one level. Use `--` with explicit paths, or
+  `:(glob)screenshots/*.png`, which restores the one-level meaning.
+- Rule: the damage was invisible in the command's own output. `git rm -q`
+  printed nothing and exited 0; the deletion only showed when the tracked-file
+  count was compared against the number the plan predicted (88). **Predict the
+  post-condition as a number before a bulk delete, then check it.** A bulk
+  removal that cannot be wrong-by-a-count is rare; this one was off by 86.
+- Rule: it was recoverable only because nothing had been committed yet.
+  `git checkout HEAD -- <dir>` restored the set whole, and the one genuinely
+  superseded subfolder was then removed on its own. Stage bulk deletes, verify,
+  and commit last — the index is the undo buffer.
