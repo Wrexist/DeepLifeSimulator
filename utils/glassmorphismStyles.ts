@@ -141,12 +141,21 @@ export function getGlassHeader(darkMode: boolean = false): ViewStyle {
 
 /**
  * Glass tab bar container style
+ *
+ * The fill is near-opaque on purpose. `backdropFilter` below is web-only —
+ * there is no backdrop blur on iOS or Android — so on device an alpha of 0.7
+ * was not glass, it was plain transparency: the bottom bar sits `position:
+ * 'absolute'` over the scroll views, and cards scrolling past read straight
+ * through the nav (reported from a live build: a food card legible through the
+ * tab bar on the Life tab). The list padding already clears the bar
+ * (`getTabBarSafePadding`), so this is only about what shows while scrolling.
+ * The hairline top border and the web blur keep the glass reading intact.
  */
 export function getGlassTabBar(darkMode: boolean = false): ViewStyle {
   return {
     backgroundColor: darkMode
-      ? 'rgba(15, 23, 42, 0.7)'
-      : 'rgba(255, 255, 255, 0.7)',
+      ? 'rgba(15, 23, 42, 0.96)'
+      : 'rgba(255, 255, 255, 0.96)',
     borderTopWidth: 1,
     borderTopColor: darkMode
       ? 'rgba(255, 255, 255, 0.1)'

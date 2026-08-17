@@ -73,15 +73,29 @@ export const styles = StyleSheet.create({
   activeTabText: {
     color: TEXT,
   },
-  marketTabs: {
-    marginHorizontal: responsiveSpacing.md,
-    marginTop: responsiveSpacing.md,
+  // The tab bar row: the segmented control plus the row's single info button.
+  //
+  // Opaque, and it owns the gap below itself. The control is translucent glass
+  // and native has no backdrop filter (that is web-only), so a row sitting
+  // directly on the scroll view let scrolled cards read straight through it —
+  // which is what made the section header below look like it was sliding under
+  // the tabs. A solid band and a real gap fix both halves.
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    backgroundColor: '#020617',
+    paddingHorizontal: responsiveSpacing.md,
+    paddingTop: responsiveSpacing.md,
+    paddingBottom: responsiveSpacing.sm,
   },
   // Embedded in the Life tab: the primary Health/Shop/Stats control sits right
   // above, so tuck this secondary control up tight instead of adding a full gap.
-  marketTabsEmbedded: {
-    marginHorizontal: responsiveSpacing.md,
-    marginTop: scale(2),
+  tabsRowEmbedded: {
+    paddingTop: scale(2),
+  },
+  tabsControl: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -249,29 +263,9 @@ export const styles = StyleSheet.create({
     marginBottom: scale(2),
     fontVariant: ['tabular-nums'],
   },
-  bonusInfo: {
-    marginTop: scale(4),
-    gap: scale(1),
-  },
-  bonusTitle: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-    color: TEXT_MUTED,
-    marginBottom: scale(2),
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bonusTitleDark: {
-    color: TEXT_MUTED,
-  },
-  bonusText: {
-    fontSize: fontScale(11.5),
-    color: '#93C5FD',
-    fontWeight: '600',
-  },
-  bonusTextDark: {
-    color: '#93C5FD',
-  },
+  // (The food cards' `bonusInfo` / `bonusTitle` / `bonusText` stack is gone —
+  // per-stat effects now render through components/market/StatEffectChips.tsx,
+  // which carries its own styles and the HUD's per-stat colors.)
   buyButton: {},
   sellButton: {},
   // Gym — single dark-glass card, no gradients.
@@ -343,34 +337,6 @@ export const styles = StyleSheet.create({
   },
   membershipWarningSubtextDark: {
     color: 'rgba(252, 211, 77, 0.75)',
-  },
-  gymStatsContainer: {
-    flexDirection: 'row',
-    gap: scale(10),
-  },
-  gymStatChip: {
-    flex: 1,
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS_BORDER,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    paddingVertical: responsiveSpacing.sm,
-    alignItems: 'center',
-    gap: scale(3),
-  },
-  gymStatValue: {
-    fontSize: fontScale(22),
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  gymStatLabel: {
-    fontSize: fontScale(10.5),
-    fontWeight: '600',
-    color: TEXT_SECONDARY,
-    textAlign: 'center',
-  },
-  gymStatLabelDark: {
-    color: TEXT_SECONDARY,
   },
   gymCostRow: {
     flexDirection: 'row',
