@@ -15,7 +15,7 @@ import { PULSE_COLORS } from '../styles/pulseTheme';
 import type { PulseNotification, PulseNotificationType } from '@/contexts/game/types';
 
 // Priority-ordered groups for display
-const GROUP_ORDER: Array<{ key: string; label: string; types: PulseNotificationType[] }> = [
+const GROUP_ORDER: { key: string; label: string; types: PulseNotificationType[] }[] = [
   { key: 'scandal', label: 'Scandal Alerts', types: ['scandal_update'] },
   { key: 'brand', label: 'Brand Deals', types: ['brand_offer'] },
   { key: 'mentions', label: 'Mentions', types: ['mention'] },

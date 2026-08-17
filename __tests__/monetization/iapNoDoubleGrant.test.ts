@@ -79,7 +79,7 @@ describe('IAP applyBenefit — no double grant', () => {
     const gems = getProductConfig(GEMS_500)!.gems!;
     expect(gems).toBeGreaterThan(0);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await (iapService as any).applyBenefit(GEMS_500);
 
     // Exactly one grant — not 2× (the disk path must not re-add what the
@@ -91,7 +91,7 @@ describe('IAP applyBenefit — no double grant', () => {
     iapService.setStateUpdater(null);
 
     const gems = getProductConfig(GEMS_500)!.gems!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await (iapService as any).applyBenefit(GEMS_500);
 
     expect(mockDisk.state.stats.gems).toBe(gems);

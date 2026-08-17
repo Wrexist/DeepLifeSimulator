@@ -144,13 +144,13 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       // Track statistics
       const currentStats = prevState.lifetimeStatistics || getDefaultStatistics();
       let updatedStats = currentStats;
-      
+
       if (amount > 0) {
         updatedStats = trackMoneyEarned(currentStats, amount);
       } else if (amount < 0) {
         updatedStats = trackMoneySpent(currentStats, amount);
       }
-      
+
       // Update lifetime statistics in state
       newState.lifetimeStatistics = updatedStats;
 
@@ -202,7 +202,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       );
       return;
     }
-    const legs: Array<{ amount: number; reason: string }> = [];
+    const legs: { amount: number; reason: string }[] = [];
     if (incomeTotal !== 0) legs.push({ amount: incomeTotal, reason: incomeReasons.join(', ') });
     if (nonIncomeTotal !== 0) legs.push({ amount: nonIncomeTotal, reason: nonIncomeReasons.join(', ') });
     legs.sort((a, b) => b.amount - a.amount); // money-adding leg first

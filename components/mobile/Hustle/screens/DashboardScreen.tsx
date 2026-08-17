@@ -245,7 +245,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
 
 /** Lifetime records — surfaces hustleApp.lifetimeStats (unused by the old UI). */
 function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boolean; lifetime: any }) {
-  const stats: Array<{ icon: any; label: string; value: number; color: string }> = [
+  const stats: { icon: any; label: string; value: number; color: string }[] = [
     { icon: Building2, label: 'Founded', value: lifetime?.totalCompaniesFounded ?? 0, color: HUSTLE_COLORS.accent },
     { icon: DollarSign, label: 'Sold', value: lifetime?.totalCompaniesSold ?? 0, color: HUSTLE_COLORS.success },
     { icon: Rocket, label: 'IPOs', value: lifetime?.totalIPOsLaunched ?? 0, color: HUSTLE_COLORS.accentSecondary },
@@ -255,7 +255,7 @@ function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boole
     { icon: UserPlus, label: 'Key hires', value: lifetime?.totalNamedHires ?? 0, color: HUSTLE_COLORS.accent },
     { icon: UserMinus, label: 'Fires', value: lifetime?.totalFires ?? 0, color: HUSTLE_COLORS.danger },
   ];
-  const records: Array<{ label: string; value: string }> = [
+  const records: { label: string; value: string }[] = [
     { label: 'Peak brand', value: String(lifetime?.peakBrandScore ?? 0) },
     { label: 'Peak market share', value: `${(lifetime?.peakMarketShare ?? 0).toFixed(1)}%` },
     { label: 'Peak share price', value: `$${(lifetime?.peakSharePrice ?? 0).toFixed(2)}` },

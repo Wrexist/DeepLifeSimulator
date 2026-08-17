@@ -152,7 +152,7 @@ describe('the year-to-date accumulator', () => {
 
 describe('the rates the Tax tab quotes are the rates the ticks charge', () => {
   const read = (rel: string) =>
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     require('fs').readFileSync(require('path').join(__dirname, '../..', rel), 'utf8');
 
   it('stocks and crypto both charge CAPITAL_GAINS_TAX_RATE', () => {

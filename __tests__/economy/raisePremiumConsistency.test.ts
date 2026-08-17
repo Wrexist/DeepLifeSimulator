@@ -100,7 +100,7 @@ describe('one definition of the raise premium', () => {
 });
 
 describe('every reader goes through it — no site keeps its own clamp', () => {
-  const SITES: Array<[string, RegExp]> = [
+  const SITES: [string, RegExp][] = [
     ['contexts/game/actions/JobActions.ts', /resolveRaisePremium|applyRaisePremium/],
     ['contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts', /resolveRaisePremium|applyRaisePremium/],
     ['components/CareerPathCard.tsx', /resolveRaisePremium|applyRaisePremium/],

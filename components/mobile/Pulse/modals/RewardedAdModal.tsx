@@ -47,7 +47,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       timersRef.current = [];
       dismissResolver.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   // Resolves when the sheet's NATIVE dismissal finishes (iOS Modal.onDismiss),
@@ -70,7 +70,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       dismissResolver.current = finish;
       addTimer(finish, 600); // covers the slide-down animation with margin
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   const handleWatch = useCallback(async () => {
@@ -158,7 +158,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
     } finally {
       busyRef.current = false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [setGameState, gameState, onDismiss, saveGame, waitForDismissal]);
 
   // NOTE: no `if (!visible) return null` — the parent renders this component
