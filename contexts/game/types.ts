@@ -1492,6 +1492,31 @@ export interface SparkMatch {
   unreadByNpc?: number;
   /** True when the match has been "promoted" into state.relationships (chat → dating). */
   promoted: boolean;
+  /**
+   * v45 — conversation rapport, 0-100. How well this chat is actually going.
+   *
+   * ABSENT is the fresh-match baseline, applied at READ time by
+   * `readRapport` (`lib/spark/conversation.ts`) rather than backfilled: a save
+   * written before the choice-driven chat existed has no record of how those
+   * conversations went, so any stored number would be invented. Writing a low
+   * one would erase a chat the player had already invested in; writing a high
+   * one would hand out `ask_date` / `go_steady` for free.
+   *
+   * Never write this directly — go through `playConversationOption`, which
+   * clamps and stamps the cooldown in the same updater.
+   */
+  rapport?: number;
+  /**
+   * v45 — conversation option id -> the `weeksLived` at which it was last
+   * played. ABSENT means nothing is on cooldown, which is exactly what a
+   * pre-v45 match should mean.
+   *
+   * `weeksLived` (absolute), never `week` (cyclic 1-4) and never a wall-clock
+   * timestamp — CLAUDE.md §4.2/§4.4. A device-clock gate here would be
+   * farmable, and this one paces rapport, happiness and ultimately a
+   * relationship.
+   */
+  conversationCooldowns?: Record<string, number>;
 }
 
 export interface SparkMessage {

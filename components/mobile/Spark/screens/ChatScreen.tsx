@@ -1,16 +1,48 @@
 /**
- * ChatScreen — single-match conversation.
+ * ChatScreen — single-match conversation, driven by CHOICES rather than typing.
  *
- * Top: partner header with avatar + name + tap-to-view-profile / promote.
- * Middle: message thread (player right-aligned gradient, NPC left glass).
- * Bottom: composer with send button.
+ * Top: partner header with avatar, name, a rapport bar, and the befriend /
+ *      start-dating / view-profile buttons.
+ * Middle: message thread (player right-aligned rose tint, NPC left glass).
+ * Bottom: the option panel — wrapping chips, each showing its cost and, when
+ *         locked, the reason. A visible gate is a goal.
  *
- * When the player sends a message, an NPC reply is generated ~2s later
- * via `generateNpcReply` to keep the conversation flowing.
+ * TWO OWNER REPORTS, one screen (2026-08-17):
+ *
+ *  (a) "The keyboard covers the composer — I cannot see what I typed, send it,
+ *      or close it." There is no keyboard here any more: the free-text
+ *      TextInput is gone, so nothing on this screen is focusable and no
+ *      software keyboard can be raised over the action area. That is the fix,
+ *      and it is why this file carries no `KeyboardAvoidingView` — one would be
+ *      dead weight wrapping a view with no text input in it. What replaces it
+ *      is the structural half of the guarantee: the option panel is a sibling
+ *      of the thread (not inside it), pinned above `getAppScreenBottomPadding`,
+ *      so it always sits clear of the home indicator, and the panel scrolls
+ *      internally rather than growing into the thread on a short screen.
+ *
+ *  (b) "I want options instead — ask out for a date or compliment the person
+ *      and so on." Every chip resolves through `lib/spark/conversation.ts`,
+ *      which owns rapport, the gates, the cooldowns and the outcome roll. The
+ *      commit is one atomic updater in `playConversationOption`.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ArrowLeft, Heart, Send, User, UserPlus } from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ArrowLeft,
+  CalendarHeart,
+  Coffee,
+  Flame,
+  Heart,
+  Laugh,
+  MessageCircle,
+  Mountain,
+  Sparkles,
+  Star,
+  User,
+  UserPlus,
+  UtensilsCrossed,
+  X,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
@@ -18,21 +50,47 @@ import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
-  sendSparkMessage,
-  generateNpcReply,
   markMatchRead,
+  playConversationOption,
   promoteMatchToRelationship,
   promoteMatchToFriend,
+  getSparkConversationView,
 } from '@/contexts/game/actions/SparkActions';
+import {
+  listDateVenues,
+  rapportBand,
+  type SparkConversationOptionId,
+  type SparkDateVenueId,
+} from '@/lib/spark/conversation';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
-import { useTimerManager } from '@/hooks/useTimerManager';
 import type { SparkMessage } from '@/contexts/game/types';
 
 const LinearGradient = Gradient;
+
+type IconComponent = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+
+/**
+ * Icon-name → component. The catalog in `lib/spark/conversation.ts` names its
+ * icon as a string because `lib/` may not import from `components/` — this map
+ * is the resolution step, and the `Sparkles` fallback keeps a typo from
+ * rendering nothing at all.
+ */
+const OPTION_ICONS: Record<string, IconComponent> = {
+  Sparkles,
+  MessageCircle,
+  Star,
+  Laugh,
+  Flame,
+  CalendarHeart,
+  Heart,
+  Coffee,
+  UtensilsCrossed,
+  Mountain,
+};
 
 interface ChatScreenProps {
   matchId: string;
@@ -44,14 +102,13 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** The date sub-choice is open. Replaces the option row while pending. */
+  const [venuePending, setVenuePending] = useState(false);
   const listRef = useRef<FlatList<SparkMessage>>(null);
-  // Auto-cleaned timers so the delayed NPC reply can't run after the chat closes.
-  const timers = useTimerManager();
 
   const sp = gameState.sparkApp;
-  const match = sp?.matches?.find((m: any) => m.id === matchId);
+  const match = sp?.matches?.find((m) => m.id === matchId);
   const profile = match ? DATING_PROFILES.find((p) => p.id === match.profileId) : undefined;
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const isPromoted = match?.promoted;
@@ -64,6 +121,22 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     : undefined;
   const isFriend = promotedRel?.type === 'friend';
 
+  // The gate state the chips render from — produced by the SAME call the action
+  // re-checks against `prev`, so a chip can never offer a move the action would
+  // then refuse for a different reason.
+  const view = useMemo(
+    () => getSparkConversationView(gameState, matchId),
+    [gameState, matchId],
+  );
+  const venues = useMemo(
+    () =>
+      listDateVenues({
+        energy: gameState.stats?.energy ?? 0,
+        money: gameState.stats?.money ?? 0,
+      }),
+    [gameState.stats?.energy, gameState.stats?.money],
+  );
+
   // Mark match as read when the screen opens.
   useEffect(() => {
     if (match?.unreadByPlayer && match.unreadByPlayer > 0) {
@@ -71,21 +144,37 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     }
   }, [match?.unreadByPlayer, matchId, setGameState]);
 
-  const handleSend = useCallback(() => {
-    if (!draft.trim()) return;
-    const result = sendSparkMessage(setGameState, gameState, matchId, draft);
-    if (result.success) {
-      sparkHaptics.tap();
-      setDraft('');
+  const play = useCallback(
+    (optionId: SparkConversationOptionId, venueId?: SparkDateVenueId) => {
+      const result = playConversationOption(setGameState, gameState, matchId, optionId, venueId);
+      if (result.success) {
+        if (result.outcome === 'success') sparkHaptics.match();
+        else sparkHaptics.tap();
+        setError(null);
+        setVenuePending(false);
+        saveGame?.();
+        if (result.relationshipId) {
+          onOpenPartnerProfile(result.relationshipId);
+        }
+      } else {
+        sparkHaptics.error();
+        setError(result.message);
+      }
+    },
+    [setGameState, gameState, matchId, saveGame, onOpenPartnerProfile],
+  );
+
+  const handleOptionPress = useCallback(
+    (optionId: SparkConversationOptionId, requiresVenue: boolean) => {
       setError(null);
-      saveGame?.();
-      // NPC writes back after a brief pause to feel natural.
-      timers.setTimeout(() => generateNpcReply(setGameState, gameState, matchId), 1800);
-    } else {
-      sparkHaptics.error();
-      setError(result.message);
-    }
-  }, [draft, setGameState, gameState, matchId, saveGame]);
+      if (requiresVenue) {
+        setVenuePending(true);
+        return;
+      }
+      play(optionId);
+    },
+    [play],
+  );
 
   const handlePromote = useCallback(() => {
     const result = promoteMatchToRelationship(setGameState, gameState, matchId);
@@ -121,7 +210,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     }
   }, [setGameState, gameState, matchId, saveGame]);
 
-  if (!match || !profile) {
+  if (!match || !profile || !view) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
         <Header theme={theme} title="Chat" onBack={onBack} />
@@ -130,8 +219,11 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     );
   }
 
+  const firstName = profile.name.split(' ')[0];
+
   return (
-    // Full-screen: keep the composer (and error line) just above the home indicator.
+    // Full-screen: keep the option panel (and error line) just above the home
+    // indicator. Nothing here is focusable, so no keyboard can cover it.
     <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
@@ -145,8 +237,22 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
             {profile.name}
           </Text>
           <Text style={[styles.headerSub, { color: theme.textSecondary }]} numberOfLines={1}>
-            {isPromoted ? (isFriend ? 'Friend' : 'Dating') : 'New match'} · {profile.age}
+            {isPromoted ? (isFriend ? 'Friend' : 'Dating') : rapportBand(view.rapport)} · {view.rapport}
           </Text>
+          {/* Rapport bar: progress the player can watch move. A fill, not a
+              side accent bar — Hard Rule #7. */}
+          <View
+            style={[styles.rapportTrack, { backgroundColor: theme.border }]}
+            accessibilityRole="progressbar"
+            accessibilityLabel={`Rapport with ${firstName}: ${view.rapport} of 100`}
+          >
+            <LinearGradient
+              colors={SPARK_GRADIENT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.rapportFill, { width: `${Math.max(2, Math.min(100, view.rapport))}%` }]}
+            />
+          </View>
         </View>
         {/* Two destinations for an un-promoted match, not one. Befriending is
             offered first because it never refuses — dating is exclusive, so on
@@ -181,8 +287,8 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
       {messages.length === 0 ? (
         <View style={styles.emptyMsgs}>
           <EmptyState
-            observation={`You matched with ${profile.name.split(' ')[0]}!`}
-            nudge="Send the first message — break the ice."
+            observation={`You matched with ${firstName}!`}
+            nudge="Pick an opener below — every move changes how well this is going."
           />
         </View>
       ) : (
@@ -192,46 +298,115 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.messagesContent}
           renderItem={({ item }) => <Bubble msg={item} theme={theme} />}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
       )}
 
-      <View style={[styles.composer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-        <TextInput
-          value={draft}
-          onChangeText={(t) => {
-            setDraft(t);
-            if (error) setError(null);
-          }}
-          placeholder={`Message ${profile.name.split(' ')[0]}...`}
-          placeholderTextColor={theme.textSecondary}
-          style={[styles.input, { color: theme.text }]}
-          multiline
-          maxLength={500}
-        />
-        <Pressable
-          onPress={handleSend}
-          disabled={!draft.trim()}
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
-          style={[styles.sendBtn, !draft.trim() && styles.sendBtnDisabled]}
-        >
-          <LinearGradient
-            colors={
-              draft.trim()
-                ? (SPARK_GRADIENT as unknown as string[])
-                : [theme.border, theme.border]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.sendBtnFill}
-          >
-            <Send size={fontScale(16)} color="#FFFFFF" strokeWidth={2.4} />
-          </LinearGradient>
-        </Pressable>
-      </View>
       {error ? <Text style={[styles.errorText, { color: SPARK_COLORS.danger }]}>{error}</Text> : null}
+
+      <View style={[styles.panel, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        {venuePending ? (
+          <>
+            <View style={styles.panelHeadRow}>
+              <Text style={[styles.panelTitle, { color: theme.textSecondary }]}>
+                Where are you taking {firstName}?
+              </Text>
+              <Pressable
+                onPress={() => setVenuePending(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel date plan"
+                hitSlop={8}
+                style={styles.cancelBtn}
+              >
+                <X size={fontScale(16)} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.chipScroll} contentContainerStyle={styles.chipWrap}>
+              {venues.map(({ venue, available, reason, energyCost, cashCost }) => (
+                <Chip
+                  key={venue.id}
+                  theme={theme}
+                  icon={OPTION_ICONS[venue.icon] ?? Sparkles}
+                  label={venue.label}
+                  cost={`$${cashCost.toLocaleString()} · ${energyCost} energy`}
+                  reason={available ? undefined : reason}
+                  disabled={!available}
+                  onPress={() => play('ask_date', venue.id)}
+                />
+              ))}
+            </ScrollView>
+          </>
+        ) : (
+          <ScrollView style={styles.chipScroll} contentContainerStyle={styles.chipWrap}>
+            {view.options
+              .filter((o) => o.visible)
+              .map(({ option, available, reason, energyCost, cashCost }) => (
+                <Chip
+                  key={option.id}
+                  theme={theme}
+                  icon={OPTION_ICONS[option.icon] ?? Sparkles}
+                  label={option.label}
+                  cost={
+                    cashCost > 0
+                      ? `from $${cashCost.toLocaleString()} · ${energyCost} energy`
+                      : `${energyCost} energy`
+                  }
+                  reason={available ? undefined : reason}
+                  disabled={!available}
+                  onPress={() => handleOptionPress(option.id, Boolean(option.requiresVenue))}
+                />
+              ))}
+          </ScrollView>
+        )}
+      </View>
     </View>
+  );
+}
+
+function Chip({
+  theme,
+  icon: Icon,
+  label,
+  cost,
+  reason,
+  disabled,
+  onPress,
+}: {
+  theme: any;
+  icon: IconComponent;
+  label: string;
+  cost: string;
+  reason?: string;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={reason ? `${label}. Locked: ${reason}` : `${label}. Costs ${cost}`}
+      accessibilityState={{ disabled }}
+      // Full border on all four sides — never a one-sided accent (Hard Rule #7).
+      style={[
+        styles.chip,
+        {
+          backgroundColor: disabled ? 'transparent' : theme.background,
+          borderColor: disabled ? theme.border : SPARK_COLORS.accent,
+        },
+        disabled && styles.chipDisabled,
+      ]}
+    >
+      <Icon size={fontScale(14)} color={disabled ? theme.textSecondary : SPARK_COLORS.accent} strokeWidth={2.2} />
+      <View style={styles.chipText}>
+        <Text style={[styles.chipLabel, { color: disabled ? theme.textSecondary : theme.text }]} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={[styles.chipCost, { color: theme.textSecondary }]} numberOfLines={1}>
+          {reason ?? cost}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -306,6 +481,16 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     marginTop: 2,
   },
+  rapportTrack: {
+    height: scale(3),
+    borderRadius: scale(2),
+    marginTop: scale(4),
+    overflow: 'hidden',
+  },
+  rapportFill: {
+    height: '100%',
+    borderRadius: scale(2),
+  },
   emptyMsgs: {
     flex: 1,
     justifyContent: 'center',
@@ -347,33 +532,60 @@ const styles = StyleSheet.create({
     fontSize: fontScale(14),
     lineHeight: fontScale(19),
   },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: responsiveSpacing.sm,
+  panel: {
     paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
+    paddingTop: responsiveSpacing.sm,
+    paddingBottom: responsiveSpacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  input: {
-    flex: 1,
-    fontSize: fontScale(14),
-    maxHeight: scale(100),
-    minHeight: scale(36),
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: responsiveSpacing.sm,
+  panelHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: responsiveSpacing.xs,
   },
-  sendBtn: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    overflow: 'hidden',
-  },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendBtnFill: {
+  panelTitle: {
+    fontSize: fontScale(11),
+    fontWeight: '600',
     flex: 1,
+  },
+  cancelBtn: {
+    width: scale(28),
+    height: scale(28),
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Capped height so a long option list can never push the thread off-screen
+  // on a small device; the panel scrolls internally instead.
+  chipScroll: {
+    maxHeight: scale(168),
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: responsiveSpacing.xs,
+    paddingBottom: responsiveSpacing.xs,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
+    paddingHorizontal: responsiveSpacing.sm,
+    paddingVertical: responsiveSpacing.xs,
+    borderRadius: scale(14),
+    borderWidth: 1,
+    minHeight: scale(40),
+    maxWidth: '100%',
+  },
+  chipDisabled: { opacity: 0.55 },
+  chipText: { flexShrink: 1 },
+  chipLabel: {
+    fontSize: fontScale(12),
+    fontWeight: '700',
+  },
+  chipCost: {
+    fontSize: fontScale(9),
+    marginTop: 1,
   },
   errorText: {
     fontSize: fontScale(11),
