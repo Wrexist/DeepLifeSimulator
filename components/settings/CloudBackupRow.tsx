@@ -15,13 +15,35 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CloudUpload, CloudDownload } from 'lucide-react-native';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Gradient from '@/components/ui/Gradient';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import {
   formatLastBackupLabel,
   getLastCloudBackupAt,
   isCloudBackupEnabled,
+  type CloudRestoreOutcome,
 } from '@/services/cloudBackup';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
+const LinearGradient = Gradient;
+
+/**
+ * Alert title for a restore verdict. Exported so the wording is testable
+ * without mounting the row and driving an Alert.
+ *
+ * Three answers, not two:
+ *  - 'older' is the weeksLived-regression refusal — a real answer, not an
+ *    error, so it gets its own title and the explanatory message;
+ *  - an applied-but-UNSAVED restore is live in memory only, and a title reading
+ *    "Backup Restored" over that is the half-truth that gets it lost;
+ *  - everything else is "nothing happened".
+ */
+export function restoreAlertTitle(outcome: CloudRestoreOutcome): string {
+  if (outcome.status === 'applied') {
+    return outcome.persisted ? 'Backup Restored' : 'Restored — Not Saved Yet';
+  }
+  return outcome.status === 'older' ? 'Cloud Save Is Older' : 'Nothing Restored';
+}
 
 export default function CloudBackupRow() {
   const { backUpToCloud, restoreFromCloud } = useGameActions();
@@ -57,15 +79,7 @@ export default function CloudBackupRow() {
     setBusy('restore');
     try {
       const outcome = await restoreFromCloud();
-      // 'older' is the weeksLived-regression refusal — a real answer, not an
-      // error, so it gets its own title and the explanatory message.
-      const title =
-        outcome.status === 'applied'
-          ? 'Backup Restored'
-          : outcome.status === 'older'
-            ? 'Cloud Save Is Older'
-            : 'Nothing Restored';
-      Alert.alert(title, outcome.message);
+      Alert.alert(restoreAlertTitle(outcome), outcome.message);
     } finally {
       setBusy(null);
     }
@@ -74,38 +88,49 @@ export default function CloudBackupRow() {
   if (!enabled) return null;
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Cloud backup</Text>
-      <Text style={styles.status}>{formatLastBackupLabel(lastBackupAt)}</Text>
-      <Text style={styles.hint}>
-        A copy of this device&apos;s save is kept in the cloud. It is tied to this device, not to an account.
-      </Text>
+    <>
+      {/* Same dark-glass surface the sibling Settings rows use
+          (`SettingsActionButton` in components/SettingsModal.tsx): the identical
+          two-stop gradient, radius and hairline border, so this row reads as
+          part of the list instead of a flat patch pasted into it. */}
+      <LinearGradient
+        colors={['rgba(31, 41, 55, 0.85)', 'rgba(17, 24, 39, 0.85)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.card}
+      >
+        <Text style={styles.title}>Cloud backup</Text>
+        <Text style={styles.status}>{formatLastBackupLabel(lastBackupAt)}</Text>
+        <Text style={styles.hint}>
+          A copy of this device&apos;s save is kept in the cloud. It is tied to this device, not to an account.
+        </Text>
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Back up this game to the cloud now"
-          disabled={busy !== null}
-          onPress={() => void handleBackUp()}
-          style={[styles.action, busy !== null && styles.actionDisabled]}
-        >
-          <CloudUpload size={scale(14)} color="#38BDF8" />
-          <Text style={styles.actionText}>{busy === 'backup' ? 'Backing up…' : 'Back up now'}</Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Back up this game to the cloud now"
+            disabled={busy !== null}
+            onPress={() => void handleBackUp()}
+            style={[styles.action, busy !== null && styles.actionDisabled]}
+          >
+            <CloudUpload size={scale(14)} color="#38BDF8" />
+            <Text style={styles.actionText}>{busy === 'backup' ? 'Backing up…' : 'Back up now'}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Restore this game from the cloud backup"
-          disabled={busy !== null}
-          onPress={() => setConfirmRestore(true)}
-          style={[styles.action, busy !== null && styles.actionDisabled]}
-        >
-          <CloudDownload size={scale(14)} color="#FBBF24" />
-          <Text style={[styles.actionText, styles.actionTextWarning]}>
-            {busy === 'restore' ? 'Restoring…' : 'Restore from cloud'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Restore this game from the cloud backup"
+            disabled={busy !== null}
+            onPress={() => setConfirmRestore(true)}
+            style={[styles.action, busy !== null && styles.actionDisabled]}
+          >
+            <CloudDownload size={scale(14)} color="#FBBF24" />
+            <Text style={[styles.actionText, styles.actionTextWarning]}>
+              {busy === 'restore' ? 'Restoring…' : 'Restore from cloud'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
       <ConfirmDialog
         visible={confirmRestore}
@@ -121,14 +146,15 @@ export default function CloudBackupRow() {
         }}
         onCancel={() => setConfirmRestore(false)}
       />
-    </View>
+    </>
   );
 }
 
 // Full four-sided border, never a one-sided accent stripe (CLAUDE.md Hard Rule #7).
 const styles = StyleSheet.create({
+  // No `backgroundColor`: the surface is painted by the gradient above, which
+  // reads `borderRadius` off this style to clip itself.
   card: {
-    backgroundColor: 'rgba(31, 41, 55, 0.85)',
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',

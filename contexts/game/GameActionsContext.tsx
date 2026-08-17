@@ -17,7 +17,9 @@ import {
   backUpNow,
   fetchCloudRestoreCandidate,
   isCloudBackupEnabled,
+  resetCloudBackupSchedule,
   scheduleCloudBackup,
+  CLOUD_RESTORE_UNSAVED_MESSAGE,
   type CloudRestoreOutcome,
 } from '@/services/cloudBackup';
 import { useGameState } from './GameStateContext';
@@ -228,7 +230,9 @@ interface GameActionsContextType {
  // Cloud device backup (flag-gated, `cloudSave`). Both resolve a message the
  // caller can show verbatim; neither throws. `restoreFromCloud` returns
  // `status: 'older'` — never applied — when the cloud copy is behind the live
- // game, which is the one refusal a player needs told.
+ // game, which is the one refusal a player needs told. On `status: 'applied'`
+ // read `persisted` too: false means the restored life is LIVE but did not
+ // reach disk, so the message says so rather than claiming a completed restore.
  backUpToCloud: () => Promise<{ success: boolean; message: string }>;
  restoreFromCloud: () => Promise<CloudRestoreOutcome>;
 
@@ -481,20 +485,38 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  });
  if (outcome.status !== 'applied') return outcome;
 
+ // Disarm any auto-upload holding the state we are about to REPLACE, BEFORE
+ // the swap. `scheduleCloudBackup` arms a timer for up to
+ // MIN_CLOUD_BACKUP_INTERVAL_MS (5 minutes) carrying whatever state was live
+ // when the last save landed, and it is a timer callback — once this function
+ // yields (the `await` below, or the network in `saveGame`) there is no
+ // outrunning it. If it fires now it uploads the pre-restore state OVER the
+ // cloud copy this restore came from, so the restore destroys its own backup
+ // and the next one restores the state the player just replaced. The
+ // `saveGame(true)` below re-arms the schedule with the RESTORED state.
+ resetCloudBackupSchedule();
+
  setGameState(outcome.state);
  // `saveGame` reads `gameStateRef.current`, which lags the commit by one
  // passive-effect cycle — yield so the RESTORED state is what hits disk,
  // not the one it just replaced (the SettingsModal grant pattern).
  await new Promise<void>((resolve) => setTimeout(resolve, 0));
  const saved = await saveGame(true);
- if (!saved) {
- logger.warn('[CloudBackup] Restored state could not be persisted; it is live but unsaved');
- }
  logger.info('[CloudBackup] Cloud backup restored over the live game', {
  localWeeks: outcome.localWeeks,
  remoteWeeks: outcome.remoteWeeks,
+ persisted: saved,
  });
- return outcome;
+ if (!saved) {
+ // `saveGame` resolves false on a validation abort, a non-writable slot, or
+ // any caught write error. The state IS live, so the status stays 'applied'
+ // — but the slot on disk still holds what it replaced, so the next load
+ // undoes this silently. Telling the player "restored" and nothing else is
+ // how they close the app and lose it.
+ logger.warn('[CloudBackup] Restored state could not be persisted; it is live but unsaved');
+ return { ...outcome, persisted: false, message: CLOUD_RESTORE_UNSAVED_MESSAGE };
+ }
+ return { ...outcome, persisted: true };
  }, [currentSlot, saveGame, setGameState]);
 
  // ANTI-EXPLOIT: Guard against rapid nextWeek() calls (race condition)

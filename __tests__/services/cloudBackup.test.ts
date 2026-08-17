@@ -17,12 +17,32 @@
  * The service is mocked: this file is about the decision layer, not the
  * transport. `cloudSyncInert.test.ts` covers the service itself.
  */
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { CURRENT_STATE_VERSION } from '@/utils/saveMigrations';
 import { createTestGameState } from '../helpers/createTestGameState';
 
 const mockQueueSync = jest.fn(async (_state: unknown) => {});
-const mockBackupNow = jest.fn(async () => ({ success: true }));
+const mockBackupNow = jest.fn(
+  async (): Promise<{ success: boolean; skipped?: boolean; error?: string }> => ({ success: true })
+);
 const mockDownloadState = jest.fn(async () => null as unknown);
 const mockGetLastBackupAt = jest.fn(async () => 0);
+// The slot-write path (`restoreCloudSaveToSlot`) reaches these through dynamic
+// `import()`, so they are mocked rather than run: the real `forceSave` HMACs a
+// ~100KB payload through the double-buffer writer, which has nothing to do with
+// the verdict this file is about.
+const mockForceSave = jest.fn(async (_slot: number, _data: unknown) => {});
+const mockDeleteSaveSlotMeta = jest.fn(async (_slot: number) => {});
+
+jest.mock('@/utils/saveQueue', () => ({
+  forceSave: (slot: number, data: unknown) => mockForceSave(slot, data),
+  queueSave: jest.fn(async () => {}),
+}));
+
+jest.mock('@/utils/saveSlotMeta', () => ({
+  deleteSaveSlotMeta: (slot: number) => mockDeleteSaveSlotMeta(slot),
+}));
 
 // A module mock, not a spy: each case loads a FRESH copy of `cloudBackup`
 // through `jest.isolateModules`, which hands it fresh copies of its imports
@@ -176,6 +196,92 @@ describe('cloud backup debounce', () => {
       mockAutosaveSuspended = false;
     }
   });
+
+  it('releases the window when the queue REJECTS — nothing was uploaded, so nothing was spent', async () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mockQueueSync.mockRejectedValueOnce(new Error('queue refused the state'));
+
+    mod.scheduleCloudBackup(createTestGameState({ weeksLived: 700 }));
+    jest.runOnlyPendingTimers();
+    expect(mockQueueSync).toHaveBeenCalledTimes(1);
+    // Let the rejection's `catch` run — fake timers do not fake microtasks.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // The very next save must be able to try again. Contrast with the case
+    // above, where a SUCCESSFUL upload holds the next one for the full window.
+    mod.scheduleCloudBackup(createTestGameState({ weeksLived: 701 }));
+    jest.advanceTimersByTime(0);
+
+    expect(mockQueueSync).toHaveBeenCalledTimes(2);
+    expect(mockQueueSync.mock.calls[1][0]).toMatchObject({ weeksLived: 701 });
+  });
+
+  it('resetCloudBackupSchedule drops an armed upload outright', () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mod.scheduleCloudBackup(createTestGameState({ weeksLived: 250 }));
+    expect(mod.hasPendingCloudBackup()).toBe(true);
+
+    mod.resetCloudBackupSchedule();
+
+    expect(mod.hasPendingCloudBackup()).toBe(false);
+    jest.runOnlyPendingTimers();
+    expect(mockQueueSync).not.toHaveBeenCalled();
+  });
+});
+
+describe('manual "Back up now"', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('reports success, and says so distinctly when the cloud is already current', async () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    const state = createTestGameState({ weeksLived: 120 });
+
+    mockBackupNow.mockResolvedValueOnce({ success: true });
+    await expect(mod.backUpNow(state)).resolves.toMatchObject({ success: true });
+
+    mockBackupNow.mockResolvedValueOnce({ success: true, skipped: true });
+    const skipped = await mod.backUpNow(state);
+    expect(skipped).toEqual({ success: true, message: 'Your cloud backup is already up to date.' });
+  });
+
+  it('RESOLVES a failure message when the service REJECTS, instead of rejecting', async () => {
+    // The button handler is invoked as `void handleBackUp()` and only alerts on
+    // the resolved value, so a rejection here is an unhandled promise rejection
+    // and a tap that gets no answer at all.
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mockBackupNow.mockRejectedValueOnce(new Error('socket hang up'));
+
+    const result = await mod.backUpNow(createTestGameState({ weeksLived: 130 }));
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Check your connection/);
+  });
+
+  it('does not hold the debounce window after a rejected manual push', async () => {
+    jest.useFakeTimers();
+    try {
+      const mod = loadCloudBackup(CLOUD_ENV);
+      mockBackupNow.mockRejectedValueOnce(new Error('socket hang up'));
+      await mod.backUpNow(createTestGameState({ weeksLived: 140 }));
+
+      mod.scheduleCloudBackup(createTestGameState({ weeksLived: 141 }));
+      jest.advanceTimersByTime(0);
+
+      expect(mockQueueSync).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('answers with the flag refusal instead of touching the service when cloud save is off', async () => {
+    const mod = loadCloudBackup({});
+    const result = await mod.backUpNow(createTestGameState({ weeksLived: 150 }));
+    expect(result.success).toBe(false);
+    expect(mockBackupNow).not.toHaveBeenCalled();
+  });
 });
 
 describe('cloud restore verdict', () => {
@@ -225,6 +331,136 @@ describe('cloud restore verdict', () => {
     const outcome = await mod.fetchCloudRestoreCandidate({ slot: 1, localWeeksLived: 0 });
     expect(outcome.status).toBe('disabled');
     expect(mockDownloadState).not.toHaveBeenCalled();
+  });
+
+  it('refuses a copy written by a NEWER build rather than repairing it down', async () => {
+    // The one refusal that has to come from the MIGRATION step: a future-version
+    // save cannot be safely stepped down, and repairing it would strip whatever
+    // the newer build added. `runMigrations` flags it; this asserts the seam
+    // reports it instead of hydrating whatever survived.
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mockDownloadState.mockResolvedValueOnce({
+      ...createTestGameState({ weeksLived: 900 }),
+      version: CURRENT_STATE_VERSION + 5,
+    });
+
+    const outcome = await mod.fetchCloudRestoreCandidate({ slot: 1, localWeeksLived: 100 });
+
+    expect(outcome.status).toBe('future');
+    expect(outcome.message).toMatch(/newer version of the app/i);
+  });
+
+  it('never claims a restore it did not perform — the verdict is not persisted', async () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mockDownloadState.mockResolvedValueOnce(createTestGameState({ weeksLived: 500 }));
+
+    const outcome = await mod.fetchCloudRestoreCandidate({ slot: 1, localWeeksLived: 420 });
+
+    // It downloads and hydrates; applying is the caller's half, so nothing is
+    // on disk yet and the flag has to say so.
+    expect(outcome).toMatchObject({ status: 'applied', persisted: false });
+    expect(mockForceSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('cloud restore into a SLOT (the pre-game path)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('writes the blob, drops the cached slot summary, and reports it persisted', async () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mockDownloadState.mockResolvedValueOnce(createTestGameState({ weeksLived: 800 }));
+
+    const outcome = await mod.restoreCloudSaveToSlot(3, 100);
+
+    expect(outcome).toMatchObject({ status: 'applied', persisted: true });
+    expect(mockForceSave).toHaveBeenCalledTimes(1);
+    expect(mockForceSave.mock.calls[0][0]).toBe(3);
+    expect(mockDeleteSaveSlotMeta).toHaveBeenCalledWith(3);
+  });
+
+  it('reports an error when the slot write REJECTS, and does not stale the summary', async () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    mockDownloadState.mockResolvedValueOnce(createTestGameState({ weeksLived: 800 }));
+    mockForceSave.mockRejectedValueOnce(new Error('disk full'));
+
+    const outcome = await mod.restoreCloudSaveToSlot(2, 100);
+
+    expect(outcome.status).toBe('error');
+    expect(outcome.message).toMatch(/could not be written to this slot/);
+    // The cached summary still matches what is actually on disk — dropping it
+    // after a failed write would make the slot card re-derive from the OLD blob
+    // and look like something changed.
+    expect(mockDeleteSaveSlotMeta).not.toHaveBeenCalled();
+  });
+
+  it('drops an auto-upload armed with the PRE-restore state', async () => {
+    const mod = loadCloudBackup(CLOUD_ENV);
+    // The last in-game save armed an upload carrying the life the player then
+    // walked out of. If it fired after the restore it would push that state
+    // over the cloud copy this restore just pulled down.
+    mod.scheduleCloudBackup(createTestGameState({ weeksLived: 300 }));
+    expect(mod.hasPendingCloudBackup()).toBe(true);
+
+    mockDownloadState.mockResolvedValueOnce(createTestGameState({ weeksLived: 800 }));
+    const outcome = await mod.restoreCloudSaveToSlot(1, 100);
+
+    expect(outcome.status).toBe('applied');
+    expect(mod.hasPendingCloudBackup()).toBe(false);
+    jest.runOnlyPendingTimers();
+    expect(mockQueueSync).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The LIVE-game half of the restore lives in `contexts/game/GameActionsContext.tsx`
+ * (it needs `setGameState` + `saveGame`, so it cannot live in this module).
+ * Two rules there are ordering/wording rules that no unit of this module can
+ * observe, so they are pinned against the source — the same mechanism
+ * `__tests__/save/autosaveSuspension.test.ts` uses for its ordering rule.
+ */
+describe('the live-game restore (contexts/game/GameActionsContext.tsx)', () => {
+  const source = readFileSync(join(__dirname, '../../contexts/game/GameActionsContext.tsx'), 'utf8');
+  const restoreBody = source.slice(
+    source.indexOf('const restoreFromCloud'),
+    source.indexOf('const nextWeekInProgressRef')
+  );
+
+  it('slices out a real function body', () => {
+    expect(restoreBody).toContain('fetchCloudRestoreCandidate');
+    expect(restoreBody.length).toBeGreaterThan(200);
+  });
+
+  it('disarms the armed upload BEFORE the live state is replaced', () => {
+    const disarm = restoreBody.indexOf('resetCloudBackupSchedule()');
+    const swap = restoreBody.indexOf('setGameState(outcome.state)');
+    expect(disarm).toBeGreaterThan(-1);
+    expect(swap).toBeGreaterThan(-1);
+    // After the swap is too late: the upload is a timer callback carrying the
+    // PRE-restore state, and it would land on the cloud copy the restore came
+    // from — the restore destroying its own backup.
+    expect(disarm).toBeLessThan(swap);
+  });
+
+  it('reports a failed persist as live-but-unsaved instead of a clean restore', () => {
+    expect(restoreBody).toContain('persisted: false, message: CLOUD_RESTORE_UNSAVED_MESSAGE');
+    expect(restoreBody).toContain('persisted: true');
+  });
+});
+
+describe('CLOUD_RESTORE_UNSAVED_MESSAGE', () => {
+  it('tells the player the restore is live but NOT saved, and what that costs', () => {
+    const message = mod0().CLOUD_RESTORE_UNSAVED_MESSAGE;
+    expect(message).toMatch(/restored/i);
+    expect(message).toMatch(/could not be saved/i);
+    // The consequence is the part a player can act on: closing the app now
+    // brings the replaced save back.
+    expect(message).toMatch(/previous save/i);
   });
 });
 

@@ -49,8 +49,39 @@ export const MIN_CLOUD_BACKUP_INTERVAL_MS = 5 * 60 * 1000;
 export const CLOUD_RESTORE_OLDER_MESSAGE =
   'Cloud save is older than your current game, so restoring it would erase weeks you already played. Nothing was changed.';
 
+/**
+ * Shown when the backup WAS applied over the live game but could not be written
+ * to disk (`saveGame` refused or threw).
+ *
+ * The distinction is not pedantic: the player is looking at the restored life,
+ * so "nothing was restored" would be a lie — but the slot on disk still holds
+ * the state it replaced, so the next load brings the old life back. Saying
+ * "restored" and stopping there is the version of this that loses a save and
+ * blames the player for closing the app.
+ */
+export const CLOUD_RESTORE_UNSAVED_MESSAGE =
+  'Your cloud backup was restored and is running now, but it could not be saved to this device. Keep playing to save it — if you close the game first, your previous save comes back.';
+
 export type CloudRestoreOutcome =
-  | { status: 'applied'; state: GameState; localWeeks: number; remoteWeeks: number; message: string }
+  | {
+      status: 'applied';
+      state: GameState;
+      localWeeks: number;
+      remoteWeeks: number;
+      message: string;
+      /**
+       * Is the restored state ON DISK?
+       *
+       * A separate field rather than a sixth `status`, because "applied" is what
+       * every caller branches on to decide whether a life was actually replaced —
+       * folding a persist failure into the status would make each of them treat a
+       * live restore as a refusal. `fetchCloudRestoreCandidate` returns `false`:
+       * it downloads and hydrates, and deliberately applies nothing (the caller
+       * owns that half), so nothing has been written when it hands the verdict
+       * back. The caller that persists stamps `true`.
+       */
+      persisted: boolean;
+    }
   | { status: 'disabled'; message: string }
   | { status: 'empty'; message: string }
   | { status: 'older'; localWeeks: number; remoteWeeks: number; message: string }
@@ -103,11 +134,19 @@ export function scheduleCloudBackup(state: GameState): void {
     // Re-checked at FIRE time, not just at schedule time: the window is
     // minutes long, and the player can have walked out to the menus since.
     if (!isCloudBackupEnabled() || isLifeAutosaveSuspended()) return;
-    lastUploadStartedAt = Date.now();
+    const startedAt = Date.now();
+    lastUploadStartedAt = startedAt;
     void getCloudSyncService()
       .queueSync(state2)
       .catch((error) => {
         logger.warn('[CloudBackup] Scheduled upload failed to queue', { error });
+        // The upload never started, so the window it consumed was never earned.
+        // Leaving the marker set makes the NEXT save wait the full 5 minutes for
+        // an upload that did not happen — the debounce exists to space out real
+        // uploads, not to punish a failed enqueue. Guarded on the marker still
+        // being OURS: a manual `backUpNow` can have run between the throw and
+        // this microtask, and clearing its marker would drop a real window.
+        if (lastUploadStartedAt === startedAt) lastUploadStartedAt = 0;
       });
   }, wait);
 
@@ -134,27 +173,43 @@ export function hasPendingCloudBackup(): boolean {
  * The Settings "Back up now" button: upload immediately and report what
  * happened. Resets the debounce window so the manual push counts as the most
  * recent upload.
+ *
+ * NEVER REJECTS. The caller is a button handler that shows an Alert in its
+ * happy path only (`components/settings/CloudBackupRow.tsx`), invoked as
+ * `void handleBackUp()` — so a rejection here reaches the player as an
+ * unhandled promise rejection and a row that answers a deliberate tap with
+ * silence. `CloudSyncService.backupNow` catches its own errors today, but that
+ * is its choice to change, and it is one `await` away from being wrong here.
  */
 export async function backUpNow(state: GameState): Promise<{ success: boolean; message: string }> {
   if (!isCloudBackupEnabled()) {
     return { success: false, message: 'Cloud backup is not available in this build.' };
   }
-  lastUploadStartedAt = Date.now();
-  const result = await getCloudSyncService().backupNow(state);
-  if (result.success) {
+  const startedAt = Date.now();
+  lastUploadStartedAt = startedAt;
+  try {
+    const result = await getCloudSyncService().backupNow(state);
+    if (result.success) {
+      return {
+        success: true,
+        message: result.skipped
+          ? 'Your cloud backup is already up to date.'
+          : 'Your game was backed up to the cloud.',
+      };
+    }
     return {
-      success: true,
-      message: result.skipped
-        ? 'Your cloud backup is already up to date.'
-        : 'Your game was backed up to the cloud.',
+      success: false,
+      message: result.error
+        ? `Backup failed: ${result.error}`
+        : 'Backup failed. Check your connection and try again.',
     };
+  } catch (error) {
+    logger.error('[CloudBackup] Manual backup threw', { error });
+    // Same reasoning as the scheduled path: no upload landed, so the debounce
+    // window it claimed is released rather than charged to the next autosave.
+    if (lastUploadStartedAt === startedAt) lastUploadStartedAt = 0;
+    return { success: false, message: 'Backup failed. Check your connection and try again.' };
   }
-  return {
-    success: false,
-    message: result.error
-      ? `Backup failed: ${result.error}`
-      : 'Backup failed. Check your connection and try again.',
-  };
 }
 
 /** Epoch ms of the last successful upload from this device, or null. */
@@ -162,7 +217,11 @@ export async function getLastCloudBackupAt(): Promise<number | null> {
   if (!isCloudBackupEnabled()) return null;
   try {
     return await getCloudSyncService().getLastBackupAt();
-  } catch {
+  } catch (error) {
+    // Null renders as "Not backed up yet" — indistinguishable from a device
+    // that genuinely never uploaded, which is the one reading a player would
+    // act on. Swallowing the cause left nothing to diagnose it with.
+    logger.warn('[CloudBackup] Could not read the last backup timestamp', { error });
     return null;
   }
 }
@@ -258,6 +317,9 @@ export async function fetchCloudRestoreCandidate(options: {
       localWeeks: decision.localWeeks,
       remoteWeeks: decision.remoteWeeks,
       message: 'Your cloud backup was restored.',
+      // Nothing has been written yet — this function only produces the verdict.
+      // Whoever applies it stamps `true` once the state is on disk.
+      persisted: false,
     };
   } catch (error) {
     logger.error('[CloudBackup] Restore failed', { error });
@@ -307,6 +369,16 @@ export async function restoreCloudSaveToSlot(
   const outcome = await fetchCloudRestoreCandidate({ slot, localWeeksLived });
   if (outcome.status !== 'applied') return outcome;
 
+  // Drop any auto-upload still armed with the PRE-restore live state. The
+  // window is minutes long, so a timer armed by the last in-game save can
+  // easily outlive the walk out to the slot picker; if it fired now it would
+  // push that state over the very cloud copy this restore just pulled down —
+  // the restore destroying its own backup. `isLifeAutosaveSuspended` already
+  // refuses it on the normal navigation paths (Settings → Switch Save Slot,
+  // death → Save Slots), but that is a property of how the player GOT here, not
+  // of this operation, so it is not something to lean on.
+  resetCloudBackupSchedule();
+
   try {
     const [{ forceSave }, { deleteSaveSlotMeta }] = await Promise.all([
       import('@/utils/saveQueue'),
@@ -325,5 +397,8 @@ export async function restoreCloudSaveToSlot(
     return { status: 'error', message: 'The cloud backup was downloaded but could not be written to this slot.' };
   }
 
-  return outcome;
+  // The blob is on disk — unlike the live-game path, there is no in-memory copy
+  // that could outlive a failed write, because the `catch` above returns an
+  // error rather than an `applied` outcome.
+  return { ...outcome, persisted: true };
 }
