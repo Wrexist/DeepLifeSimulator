@@ -1,0 +1,123 @@
+name: App Store Connect — release
+
+# One-click release of the App Store version record and its "What's New".
+#
+# Runs HERE rather than on a laptop because the App Store Connect API key
+# already lives here as repo secrets (the iOS build workflows use the same
+# three). Running it locally would mean copying a private key onto a machine
+# that does not need it.
+#
+# Manual trigger only. Nothing about a push or a merge should be able to write
+# to a live store listing, so there is no `push:` or `pull_request:` here and
+# there should never be one.
+#
+# Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8
+#          (Settings ▸ Secrets ▸ Actions — already configured)
+#
+# The copy it sends comes from marketing/aso/metadata.mjs. See
+# docs/ASC-AUTOMATION.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'What to do'
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan                     # read-only: show what would change
+          - apply                    # create/fill the version record
+          - apply-and-submit         # ...and submit for App Review
+      version:
+        description: 'Store version record (blank = APPLE.storeVersion from metadata.mjs)'
+        required: false
+        type: string
+      build:
+        description: 'Build number (CFBundleVersion) to attach — optional'
+        required: false
+        type: string
+      confirm_submit:
+        description: 'Type SUBMIT to confirm — required only for apply-and-submit'
+        required: false
+        type: string
+
+# One release run at a time. Two concurrent runs against the same version
+# record would race on create-then-fill and could half-write the listing.
+concurrency:
+  group: asc-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      HAS_ASC: ${{ secrets.ASC_KEY_ID != '' && secrets.ASC_ISSUER_ID != '' && secrets.ASC_KEY_P8 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Fail before touching Apple, not after. A missing secret discovered
+      # halfway through leaves a version record created and unfilled.
+      - name: Require App Store Connect credentials
+        if: ${{ env.HAS_ASC != 'true' }}
+        run: |
+          echo "::error title=Missing credentials::Set ASC_KEY_ID, ASC_ISSUER_ID and ASC_KEY_P8 under Settings ▸ Secrets ▸ Actions."
+          exit 1
+
+      # Submitting for review is the one irreversible step: a metadata
+      # rejection returns every attached IAP marked "Rejected" too. Choosing it
+      # from a dropdown is too easy to do by accident, so it takes a typed word.
+      - name: Confirm submission
+        if: ${{ inputs.mode == 'apply-and-submit' && inputs.confirm_submit != 'SUBMIT' }}
+        run: |
+          echo "::error title=Confirmation required::mode=apply-and-submit needs confirm_submit to be exactly SUBMIT."
+          exit 1
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Validate the copy BEFORE sending it. This is the same gate that runs on
+      # every PR; re-running it here means a listing is never written from
+      # metadata that would have failed review for length or a missing locale.
+      - name: Validate store metadata
+        run: npm run check:aso
+
+      - name: Run
+        id: run
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -o pipefail
+          ARGS=""
+          [ -n "${{ inputs.version }}" ] && ARGS="$ARGS --version ${{ inputs.version }}"
+          [ -n "${{ inputs.build }}" ]   && ARGS="$ARGS --build ${{ inputs.build }}"
+          case "${{ inputs.mode }}" in
+            apply)            ARGS="$ARGS --apply" ;;
+            apply-and-submit) ARGS="$ARGS --apply --submit" ;;
+          esac
+          echo "Running: node scripts/asc-release.mjs $ARGS"
+          node scripts/asc-release.mjs $ARGS 2>&1 | tee /tmp/asc-output.txt
+
+      # The plan is the point of a plan run — put it where it can be read
+      # without opening the raw log.
+      - name: Report
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## App Store Connect — \`${{ inputs.mode }}\`"
+            echo
+            if [ "${{ inputs.mode }}" = "plan" ]; then
+              echo "Read the plan below, then re-run with **mode: apply**."
+            fi
+            echo
+            echo '```'
+            cat /tmp/asc-output.txt 2>/dev/null || echo '(no output — the run failed before the script started)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
