@@ -3,7 +3,7 @@ import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, Touchable
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { History, Play, Trash2 } from 'lucide-react-native';
+import { CloudDownload, History, Play, Trash2 } from 'lucide-react-native';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import RestoreBackupSheet from '@/components/onboarding/RestoreBackupSheet';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
@@ -34,6 +34,9 @@ import { lazyAsyncStorage as AsyncStorage } from '@/utils/storageWrapper';
 // user-facing backup UI is gone; the automatic backup machinery is untouched.
 import { clearProtectedState, deleteAllBackupsForSlot } from '@/utils/saveBackup';
 import { validateGameEntry, validateSaveSlot } from '@/utils/gameEntryValidation';
+// Cloud device backup (flag-gated, `cloudSave`). Both helpers no-op when the
+// flag is off, so nothing here can reach the network in a default build.
+import { isCloudBackupEnabled, probeCloudSlot, restoreCloudSaveToSlot } from '@/services/cloudBackup';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
   fontScale,
@@ -218,6 +221,95 @@ export default function SaveSlots() {
     useCallback(() => {
       void loadSlots();
     }, [loadSlots])
+  );
+
+  // ── Cloud backup offers ──────────────────────────────────────────────────
+  // Slot id → the cloud copy's `weeksLived`, present only when that copy is
+  // AHEAD of the local slot. `weeksLived` is the absolute counter (§4.2), and
+  // it is the same measure `hydrateRemoteState` uses to refuse a regression, so
+  // an offer shown here can never be refused as "older" when it is tapped.
+  const [cloudOffers, setCloudOffers] = useState<Record<number, number>>({});
+  const [cloudRestoreSlot, setCloudRestoreSlot] = useState<number | null>(null);
+  const cloudEnabled = isCloudBackupEnabled();
+
+  const localWeeksForSlot = useCallback(
+    (slotId: number) => {
+      const slot = slots.find((s) => s.id === slotId);
+      return slot?.hasData ? safeStatNumber(slot.weeksLived) : 0;
+    },
+    [slots]
+  );
+
+  // The probe INPUTS as one stable primitive — `id:localWeeks` per slot, which
+  // is exactly what `probeCloudSlot` is given and all that can change its
+  // answer. Keyed on the `slots` ARRAY instead, the probe effect re-ran on every
+  // identity change, and `loadSlots` builds a fresh array on mount, on every
+  // focus pass, and again after a cloud restore — so returning to this screen
+  // re-downloaded every save several times over.
+  const cloudProbeKey = useMemo(
+    () => slots.map((slot) => `${slot.id}:${slot.hasData ? safeStatNumber(slot.weeksLived) : 0}`).join('|'),
+    [slots]
+  );
+
+  // Probed AFTER the local slots have painted — each probe downloads a save, so
+  // it must never be on the path that renders the list. The three probes are
+  // independent, so they run CONCURRENTLY; sequencing them stacked three full
+  // downloads end to end for no gain.
+  useEffect(() => {
+    if (!cloudEnabled || !slotsLoaded || cloudProbeKey === '') return undefined;
+    let cancelled = false;
+    // Rebuilt from the key rather than closed over `slots`, so the effect
+    // depends only on the primitive above.
+    const targets = cloudProbeKey.split('|').map((entry) => {
+      const [id, localWeeks] = entry.split(':');
+      return { id: Number(id), localWeeks: Number(localWeeks) };
+    });
+    void (async () => {
+      // probeCloudSlot resolves `null` on any failure (it catches internally),
+      // so one unreachable slot cannot reject the batch.
+      const probes = await Promise.all(
+        targets.map(async ({ id, localWeeks }) => ({ id, probe: await probeCloudSlot(id, localWeeks) }))
+      );
+      if (cancelled) return;
+      const offers: Record<number, number> = {};
+      for (const { id, probe } of probes) {
+        // Only when the cloud copy is AHEAD — restoring must be able to gain
+        // something, and `hydrateRemoteState` would refuse an older one anyway.
+        if (probe?.newer) offers[id] = probe.remoteWeeks;
+      }
+      setCloudOffers(offers);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudEnabled, cloudProbeKey, slotsLoaded]);
+
+  const restoreSlotFromCloud = useCallback(
+    async (slotId: number) => {
+      setIsBusy(true);
+      try {
+        const outcome = await restoreCloudSaveToSlot(slotId, localWeeksForSlot(slotId));
+        Alert.alert(
+          outcome.status === 'applied'
+            ? 'Cloud Backup Restored'
+            : outcome.status === 'older'
+              ? 'Cloud Save Is Older'
+              : 'Nothing Restored',
+          outcome.message
+        );
+        if (outcome.status === 'applied') {
+          setCloudOffers((prev) => {
+            const next = { ...prev };
+            delete next[slotId];
+            return next;
+          });
+          await loadSlots();
+        }
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [loadSlots, localWeeksForSlot]
   );
 
   const selectSlot = (slotId: number) => {
@@ -442,6 +534,9 @@ export default function SaveSlots() {
             const statusText = needsRecovery ? 'Recovery Needed' : slot.hasData ? 'Playable' : 'Empty';
             const statusColor = needsRecovery ? '#F97316' : slot.hasData ? '#60A5FA' : '#94A3B8';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
+            // `undefined` means "no cloud copy, or one that is not ahead of this
+            // slot" — the offer is only shown when restoring can gain something.
+            const cloudOffer = cloudOffers[slot.id];
 
             return (
               <RevealItem key={slot.id} index={index} reduced={reduced}>
@@ -491,28 +586,51 @@ export default function SaveSlots() {
                     </View>
                   ) : null}
 
-                  {slot.hasData || needsRecovery ? (
+                  {cloudOffer !== undefined ? (
+                    <Text style={styles.cloudOfferText}>
+                      {`Cloud backup available — week ${Math.floor(cloudOffer)}`}
+                    </Text>
+                  ) : null}
+
+                  {slot.hasData || needsRecovery || cloudOffer !== undefined ? (
                     <View style={styles.slotFooter}>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={`Restore slot ${slot.id} from an earlier point`}
-                        onPress={() => setRestoreSlot(slot.id)}
-                        style={styles.restoreAction}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <History size={scale(14)} color="#38BDF8" />
-                        <Text style={styles.restoreText}>Restore</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={`Delete slot ${slot.id}`}
-                        onPress={() => setShowDeleteConfirm(slot.id)}
-                        style={styles.deleteAction}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Trash2 size={scale(14)} color="#F87171" />
-                        <Text style={styles.deleteText}>Delete Slot</Text>
-                      </TouchableOpacity>
+                      {cloudOffer !== undefined ? (
+                        <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel={`Restore slot ${slot.id} from its cloud backup`}
+                          onPress={() => setCloudRestoreSlot(slot.id)}
+                          disabled={isBusy}
+                          style={styles.cloudAction}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <CloudDownload size={scale(14)} color="#FBBF24" />
+                          <Text style={styles.cloudActionText}>Restore Cloud</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      {slot.hasData || needsRecovery ? (
+                        <>
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={`Restore slot ${slot.id} from an earlier point`}
+                            onPress={() => setRestoreSlot(slot.id)}
+                            style={styles.restoreAction}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <History size={scale(14)} color="#38BDF8" />
+                            <Text style={styles.restoreText}>Restore</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel={`Delete slot ${slot.id}`}
+                            onPress={() => setShowDeleteConfirm(slot.id)}
+                            style={styles.deleteAction}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Trash2 size={scale(14)} color="#F87171" />
+                            <Text style={styles.deleteText}>Delete Slot</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : null}
                     </View>
                   ) : null}
                 </TouchableOpacity>
@@ -553,6 +671,22 @@ export default function SaveSlots() {
             .catch(() => {})
             .then(() => loadSlots());
         }}
+      />
+
+      <ConfirmDialog
+        visible={cloudRestoreSlot !== null}
+        title="Restore Cloud Backup?"
+        message="This replaces this slot's save with the cloud backup. The save currently in the slot cannot be recovered afterwards."
+        confirmText="Restore"
+        cancelText="Cancel"
+        destructive
+        type="danger"
+        onConfirm={() => {
+          const slotId = cloudRestoreSlot;
+          setCloudRestoreSlot(null);
+          if (slotId !== null) void restoreSlotFromCloud(slotId);
+        }}
+        onCancel={() => setCloudRestoreSlot(null)}
       />
 
       <ConfirmDialog
@@ -674,6 +808,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: scale(6),
     paddingVertical: verticalScale(4),
+  },
+  cloudOfferText: {
+    color: '#FBBF24',
+    fontSize: fontScale(11.5),
+    fontWeight: '600',
+  },
+  cloudAction: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scale(6),
+    marginRight: 'auto',
+    paddingVertical: verticalScale(4),
+  },
+  cloudActionText: {
+    color: '#FBBF24',
+    fontSize: fontScale(12),
+    fontWeight: '700',
   },
   restoreText: {
     color: '#38BDF8',

@@ -58,7 +58,8 @@ export const PURCHASED_SETTINGS_KEYS = [
   'deepLifePlusGemClaimDays',
   // ── Deliberately NOT carried: the game-WEEK claim markers ────────────────
   //
-  // `settings.deepLifePlusLastGemClaimWeek` (v40) and the top-level
+  // `settings.deepLifePlusLastGemClaimWeek` (v40),
+  // `settings.deepLifePlusLastMemberClaimWeek` (v46) and the top-level
   // `lastLoginRewardWeek` (v31) are the `weeksLived` gates that close the
   // forward-clock gem farms. They look like claim stamps — the entries above
   // them ARE claim stamps and must carry — but they are measured in a unit

@@ -1106,6 +1106,11 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     const enableATT = Platform.OS === 'ios' && isFeatureEnabled('att');
     const enableTelemetry = isFeatureEnabled('telemetry');
     const enableFirebase = Platform.OS !== 'web' && isFeatureEnabled('firebaseAnalytics');
+    // Cloud device backup — pure JS, no native SDK, so unlike the flags above
+    // it is NOT disabled by Boring Build (see featureFlags.ts) and runs in the
+    // `preview` profile. Still a deferred task: nothing may touch the network
+    // before the first frame.
+    const enableCloudSave = isFeatureEnabled('cloudSave');
 
     if (!enableAdMob && !enableIAP && !enableATT && !enableTelemetry) {
       logger.info('[Boring Build] All optional systems disabled via feature flags');
@@ -1194,6 +1199,24 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       );
       if (iapTask) {
         startupOrchestrator.addTask(iapTask);
+      }
+    }
+
+    // Add Cloud Backup task (if enabled). `start()` is the ONLY thing that arms
+    // the service's network listener and periodic drain — the module is inert on
+    // import by design (see services/CloudSyncService.ts), and the dynamic import
+    // keeps it off this screen's module-init graph.
+    if (enableCloudSave) {
+      const cloudSaveTask = createSafeServiceTask(
+        'Cloud Backup',
+        async () => {
+          const { getCloudSyncService } = await import('@/services/CloudSyncService');
+          getCloudSyncService().start();
+        },
+        { timeout: 3000, critical: false, enabled: enableCloudSave }
+      );
+      if (cloudSaveTask) {
+        startupOrchestrator.addTask(cloudSaveTask);
       }
     }
 

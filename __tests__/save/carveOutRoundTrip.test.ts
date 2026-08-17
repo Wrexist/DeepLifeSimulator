@@ -264,6 +264,16 @@ const CARVE_OUTS: CarveOut[] = [
     value: { compliment: 3_777 },
     build: () => sparkMatchState(),
   },
+  {
+    version: 46,
+    path: 'settings.deepLifePlusLastMemberClaimWeek',
+    value: 3_777,
+    build: () =>
+      createTestGameState({
+        settings: { deepLifePlusLastMemberClaimWeek: 3_777 },
+        version: STATE_VERSION,
+      }),
+  },
 ];
 
 /**
@@ -299,7 +309,7 @@ describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(16);
+    expect(CARVE_OUTS).toHaveLength(17);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

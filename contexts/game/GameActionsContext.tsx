@@ -11,6 +11,17 @@ import { AppState, AppStateStatus } from 'react-native';
 import { logger } from '@/utils/logger';
 import { isLifeAutosaveSuspended, lifeAutosaveSuspendReason, resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { hydrateLoadedState, hydrateRemoteState } from '@/utils/hydrateLoadedState';
+// Cloud device backup. The module is flag-gated internally (`cloudSave`) and
+// the service it wraps is inert on import, so this costs nothing when off.
+import {
+  backUpNow,
+  fetchCloudRestoreCandidate,
+  isCloudBackupEnabled,
+  resetCloudBackupSchedule,
+  scheduleCloudBackup,
+  CLOUD_RESTORE_UNSAVED_MESSAGE,
+  type CloudRestoreOutcome,
+} from '@/services/cloudBackup';
 import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
@@ -216,6 +227,15 @@ interface GameActionsContextType {
  saveGame: (force?: boolean) => Promise<boolean>;
  loadGame: (slot: number) => Promise<GameState | null>;
 
+ // Cloud device backup (flag-gated, `cloudSave`). Both resolve a message the
+ // caller can show verbatim; neither throws. `restoreFromCloud` returns
+ // `status: 'older'` — never applied — when the cloud copy is behind the live
+ // game, which is the one refusal a player needs told. On `status: 'applied'`
+ // read `persisted` too: false means the restored life is LIVE but did not
+ // reach disk, so the message says so rather than claiming a completed restore.
+ backUpToCloud: () => Promise<{ success: boolean; message: string }>;
+ restoreFromCloud: () => Promise<CloudRestoreOutcome>;
+
  // Permanent Perks
  savePermanentPerk: (perkId: string) => Promise<void>;
  hasPermanentPerk: (perkId: string) => Promise<boolean>;
@@ -402,6 +422,24 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 
  logger.info('Game save queued successfully', { slot: slotToUse });
+
+ // CLOUD BACKUP (flag-gated, `cloudSave`). THIS is the seam, and it is here
+ // rather than in `saveQueue` for three reasons:
+ //   (a) it only ever sees a SUCCESSFUL save — every failure path above
+ //       returns false or throws into the catch below, and the queue write has
+ //       already resolved (F-9: `queueSave` resolves on COMPLETION, not on
+ //       enqueue), so nothing is uploaded for a save that did not land;
+ //   (b) it never holds the save/load mutex across network IO —
+ //       `scheduleCloudBackup` only arms a timer and returns synchronously, and
+ //       the upload runs minutes later, long after the `finally` below;
+ //   (c) it inherits this function's refusals for free — the pristine-state
+ //       guard, `isLifeAutosaveSuspended`, and the writable-slot check are all
+ //       upstream of it, which the queue's own success sites are NOT (the
+ //       startup queue replay drains through those without any of them).
+ // `gameData` is the exact blob written to disk, so the cloud copy matches the
+ // local slot rather than a state that has moved on since.
+ scheduleCloudBackup(gameData);
+
  return true;
  } catch (error) {
  logger.error('Failed to queue save:', error);
@@ -411,6 +449,75 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  saveLoadMutex.release(saveMutexToken);
  }
  }, [currentSlot, showError]);
+
+ /**
+  * Upload the live state to the cloud right now (Settings "Back up now").
+  * Returns a message the caller shows verbatim — the wording is owned by
+  * `services/cloudBackup.ts` so every surface says the same thing.
+  */
+ const backUpToCloud = useCallback(async (): Promise<{ success: boolean; message: string }> => {
+ const currentState = gameStateRef.current;
+ if (!currentState) {
+ return { success: false, message: 'No game is loaded, so there is nothing to back up.' };
+ }
+ return backUpNow(currentState);
+ }, []);
+
+ /**
+  * Restore this slot's cloud backup over the LIVE game.
+  *
+  * The apply half deliberately mirrors `loadGame`'s post-hydration tail —
+  * `setGameState` with the hydrated state, then persist it to the current slot
+  * — because a restored state that is never written to disk is undone by the
+  * next autosave of the state it replaced. The verdict half (download →
+  * migrate → hydrate → weeksLived regression guard) lives in
+  * `fetchCloudRestoreCandidate` and is shared with the SaveSlots offer.
+  */
+ const restoreFromCloud = useCallback(async (): Promise<CloudRestoreOutcome> => {
+ if (!isCloudBackupEnabled()) {
+ return { status: 'disabled', message: 'Cloud backup is not available in this build.' };
+ }
+ const currentState = gameStateRef.current;
+ const outcome = await fetchCloudRestoreCandidate({
+ slot: isWritableSlot(currentSlot) ? currentSlot : undefined,
+ localWeeksLived: currentState?.weeksLived ?? 0,
+ localState: currentState ?? undefined,
+ });
+ if (outcome.status !== 'applied') return outcome;
+
+ // Disarm any auto-upload holding the state we are about to REPLACE, BEFORE
+ // the swap. `scheduleCloudBackup` arms a timer for up to
+ // MIN_CLOUD_BACKUP_INTERVAL_MS (5 minutes) carrying whatever state was live
+ // when the last save landed, and it is a timer callback — once this function
+ // yields (the `await` below, or the network in `saveGame`) there is no
+ // outrunning it. If it fires now it uploads the pre-restore state OVER the
+ // cloud copy this restore came from, so the restore destroys its own backup
+ // and the next one restores the state the player just replaced. The
+ // `saveGame(true)` below re-arms the schedule with the RESTORED state.
+ resetCloudBackupSchedule();
+
+ setGameState(outcome.state);
+ // `saveGame` reads `gameStateRef.current`, which lags the commit by one
+ // passive-effect cycle — yield so the RESTORED state is what hits disk,
+ // not the one it just replaced (the SettingsModal grant pattern).
+ await new Promise<void>((resolve) => setTimeout(resolve, 0));
+ const saved = await saveGame(true);
+ logger.info('[CloudBackup] Cloud backup restored over the live game', {
+ localWeeks: outcome.localWeeks,
+ remoteWeeks: outcome.remoteWeeks,
+ persisted: saved,
+ });
+ if (!saved) {
+ // `saveGame` resolves false on a validation abort, a non-writable slot, or
+ // any caught write error. The state IS live, so the status stays 'applied'
+ // — but the slot on disk still holds what it replaced, so the next load
+ // undoes this silently. Telling the player "restored" and nothing else is
+ // how they close the app and lose it.
+ logger.warn('[CloudBackup] Restored state could not be persisted; it is live but unsaved');
+ return { ...outcome, persisted: false, message: CLOUD_RESTORE_UNSAVED_MESSAGE };
+ }
+ return { ...outcome, persisted: true };
+ }, [currentSlot, saveGame, setGameState]);
 
  // ANTI-EXPLOIT: Guard against rapid nextWeek() calls (race condition)
  const nextWeekInProgressRef = useRef(false);
@@ -4319,9 +4426,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  try {
  // M6: lazy accessor. The module used to construct the singleton at import
  // time, and the constructor armed a network listener and a 30s timer, so this
- // `require` alone started background work for an unwired feature. Constructing
- // is now inert — only an explicit `start()` arms anything, and nothing calls
- // it yet, so pause/resume here are no-ops until cloud sync is actually wired.
+ // `require` alone started background work. Constructing is now inert — only an
+ // explicit `start()` arms anything, and the ONLY caller is the flag-gated boot
+ // task in `app/_layout.tsx`, so pause/resume here stay no-ops in a build where
+ // `cloudSave` is off.
  const { getCloudSyncService } = require('@/services/CloudSyncService');
  const cloudSyncService = getCloudSyncService();
  cloudSyncService.resumeSync();
@@ -5168,10 +5276,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  fileDivorce: fileDivorceAction,
  saveGame,
  loadGame,
+ backUpToCloud,
+ restoreFromCloud,
  savePermanentPerk,
  hasPermanentPerk,
  executePrestige: executePrestigeAction,
- }), [nextWeek, resolveEvent, checkAchievements, claimProgressAchievement, updateStats, updateMoney, updateRelationship, recordRelationshipAction, breakUpWithPartner, proposeToPartner, moveInTogether, fileDivorceAction, saveGame, loadGame, savePermanentPerk, hasPermanentPerk, executePrestigeAction]);
+ }), [nextWeek, resolveEvent, checkAchievements, claimProgressAchievement, updateStats, updateMoney, updateRelationship, recordRelationshipAction, breakUpWithPartner, proposeToPartner, moveInTogether, fileDivorceAction, saveGame, loadGame, backUpToCloud, restoreFromCloud, savePermanentPerk, hasPermanentPerk, executePrestigeAction]);
 
  return (
  <GameActionsContext.Provider value={value}>

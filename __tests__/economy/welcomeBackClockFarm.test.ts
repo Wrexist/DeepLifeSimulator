@@ -18,6 +18,7 @@
  */
 import type { GameState } from '@/contexts/game/types';
 import { createTestGameState } from '../helpers/createTestGameState';
+import { MONEY_CEILING } from '@/lib/economy/moneyDelta';
 import {
   applyWelcomeBackBonus,
   computeWelcomeBackBonus,
@@ -106,6 +107,30 @@ describe('applyWelcomeBackBonus', () => {
   it('still rejects the same-batch double close (daysAway < 1)', () => {
     const prev = employedState({ lastLogin: NOW });
     expect(applyWelcomeBackBonus(prev, NOW)).toBe(prev);
+  });
+
+  it('routes the credit through applyMoneyDelta, so the ceiling clamps it', () => {
+    // Hand-written `money + bonus` had no cap; an uncapped `+` can reach
+    // Infinity, which validateGameState treats as critical and RESETS to 0 on
+    // the next load. applyMoneyDelta clamps at MONEY_CEILING instead.
+    const base = employedState();
+    const prev = {
+      ...base,
+      stats: { ...base.stats, money: MONEY_CEILING - 10 },
+    };
+    const next = applyWelcomeBackBonus(prev, NOW);
+    expect(computeWelcomeBackBonus(prev, 7)).toBe(3500); // would overshoot
+    expect(next.stats.money).toBe(MONEY_CEILING);
+    expect(Number.isFinite(next.stats.money)).toBe(true);
+  });
+
+  it('records the grant in the dailySummary money bookkeeping', () => {
+    // The one credit path that used to skip it — every other credit in the app
+    // stamps dailySummary.moneyChange via applyMoneyDelta.
+    const prev = employedState();
+    const before = prev.dailySummary?.moneyChange || 0;
+    const next = applyWelcomeBackBonus(prev, NOW);
+    expect(next.dailySummary?.moneyChange).toBe(before + computeWelcomeBackBonus(prev, 7));
   });
 
   it('does not mutate the previous state', () => {

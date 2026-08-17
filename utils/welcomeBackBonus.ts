@@ -9,6 +9,7 @@
  */
 
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
+import { applyMoneyDelta } from '@/lib/economy/moneyDelta';
 import type { GameState } from '@/contexts/game/types';
 
 interface CareerLike {
@@ -68,6 +69,14 @@ function resolveWeek(weeksLived: unknown): number {
  *    zero game weeks played, bypassing the tax brackets, the net-worth soft cap
  *    and the weekly tick entirely. `weeksLived` is the one clock a scrubber
  *    cannot touch — the same fix as v28/v31/v35/v40.
+ *
+ * The credit itself goes through `applyMoneyDelta` (§4.4) rather than writing
+ * `stats.money` by hand: hand-written arithmetic skips the `MONEY_CEILING` clamp
+ * (an uncapped `+` can reach Infinity, which `validateGameState` treats as
+ * critical and RESETS to 0 on the next load) and skips the `dailySummary`
+ * money-change bookkeeping every other credit in the app records. A `null`
+ * result — only reachable if the amount is non-finite — rejects the WHOLE grant,
+ * marker included, so nothing is stamped for a payment that never happened.
  */
 export function applyWelcomeBackBonus(prev: GameState, now: number): GameState {
   const last = prev.lastLogin || now;
@@ -75,10 +84,12 @@ export function applyWelcomeBackBonus(prev: GameState, now: number): GameState {
   if (daysAway < 1) return prev;
   if (welcomeBackClaimed(prev)) return prev;
   const bonus = computeWelcomeBackBonus(prev, daysAway);
+  const credit = applyMoneyDelta(prev, bonus, 'Welcome back bonus');
+  if (!credit) return prev;
   return {
     ...prev,
+    ...credit,
     lastLogin: now,
-    stats: { ...prev.stats, money: (prev.stats?.money || 0) + bonus },
     settings: { ...prev.settings, lastWelcomeBackWeek: resolveWeek(prev.weeksLived) },
   };
 }

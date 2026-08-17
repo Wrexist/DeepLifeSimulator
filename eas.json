@@ -27,7 +27,9 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_ENABLE_DEVTOOLS": "true",
-        "EXPO_PUBLIC_BORING_BUILD": "true"
+        "EXPO_PUBLIC_BORING_BUILD": "true",
+        "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
+        "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1"
       },
       "ios": {
         "simulator": false

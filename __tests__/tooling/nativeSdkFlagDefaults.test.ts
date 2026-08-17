@@ -74,6 +74,57 @@ describe('native SDK feature flag defaults', () => {
     expect(flags.att).toBe(false);
   });
 
+  // `cloudSave` is the one flag that is deliberately NOT a native SDK and
+  // therefore deliberately NOT gated on Boring Build. The rollout is
+  // preview-first (owner decision), which is only possible because of that:
+  // `preview` carries EXPO_PUBLIC_BORING_BUILD=true.
+  it('preview declares the cloud flag and endpoint, and takes the token from the EAS env store', () => {
+    const env = profiles.preview.env ?? {};
+    expect(env.EXPO_PUBLIC_ENABLE_CLOUD_SAVE).toBe('true');
+    expect(env.EXPO_PUBLIC_CLOUD_SAVE_URL ?? '').not.toBe('');
+
+    // The auth token is deliberately NOT in eas.json — it ships inlined in the
+    // bundle either way, so keeping it out of the repo costs nothing. It is set
+    // as an EAS environment variable on the profile, which eas.json cannot see.
+    // So the profile ALONE resolves to off; the real build resolves to on once
+    // the store supplies the token. Both halves are asserted here so a future
+    // reader cannot mistake the `false` below for the feature being disabled.
+    expect(env.EXPO_PUBLIC_CLOUD_AUTH_TOKEN).toBeUndefined();
+    expect(loadFlags(env).cloudSave).toBe(false);
+    expect(loadFlags({ ...env, EXPO_PUBLIC_CLOUD_AUTH_TOKEN: 'store-supplied' }).cloudSave).toBe(true);
+
+    // Proof the Boring Build exemption is real and not an accident of ordering.
+    expect(env.EXPO_PUBLIC_BORING_BUILD).toBe('true');
+  });
+
+  it('production does NOT ship cloud backup yet (preview-first rollout)', () => {
+    const env = profiles.production.env ?? {};
+    expect(env.EXPO_PUBLIC_ENABLE_CLOUD_SAVE).toBeUndefined();
+    expect(loadFlags(env).cloudSave).toBe(false);
+  });
+
+  it('cloud backup needs ALL THREE: the flag, a non-empty URL, and the auth token', () => {
+    // Any missing piece renders a Back up / Restore UI that cannot work: the
+    // transport no-ops without a base URL, and `cloudWritesAllowed()` refuses
+    // every read and write in a release build without the token. Off is the
+    // only honest answer for a partly-filled profile.
+    const ON = {
+      EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true',
+      EXPO_PUBLIC_CLOUD_SAVE_URL: 'https://example.test/v1',
+      EXPO_PUBLIC_CLOUD_AUTH_TOKEN: 'token',
+    };
+    expect(loadFlags(ON).cloudSave).toBe(true);
+
+    for (const missing of Object.keys(ON) as (keyof typeof ON)[]) {
+      const partial = { ...ON };
+      delete partial[missing];
+      expect(loadFlags(partial).cloudSave).toBe(false);
+    }
+    // Whitespace is not a value.
+    expect(loadFlags({ ...ON, EXPO_PUBLIC_CLOUD_SAVE_URL: '   ' }).cloudSave).toBe(false);
+    expect(loadFlags({ ...ON, EXPO_PUBLIC_CLOUD_AUTH_TOKEN: '   ' }).cloudSave).toBe(false);
+  });
+
   it('drops the notifications flag — expo-notifications is a no-op stub', () => {
     const flags = loadFlags({ EXPO_PUBLIC_BORING_BUILD: 'false' });
     expect('notifications' in flags).toBe(false);

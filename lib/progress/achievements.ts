@@ -52,9 +52,10 @@ interface NetWorthCacheKey {
   /** D-5: laundered BTC is spendable value and moves independently of `cryptos`. */
   darkWeb: GameState['darkWeb'];
   /**
-   * M9: keyed but deliberately NOT summed — see the note at the total below.
-   * Keying it costs one comparison and means that if arrears are ever made a
-   * liability, an existing memo cannot serve a stale figure across the change.
+   * v31 arrears — a LIABILITY subtracted from the total since the owner's
+   * 2026-08-16 decision (see the note at the total below). It was already keyed
+   * while it was merely an open question, which is why that change could not be
+   * served a stale figure by an existing memo.
    */
   overdueBalance: GameState['overdueBalance'];
 }
@@ -345,19 +346,36 @@ export const netWorth = (state: GameState): number => {
   const safeLoansValue = isFinite(loansValue) ? loansValue : 0;
 
   /**
-   * OPEN QUESTION (M9) — `state.overdueBalance` is NOT subtracted here.
+   * DECIDED (owner, 2026-08-16) — `state.overdueBalance` IS subtracted here, at
+   * full amount, with no floor. What stood at this line as an OPEN QUESTION
+   * (M9) is settled: arrears are a liability like any other.
    *
-   * v31 added it as the arrears bucket for unpayable weekly bills, so it is a
-   * real debt the player owes, and every other liability in this sum (loans,
-   * card balances) IS subtracted. Whether arrears should reduce net worth is a
-   * GAME-BALANCE decision, not a bookkeeping one: this figure gates prestige
-   * availability and the prestige points award, the ultra-rich passive-income
-   * soft cap, bail cost and ad-reward scaling, so subtracting it would push a
-   * struggling player further from the prestige that resets their debts.
-   * Deliberately left for the owner to decide; the field is in the cache key
-   * above so the memo cannot serve a stale figure if that decision changes.
+   * v31 added it as the arrears bucket for unpayable weekly bills — a real debt
+   * the player owes, and every other liability in this sum (loan balances, card
+   * balances) is already subtracted, so leaving it out made the one debt the
+   * week loop itself creates the only invisible one. The counter-argument was
+   * game balance, not bookkeeping: this figure gates prestige availability and
+   * the prestige points award, the ultra-rich passive-income soft cap, bail
+   * cost and ad-reward scaling, so counting arrears pushes a struggling player
+   * further from the prestige that resets their debts. The owner's call is that
+   * the honest balance sheet wins — a player deep in arrears is genuinely
+   * poorer, and the soft cap, bail and ad scaling should all see that.
+   *
+   * NO FLOOR, in both senses, deliberately: the FULL arrears figure comes off
+   * (not a capped or discounted fraction), and the result is allowed to go
+   * negative — this sum has always permitted negative net worth, and the clamp
+   * below bounds magnitude only. The guards match `safeCreditCardDebt` exactly:
+   * non-finite → 0, and a NEGATIVE stored value clamps to 0 so a corrupt save
+   * cannot turn a liability term into a credit.
+   *
+   * `overdueBalance` was already in the memo cache key above, precisely so this
+   * change could not be served a stale figure by an existing memo.
    */
-  const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue + safeDarkWebBtcValue - safeCreditCardDebt + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue;
+  const rawOverdue = state.overdueBalance;
+  const safeOverdueBalance =
+    typeof rawOverdue === 'number' && isFinite(rawOverdue) ? Math.max(0, rawOverdue) : 0;
+
+  const total = safeMoney + safeBank + safeBankAccountsValue + safeSavingsGoalsValue + safeCryptoValue + safeDarkWebBtcValue - safeCreditCardDebt + safeStockValue + safeRealEstateValue + safeCompanyValue + safeVehicleValue + safeLuxuryValue - safeLoansValue - safeOverdueBalance;
   
   // CRITICAL FIX: Clamp final total to prevent overflow or negative corruption
   // Note: Negative net worth is allowed (debt > assets) but clamped to prevent extreme values

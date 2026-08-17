@@ -58,6 +58,39 @@ export const FEATURE_FLAGS = {
   // integration at all, burning the one-shot system prompt for nothing.
   att: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ATT === 'true',
 
+  // Cloud device backup (save upload/restore through lib/progress/cloud.ts).
+  // OPT-IN only (=== 'true'), and additionally requires a non-empty
+  // EXPO_PUBLIC_CLOUD_SAVE_URL: the transport silently no-ops without a base
+  // URL, so a flag that reads "on" with no endpoint would present a Back up /
+  // Restore UI that can never do anything. Both halves must be present.
+  //
+  // DELIBERATELY NOT gated on BORING_BUILD_MODE, unlike every flag above it.
+  // Boring Build exists to keep NATIVE SDKs (AdMob, StoreKit, Firebase,
+  // RevenueCat, ATT) out of a build so a startup crash can be isolated — this
+  // is pure JS over `fetch`, initializes nothing native, and touches the
+  // network only after the first frame. Gating it would also make the
+  // preview-first rollout impossible: `preview` carries
+  // EXPO_PUBLIC_BORING_BUILD=true, which is exactly the profile this is meant
+  // to ship in first.
+  // EXPO_PUBLIC_CLOUD_AUTH_TOKEN is required for the same reason as the URL,
+  // and the omission was a real half-on state: `lib/progress/cloud.ts`'s
+  // `cloudWritesAllowed()` refuses every upload and download in a release
+  // build when the token is absent, so a profile carrying only the flag and
+  // the URL rendered a Back up / Restore UI whose every tap failed. Requiring
+  // all three means a partly-filled profile turns the feature cleanly OFF
+  // instead. `__DEV__` runs are unaffected — that same guard short-circuits
+  // to true locally, so a dev build syncs without the token being set.
+  //
+  // The token is NOT in `eas.json`: it ships inlined in the JS bundle either
+  // way, so keeping it out of the repo costs nothing and stops it living in
+  // git history forever. Set it as an EAS environment variable on the profile
+  // instead (`eas env:create`), which is why preflight reports it as
+  // "not verifiable locally" rather than failing. See docs/CLOUD-SAVE-BACKEND.md.
+  cloudSave:
+    process.env.EXPO_PUBLIC_ENABLE_CLOUD_SAVE === 'true' &&
+    (process.env.EXPO_PUBLIC_CLOUD_SAVE_URL ?? '').trim().length > 0 &&
+    (process.env.EXPO_PUBLIC_CLOUD_AUTH_TOKEN ?? '').trim().length > 0,
+
   // NOTE: there is no `notifications` flag. expo-notifications was removed to
   // fix a TurboModule crash and utils/notifications.ts is a no-op stub, so the
   // flag had zero readers — a flag nobody consults is worse than none, because

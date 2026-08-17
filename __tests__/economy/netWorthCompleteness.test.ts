@@ -51,6 +51,7 @@ import type { GameState , BankAccount } from '@/contexts/game/types';
  * `prestigeScenarioNetWorth.test.ts`. 2026-07-31 audit round 4.
  */
 import { MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { BASE_PRESTIGE_THRESHOLD, defaultPrestigeData, isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
 
 /**
  * Each case gets a distinct money value so the memo cache — keyed on `money`
@@ -352,5 +353,121 @@ describe('R4 — credit-card debt is on the balance sheet', () => {
     const corrupt = cardState(20_003, [{ id: 'a', balance: NaN }, { id: 'b', balance: Infinity }, { id: 'c' }]);
 
     expect(netWorth(corrupt)).toBe(20_003);
+  });
+});
+
+/**
+ * `overdueBalance` (v31) is the arrears bucket for weekly bills the player
+ * could not pay — the debt the week loop itself creates when the cash line goes
+ * short. It was the ONE liability `netWorth` did not subtract: loan balances
+ * and card balances both came off the total, arrears did not, and a comment at
+ * the sum recorded the omission as an open GAME-BALANCE question (counting them
+ * pushes a struggling player further from the prestige that clears their
+ * debts).
+ *
+ * Owner decision, 2026-08-16: arrears ARE subtracted, at full amount, with no
+ * floor — the honest balance sheet wins, and the gates that read this figure
+ * (prestige availability and the points award, the $10M achievement, ambitions,
+ * bail cost, ad-reward scaling, the passive-income soft cap) should all see a
+ * player who is genuinely poorer. These tests pin that decision, plus the
+ * corrupt-value guards that keep a liability term from becoming a credit.
+ */
+describe('v31 arrears are on the balance sheet', () => {
+  it('subtracts the arrears bucket from net worth', () => {
+    const behind = stateWith({ overdueBalance: 4_000 });
+
+    expect(netWorth(behind)).toBe(behind.stats.money - 4_000);
+  });
+
+  it('subtracts the FULL amount — no discount, no partial weighting', () => {
+    const small = stateWith({ overdueBalance: 1_000 });
+    const large = stateWith({ overdueBalance: 9_000 });
+
+    expect(small.stats.money - netWorth(small)).toBe(1_000);
+    expect(large.stats.money - netWorth(large)).toBe(9_000);
+  });
+
+  it('allows the result to go NEGATIVE — there is no floor at zero', () => {
+    // Deliberate: this sum has always permitted negative net worth (debt >
+    // assets), and flooring arrears at the player's assets would hide exactly
+    // the situation the arrears bucket exists to represent.
+    const drowning = stateWith({ overdueBalance: 1_000_000 });
+
+    expect(netWorth(drowning)).toBe(drowning.stats.money - 1_000_000);
+    expect(netWorth(drowning)).toBeLessThan(0);
+  });
+
+  it('is a no-op at zero', () => {
+    const clear = stateWith({ overdueBalance: 0 });
+    expect(netWorth(clear)).toBe(clear.stats.money);
+  });
+
+  it('is a no-op when the field is absent (every pre-v31 save)', () => {
+    const legacy = stateWith({ overdueBalance: undefined });
+    expect(netWorth(legacy)).toBe(legacy.stats.money);
+  });
+
+  it('a corrupt or negative arrears value cannot CREDIT the player', () => {
+    // Same guard shape as `safeCreditCardDebt`: non-finite → 0, and a negative
+    // stored value clamps to 0 rather than being subtracted as a bonus.
+    for (const bad of [NaN, Infinity, -Infinity, -5_000, '900']) {
+      const corrupt = corruptStateWith({ overdueBalance: bad });
+      expect(netWorth(corrupt)).toBe(corrupt.stats.money);
+    }
+  });
+
+  it('the memo cache recomputes when only the arrears change', () => {
+    const base = createTestGameState();
+    const before = { ...base, stats: { ...base.stats, money: 50_000 }, overdueBalance: 0 };
+    const after = { ...before, overdueBalance: 12_000 };
+
+    expect(netWorth(before)).toBe(50_000);
+    expect(netWorth(after)).toBe(38_000);
+  });
+
+  it('stacks with the other liabilities rather than replacing them', () => {
+    const stacked = stateWith({
+      loans: [makeLoan({ id: 'l1', principal: 500 })],
+      overdueBalance: 2_000,
+    });
+
+    expect(netWorth(stacked)).toBe(stacked.stats.money - 500 - 2_000);
+  });
+});
+
+describe('arrears move the gates that read net worth', () => {
+  /** Prestige level 0 threshold is `BASE_PRESTIGE_THRESHOLD` = $10M. */
+  const prestigeFixture = (money: number, overdueBalance: number): GameState => {
+    const base = createTestGameState();
+    return {
+      ...base,
+      stats: { ...base.stats, money },
+      overdueBalance,
+      prestigeAvailable: false,
+      // Merged, not replaced: `prestige` is OPTIONAL on GameState, so spreading
+      // it alone widens every required field of PrestigeData to `| undefined`.
+      prestige: { ...defaultPrestigeData, ...base.prestige, prestigeLevel: 0 },
+    };
+  };
+
+  it('gross assets over the $10M threshold still gate OPEN with no arrears (the control)', () => {
+    const solvent = prestigeFixture(10_500_000, 0);
+
+    expect(netWorth(solvent)).toBeGreaterThanOrEqual(BASE_PRESTIGE_THRESHOLD);
+    expect(isPrestigeAvailable(solvent)).toBe(true);
+  });
+
+  it('the same assets do NOT pass once arrears drag the player under it', () => {
+    const behind = prestigeFixture(10_500_000, 800_000);
+
+    expect(netWorth(behind)).toBe(9_700_000);
+    expect(netWorth(behind)).toBeLessThan(BASE_PRESTIGE_THRESHOLD);
+    expect(isPrestigeAvailable(behind)).toBe(false);
+  });
+
+  it('arrears too small to cross the threshold leave the gate open', () => {
+    const barely = prestigeFixture(10_500_000, 100_000);
+
+    expect(isPrestigeAvailable(barely)).toBe(true);
   });
 });

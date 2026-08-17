@@ -85,7 +85,11 @@ describe('the carve-out fields survive a load', () => {
     // `lastWelcomeBackWeek` (v44) is the game-week gate on the welcome-back cash
     // bonus. Erasing it on load would reopen the forward-clock scrub it closes on
     // the very next launch — the same failure `lastNoFillGrantWeek` already had.
+    // `deepLifePlusLastMemberClaimWeek` (v46) caps the DeepLife+ MEMBER grace at
+    // one unplayed claim per played week. Erasing it on load would re-arm that
+    // banked claim on every launch — the compounding forward-scrub it closes.
     expect('deepLifePlusLastGemClaimWeek' in initialGameState.settings).toBe(false);
+    expect('deepLifePlusLastMemberClaimWeek' in initialGameState.settings).toBe(false);
     expect('lastWelcomeBackWeek' in initialGameState.settings).toBe(false);
     const out = mergeLoadedSlice(
       {
@@ -93,6 +97,7 @@ describe('the carve-out fields survive a load', () => {
         lastNoFillGrantWeek: 41,
         quickActionWeeks: { hustle: 41 },
         deepLifePlusLastGemClaimWeek: 41,
+        deepLifePlusLastMemberClaimWeek: 41,
         lastWelcomeBackWeek: 41,
       },
       initialGameState.settings
@@ -100,6 +105,9 @@ describe('the carve-out fields survive a load', () => {
     expect((out as { lastNoFillGrantWeek?: number }).lastNoFillGrantWeek).toBe(41);
     expect((out as { quickActionWeeks?: unknown }).quickActionWeeks).toEqual({ hustle: 41 });
     expect((out as { deepLifePlusLastGemClaimWeek?: number }).deepLifePlusLastGemClaimWeek).toBe(41);
+    expect(
+      (out as { deepLifePlusLastMemberClaimWeek?: number }).deepLifePlusLastMemberClaimWeek,
+    ).toBe(41);
     expect((out as { lastWelcomeBackWeek?: number }).lastWelcomeBackWeek).toBe(41);
   });
 });
