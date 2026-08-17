@@ -48,7 +48,7 @@ so the env var carries **no** trailing path.
 | `slot_id` | text | `CHECK slot_id ~ '^slot_[1-3]$'` |
 | `state` | jsonb | the serialized `GameState` |
 | `updated_at` | bigint | client epoch ms |
-| `revision` | integer | `weeksLived` at upload; `CHECK >= 1` |
+| `revision` | integer | epoch **seconds** at upload, floored to `last + 1` per slot so it strictly increases per save; `CHECK >= 1`. Seconds, not ms, because ms overflows int4 — which also makes 2038-01-19 the ceiling. Widening to `bigint` is the fix when that matters. It is **not** `weeksLived`: that moves once per played week, so same-week saves read as already-synced and the cloud copy silently lagged. |
 | `hash`, `signature` | text | client integrity proof |
 | `received_at` | timestamptz | server clock, drives the write throttle |
 

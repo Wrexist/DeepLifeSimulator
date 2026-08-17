@@ -30,7 +30,7 @@
  * architecture audit M6.
  */
 import { GameState, Relationship } from '@/contexts/game/types';
-import { uploadGameState, downloadGameState } from '@/lib/progress/cloud';
+import { uploadGameState, downloadGameState, getCloudSyncStatus } from '@/lib/progress/cloud';
 import { logger } from '@/utils/logger';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import { offlineManager } from '@/utils/offlineManager';
@@ -55,6 +55,9 @@ class CloudSyncService {
   /** Epoch ms of the last successful upload — survives a cold start (see `performUpload`). */
   private static readonly LAST_BACKUP_AT_KEY = 'cloud_backup_last_at';
   private static readonly RESERVED_USER_IDS = new Set(['local_player', 'guest', 'anonymous', 'unknown', 'null', 'undefined']);
+  /** The backend column is `revision integer CHECK (revision >= 1)` — int4. */
+  private static readonly MIN_CLOUD_REVISION = 1;
+  private static readonly MAX_CLOUD_REVISION = 2147483647;
   private syncQueue: { state: GameState; timestamp: number; retries: number }[] = [];
   private isSyncing = false;
   private lastSyncTime = 0;
@@ -63,7 +66,10 @@ class CloudSyncService {
   private isOnline = true;
   private syncTimer: ReturnType<typeof setInterval> | null = null;
   private unsubscribeNetwork: (() => void) | null = null;
+  /** Last revision NUMBER actually sent per slot — the monotonic floor, see `nextRevision`. */
   private lastSyncedRevisionBySlot: Map<string, number> = new Map();
+  /** Last STATE (`updatedAt`) actually uploaded per slot — the "nothing changed" guard. */
+  private lastUploadedStateAtBySlot: Map<string, number> = new Map();
   private static readonly MAX_RETRIES = 3;
   // A-6: Conflict detection
   private onConflictDetected: ConflictCallback | null = null;
@@ -162,6 +168,10 @@ class CloudSyncService {
    * profile fields are still the defaults. Nothing was wired before this
    * change, so there is no installed base of `player`-keyed cloud saves to
    * migrate. Cross-device identity (sign-in) is the future work in the header.
+   *
+   * Returns null when there is no identity this device could use AGAIN — every
+   * caller already treats null as "skip this operation" (`performUpload` throws,
+   * `downloadState` / `checkConflict` warn and return null).
    */
   private async resolveUserId(): Promise<string | null> {
     const existing = await safeGetItem(CloudSyncService.CLOUD_USER_ID_KEY);
@@ -170,8 +180,80 @@ class CloudSyncService {
     }
 
     const generated = `player_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-    await safeSetItem(CloudSyncService.CLOUD_USER_ID_KEY, generated);
+    // A generated id is only an identity if it SURVIVES a restart. The write
+    // result used to be discarded, so a storage failure returned an id the
+    // device could never recover: the next launch mints a DIFFERENT one, and
+    // everything uploaded under the first is orphaned in the cloud — a backup
+    // that reports success and can never be restored.
+    //
+    // No retry here on purpose: `safeSetItem` already does the
+    // QuotaExceededError cleanup-and-retry internally (`utils/safeStorage.ts`),
+    // so a `false` means the value is genuinely not stored, and the honest
+    // answer is then "no identity", not "here is a throwaway one".
+    const persisted = await safeSetItem(CloudSyncService.CLOUD_USER_ID_KEY, generated);
+    if (!persisted) {
+      logger.error(
+        '[CloudSync] Could not persist a new cloud user id — refusing to sync under an unrecoverable identity'
+      );
+      return null;
+    }
     return generated;
+  }
+
+  /**
+   * The state's own "this is a different save" marker, or null when it has none.
+   *
+   * `updatedAt` is stamped on EVERY committed mutation by
+   * `GameStateContext.wrappedSetGameState`, which takes
+   * `Math.max(now, prev.updatedAt + 1)` — so it strictly increases per save and
+   * is the only field that answers "has anything changed since the last
+   * upload?". A state without it cannot be compared, and an unknown state must
+   * upload rather than be assumed synced.
+   */
+  private stateMarker(state: GameState): number | null {
+    const updatedAt = state.updatedAt;
+    return typeof updatedAt === 'number' && Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : null;
+  }
+
+  /**
+   * The revision to send: strictly increasing PER SAVE and inside the backend's
+   * `revision integer CHECK (revision >= 1)` column, which also refuses any
+   * value at or below the one it already stores (`409 Stale revision` — see
+   * `docs/CLOUD-SAVE-BACKEND.md`).
+   *
+   * It used to be `state.weeksLived`, which only moves once per PLAYED GAME
+   * WEEK. Every later save inside the same week therefore produced the same
+   * number, `lastSyncedRevisionBySlot` read it as already-synced, and both the
+   * automatic queue and "Back up now" reported success while the cloud copy
+   * stayed behind. A revision has to track the SAVE, not the week.
+   *
+   * Why epoch SECONDS and not `Date.now()`: epoch milliseconds (~1.8e12)
+   * overflow int4 (max 2 147 483 647), so a raw `Date.now()` revision would be
+   * rejected by the column on the very first upload. Seconds fit until
+   * **2038-01-19**, after which the backend column must widen to `bigint` (or
+   * this must become a persisted per-slot counter). `MAX_CLOUD_REVISION` turns
+   * that day into a loud, explained failure instead of silent corruption.
+   *
+   * Why the `lastSynced + 1` floor: two saves inside the same wall-clock second
+   * would otherwise share a number — the original bug in miniature. The floor
+   * makes the sequence strictly increasing per upload whatever the clock's
+   * resolution, and keeps it from ever decreasing for a slot when the device
+   * clock is rewound. Drift above wall-clock is bounded by the number of
+   * uploads, against ~3.6e8 seconds of headroom left in the column.
+   *
+   * `weeksLived` is deliberately NOT a fallback any more: an epoch-ms source is
+   * always available (the caller's `timestamp`, else `Date.now()`), and mixing a
+   * ~1e3 value into a ~1.8e9 sequence could only ever read as stale.
+   */
+  private nextRevision(state: GameState, timestamp: number, lastSyncedRevision: number): number {
+    const isEpochMs = (value: unknown): value is number =>
+      typeof value === 'number' && Number.isFinite(value) && value > 0;
+    const baseMs = [state.updatedAt, timestamp].find(isEpochMs) ?? Date.now();
+    return Math.max(
+      Math.floor(baseMs / 1000),
+      lastSyncedRevision + 1,
+      CloudSyncService.MIN_CLOUD_REVISION
+    );
   }
 
   private buildIntegrityProof(state: GameState, userId: string, slotId: string, revision: number): { hash: string; signature: string } {
@@ -182,22 +264,26 @@ class CloudSyncService {
   }
 
   /**
-   * Queue a state for sync
+   * Queue a state for sync.
+   *
+   * The queue holds AT MOST ONE pending state. An upload is a full-state write,
+   * so the newest state supersedes every older one; draining the superseded
+   * ones costs a multi-MB body each and trips the backend's "two writes to the
+   * same slot inside 5 s" throttle (429) for nothing.
+   *
+   * This used to dedupe by revision and cap the queue at 5 (CRASH FIX C-3),
+   * which collapsed same-week saves only because the revision WAS `weeksLived`.
+   * Now that a revision is per-save, nothing would ever match that filter and
+   * up to five superseded bodies would drain. Replacing outright keeps C-3's
+   * bound (one item is fewer than five) and its stated reason ("only latest
+   * state matters for full-state sync").
    */
   async queueSync(state: GameState): Promise<void> {
-    const nextRevision = state.weeksLived ?? state.updatedAt ?? Date.now();
-    // Keep only newest queued state per revision to reduce replay/race windows.
-    this.syncQueue = this.syncQueue.filter(item => (item.state.weeksLived ?? item.state.updatedAt ?? item.timestamp) !== nextRevision);
-    this.syncQueue.push({
+    this.syncQueue = [{
       state,
       timestamp: Date.now(),
       retries: 0,
-    });
-
-    // CRASH FIX (C-3): Cap queue to last 5 items (only latest state matters for full-state sync)
-    if (this.syncQueue.length > 5) {
-      this.syncQueue = this.syncQueue.slice(-5);
-    }
+    }];
 
     // Trigger immediate sync if online
     if (this.isOnline) {
@@ -210,7 +296,7 @@ class CloudSyncService {
    *
    * Extracted from the `sync` drain so the user-initiated "Back up now" button
    * can run exactly the same upload — identity, slot, revision, integrity
-   * proof and the stale-revision guard — and still learn whether it worked.
+   * proof and the unchanged-state guard — and still learn whether it worked.
    * Duplicating any of that for the manual path is how the two drift.
    */
   private async performUpload(state: GameState, timestamp: number): Promise<'uploaded' | 'stale'> {
@@ -219,20 +305,51 @@ class CloudSyncService {
       throw new Error('Cloud sync blocked: no trusted user identity');
     }
     const slotId = await this.resolveSlotId();
-    const revision = state.weeksLived || state.updatedAt || timestamp;
-    if (!Number.isFinite(revision) || revision <= 0) {
-      throw new Error(`Cloud sync blocked: invalid revision ${revision}`);
-    }
-    const lastSyncedRevision = this.lastSyncedRevisionBySlot.get(slotId) || 0;
-    if (revision <= lastSyncedRevision) {
-      logger.warn('Skipping stale cloud upload revision', {
+
+    // "The cloud already has this" is a question about the STATE, not about the
+    // revision number, and it is answered by `updatedAt` (see `stateMarker`).
+    // Asking it of the revision instead is what made every save after the first
+    // in a game week silently skip its upload.
+    const marker = this.stateMarker(state);
+    const lastUploadedStateAt = this.lastUploadedStateAtBySlot.get(slotId);
+    if (marker !== null && lastUploadedStateAt !== undefined && marker <= lastUploadedStateAt) {
+      logger.debug('[CloudSync] Cloud already holds this state — nothing to upload', {
         slotId,
-        revision,
-        lastSyncedRevision,
+        stateUpdatedAt: marker,
+        lastUploadedStateAt,
       });
       return 'stale';
     }
+
+    const revision = this.nextRevision(state, timestamp, this.lastSyncedRevisionBySlot.get(slotId) || 0);
+    if (!Number.isFinite(revision) || revision < CloudSyncService.MIN_CLOUD_REVISION) {
+      throw new Error(`Cloud sync blocked: invalid revision ${revision}`);
+    }
+    if (revision > CloudSyncService.MAX_CLOUD_REVISION) {
+      // The backend stores `revision` as PostgreSQL `integer`. Past 2038-01-19
+      // an epoch-seconds revision no longer fits; widen the column to `bigint`
+      // (or switch to a persisted per-slot counter) rather than truncating,
+      // which would make every later upload read as stale.
+      throw new Error(`Cloud sync blocked: revision ${revision} exceeds the backend's int4 range`);
+    }
+
     const { hash, signature } = this.buildIntegrityProof(state, userId, slotId, revision);
+    // `uploadGameState` reports SUCCESS for writes that never happened. It
+    // returns `{success:true}` without touching the network once the transport
+    // has disabled itself after repeated failures — deliberate, so a failing
+    // cloud cannot block a local save — and its `withErrorRecovery` fallback
+    // swallows a failed write the same way. Recording either as a backup is a
+    // lie the player can see: `lastUploadedStateAtBySlot` advances so later
+    // saves skip, and the Settings row shows "Last backup: just now" for a
+    // backup that does not exist.
+    //
+    // The transport's own counters are the in-band evidence of what happened: a
+    // real write resets `failureCount` to 0, while a disabled transport stays
+    // `disabled` and a swallowed failure raises `failureCount`. (The remaining
+    // no-op — no `EXPO_PUBLIC_CLOUD_SAVE_URL` configured — is gated upstream:
+    // every caller goes through `cloudBackup`, whose `cloudSave` flag requires
+    // a non-empty URL.)
+    const transportBefore = getCloudSyncStatus();
     const uploadResult = await uploadGameState({
       state,
       updatedAt: state.updatedAt || timestamp,
@@ -245,8 +362,18 @@ class CloudSyncService {
     if (!uploadResult.success) {
       throw new Error(uploadResult.error || 'Cloud upload failed');
     }
+    const transportAfter = getCloudSyncStatus();
+    if (transportAfter.disabled) {
+      throw new Error('Cloud upload skipped: cloud sync is disabled after repeated failures');
+    }
+    if (transportAfter.failureCount > transportBefore.failureCount) {
+      throw new Error('Cloud upload did not reach the server (fell back to local storage only)');
+    }
 
     this.lastSyncedRevisionBySlot.set(slotId, revision);
+    if (marker !== null) {
+      this.lastUploadedStateAtBySlot.set(slotId, marker);
+    }
     this.lastSyncTime = Date.now();
     // Persisted, not just held in memory: the Settings row shows "Last backup
     // …" and a number that resets to "never" on every cold start would read as
@@ -266,8 +393,9 @@ class CloudSyncService {
     try {
       const result = await this.performUpload(state, Date.now());
       this.notifyListeners({ status: 'synced', progress: 100 });
-      // 'stale' means the cloud already holds this revision — nothing to do,
-      // which is a success from the player's point of view, not a failure.
+      // 'stale' means the cloud already holds this exact state (nothing has
+      // changed since the last upload) — nothing to do, which is a success from
+      // the player's point of view, not a failure.
       return { success: true, skipped: result === 'stale' };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Cloud backup failed';
