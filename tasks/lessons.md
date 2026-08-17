@@ -3235,3 +3235,32 @@ watched a rewarded ad that the bonus was unavailable while the cash landed.
   asserted by name in the ratchet — wiring it into the tick trips that test
   before it can hurt anyone. "Zero except the one we know about" is only a
   useful statement if the exception is written down.
+
+## 2026-08-17 — Weekly audit: clean, one guardTick consistency gap noted
+
+Full five-domain weekly routine audit. Static layer green (🔴0 🟠0 🟡0 across all
+five domains); dynamic backstop green — moneyConservation + economy stress (33),
+performance + saveMigrationAudit (35), longRunSaveLoad (12); type-check, lint:errors,
+check:routes all clean. Three deep qualitative subagent passes (economy exploits,
+save/state integrity, logic/tick stability) found **no CRITICAL/HIGH/MEDIUM** issue.
+The recent audit waves (PR #137/#138) have left the atomic-grant (§4.4),
+weeksLived-gating (§4.2), and migration↔repair-parity (§7) disciplines applied
+consistently — every previously-farmable clock-gated faucet is now weeksLived-gated,
+and every carve-out v39–v44 survives the load round-trip via hydrateLoadedState's
+`...raw` spread / mergeLoadedSlice.
+
+- One LOW, non-blocking, backlogged: `computeWeeklyIncome`
+  (`GameActionsContext.tsx:1006`) and `computeSavingsInterest` (`:1104`) are the
+  only two tick income helpers NOT individually `guardTick`-wrapped, unlike every
+  sibling subsystem. They rely solely on the outer updater catch, so a future throw
+  in either would roll back the WHOLE tick (lost week) rather than degrading to a
+  zero-income fallback. No realistic input throws today (both read through
+  `?.`/`?? 0`), so it is a §4.3 consistency gap, not a live bug — but the core
+  income path is exactly where a future field addition could turn one bad read into
+  a soft-locked "Next Week". Fix if touched: wrap both in
+  `guardTick('income', …)` / `guardTick('savingsInterest', …)` with a zero fallback.
+- Lesson: a clean audit is the expected state now, not a surprise — the value of
+  the deep pass this week was confirming the recent hardening actually holds in
+  source (re-read the two income call sites by hand rather than trusting the
+  subagent's grade, per §8), and catching the one place the guardTick discipline
+  is not yet uniform before a future change makes it matter.
