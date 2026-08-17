@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     borderRadius: scale(14),
     borderWidth: 1,
-    minHeight: scale(40),
+    minHeight: touchTargets.minimum,
     maxWidth: '100%',
   },
   chipDisabled: { opacity: 0.55 },

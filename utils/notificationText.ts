@@ -35,6 +35,14 @@ const PICTOGRAPHS =
   /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0E}\u{FE0F}\u{200D}\u{20E3}]/gu;
 
 /**
+ * Keycap sequences: digit/# /* + optional U+FE0F + U+20E3.
+ * Examples: 1️⃣, #️⃣, *️⃣
+ * Must be removed BEFORE the main PICTOGRAPHS pass, as that only strips the
+ * combining keycap (U+20E3) and leaves the base character behind.
+ */
+const KEYCAP_SEQUENCES = /[0-9#*]\u{FE0F}?\u{20E3}/gu;
+
+/**
  * Strip emoji and tidy up what they leave behind.
  *
  * Removing a character mid-sentence leaves double spaces and orphaned
@@ -44,6 +52,7 @@ const PICTOGRAPHS =
 export function stripEmoji(text: string): string {
   if (!text) return '';
   return text
+    .replace(KEYCAP_SEQUENCES, '')
     .replace(PICTOGRAPHS, '')
     // Collapse the runs of whitespace the removal opened up, but keep newlines:
     // the weekly-summary banner joins its lines with "\n" and relies on them.
@@ -71,11 +80,13 @@ export const TOAST_MAX_CHARS = 96;
 export function clampNotification(text: string, max: number = TOAST_MAX_CHARS): string {
   const trimmed = text.trim();
   if (trimmed.length <= max) return trimmed;
-  const cut = trimmed.slice(0, max);
+  // Reserve 1 char for the ellipsis so output never exceeds max.
+  const maxBody = max - 1;
+  const cut = trimmed.slice(0, maxBody);
   const lastSpace = cut.lastIndexOf(' ');
   // Only break on a word boundary when one exists reasonably near the end —
   // otherwise a long unbroken token would be cut back to almost nothing.
-  const body = lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut;
+  const body = lastSpace > maxBody * 0.6 ? cut.slice(0, lastSpace) : cut;
   return `${body.replace(/[\s,;:.–-]+$/, '')}…`;
 }
 

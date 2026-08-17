@@ -16,6 +16,8 @@ import {
   responsiveSpacing,
   responsiveFontSize,
   responsiveBorderRadius,
+  responsiveIconSize,
+  scale,
 } from '@/utils/scaling';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -200,8 +202,8 @@ export default function ToastNotification({
       // The stack step tracks the toast HEIGHT — it was 72 for a toast whose
       // padding, icon and font were each a step larger. Left at 72 the denser
       // toasts would sit in a column with a visible gap between them.
-      top: position === 'top' ? insets.top + 8 + stackIndex * TOAST_STACK_STEP : undefined,
-      bottom: position === 'bottom' ? insets.bottom + 8 + stackIndex * TOAST_STACK_STEP : undefined,
+      top: position === 'top' ? insets.top + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
+      bottom: position === 'bottom' ? insets.bottom + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
       transform: [
         { translateY: slideAnim },
         { scale: scaleAnim },
@@ -225,7 +227,7 @@ export default function ToastNotification({
         <View style={styles.content}>
           <View style={styles.iconContainer}>
             <IconComponent
-              size={16}
+              size={responsiveIconSize.sm}
               color={typeStyles.iconColor}
               accessibilityLabel={`${type} icon`}
             />
@@ -255,12 +257,12 @@ export default function ToastNotification({
             // The button shrank with the rest of the surface; hitSlop keeps the
             // TAP target at the size it was, so the denser toast is not a
             // harder one to dismiss.
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: scale(10), bottom: scale(10), left: scale(10), right: scale(10) }}
             accessibilityLabel="Dismiss notification"
             accessibilityRole="button"
             accessibilityHint="Double tap to dismiss this notification"
           >
-            <X size={14} color={typeStyles.iconColor} />
+            <X size={responsiveIconSize.xs} color={typeStyles.iconColor} />
           </TouchableOpacity>
         </View>
       </LinearGradient>

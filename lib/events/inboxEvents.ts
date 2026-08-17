@@ -38,15 +38,21 @@ import type { GameState } from '@/contexts/game/types';
 
 /** Liquid wealth, for gating letters that only make sense above a floor. */
 function liquid(state: GameState): number {
-  return Math.max(0, state.stats?.money ?? 0) + Math.max(0, state.bankSavings ?? 0);
+  const money = state.stats?.money ?? 0;
+  const savings = state.bankSavings ?? 0;
+  const moneySafe = Number.isFinite(money) ? money : 0;
+  const savingsSafe = Number.isFinite(savings) ? savings : 0;
+  return Math.max(0, moneySafe) + Math.max(0, savingsSafe);
 }
 
 function age(state: GameState): number {
-  return Math.floor(state.date?.age ?? 18);
+  const ageValue = state.date?.age ?? 18;
+  return Number.isFinite(ageValue) ? Math.floor(ageValue) : 18;
 }
 
 function reputation(state: GameState): number {
-  return Math.max(0, state.stats?.reputation ?? 0);
+  const rep = state.stats?.reputation ?? 0;
+  return Number.isFinite(rep) ? Math.max(0, rep) : 0;
 }
 
 /**

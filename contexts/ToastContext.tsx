@@ -5,6 +5,7 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport } from '@/utils/diagnosticReport';
 import { setToastHandler } from '@/utils/toastBridge';
 import { toastText } from '@/utils/notificationText';
+import { logger } from '@/utils/logger';
 
 /**
  * Turn a raw error into something actionable: one tap on an error toast's
@@ -92,7 +93,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       // other blank.
       const text = toastText(message);
       if (!text) {
-        if (__DEV__) console.warn('[toast suppressed: no text after sanitising]', type);
+        if (__DEV__) logger.warn('[toast suppressed: no text after sanitising]', { type });
         return;
       }
 

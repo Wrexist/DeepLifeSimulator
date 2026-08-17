@@ -86,7 +86,7 @@ describe('clampNotification', () => {
       'several other things besides, at considerable length.';
     const out = clampNotification(long);
 
-    expect(out.length).toBeLessThanOrEqual(TOAST_MAX_CHARS + 1);
+    expect(out.length).toBeLessThanOrEqual(TOAST_MAX_CHARS);
     expect(out.endsWith('…')).toBe(true);
     // A word boundary, not mid-word.
     expect(long.startsWith(out.slice(0, -1))).toBe(true);
@@ -111,7 +111,7 @@ describe('toastText — what the channel actually applies', () => {
     );
 
     expect(out).not.toMatch(/🔓/);
-    expect(out.length).toBeLessThanOrEqual(TOAST_MAX_CHARS + 1);
+    expect(out.length).toBeLessThanOrEqual(TOAST_MAX_CHARS);
   });
 
   it('is idempotent — sanitising an already-clean string changes nothing', () => {

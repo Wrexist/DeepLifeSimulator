@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     fontSize: fontScale(10),
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: fontScale(0.5),
   },
   captionDark: {
     color: 'rgba(226, 232, 240, 0.45)',

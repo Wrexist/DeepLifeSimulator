@@ -961,12 +961,12 @@ function DeathPopup() {
                           <Text style={styles.statBoxValue}>{totalRelationships}</Text>
                         </View>
 
-                        {careerLevel && (
+                        {careerLevel ? (
                           <View style={styles.statBox}>
                             <Text style={styles.statBoxLabel}>Career Level</Text>
                             <Text style={styles.statBoxValue}>{careerLevel}</Text>
                           </View>
-                        )}
+                        ) : null}
 
                         <View style={styles.statBox}>
                           <Text style={styles.statBoxLabel}>Peak Net Worth</Text>
