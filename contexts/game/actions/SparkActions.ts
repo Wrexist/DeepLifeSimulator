@@ -47,6 +47,7 @@ import {
   findConversationOption,
   findDateVenue,
   listConversationOptions,
+  listDateVenues,
   playerAppeal,
   readRapport,
   resolveConversationOption,
@@ -815,8 +816,22 @@ export const playConversationOption = (
 
   const option = findConversationOption(optionId);
   if (!option) return { success: false, message: 'That is not something you can say' };
-  if (option.requiresVenue && !findDateVenue(venueId)) {
-    return { success: false, message: 'Pick where you are taking them first' };
+
+  // The generic gate below prices a date at its CHEAPEST venue, so the CHOSEN
+  // venue is checked separately and FIRST. Without this, picking dinner with
+  // coffee money passed the outer gate, resolved an outcome, and was then
+  // rejected inside the updater by `applyMoneyDelta` — reporting success while
+  // nothing happened.
+  if (option.requiresVenue) {
+    const venue = findDateVenue(venueId);
+    if (!venue) return { success: false, message: 'Pick where you are taking them first' };
+    const row = listDateVenues(
+      { energy: gameState.stats?.energy ?? 0, money: gameState.stats?.money ?? 0 },
+      option,
+    ).find((v) => v.venue.id === venue.id);
+    if (row && !row.available) {
+      return { success: false, message: row.reason ?? 'You cannot afford that date' };
+    }
   }
 
   const weeksLived = gameState.weeksLived ?? 0;

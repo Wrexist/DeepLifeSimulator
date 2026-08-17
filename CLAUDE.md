@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 44`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 45`
 - **Binary version:** whatever `package.json` `version` says (2.8.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -323,7 +323,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 44`** — single source of truth in
+- **Canonical `STATE_VERSION = 45`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -571,6 +571,31 @@ including the crash screen.
   `AdRewardOrb` spawner pattern. Default `undefined`, so a CARVE-OUT: version
   bumped, NO backfill and no `repairGameState` mirror — stamping the current
   week would deny an existing player their next legitimate bonus.
+- **v45 adds `rapport` and `conversationCooldowns` on `SparkMatch`** — the
+  per-match state behind Spark's choice-driven chat. The dating app's chat was
+  a free-text box wired to a personality reply pool: whatever the player typed,
+  the NPC answered from a fixed list, nothing about the match changed, and there
+  was no reason to send a second message. It is a short game now — `rapport`
+  (0-100) moves on every move and gates Flirt (25), Ask on a date (45) and Ask
+  to go steady (75), while `conversationCooldowns` (optionId → `weeksLived`)
+  stops the cheapest move being tapped ten times to ratchet it. The cooldown map
+  is keyed on `weeksLived` (absolute), never the cyclic `week` and never the
+  device clock — a wall-clock gate here would be farmable, and this one paces
+  happiness, cash and ultimately a relationship. That stamp is also what makes
+  the commit safe: it lands in the SAME updater as the energy/cash charge, so a
+  same-batch double tap re-checks it against `prev` and pays once (§4.4).
+  Default `undefined` for both, so a CARVE-OUT: version bumped, NO backfill and
+  no `repairGameState` mirror. Two independent reasons, either sufficient.
+  Absence already resolves — `readRapport` (`lib/spark/conversation.ts`) applies
+  the fresh-match baseline at read time, and an absent map already means
+  "nothing on cooldown". And writing a value would be a guess in either
+  direction: a save carries no record of how its chats went, so a low number
+  erases a conversation the player invested in and a high one hands out the date
+  and go-steady moves for free. Stamping cooldowns would be worse still — it
+  would lock every existing match out of moves it has never played. The
+  go-steady move commits through `resolveMatchPromotion`, a pure extraction of
+  `promoteMatchToRelationship`, so the anti-bigamy rule stays in exactly one
+  place while the promotion lands inside the conversation's single updater.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
@@ -596,7 +621,7 @@ including the crash screen.
     at one of them simply steps up to v10. Nothing new belongs in this set.
   - A **stub migration** (`N: (state) => { state.version = N; return state; }`)
     carrying a comment that says what the field is and why it needs no backfill.
-    This is what every carve-out since v26 uses (14 of them today), and it is
+    This is what every carve-out since v26 uses (15 of them today), and it is
     the form to copy: the registry entry proves the version was considered, and
     the comment is where the reasoning lives.
 - **The inverse rule is now machine-checked.** `scripts/audit/audit-save.cjs`
