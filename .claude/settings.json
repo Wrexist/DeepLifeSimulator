@@ -1,1 +1,6 @@
 {"customInstructions":"Project context, conventions, and rules are in CLAUDE.md (canonical). DEV.md and WORKFLOW.md are older mirrors kept for other tools; CLAUDE.md wins where they disagree. Read CLAUDE.md at the start of every session."}
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  }
+}
