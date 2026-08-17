@@ -186,7 +186,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
       typeof (globalThis as Record<string, unknown>).__coverage__ !== 'undefined';
     expect(heapGrowthMB).toBeLessThan(underCoverage ? 400 : 250);
 
-    // eslint-disable-next-line no-console
+
     console.log(
       `[520-week run] ${saves} saves, ${validations} validations, ${duration}ms, +${heapGrowthMB.toFixed(1)}MB heap`
     );
@@ -221,7 +221,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     expectNoNaN(state);
     expectNoInfinity(state);
 
-    // eslint-disable-next-line no-console
+
     console.log(`[1040-week save-load-resume chain] OK in ${Date.now() - startTime}ms`);
   });
 
@@ -258,7 +258,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     expect(Math.abs(state.date.age - (18 + TOTAL_WEEKS / 52))).toBeLessThan(0.5);
     expect(heapGrowthMB).toBeLessThan(150);
 
-    // eslint-disable-next-line no-console
+
     console.log(
       `[5200-week stability run] OK, final age=${state.date.age.toFixed(2)}, ` +
       `${Date.now() - startTime}ms, +${heapGrowthMB.toFixed(1)}MB heap`
@@ -335,7 +335,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
 
     // Per-cycle allocations should be GC'd. Allow generous headroom for jest noise.
     expect(growthMB).toBeLessThan(50);
-    // eslint-disable-next-line no-console
+
     console.log(`[100 save/load cycles] +${growthMB.toFixed(2)}MB heap`);
   });
 
@@ -416,7 +416,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     }
 
     const finalEnv = createSaveData(state, STATE_VERSION);
-    // eslint-disable-next-line no-console
+
     console.log(`[fat-state] final payload = ${finalEnv.data.length} bytes`);
     expect(finalEnv.data.length).toBeLessThan(1_000_000); // < 1 MB even with 100 NPCs / 50 cos / 200 items
   });
@@ -448,7 +448,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
 
   it('Test 9: serialized payload size stays bounded as weeks tick up', () => {
     let state = freshState();
-    const sizesByWeek: Array<{ week: number; bytes: number }> = [];
+    const sizesByWeek: { week: number; bytes: number }[] = [];
 
     for (const target of [0, 100, 500, 1000, 2000, 5000]) {
       while (state.weeksLived < target) {
@@ -464,7 +464,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     const final = sizesByWeek[sizesByWeek.length - 1].bytes;
     expect(final).toBeLessThan(initial * 10); // No unbounded growth.
 
-    // eslint-disable-next-line no-console
+
     console.log('[payload sizes]', sizesByWeek.map(s => `w${s.week}=${s.bytes}B`).join(' '));
   });
 });

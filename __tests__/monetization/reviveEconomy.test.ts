@@ -108,7 +108,7 @@ describe('the revive price has one source', () => {
   it('is not hard-coded anywhere that renders it to the player', () => {
     // The help copy quoted "15,000 gems" as a literal and would have gone stale
     // the moment the constant moved — which it just did.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const help = require('fs').readFileSync('components/HelpModal.tsx', 'utf8') as string;
     expect(help).toContain('REVIVE_GEM_COST');
     expect(help).not.toMatch(/Revive with gems \(\s*(costs\s*)?[\d,]+\s*gems\)/);

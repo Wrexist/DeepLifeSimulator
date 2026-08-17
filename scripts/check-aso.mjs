@@ -27,6 +27,7 @@ const LIMITS = {
   playShort: 80,
   playLong: 4000,
   iapName: 30,
+  appleWhatsNew: 4000,
 };
 
 /**
@@ -81,6 +82,19 @@ checkLimit('Apple subtitle', APPLE.subtitle, LIMITS.appleSubtitle);
 const kwLen = checkLimit('Apple keywords', keywordField, LIMITS.appleKeywords);
 checkLimit('Apple promotional text', APPLE.promotionalText, LIMITS.applePromo);
 checkLimit('Apple description', APPLE.description, LIMITS.appleDescription);
+
+// ── Release notes ──────────────────────────────────────────────────────────
+// `scripts/asc-release.mjs` sends these to Apple verbatim, so a value that is
+// wrong here is wrong on the store page. `storeVersion` is validated because
+// it is the number the release script creates, and it is NOT package.json's
+// version — see the comment on the field.
+if (!APPLE.storeVersion) {
+  fail('APPLE.storeVersion is unset — asc-release.mjs has no version record to create.');
+} else if (!/^\d+(\.\d+){0,2}$/.test(APPLE.storeVersion)) {
+  fail(`APPLE.storeVersion "${APPLE.storeVersion}" is not a valid App Store version (digits and dots only).`);
+}
+if (!APPLE.whatsNew) fail('APPLE.whatsNew is unset — the release has no store release notes.');
+else checkLimit("Apple What's New", APPLE.whatsNew, LIMITS.appleWhatsNew);
 checkLimit('Play title', PLAY.title, LIMITS.playTitle);
 checkLimit('Play short description', PLAY.shortDescription, LIMITS.playShort);
 checkLimit('Play long description', PLAY.longDescription, LIMITS.playLong);
@@ -185,6 +199,15 @@ for (const [locale, loc] of Object.entries(APPLE.localized ?? {})) {
     if (!loc.description) fail(`${locale} has keywords but no translated description — that is a keyword grab, not a localisation.`);
     else checkLimit(`${locale} description`, loc.description, LIMITS.appleDescription);
     if (loc.promotionalText) checkLimit(`${locale} promotional text`, loc.promotionalText, LIMITS.applePromo);
+    // A shipped locale with no release notes gets the en-US text on its store
+    // page — English release notes under a Spanish description. Worse than the
+    // untranslated listing this file already refuses, because it is the one
+    // field a returning player actually reads.
+    if (!loc.whatsNew) {
+      fail(`${locale} is shipped but has no whatsNew — its store page would show the en-US release notes under translated copy.`);
+    } else {
+      checkLimit(`${locale} What's New`, loc.whatsNew, LIMITS.appleWhatsNew);
+    }
   }
   if (locale === 'en-GB' && field === keywordField) {
     note('en-GB keywords match en-US exactly — those storefronts fall back to en-US anyway, so this adds nothing. Harmless, and worth differing only if the markets do.');
@@ -232,6 +255,11 @@ if (process.argv.includes('--emit')) {
   console.log(`\n[Apple · Keywords ${kwLen}/100]\n${keywordField}`);
   console.log(`\n[Apple · Promotional text ${len(APPLE.promotionalText)}/170]\n${APPLE.promotionalText}`);
   console.log(`\n[Apple · Description ${len(APPLE.description)}/4000]\n${APPLE.description}`);
+  if (APPLE.whatsNew) {
+    console.log(
+      `\n[Apple · What's New · v${APPLE.storeVersion} ${len(APPLE.whatsNew)}/4000]\n${APPLE.whatsNew}`,
+    );
+  }
   // Emit localized fields.
   //
   // A PASTE-READY block is an instruction to a release operator, so a locale
@@ -250,6 +278,11 @@ if (process.argv.includes('--emit')) {
     console.log(`\n[Apple · ${locale} · Keywords ${len(locKeywordField)}/100]\n${locKeywordField}`);
     if (loc.promotionalText) {
       console.log(`\n[Apple · ${locale} · Promotional text ${len(loc.promotionalText)}/170]\n${loc.promotionalText}`);
+    }
+    if (loc.whatsNew) {
+      console.log(
+        `\n[Apple · ${locale} · What's New · v${APPLE.storeVersion} ${len(loc.whatsNew)}/4000]\n${loc.whatsNew}`,
+      );
     }
     if (loc.description) {
       console.log(`\n[Apple · ${locale} · Description ${len(loc.description)}/4000]\n${loc.description}`);

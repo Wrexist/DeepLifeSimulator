@@ -30,7 +30,7 @@ jest.mock('@/lib/config/featureFlags', () => ({
 
 const ORIGINAL_ENV = { ...process.env };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function mockPurchases(overrides: Record<string, any> = {}) {
   const mod = {
     configure: jest.fn(),
@@ -42,12 +42,12 @@ function mockPurchases(overrides: Record<string, any> = {}) {
   return mod;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 async function freshService(platform: 'ios' | 'android' = 'ios'): Promise<any> {
   jest.doMock('react-native', () => ({
     Platform: {
       OS: platform,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       select: (spec: Record<string, any>) => spec[platform] ?? spec.default,
     },
   }));

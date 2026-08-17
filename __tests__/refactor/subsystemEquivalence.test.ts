@@ -3380,7 +3380,7 @@ describe('pre-tick equivalence — applyVehiclesForWeek', () => {
 // gate). Try/catch swallows module-load failures so tests without the module
 // can still run.
 describe('pre-tick equivalence — applyNPCDepthTick', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const npcDepth = require('@/lib/social/npcDepth') as {
     processWeeklyNPCDepth: jest.Mock;
   };
@@ -4229,7 +4229,7 @@ describe('pre-tick equivalence — applyRelationshipHealth', () => {
 // R7 Phase 2 step 2.7-A — economic event roll. shouldTrigger gate + generate
 // + try/catch swallow. Mocked for determinism.
 describe('pre-tick equivalence — applyEconomicEvent', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const econMod = require('@/lib/events/economyEvents') as {
     shouldTriggerEconomicEvent: jest.Mock;
     generateEconomicEvent: jest.Mock;
@@ -4304,7 +4304,7 @@ describe('pre-tick equivalence — applyEconomicEvent', () => {
 
 // R7 Phase 2 step 2.7-B — weekly events generation + pending cap.
 describe('pre-tick equivalence — applyWeeklyEvents', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const engineMod = require('@/lib/events/engine') as { rollWeeklyEvents: jest.Mock };
 
   beforeEach(() => {
@@ -4449,7 +4449,7 @@ describe('pre-tick equivalence — applyWeeklyEvents', () => {
 // R7 Phase 2 step 2.7-C — cliffhanger resolution. If pendingCliffhanger,
 // look up the resolveEvent + append to pendingEvents (uncapped).
 describe('pre-tick equivalence — applyCliffhangerResolution', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const cliffMod = require('@/lib/events/cliffhangerEvents') as {
     resolveCliffhanger: jest.Mock;
   };
@@ -4535,7 +4535,7 @@ describe('pre-tick equivalence — applyCliffhangerResolution', () => {
 // R7 Phase 2 step 2.7-D — life moment generation. Generate + merge into
 // lifeMoments slice; preserve existing or initialize when none.
 describe('pre-tick equivalence — applyLifeMoment', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const momentMod = require('@/lib/lifeMoments/lifeMomentGenerator') as {
     generateLifeMoment: jest.Mock;
   };
@@ -4610,7 +4610,7 @@ describe('pre-tick equivalence — applyLifeMoment', () => {
 // R7 Phase 2 step 2.8-A — consequence progression. processConsequenceProgression
 // + initializeConsequenceState merge + try/catch fallback.
 describe('pre-tick equivalence — applyConsequenceProgression', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const consMod = require('@/lib/lifeMoments/consequenceTracker') as {
     processConsequenceProgression: jest.Mock;
     initializeConsequenceState: jest.Mock;
@@ -4664,7 +4664,7 @@ describe('pre-tick equivalence — applyConsequenceProgression', () => {
 // edge (newShowDeathPopup && !prevState.showDeathPopup). Returns partial
 // state fragment for the merge.
 describe('pre-tick equivalence — applyDeathRibbon', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const ribMod = require('@/lib/legacy/ribbonSystem') as {
     classifyLife: jest.Mock;
     addRibbonToCollection: jest.Mock;
@@ -4766,7 +4766,7 @@ describe('pre-tick equivalence — applyDeathRibbon', () => {
 // both independently firing. Always returns checkpoints partial (even
 // when neither fires; `?? []` means undefined slice becomes []).
 describe('pre-tick equivalence — applyAutoCheckpoint', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const cpMod = require('@/lib/timeMachine/checkpointSystem') as {
     shouldAutoCheckpoint: jest.Mock;
     createCheckpoint: jest.Mock;
@@ -5209,7 +5209,7 @@ describe('pre-tick equivalence — applyLifetimeStatistics', () => {
 // R7 Phase 2 step 2.10 — cliffhanger roll. End-of-week ~12% chance to SET
 // a teaser that resolves next week. Symmetric to applyCliffhangerResolution.
 describe('pre-tick equivalence — applyCliffhangerRoll', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   const cliffMod = require('@/lib/events/cliffhangerEvents') as {
     rollCliffhanger: jest.Mock;
   };

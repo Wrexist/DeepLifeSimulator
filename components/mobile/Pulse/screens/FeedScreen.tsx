@@ -162,7 +162,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
     const npc = generateNpcPostsForFeed(gsRef.current, weeksLived, 4);
     const trending = generateRandomProfilePosts(weeksLived, 7);
     return [...npc, ...trending];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [weeksLived]);
 
   // Local optimistic like/repost toggles for ambient posts — they aren't in

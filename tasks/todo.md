@@ -1,67 +1,59 @@
-# UI/UX pass 2 (2026-08-16) — three owner-reported issues — COMPLETE
+# Automate the App Store Connect release (2026-08-17)
 
-Branch: `claude/ui-improvements-polish-lhw1rg`. Orchestrated: Fable 5
-orchestrator, Opus 5 implementation/audit/fix agents. Landed as per-workstream
-commits (`b46ff7f` death screen, `1f56435` market, `dd3d7a8` Spark v45, plus
-the audit-fix commit).
+Branch: `claude/app-store-whats-new-cmjnec` (PR #140). Goal: create and fill the
+1.5.0 App Store version record from the repo, with no hand-copying into the
+App Store Connect UI.
 
-## Workstream A — Death screen scrolling — DONE
-- [x] Whole card content scrolls: hero (tombstone/title/cause/identity card),
-      tab bar, active page and its actions all live inside ONE ScrollView;
-      the pinned hero + pinned footer structure is gone. Every action
-      reachable on both tabs (Revive / Revival Pack / gems / mindset picker /
-      Start New Life / Read Story / Share)
-- [x] The definite-height flex-chain lesson in DeathPopupStyles.ts re-derived
-      and kept true; audit confirmed the restructure is a pure re-parent
-      (padding conserved, no absolute element moved inside scroll content)
+## Why this shape
 
-## Workstream B — Life tab market — DONE
-- [x] StatEffectChips (new shared component): per-stat pills with lucide
-      icons in the HUD's stat colors (Heart red / Zap blue / Smile amber /
-      Dumbbell purple). Applied to food, gym AND housing (rentals never
-      showed their weekly grant; gym tiles mis-colored health green)
-- [x] "Sliding under the bars" was TRANSPARENCY, not clipping: the tab bar's
-      glass blur only exists on web, so 0.7 alpha read straight through on
-      device → 0.96. Market category row now an opaque band
-- [x] Four per-tab "?" badges consolidated to one info button (also fixes
-      "Housing"/"Items" label truncation); all help copy preserved verbatim
+The release copy already exists three times — `lib/config/changelog.ts` (in-app),
+`WHATS_NEW.md` (prose) and, until now, nowhere the tooling can read. Anything
+that retypes it into App Store Connect adds a fourth copy that drifts. So the
+store text becomes DATA in `marketing/aso/metadata.mjs`, `check:aso` validates
+it, and the release script sends that exact value to Apple.
 
-## Workstream C — Spark chat — DONE (STATE_VERSION 45)
-- [x] Keyboard bug structurally removed: no TextInput remains, so no
-      keyboard can rise; option panel pinned above the home indicator
-- [x] Choice-driven conversation: break the ice / ask about their real
-      interests / compliment / joke / flirt (25 rapport) / date at 45
-      (coffee $25, dinner $120, reckless $300) / go steady at 75. Rapport
-      0-100 with header band label; per-option weeksLived cooldowns; success
-      odds from rapport + happiness/reputation/fitness + personality fit
-      (27 personalities → 10 tones, full default coverage); injectable rng
-- [x] §4.4: one updater commits charge + rapport + cooldown + messages +
-      promotion, re-checked against prev; anti-bigamy stays a single pure
-      authority (resolveMatchPromotion). sendSparkMessage/generateNpcReply
-      deleted with their only caller (the composer)
-- [x] v45 carve-out: rapport + conversationCooldowns optional on SparkMatch,
-      stub migration, no backfill/mirror; docs synced (CLAUDE.md/DEV.md/
-      WORKFLOW.md); carve-out round-trip suite extended (14→16)
-- [x] New suite __tests__/dating/sparkConversation.test.ts (74 tests)
+`scripts/next-build-number.mjs` already carries a working ES256 JWT client for
+the same API. Two implementations of one auth path is the duplication CLAUDE.md
+warns about, so the client is extracted and both callers share it.
 
-## Phase 2 — Audit — DONE (0 critical, 4 moderate all fixed, 7 nits triaged)
-- [x] M1: header heart no longer bypasses the rapport economy — routes
-      through the same go_steady gate/handler as the chip, shows the gate
-      reason when locked. promoteMatchToRelationship now has no production
-      caller (kept exported, documented)
-- [x] M2: befriending an unpromoted match asks for confirmation (it closes
-      the dating path); availability reason now honest per promotion kind
-      ("You made this one a friend" / "You're already together")
-- [x] M3: orphaned lib/dating/npcReplyPool.ts (+ its live CI gate) deleted;
-      deletion comment records the successor (lib/spark/conversationContent)
-- [x] M4: lib/spark AND lib/markets added to the eslint error block (both
-      verified clean); CLAUDE.md §5 count corrected to 58-of-59
-- [x] N3 (dead result field) removed; N7 (glass comment premise) corrected.
-      N1/N2/N5/N6 recorded as accepted/deliberate; pre-existing lint:ratchet
-      overage (933 base → 931 HEAD, this branch net -2) flagged, not ours
+## Schemas (verified against Apple's docs JSON, not from memory)
 
-## Phase 3 — Verification — DONE
-- [x] Both type-checks clean · lint clean on all touched files
-- [x] Full Jest: 586 suites / 7,627 tests passing (1 skipped) — count down
-      one suite from mid-pass because npcReplyPool.test.ts was deleted
-- [x] check:routes clean · audit-save all clear (v45 canonical)
+- `POST /v1/appStoreVersions` — attrs `versionString` [req], `platform` [req],
+  `copyright`, `releaseType`, `earliestReleaseDate`, `reviewType`, `usesIdfa`;
+  rels `app` [req], `build`, `appStoreVersionLocalizations`.
+- `PATCH /v1/appStoreVersions/{id}` — same attrs minus platform, plus
+  `downloadable`; rel `build` is how a build is attached to an existing version.
+- `appStoreVersionLocalization` attrs: `locale` [req on create], `whatsNew`,
+  `description`, `keywords`, `promotionalText`, `marketingUrl`, `supportUrl`.
+  **`whatsNew` lives here, NOT on the version** — the version has no
+  `releaseNotes` attribute despite what a summary of the docs claimed.
+- Submission is the 3-step flow. `appStoreVersionSubmissions` is deprecated:
+  `POST /v1/reviewSubmissions` (rel `app` [req], attr `platform`) →
+  `POST /v1/reviewSubmissionItems` (rel `reviewSubmission` [req] +
+  `appStoreVersion`) → `PATCH /v1/reviewSubmissions/{id}` `{submitted: true}`.
+
+## Steps
+
+- [x] Verify the request schemas against Apple's documentation JSON API
+- [x] `scripts/lib/ascClient.mjs` — credentials, ES256 JWT, request/paginate,
+      typed errors, dry-run recording
+- [x] Repoint `scripts/next-build-number.mjs` at the shared client without
+      changing its stdout contract or its epoch fallback
+- [x] `whatsNew` for en-US and es-MX in `marketing/aso/metadata.mjs`
+- [x] `check:aso` validates and emits `whatsNew` (Apple's limit is 4000)
+- [x] `scripts/asc-release.mjs` — plan/apply/submit, idempotent, dry by default
+- [x] npm scripts: `asc:status`, `asc:release`, `asc:release:apply`
+- [x] Tests for the pure logic (version ordering, state gating, payload shapes)
+- [x] Docs: how to run it, and what it deliberately will not do
+
+## Rules this must hold
+
+- **Dry-run by default.** Nothing mutates without `--apply`. Submitting for
+  review needs `--submit` ON TOP of `--apply`, because it is the one step that
+  puts the app in front of Apple.
+- **Idempotent.** Re-running with the record already correct performs no writes
+  and says so.
+- **Refuses rather than guesses.** If 1.5.0 does not beat the highest RELEASED
+  version, or the version is in a non-editable state, it stops and prints what
+  it found.
+- **No secrets in output.** The JWT and the .p8 never reach stdout or logs.

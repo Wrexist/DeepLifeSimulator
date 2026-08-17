@@ -19,6 +19,44 @@
 
 export const APPLE = {
   /**
+   * The App Store Connect VERSION RECORD — the number on the product page.
+   *
+   * This is NOT `package.json`'s version. That one is the binary
+   * (`CFBundleShortVersionString`, 2.9.0 today) and the two have deliberately
+   * differed since 1.2.7: 1.2.7 shipped on a 2.2.7 binary, 1.3.1 on 2.5.0,
+   * 1.3.5 on 2.5.x. Apple never compares them — the only rule is that each
+   * store version beats the last RELEASED one. Raising this to match the
+   * binary is a one-way door that permanently abandons the 1.x line, because
+   * store numbers can only ever climb. See CLAUDE.md §9.
+   *
+   * `scripts/asc-release.mjs` reads this as the record to create and fill.
+   */
+  storeVersion: '1.5.0',
+
+  /**
+   * The "What's New" for `storeVersion`, 4000 chars max.
+   *
+   * Lives here rather than only in WHATS_NEW.md so there is ONE copy that
+   * `check:aso` validates and `asc-release.mjs` sends to Apple verbatim.
+   * Retyping it into App Store Connect is what that script exists to remove.
+   * When it changes, change `lib/config/changelog.ts` (the in-app feed) and
+   * WHATS_NEW.md (the prose) in the same commit — they are the same release
+   * described for three audiences, and a reader who finds them disagreeing
+   * cannot tell which one is the lie.
+   */
+  whatsNew: `New faces, real conversations, and nothing left locked.
+
+• Character creation, rebuilt. Your face is now built from features you choose rather than picked from a gallery of portraits, and it ages with you instead of being swapped for a stranger's at each age band. Children look like children, and they inherit their parents' features.
+• Spark chats are a real conversation. Break the ice, compliment, joke, flirt, ask them out for coffee, dinner or something reckless, or ask them to go steady. Every match keeps its own rapport, so a relationship is built rather than announced — and any match you'd rather not date can become a friend instead.
+• Fixed a trap that could lock you out of the game. Buying a house or a company could take away the very app that manages it, and two life chapters asked for apps those same chapters were the only way to unlock. Progress only ever goes up now.
+• Your starting age no longer breaks the early game. Beginner luck, the early grace period, the first-month events and the week-count goals were all measured against your age instead of your life, so anyone who didn't start at 18 lost them — and Chapter 1 opened two-thirds done.
+• The dark web sells gear. The tool shop had no way in, which left 18 of the 19 street jobs locked behind tools nobody could buy. Deliveries now hand over the item you paid for, and listings rotate instead of freezing for weeks.
+• The money you're shown is the money you're charged. Weekly Expenses and the Budget tab left out rent, income tax and student loan payments; the Net Worth breakdown didn't add up to the Net Worth above it. Both add up now.
+• Friends are real. Only your first Spark match could ever become a contact, network contacts had no action at all, and neglecting people cost nothing. All three are fixed — and a neglected friend can now drift out of your life.
+• Six more money fixes: a false "Need $10,000" on family business actions, a double-tap that could buy a vehicle twice or duplicate coins in a swap, savings with no way to pay into it, buy-outs that added no revenue, ad rewards that offered a property millionaire $50, and a poverty scholarship that promised free education and delivered respect.
+• Faster and clearer. About six seconds off a cold start, a death screen that scrolls, food/gym/housing cards that show what they do to each stat, a Life Goals list that fits on a page, and a Contacts app that stays smooth in a long life.`,
+
+  /**
    * 30 chars. The highest-weighted field there is.
    *
    * `Deep Life Simulator` used only 19 of 30 and left the most valuable
@@ -164,6 +202,21 @@ A life runs for decades and every week is a decision you make. Most people start
         'Empieza sin nada. Un trabajo, un préstamo, un riesgo. Construye una '
         + 'fortuna en la bolsa, la propiedad y el crimen; después muere y déjaselo '
         + 'todo a un heredero.',
+      // Mirrors APPLE.whatsNew. Kept in the register of the description above
+      // — this locale is a real translation, not machine output, and a
+      // machine-shaped release note next to hand-written copy reads as one.
+      whatsNew: `Caras nuevas, conversaciones de verdad y nada que te deje fuera.
+
+• Creación de personaje, rehecha. Tu cara se construye a partir de rasgos que eliges, en vez de elegirse en una galería de retratos, y envejece contigo en lugar de cambiarse por la de un desconocido en cada etapa. Los niños parecen niños y heredan los rasgos de sus padres.
+• Los chats de Spark son una conversación real. Rompe el hielo, halaga, bromea, coquetea, invita a un café, a cenar o a algo temerario, o pide formalizar. Cada match tiene su propia complicidad, así que una relación se construye en vez de anunciarse; y con quien no quieras salir, puedes quedar como amigos.
+• Arreglado un fallo que podía dejarte fuera del juego. Comprar una casa o una empresa podía quitarte la app que la gestiona, y dos capítulos pedían apps que solo esos mismos capítulos desbloqueaban. Ahora el progreso solo sube.
+• Tu edad inicial ya no rompe el principio. La suerte de novato, el periodo de gracia, los eventos del primer mes y las metas por semanas se medían contra tu edad y no contra tu vida, así que quien no empezaba a los 18 los perdía. El capítulo 1 empezaba con dos tercios hechos.
+• La dark web ya vende equipo. La tienda de herramientas no tenía puerta de entrada, lo que dejaba 18 de los 19 trabajos callejeros bloqueados. Los envíos entregan lo que pagaste y los anuncios rotan en vez de congelarse durante semanas.
+• El dinero que ves es el que te cobran. Los gastos semanales y la pestaña de presupuesto omitían el alquiler, los impuestos y los préstamos estudiantiles; el desglose de patrimonio no cuadraba con la cifra de arriba. Ya cuadran.
+• Las amistades son reales. Solo tu primer match de Spark podía volverse contacto, los contactos de red no tenían ninguna acción y descuidar a la gente no costaba nada. Las tres cosas están arregladas, y a un amigo desatendido puedes perderlo.
+• Seis arreglos más de dinero: un falso "Necesitas $10,000" en el negocio familiar, un doble toque que podía comprar un vehículo dos veces o duplicar monedas en un intercambio, ahorros sin forma de ingresar dinero, adquisiciones que no sumaban ingresos, recompensas por anuncio que ofrecían $50 a un millonario y una beca que prometía estudios gratis y daba reputación.
+• Más rápido y más claro. Unos seis segundos menos al abrir, una pantalla de muerte que se desplaza bien, tarjetas de comida, gimnasio y vivienda que muestran su efecto en cada estadística, una lista de metas que cabe en una pantalla y una app de contactos fluida en vidas largas.`,
+
       description: `Toda vida empieza igual: sin dinero, sin trabajo, sin plan.
 Lo que pasa después depende solo de ti.
 

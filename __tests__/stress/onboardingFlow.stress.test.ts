@@ -167,7 +167,7 @@ describe('Onboarding Flow — end-to-end', () => {
 
   // ── EVERY SCENARIO BUILDS A VALID STATE ────────────────────────────────
   it('All scenarios: buildNewGameState produces a state that passes validateGameState', () => {
-    const failures: Array<{ id: string; errors: string[] }> = [];
+    const failures: { id: string; errors: string[] }[] = [];
     for (const sc of LIFE_PATH_SCENARIOS) {
       const built = buildFor(sc.id);
       const v = validateGameState(built);
@@ -295,8 +295,8 @@ describe('Onboarding Flow — end-to-end', () => {
 
   // ── SEX / SEXUALITY COMBINATIONS ───────────────────────────────────────
   it('Identity: every sex × sexuality combo produces coherent seekingGender', () => {
-    const sexes: Array<'male' | 'female' | 'random'> = ['male', 'female', 'random'];
-    const sexualities: Array<'straight' | 'gay' | 'bi'> = ['straight', 'gay', 'bi'];
+    const sexes: ('male' | 'female' | 'random')[] = ['male', 'female', 'random'];
+    const sexualities: ('straight' | 'gay' | 'bi')[] = ['straight', 'gay', 'bi'];
 
     for (const sex of sexes) {
       for (const sexuality of sexualities) {

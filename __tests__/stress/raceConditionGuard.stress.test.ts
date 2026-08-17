@@ -207,7 +207,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
     seedWealthy();
     act(() => captured!.setGameState(prev => ({ ...prev, weeklyStreetJobs: {} })));
 
-    const results: Array<{ success: boolean; message?: string } | void> = [];
+    const results: ({ success: boolean; message?: string } | void)[] = [];
     // Each call in its OWN act block, simulating separate React event commits.
     for (let i = 0; i < 10; i++) {
       act(() => { results.push(captured!.job.performStreetJob('beg')); });
@@ -253,7 +253,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
 
     const { giveGift } = await import('@/contexts/game/actions/DatingActions');
 
-    const results: Array<{ success: boolean; message?: string }> = [];
+    const results: { success: boolean; message?: string }[] = [];
     // Separate act blocks per call so the stateRef refreshes between taps.
     for (let i = 0; i < 5; i++) {
       act(() => {

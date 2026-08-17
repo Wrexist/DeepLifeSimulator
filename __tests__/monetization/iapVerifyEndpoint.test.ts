@@ -44,7 +44,7 @@ async function callVerify(env: Record<string, string | undefined>, body: any) {
     else process.env[k] = env[k];
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const handler = require(HANDLER_PATH);
     const res = makeRes();
     await handler({ method: 'POST', headers: {}, body }, res);

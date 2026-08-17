@@ -20,12 +20,12 @@ export interface BrandPartnershipOffer {
 export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
   const socialData = getSocialMediaData(state);
   const offers: BrandPartnershipOffer[] = [];
-  
+
   // Only generate offers if player has 10,000+ followers
   if (socialData.followers < 10_000) {
     return offers;
   }
-  
+
   // Sponsored post offers (weekly, smaller payments)
   if (socialData.followers >= 10_000 && socialData.engagementRate >= 10) {
     const sponsoredPayment = Math.floor(socialData.followers * 0.1); // $0.10 per follower
@@ -42,7 +42,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
       expiresIn: 1, // Expires in 1 week
     });
   }
-  
+
   // Brand deal offers (monthly, larger payments, requires higher followers)
   if (socialData.followers >= 50_000 && socialData.engagementRate >= 15) {
     const brandDealPayment = Math.floor(socialData.followers * 2); // $2 per follower
@@ -59,7 +59,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
       expiresIn: 4, // Expires in 4 weeks
     });
   }
-  
+
   // Premium brand deals (requires influencer status)
   if (socialData.followers >= 100_000 && socialData.engagementRate >= 20) {
     const premiumPayment = Math.floor(socialData.followers * 5); // $5 per follower
@@ -194,12 +194,12 @@ export function calculateInfluencerIncome(
 
 // Curated brand catalog. Each entry seeds a deterministic offer based on
 // player handle + week, so re-rolling the same tick yields the same offers.
-const PULSE_BRAND_CATALOG: Array<{
+const PULSE_BRAND_CATALOG: {
   name: string;
   category: PulseBrandCategory;
   color1: string;
   color2: string;
-}> = [
+}[] = [
   { name: 'NebulaCola',     category: 'food',      color1: '#F472B6', color2: '#7C3AED' },
   { name: 'MoonAudio',      category: 'tech',      color1: '#38BDF8', color2: '#1E40AF' },
   { name: 'AuraFit',        category: 'fitness',   color1: '#34D399', color2: '#065F46' },

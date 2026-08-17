@@ -188,7 +188,7 @@ describe('Crime + Jail flow', () => {
     mounted = mountGame();
     seedCriminal(1);
 
-    const results: Array<{ success: boolean; message?: string } | void> = [];
+    const results: ({ success: boolean; message?: string } | void)[] = [];
     for (let i = 0; i < 4; i++) {
       act(() => { results.push(captured!.job.performStreetJob('beg')); });
     }

@@ -18,7 +18,7 @@
 // module via `requireActual`.
 jest.unmock('@/services/RemoteLoggingService');
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const { sanitizeLogContext } = jest.requireActual('@/services/RemoteLoggingService') as {
   sanitizeLogContext: (value: unknown, depth?: number) => unknown;
 };

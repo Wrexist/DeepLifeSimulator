@@ -1,0 +1,73 @@
+name: Preflight
+
+# The release gate, as a button.
+#
+# CLAUDE.md Hard Rule #6: `npm run preflight` must pass before any release
+# build, with no skipped checks. Running it here means the answer does not
+# depend on whose laptop it was run on, or on remembering to run it at all.
+#
+# It is the same command the runbook names — check:routes, the 11-section
+# preflight script, lint:errors, lint:ratchet and check:content — so a green
+# run here IS the rule satisfied.
+
+on:
+  workflow_dispatch:
+  # Also runs on PRs that touch the things preflight actually guards, so a
+  # change to native config or shipped assets cannot reach main unnoticed.
+  # Deliberately not on every PR: this is slower than the standard gate.
+  pull_request:
+    paths:
+      - 'app.config.js'
+      - 'eas.json'
+      - 'package.json'
+      - 'app/entry.ts'
+      - 'app/_layout.tsx'
+      - 'assets/**'
+      - 'scripts/preflight-check.js'
+      - '.github/workflows/preflight.yml'
+
+concurrency:
+  group: preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Preflight
+        id: preflight
+        run: |
+          set -o pipefail
+          npm run preflight 2>&1 | tee /tmp/preflight.txt
+
+      # Preflight's value is its report, not its exit code — it distinguishes
+      # blocking failures from warnings that are someone's call. Surface it
+      # where it can be read without opening the raw log.
+      - name: Report
+        if: ${{ always() }}
+        run: |
+          {
+            echo "## Preflight"
+            echo
+            if [ "${{ steps.preflight.outcome }}" = "success" ]; then
+              echo "✅ **Green.** Hard Rule #6 satisfied — clear to cut a release build."
+            else
+              echo "❌ **Failed.** Do not cut a release build until this is green."
+              echo "Never pass \`--force\` or skip a section to get past it."
+            fi
+            echo
+            echo '```'
+            tail -c 60000 /tmp/preflight.txt 2>/dev/null || echo '(no output)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

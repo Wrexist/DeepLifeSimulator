@@ -32,7 +32,7 @@ export interface ViewerRecord {
  * newest-first history (as stored) and rounds to a whole number.
  */
 export function rollingAverageViewers(
-  history: ReadonlyArray<ViewerRecord>,
+  history: readonly ViewerRecord[],
   window: number = AVG_VIEWERS_WINDOW
 ): number {
   if (!history || history.length === 0) return 0;

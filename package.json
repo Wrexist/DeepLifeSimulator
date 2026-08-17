@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -43,7 +43,10 @@
     "lint:ratchet": "node scripts/check-lint.js",
     "check:content": "node scripts/check-content-quality.js",
     "check:aso": "node scripts/check-aso.mjs",
-    "aso": "node scripts/check-aso.mjs --emit"
+    "aso": "node scripts/check-aso.mjs --emit",
+    "asc:status": "node scripts/asc-release.mjs --status",
+    "asc:release": "node scripts/asc-release.mjs",
+    "asc:release:apply": "node scripts/asc-release.mjs --apply"
   },
   "dependencies": {
     "@dicebear/avataaars": "^9.2.2",
@@ -53,10 +56,10 @@
     "@react-native-firebase/app": "^23.8.8",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.1.8",
-    "expo": "~54.0.36",
+    "expo": "~54.0.37",
     "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
-    "expo-constants": "~18.0.13",
+    "expo-constants": "~18.0.14",
     "expo-dev-client": "~6.0.20",
     "expo-font": "~14.0.12",
     "expo-iap": "^4.3.5",
@@ -67,7 +70,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-store-review": "~9.0.9",
     "expo-tracking-transparency": "~6.0.8",
-    "expo-updates": "~29.0.19",
+    "expo-updates": "~29.0.20",
     "lucide-react-native": "^0.475.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",

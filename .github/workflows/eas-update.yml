@@ -57,6 +57,13 @@ jobs:
       - name: Type check (test tree — ratchet)
         run: npm run type-check:tests:ratchet
 
+      # Store copy is DATA in marketing/aso/metadata.mjs, and asc-release.yml
+      # sends it to Apple verbatim — so a length overrun or a shipped locale
+      # missing its release notes is a store defect, not a docs typo. Cheap,
+      # and it fails here instead of after upload.
+      - name: Check store metadata
+        run: npm run check:aso
+
       - name: Lint
         run: npm run lint
 

@@ -1955,7 +1955,7 @@ export function validateGameState(
     // unplayable save. Treat it as critical so the load path repairs it.
     e.includes('NaN/Infinity')
   );
-  
+
   return {
     valid: criticalErrors.length === 0, // Only block on critical errors
     errors: criticalErrors.length > 0 ? criticalErrors : errors, // Return all errors for logging
@@ -2206,7 +2206,7 @@ export function parseSaveData(
     // 2. typeof parsed === 'object' && parsed !== null ensures it's a valid object
     // 3. validateGameState() checks all required properties exist
     return {
-      state: validation.valid && typeof parsed === 'object' && parsed !== null 
+      state: validation.valid && typeof parsed === 'object' && parsed !== null
         ? (parsed as GameState) // ✅ SAFE - Only after validation.valid check
         : null,
       valid: validation.valid,
@@ -2473,7 +2473,7 @@ export async function doubleBufferLoad(
     // — reporting "no data" for a slot holding two intact megabyte saves
     // (2026-07-29 audit SAVE-OW-3).
     const pointerKnown = currentActive === 'A' || currentActive === 'B';
-    const order: Array<'A' | 'B'> = currentActive === 'B' ? ['B', 'A'] : ['A', 'B'];
+    const order: ('A' | 'B')[] = currentActive === 'B' ? ['B', 'A'] : ['A', 'B'];
 
     /** Heal a wrong or missing pointer so the next read goes straight there. */
     const repoint = async (buffer: 'A' | 'B') => {

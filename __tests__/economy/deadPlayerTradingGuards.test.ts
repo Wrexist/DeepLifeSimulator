@@ -46,7 +46,7 @@ const deadState = (): GameState =>
   createTestGameState({ showDeathPopup: true, stats: { money: 100_000 } });
 
 /** One entry per guarded action; each invokes the action so we can run its updater. */
-const cases: Array<{ name: string; invoke: (sg: Dispatch<SetStateAction<GameState>>) => void }> = [
+const cases: { name: string; invoke: (sg: Dispatch<SetStateAction<GameState>>) => void }[] = [
   { name: 'buyStockMarket', invoke: (sg) => buyStockMarket(sg, 'AAPL', 1_000, 150) },
   { name: 'sellStockMarket', invoke: (sg) => sellStockMarket(sg, 'AAPL', 5, 150) },
   { name: 'buyCryptoMarket', invoke: (sg) => buyCryptoMarket(sg, 'btc', 1_000) },

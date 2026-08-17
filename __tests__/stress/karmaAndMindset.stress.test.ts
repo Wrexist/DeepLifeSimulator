@@ -349,7 +349,7 @@ describe('Karma + Mindset cross-system', () => {
   // ── EXTREME CHAINING ────────────────────────────────────────────────────
   it('500 random karma changes keep state JSON-safe and in [-100, 100]', () => {
     let k = INITIAL_KARMA;
-    const dimensions: Array<keyof typeof k.dimensions> = ['generosity', 'honesty', 'violence', 'loyalty', 'ambition'];
+    const dimensions: (keyof typeof k.dimensions)[] = ['generosity', 'honesty', 'violence', 'loyalty', 'ambition'];
     for (let i = 0; i < 500; i++) {
       const d = dimensions[i % dimensions.length];
       const amt = (Math.random() - 0.5) * 100; // ±50 input (clamped to ±20)

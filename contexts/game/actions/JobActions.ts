@@ -19,16 +19,16 @@ import {
   resolveRaisePremium,
   RAISE_MIN_PERFORMANCE,
 } from '@/lib/careers/raisePremium';
+import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
+import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
+import { politicalPromotionBlocker } from '@/lib/careers/political';
 /**
  * Re-exported so existing importers of `RAISE_MIN_PERFORMANCE` keep working.
  * The constant itself now lives in `lib/careers/raisePremium` — `lib/mail`
  * needs it too, and `lib/` must not import upward from `contexts/`.
  */
 export { RAISE_MIN_PERFORMANCE };
-import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
-import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
-import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
-import { politicalPromotionBlocker } from '@/lib/careers/political';
 
 /** Street-job requirement ids that any transport tier can satisfy. */
 const TRANSPORT_REQUIREMENT_ITEMS = new Set(['bike']);
@@ -214,9 +214,9 @@ export const performStreetJob = (
         const item = items.find(i => i.id === id);
         return item ? item.name : id;
       }).join(', ');
-      return { 
-        success: false, 
-        message: `Missing required items: ${itemNames}` 
+      return {
+        success: false,
+        message: `Missing required items: ${itemNames}`
       };
     }
   }
@@ -239,18 +239,18 @@ export const performStreetJob = (
         const regularItem = items.find(i => i.id === id);
         return darkWebItem ? darkWebItem.name : (regularItem ? regularItem.name : id);
       }).join(', ');
-      return { 
-        success: false, 
-        message: `Missing required items: ${itemNames}` 
+      return {
+        success: false,
+        message: `Missing required items: ${itemNames}`
       };
     }
   }
 
   // Check criminal level requirement
   if (job.criminalLevelReq && gameState.criminalLevel < job.criminalLevelReq) {
-    return { 
-      success: false, 
-      message: `Requires Criminal Level ${job.criminalLevelReq} (you are level ${gameState.criminalLevel})` 
+    return {
+      success: false,
+      message: `Requires Criminal Level ${job.criminalLevelReq} (you are level ${gameState.criminalLevel})`
     };
   }
 
@@ -328,7 +328,7 @@ export const performStreetJob = (
   const moneyBeforeJob = gameState.stats.money;
   const basePay = job.basePayment;
   const levelBonus = (gameState.criminalLevel - 1) * 0.1;
-  
+
   // STABILITY FIX: modest income boost for unemployed players so street jobs
   // remain viable as primary income (prevents a poverty trap). BALANCE: trimmed
   // from 1.5× to 1.25× so that grinding street jobs while jobless is no longer
@@ -336,7 +336,7 @@ export const performStreetJob = (
   // (applyCareerSalaryAndPenalty) close the rest of the gap.
   const hasCareerJob = !!gameState.currentJob && gameState.currentJob.length > 0;
   const unemployedBonus = hasCareerJob ? 1.0 : 1.25;
-  
+
   // Transport multiplier: a rented scooter pays 0.7x, your own bike 1x, a moped
   // 1.35x, a car 1.8x. That gradient is the progression — the rental unlocks
   // the work, and every upgrade you buy out of it pays you more for the
@@ -353,7 +353,7 @@ export const performStreetJob = (
   const moneyGained = success
     ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier)
     : 0;
-  
+
   // Risk calculation — wanted level increases arrest chance
   const wantedLevel = gameState.wantedLevel || 0;
   const baseCaughtChance = job.illegal ? (100 - successChance) / 2 : 0;
@@ -367,7 +367,7 @@ export const performStreetJob = (
     rngCommitKeys.push(caughtRollKey);
   }
   const caught = caughtChance > 0 ? ((caughtRoll || 0) * 100 < caughtChance) : false;
-  
+
   // Calculate money lost from ORIGINAL money (before job), not after gaining money
   // This prevents taking 10% of an inflated amount if job succeeded
   // Also ensure we don't take more than the player actually has
@@ -376,7 +376,7 @@ export const performStreetJob = (
   // Apply effects - ensure we don't lose more than we have
   // If caught, apply money changes in the correct order: first gain (if any), then loss
   const netMoneyChange = moneyGained - moneyLost;
-  
+
   // Calculate stat penalties based on job type
   // Illegal jobs: -7 happiness, -3 health
   // Dangerous jobs (jailWeeks >= 3 or wantedIncrease >= 3): -6 happiness, -4 health
@@ -384,7 +384,7 @@ export const performStreetJob = (
   const isDangerous = (job.jailWeeks && job.jailWeeks >= 3) || (job.wantedIncrease && job.wantedIncrease >= 3);
   const happinessPenalty = job.illegal ? -7 : (isDangerous ? -6 : -5);
   const healthPenalty = job.illegal ? -3 : (isDangerous ? -4 : -2);
-  
+
   // Debug logging
   log.info('Street job execution:', {
     jobId,
@@ -397,7 +397,7 @@ export const performStreetJob = (
     happinessPenalty,
     healthPenalty,
   });
-  
+
   let message;
   let rankIncreased = false;
   if (caught) {
@@ -491,7 +491,7 @@ export const performStreetJob = (
         rankIncreased = newProgress >= progressNeededForRankUp;
       }
     }
-    
+
     // Not caught - update everything in a single state update to prevent race conditions
     setGameState(prev => {
       // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
@@ -525,16 +525,16 @@ export const performStreetJob = (
         newMoney,
         prevMoney: prev.stats.money,
       });
-      
+
       // Update job progress and rank if successful
       const updatedStreetJobs = (prev.streetJobs || []).map(j => {
         if (j.id !== jobId) return j;
-        
+
         // Only increase progress on successful completion
         if (success) {
           const newProgress = j.progress + 1;
           const progressNeededForRankUp = 3; // Complete job 3 times to rank up
-          
+
           if (newProgress >= progressNeededForRankUp) {
             // Rank up and reset progress
             return {
@@ -550,10 +550,10 @@ export const performStreetJob = (
             };
           }
         }
-        
+
         return j;
       });
-      
+
       // RANDOMNESS FIX: Track street job failures for pity system
       // Update failure count: reset on success, increment on failure
       //
@@ -571,11 +571,11 @@ export const performStreetJob = (
       // - If job is removed from streetJobs array, failure count becomes orphaned (acceptable - minor memory leak)
       // - If job ID changes, failure count is lost (shouldn't happen, but defensive code could check)
       const currentFailureCount = prev.streetJobFailureCount || {};
-      const newFailureCount = success 
+      const newFailureCount = success
         ? { ...currentFailureCount, [jobId]: 0 } // Reset on success
         : { ...currentFailureCount, [jobId]: (currentFailureCount[jobId] || 0) + 1 }; // Increment on failure
       const nextRngCommitLog = commitDeterministicRolls(prev, rngCommitKeys, prev.weeksLived || 0);
-      
+
       // Merge karma + wantedLevel changes atomically (avoids separate setGameState calls)
       let updatedKarma = prev.karma || INITIAL_KARMA;
       let updatedWantedLevel = prev.wantedLevel || 0;
@@ -677,7 +677,7 @@ export const gainCriminalXp = (
   setGameState(prev => {
     const newXp = prev.criminalXp + amount;
     const nextLevelXp = prev.criminalLevel * 100;
-    
+
     if (newXp >= nextLevelXp) {
       // Level up
       return {
@@ -686,7 +686,7 @@ export const gainCriminalXp = (
         criminalLevel: prev.criminalLevel + 1,
       };
     }
-    
+
     return {
       ...prev,
       criminalXp: newXp,
@@ -705,7 +705,7 @@ export const gainCrimeSkillXp = (
 
     const newXp = skill.xp + amount;
     const nextLevelXp = skill.level * 100;
-    
+
     if (newXp >= nextLevelXp) {
       // Skill Level up
       return {
@@ -720,7 +720,7 @@ export const gainCrimeSkillXp = (
         },
       };
     }
-    
+
     return {
       ...prev,
       crimeSkills: {
@@ -777,13 +777,13 @@ export const applyForJob = (
 
   // Check requirements
   const requirements = career.requirements;
-  
+
   // Check fitness requirement
   if ('fitness' in requirements && requirements.fitness) {
     if ((gameState.stats.fitness || 0) < requirements.fitness) {
-      return { 
-        success: false, 
-        message: `Requires Fitness ${requirements.fitness}+ (you have ${gameState.stats.fitness || 0})` 
+      return {
+        success: false,
+        message: `Requires Fitness ${requirements.fitness}+ (you have ${gameState.stats.fitness || 0})`
       };
     }
   }
@@ -956,24 +956,24 @@ export const applyForJob = (
   if (accepted) {
     log.info(`Job application accepted: ${careerId}`, { applicationAttempts });
     // Validate career.level is within bounds before accessing levels array
-    const safeLevel = career.levels && career.levels.length > 0 
+    const safeLevel = career.levels && career.levels.length > 0
       ? Math.max(0, Math.min(career.level, career.levels.length - 1))
       : 0;
     const levelName = career.levels?.[safeLevel]?.name || careerId;
-    return { 
-      success: true, 
-      message: `Congratulations! You've been accepted for ${levelName}. You start immediately!` 
+    return {
+      success: true,
+      message: `Congratulations! You've been accepted for ${levelName}. You start immediately!`
     };
   } else {
     log.info(`Job application submitted: ${careerId}`, { applicationAttempts, acceptanceChance });
     // Validate career.level is within bounds before accessing levels array
-    const safeLevel = career.levels && career.levels.length > 0 
+    const safeLevel = career.levels && career.levels.length > 0
       ? Math.max(0, Math.min(career.level, career.levels.length - 1))
       : 0;
     const levelName = career.levels?.[safeLevel]?.name || careerId;
-    return { 
-      success: true, 
-      message: `Application submitted for ${levelName}. You'll hear back in 1-2 weeks.` 
+    return {
+      success: true,
+      message: `Application submitted for ${levelName}. You'll hear back in 1-2 weeks.`
     };
   }
 };

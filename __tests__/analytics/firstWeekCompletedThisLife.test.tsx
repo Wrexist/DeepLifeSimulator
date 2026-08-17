@@ -36,7 +36,7 @@ jest.mock('@/contexts/game/GameUIContext', () => ({
 
 jest.mock('expo-router', () => ({ usePathname: () => '/home' }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const { AnalyticsTracker } = require('@/lib/analytics/AnalyticsTracker');
 
 /** A live store the test can advance a week at a time. */

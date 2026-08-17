@@ -110,8 +110,27 @@ const MAX_ERRORS = 0;
  * Worth knowing because it cuts both ways: a single misplaced statement can
  * blow a 50-warning hole in this budget, so a sudden jump is worth reading
  * before assuming someone wrote 50 sloppy lines.
+ *
+ * ── The 89 that came off on 2026-08-17 (931 → 842) ────────────────────────
+ * The count had drifted 71 OVER the 860 ceiling, so `npm run preflight` could
+ * not pass and no release build could be cut. Autofix again, and the same
+ * three harmless categories: `import/first`, `array-type` (`Array<T>` → `T[]`)
+ * and dead `eslint-disable` directives.
+ *
+ * Trap 2 above is real and was hit again. A blanket `--fix` moved the
+ * `jest.mock()` block BELOW the imports in five suites — `babel-plugin-jest-
+ * hoist` re-hoists it, so the tests still pass, but that is the bet this file
+ * already declined once. Those five files were reverted whole and keep their
+ * warnings; the difference between 805 and 842 is exactly that decision. If
+ * you autofix again, diff for moved `jest.mock`/`require` lines BEFORE
+ * believing the number.
+ *
+ * The other thing to know: removing a disable directive leaves the line as
+ * pure whitespace rather than deleting it, so 47 whitespace-only lines came
+ * with the fix and were stripped separately. Nothing lints that, so it would
+ * have landed silently.
  */
-const MAX_WARNINGS = 860;
+const MAX_WARNINGS = 842;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;
