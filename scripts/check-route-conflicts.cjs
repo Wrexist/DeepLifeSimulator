@@ -48,14 +48,14 @@ function main() {
   }
   const files = walk(APP)
     .map((f) => path.relative(APP, f).split(path.sep).join('/'))
-    // entry.ts is `package.json` `main`. It is NOT exempt from route collection —
-    // expo-router's `require.context` (see `node_modules/expo-router/_ctx.ios.js`)
-    // matches every `.ts`/`.tsx` under app/ except `+api`/`+html`/`+middleware`, so
-    // it IS collected, claims `/entry`, and carries a null-returning default export
-    // for exactly that reason. It is skipped HERE only because `/entry` is a route
-    // no other file can collide with, and listing it would just be noise.
-    // +not-found / +html are special fallbacks.
-    .filter((f) => !/(^|\/)entry\.(t|j)sx?$/.test(f))
+    // `entry.ts` is deliberately NOT excluded. It is `package.json` `main`, but
+    // that does not exempt it from route collection: expo-router's
+    // `require.context` (see `node_modules/expo-router/_ctx.ios.js`) matches every
+    // `.ts`/`.tsx` under app/ except `+api`/`+html`/`+middleware`, so entry.ts IS
+    // collected and DOES claim `/entry` — which means it can be collided with
+    // (`entry.ts` + `entry.tsx` both normalize to `/entry`), and hiding it from
+    // this guard would hide that pair from the only check that looks for it.
+    // `+not-found` / `+html` are expo-router's special fallbacks, not leaf routes.
     .filter((f) => !/\+not-found/.test(f) && !/\+html/.test(f));
 
   const claims = {};

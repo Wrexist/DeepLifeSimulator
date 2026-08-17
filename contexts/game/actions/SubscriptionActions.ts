@@ -118,13 +118,13 @@ export function canClaimDailyGemsFor(
    * The DeepLife+ daily gem drop — a SUBSCRIBER benefit, where gating on play
    * would punish a paying member for a quiet day — passes the same object with
    * `allowOneGraceClaim`, which keeps the quiet-day claim but caps it at one
-   * per played week (v45). See `isPlayBackedGemClaim` for the truth table.
+   * per played week (v46). See `isPlayBackedGemClaim` for the truth table.
    */
   gameWeek?: {
     current: number | undefined;
     lastClaim: number | undefined;
     /**
-     * MEMBER GRACE (v45). When true, the gate allows at most ONE claim that is
+     * MEMBER GRACE (v46). When true, the gate allows at most ONE claim that is
      * not backed by a played game week — the deliberate DeepLife+ perk (claim on
      * a new calendar day without having played) — but no more, so a forward
      * clock scrub cannot COMPOUND it. `lastGraceClaim` is `weeksLived` at the
@@ -161,7 +161,7 @@ export function canClaimDailyGemsFor(
       if (finiteWeek(last) !== undefined) return false;
       return true;
     }
-    // MEMBER tier (v45): the claim is not backed by play, so it must come out of
+    // MEMBER tier (v46): the claim is not backed by play, so it must come out of
     // the one banked grace. Spent already at this `weeksLived` → refuse.
     const grace = finiteWeek(gameWeek.lastGraceClaim);
     if (grace !== undefined && current <= grace) return false;
@@ -178,7 +178,7 @@ const finiteWeek = (w: number | undefined): number | undefined =>
  * as NOT play-backed: nothing was played to earn it, so a member's first-ever
  * claim spends the banked grace rather than arriving with a free one on top.
  *
- * ── DeepLife+ member daily-gem truth table (v45) ─────────────────────────────
+ * ── DeepLife+ member daily-gem truth table (v46) ─────────────────────────────
  * `W` = weeksLived · `S` = settings.deepLifePlusLastGemClaimWeek (stamped on
  * EVERY claim) · `G` = settings.deepLifePlusLastMemberClaimWeek (stamped only
  * when a member claim was NOT play-backed, i.e. when it spends the grace).
@@ -232,7 +232,7 @@ export function canClaimDailyGems(state: GameState, todayKey: string, nowMs?: nu
   //
   // The DeepLife+ member drop KEEPS its calendar-day grace — claiming on a quiet
   // day without playing is a deliberate subscriber perk — but that grace is now
-  // capped at ONE claim per played game week (v45), so a forward clock scrub
+  // capped at ONE claim per played game week (v46), so a forward clock scrub
   // cannot COMPOUND it into an unbounded 250-gem/day faucet on the premium
   // currency. See `isPlayBackedGemClaim` for the full truth table.
   const gameWeek = hasDeepLifePlusEntitlement(state.settings)
@@ -314,7 +314,7 @@ export function claimDailyGems(state: GameState, todayKey: string, nowMs?: numbe
       // gate and the grant are always persisted together (see canClaimDailyGems).
       deepLifePlusLastGemClaimWeek: state.weeksLived,
       // Spend the member's banked grace in that same updater when THIS claim was
-      // not backed by a played week (v45). Only written on the member path and
+      // not backed by a played week (v46). Only written on the member path and
       // only when actually spent — stamping it on a play-backed claim would
       // silently consume the perk the member is paying for.
       ...(spendsMemberGrace ? { deepLifePlusLastMemberClaimWeek: state.weeksLived } : {}),

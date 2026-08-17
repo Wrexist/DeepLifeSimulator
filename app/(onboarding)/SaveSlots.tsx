@@ -240,23 +240,49 @@ export default function SaveSlots() {
     [slots]
   );
 
+  // The probe INPUTS as one stable primitive — `id:localWeeks` per slot, which
+  // is exactly what `probeCloudSlot` is given and all that can change its
+  // answer. Keyed on the `slots` ARRAY instead, the probe effect re-ran on every
+  // identity change, and `loadSlots` builds a fresh array on mount, on every
+  // focus pass, and again after a cloud restore — so returning to this screen
+  // re-downloaded every save several times over.
+  const cloudProbeKey = useMemo(
+    () => slots.map((slot) => `${slot.id}:${slot.hasData ? safeStatNumber(slot.weeksLived) : 0}`).join('|'),
+    [slots]
+  );
+
   // Probed AFTER the local slots have painted — each probe downloads a save, so
-  // it must never be on the path that renders the list.
+  // it must never be on the path that renders the list. The three probes are
+  // independent, so they run CONCURRENTLY; sequencing them stacked three full
+  // downloads end to end for no gain.
   useEffect(() => {
-    if (!cloudEnabled || !slotsLoaded) return undefined;
+    if (!cloudEnabled || !slotsLoaded || cloudProbeKey === '') return undefined;
     let cancelled = false;
+    // Rebuilt from the key rather than closed over `slots`, so the effect
+    // depends only on the primitive above.
+    const targets = cloudProbeKey.split('|').map((entry) => {
+      const [id, localWeeks] = entry.split(':');
+      return { id: Number(id), localWeeks: Number(localWeeks) };
+    });
     void (async () => {
+      // probeCloudSlot resolves `null` on any failure (it catches internally),
+      // so one unreachable slot cannot reject the batch.
+      const probes = await Promise.all(
+        targets.map(async ({ id, localWeeks }) => ({ id, probe: await probeCloudSlot(id, localWeeks) }))
+      );
+      if (cancelled) return;
       const offers: Record<number, number> = {};
-      for (const slot of slots) {
-        const probe = await probeCloudSlot(slot.id, slot.hasData ? safeStatNumber(slot.weeksLived) : 0);
-        if (probe?.newer) offers[slot.id] = probe.remoteWeeks;
+      for (const { id, probe } of probes) {
+        // Only when the cloud copy is AHEAD — restoring must be able to gain
+        // something, and `hydrateRemoteState` would refuse an older one anyway.
+        if (probe?.newer) offers[id] = probe.remoteWeeks;
       }
-      if (!cancelled) setCloudOffers(offers);
+      setCloudOffers(offers);
     })();
     return () => {
       cancelled = true;
     };
-  }, [cloudEnabled, slots, slotsLoaded]);
+  }, [cloudEnabled, cloudProbeKey, slotsLoaded]);
 
   const restoreSlotFromCloud = useCallback(
     async (slotId: number) => {

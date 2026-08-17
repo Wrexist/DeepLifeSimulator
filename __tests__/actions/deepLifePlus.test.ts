@@ -215,7 +215,7 @@ describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () 
 });
 
 /**
- * v45 — the DeepLife+ MEMBER grace is capped at ONE unplayed claim per played
+ * v46 — the DeepLife+ MEMBER grace is capped at ONE unplayed claim per played
  * game week. The perk (claim on a quiet day without playing) stays; what it
  * lacked was a cap, so a forward clock scrub compounded it into an unbounded
  * 250-gems/day faucet on the premium currency.
@@ -226,7 +226,7 @@ describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () 
  * `deepLifePlusLastMemberClaimWeek`); a second unplayed claim at the same
  * `weeksLived` is refused.
  */
-describe('claimDailyGems — DeepLife+ member grace cap (v45)', () => {
+describe('claimDailyGems — DeepLife+ member grace cap (v46)', () => {
   const D1 = '2026-07-21';
   const D2 = '2026-07-22';
   const D3 = '2026-07-23';
@@ -256,7 +256,7 @@ describe('claimDailyGems — DeepLife+ member grace cap (v45)', () => {
     expect(s.settings.deepLifePlusLastGemClaimWeek).toBe(101);
     expect(s.settings.deepLifePlusLastMemberClaimWeek).toBe(100); // still day 1's
 
-    // Day 3 after playing again: still claiming daily, exactly as before v45.
+    // Day 3 after playing again: still claiming daily, exactly as before v46.
     s = { ...s, weeksLived: 102 };
     s = claimDailyGems(s, D3);
     expect(s.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 3);
@@ -414,7 +414,7 @@ describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)
     const afterY = claimDailyGems(member(), YESTERDAY, d23_2359);
     expect(afterY.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
     // Play a game week between the two days: this test is about the DAY-KEY
-    // guard, and the v45 member grace allows only ONE claim not backed by play
+    // guard, and the v46 member grace allows only ONE claim not backed by play
     // (the first one, above), which would otherwise settle day two here.
     const afterT = claimDailyGems({ ...afterY, weeksLived: afterY.weeksLived + 1 }, TODAY, d24_0002);
     expect(afterT.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2); // two legit days

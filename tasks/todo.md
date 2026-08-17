@@ -15,7 +15,7 @@ services/save/startup/tooling/economy/actions.
 - [x] Agent A: overdueBalance subtracted in canonical netWorth() (full, no
       floor) + 13 tests; preTick snapshot copy deliberately untouched.
 - [x] Agent B: DeepLife+ member gem drop capped at one unplayed claim per
-      played week (v45 carve-out `deepLifePlusLastMemberClaimWeek`), free
+      played week (v46 carve-out `deepLifePlusLastMemberClaimWeek`), free
       tier untouched, truth-table suite.
 - [x] Agent C: cloud device backup wired — cloudSave flag (opt-in + URL
       required, Boring-Build-exempt), boot start via startup orchestrator,

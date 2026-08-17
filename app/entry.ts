@@ -22,6 +22,11 @@
  */
 import 'expo-router/entry';
 
-export default function Entry() {
+/**
+ * The inert default export that satisfies expo-router's route collector for
+ * `/entry` (see the header above). Renders nothing, holds no state, and is
+ * never navigated to — keep it a bare `return null`.
+ */
+export default function Entry(): null {
   return null;
 }

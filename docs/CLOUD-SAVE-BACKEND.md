@@ -5,9 +5,23 @@ The backend behind **cloud device backup** (`services/cloudBackup.ts`,
 **leaderboard** (`components/LeaderboardModal.tsx`).
 
 Scope today is **device backup**, not cross-device sync: identity is an
-anonymous per-install id, so a backup restores onto the same device (or a
-reinstall on it), and there is no account to carry a save to a second phone.
-Cross-device requires sign-in — see *Future work*.
+anonymous per-install id, so there is no account to carry a save to a second
+phone. Cross-device requires sign-in — see *Future work*.
+
+What is **supported today is same-install restore**: recovering a save into the
+same app installation it was backed up from (a deleted or corrupted slot, a
+cleared game save). That is the case the validation pass is written to prove.
+
+**Whether a backup survives a REINSTALL is an open question, not a promise.**
+The identity is `cloud_user_id`, minted per install and stored in AsyncStorage
+(`services/CloudSyncService.ts`). AsyncStorage is not guaranteed to survive an
+iOS app delete + reinstall, and if the id does not survive, the new install
+mints a different one and finds no backup — the backup row is still there, but
+nothing points at it. Nobody has run that on a device yet. The device
+validation in `tasks/cowork-handoff-cloud-backup.md` exists to settle it; if
+the id is lost, the fix is to move it to the Keychain/Keystore
+(`expo-secure-store`), which does survive a reinstall. Do not describe
+reinstall restore as working until that check has been run.
 
 ---
 
@@ -128,14 +142,15 @@ curl -s "$BASE/save?userId=player_curl_1&slotId=slot_1" -H "Authorization: Beare
 does not. Promoting is three lines copied from the `preview` profile's `env`
 into `production`'s in `eas.json`:
 
-```
+```json
 "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
 "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
 "EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "<same value as preview>"
 ```
 
 Do that only after a preview build has actually backed up and restored on a
-device (§ *Validation checklist* in `tasks/cowork-handoff-cloud-backup.md`).
+device (§ *Task 1* in `tasks/cowork-handoff-cloud-backup.md` — step 5,
+same-install restore, is the one that must pass).
 
 The client refuses to enable itself unless **both** the flag and a non-empty
 URL are present (`lib/config/featureFlags.ts`), so a half-filled profile

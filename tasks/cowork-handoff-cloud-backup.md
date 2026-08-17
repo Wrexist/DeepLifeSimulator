@@ -32,8 +32,16 @@ a real device.** Every test so far is a unit test or a direct HTTP call. That
 is your job.
 
 Scope is device backup, not cross-device sync: identity is an anonymous
-per-install id stored in AsyncStorage under `cloud_user_id`, so a backup
-restores onto the same install or a reinstall on that device.
+per-install id stored in AsyncStorage under `cloud_user_id`, so there is no
+account that could carry a save to a second phone.
+
+**Same-install restore is the behaviour this feature claims today** — recovering
+a save into the same app installation that wrote it. **Reinstall restore is an
+open question, not a claim**: AsyncStorage is not guaranteed to survive an iOS
+app delete + reinstall, and if `cloud_user_id` is lost the new install mints a
+different id and finds no backup. Step 5 below validates the supported case;
+step 6 probes the open one, and a failure there is an EXPECTED FINDING to
+report, not a bug to fix on the spot.
 
 Key files:
 - `services/cloudBackup.ts` — debounce scheduler (5 min), restore candidate fetch
@@ -51,7 +59,7 @@ Key files:
 
 1. `npm install` if needed, then start the app with the cloud vars set, e.g.
    put them in `.env.local` or export them before `npm start`:
-   ```
+   ```bash
    EXPO_PUBLIC_ENABLE_CLOUD_SAVE=true
    EXPO_PUBLIC_CLOUD_SAVE_URL=https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1
    EXPO_PUBLIC_CLOUD_AUTH_TOKEN=<the value in eas.json's preview profile>
@@ -67,21 +75,38 @@ Key files:
    an automatic backup happened (the timestamp advances without you tapping).
    Auto-upload is debounced to one upload per 5 minutes and only fires after
    a *successful* local save.
-5. **The real test — restore.** Delete the app (or clear its storage), then
-   reinstall/relaunch. On the **SaveSlots** screen you should see a
-   "Cloud backup available — week N" affordance on the slot. Restore it and
-   confirm the game comes back at the right week with money, career,
-   relationships and family intact.
-   - Caveat: deleting the app also clears `cloud_user_id`, which is the
-     backup's identity. If restore shows nothing after a delete, that is the
-     expected consequence of anonymous device identity, **not necessarily a
-     bug** — verify by clearing only the game save (not the whole app) and
-     retrying. Report which behaviour you saw; it decides whether the id
-     needs to move to Keychain/Keystore, which survives reinstall.
-6. **Regression guard.** With a fresh local game *ahead* of the cloud copy
+5. **The real test — SAME-INSTALL restore.** This is the supported behaviour and
+   the one that must pass. Do **not** delete the app for this step — deleting it
+   also destroys `cloud_user_id`, which is the backup's identity, so a failure
+   there would tell you nothing about restore.
+   - Clear **only the game save**: on the **SaveSlots** screen, Delete the slot
+     you just backed up (leave the app installed).
+   - Relaunch / return to SaveSlots. The slot should show
+     "Cloud backup available — week N".
+   - Restore it and confirm the game comes back at the right week with money,
+     career, relationships and family intact.
+   - Anything less than that is a **bug** — diagnose and fix it.
+
+6. **SEPARATE probe — does the identity survive a REINSTALL?** This is an open
+   question the project wants answered, not a promise the feature makes, so
+   **whatever you see here is a finding to report, not a bug to fix**. Keep its
+   result apart from step 5's: a failure here does not fail step 5.
+   - Back up again so there is a fresh cloud copy, then delete the app entirely
+     and reinstall it.
+   - Open SaveSlots. Does the "Cloud backup available" affordance appear?
+   - **Appears and restores** → `cloud_user_id` survived a reinstall on this
+     platform; say so, it widens what the feature can honestly claim.
+   - **Nothing offered** → the expected consequence of an AsyncStorage-backed
+     anonymous id, and the answer to open question 1 below. Report it plainly;
+     the fix is moving the id to Keychain/Keystore (`expo-secure-store`), which
+     is an owner decision because it changes what "device backup" promises.
+     **Do not** implement that move as part of this validation.
+   - Note the platform you tested on — the answer can differ between iOS
+     (Keychain-less AsyncStorage is cleared with the app) and Android.
+7. **Regression guard.** With a fresh local game *ahead* of the cloud copy
    (play past the backed-up week), try Restore from Settings. It must refuse
    with wording about the cloud save being older, and must change nothing.
-7. Watch the Metro console for `[CloudSync]` / `[CloudBackup]` logs
+8. Watch the Metro console for `[CloudSync]` / `[CloudBackup]` logs
    throughout. Any error, silent failure, or 401/429 is a finding.
 
 **If anything fails:** diagnose and fix it on the branch, run
@@ -101,16 +126,18 @@ Only after Task 1 passes.
    before spending build minutes).
 4. On TestFlight, repeat the Task 1 checks on a **physical device**. Pay
    attention to: the Settings row rendering correctly at real device scale,
-   restore across an actual App Store reinstall, and behaviour on a flaky/
+   same-install restore (step 5 — this must pass), and behaviour on a flaky/
    offline network (airplane mode mid-backup must not lose the local save or
-   hang the UI).
+   hang the UI). Re-run step 6 across an actual App Store reinstall too — a
+   physical device is the authoritative answer to the identity question, and
+   whatever it shows is a finding to report, not a blocker.
 
 ### Task 3 — Promote to production (only after Task 2 passes on device)
 
 Copy these three lines from the `preview` profile's `env` into the
 `production` profile's `env` in `eas.json`:
 
-```
+```json
 "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
 "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1",
 "EXPO_PUBLIC_CLOUD_AUTH_TOKEN": "<same value as preview>"
@@ -132,15 +159,17 @@ updated in the same commit, which is the point of that test.
 - Touching `contexts/game/` requires `__tests__/stress`; touching `app/`
   requires `__tests__/startup` (`.github/PULL_REQUEST_TEMPLATE.md`).
 - If you change the save schema, CLAUDE.md §7's migration + carve-out rules
-  apply in the same commit. `STATE_VERSION` is currently **45**.
+  apply in the same commit. `STATE_VERSION` is currently **46**.
 
 ### Report back
 
 Give a short written result per task: what you ran, what you saw, what you
-changed. Call out explicitly whether the reinstall-restore in Task 1 step 5
-worked, since that decides the Keychain question. If you hit something
-ambiguous or product-shaped (e.g. should restore be offered automatically on
-first launch after a reinstall?), ask rather than guessing.
+changed. Report step 5 (same-install restore) and step 6 (reinstall identity)
+SEPARATELY: step 5 is pass/fail on the supported behaviour, while step 6 is an
+observation — say which platform you ran it on and what happened, since that is
+what decides the Keychain question. If you hit something ambiguous or
+product-shaped (e.g. should restore be offered automatically on first launch
+after a reinstall?), ask rather than guessing.
 
 ## END OF PROMPT
 
@@ -148,11 +177,13 @@ first launch after a reinstall?), ask rather than guessing.
 
 ## Open questions this validation should settle
 
-1. **Does the anonymous device id survive an app reinstall?** AsyncStorage
-   does not on iOS. If it doesn't, `cloud_user_id` should move to
-   Keychain/Keystore (`expo-secure-store`) — which is a small change, but it
-   changes what "device backup" actually promises, so it needs the owner's
-   sign-off, not a silent fix.
+1. **Does the anonymous device id survive an app reinstall?** Step 6 settles
+   it. AsyncStorage is not guaranteed to on iOS (an app delete takes its
+   container with it), so the working assumption is NO — which is why nothing
+   in the product or the docs claims reinstall restore works. If it doesn't,
+   `cloud_user_id` should move to Keychain/Keystore (`expo-secure-store`) —
+   a small change, but it changes what "device backup" actually promises, so
+   it needs the owner's sign-off, not a silent fix.
 2. **Should restore be offered proactively** on first launch after a
    reinstall, rather than waiting for the player to notice the SaveSlots
    affordance? Product call.
