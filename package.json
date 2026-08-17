@@ -1,7 +1,7 @@
 {
   "name": "life-simulator",
   "main": "./app/entry.ts",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "private": true,
   "scripts": {
     "start": "expo start",
