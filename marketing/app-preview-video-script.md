@@ -77,10 +77,16 @@ Three rules the shoot must hold to:
 
 ## Assets already in-repo
 
-`scripts/generate-hero-screenshots.mjs`, `generate-gameplay-screenshots.mjs`
-and `capture-real-screenshots.mjs` drive the existing screenshot set; the same
-screens are the ones listed above, so the video can be storyboarded against
-those outputs before a device capture is scheduled. See `SCREENSHOT_GUIDE.md`.
+`screenshots/appstore-2026/rich-captures/` holds 28 real captures of the
+shipping UI, and the same screens are the ones listed above, so the video can be
+storyboarded against those frames before a device capture is scheduled. Rebuild
+or re-capture them per `screenshots/appstore-2026/README.md`; `SCREENSHOT_GUIDE.md`
+covers the store-upload side.
+
+(The three SVG-mock generators this section used to name — `generate-hero-screenshots.mjs`,
+`generate-gameplay-screenshots.mjs`, `capture-real-screenshots.mjs` — were removed
+with the screenshot sets they produced. They recreated app screens rather than
+capturing them, which is exactly what Guideline 2.3.3 rejects.)
 
 The committed store screenshots (`screenshots/appstore-2026/`) are all still
 accurate for v2.8.0 — none of them showed the pace picker, so they need no
