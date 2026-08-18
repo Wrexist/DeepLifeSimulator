@@ -34,6 +34,16 @@ const SHOTS = {
   crypto: '19-x-crypto.png',
   education: '28-app-education-earned.png',
   luxury: '29-x-luxury-collection.png',
+  // Flank captures. These carry no claim — the pill always describes the hero —
+  // but they are real screens of the shipping build like everything else here.
+  bank: '08-app-bank.png',
+  pulse: '06-app-pulse.png',
+  life: '11-life.png',
+  desktop: '16-desktop.png',
+  politics: '23-x-politics.png',
+  travel: '24-x-travel.png',
+  garage: '21-x-garage.png',
+  catalog: '10-app-education.png',
 };
 
 const img = (f) => {
@@ -82,8 +92,16 @@ for (const size of SIZES) {
   for (const f of FRAMES) {
     const file = SHOTS[f.pick];
     if (!file) throw new Error(`No capture registered for frame ${f.id} (pick: ${f.pick})`);
+    const [lKey, rKey] = f.support || [];
+    for (const [role, k] of [['left', lKey], ['right', rKey]]) {
+      if (k && !SHOTS[k]) throw new Error(`No capture registered for frame ${f.id} ${role} flank (${k})`);
+    }
     const html = join(OUT, f.id + '.html');
-    writeFileSync(html, frameHtml(f, img(file), L));
+    writeFileSync(html, frameHtml(f, {
+      hero: img(file),
+      left: lKey && img(SHOTS[lKey]),
+      right: rKey && img(SHOTS[rKey]),
+    }, L));
     await pg.goto('file://' + html, { waitUntil: 'networkidle' });
     await pg.evaluate(() => document.fonts.ready);
     await new Promise((r) => setTimeout(r, 250));

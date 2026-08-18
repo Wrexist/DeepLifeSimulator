@@ -48,6 +48,7 @@ type Frame = {
   pick: string;
   evidence: string;
   assert: string[];
+  support: string[];
   items?: string[];
   byKind?: Partial<Record<'phone' | 'tablet', { num: string; label: string; items?: string[] }>>;
 };
@@ -172,6 +173,17 @@ describe('store frames only claim what their screenshot shows', () => {
         // Every other frame quotes a number the UI prints, so look for it.
         assertClaim(screen, digits, `${frame.id} [${set.kind}] pill number`);
       }
+    }
+  });
+
+  it('gives every frame two flanking screens, neither of them the hero', () => {
+    // The flanks carry no claim, but they are the composition: a frame that
+    // silently loses one renders as a lone device among nine trios, and
+    // nothing else in the pipeline would say so.
+    for (const f of frames) {
+      expect(f.support).toHaveLength(2);
+      expect(f.support).not.toContain(f.pick);
+      expect(new Set(f.support).size).toBe(2);
     }
   });
 

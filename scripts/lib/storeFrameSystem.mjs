@@ -95,6 +95,8 @@ export const HUE = {
 export const FRAMES = [
   {
     id: '01-live-any-life',
+    // Flanks: love and money, the two axes the headline promises.
+    support: ['spark', 'stocks'],
     head: 'Live any |life.|',
     sub: 'Hustle, love, get rich, leave a legacy.',
     num: '$11M',
@@ -106,6 +108,8 @@ export const FRAMES = [
   },
   {
     id: '02-find-your-person',
+    // Flanks: who you know, and what the room is saying.
+    support: ['contacts', 'pulse'],
     head: 'Find your |person.|',
     sub: 'Swipe, match, fall in love — or don’t.',
     num: '30 swipes',
@@ -117,6 +121,8 @@ export const FRAMES = [
   },
   {
     id: '03-build-an-empire',
+    // Flanks: influence and the balance sheet behind a company.
+    support: ['politics', 'bank'],
     head: 'Build an |empire.|',
     sub: 'Found companies. Set the price. Take the market.',
     num: '$8,000',
@@ -128,6 +134,8 @@ export const FRAMES = [
   },
   {
     id: '04-ride-the-bull-run',
+    // Flanks: the legitimate market and the one that is not.
+    support: ['stocks', 'darkweb'],
     head: 'Ride the |bull run.|',
     sub: 'Trade crypto, mine it, time the market.',
     num: '2.000 BTC',
@@ -143,6 +151,8 @@ export const FRAMES = [
   },
   {
     id: '05-work-the-market',
+    // Flanks: where the money sits and where else it can go.
+    support: ['bank', 'crypto'],
     head: 'Work the |market.|',
     sub: 'Twenty-five tickers, six sectors, one call.',
     num: '25 listed',
@@ -159,6 +169,8 @@ export const FRAMES = [
   },
   {
     id: '06-enter-the-dark-web',
+    // Flanks: the machine it runs on and the coin it settles in.
+    support: ['desktop', 'crypto'],
     head: 'Enter the |dark web.|',
     sub: 'High risk, higher reward. Watch your heat.',
     num: 'Opsec Lv4',
@@ -170,6 +182,8 @@ export const FRAMES = [
   },
   {
     id: '07-phone-full-of-lives',
+    // Flanks: two of the apps the grid opens — the claim, demonstrated.
+    support: ['spark', 'bank'],
     head: 'A phone full of |lives.|',
     sub: 'Dating, trading, banking, fame — all in game.',
     num: '6 apps',
@@ -205,6 +219,8 @@ export const FRAMES = [
   },
   {
     id: '08-train-your-mind',
+    // Flanks: what is still on offer, and who it opens doors with.
+    support: ['catalog', 'contacts'],
     head: 'Train your |mind.|',
     sub: 'Degrees, skills and smarter choices.',
     num: '7 credentials',
@@ -225,6 +241,8 @@ export const FRAMES = [
   },
   {
     id: '09-live-the-luxury',
+    // Flanks: the other two things money buys here.
+    support: ['garage', 'travel'],
     head: 'Live the |luxury.|',
     sub: 'Watches, supercars and museum-grade pieces.',
     num: '2 of 6',
@@ -240,6 +258,8 @@ export const FRAMES = [
   },
   {
     id: '10-raise-a-family',
+    // Flanks: the life the family belongs to, and its health.
+    support: ['home', 'life'],
     head: 'Raise a |family.|',
     sub: 'Marry, have kids, pass it all on.',
     num: '5 people',
@@ -273,7 +293,7 @@ export function layoutFor(W, H, kind = 'phone') {
   // 2% bleed, too small to read as a deliberate crop and too big to read as a
   // margin, and it sliced the tab bar in half. The tab bar is product; a
   // screenshot that eats it looks like a mistake, because it is one.
-  const devTop = Math.round(H * (tablet ? 0.268 : 0.255));
+  const devTop = Math.round(H * (tablet ? 0.300 : 0.290));
   const footer = Math.round(H * (tablet ? 0.030 : 0.024));
   const devH = H - devTop - footer;
   // The capture's own aspect: 1290×2796 phone, 2048×2732 tablet.
@@ -281,13 +301,32 @@ export function layoutFor(W, H, kind = 'phone') {
   const bezel = Math.round(H * (tablet ? 0.0055 : 0.0053));
   const devW = Math.round((devH - bezel * 2) / screenAspect) + bezel * 2;
 
+  // Flank geometry, derived from the hero so the two can never disagree about
+  // proportion. Kept to the same aspect as the hero — a flank that is a
+  // different SHAPE from the device beside it reads as a different product.
+  // The two shelves need genuinely different flank models, because the SHAPE
+  // of the canvas differs, not just its size.
+  //
+  // A 2.17-tall phone canvas holding a 2.17-tall device leaves no width for a
+  // flank the same height, so the phone's flanks are much shorter and are
+  // RAISED — the empty ground that leaves falls in the bottom corners, where
+  // the vignette and the hero's contact shadow already are.
+  //
+  // A 1.33 tablet canvas is proportionally far wider, so the same treatment
+  // left two large empty rectangles low and outboard. There the flanks are
+  // near hero height and sit on the SAME baseline, and the three devices read
+  // as one band.
+  const sideW = Math.round(devW * (tablet ? 0.86 : 0.70));
+  const sideBezel = Math.max(1, Math.round(bezel * (tablet ? 0.70 : 0.735)));
+  const sideH = Math.round((sideW - sideBezel * 2) * screenAspect) + sideBezel * 2;
+
   return {
     W, H, kind, devW, devH, bezel, devTop,
     devR: Math.round(devW * (tablet ? 0.055 : 0.093)),
     scrR: Math.round(devW * (tablet ? 0.043 : 0.078)),
 
     // The type block's BOTTOM edge; extra headline lines grow upward.
-    headBaseline: Math.round(H * (tablet ? 0.205 : 0.195)),
+    headBaseline: Math.round(H * (tablet ? 0.212 : 0.205)),
     headPad: Math.round(W * (tablet ? 0.115 : 0.068)),
     h1: Math.round(W * (tablet ? 0.075 : 0.0945)),
     h1Track: -Math.round(W * (tablet ? 0.0018 : 0.0023) * 10) / 10,
@@ -305,6 +344,44 @@ export function layoutFor(W, H, kind = 'phone') {
     bloomH: Math.round(H * 0.55),
     bloomY: Math.round(H * (tablet ? 0.30 : 0.315)),
     shadowH: Math.round(H * 0.035),
+
+    // ── The flanking devices ────────────────────────────────────────────────
+    //
+    // A second and third screen per frame, which is what the ORIGINAL store set
+    // did and what this one lost when it was cut back to a single device. The
+    // difference is in the four things that made the original read as a
+    // template, all of which are fixed here rather than repeated:
+    //
+    //  - **Hierarchy.** There, the "main" phone was about a third of the frame
+    //    and the two flanks were the same size as each other and nearly as
+    //    large as it, so nothing led. Here the hero is ~2x the flank area and
+    //    sits in front; the flanks are context, not competition.
+    //  - **They were cropped to nothing.** `left:-160px` / `right:-160px` on a
+    //    ~400px device is 40% of each one off the canvas. The flanks here lose
+    //    a deliberate sliver at the edge and keep the rest.
+    //  - **The rotations were arbitrary** — `rotateY(±24deg) rotateZ(∓9deg)`,
+    //    a tilt with no optical justification, which is what made them read as
+    //    stickers. These share ONE perspective origin and rotate only in Y, so
+    //    the two flanks turn to face the same viewer. That is a camera, not a
+    //    decoration.
+    //  - **They were unreadable**, so they were texture standing in for
+    //    content. These stay legible: dimmed, never blurred. A screenshot you
+    //    cannot read is decoration no matter what is on it.
+    sideW: sideW,
+    sideH: sideH,
+    sideBezel: sideBezel,
+    sideR: Math.round(sideW * (tablet ? 0.055 : 0.093)),
+    sideScrR: Math.round(sideW * (tablet ? 0.043 : 0.078)),
+    // Raised above the hero's top edge so each flank shows its own header and
+    // first cards — the part of a screen that says what it is.
+    sideTop: tablet
+      ? devTop + devH - sideH - Math.round(H * 0.030)
+      : devTop - Math.round(H * 0.044),
+    // Distance from canvas centre to each flank's centre.
+    sideDx: Math.round(W * (tablet ? 0.300 : 0.345)),
+    sideRotY: tablet ? 16 : 19,
+    perspective: Math.round(W * 2.1),
+    sideZ: Math.round(W * (tablet ? 0.15 : 0.17)),
   };
 }
 
@@ -320,7 +397,10 @@ function rgb(hex) {
  * `L` carries the per-canvas layout from `layoutFor`; everything else is
  * shared, so the iPad set differs from the iPhone set only in proportion.
  */
-export function frameHtml(frame, shot, L) {
+export function frameHtml(frame, shots, L) {
+  // `shots` is { hero, left, right } — data URIs. A string is still accepted so
+  // a caller with one screen does not have to build an object.
+  const S = typeof shots === 'string' ? { hero: shots } : shots;
   const head = frame.head.replace('|', '<span class="acc">').replace('|', '</span>');
   const A = frame.hue;
   const a = rgb(A);
@@ -396,10 +476,17 @@ export function frameHtml(frame, shot, L) {
      against the ground rather than as a grey card; the rim highlight is the
      only "shine", and it sits on the BEZEL, never across the screen, because a
      gloss sweep over the UI hides the product. */
+  /* The stage. ONE perspective origin for all three devices, so the flanks
+     turn to face the same viewer instead of tilting independently. */
+  .stage {
+    position:absolute; inset:0; z-index:3;
+    perspective:${L.perspective}px; perspective-origin:50% ${L.devTop + Math.round(L.devH * 0.35)}px;
+    transform-style:preserve-3d;
+  }
   .device {
     position:absolute; left:50%; top:${L.devTop}px;
     width:${L.devW}px; height:${L.devH}px;
-    transform:translateX(-50%); z-index:3;
+    transform:translateX(-50%) translateZ(0); z-index:3;
     padding:${L.bezel}px; border-radius:${L.devR}px;
     /* Brushed titanium read from a lit top-left. Pure near-black loses the
        silhouette entirely against this ground — the phone stops looking like
@@ -424,6 +511,38 @@ export function frameHtml(frame, shot, L) {
     overflow:hidden; background:#0B1220;
   }
   .screen img { display:block; width:100%; }
+
+  /* FLANKS — smaller, further, dimmed, and behind the hero. */
+  .side {
+    position:absolute; top:${L.sideTop}px;
+    width:${L.sideW}px; height:${L.sideH}px;
+    z-index:1; padding:${L.sideBezel}px; border-radius:${L.sideR}px;
+    background:linear-gradient(152deg, #666F7E 0%, #2F3641 24%, #171B23 52%, #212732 76%, #58606E 100%);
+    box-shadow:
+      0 ${Math.round(L.sideW * 0.06)}px ${Math.round(L.sideW * 0.15)}px rgba(0,0,0,0.60),
+      0 0 ${Math.round(L.sideW * 0.12)}px rgba(${a},0.10);
+  }
+  .side .screen { border-radius:${L.sideScrR}px; }
+  /* Pushed BACK in 3D, not just given a lower z-index.
+     transform-style:preserve-3d on the stage makes z-index INERT: children are
+     painted by their position in 3D space, so a flank carrying a rotateY and
+     no translateZ sorted IN FRONT of the un-transformed hero and clipped its
+     left column — the identity card read "Age 2" and "ried". Depth here has to
+     be actual depth. It earns its keep twice over: a device further from the
+     camera also projects smaller, so the size falloff is the perspective doing
+     it rather than another number to keep in sync.
+     (Comments inside this template literal must not use backticks.) */
+  .side.l { left:50%; transform:translateX(-50%) translateX(-${L.sideDx}px) translateZ(-${L.sideZ}px) rotateY(${L.sideRotY}deg); }
+  .side.r { left:50%; transform:translateX(-50%) translateX(${L.sideDx}px) translateZ(-${L.sideZ}px) rotateY(-${L.sideRotY}deg); }
+  /* Dimmed, never BLURRED. Blur is the lazy way to say "background", and it
+     turns a real screenshot into texture — which is what made the original
+     flanks decoration rather than product. A reader can still tell what these
+     two screens are; they just are not the one being read. */
+  .side .screen::after {
+    content:''; position:absolute; inset:0; border-radius:inherit;
+    background:linear-gradient(180deg, rgba(4,7,14,0.40), rgba(4,7,14,0.58));
+  }
+  .side .screen img { filter:saturate(0.86) brightness(0.92); }
 
   /* The light the screen spills on the ground, and the shadow that sits the
      device on it. Both are physical: a lit rectangle in a dark room throws
@@ -453,6 +572,10 @@ export function frameHtml(frame, shot, L) {
     </div>
     <div class="spill"></div>
     <div class="contact"></div>
-    <div class="device"><div class="screen"><img src="${shot}"></div></div>
+    <div class="stage">
+      ${S.left ? `<div class="side l"><div class="screen"><img src="${S.left}"></div></div>` : ''}
+      ${S.right ? `<div class="side r"><div class="screen"><img src="${S.right}"></div></div>` : ''}
+      <div class="device"><div class="screen"><img src="${S.hero}"></div></div>
+    </div>
   </div></body></html>`;
 }

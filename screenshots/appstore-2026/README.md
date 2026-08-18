@@ -58,8 +58,15 @@ there, never in one generator.
 frame list; both generators import it, so the iPhone and iPad sets cannot drift
 apart. One rule runs through all of it: **the screenshot is the subject.**
 
-- one device per frame, straight on, centred, fully contained — sized from the
-  height it is given, so it fills the frame with the tab bar intact
+- **three devices per frame**: a hero straight on, centred and fully contained
+  — sized from the height it is given, so it fills the frame with the tab bar
+  intact — plus two flanking screens set back in 3D and dimmed. The flanks are
+  never blurred: a screenshot you cannot read is decoration, which is what made
+  the 2026-07 flanks filler. They carry no claim; the pill always describes the
+  hero
+- the flanks differ per shelf because the canvas SHAPE does: raised above the
+  hero on the tall phone canvas, standing on the hero's baseline on the wide
+  tablet one
 - one ground, one type scale, one layout, one device treatment, one bloom
   position across all ten
 - **one accent per frame**, and every one is a value from `lib/config/theme.ts`
@@ -101,18 +108,18 @@ Matches the `FRAMES` array in `scripts/lib/storeFrameSystem.mjs`. One real
 screen each; the accent hue is the app's own colour for that domain, from
 `lib/config/theme.ts`.
 
-| # | Headline | Screen | Proof pill | Accent |
-|---|----------|--------|------------|--------|
-| 01 | Live any **life.** | Home / identity card | `$11M` net worth · age 22 | infoLight |
-| 02 | Find your **person.** | Spark (dating profile) | `30 swipes` left · 1 super | reputation |
-| 03 | Build an **empire.** | Hustle / companies | `$8,000` a week in revenue | money |
-| 04 | Ride the **bull run.** | Crypto markets | `2.000 BTC` held · bull regime | happiness |
-| 05 | Work the **market.** | Stocks | `25 listed` tickers · sector rotation | infoLight |
-| 06 | Enter the **dark web.** | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |
-| 07 | A phone full of **lives.** | Apps grid | `6 apps` on the phone | gems |
-| 08 | Train your **mind.** | Education › **Earned** | `7 credentials` earned | fitness |
-| 09 | Live the **luxury.** | Luxury › **Collection** | `2 of 6` trophies acquired | purple |
-| 10 | Raise a **family.** | Contacts | `5 people` in your circle | reputation |
+| # | Headline | Hero screen | Flanks | Proof pill | Accent |
+|---|----------|--------|--------|------------|--------|
+| 01 | Live any **life.** | Home / identity card | Spark · Stocks | `$11M` net worth · age 22 | infoLight |
+| 02 | Find your **person.** | Spark (dating profile) | Contacts · Pulse | `30 swipes` left · 1 super | reputation |
+| 03 | Build an **empire.** | Hustle / companies | Politics · Bank | `$8,000` a week in revenue | money |
+| 04 | Ride the **bull run.** | Crypto markets | Stocks · Dark web | `2.000 BTC` held · bull regime | happiness |
+| 05 | Work the **market.** | Stocks | Bank · Crypto | `25 listed` tickers · sector rotation | infoLight |
+| 06 | Enter the **dark web.** | Onion darknet terminal | Desktop · Crypto | `Opsec Lv4` heat cold | successLight |
+| 07 | A phone full of **lives.** | Apps grid | Spark · Bank | `6 apps` on the phone | gems |
+| 08 | Train your **mind.** | Education › **Earned** | Catalog · Contacts | `7 credentials` earned | fitness |
+| 09 | Live the **luxury.** | Luxury › **Collection** | Garage · Travel | `2 of 6` trophies acquired | purple |
+| 10 | Raise a **family.** | Contacts | Home · Life | `5 people` in your circle | reputation |
 
 Order 01→10 is the upload order (01 is the primary hero; the first two are the
 only ones most store visitors ever see). Output sizes: **1320×2868** (iPhone

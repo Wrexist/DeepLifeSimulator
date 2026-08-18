@@ -142,3 +142,61 @@ across all ten; the hue appears in exactly three places (the accent word, the
 pill, and the light the screen spills on the ground). A reader scrolling the
 carousel sees one series whose colour tracks the content — which is the
 opposite of ten unrelated images, even though both "vary colour per frame".
+
+
+---
+
+# Three screens per frame — the multi-device layout, done deliberately
+
+The single-device set that this section revises was correct about the product
+being the subject and wrong about how much of the product one frame can carry.
+A life sim's pitch is *breadth* — careers, dating, markets, crime, family — and
+a lone screenshot argues the opposite: that there is one screen.
+
+So each frame is a hero plus two flanking screens again, which is what the
+2026-07 set did. The composition is not a return to it. Tell #6 in the table
+above lists four separate faults, and each is answered here:
+
+| The 2026-07 flanks | These flanks |
+|---|---|
+| Main device ~⅓ of the frame, flanks nearly as large — nothing led | Hero is ~70% of the canvas width and fully legible; flanks are 70% of its width and ~15–18% further back |
+| `left:-160px` / `right:-160px` — about **40%** of each flank off-canvas | 15–18% off the edge: a sliver, not an amputation |
+| `rotateY(±24deg) rotateZ(∓9deg)` — a tilt with no optical basis | One shared `perspective-origin`; rotation in **Y only**, so both flanks turn to face the same viewer. A camera, not a sticker |
+| Too small and too skewed to read — texture standing in for content | Dimmed and set back, never **blurred**. You can still read what each one is |
+
+**No blur** is the load-bearing choice. Blurring a background screenshot is the
+quick way to say "this is context", and it converts a real screen into
+decoration — which is precisely what made the originals read as filler. A
+reader who looks at a flank should be able to tell that it is Contacts, or the
+Bank, or the darknet terminal.
+
+The flanks carry **no claim**. The proof pill always describes the hero, and
+`storeFrameClaims.test.ts` only ever checks the hero's capture. What the flanks
+carry is the argument the headline is making: frame 07 says "a phone full of
+lives" and flanks the app grid with two of the apps it opens.
+
+## The two shelves need different flank models
+
+Not different numbers — a different arrangement, because the canvas *shape*
+differs.
+
+- **Phone.** A 2.17-tall canvas holding a 2.17-tall device leaves no width for
+  a flank of the same height, so the flanks are much shorter and are **raised**
+  above the hero's top edge. The empty ground that leaves falls in the bottom
+  corners, where the vignette and the hero's contact shadow already sit.
+- **Tablet.** A 1.33 canvas is proportionally far wider, and the same treatment
+  left two large empty rectangles low and outboard. There the flanks are near
+  hero height and stand on the **same baseline**, so the three read as one band.
+
+## One bug worth writing down
+
+`transform-style: preserve-3d` makes `z-index` **inert**. Children are painted
+by their position in 3D space, so a flank carrying a `rotateY` and no
+`translateZ` sorted *in front of* the un-transformed hero and clipped its left
+column — the identity card rendered as "Age 2" and "ried", and the luxury
+header as "llectibles". `z-index: 3` on the hero was doing nothing at all.
+
+The fix is to make the depth real: flanks get `translateZ(-0.15…0.17 × W)` and
+the hero sits at `translateZ(0)`. It pays for itself twice, because a device
+further from the camera also projects smaller — the size falloff is now the
+perspective doing it rather than another number to keep in sync.
