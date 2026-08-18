@@ -16,35 +16,11 @@ import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { FRAMES, frameHtml, layoutFor } from './lib/storeFrameSystem.mjs';
+import { FRAMES, CAPTURES as SHOTS, frameHtml, layoutFor } from './lib/storeFrameSystem.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CAP = join(ROOT, 'screenshots', 'appstore-2026', 'rich-captures-ipad');
 
-/** Same picks as the iPhone set — see the note there for the three that are
- *  deliberately not the obvious capture. */
-const SHOTS = {
-  home: '00-home.png',
-  spark: '05-app-spark.png',
-  stocks: '07-app-stocks.png',
-  contacts: '09-app-contacts.png',
-  apps: '03-apps.png',
-  company: '17-x-company.png',
-  darkweb: '18-x-darkweb.png',
-  crypto: '19-x-crypto.png',
-  education: '28-app-education-earned.png',
-  luxury: '29-x-luxury-collection.png',
-  // Flank captures. These carry no claim — the pill always describes the hero —
-  // but they are real screens of the shipping build like everything else here.
-  bank: '08-app-bank.png',
-  pulse: '06-app-pulse.png',
-  life: '11-life.png',
-  desktop: '16-desktop.png',
-  politics: '23-x-politics.png',
-  travel: '24-x-travel.png',
-  garage: '21-x-garage.png',
-  catalog: '10-app-education.png',
-};
 
 const img = (f) => {
   const p = join(CAP, f);

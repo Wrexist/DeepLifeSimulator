@@ -257,6 +257,15 @@ const SHOT_ORDER = [
   // captioned "Rare collection" showed `Collection (0)` and `0 / 6
   // collectibles`. The fix is to photograph the screen that holds the proof.
   'app-education-earned', 'x-luxury-collection',
+  // The BEGINNING of the life, shot before any dev-tools grant lands.
+  //
+  // Everything above is one rich late-game save, which can only ever show the
+  // destination. A life sim's pitch is the DISTANCE travelled, and the store
+  // set's first frame is the hook — "start with nothing" is the strongest
+  // opening this game has and there was no picture of it. These are free: the
+  // run already walks through onboarding on its way to the rich state, so
+  // photographing it on the way past costs two screenshots and no extra time.
+  'early-home', 'early-work',
 ];
 /**
  * Empties the weekly-decision inbox.
@@ -431,6 +440,27 @@ async function main() {
   for (let i = 0; i < 3 && (await text(page)).includes('First Week Guide'); i++) {
     await clickText(page, 'Skip Guide', { wait: 1200 });
   }
+
+  // ---- Week one, before any grant: the start of the life
+  await dismissPopups(page);
+  await clickAriaLast(page, 'Dismiss', { wait: 800 });
+  await sleep(2500);
+  await scrollMain(page, 0); await sleep(800);
+  const openingCash = await allText(page);
+  // Assert we are actually at the START. If a grant has already landed, or the
+  // run is resuming a rich save, this shot would show a millionaire under the
+  // headline "start with nothing" — the exact class of contradiction the whole
+  // claims check exists to stop, and here it would be baked into the capture
+  // rather than the caption.
+  if (/\$\s?1[01]M|Net Worth\s*:?\s*\$1[0-9]\.\d+M/.test(openingCash)) {
+    throw new Error('early-home was reached with a rich state already applied — frame 01 would open on a millionaire.');
+  }
+  await shot(page, 'early-home');
+  await page.mouse.click(Math.round((VIEWPORT.width * 1.5) / 4), VIEWPORT.height - 25);
+  await sleep(2600); await scrollMain(page, 0); await sleep(800);
+  await shot(page, 'early-work');
+  await page.mouse.click(Math.round((VIEWPORT.width * 0.5) / 4), VIEWPORT.height - 25);
+  await sleep(2200);
 
   // ---- Dev tools: build the rich state
   await clickAriaLast(page, 'Open Settings', { wait: 3000 });

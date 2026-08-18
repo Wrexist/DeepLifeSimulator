@@ -62,31 +62,20 @@ type Frame = {
  * sidecar for the test's benefit would let the copy under test drift from the
  * copy that renders, which is the whole bug class this file exists to catch.
  */
-function loadFrames(): Frame[] {
+function loadModule(): { frames: Frame[]; captures: Record<string, string> } {
   const src = join(ROOT, 'scripts', 'lib', 'storeFrameSystem.mjs');
   const out = execFileSync(
     process.execPath,
-    ['--input-type=module', '-e', `import { FRAMES } from ${JSON.stringify(src)}; process.stdout.write(JSON.stringify(FRAMES));`],
+    ['--input-type=module', '-e',
+      `import { FRAMES, CAPTURES } from ${JSON.stringify(src)};`
+      + ' process.stdout.write(JSON.stringify({ frames: FRAMES, captures: CAPTURES }));'],
     { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
   );
-  return JSON.parse(out) as Frame[];
+  return JSON.parse(out) as { frames: Frame[]; captures: Record<string, string> };
 }
 
-/** Frame key → capture basename. Mirrors `SHOTS` in both generators. */
-const PICKS: Record<string, string> = {
-  home: '00-home',
-  spark: '05-app-spark',
-  stocks: '07-app-stocks',
-  contacts: '09-app-contacts',
-  apps: '03-apps',
-  company: '17-x-company',
-  darkweb: '18-x-darkweb',
-  crypto: '19-x-crypto',
-  education: '28-app-education-earned',
-  luxury: '29-x-luxury-collection',
-};
 
-const frames = loadFrames();
+const { frames, captures: CAPTURES } = loadModule();
 
 /**
  * Collapse whitespace, normalise the dashes/quotes the UI renders, and fold
@@ -136,7 +125,10 @@ describe('store frames only claim what their screenshot shows', () => {
     expect(frame.evidence.length).toBeGreaterThan(0);
     expect(frame.assert.length).toBeGreaterThan(0);
 
-    const base = PICKS[frame.pick];
+    // Resolved from the SAME table the generators render from, so a new capture
+    // key cannot pass there and fail here (which is exactly what a duplicated
+    // copy of this map did).
+    const base = CAPTURES[frame.pick]?.replace(/\.png$/, '');
     expect(base).toBeDefined();
 
     for (const set of CAPTURE_SETS) {
@@ -182,6 +174,7 @@ describe('store frames only claim what their screenshot shows', () => {
     // nothing else in the pipeline would say so.
     for (const f of frames) {
       expect(f.support).toHaveLength(2);
+      for (const k of f.support) expect(CAPTURES[k]).toBeDefined();
       expect(f.support).not.toContain(f.pick);
       expect(new Set(f.support).size).toBe(2);
     }

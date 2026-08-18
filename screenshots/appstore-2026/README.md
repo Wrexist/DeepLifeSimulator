@@ -33,7 +33,7 @@ capture of the shipping UI.
 2. `node scripts/serve-web-export.mjs <dir> 8090`
    (a 30-line static server with SPA fallback, so the pipeline needs no network
    install; `npx serve -l 8090 -s <dir>` does the same if you have it)
-3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (30 numbered shots, `00`–`29`,
+3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (32 numbered shots, `00`–`31`,
    each with its on-screen text written beside it as `NN-name.txt`)
    - onboarding (Food Courier → Business Empire ambition)
    - Dev Tools: god-mode on, 2×52-week skips, top career, company, education,
@@ -102,33 +102,58 @@ gloss sweep over the UI — and why the result read as machine-made.
 `generate-appstore-2026-samples.mjs` produced the style candidates for that
 older direction and is superseded.
 
-## The 10-image narrative (as shipped)
+## The story — ten frames, one life
 
-Matches the `FRAMES` array in `scripts/lib/storeFrameSystem.mjs`. One real
-screen each; the accent hue is the app's own colour for that domain, from
-`lib/config/theme.ts`.
+Matches the `FRAMES` array in `scripts/lib/storeFrameSystem.mjs`. This is a
+STORY, not a feature tour, and that is the change that matters most: the set it
+replaces listed ten domains in no particular order, each frame arguing on its
+own. A life sim's product is the ARC — the distance between where you start and
+where you end up.
 
-| # | Headline | Hero screen | Flanks | Proof pill | Accent |
-|---|----------|--------|--------|------------|--------|
-| 01 | Live any **life.** | Home / identity card | Spark · Stocks | `$11M` net worth · age 22 | infoLight |
-| 02 | Find your **person.** | Spark (dating profile) | Contacts · Pulse | `30 swipes` left · 1 super | reputation |
-| 03 | Build an **empire.** | Hustle / companies | Politics · Bank | `$8,000` a week in revenue | money |
-| 04 | Ride the **bull run.** | Crypto markets | Stocks · Dark web | `2.000 BTC` held · bull regime | happiness |
-| 05 | Work the **market.** | Stocks | Bank · Crypto | `25 listed` tickers · sector rotation | infoLight |
-| 06 | Enter the **dark web.** | Onion darknet terminal | Desktop · Crypto | `Opsec Lv4` heat cold | successLight |
-| 07 | A phone full of **lives.** | Apps grid | Spark · Bank | `6 apps` on the phone | gems |
-| 08 | Train your **mind.** | Education › **Earned** | Catalog · Contacts | `7 credentials` earned | fitness |
-| 09 | Live the **luxury.** | Luxury › **Collection** | Garage · Travel | `2 of 6` trophies acquired | purple |
-| 10 | Raise a **family.** | Contacts | Home · Life | `5 people` in your circle | reputation |
+| # | Headline | Hero screen | Flanks | Proof chip | Accent |
+|---|----------|-------------|--------|------------|--------|
+| 01 | Start with **nothing.** | Home, week one (pre-grant) | Work · Bank | `$1,500` to your name | infoLight |
+| 02 | Take any **job.** | Work / street jobs | Home · Market | `3 ways` to earn this week | happiness |
+| 03 | Fall for **someone.** | Spark (dating profile) | Contacts · Pulse | `30 swipes` left · 1 super | reputation |
+| 04 | Earn the **degree.** | Education › **Earned** | Catalog · Contacts | `7 credentials` earned | fitness |
+| 05 | Play the **markets.** | Stocks | Bank · Crypto | `25 listed` tickers | purple |
+| 06 | Work the **dark web.** | Onion darknet terminal | Crypto · Desktop | `Opsec Lv4` heat cold | successLight |
+| 07 | Build the **empire.** | Hustle / companies | Politics · Apps | `$8,000` a week in revenue | money |
+| 08 | Buy the **impossible.** | Luxury › **Collection** | Garage · Travel | `2 of 6` trophies acquired | gems |
+| 09 | Raise a **family.** | Contacts | Spark · Life | `5 people` in your circle | reputation |
+| 10 | Leave a **legacy.** | Home, 104 weeks later | Stocks · Luxury | `$11M` net worth · age 22 | gold |
 
-Order 01→10 is the upload order (01 is the primary hero; the first two are the
-only ones most store visitors ever see). Output sizes: **1320×2868** (iPhone
-6.9", Apple's current primary), **1284×2778** (iPhone 6.5"), and **2064×2752**
-(13" iPad Pro) — each rendered natively at its own canvas, never scaled from
-another. iPhone captures are 1290×2796 (430×932 @3x); iPad captures are
-2048×2732 (1024×1366 @2x); both scale losslessly inside the frames.
+**Frames 01 and 10 are the same screen.** Same character — Isaac Carter, the
+Food Courier scenario — photographed at week one and again 104 weeks later:
+age 20 → 22, $1,500 → $11M, Unemployed → Engineering Manager, Single → Married,
+Reputation `0 · Unknown` → `100 · Icon`. Nothing else a store listing can do
+says "this is how far you get" as plainly as the same screen twice, and it is
+the reason `capture-rich-state.mjs` now photographs the life on its way past
+week one instead of only at the end.
 
-## Four frames do NOT use the obvious capture
+Frames **01–03 have to work alone**: iOS renders the first three in search
+results before anyone opens the product page, so they carry hook → mechanic →
+stakes without the other seven.
+
+Order 01→10 is the upload order. Output sizes: **1320×2868** (iPhone 6.9",
+Apple's current primary), **1284×2778** (iPhone 6.5"), **2064×2752** (13" iPad
+Pro) — each rendered natively at its own canvas, never scaled from another.
+iPhone captures are 1290×2796 (430×932 @3x); iPad captures are 2048×2732
+(1024×1366 @2x); both scale losslessly inside the frames.
+
+## The background is one panorama, sliced into ten
+
+The ten cards are windows onto a single field `10·W + 9·gutter` wide. Each
+frame contributes a wash of its own accent hue centred on its own card, so
+every frame carries its neighbours' colour bleeding in from both edges and the
+carousel reads as one continuous place rather than ten separate images.
+
+The gutter is the part people get wrong: the App Store draws a gap between
+screenshots, so slicing a panorama into ten EQUAL pieces leaves the halves not
+meeting, and the result looks like ten misaligned images — worse than not
+attempting it. `GUTTER` in the design module is that allowance.
+
+## Six frames do NOT use the obvious capture
 
 Each one is a claim an earlier set could not back up.
 
@@ -144,6 +169,9 @@ Each one is a claim an earlier set could not back up.
   is an EMPTY STATE — a pink "Open the dating app" button under the words "No
   partner yet". Contacts carries the same idea and is full: parents, a spouse
   and both children.
+- **01** and **02** are shot BEFORE the dev-tools grants land, on the way past
+  week one. Every other capture is the one rich late-game save, which can only
+  ever show the destination — there was no picture of the start at all.
 - **09**'s alternative, the Garage, opens on an economy sedan behind a "Get
   your driver’s licence — Pay $500" prompt.
 

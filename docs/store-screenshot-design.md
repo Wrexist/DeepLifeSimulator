@@ -200,3 +200,95 @@ The fix is to make the depth real: flanks get `translateZ(-0.15…0.17 × W)` an
 the hero sits at `translateZ(0)`. It pays for itself twice, because a device
 further from the camera also projects smaller — the size falloff is now the
 perspective doing it rather than another number to keep in sync.
+
+---
+
+# The set is a story now — and the background is one panorama
+
+Two rounds of this design fixed real faults and still produced something the
+product owner called flat next to the version that is live. Both diagnoses were
+right, and neither was about the faults being fixed. The set was a **catalogue**
+— ten domains listed in no particular order, each frame arguing on its own — and
+it was **underlit**, so a game about ambition looked like a utility.
+
+## The story
+
+The research is unambiguous on structure: a screenshot set is a narrative arc,
+and iOS renders the **first three frames in search results** before anyone opens
+the product page, so those three have to carry hook → mechanic → stakes alone.
+
+A life sim's product is the ARC: the distance between where you start and where
+you end up. So the ten frames run
+
+> Start with nothing. → Take any job. → Fall for someone. → Earn the degree. →
+> Play the markets. → Work the dark web. → Build the empire. → Buy the
+> impossible. → Raise a family. → Leave a legacy.
+
+Read top to bottom, the headlines are a life.
+
+**Frames 01 and 10 are the same screen.** Same character — Isaac Carter, the
+Food Courier scenario — photographed at week one and again 104 weeks later:
+
+| | Frame 01 | Frame 10 |
+|---|---|---|
+| Age | 20 | 22 |
+| Cash | **$1,500** | **$11M** |
+| Job | Unemployed | Engineering Manager |
+| Relationship | Single | Married |
+| Reputation | 0 · Unknown | 100 · Icon |
+
+That comparison is the whole product in one pair of images, and it is why
+`capture-rich-state.mjs` now photographs the life on its way past week one. Up
+to this point every capture came from one rich late-game save, which can only
+ever show the destination — there was no picture of the start, so the strongest
+hook the game has could not be used.
+
+The game wrote frame 01's copy better than marketing could: the opening screen
+carries its own coaching card reading *"You need work — No job means no money
+coming in"*, the Job field reads **Unemployed**, and the Work tab's job list
+bottoms out at *"Beg for Money, $28–52"*. None of it needed dressing up.
+
+## The panorama
+
+The other technique the research kept returning to: **one wide image sliced into
+card-sized pieces**, so the background flows unbroken from one screenshot into
+the next. The pull is the Zeigarnik effect — a pattern cut off at an edge is an
+unfinished pattern, and the reader swipes to close it.
+
+Here each of the ten frames contributes a wash of its own accent hue centred on
+its own card, over a virtual canvas `10·W + 9·gutter` wide, and every frame
+renders a window into it. So each frame carries its neighbours' colour bleeding
+in from both edges. The set reads as one place.
+
+It also, finally, resolves the tension this document has been circling since the
+first version. "Ten palettes" was the loudest tell in the 2026-07 set; "one blue
+for everything" was the overcorrection. A continuous field that a frame samples
+from is neither: the hues differ **because they are positions along one thing**.
+
+**The gutter is the part people get wrong.** The App Store draws a gap between
+screenshots. Slice a panorama into ten equal pieces and ignore that gap and the
+halves do not meet — the result reads as ten misaligned images, which is worse
+than not attempting it. `GUTTER` is that allowance.
+
+## The light, and the chip
+
+- The washes are large and strong, not a polite bloom: the ground is a lit
+  place, and the devices stand in coloured light that reaches the bottom edge.
+- **Film grain** over everything at low opacity. It does two jobs: it kills the
+  banding that big soft gradients show on an OLED phone, and it gives the ground
+  a surface. Without it the washes read as flat vector fill, which is a large
+  part of what "template" actually looks like.
+- The proof moved from a pill centred under the sub-line to a **chip on the hero
+  device**, overhanging its edge. The pill put the number as far from the pixels
+  that prove it as the frame allows; the chip is a label on the thing it
+  describes, and it is the one element that reads as pointing INTO the product.
+  It is also the closest thing here to what the live set was doing with its
+  coloured badges — that instinct was right.
+
+## What was NOT brought back
+
+The live set's emoji stickers. Forty of them across ten frames is tell #1 in the
+table at the top of this document, and the product owner rejected the look. The
+energy they were providing is now coming from the light, the panorama and the
+chip instead. If that call should be revisited, it is a product decision and not
+a design one — say so and it is a small change.

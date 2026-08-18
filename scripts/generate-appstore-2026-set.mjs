@@ -12,50 +12,11 @@ import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { FRAMES, frameHtml, layoutFor } from './lib/storeFrameSystem.mjs';
+import { FRAMES, CAPTURES as SHOTS, frameHtml, layoutFor } from './lib/storeFrameSystem.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CAP = join(ROOT, 'screenshots', 'appstore-2026', 'rich-captures');
 
-/**
- * Frame key → capture file.
- *
- * Three of these deliberately do NOT use the obvious capture, and each one is
- * a claim the old set could not back up:
- *
- * - `education` is the **Earned** tab, not the Catalog. The Catalog is a list
- *   of courses NOT taken, with Enroll buttons and prices; captioning it "PhD
- *   unlocked" described something the picture did not contain.
- * - `luxury` is the **Collection** tab after two pieces are bought, not the
- *   Browse shop. Browse reads `Collection (0)` and `0 / 6 collectibles`, which
- *   flatly contradicted the caption "Rare collection".
- * - `contacts`, not the Family tab, for the family frame: shown large and
- *   alone the Family tab is an EMPTY STATE — a pink "Open the dating app"
- *   button under the words "No partner yet". Contacts carries the same idea
- *   and is full: parents, a spouse and both children.
- */
-const SHOTS = {
-  home: '00-home.png',
-  spark: '05-app-spark.png',
-  stocks: '07-app-stocks.png',
-  contacts: '09-app-contacts.png',
-  apps: '03-apps.png',
-  company: '17-x-company.png',
-  darkweb: '18-x-darkweb.png',
-  crypto: '19-x-crypto.png',
-  education: '28-app-education-earned.png',
-  luxury: '29-x-luxury-collection.png',
-  // Flank captures. These carry no claim — the pill always describes the hero —
-  // but they are real screens of the shipping build like everything else here.
-  bank: '08-app-bank.png',
-  pulse: '06-app-pulse.png',
-  life: '11-life.png',
-  desktop: '16-desktop.png',
-  politics: '23-x-politics.png',
-  travel: '24-x-travel.png',
-  garage: '21-x-garage.png',
-  catalog: '10-app-education.png',
-};
 
 const img = (f) => {
   const p = join(CAP, f);
