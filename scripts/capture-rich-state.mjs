@@ -266,6 +266,15 @@ const SHOT_ORDER = [
   // run already walks through onboarding on its way to the rich state, so
   // photographing it on the way past costs two screenshots and no extra time.
   'early-home', 'early-work',
+  // One weekly decision, OPEN, before the inbox is cleared.
+  //
+  // `CPP-LifeSim` slot 2 in marketing/apple-ads/04-custom-product-pages.md asks
+  // for exactly this ("Every week is a decision." — the week loop with an event
+  // choice open), and the Choices-Story ad group exists because "choices game"
+  // carries large search volume. Until now the pipeline's first act was to
+  // DELETE all twelve of these from every capture — the game's core loop was
+  // the one thing the store page could never show.
+  'event-decision',
 ];
 /**
  * Empties the weekly-decision inbox.
@@ -545,7 +554,64 @@ async function main() {
   await dismissPopups(page);
   console.log('STATE:', JSON.stringify((await text(page)).slice(0, 300)));
 
-  // Empty the decision inbox before anything is photographed — see
+  // Photograph ONE open decision before the inbox is emptied. The modal's
+  // header title varies by event type (Good News / Heads Up / Economic Event …)
+  // and the event text varies by run, but the "Choice Effects" panel title is
+  // unconditional chrome — that is what the claims test asserts on.
+  {
+    // Open with the DIRECT dom-click on the shortest matching element — the
+    // same move clearDecisions uses. Its log shows the polite path never
+    // works here: the Playwright locator click reports success on a text node
+    // whose press never reaches the pill's pressable, so a single
+    // clickText() "succeeds" and nothing opens. That is exactly what the
+    // first version of this block did, and frame 03's shot was silently
+    // skipped while the run stayed green until its deferred check.
+    let eventShotTaken = false;
+    for (let attempt = 0; attempt < 8 && !eventShotTaken; attempt++) {
+      const t0 = await allText(page);
+      const pill = /(\d+ decisions waiting|A decision is waiting)/.exec(t0);
+      // WAIT for the pill rather than concluding it is absent. It is gated on
+      // showEventPill = pendingEventCount > 0 && !higherModalUp && … , so for a
+      // few seconds after load — while a toast or popup is still settling — the
+      // decisions exist but the pill does not render. The first version broke
+      // out of the loop here and the iPad run photographed nothing; the
+      // clear-loop right below then found the pill on its first try.
+      if (!pill) { console.log('  event: no pill yet (attempt', attempt + ')'); await sleep(1500); continue; }
+      // `last: true` is the load-bearing word, and it took a debug screenshot
+      // to find. TWO elements carry this exact text: a row inside the LAST
+      // WEEK recap card (DOM-first; clicking it opens nothing) and the
+      // floating inbox pill at the bottom of the screen (DOM-last — overlays
+      // mount last). Both `.first()` and shortest-text DOM clicks land on the
+      // recap row, so eight straight attempts "succeeded" while the modal
+      // never mounted. clearDecisions never noticed the same bug because its
+      // lowest-big-button fallback happens to PRESS THE PILL by accident —
+      // the pill is the lowest labelled button on the home screen.
+      await clickText(page, pill[1], { last: true, wait: 1200 });
+      // The modal is lazy() — its chunk loads on first open — so poll rather
+      // than sleep once.
+      for (let i = 0; i < 10 && !eventShotTaken; i++) {
+        await sleep(700);
+        if ((await allText(page)).includes('Choice Effects')) {
+          await shot(page, 'event-decision');
+          eventShotTaken = true;
+        }
+      }
+      if (!eventShotTaken) {
+        // Portals APPEND to body, so the modal's text — if any — is at the
+        // END of textContent; the head is just the home screen.
+        const tail = (await allText(page)).replace(/\s+/g, ' ');
+        console.log('  event: no Choice Effects after click; text tail:', JSON.stringify(tail.slice(-400)));
+        await shot(page, 'dbg-event-attempt-' + attempt);
+      }
+    }
+    if (!eventShotTaken) {
+      deferred.push(new Error('The weekly decision modal could not be photographed open — frame 03 would keep a stale file.'));
+    }
+    // Leave the open decision for clearDecisions below — its loop re-finds the
+    // pill and resolves everything, including the one on screen.
+  }
+
+  // Empty the decision inbox before anything else is photographed — see
   // `clearDecisions`. Must run BEFORE the first shot, not after.
   await clearDecisions(page);
 

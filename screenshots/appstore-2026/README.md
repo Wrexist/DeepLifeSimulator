@@ -33,7 +33,7 @@ capture of the shipping UI.
 2. `node scripts/serve-web-export.mjs <dir> 8090`
    (a 30-line static server with SPA fallback, so the pipeline needs no network
    install; `npx serve -l 8090 -s <dir>` does the same if you have it)
-3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (32 numbered shots, `00`–`31`,
+3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (33 numbered shots, `00`–`32`,
    each with its on-screen text written beside it as `NN-name.txt`)
    - onboarding (Food Courier → Business Empire ambition)
    - Dev Tools: god-mode on, 2×52-week skips, top career, company, education,
@@ -114,8 +114,8 @@ where you end up.
 |---|----------|-------------|--------|------------|--------|
 | 01 | Start with **nothing.** | Home, week one (pre-grant) | Work · Bank | `$1,500` to your name | infoLight |
 | 02 | Take any **job.** | Work / street jobs | Home · Market | `3 ways` to earn this week | happiness |
-| 03 | Fall for **someone.** | Spark (dating profile) | Contacts · Pulse | `30 swipes` left · 1 super | reputation |
-| 04 | Earn the **degree.** | Education › **Earned** | Catalog · Contacts | `7 credentials` earned | fitness |
+| 03 | Every week, a **decision.** | Weekly event modal, OPEN | Life · Market | `Your call` · consequences included | danger |
+| 04 | Fall for **someone.** | Spark (dating profile) | Contacts · Pulse | `30 swipes` left · 1 super | reputation |
 | 05 | Play the **markets.** | Stocks | Bank · Crypto | `25 listed` tickers | purple |
 | 06 | Work the **dark web.** | Onion darknet terminal | Crypto · Desktop | `Opsec Lv4` heat cold | successLight |
 | 07 | Build the **empire.** | Hustle / companies | Politics · Apps | `$8,000` a week in revenue | money |
@@ -153,6 +153,27 @@ screenshots, so slicing a panorama into ten EQUAL pieces leaves the halves not
 meeting, and the result looks like ten misaligned images — worse than not
 attempting it. `GUTTER` in the design module is that allowance.
 
+## Which screens hold the ten slots — a demand decision
+
+The Apple Ads account (`marketing/apple-ads/`) ranks the search themes people
+actually arrive through, by its own keyword investment: LifeSim-Core (18
+keywords), Money-Wealth (13), Investing-Stocks (12), Crime-Underground (10),
+Business-Tycoon (10), RealEstate (8), Choices-Story (8), Career-Job (8). Its
+first live run also showed the product page converting at 0.6× benchmark — the
+page, not demand, is the leak these frames exist to fix.
+
+Two consequences are baked into the set:
+
+- **Education has NO ad group anywhere**, so the Earned-transcript frame gave
+  its slot to the open weekly decision — which the Choices-Story group ("choices
+  game" is flagged large-volume) and `CPP-LifeSim` slot 2 both ask for.
+  The Earned capture stays on disk for `CPP-Career`.
+- **Real estate has a group (8 keywords) and no frame.** Its capture is an
+  empty portfolio ($0 · 0 properties · "You don't own any property yet"), and
+  this set does not caption empty states. Featuring it waits on a capture step
+  that buys a property through the app's own UI, the way the luxury frame buys
+  its two trophies.
+
 ## Six frames do NOT use the obvious capture
 
 Each one is a claim an earlier set could not back up.
@@ -172,6 +193,9 @@ Each one is a claim an earlier set could not back up.
 - **01** and **02** are shot BEFORE the dev-tools grants land, on the way past
   week one. Every other capture is the one rich late-game save, which can only
   ever show the destination — there was no picture of the start at all.
+- **03** is the weekly event modal photographed OPEN, before the capture's
+  clean-up pass empties the inbox. The event's text varies per run, so its
+  claim rests on the modal's unconditional chrome — the "Choice Effects" panel.
 - **09**'s alternative, the Garage, opens on an economy sedan behind a "Get
   your driver’s licence — Pay $500" prompt.
 

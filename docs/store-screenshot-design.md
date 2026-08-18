@@ -336,3 +336,58 @@ and two flanks at the same raised height drew **one hard horizontal line
 straight across the frame above the hero's head**. It read as a shelf. The
 flanks now sit BELOW the hero's top edge — the hero is the silhouette, and the
 flanks recede behind it.
+
+---
+
+# Which screens hold the slots — decided by demand data, not taste
+
+The question "which screens should the set feature" has an empirical answer in
+this repo, and it was sitting in `marketing/apple-ads/` the whole time.
+
+## The evidence
+
+**The keyword account's own investment, by theme** (its bid research, not a
+guess): LifeSim-Core 18 keywords · Money-Wealth 13 · Investing-Stocks 12 ·
+Crime-Underground 10 · Business-Tycoon 10 · RealEstate 8 · Choices-Story 8 ·
+Career-Job 8. Two themes have **no ad group at all: education and dating.**
+
+**The first live campaign run** (`08-first-results-2026-08.md`): Category-Exact
+tap-through hit 18.8% against a 7.7% category floor — 2.4× — while the product
+page converted at 40% against a 66% benchmark. Demand is not the problem; the
+page is. These frames are the fix that run was asking for.
+
+**The CPP briefs** (`04-custom-product-pages.md`) already specified the two
+shots the flagship page needed most: "Start at 18. Own nothing." and "Every
+week is a decision. — the week loop with an event choice open."
+
+## What changed because of it
+
+| Slot | Was | Now | Why |
+|---|---|---|---|
+| 03 | Education › Earned transcript | **The weekly event modal, open** | Education has no ad group; Choices-Story does ("choices game" flagged large-volume), and CPP-LifeSim slot 2 asks for exactly this shot |
+| 04 | Fall for someone (was 03) | unchanged, one later | Dating also has no ad group — it stays for page appeal, but it does not deserve a search-result slot over the core loop |
+
+The bitter irony the swap fixed: the capture pipeline's first act was
+`clearDecisions()` — deleting all twelve queued weekly decisions from every
+capture so they would not pollute the screenshots. The game's core loop, the
+thing the genre is named for, was the one thing the store page could never
+show. The capture now photographs one decision OPEN before the inbox is
+cleared. The event's text varies per run, so the frame's claim rests on the
+modal's unconditional chrome (the "Choice Effects" panel) and its chip
+deliberately carries no number — a digit here would quote an event the next
+capture re-rolls.
+
+## What did NOT change, and what is parked
+
+- **Dark web (06), stocks (05), empire (07), luxury (08)** all stay — they map
+  1:1 onto Crime-Underground, Investing-Stocks, Business-Tycoon and the
+  wealth-fantasy terms ("dark web game" and "money laundering game" are in the
+  account as exact matches to named in-game systems).
+- **Real estate is the known gap**: an 8-keyword group and no frame. Its
+  capture is an empty portfolio ($0 · 0 properties), and this set does not
+  caption empty states. The unlock is a capture step that buys a property
+  through the app's own UI, the way the luxury frame buys its trophies — parked
+  as the next capture-pipeline task, not a design task.
+- **Education's Earned transcript** stays on disk for `CPP-Career`'s "Study,
+  qualify, get promoted" slot — the right audience for it arrives through
+  career searches, not the default page.

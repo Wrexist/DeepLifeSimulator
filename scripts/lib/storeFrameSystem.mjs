@@ -79,6 +79,7 @@ export const HUE = {
   apps: '#6366F1', // palette.gems        — the phone, the app grid
   terminal: '#34D399', // palette.successLight— the darknet terminal
   gold: '#FACC15', // accent.gold        — prestige, legacy, the payoff
+  risk: '#EF4444', // palette.danger      — stakes, decisions, the bad week
 };
 
 /**
@@ -94,9 +95,10 @@ export const HUE = {
  * - `earlyhome` / `earlywork` are shot BEFORE any dev-tools grant lands. Every
  *   other capture here is one rich late-game save, which can only ever show the
  *   destination; these are the only way frame 01 can say "start with nothing".
- * - `education` is the **Earned** tab, not the Catalog. The Catalog lists
- *   courses NOT taken, each with a price and an Enroll button, so captioning it
- *   "PhD unlocked" described something the picture did not contain.
+ * - `event` is a weekly decision photographed OPEN, before the capture's
+ *   clean-up pass empties the inbox — the pipeline's first act used to be
+ *   deleting all twelve of these from every capture, so the game's core loop
+ *   was the one thing the page could never show.
  * - `luxury` is the **Collection** tab after the capture buys two pieces, not
  *   the Browse shop, which read `Collection (0)` under the words "Rare collection".
  * - `contacts`, not the Family tab, for the family frame: shown large and alone
@@ -106,6 +108,7 @@ export const HUE = {
 export const CAPTURES = {
   earlyhome: '30-early-home.png',
   earlywork: '31-early-work.png',
+  event: '32-event-decision.png',
   home: '00-home.png',
   spark: '05-app-spark.png',
   stocks: '07-app-stocks.png',
@@ -114,8 +117,11 @@ export const CAPTURES = {
   company: '17-x-company.png',
   darkweb: '18-x-darkweb.png',
   crypto: '19-x-crypto.png',
-  education: '28-app-education-earned.png',
   luxury: '29-x-luxury-collection.png',
+  // No longer on the main page (education has no search-demand ad group), but
+  // kept: CPP-Career in marketing/apple-ads/04-custom-product-pages.md wants
+  // the Earned transcript for its "Study, qualify, get promoted" slot.
+  education: '28-app-education-earned.png',
   // Flank-only captures. These carry no claim — the chip always describes the
   // hero — but they are real screens of the shipping build like everything else.
   bank: '08-app-bank.png',
@@ -136,9 +142,20 @@ export const CAPTURES = {
  * most. The version this replaces was a catalogue: ten domains listed in no
  * particular order, each frame arguing on its own. A life sim's product IS the
  * arc — the distance between where you start and where you end up — so the set
- * now runs start → grind → love → study → markets → crime → empire → luxury →
+ * now runs start → grind → choices → love → markets → crime → empire → luxury →
  * family → legacy, and the headlines read top to bottom as sentences of one
  * story.
+ *
+ * WHICH screens hold the ten slots is a demand decision, not a taste one. The
+ * Apple Ads account (marketing/apple-ads/) ranks the search themes people
+ * actually arrive through: LifeSim-Core (18 keywords), Money-Wealth (13),
+ * Investing-Stocks (12), Crime-Underground (10), Business-Tycoon (10),
+ * RealEstate (8), Choices-Story (8), Career-Job (8) — and education has NO ad
+ * group at all, which is why the Earned-transcript frame gave its slot to the
+ * open weekly decision (frame 03). Real estate also has a group and no frame;
+ * its capture is an empty portfolio ($0, 0 properties), so featuring it waits
+ * on a capture that buys a property first — see the note in
+ * docs/store-screenshot-design.md.
  *
  * The bookend is deliberate: frame 01 and frame 10 are the SAME SCREEN, the
  * home identity card, photographed at $1,500 and again at $11M. Nothing else
@@ -201,7 +218,29 @@ export const FRAMES = [
     assert: ['Street Jobs'],
   },
   {
-    id: '03-fall-for-someone',
+    id: '03-every-week-a-decision',
+    // Flanks: the vitals the choice will move, and the market it will be paid in.
+    support: ['life', 'market'],
+    head: 'Every week, a |decision.|',
+    sub: 'Good news, bad news — your call either way.',
+    num: 'Your call',
+    label: 'consequences included',
+    hue: HUE.risk,
+    pick: 'event',
+    // The one frame whose subject is not a screen but the LOOP. The keyword
+    // account has a whole Choices-Story ad group ("choices game" is flagged as
+    // large volume), CPP-LifeSim's slot 2 asks for exactly this shot, and the
+    // capture pipeline's first act used to be deleting all twelve queued
+    // decisions from every capture — the core loop was the one thing the page
+    // could never show. The event's TEXT varies per run, so the claim rests on
+    // the modal's unconditional chrome: the "Choice Effects" panel that prices
+    // every option before you commit. No digits on this chip on purpose — a
+    // number here would be quoting an event that the next capture re-rolls.
+    evidence: 'The weekly event modal is open, with its Choice Effects panel pricing each option.',
+    assert: ['Choice Effects'],
+  },
+  {
+    id: '04-fall-for-someone',
     support: ['contacts', 'pulse'],
     head: 'Fall for |someone.|',
     sub: 'Swipe, match, fall in love — or don’t.',
@@ -211,21 +250,6 @@ export const FRAMES = [
     pick: 'spark',
     evidence: 'The Spark card footer reads "30 swipes left · 1 super".',
     assert: ['30 swipes left', '1 super'],
-  },
-  {
-    id: '04-earn-the-degree',
-    support: ['catalog', 'contacts'],
-    head: 'Earn the |degree.|',
-    sub: 'Seven credentials, from high school to a PhD.',
-    num: '7 credentials',
-    label: 'earned · every one on record',
-    hue: HUE.mind,
-    pick: 'education',
-    // Was "PhD unlocked" over the Catalog tab — a list of courses NOT taken,
-    // each with a price and an Enroll button. The Earned tab is the screen that
-    // holds the proof: a transcript, every credential stamped Graduated.
-    evidence: 'The transcript card reads "7 credentials earned"; every row below is stamped Graduated · On record.',
-    assert: ['credentials earned', 'MBA', 'Graduated', 'On record'],
   },
   {
     id: '05-play-the-markets',
