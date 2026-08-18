@@ -335,8 +335,8 @@ export function layoutFor(W, H, kind = 'phone') {
   // 2% bleed, too small to read as a deliberate crop and too big to read as a
   // margin, and it sliced the tab bar in half. The tab bar is product; a
   // screenshot that eats it looks like a mistake, because it is one.
-  const devTop = Math.round(H * (tablet ? 0.300 : 0.290));
-  const footer = Math.round(H * (tablet ? 0.030 : 0.024));
+  const devTop = Math.round(H * (tablet ? 0.286 : 0.272));
+  const footer = Math.round(H * (tablet ? 0.030 : 0.028));
   const devH = H - devTop - footer;
   // The capture's own aspect: 1290×2796 phone, 2048×2732 tablet.
   const screenAspect = tablet ? 2732 / 2048 : 2796 / 1290;
@@ -358,7 +358,7 @@ export function layoutFor(W, H, kind = 'phone') {
   // left two large empty rectangles low and outboard. There the flanks are
   // near hero height and sit on the SAME baseline, and the three devices read
   // as one band.
-  const sideW = Math.round(devW * (tablet ? 0.86 : 0.70));
+  const sideW = Math.round(devW * (tablet ? 0.90 : 0.86));
   const sideBezel = Math.max(1, Math.round(bezel * (tablet ? 0.70 : 0.735)));
   const sideH = Math.round((sideW - sideBezel * 2) * screenAspect) + sideBezel * 2;
 
@@ -381,11 +381,11 @@ export function layoutFor(W, H, kind = 'phone') {
     // type block. It overhangs the device's left edge so it reads as a label ON
     // the screen, the way a callout does — the number and the pixels that prove
     // it end up in the same glance instead of 400px apart.
-    chip: Math.round(W * (tablet ? 0.0175 : 0.0235)),
-    chipPadX: Math.round(W * (tablet ? 0.019 : 0.026)),
-    chipPadY: Math.round(W * (tablet ? 0.0095 : 0.0130)),
-    chipX: Math.round(W * (tablet ? 0.075 : 0.048)),
-    chipY: devTop + Math.round(H * (tablet ? 0.055 : 0.052)),
+    chip: Math.round(W * (tablet ? 0.0185 : 0.0255)),
+    chipPadX: Math.round(W * (tablet ? 0.021 : 0.030)),
+    chipPadY: Math.round(W * (tablet ? 0.0105 : 0.0148)),
+    chipX: Math.round(W * (tablet ? 0.070 : 0.040)),
+    chipY: devTop + Math.round(H * (tablet ? 0.050 : 0.046)),
 
     bloomW: Math.round(W * 1.15),
     bloomH: Math.round(H * 0.55),
@@ -421,14 +421,21 @@ export function layoutFor(W, H, kind = 'phone') {
     sideScrR: Math.round(sideW * (tablet ? 0.043 : 0.078)),
     // Raised above the hero's top edge so each flank shows its own header and
     // first cards — the part of a screen that says what it is.
+    // BELOW the hero's top edge, never above it.
+    //
+    // The flanks used to be raised, which inverted the hierarchy — the hero was
+    // no longer the tallest thing in the frame — and worse, two flanks at the
+    // same raised height drew one hard horizontal line straight across the
+    // composition above the hero's head. It read as a shelf. Sitting them lower
+    // makes the hero the silhouette and leaves the flanks receding behind it.
     sideTop: tablet
       ? devTop + devH - sideH - Math.round(H * 0.030)
-      : devTop - Math.round(H * 0.044),
+      : devTop + Math.round(H * 0.034),
     // Distance from canvas centre to each flank's centre.
-    sideDx: Math.round(W * (tablet ? 0.300 : 0.345)),
-    sideRotY: tablet ? 16 : 19,
+    sideDx: Math.round(W * (tablet ? 0.300 : 0.330)),
+    sideRotY: tablet ? 16 : 21,
     perspective: Math.round(W * 2.1),
-    sideZ: Math.round(W * (tablet ? 0.15 : 0.17)),
+    sideZ: Math.round(W * (tablet ? 0.13 : 0.14)),
   };
 }
 
@@ -482,14 +489,14 @@ export function frameHtml(frame, shots, L) {
   const originX = i * stride;
   const washes = FRAMES.map((f, j) => {
     const cx = j * stride + L.W / 2;
-    return `radial-gradient(${Math.round(L.W * 1.05)}px ${Math.round(L.H * 0.90)}px at ${Math.round(cx)}px ${Math.round(L.H * 0.34)}px, rgba(${rgb(f.hue)},0.60), transparent 70%)`;
+    return `radial-gradient(${Math.round(L.W * 1.05)}px ${Math.round(L.H * 0.90)}px at ${Math.round(cx)}px ${Math.round(L.H * 0.34)}px, rgba(${rgb(f.hue)},0.72), transparent 72%)`;
   }).join(',\n      ');
   // A second, slower band low down, offset by half a card so its crests fall
   // between the washes above — the two together stop the field reading as ten
   // evenly spaced blobs.
   const lows = FRAMES.map((f, j) => {
     const cx = j * stride + L.W;
-    return `radial-gradient(${Math.round(L.W * 0.9)}px ${Math.round(L.H * 0.46)}px at ${Math.round(cx)}px ${Math.round(L.H * 0.86)}px, rgba(${rgb(f.hue)},0.30), transparent 72%)`;
+    return `radial-gradient(${Math.round(L.W * 0.9)}px ${Math.round(L.H * 0.46)}px at ${Math.round(cx)}px ${Math.round(L.H * 0.86)}px, rgba(${rgb(f.hue)},0.38), transparent 74%)`;
   }).join(',\n      ');
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -572,12 +579,13 @@ export function frameHtml(frame, shots, L) {
     left:${L.chipX}px; top:${L.chipY}px;
     display:inline-flex; align-items:baseline; gap:${Math.round(L.chip * 0.4)}px;
     padding:${L.chipPadY}px ${L.chipPadX}px; border-radius:999px;
-    font-size:${L.chip}px; font-weight:700; letter-spacing:0.2px; white-space:nowrap;
-    color:#08111F; background:${A};
+    font-size:${L.chip}px; font-weight:800; letter-spacing:${(L.chip * 0.035).toFixed(2)}px;
+    text-transform:uppercase; white-space:nowrap;
+    color:#07101C; background:${A};
     box-shadow:0 ${Math.round(L.chip * 0.5)}px ${Math.round(L.chip * 1.4)}px rgba(0,0,0,0.55),
                0 0 ${Math.round(L.chip * 2.2)}px rgba(${a},0.55);
   }
-  .chip .l { font-weight:600; opacity:0.72; }
+  .chip .l { font-weight:700; opacity:0.70; }
 
   /* The stage. ONE perspective origin for all three devices, so the flanks turn
      to face the same viewer instead of tilting independently. */
@@ -640,9 +648,9 @@ export function frameHtml(frame, shots, L) {
      two screens are; they simply are not the one being read. */
   .side .screen::after {
     content:''; position:absolute; inset:0; border-radius:inherit;
-    background:linear-gradient(180deg, rgba(4,7,14,0.40), rgba(4,7,14,0.58));
+    background:linear-gradient(180deg, rgba(4,7,14,0.30), rgba(4,7,14,0.48));
   }
-  .side .screen img { filter:saturate(0.86) brightness(0.92); }
+  .side .screen img { filter:saturate(0.92) brightness(0.96); }
 
   /* The light the screen spills on the ground, and the shadow that sits the
      device on it. Both are physical: a lit rectangle in a dark room throws

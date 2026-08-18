@@ -292,3 +292,47 @@ table at the top of this document, and the product owner rejected the look. The
 energy they were providing is now coming from the light, the panorama and the
 chip instead. If that call should be revisited, it is a product decision and not
 a design one — say so and it is a small change.
+
+---
+
+# Matching the live set's density — the audit, item by item
+
+The story and the panorama landed and the result was still called flat beside
+the version that is live. Comparing the two side by side, the live set is
+denser, brighter and more physical, and **most of what produces that has
+nothing to do with the emoji**. Separating the two lists is the whole job:
+
+## What the live set does that is RIGHT, and is now here
+
+| Live set | Why it works | Here |
+|---|---|---|
+| Flanks nearly as large as the hero and **bright enough to read** | Three legible screens is the breadth argument; two dark smudges is not | Flanks at 86% of hero width, dimmed to 0.30–0.48 rather than 0.56–0.74 |
+| Flanks pressed **close**, overlapping heavily | Fills the frame; a gap between devices reads as three separate pictures | `sideDx` pulled in, `sideZ` reduced so they crowd the hero |
+| A **bold coloured badge** on the device | Puts the number on the thing it describes, and it is the one element that points INTO the product | The proof chip: uppercase, tracked, solid accent on near-black, over the hero's left edge |
+| Deep saturated ambient colour, edge to edge | A game about ambition should not look like a utility | Panorama washes at 0.72 alpha reaching 90% of frame height |
+| Very little empty ground | Every dark rectangle is an unpaid pixel | Devices raised, footer trimmed, flanks filling the flanks |
+
+## What makes it read as machine-made, and is NOT here
+
+- **~40 emoji stickers** across ten frames. Tell #1 in the table at the top of
+  this document, and an explicit product-owner rejection. No premium set on
+  either store scatters emoji over its screenshots.
+- **A repeated `DEEP LIFE SIMULATOR` kicker** above every headline. The store
+  prints the app's name directly above the screenshot already; spending the
+  frame's most valuable line repeating it is the clearest sign the layout was
+  filled rather than designed.
+- **Gradient text on the accent word.** Multi-stop gradient type is the single
+  most recognisable template-generator flourish. One flat accent colour.
+- **Headlines broken so the accent word lands alone on line two**, at a
+  different apparent size from line one. That is a text box wrapping, not a
+  typographer setting a line.
+
+## One layout bug this round, worth recording
+
+The flanks were first raised ABOVE the hero's top edge. Two consequences, both
+visible immediately once the frame is looked at rather than measured: the hero
+stopped being the tallest thing in the composition, so the hierarchy inverted;
+and two flanks at the same raised height drew **one hard horizontal line
+straight across the frame above the hero's head**. It read as a shelf. The
+flanks now sit BELOW the hero's top edge — the hero is the silhouette, and the
+flanks recede behind it.
