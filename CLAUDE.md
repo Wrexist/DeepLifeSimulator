@@ -183,8 +183,9 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   table against `eas.json` so a profile that drops its explicit `"true"` fails
   in CI rather than on TestFlight.
 - There is **no `notifications` flag**. `expo-notifications` was removed to fix a
-  TurboModule crash and `utils/notifications.ts` is a no-op stub, so the flag had
-  zero readers — a kill switch nobody consults reads as working protection.
+  TurboModule crash, so the flag had zero readers — a kill switch nobody consults
+  reads as working protection. `utils/notifications.ts` survived as a no-op stub
+  for a while afterwards; nothing ever imported it either, so it is deleted too.
 - Load native modules lazily via `require()` in a try/catch, never at module top level.
 
 ---
