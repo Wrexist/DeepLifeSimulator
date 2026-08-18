@@ -132,8 +132,9 @@ key light from the upper left, a gloss sweep, and a hairline rim.
 
 This is not a new idea in this repo — `scripts/generate-avatar-styles.mjs`
 prototyped exactly this treatment and its conclusion ("a legit premium
-mobile-game look") was shelved. `screenshots/avatar-recommendation.png` is the
-same treatment over the recommended art.
+mobile-game look") was shelved. `scripts/generate-avatar-recommendation.mjs`
+renders the same treatment over the recommended art — run it to see the
+comparison; the preview PNG is regenerable output and is no longer committed.
 
 One constraint, verified twice: **the lit frame only works on FILLED styles.**
 Line-art styles (lorelei, notionists, openPeeps) have transparent faces, so a

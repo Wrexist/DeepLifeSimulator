@@ -120,7 +120,8 @@ A **hybrid**, shipped in layers so the game looks better immediately and keeps
 improving — nothing blocks:
 
 1. **Now (free, instant):** ship the **2.5D-lit DiceBear** avatar as the universal
-   fallback — already prototyped in `screenshots/avatar-styles.png`. Every face
+   fallback — already prototyped by `scripts/generate-avatar-styles.mjs` (run it
+   to regenerate the comparison sheet; the PNG is not committed). Every face
    gets depth today, infinite, offline.
 2. **The real look (B):** generate an **AI consistent-character portrait library**
    for the true-3D feel — heroes bespoke, NPC pool seeded. Prompt sheet is ready.

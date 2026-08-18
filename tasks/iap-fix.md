@@ -2,7 +2,10 @@
 
 ## Symptom
 Tapping a Gem Shop / shop item shows **"Purchase Failed — Store products are not
-configured. Please contact support."** (see `__tests__/Apple iphone 13 screenshots/`).
+configured. Please contact support."** (Reported from an iPhone 13. The capture
+of the dialog used to sit in `__tests__/Apple iphone 13 screenshots/`; it was
+5 MB of a resolved bug's error dialog parked in the test tree and has been
+removed — the symptom text above is the whole of what it showed.)
 
 ## Root cause
 The error fires from `services/IAPService.ts` whenever the store returns **no
