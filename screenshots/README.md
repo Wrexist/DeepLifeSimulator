@@ -29,8 +29,13 @@ version). `docs/RELEASE_RUNBOOK.md` carries the upload checklist;
 
 | Folder | What it is |
 |---|---|
-| `appstore-2026/rich-captures/` | 28 iPhone captures (1290 × 2796) of a rich late-game save |
-| `appstore-2026/rich-captures-ipad/` | the same 28 at iPad size (2048 × 2732) |
+| `appstore-2026/rich-captures/` | 30 iPhone captures (1290 × 2796) of a rich late-game save, each with its on-screen text beside it as `NN-name.txt` |
+| `appstore-2026/rich-captures-ipad/` | the same 30 at iPad size (2048 × 2732) |
+
+The `.txt` files are not incidental. `__tests__/tooling/storeFrameClaims.test.ts`
+reads them to check that every claim printed on a store frame — "7 credentials
+earned", "2 of 6 trophies" — actually appears in the screenshot it is printed
+over. Delete them and that check has nothing to check.
 
 These are the source frames the two composers read. Recomposing the ten store
 frames from them is cheap and deterministic; **re-capturing is not** — the
@@ -52,7 +57,13 @@ node scripts/generate-appstore-2026-ipad.mjs   # iPad 13"
 
 Both import `scripts/lib/storeFrameSystem.mjs` — change the palette, type scale
 or frame list **there**, never in one generator, or the two device sets drift
-apart.
+apart. After changing any frame's copy, run:
+
+```bash
+npx jest __tests__/tooling/storeFrameClaims.test.ts
+```
+
+which fails if a pill claims something its capture does not show.
 
 Re-capture from the running app — only when the UI itself has changed enough
 that the captures no longer show the shipping build. Full procedure (Expo web

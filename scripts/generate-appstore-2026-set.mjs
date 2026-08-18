@@ -1,99 +1,126 @@
 /**
  * The iPhone App Store set — ten frames from real gameplay captures.
  *
- * Layout and palette live in `lib/storeFrameSystem.mjs`, shared with the iPad
- * generator. What this file owns is the iPhone proportions and which capture
- * each frame shows.
+ * Layout, palette, type and the frame list live in `lib/storeFrameSystem.mjs`,
+ * shared with the iPad generator. What this file owns is which capture each
+ * frame shows and which canvases get written.
  *
  * Prereq: screenshots/appstore-2026/rich-captures/ (see capture-rich-state.mjs)
  * Run:    node scripts/generate-appstore-2026-set.mjs
  */
 import { chromium } from 'playwright';
-import { readFileSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { FRAMES, frameHtml } from './lib/storeFrameSystem.mjs';
+import { FRAMES, frameHtml, layoutFor } from './lib/storeFrameSystem.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CAP = join(ROOT, 'screenshots', 'appstore-2026', 'rich-captures');
-const img = (f) => 'data:image/png;base64,' + readFileSync(join(CAP, f)).toString('base64');
 
+/**
+ * Frame key → capture file.
+ *
+ * Three of these deliberately do NOT use the obvious capture, and each one is
+ * a claim the old set could not back up:
+ *
+ * - `education` is the **Earned** tab, not the Catalog. The Catalog is a list
+ *   of courses NOT taken, with Enroll buttons and prices; captioning it "PhD
+ *   unlocked" described something the picture did not contain.
+ * - `luxury` is the **Collection** tab after two pieces are bought, not the
+ *   Browse shop. Browse reads `Collection (0)` and `0 / 6 collectibles`, which
+ *   flatly contradicted the caption "Rare collection".
+ * - `contacts`, not the Family tab, for the family frame: shown large and
+ *   alone the Family tab is an EMPTY STATE — a pink "Open the dating app"
+ *   button under the words "No partner yet". Contacts carries the same idea
+ *   and is full: parents, a spouse and both children.
+ */
 const SHOTS = {
-  home: img('00-home.png'),
-  spark: img('05-app-spark.png'),
-  pulse: img('06-app-pulse.png'),
-  apps: img('03-apps.png'),
-  education: img('10-app-education.png'),
-  family: img('14-life-family.png'),
-  company: img('17-x-company.png'),
-  darkweb: img('18-x-darkweb.png'),
-  crypto: img('19-x-crypto.png'),
-  contacts: img('09-app-contacts.png'),
-  // Luxury, not the Garage. The garage capture leads with an economy sedan and
-  // a "Get your driver's licence — Pay $500" prompt; luxury opens on a rare
-  // watch collection and a museum-grade diamond.
-  luxury: img('22-x-luxury.png'),
+  home: '00-home.png',
+  spark: '05-app-spark.png',
+  stocks: '07-app-stocks.png',
+  contacts: '09-app-contacts.png',
+  apps: '03-apps.png',
+  company: '17-x-company.png',
+  darkweb: '18-x-darkweb.png',
+  crypto: '19-x-crypto.png',
+  education: '28-app-education-earned.png',
+  luxury: '29-x-luxury-collection.png',
+};
+
+const img = (f) => {
+  const p = join(CAP, f);
+  if (!existsSync(p)) {
+    throw new Error(
+      `Missing capture ${f}. Re-run scripts/capture-rich-state.mjs — see `
+      + `screenshots/appstore-2026/README.md. Composing around a missing file `
+      + `is how a stale screenshot reaches the store.`,
+    );
+  }
+  return 'data:image/png;base64,' + readFileSync(p).toString('base64');
 };
 
 /**
- * The design canvas. Every output size renders this and scales to fit, so the
- * proportions are decided once.
+ * Both canvases Apple accepts for the two iPhone shelves.
  *
- * The device is 63% of the canvas width and fully contained with a real bottom
- * margin — it is the largest thing in the frame, because it is the product.
+ * Each is rendered NATIVELY at its own size. The version this replaces laid
+ * out one 1320×2868 canvas and scaled it to 6.5" with `transform:scale(sx,sy)`
+ * where `sx = 0.9727` and `sy = 0.9686` — the entire 6.5" set shipped squashed
+ * 0.4% anamorphically, type and device alike. Deriving each canvas's own
+ * numbers costs one extra render and cannot distort.
  */
-const L = {
-  W: 1320, H: 2868,
-  // The bloom sits BEHIND the device, not behind the type. Its job is to
-  // separate the phone's silhouette from a ground that is nearly the same
-  // navy as the app's own chrome.
-  bloomW: 1420, bloomH: 1500, bloomY: 62,
-  // The type block's BASELINE — its bottom edge. 190px of air below it, then
-  // the device. Extra headline lines grow upward into the top margin.
-  headBaseline: 570, headPad: 96,
-  // Sized for the App Store CAROUSEL, where these are shown as thumbnails a
-  // fraction of this size — a headline that only works at full resolution is
-  // a headline nobody reads. 116px still clears the longest line in the set
-  // without crushing tracking; the old 158px at -5px collided its letterforms.
-  h1: 116, h1Track: -2.8,
-  sub: 42, subTrack: 0.1, subGap: 34,
-  pill: 27, pillTrack: 0.4, pillGap: 40, pillPadX: 34, pillPadY: 17,
-  // 900 wide = 68% of the canvas. The device is meant to dominate; the type
-  // block above it gets 255px of air and the bottom margin 168px, which is
-  // balanced. The first pass left 475px above and 100px below and the frame
-  // read top-heavy and unfinished.
-  devW: 900, devTop: 760, bezel: 14, devR: 84, scrR: 71,
-  shadowTop: 2642, shadowH: 150,
-};
-
 const SIZES = [
   { dir: 'iphone-6.9', w: 1320, h: 2868 },
   { dir: 'iphone-6.5', w: 1284, h: 2778 },
 ];
 
+/**
+ * Removes PNGs the current frame list no longer produces.
+ *
+ * Renaming a frame (`03-build-your-companies` → `03-build-an-empire`) leaves
+ * the old file on disk, and the upload instruction everywhere in this repo is
+ * "upload all ten in filename order" — so a stale frame does not look stale,
+ * it looks like frame three. Both files even sort adjacently. The set went to
+ * twelve files this way while every generator log line said the run had
+ * succeeded.
+ */
+function pruneOrphans(dir, keep) {
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith('.png')) continue;
+    if (keep.has(f)) continue;
+    rmSync(join(dir, f));
+    console.log('  ✕ removed orphan', f);
+  }
+}
+
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 for (const size of SIZES) {
   const OUT = join(ROOT, 'screenshots', 'appstore-2026', size.dir);
   mkdirSync(OUT, { recursive: true });
-  const pg = await browser.newPage({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: 1 });
-  const sx = size.w / L.W, sy = size.h / L.H;
+  const L = layoutFor(size.w, size.h, 'phone');
+  const pg = await browser.newPage({
+    viewport: { width: size.w, height: size.h },
+    deviceScaleFactor: 1,
+  });
   for (const f of FRAMES) {
-    const shot = SHOTS[f.pick];
-    if (!shot) throw new Error(`No capture registered for frame ${f.id} (pick: ${f.pick})`);
-    let html = frameHtml(f, shot, L);
-    if (size.w !== L.W || size.h !== L.H) {
-      html = html.replace('<div class="canvas">',
-        `<div class="canvas" style="transform:scale(${sx},${sy}); transform-origin:top left;">`);
-    }
-    const file = join(OUT, f.id + '.html');
-    writeFileSync(file, html);
-    await pg.goto('file://' + file, { waitUntil: 'networkidle' });
-    await new Promise((r) => setTimeout(r, 400));
-    await pg.screenshot({ path: join(OUT, f.id + '.png'), clip: { x: 0, y: 0, width: size.w, height: size.h } });
-    rmSync(file);
+    const file = SHOTS[f.pick];
+    if (!file) throw new Error(`No capture registered for frame ${f.id} (pick: ${f.pick})`);
+    const html = join(OUT, f.id + '.html');
+    writeFileSync(html, frameHtml(f, img(file), L));
+    await pg.goto('file://' + html, { waitUntil: 'networkidle' });
+    // The embedded font is `font-display:block`, so give the first paint a
+    // beat to swap it in — a frame shot mid-swap renders the headline in the
+    // fallback face and nothing about the file says so.
+    await pg.evaluate(() => document.fonts.ready);
+    await new Promise((r) => setTimeout(r, 250));
+    await pg.screenshot({
+      path: join(OUT, f.id + '.png'),
+      clip: { x: 0, y: 0, width: size.w, height: size.h },
+    });
+    rmSync(html);
     console.log('✓', size.dir, f.id);
   }
+  pruneOrphans(OUT, new Set(FRAMES.map((f) => f.id + '.png')));
   await pg.close();
 }
 await browser.close();
-console.log('Done');
+console.log('Done → screenshots/appstore-2026/{iphone-6.9,iphone-6.5}');

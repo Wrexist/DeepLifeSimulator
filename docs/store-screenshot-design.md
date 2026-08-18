@@ -52,3 +52,93 @@ Both the iPhone and iPad generators import the same layout module
 (`scripts/lib/storeFrameSystem.mjs`) so the two sets cannot drift apart, which
 is how the old pair had ended up with different emoji positions for the same
 frame.
+
+---
+
+# The 2026-08 revision — what the restrained set still got wrong
+
+The system above fixed the *decoration* problem and was right to. Reviewed as a
+shipped set rather than as a reaction to the previous one, it had three
+weaknesses of its own. They are worth writing down because none of them is a
+matter of taste — each is checkable.
+
+## 1. Half the frames claimed something the picture contradicted
+
+The proof pills were written as marketing copy and matched to captures
+afterwards, which is the order that produces this:
+
+| Frame | The pill said | The screenshot said |
+|---|---|---|
+| 08 Train your mind | **PhD unlocked** | the Education **Catalog** — courses *not* taken, each with a price and an Enroll button |
+| 09 Live the luxury | **Rare collection** | `Collection (0)` · `0 / 6 collectibles` · `$0 / $150M in trophies` |
+| 07 A phone full of lives | **Every app unlocked** | a grid of six apps |
+| 03 Build an empire | *Found companies. Hire. Scale.* | `1 company · 0 employees` |
+| 05 Go viral | **Trending now** | a feed whose top post had 13 likes |
+
+Apple's Guideline 2.3.3 is the outside version of the same rule, and a 2.3.3
+rejection costs a full review cycle and returns every attached IAP marked
+"Rejected" alongside it.
+
+The rule now is one line: **every claim on a frame is legible inside that
+frame.** Each entry in `FRAMES` carries an `evidence` note saying where to look
+and an `assert` list of literal strings that must appear in the capture — and
+`capture-rich-state.mjs` writes each screen's text beside its PNG so
+`__tests__/tooling/storeFrameClaims.test.ts` can check it in CI rather than
+leaving it to whoever reviews the set next.
+
+Two of those frames were fixed by photographing a **different screen** rather
+than by softening the words: Education's **Earned** tab (a transcript reading
+`7 credentials earned`, every credential stamped *Graduated · On record*) and
+Luxury's **Collection** tab, which the capture now fills by buying two pieces
+through the app's own Buy button. Two more were fixed by putting the real
+number on the pill — six apps, not "every app".
+
+A third class was subtler and only showed up when the claims were tested: some
+were true of *one capture*. "$61,911" of Bitcoin and "15 advancing · 10
+declining" are re-rolled every run, so they were facts with a shelf life. They
+are gone; `2.000 BTC` and `25 listed` are structural and stay true.
+
+## 2. The state under the captures was dev-tools placeholder
+
+`Grant Top Career` in `DevToolsModal` built a synthetic ladder named
+`Dev Career` whose six levels were literally called `Level 1` … `Level 6`, so
+the home identity card — the hero frame, the most-viewed image on the page —
+read **"Job: Level 6"**. It also paid $13,000/wk, about four times the top of
+any real ladder in `lib/careers/careerData.ts`.
+
+Fixed at the source rather than papered over downstream: the grant now seeds a
+real career out of `INITIAL_CAREERS`, so the same button gives QA and the store
+page "Engineering Manager · $3,000/wk · Lv 6/6" — the shipping economy.
+
+## 3. Craft details that read as "template", quietly
+
+- **The headline was not set in the typeface the CSS asked for.** The stack was
+  `-apple-system, 'SF Pro Display', …`; there is no Apple font and no Inter on
+  a CI box or in a container (`fc-list` returns DejaVu, FreeSans and Liberation
+  Sans), so it fell through to **Liberation Sans**, an Arial clone — and to
+  whatever else happened to be installed on the next machine. Inter Tight is
+  now embedded as base64 in the frame HTML, so the render is deterministic.
+- **The 6.5" set was squashed.** One 1320×2868 canvas was laid out and scaled
+  with `transform:scale(sx, sy)` where `sx = 0.9727` and `sy = 0.9686` — every
+  6.5" frame shipped 0.4% anamorphic. Each canvas now derives its own numbers
+  and renders natively.
+- **A third of each frame was empty ground.** The device was sized as a share
+  of the canvas WIDTH and left ~475px of unused sky. It is now derived from the
+  height it is given and fills it, fully contained, with the tab bar intact.
+
+## What "one palette" does and does not mean
+
+The original set failed partly because every frame declared its own three
+background glows *and* its own three accent colours: ten frames sharing
+nothing. The fix was one blue for everything, which was correct as a correction
+and too far as a destination — ten frames of one hue is a series with nothing
+to say about what is on each screen.
+
+Each frame now carries **one** accent, and every one of them is a value lifted
+from `lib/config/theme.ts`: money is the app's money green, dating is its
+reputation pink, the darknet terminal is its terminal green. The ground, the
+type, the layout, the device treatment and the bloom geometry are identical
+across all ten; the hue appears in exactly three places (the accent word, the
+pill, and the light the screen spills on the ground). A reader scrolling the
+carousel sees one series whose colour tracks the content — which is the
+opposite of ten unrelated images, even though both "vary colour per frame".

@@ -277,10 +277,21 @@ All three sets are built and committed. Nothing to generate.
 - [ ] Upload all ten from each folder **in filename order** — `01…` first. The
       first two are the only ones most visitors see.
 
-They are composed from 28 real gameplay captures of the shipping UI, so they
-satisfy Guideline 2.3.3 for this build. Design rationale, and the list of what
-was removed for reading as machine-made, is in
-[`store-screenshot-design.md`](./store-screenshot-design.md).
+They are composed from 30 real gameplay captures of the shipping UI, so they
+satisfy Guideline 2.3.3 for this build — and every caption on them is checked
+against the text of the screenshot it sits on by
+`__tests__/tooling/storeFrameClaims.test.ts`, so a pill claiming something the
+picture does not show fails in CI rather than at review. That check exists
+because an earlier set captioned "PhD unlocked" over a course catalogue and
+"Rare collection" over a screen reading `Collection (0)`.
+
+- [ ] If the UI has changed since the last capture, **re-capture before
+      uploading** — do not re-compose from stale frames. Procedure:
+      [`../screenshots/appstore-2026/README.md`](../screenshots/appstore-2026/README.md).
+      Run `npx jest __tests__/tooling/storeFrameClaims.test.ts` afterwards.
+
+Design rationale, and the list of what was removed for reading as machine-made,
+is in [`store-screenshot-design.md`](./store-screenshot-design.md).
 
 - [ ] 🟡 **App preview video is NOT done.** It needs a real device or simulator —
       the web build runs a weekly tick far slower than native, so it is fine for

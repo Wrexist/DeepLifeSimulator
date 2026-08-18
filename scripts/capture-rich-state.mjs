@@ -4,6 +4,7 @@
  */
 import { chromium } from 'playwright';
 import { mkdir } from 'fs/promises';
+import { writeFileSync } from 'fs';
 import { join } from 'path';
 
 const OUT = process.env.OUT || 'screenshots/appstore-2026/rich-captures';
@@ -42,6 +43,150 @@ async function clickText(page, t, { exact = false, last = false, wait = 1400 } =
   await sleep(ok ? wait : 200);
   console.log(ok ? `  → dom-clicked ${JSON.stringify(t)}` : `  ✗ not found ${JSON.stringify(t)}`);
   return ok;
+}
+
+/**
+ * Buys luxury pieces through the app's own Buy buttons, then photographs the
+ * Collection tab.
+ *
+ * Asserts the collection is non-empty before shooting. Without that this is
+ * exactly the silent-staleness failure documented at the top of this file: if
+ * the Buy button is renamed or a confirm step is added, every click misses,
+ * the Collection tab still opens, and a shot of an EMPTY collection is written
+ * over the good one — which is the bug the whole capture is meant to remove.
+ */
+async function buyLuxuryAndShowCollection(page) {
+  const owned = async () => {
+    const m = (await allText(page)).match(/Collection \((\d+)\)/);
+    return m ? Number(m[1]) : 0;
+  };
+  let bought = await owned();
+  for (let attempt = 0; attempt < 5 && bought < 2; attempt++) {
+    // Target the aria-label, not the text.
+    //
+    // The first version matched the shortest element whose text was exactly
+    // "Buy" and called `.click()` on it, and every purchase silently missed.
+    // `LuxuryApp` renders that label as `affordable ? 'Buy' : formatMoney(price)`
+    // inside a Pressable, and the card's own accessibilityLabel is the stable
+    // handle: `Buy <name> for <price>`.
+    const buy = page.locator('[aria-label^="Buy "]').first();
+    if (!(await buy.count())) break;
+    try {
+      await buy.scrollIntoViewIfNeeded({ timeout: 3000 });
+      await buy.click({ timeout: 3000 });
+    } catch { break; }
+    await sleep(1400);
+    // The purchase routes through the shared ConfirmDialog, whose affirmative
+    // is "Acquire" — NOT Confirm/Buy Now/Yes/OK, which is what the first
+    // attempt guessed, so `dismissPopups` cancelled the sheet Buy had just
+    // raised, four times in a row.
+    //
+    // Match the aria-label, never the text: the Luxury screen's own item list
+    // sits under a section header that is ALSO the word "Acquire", and a
+    // text match takes the header (it is the shorter node), which is not
+    // clickable. `ConfirmDialog` puts `accessibilityLabel={confirmText}` on
+    // the button, so this addresses the dialog and nothing else.
+    const confirm = page.locator('[aria-label="Acquire"]').first();
+    if (!(await confirm.count())) {
+      console.log('  ✗ Acquire confirm never appeared');
+      break;
+    }
+    await confirm.click({ timeout: 3000 });
+    await sleep(1800);
+    const before = bought;
+    bought = await owned();
+    console.log('  luxury owned:', bought);
+    if (bought === before) {
+      // Say WHY rather than just counting again — a refused purchase surfaces
+      // as a toast, and that sentence is the whole diagnosis.
+      const t = (await allText(page)).replace(/\s+/g, ' ');
+      console.log('  luxury no-op, screen says:', JSON.stringify(t.slice(0, 400)));
+      break;
+    }
+  }
+  await scrollMain(page, -3000); await sleep(800);
+  if (!(await clickText(page, 'Collection', { wait: 2200 }))) {
+    throw new Error('Luxury › Collection tab not found — frame 09 would keep a stale file.');
+  }
+  await scrollMain(page, 0); await sleep(1000);
+  // Assert on the COUNT the tab itself prints, and nothing else.
+  //
+  // The first version also rejected `/No .*collectibles|nothing yet/i`, which
+  // looks like a reasonable belt-and-braces check and is not: `textContent` is
+  // one unbroken string, so `No .*collectibles` matches any page where the
+  // words "No " and "collectibles" both appear in that order — and this one
+  // has "No recent contact" long before it reaches "2 / 6 collectibles". Two
+  // successful purchases were thrown away by the guard meant to protect them.
+  const shown = await allText(page);
+  const owns = Number((shown.match(/Collection \((\d+)\)/) || [, '0'])[1]);
+  // Two separate things have to be true, and the count alone proves only the
+  // first: `Collection (n)` is the TAB LABEL, so it reads the same whichever
+  // tab is open. `resale value` comes from the collection summary, which only
+  // the collection tab renders — that is what proves the tab actually changed.
+  const onCollectionTab = /resale value/i.test(shown);
+  if (owns < 1 || !onCollectionTab) {
+    throw new Error(
+      `Luxury shows Collection (${owns}), collection tab open: ${onCollectionTab}, after `
+      + `${bought} purchase(s) — frame 09 would caption a collection that is not there. `
+      + `Screen: ${JSON.stringify(shown.replace(/\s+/g, ' ').slice(0, 400))}`,
+    );
+  }
+  await shot(page, 'x-luxury-collection');
+}
+
+/**
+ * The text a reader can actually SEE in the shot — not `document.body.textContent`.
+ *
+ * This is the difference between a guard and a fig leaf. The whole-DOM text of
+ * any screen in this app includes every other tab, every collapsed section and
+ * everything below the fold, so asserting a caption's number against it proves
+ * only that the string exists SOMEWHERE in the app — which is exactly the
+ * thing that was already true of "PhD unlocked" while the frame showed a
+ * catalogue of un-taken courses.
+ *
+ * A rect-in-viewport test alone is NOT enough, and the first version of this
+ * made exactly that mistake: every phone app in this game opens as a full
+ * screen ABOVE the tab layout, which stays mounted underneath with all its
+ * rects still inside the viewport. So the "visible" text of the Stocks app
+ * came back led by the home screen's HUD, net worth and daily-gem banner —
+ * none of which is in the picture. That is the same fig leaf as using the
+ * whole DOM, just harder to notice.
+ *
+ * So each text node is hit-tested with `elementFromPoint` at its own rect
+ * (a Range rect, not the parent's — a parent can be far larger than the line
+ * it holds). A node counts as visible only if the topmost element at that
+ * point is the node's own element, or in the same ancestor chain. Text under a
+ * translucent overlay is rejected too, which is stricter than the screenshot
+ * strictly is — the right direction for a check whose job is to refuse
+ * unsupported claims.
+ */
+async function visibleText(page) {
+  return page.evaluate(() => {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const out = [];
+    const range = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const t = (n.nodeValue || '').trim();
+      if (!t) continue;
+      const el = n.parentElement;
+      if (!el) continue;
+      const style = getComputedStyle(el);
+      if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) continue;
+      range.selectNodeContents(n);
+      const r = range.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) continue;
+      // Hit-test the middle of the part of the line that is actually on screen.
+      const x = Math.min(Math.max((r.left + r.right) / 2, 1), vw - 1);
+      const y = Math.min(Math.max((r.top + r.bottom) / 2, 1), vh - 1);
+      const hit = document.elementFromPoint(x, y);
+      if (!hit) continue;
+      if (hit !== el && !el.contains(hit) && !hit.contains(el)) continue;
+      out.push(t);
+    }
+    return out.join(' ').replace(/\s+/g, ' ').trim();
+  }).catch(() => '');
 }
 
 async function clickAriaLast(page, label, { wait = 1200 } = {}) {
@@ -101,6 +246,17 @@ const SHOT_ORDER = [
   'life', 'life-2', 'life-market', 'life-family', 'life-stats', 'desktop',
   'x-company', 'x-darkweb', 'x-crypto', 'x-realestate', 'x-garage', 'x-luxury',
   'x-politics', 'x-travel', 'x-streaming', 'x-youvideo', 'home-final',
+  // APPENDED, never inserted — the numbers above are baked into the generators
+  // and into `screenshots/appstore-2026/README.md`, so inserting in the middle
+  // silently remaps every later frame to the wrong screen.
+  //
+  // Both of these exist because the store set was making claims its pictures
+  // contradicted. The Education app opens on its *Catalog* tab, so the frame
+  // captioned "PhD unlocked" showed a course list with Enroll buttons and
+  // nothing marked earned; the Luxury app opens on *Browse*, so the frame
+  // captioned "Rare collection" showed `Collection (0)` and `0 / 6
+  // collectibles`. The fix is to photograph the screen that holds the proof.
+  'app-education-earned', 'x-luxury-collection',
 ];
 /**
  * Empties the weekly-decision inbox.
@@ -155,6 +311,17 @@ async function shot(page, name) {
   // artifacts) are written without one so they never claim a canonical slot.
   const file = join(OUT, idx >= 0 ? `${String(idx).padStart(2, '0')}-${name}.png` : `dbg-${name}.png`);
   await page.screenshot({ path: file });
+  // Every capture gets its on-screen TEXT written beside it.
+  //
+  // This is what makes the store frames' proof pills checkable by a test
+  // instead of by eye. `__tests__/tooling/storeFrameClaims.test.ts` asserts
+  // that each frame's claim appears in the text of the capture it is printed
+  // over — so "PhD unlocked" over a course catalogue, or "Rare collection"
+  // over `Collection (0)`, fails in CI rather than on the product page. Both
+  // of those shipped.
+  if (idx >= 0) {
+    writeFileSync(file.replace(/\.png$/, '.txt'), (await visibleText(page)) + '\n');
+  }
   console.log('  📸', name, idx >= 0 ? `(#${idx})` : '(debug)');
 }
 
@@ -213,6 +380,8 @@ async function dismissPopups(page) {
 }
 
 async function main() {
+  /** Failures that must fail the run but should not abandon the shots after them. */
+  const deferred = [];
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: DSF, isMobile: true, hasTouch: true });
@@ -389,6 +558,21 @@ async function main() {
     }
     if (opened) {
       await shot(page, 'app-' + app.toLowerCase());
+      // Education opens on Catalog — a list of things NOT yet taken. The
+      // degrees this save actually holds live one tab over, and that is the
+      // screen a frame about education has to show.
+      if (app === 'Education') {
+        if (await clickText(page, 'Earned', { exact: true, wait: 2200 })) {
+          await scrollMain(page, 0); await sleep(900);
+          const earned = await allText(page);
+          if (!earned.includes('PhD')) {
+            throw new Error('Education › Earned does not list the PhD — the grant did not land, and frame 08 would caption a degree the picture cannot show.');
+          }
+          await shot(page, 'app-education-earned');
+        } else {
+          throw new Error('Education › Earned tab not found (renamed?) — capture would silently keep a stale file.');
+        }
+      }
       // leave the app via its top-left back arrow (apps cover the tab bar)
       await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1800);
     }
@@ -482,6 +666,27 @@ async function main() {
     if (!ok) { await scrollMain(page, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
     if (ok) {
       await shot(page, 'x-' + name);
+      // Luxury opens on Browse — a shop. The frame that sells "live the
+      // luxury" cannot be a shop the player has bought nothing in, so BUY two
+      // pieces with the money this save already has ($10.99M against a $250K
+      // watch case and a $600K diamond) and photograph the Collection tab.
+      // The purchases are made through the game's own Buy button, so what the
+      // shot shows is a state the player can actually reach.
+      // Deferred, not immediate. This step DRIVES the game (it buys two
+      // pieces), so it is the most likely thing in the run to break when the
+      // UI moves — and it sits two thirds of the way through, so throwing
+      // here threw away every later capture too. The error is remembered and
+      // re-raised at the end: the run still fails, loudly and with the same
+      // message, but one attempt now tells you about this AND leaves the
+      // other 29 shots on disk to look at.
+      if (name === 'luxury') {
+        try {
+          await buyLuxuryAndShowCollection(page);
+        } catch (err) {
+          deferred.push(err);
+          console.log('  ‼ deferred:', err.message);
+        }
+      }
       // leave via back arrow (top-left) then fall back to tab bar
       await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1500);
     } else {
@@ -491,6 +696,12 @@ async function main() {
   await goTab(0); await shot(page, 'home-final');
 
   await browser.close();
+  if (deferred.length) {
+    throw new Error(
+      `${deferred.length} capture step(s) failed:\n  - `
+      + deferred.map((e) => e.message).join('\n  - '),
+    );
+  }
   console.log('Done →', OUT);
 }
 
