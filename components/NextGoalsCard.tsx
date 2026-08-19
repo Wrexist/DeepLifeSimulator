@@ -13,13 +13,13 @@
  * `AmbitionCard` and `LifeChapterCard` use, and it is deterministic, so it
  * cannot reshuffle between renders (CLAUDE.md §35).
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronRight, Compass, Flag, Sparkles, Target } from 'lucide-react-native';
+import { Check, ChevronRight, Compass, Flag, Sparkles, Target } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import { recommendGoals } from '@/lib/goals';
-import type { GoalHorizon, RecommendedGoal } from '@/lib/goals';
+import { goalsAchievedBetween, recommendGoals } from '@/lib/goals';
+import type { AchievedGoal, GoalHorizon, RecommendedGoal } from '@/lib/goals';
 import { track } from '@/lib/analytics';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
@@ -81,9 +81,59 @@ function NextGoalsCard() {
 
   const goals = useMemo(() => recommendGoals(state), [state]);
 
+  // ── Acknowledgement ──────────────────────────────────────────────────────
+  //
+  // A goal that simply vanishes on completion gives the player nothing back.
+  // This holds the LAST state in a ref and diffs against it, so reaching a
+  // goal leaves a visible mark before the next recommendation takes its place.
+  //
+  // Deliberately IN-CARD and not a toast. `showAchievementToast` is hard-gated
+  // to genuine rewarded achievements (see `utils/achievementToast.ts`) and
+  // hijacking it here would be exactly the dilution that gate exists to
+  // prevent — and a popup for every savings rung is the modal spam the design
+  // rules out. The moment belongs where the goal was.
+  //
+  // Ephemeral by design: the ref lives for the session, so a reach that
+  // happened before launch is not announced on open. That moment has passed,
+  // and re-announcing it on every cold start would be worse than silence. It
+  // also means nothing is stored, so there is nothing to double-claim.
+  const previousState = useRef<GameState | null>(null);
+  const [reached, setReached] = useState<AchievedGoal | null>(null);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const before = previousState.current;
+    previousState.current = state;
+    if (!before) return undefined;
+
+    const achieved = goalsAchievedBetween(before, state);
+    if (achieved.length === 0) return undefined;
+
+    // One at a time, most immediate first. Several goals can advance in a
+    // single week and stacking them would bury the one that mattered.
+    const top = achieved[0];
+    setReached(top);
+    track('goal_reached', { goalId: top.id, horizon: top.horizon, level: top.level });
+
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    clearTimer.current = setTimeout(() => setReached(null), 6000);
+    return undefined;
+  }, [state]);
+
+  // Clearing on unmount only — the timer above is intentionally re-armed rather
+  // than torn down between renders, so a second reach extends the banner
+  // instead of cancelling it mid-read.
+  useEffect(
+    () => () => {
+      if (clearTimer.current) clearTimeout(clearTimer.current);
+    },
+    [],
+  );
+
   // A player with nothing eligible in any horizon sees nothing, rather than a
-  // card apologising for being empty.
-  if (goals.length === 0) return null;
+  // card apologising for being empty — unless there is something to
+  // acknowledge, which is worth a card on its own.
+  if (goals.length === 0 && !reached) return null;
 
   return (
     <View style={styles.card}>
@@ -96,6 +146,17 @@ function NextGoalsCard() {
           <Text style={styles.title}>Your next moves</Text>
         </View>
       </View>
+
+      {reached && (
+        <View style={styles.reachedRow} accessibilityRole="text">
+          <View style={styles.reachedIcon}>
+            <Check size={scale(13)} color="#34D399" />
+          </View>
+          <Text style={styles.reachedText} numberOfLines={1}>
+            Reached: {reached.title}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.list}>
         {goals.map((goal) => (
@@ -165,6 +226,27 @@ const styles = StyleSheet.create({
   },
   barFill: { height: '100%', borderRadius: scale(2) },
   rowProgress: { color: '#CBD5E1', fontSize: fontScale(10.5), fontWeight: '600', marginTop: scale(4) },
+  reachedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(8),
+    borderRadius: scale(10),
+    backgroundColor: 'rgba(52, 211, 153, 0.10)',
+    // Hard Rule #7: all four sides.
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+  },
+  reachedIcon: {
+    width: scale(22),
+    height: scale(22),
+    borderRadius: scale(11),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(52, 211, 153, 0.16)',
+  },
+  reachedText: { flex: 1, color: '#A7F3D0', fontSize: fontScale(12), fontWeight: '700' },
 });
 
 export default React.memo(NextGoalsCard);

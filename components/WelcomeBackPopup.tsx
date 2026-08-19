@@ -25,6 +25,7 @@ import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
+import { primaryGoal } from '@/lib/goals';
 const LinearGradient = Gradient;
 
 const { width: _screenWidth } = Dimensions.get('window');
@@ -293,6 +294,10 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 const streakCount = gameState.playStreak?.count || 0;
                 const pendingEventsCount = (gameState.pendingEvents || []).length;
                 const hasCliffhanger = !!gameState.pendingCliffhanger;
+                // The same derived recommendation the home screen shows, so the
+                // return screen and the dashboard cannot tell the player two
+                // different things. Pure and cheap; nothing is stored or paid.
+                const nextGoal = primaryGoal(gameState);
                 const neglectedPartner = (gameState.relationships || []).find(
                   (r: any) =>
                     (r?.type === 'partner' || r?.type === 'spouse') &&
@@ -351,12 +356,31 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                         </Text>
                       </View>
                     )}
+                    {/* The one FORWARD-looking line on a screen that is
+                        otherwise entirely a report of the past.
+                        
+                        This replaced "Continue your life journey" — a row that
+                        occupied the most valuable slot on the return screen and
+                        told the player nothing they did not already know. The
+                        return screen's job is to answer "what happened while I
+                        was away", and then "so what do I do now"; without the
+                        second half it closes on a shrug.
+                        
+                        Derived, never stored, and it pays nothing — the same
+                        read-only recommendation the home screen shows, so the
+                        two surfaces cannot disagree. Falls back to the original
+                        line when no goal is eligible. */}
                     <View style={styles.infoRow}>
                       <View style={styles.infoIcon}>
                         <Zap size={scale(18)} color="#8B5CF6" />
                       </View>
-                      <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                        Continue your life journey
+                      <Text
+                        style={[styles.infoText, isDarkMode && styles.infoTextDark]}
+                        numberOfLines={2}
+                      >
+                        {nextGoal
+                          ? `Next: ${nextGoal.title} — ${nextGoal.progressLabel}`
+                          : 'Continue your life journey'}
                       </Text>
                     </View>
                   </>

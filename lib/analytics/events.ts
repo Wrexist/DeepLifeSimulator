@@ -52,6 +52,11 @@ export type AnalyticsEventName =
   // never sees it cannot be retained by it, and the row count separates
   // "shown and ignored" from "never shown".
   | 'goal_tapped'
+  // Fired when a recommended goal's achievement LEVEL rises — a savings rung
+  // crossed, a job taken, a property bought. Carries the level so "how far up
+  // each ladder do players actually get" is answerable, which is the question
+  // that says whether the mid-game flattens.
+  | 'goal_reached'
   | 'week_ahead_shown'
   // ── Rotating offers ──
   //
@@ -112,6 +117,7 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'achievement_unlocked',
   'retention_day',
   'goal_tapped',
+  'goal_reached',
   'week_ahead_shown',
   'offer_center_opened',
   'offer_shown',

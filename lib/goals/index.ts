@@ -1,6 +1,7 @@
-export { recommendGoals, primaryGoal } from './engine';
+export { recommendGoals, primaryGoal, goalsAchievedBetween } from './engine';
 export { GOAL_CATALOGUE } from './catalogue';
 export type {
+  AchievedGoal,
   GoalDefinition,
   GoalHorizon,
   GoalRecommendation,

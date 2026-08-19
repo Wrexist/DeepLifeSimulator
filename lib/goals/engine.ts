@@ -21,7 +21,13 @@
 import type { GameState } from '@/contexts/game/types';
 
 import { GOAL_CATALOGUE } from './catalogue';
-import type { GoalDefinition, GoalHorizon, GoalRecommendation, RecommendedGoal } from './types';
+import type {
+  AchievedGoal,
+  GoalDefinition,
+  GoalHorizon,
+  GoalRecommendation,
+  RecommendedGoal,
+} from './types';
 
 const HORIZON_ORDER: GoalHorizon[] = ['now', 'soon', 'dream'];
 
@@ -124,4 +130,47 @@ export function recommendGoals(state: GameState | undefined | null): GoalRecomme
 /** The single most urgent thing, for surfaces with room for one line. */
 export function primaryGoal(state: GameState | undefined | null): RecommendedGoal | null {
   return recommendGoals(state)[0] ?? null;
+}
+
+/**
+ * Goals the player ADVANCED between two states.
+ *
+ * A goal is reached when its `achievementLevel` increases — rungs passed,
+ * properties owned, career level, children. Comparing two states rather than
+ * tracking a stored "done" flag is what keeps this free of claim state: there
+ * is nothing to persist, so there is nothing to double-claim, and the same
+ * transition observed twice yields the same answer rather than paying twice
+ * (CLAUDE.md §4.4). It is also why this needs no `STATE_VERSION` bump.
+ *
+ * A DECREASE is never an achievement. Selling a property, losing a job or
+ * spending back below a savings rung lowers the level, and lowering it must not
+ * congratulate anyone — nor should it re-arm the acknowledgement, which is why
+ * the comparison is strictly `>` on levels and not on equality.
+ *
+ * Goals with no `achievementLevel` are never reported, which is the right
+ * default for anything whose completion is ambiguous.
+ */
+export function goalsAchievedBetween(
+  previous: GameState | undefined | null,
+  next: GameState | undefined | null,
+): AchievedGoal[] {
+  if (!previous || !next) return [];
+  const out: AchievedGoal[] = [];
+
+  for (const def of GOAL_CATALOGUE) {
+    if (!def.achievementLevel) continue;
+    try {
+      const before = def.achievementLevel(previous);
+      const after = def.achievementLevel(next);
+      if (!Number.isFinite(before) || !Number.isFinite(after)) continue;
+      if (after <= before) continue;
+      out.push({ id: def.id, horizon: def.horizon, title: def.title, level: after });
+    } catch {
+      // One malformed goal must not swallow the rest of the list.
+    }
+  }
+
+  // Catalogue order, which is already now → soon → dream, so the most immediate
+  // acknowledgement leads. Deterministic, like every other output here.
+  return out;
 }

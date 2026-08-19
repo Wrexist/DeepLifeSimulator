@@ -81,6 +81,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     priority: () => 100,
     format: (c, t) =>
       c <= 0 ? 'No applications sent' : `${Math.round(c)} / ${Math.round(t)} applications out`,
+    achievementLevel: (s) => (s.currentJob ? 1 : 0),
   },
   {
     id: 'now_bank_savings',
@@ -93,6 +94,9 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     // Falls behind a job hunt but ahead of everything else early on.
     priority: (s) => (s.currentJob ? 80 : 40),
     format: moneyPair,
+    // Rungs PASSED, so banking the first $1,000 registers even though the
+    // goal stays on screen with a higher target.
+    achievementLevel: (s) => SAVINGS_RUNGS.filter((r) => liquid(s) >= r).length,
   },
   {
     id: 'now_recover_health',
@@ -105,6 +109,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     // Outranks money: a life that ends early banks nothing.
     priority: (s) => 120 + Math.max(0, 60 - (s.stats?.health ?? 60)),
     format: (c, t) => `${Math.round(c)} / ${Math.round(t)} health`,
+    achievementLevel: (s) => ((s.stats?.health ?? 0) >= 60 ? 1 : 0),
   },
   {
     id: 'now_lift_happiness',
@@ -116,6 +121,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     measure: (s) => ({ current: s.stats?.happiness ?? 0, target: 45 }),
     priority: (s) => 90 + Math.max(0, 45 - (s.stats?.happiness ?? 45)),
     format: (c, t) => `${Math.round(c)} / ${Math.round(t)} happiness`,
+    achievementLevel: (s) => ((s.stats?.happiness ?? 0) >= 45 ? 1 : 0),
   },
   {
     id: 'now_clear_arrears',
@@ -135,6 +141,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     // real failure state (v31) and every other goal is worse while they run.
     priority: () => 200,
     format: moneyPair,
+    achievementLevel: (s) => ((s.overdueBalance ?? 0) <= 0 ? 1 : 0),
   },
 
   // ── SOON — a handful of weeks of deliberate play ──────────────────────────
@@ -154,6 +161,10 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     },
     priority: () => 90,
     format: (c, t) => `${Math.round(c)}% / ${Math.round(t)}%`,
+    achievementLevel: (s) => {
+      const c = (s.careers ?? []).find((x) => x?.id === s.currentJob);
+      return c ? c.level : 0;
+    },
   },
   {
     id: 'soon_finish_studies',
@@ -173,6 +184,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     },
     priority: () => 95,
     format: (c, t) => `${Math.round(t - c)} weeks left`,
+    achievementLevel: (s) => (s.educations ?? []).filter((e) => e?.completed).length,
   },
   {
     id: 'soon_first_property',
@@ -192,6 +204,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     },
     priority: () => 70,
     format: moneyPair,
+    achievementLevel: (s) => ownedProperties(s),
   },
   {
     id: 'soon_start_business',
@@ -203,6 +216,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     measure: (s) => ({ current: liquid(s), target: 25_000 }),
     priority: () => 60,
     format: moneyPair,
+    achievementLevel: (s) => (s.companies ?? []).length,
   },
   {
     id: 'soon_find_partner',
@@ -223,6 +237,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     priority: () => 50,
     format: (c) =>
       c <= 0 ? 'Nobody special yet' : `Closest relationship at ${Math.round(c)}%`,
+    achievementLevel: (s) => (s.family?.spouse ? 1 : 0),
   },
 
   // ── DREAM — the thing the whole life is pointed at ────────────────────────
@@ -236,6 +251,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     measure: (s) => ({ current: netWorth(s), target: activeNetWorthRung(s) }),
     priority: () => 60,
     format: moneyPair,
+    achievementLevel: (s) => NET_WORTH_RUNGS.filter((r) => netWorth(s) >= r).length,
   },
   {
     id: 'dream_property_empire',
@@ -247,6 +263,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     measure: (s) => ({ current: ownedProperties(s), target: 5 }),
     priority: () => 70,
     format: countPair,
+    achievementLevel: (s) => ownedProperties(s),
   },
   {
     id: 'dream_dynasty',
@@ -261,6 +278,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     measure: (s) => ({ current: netWorth(s), target: 100_000_000 }),
     priority: () => 80,
     format: moneyPair,
+    achievementLevel: (s) => s.prestige?.prestigeLevel ?? 0,
   },
   {
     id: 'dream_family',
@@ -272,5 +290,6 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     measure: (s) => ({ current: (s.family?.children ?? []).length, target: 2 }),
     priority: (s) => (s.family?.spouse ? 65 : 30),
     format: countPair,
+    achievementLevel: (s) => (s.family?.children ?? []).length,
   },
 ];

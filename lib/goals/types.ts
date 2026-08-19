@@ -56,6 +56,33 @@ export interface GoalDefinition {
   priority: (state: GameState) => number;
   /** Formats the measure for display, e.g. `$1,240 / $3,000`. */
   format: (current: number, target: number) => string;
+  /**
+   * How far along this goal's LADDER the player is, as a number that rises when
+   * they advance: rungs passed, properties owned, career level, children.
+   *
+   * A goal is "reached" when this INCREASES between two states. That framing is
+   * what makes acknowledgement work for ladder goals as well as binary ones —
+   * banking your first $1,000 is a real moment even though the goal itself
+   * stays on screen with a higher target, and a single boolean could never
+   * express it.
+   *
+   * Direction matters: selling a property or losing a job LOWERS the level, and
+   * a decrease is simply not an achievement. Comparing levels rather than
+   * tracking a "done" flag also means there is nothing stored to double-claim.
+   *
+   * Optional. A goal without one is never acknowledged, which is the right
+   * default for anything whose completion is ambiguous.
+   */
+  achievementLevel?: (state: GameState) => number;
+}
+
+/** A goal the player just advanced, ready to acknowledge. */
+export interface AchievedGoal {
+  id: string;
+  horizon: GoalHorizon;
+  title: string;
+  /** The level reached — the rung number, property count, career level, … */
+  level: number;
 }
 
 export interface RecommendedGoal {

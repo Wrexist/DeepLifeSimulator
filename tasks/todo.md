@@ -207,3 +207,66 @@ decided.
 2. The new source-level pin failed on its own comment (which quotes the banned
    string). Fixed by stripping comments before matching, not by deleting the
    explanation.
+
+
+---
+
+# Closing the goal loop (2026-08-19)
+
+Two halves of the same gap: a goal that is reached gave nothing back, and the
+return screen never said what to do next.
+
+## 1. Acknowledgement
+
+A recommended goal simply VANISHED on completion. The player did the thing and
+the game said nothing.
+
+Detecting that without storing anything is the design problem. The answer is
+`achievementLevel(state) => number` on each goal — rungs passed, properties
+owned, career level, children — and a goal is reached when that number
+INCREASES between two states (`goalsAchievedBetween`).
+
+Why a level and not a boolean:
+- A boolean cannot express crossing a savings rung, because the goal stays on
+  screen with a higher target. Banking your first $1,000 is a real moment.
+- Direction falls out for free: selling a property LOWERS the level, and a
+  decrease is not an achievement.
+- There is no stored "done" flag, so there is nothing to double-claim
+  (CLAUDE.md §4.4) and no `STATE_VERSION` bump.
+
+Surfaced IN-CARD, not as a toast. `showAchievementToast` is hard-gated to
+genuine rewarded achievements and hijacking it is exactly the dilution that
+gate exists to prevent; a popup per savings rung is also the modal spam the
+design rules out. Ephemeral (a session-scoped ref), so a reach from before
+launch is not re-announced on every cold start.
+
+## 2. The return screen looks forward
+
+`WelcomeBackPopup` ended on "Continue your life journey" — the most valuable
+slot on the screen, spent on a line that tells the player nothing. It now shows
+`primaryGoal(state)`: the SAME derived recommendation the home card shows, so
+the two surfaces cannot disagree. Falls back to the old copy when no goal is
+eligible.
+
+## Steps
+
+- [x] 1. `achievementLevel` on all 14 catalogue goals.
+- [x] 2. `goalsAchievedBetween(prev, next)` — pure, direction-aware.
+- [x] 3. In-card acknowledgement row in `NextGoalsCard`.
+- [x] 4. `goal_reached` analytics event, carrying the level so "how far up each
+      ladder do players get" is answerable — the question that says whether the
+      mid-game flattens.
+- [x] 5. `primaryGoal` in `WelcomeBackPopup`.
+- [x] 6. Tests.
+
+## Verification (actual output)
+
+- `npm run check:routes` — `OK — 18 routes, no conflicts, all groups anchored`
+- `npm run type-check` — clean
+- `npm run type-check:tests:ratchet` — holding at 0 (baseline 0)
+- `npm run lint:errors` — clean
+- `npm test -- --ci` — **603 suites, 7,836 passed, 1 skipped, 308 snapshots**
+
+The typed event catalogue rejected `goal_reached` at compile time until it was
+registered — the second time this session that guard caught an event that would
+otherwise have been a silent no-op.
