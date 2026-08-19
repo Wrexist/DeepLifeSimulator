@@ -3328,3 +3328,33 @@ the bulk of `lib/offers/__tests__/pricing.test.ts`.
 The general rule: when a feature's correctness depends on a platform mechanism,
 find the primary documentation for that mechanism BEFORE designing around it.
 The design that survives is shaped by what the platform actually offers.
+
+## 2026-08-19 — A unit test can prove a sink works while the wiring above it is dead
+
+`__tests__/services/analyticsFanout.test.ts` proved, correctly and in detail,
+that `track()` forwards to Firebase with `telemetry: false` — two independent
+sinks, exactly as designed. It passed by calling
+`analytics.configure({ consent: true })` directly.
+
+Underneath it, the shipping app measured nothing. `analytics.init()` and
+`setConsent()` had one production call site, inside `if (enableTelemetry)` in
+`app/_layout.tsx`. The `production` EAS profile sets
+`EXPO_PUBLIC_ENABLE_FIREBASE=true` but not `EXPO_PUBLIC_ENABLE_ANALYTICS`, so
+`telemetry` was false, the block never ran, `consent` stayed false forever, and
+every custom event was dropped at the first branch of `track()` — Firebase
+included. Firebase kept collecting its own automatic events, so the dashboard
+looked alive.
+
+The general rule: **when a design says two things are independent, test the
+independence at the level where it is decided.** A unit test that constructs the
+service by hand can only prove the sink is independent; whether the app ever
+reaches that code is a different claim, in a different file, and it needs its
+own assertion. Pinned now in
+`__tests__/services/analyticsFunnelReachesProduction.test.ts`, at source level,
+because the relationship is between `app/_layout.tsx` and `eas.json` and cannot
+be observed by importing either.
+
+A smaller note from the same change: that guard's first version failed on its
+own documentation — the comment explaining why `track('session_start', …)` is
+wrong contains that exact string. A source-level ban must read code, not prose.
+Strip comments before matching; the wrong fix is to stop explaining yourself.

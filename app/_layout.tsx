@@ -1116,12 +1116,26 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       logger.info('[Boring Build] All optional systems disabled via feature flags');
     }
 
-    // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Only runs
-    // when the opt-in `telemetry` flag is set, AND consent is derived from the
-    // user's tracking choice (ATT) rather than force-enabled — telemetry stays a
-    // no-op until tracking is allowed. The pipeline still uses only an anonymous
-    // install id (never a device/advertising id).
-    if (enableTelemetry) {
+    // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Consent
+    // is derived from the user's tracking choice (ATT) rather than force-enabled
+    // — telemetry stays a no-op until tracking is allowed. The pipeline still
+    // uses only an anonymous install id (never a device/advertising id).
+    //
+    // GATED ON EITHER SINK, not on `telemetry` alone. `AnalyticsService.track()`
+    // documents two INDEPENDENT sinks — the self-hosted HTTP queue (needs
+    // `telemetry` + an endpoint) and Firebase (needs neither) — and forwards to
+    // Firebase before the queue's `active` check precisely so one cannot
+    // silence the other. This call site used to defeat that: `analytics.init()`
+    // and `setConsent()` ran ONLY under `enableTelemetry`, so in any profile
+    // that enables Firebase without also setting EXPO_PUBLIC_ENABLE_ANALYTICS
+    // — which is exactly what `production` does — consent stayed false forever
+    // and every custom event was dropped at the top of `track()`. Firebase
+    // still collected its own automatic events, so the dashboard looked alive
+    // while the entire product funnel (session_start, week_advanced, death,
+    // the paywall and purchase events, and now the goal/offer/week-ahead
+    // events) reached nothing. The independence has to hold at the call site
+    // too, or it does not hold at all.
+    if (enableTelemetry || enableFirebase) {
       const telemetryTask = createSafeServiceTask(
         'Telemetry Service',
         async () => {
@@ -1129,10 +1143,15 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
           const trackingAllowed = await isTrackingAllowed();
           analytics.setConsent(trackingAllowed);
           if (trackingAllowed) {
-            track('session_start', { platform: Platform.OS });
+            // `trackSessionStart`, not `track('session_start', …)` — it folds
+            // this launch into the install's retention cohort and attaches the
+            // day index. Calling `track` directly here would emit a session
+            // with no cohort, which is the state that made D1/D7/D30
+            // uncomputable in the first place.
+            analytics.trackSessionStart({ platform: Platform.OS });
           }
         },
-        { timeout: 3000, critical: false, enabled: enableTelemetry }
+        { timeout: 3000, critical: false, enabled: enableTelemetry || enableFirebase }
       );
       if (telemetryTask) {
         startupOrchestrator.addTask(telemetryTask);

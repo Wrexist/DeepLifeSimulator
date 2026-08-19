@@ -132,3 +132,78 @@ sweep exists precisely for this class and found it on the first run.
 - **No A/B testing harness.** There is no experiment infrastructure and no
   server to hold assignments; building one is its own project. The analytics
   events added here are the prerequisite for it.
+
+
+---
+
+# Retention cohorts — making D1/D7/D30 computable (2026-08-19)
+
+The follow-up to the above. Chosen because every remaining retention item is a
+guess until retention is measurable.
+
+## What the investigation found first
+
+The plan was "derive cohorts from the existing funnel". The funnel turned out
+not to be running.
+
+`analytics.init()` and `setConsent()` have ONE production call site, inside
+`if (enableTelemetry)` in `app/_layout.tsx`. The `production` EAS profile sets
+`EXPO_PUBLIC_ENABLE_FIREBASE=true` but NOT `EXPO_PUBLIC_ENABLE_ANALYTICS`, so
+`telemetry` was false, the block never ran, `consent` stayed false forever, and
+`track()` dropped every custom event at its first branch — Firebase included.
+Firebase still collected its own automatic events, so the dashboard looked
+alive while the entire product funnel reached nothing.
+
+`AnalyticsService.track()` was right: it forwards to Firebase before the
+queue's `active` check, specifically so one sink cannot silence the other. The
+call site one level up defeated that. Independence has to hold where it is
+decided.
+
+## Steps
+
+- [x] 1. Gate analytics init/consent on `enableTelemetry || enableFirebase`.
+- [x] 2. `lib/analytics/retentionCohort.ts` — install anchor, monotonic day
+      index, distinct-days and session counters. Pure; AsyncStorage-backed.
+- [x] 3. `AnalyticsService.trackSessionStart()` — the one sanctioned way to
+      emit a session, folding the launch into the cohort first.
+- [x] 4. New `retention_day` event, fired once per new day index.
+- [x] 5. Point `app/_layout.tsx` at `trackSessionStart`.
+- [x] 6. `docs/RETENTION-ANALYTICS.md` — the two metric definitions, the
+      cohort-size query, and the `anchorEstimated` exclusion rule.
+- [x] 7. Tests, including a source-level pin on the wiring.
+
+## Design notes
+
+- **Facts on the device, metrics in the sink.** Classic day-N and rolling
+  N-day retention disagree, and only one survives if the device picks. It
+  emits `dayIndex` and lets the query decide.
+- **The clock rule does not apply here.** v28/v31/v35/v40/v44 gate PAYOUTS on
+  game state because a wall-clock gate on a reward is farmable. Nothing here
+  pays out, so a moved clock buys nothing. Rewind is still handled — the index
+  is monotonic — because the residual risk is data quality, not exploitation.
+- **A null cohort emits no cohort props.** Deliberately not replaced with an
+  ephemeral record: a device with broken storage would then mint a fresh day-0
+  entry every launch and inflate the denominator. Absent beats fabricated.
+- **`anchorEstimated` is permanent and must be filtered.** No install
+  timestamp exists in this app's history and none can be recovered, so the
+  retention curve starts from the release that ships this. Any number computed
+  over the existing base before then is fiction — stated plainly in the doc
+  rather than papered over.
+
+## Verification (actual output)
+
+- `npm run check:routes` — `OK — 18 routes, no conflicts, all groups anchored`
+- `npm run type-check` — clean
+- `npm run type-check:tests:ratchet` — holding at 0 (baseline 0)
+- `npm run lint:errors` — clean
+- `npx jest lib/analytics --ci` — 3 suites, 29 tests, all passed
+- `npm test -- --ci` — **602 suites, 7,826 passed, 1 skipped, 308 snapshots**
+
+## Two guards that earned their place immediately
+
+1. The typed event catalogue rejected `retention_day` at compile time until it
+   was registered — `track()` drops unknown names, so an unregistered event
+   would have been a silent no-op.
+2. The new source-level pin failed on its own comment (which quotes the banned
+   string). Fixed by stripping comments before matching, not by deleting the
+   explanation.

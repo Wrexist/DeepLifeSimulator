@@ -29,6 +29,19 @@ export type AnalyticsEventName =
   | 'challenge_completed'
   | 'streak_changed'
   | 'achievement_unlocked'
+  // ── Retention cohorts ──
+  //
+  // Fired once per NEW day index for an install, carrying how many days after
+  // install that is. This is the fact D1/D7/D30 are computed FROM: without it
+  // the funnel records that sessions happen but not when, relative to install,
+  // and no cohort can be recovered downstream. Emitted alongside `session_start`
+  // (which carries the same numbers) so "how many installs returned on day N"
+  // is a count over one event rather than a de-dupe across every session.
+  //
+  // `anchorEstimated` marks installs whose real install date is unknowable —
+  // everyone who predates this code. A retention curve MUST filter those out;
+  // see `lib/analytics/retentionCohort.ts`.
+  | 'retention_day'
   // ── Direction & anticipation ──
   //
   // The retention question these answer is "does telling players what to do
@@ -97,6 +110,7 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'challenge_completed',
   'streak_changed',
   'achievement_unlocked',
+  'retention_day',
   'goal_tapped',
   'week_ahead_shown',
   'offer_center_opened',
