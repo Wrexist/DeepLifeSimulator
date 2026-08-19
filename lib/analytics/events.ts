@@ -29,6 +29,29 @@ export type AnalyticsEventName =
   | 'challenge_completed'
   | 'streak_changed'
   | 'achievement_unlocked'
+  // ── Direction & anticipation ──
+  //
+  // The retention question these answer is "does telling players what to do
+  // next change what they do?". `goal_tapped` carries the goal id, its horizon
+  // and its progress, so a goal nobody ever taps is visible as dead weight
+  // rather than as a card that merely looks fine. `week_ahead_shown` records
+  // that the anticipation surface had something to say at all — a player who
+  // never sees it cannot be retained by it, and the row count separates
+  // "shown and ignored" from "never shown".
+  | 'goal_tapped'
+  | 'week_ahead_shown'
+  // ── Rotating offers ──
+  //
+  // The full funnel for the weekly rotation: opened → the featured offer was
+  // rendered → the buy button was tapped. Purchase itself continues to be
+  // reported by the existing `purchase_*` events, which carry the productId,
+  // so offer revenue joins on that rather than being double-counted here.
+  // `offer_shown` carries `discounted` so a week WITH a scheduled App Store
+  // Connect price change can be compared against a week without one — the only
+  // way to tell whether the discount or the rotation is doing the work.
+  | 'offer_center_opened'
+  | 'offer_shown'
+  | 'offer_cta_tapped'
   // ── Monetisation funnel ──
   | 'paywall_open_tapped'
   | 'paywall_viewed'
@@ -74,6 +97,11 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'challenge_completed',
   'streak_changed',
   'achievement_unlocked',
+  'goal_tapped',
+  'week_ahead_shown',
+  'offer_center_opened',
+  'offer_shown',
+  'offer_cta_tapped',
   'paywall_open_tapped',
   'paywall_viewed',
   'paywall_cta_tapped',

@@ -3283,3 +3283,48 @@ property-rich, cash-poor character was eulogised as "humble". The same file's
   the newest systems (Spark v45, gem faucets v40/v46, welcome-back v44, mail v37,
   grandchildren v34) returned all-clean EXCEPT this — and it is a player-facing
   correctness bug in the share text, the cheapest acquisition channel.
+
+---
+
+## 2026-08-19 — A goal you cannot see yourself approaching is not a goal
+
+Building the replacement for the deleted linear goal system
+(`utils/goalSystem.ts`), the obvious way to measure "get hired" is
+`currentJob ? 1 : 0`. That is the SAME defect the deleted system died of, in a
+different costume: the goal stops being eligible the instant the measure would
+read 1, so across the entire region where the player can see it, the bar is
+pinned at zero. It never lies — it just never moves.
+
+The general rule, now asserted structurally in
+`lib/goals/__tests__/goalCatalogue.test.ts`: **a goal's progress must take at
+least two distinct values across its own eligible region.** If it cannot, the
+measure is wrong — measure the thing the player is actually doing (applications
+sent, relationship score, arrears covered), not the binary outcome that ends the
+goal.
+
+Writing the test first surfaced five more goals whose progress was pinned — all
+five turned out to be gaps in the probe states rather than defects, which is
+also worth knowing: a "0 distinct values" result means the probe never made the
+goal eligible, and that is a failing test, not a passing one.
+
+## 2026-08-19 — Research the offer mechanism before designing the offer UI
+
+A rotating IAP sale reads like a UI problem. It is not. Apple's Promotional
+Offers API — the thing every "how to run a sale" article points at — covers
+**auto-renewable subscriptions only**, and this app's gem packs are consumables.
+An implementation built on it would have been dead code against the entire
+catalogue.
+
+The mechanism that works for consumables is an App Store Connect **scheduled
+temporary price change** (start date, end date, max one year), which the app
+cannot trigger and cannot see. StoreKit exposes the current price and nothing
+else — there is no "is this on sale" flag. So a discount badge has to be
+DERIVED by comparing the live price against a recorded regular price, and it has
+to refuse to claim anything it cannot prove: no numeric price, non-USD
+storefront, or a live price at or above the record all render as "featured, at
+its normal price". Documented in `docs/IAP-PRICE-ROTATION.md`; the refusals are
+the bulk of `lib/offers/__tests__/pricing.test.ts`.
+
+The general rule: when a feature's correctness depends on a platform mechanism,
+find the primary documentation for that mechanism BEFORE designing around it.
+The design that survives is shaped by what the platform actually offers.

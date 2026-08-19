@@ -33,6 +33,8 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import NextGoalsCard from '@/components/NextGoalsCard';
+import WeekAheadCard from '@/components/WeekAheadCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
 import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
@@ -730,6 +732,17 @@ function HomeScreenContent() {
           (((gameState.stats?.money ?? 0) + (gameState.bankSavings ?? 0)) > 25000) && (
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
+
+        {/* What next / what is coming — the two derived surfaces.
+            They sit ABOVE the fixed ladders on purpose: Life Chapters and the
+            Ambition are the same for everyone at the same point, while these
+            two read the player's own situation, so they are the lines most
+            likely to be true for THIS save. Both render null when they have
+            nothing to say, so a quiet early week is not padded with cards. */}
+        <FadeInUp delay={45}>
+          <NextGoalsCard />
+          <WeekAheadCard />
+        </FadeInUp>
 
         {/* Life Chapter — the chunked-goal spine (was built but had no UI). */}
         <FadeInUp delay={50}>

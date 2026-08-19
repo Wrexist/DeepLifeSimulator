@@ -19,6 +19,8 @@ import {
   hasDeepLifePlusEntitlement,
 } from '@/lib/subscription/deepLifePlus';
 import { activeGemPromo, formatPromoCountdown } from '@/lib/shop/gemPromo';
+import OfferCenterModal from '@/components/OfferCenterModal';
+import { currentOffer } from '@/lib/offers';
 import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/iapConfig';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
@@ -770,6 +772,15 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const gemPromo = activeGemPromo(new Date());
   const gemPromoCountdown = gemPromo ? formatPromoCountdown(new Date(), gemPromo.endsAtIso) : '';
 
+  // The RECURRING weekly rotation, distinct from `gemPromo` above (which is the
+  // manual, ships-disabled one-off — see the note in `lib/offers/types.ts`).
+  // Only the offer's NAME is read here; every price lives inside the Offer
+  // Center, where `resolveOfferPrice` can refuse to claim a discount it cannot
+  // prove. A name is safe to render without a loaded store product; a price is
+  // not.
+  const [showOfferCenter, setShowOfferCenter] = useState(false);
+  const weeklyOffer = currentOffer(new Date()).offer;
+
   // Starter offer: highlight the one-time Starter Pack to players who haven't
   // converted yet (no ads-removed / lifetime / DeepLife+). Reuses the existing
   // GEMS_STARTER SKU + its real store price — no new product needed.
@@ -872,6 +883,24 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
             <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
             {tab === 'gems' ? (
               <>
+                {/* Weekly rotation — an entry point, not an interruption. It
+                    states which offer is featured and nothing else; the player
+                    opens it if they want to. */}
+                <TouchableOpacity
+                  style={styles.offerCenterRow}
+                  onPress={() => setShowOfferCenter(true)}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open the offer center. This week: ${weeklyOffer.name}`}
+                >
+                  <Sparkles size={scale(15)} color="#FBBF24" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.offerCenterTitle}>This week: {weeklyOffer.name}</Text>
+                    <Text style={styles.offerCenterSub}>See the weekly rotation</Text>
+                  </View>
+                  <ChevronRight size={scale(16)} color="rgba(226, 232, 240, 0.5)" />
+                </TouchableOpacity>
+
                 {/* Honest limited-time promo (only when a real store offer is live). */}
                 {gemPromo ? (
                   <View style={styles.promoBanner}>
@@ -968,6 +997,11 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
           </View>
         </Animated.View>
       </View>
+
+      {/* NESTED inside this presented Modal (the same iOS-safe nesting
+          RedeemCodeModal and WhatsNewModal use in SettingsModal) so it never
+          stacks a sibling root Modal. */}
+      <OfferCenterModal visible={showOfferCenter} onClose={() => setShowOfferCenter(false)} />
     </Modal>
   );
 }
@@ -1106,6 +1140,21 @@ const styles = StyleSheet.create({
   sectionLabelSpaced: {
     marginTop: verticalScale(16),
   },
+  offerCenterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(10),
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(11),
+    borderRadius: responsiveBorderRadius.md,
+    backgroundColor: 'rgba(251, 191, 36, 0.10)',
+    // Hard Rule #7: all four sides, never a decorative one-sided stripe.
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    marginBottom: verticalScale(12),
+  },
+  offerCenterTitle: { color: '#F8FAFC', fontSize: fontScale(13), fontWeight: '700' },
+  offerCenterSub: { color: 'rgba(226, 232, 240, 0.6)', fontSize: fontScale(10.5), marginTop: verticalScale(1) },
   promoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
