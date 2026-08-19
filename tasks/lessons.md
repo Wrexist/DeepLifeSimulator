@@ -3363,6 +3363,16 @@ is a way the fix could have been quietly wrong:
   where ITMS-91064 and the purpose-string rejections surface as Invalid Binary
   (CLAUDE.md §9). A green step reading as "shipped" is how a build sits in
   Invalid Binary for a day.
+- Rule: **a watcher that spawns a child must bound the child.** Found by review,
+  and it was the fix reproducing the bug it fixed: `readSubmission()` resolved
+  only on the child's `close`/`error`, so an `eas submit:view` that hung meant
+  the poll promise never settled - no heartbeat, and the elapsed-time check at
+  the BOTTOM of the loop never reached. A watcher built to make silence
+  impossible had a silent mode. Each read now has a 90s deadline, SIGTERM then
+  SIGKILL, and a blown deadline counts as an unreadable poll so the existing
+  grace handles it. Verified against a stub that hangs forever: the loop turns
+  every 12s and leaves no orphan children. **Ask of any loop whose body awaits
+  something external: what happens if that never returns?**
 - Rule: **a shared tool must not hardcode one caller's vocabulary.** The same
   watcher runs on the Android workflow, where "App Store Connect accepted the
   upload" and "Apple said" are simply false. One `storeName(platform)` helper,

@@ -291,4 +291,15 @@ describe('the unreadable-status grace', () => {
     // submission is taking a long time" instead of "we cannot see it".
     expect(S.READ_FAILURE_GRACE_MS).toBeLessThan(60 * 60_000);
   });
+
+  it('leaves room for several stalled reads inside one grace period', () => {
+    // A single `eas submit:view` is killed at READ_DEADLINE_MS and counted as
+    // an unreadable poll. If one stalled read could consume the whole grace,
+    // one hung process would fail a release; the grace is meant to absorb
+    // several. Without the deadline the loop would not turn at all — no
+    // heartbeat, and the watch timeout never even evaluated.
+    expect(S.READ_DEADLINE_MS).toBeLessThan(S.READ_FAILURE_GRACE_MS / 2);
+    // And long enough that a merely slow API call is not mistaken for a hang.
+    expect(S.READ_DEADLINE_MS).toBeGreaterThanOrEqual(30_000);
+  });
 });

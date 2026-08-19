@@ -102,3 +102,35 @@ Re-read the change looking for what it got wrong. Five things, all fixed:
   recovering into a FINISHED (URL rebuilt from the payload, no `--from-log`),
   an Android ERRORED (Play wording, exit 1), and a watch timeout (exit 1 with
   the "this is not a rejection" wording)
+
+## Review round (CodeRabbit, #146)
+
+Five findings. Three acted on, two skipped as contrary to this repo's conventions.
+
+- [x] 13. **MAJOR, and correct: bound each `eas submit:view`.** A hung child
+      meant `readSubmission()` never resolved - no heartbeat, and the watch
+      timeout unreachable, i.e. the exact silence this whole change removes.
+      Added a 90s read deadline (SIGTERM, then SIGKILL 5s later, unref'd),
+      resolving as an unreadable poll so `READ_FAILURE_GRACE_MS` absorbs it.
+      Verified against a stub that hangs forever: the loop keeps turning every
+      ~12s and leaves zero orphan processes. `--read-timeout-seconds` makes the
+      path exercisable in seconds.
+- [x] 14. **Correct: the `eas-build` skill hardcoded iOS.** It accepts
+      `ios|android` but told every user `--platform ios` and to check
+      TestFlight. Now platform-specific, with the Play follow-up spelled out.
+- [x] 15. **Partly correct: bind the guards to each watcher step.** The claim
+      that unrelated conditions could satisfy the old assertion was wrong - it
+      asserted `success()` on EVERY line mentioning the input, and dropping one
+      was mutation-tested red. But the REAL gap it points at is untested:
+      nothing asserted `wait_for_submission` defaults to **true**, so
+      `default: false` would silently disable the release signal everywhere.
+      Guards are now read off each watcher step, and the default is pinned
+      (mutation-tested).
+- [x] 16. **Skipped: "use interfaces, not inline object shapes" (nit).** Not
+      this repo's convention - `initialStateFieldCoverage.test.ts` uses inline
+      shapes in exactly this position, and there is no `.coderabbit.yaml`, so
+      the cited "coding guidelines" are the bot's defaults, not ours.
+- [x] 17. **Skipped: "annotate Jest callbacks with `void`/`Promise<void>`" (nit).**
+      Contradicts the neighbouring file: `ascRelease.test.ts` uses bare
+      `beforeAll(async () => {`. Across ~535 test files there are 4 such
+      annotations and 3 of them are inside regexes asserting on source text.

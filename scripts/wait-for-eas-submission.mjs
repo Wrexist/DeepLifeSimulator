@@ -20,6 +20,10 @@
 //   --url <url>          submission web page, echoed into every report.
 //                        Defaults to the URL found by --from-log.
 //   --timeout-minutes N  stop watching after N minutes (default 60).
+//   --read-timeout-seconds N  kill any single `eas submit:view` that runs
+//                        longer than N seconds and count it as an unreadable
+//                        poll (default 90). A poll that never returns would
+//                        stall the loop and silence the heartbeat.
 //   --link-only          resolve and print the submission link, then exit 0
 //                        without polling. For the run that deliberately does
 //                        not wait: it still records WHERE the answer will be.
@@ -47,6 +51,7 @@ import {
   parseSubmissionDetails,
   parseSubmissionJson,
   pollDelayMs,
+  READ_DEADLINE_MS,
   READ_FAILURE_GRACE_MS,
   storeName,
   shouldLog,
@@ -80,6 +85,11 @@ const platform = valueOf('--platform');
 const submissionUrl = valueOf('--url') ?? fromLog?.url ?? null;
 const linkOnly = has('--link-only');
 const timeoutMs = Number(valueOf('--timeout-minutes', '60')) * 60_000;
+// Overridable so the kill path can be exercised in seconds rather than 90 of
+// them; the default is what CI runs.
+const readDeadlineMs = valueOf('--read-timeout-seconds')
+  ? Number(valueOf('--read-timeout-seconds')) * 1000
+  : READ_DEADLINE_MS;
 
 if (!submissionId && !platform && !linkOnly) {
   console.error('Pass --id <submission-uuid>, --from-log <file>, or --platform <ios|android>.');
@@ -89,10 +99,18 @@ if (!linkOnly && (!Number.isFinite(timeoutMs) || timeoutMs <= 0)) {
   console.error('--timeout-minutes must be a positive number.');
   process.exit(1);
 }
+if (!linkOnly && (!Number.isFinite(readDeadlineMs) || readDeadlineMs <= 0)) {
+  console.error('--read-timeout-seconds must be a positive number.');
+  process.exit(1);
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Run `eas submit:view` and hand back its stdout. Never throws. */
+/**
+ * Run `eas submit:view` and hand back its stdout. Never throws, and never runs
+ * longer than readDeadlineMs - a poll that hangs would stall the whole loop,
+ * which is the exact silence this watcher exists to remove.
+ */
 function readSubmission() {
   const args = ['submit:view', '--json'];
   if (submissionId) args.push(submissionId);
@@ -104,14 +122,37 @@ function readSubmission() {
     const child = spawn('eas', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
+    let settled = false;
+    let deadline = null;
+
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      if (deadline) clearTimeout(deadline);
+      resolve(result);
+    };
+
+    deadline = setTimeout(() => {
+      child.kill('SIGTERM');
+      // Resolve without waiting for the kill to land: a process that ignores
+      // SIGTERM must not hold the loop either. SIGKILL follows so a wedged
+      // child cannot accumulate for the rest of the watch; unref'd so it can
+      // never keep this script alive on its own.
+      setTimeout(() => child.kill('SIGKILL'), 5_000).unref();
+      settle({
+        submission: null,
+        stderr: `eas submit:view exceeded ${formatElapsed(readDeadlineMs)} and was killed`,
+      });
+    }, readDeadlineMs);
+
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
     });
-    child.on('error', (err) => resolve({ submission: null, stderr: String(err) }));
-    child.on('close', () => resolve({ submission: parseSubmissionJson(stdout), stderr }));
+    child.on('error', (err) => settle({ submission: null, stderr: String(err) }));
+    child.on('close', () => settle({ submission: parseSubmissionJson(stdout), stderr }));
   });
 }
 

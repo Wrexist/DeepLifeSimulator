@@ -139,6 +139,22 @@ export const HEARTBEAT_MS = 2 * 60_000;
  */
 export const READ_FAILURE_GRACE_MS = 5 * 60_000;
 
+/**
+ * How long ONE `eas submit:view` call may run before it is killed and counted
+ * as an unreadable poll.
+ *
+ * Without this the watcher has the very defect it was built to remove: a child
+ * process that never exits means the poll promise never resolves, so no
+ * heartbeat prints, the elapsed-time check at the bottom of the loop is never
+ * reached, and the step sits silent until the workflow job timeout. Bounding
+ * the read keeps the loop turning, which is what makes every other guarantee
+ * here - heartbeat, grace, watch timeout - actually reachable.
+ *
+ * Must stay well under READ_FAILURE_GRACE_MS so that several stalled reads in
+ * a row are what exhausts the grace, not a single one.
+ */
+export const READ_DEADLINE_MS = 90_000;
+
 export function shouldLog({ status, previousStatus, elapsedMs, lastLoggedAtMs }) {
   if (status !== previousStatus) return true;
   return elapsedMs - lastLoggedAtMs >= HEARTBEAT_MS;

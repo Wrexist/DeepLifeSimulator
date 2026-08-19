@@ -91,27 +91,64 @@ describe('the workflows that submit builds', () => {
   );
 });
 
-describe('conditional steps around the submission', () => {
-  const conditionals = workflows.flatMap(({ name, text }) =>
-    text
-      .split('\n')
-      .filter((line) => /^\s*if:/.test(line) && line.includes('wait_for_submission'))
-      .map((line) => ({ workflow: name, line: line.trim() }))
-  );
+/** Split a job body into its steps. A step starts at `      - ` and owns every
+ *  line until the next one, so a step's `if:` can be read as ITS OWN. */
+function stepsOf(jobBody: string): string[] {
+  const steps: string[][] = [];
+  for (const line of jobBody.split('\n')) {
+    if (/^ {6}- /.test(line)) steps.push([line]);
+    else if (steps.length) steps[steps.length - 1].push(line);
+  }
+  return steps.map((step) => step.join('\n'));
+}
 
-  it('exist', () => {
-    expect(conditionals.length).toBeGreaterThanOrEqual(6);
+const watcherSteps = submitJobs.flatMap((entry) =>
+  stepsOf(entry.body)
+    .filter((step) => step.includes(WATCHER) && !step.includes('--link-only'))
+    .map((step) => ({ ...entry, step }))
+);
+
+describe('the watch step that carries the release signal', () => {
+  it('is present once per submitting job', () => {
+    expect(watcherSteps.length).toBe(submitJobs.length);
   });
 
-  it.each(conditionals.map((entry) => [`${entry.workflow}: ${entry.line}`, entry] as const))(
-    '%s keeps the success() guard',
+  it.each(watcherSteps.map((entry) => [`${entry.workflow} :: ${entry.job}`, entry] as const))(
+    '%s guards the watch on its OWN if:, with both conditions',
     (_label, entry) => {
+      const condition = entry.step.split('\n').find((line) => /^\s*if:/.test(line));
+      expect(condition).toBeDefined();
       // A custom `if:` REPLACES the implicit success() check on a step. Without
       // it, a FAILED submit is still followed by the watch — which then finds
       // the previous run's submission and reports its outcome as this one's.
-      expect(entry.line).toContain('success()');
+      expect(condition).toContain('success()');
+      // Read off the step itself rather than off any matching line in the file:
+      // the condition that matters is the one attached to THIS step.
+      expect(condition).toContain('inputs.wait_for_submission');
     }
   );
+});
+
+describe('the wait_for_submission input', () => {
+  /** The input's own block: from its key to the start of the next key at the same indent. */
+  const inputBlock = (text: string): string | null => {
+    const start = text.indexOf('      wait_for_submission:');
+    if (start === -1) return null;
+    const rest = text.slice(start + 1);
+    const end = rest.search(/\n {6}[A-Za-z_]+:/);
+    return end === -1 ? rest : rest.slice(0, end);
+  };
+
+  const submittingWorkflows = [...new Set(submitJobs.map((entry) => entry.workflow))];
+
+  it.each(submittingWorkflows)('%s declares it, defaulting to true', (name) => {
+    // The gap the rest of this file did not cover: every step above can stay
+    // exactly as written while `default: false` quietly turns the watch — and
+    // with it the whole red-on-rejection signal — off for every release.
+    const block = inputBlock(workflows.find((workflow) => workflow.name === name)!.text);
+    expect(block).not.toBeNull();
+    expect(block).toMatch(/default:\s*true/);
+  });
 });
 
 describe('the watcher the workflows call', () => {
