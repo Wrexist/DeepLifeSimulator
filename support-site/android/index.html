@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Deep Life Simulator — Android Beta | Build Your Life. Make Your Choices.</title>
+<meta name="description" content="Join the Deep Life Simulator Android beta. Build a career, make money, find relationships, buy property, start businesses — and decide how far you're willing to go. Free, closed beta, Android only." />
+<meta name="keywords" content="Deep Life Simulator, life simulator game, Android life simulator, mobile life simulator, life simulation game, simulation game Android, android beta test" />
+<meta name="theme-color" content="#0F172A" />
+<link rel="canonical" href="https://wrexist.github.io/DeepLifeSimulator/android/" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Deep Life Simulator" />
+<meta property="og:title" content="Build Your Life. Make Your Choices." />
+<meta property="og:description" content="Join the Android beta and help shape Deep Life Simulator — 35 careers, a real economy, property, businesses and a family that outlives you." />
+<meta property="og:image" content="https://wrexist.github.io/DeepLifeSimulator/assets/shot3.png" />
+<meta property="og:image:alt" content="Deep Life Simulator gameplay — building a business empire" />
+<meta property="og:url" content="https://wrexist.github.io/DeepLifeSimulator/android/" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Build Your Life. Make Your Choices." />
+<meta name="twitter:description" content="Join the Android beta and help shape Deep Life Simulator." />
+<meta name="twitter:image" content="https://wrexist.github.io/DeepLifeSimulator/assets/shot3.png" />
+
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"VideoGame","name":"Deep Life Simulator",
+"description":"A life simulation game with a simulated weekly economy: 35 career tracks, property with mortgages and tenants, stocks and crypto, businesses, relationships and a multi-generation family legacy.",
+"operatingSystem":"Android, iOS","applicationCategory":"GameApplication","genre":"Simulation",
+"image":"https://wrexist.github.io/DeepLifeSimulator/assets/shot3.png",
+"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span></div>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+    <div class="navlinks" id="navlinks">
+      <a href="#game">The game</a>
+      <a href="#beta">The beta</a>
+      <a href="community.html">Community</a>
+      <a href="ideas.html">Ideas</a>
+      <a href="dashboard.html">My dashboard</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="row" style="gap:9px">
+      <a class="btn btn-p" href="join.html" data-carry data-cta="nav">Join the beta</a>
+      <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+
+<!-- ── HERO ─────────────────────────────────────────────────────────── -->
+<header class="bhero wrap">
+  <div class="bhero-grid">
+    <div class="reveal in">
+      <span class="badge-android"><span class="dot"></span> Android closed beta · Free</span>
+      <h1>DEEP <span class="grad">LIFE</span><br />SIMULATOR</h1>
+      <p class="tagline">Your life. Your choices. Your story.</p>
+      <p class="lead">Build a career, make money, find relationships, buy property, start businesses — and decide how far you're willing to go.</p>
+      <div class="cta-row">
+        <a class="btn btn-p btn-lg" href="join.html" data-carry data-cta="hero">JOIN THE ANDROID BETA</a>
+        <a class="btn btn-g btn-lg" href="#how">SEE HOW IT WORKS</a>
+      </div>
+      <p class="small muted mt-m" id="hero-note">Under a minute to join. No Google password, ever.</p>
+    </div>
+    <div class="phoneframe reveal">
+      <span class="halo" aria-hidden="true"></span>
+      <img src="../assets/shot1.png" width="248" height="537"
+           alt="Deep Life Simulator running on a phone — the weekly life screen" />
+    </div>
+  </div>
+
+  <!-- FIRST 20 — counts come from the live database, never a decorative number -->
+  <div class="slots reveal mt-l" id="slots" hidden>
+    <div class="top">
+      <div>
+        <div class="l">Become one of the first</div>
+        <div class="n"><span id="slot-target">20</span> testers</div>
+      </div>
+      <div class="l" id="slot-count">—</div>
+    </div>
+    <div class="bar"><i id="slot-bar" style="width:0%"></i></div>
+    <div class="pips" id="slot-pips" aria-hidden="true"></div>
+    <p class="small muted mt-s" id="slot-note"></p>
+  </div>
+</header>
+
+<!-- ── WHAT IS IT ───────────────────────────────────────────────────── -->
+<section id="game" class="wrap">
+  <div class="sec-head reveal">
+    <span class="eyebrow"><span class="dot"></span> What is Deep Life Simulator?</span>
+    <h2>A life, simulated properly.</h2>
+    <p>Not a tap-to-win idle game. A life with a budget, a calendar and consequences.</p>
+  </div>
+  <div class="grid-2 reveal">
+    <div class="pillar"><div class="ico">🗓️</div><h3>ONE CHOICE A WEEK</h3><p>Every week you pick one thing. Work, study, rest, risk it. The week ticks, the bills land, and the world moves whether you were ready or not.</p></div>
+    <div class="pillar"><div class="ico">🧮</div><h3>THE MONEY IS REAL</h3><p>Rent, income tax and student loan repayments come out weekly. A bill you cannot pay becomes arrears you carry — the money axis has a failure state.</p></div>
+    <div class="pillar"><div class="ico">🪜</div><h3>35 CAREER TRACKS</h3><p>From fast food at $110 a week to surgeon, CEO or President. Promotions gate on performance, not on time served.</p></div>
+    <div class="pillar"><div class="ico">🧬</div><h3>YOU DIE. THE STORY DOESN'T.</h3><p>Marry, raise children, pass on traits and money. When your life ends you play your heir, and their grandchildren after that.</p></div>
+    <div class="pillar"><div class="ico">🎬</div><h3>23 WAYS TO START</h3><p>Rags to Riches, Debt Escape, Criminal Empire, Political Dynasty, Late Bloomer, Lottery Winner — pick the life you begin with.</p></div>
+  </div>
+</section>
+
+<!-- ── PILLARS ──────────────────────────────────────────────────────── -->
+<section class="wrap">
+  <div class="sec-head reveal">
+    <h2>Eight systems, one life</h2>
+    <p>Each one has its own economy. All of them bill the same wallet.</p>
+  </div>
+  <div class="grid-4 reveal" id="pillars"></div>
+</section>
+
+<!-- ── PATHS ────────────────────────────────────────────────────────── -->
+<section class="wrap">
+  <div class="sec-head reveal">
+    <h2>Your life can go anywhere</h2>
+    <p>Six roads the game actually supports. None of them is the right one.</p>
+  </div>
+  <div class="grid-2 reveal" id="paths"></div>
+</section>
+
+<!-- ── SCREENSHOTS ──────────────────────────────────────────────────── -->
+<section class="wrap">
+  <div class="sec-head reveal">
+    <h2>Real captures</h2>
+    <p>Straight from the build you'll be testing. Nothing mocked up.</p>
+  </div>
+  <div class="strip reveal" id="shots"></div>
+</section>
+
+<!-- ── THE BETA ─────────────────────────────────────────────────────── -->
+<section id="beta" class="wrap">
+  <div class="sec-head reveal">
+    <span class="eyebrow"><span class="dot"></span> The ask</span>
+    <h2>We need Android players to help us polish it</h2>
+    <p>Deep Life Simulator is live on iOS. Android is the last step — and Google will not let it onto the public Play Store until real people have tested it.</p>
+  </div>
+  <div class="grid-4 reveal">
+    <div class="pillar"><div class="ico">🤖</div><h3>ANDROID ONLY</h3><p>Android 7.0 or newer, signed into the Google account on your phone.</p></div>
+    <div class="pillar"><div class="ico">🆓</div><h3>FREE</h3><p>The whole game, everything unlocked, nothing charged. No ads on the Android build.</p></div>
+    <div class="pillar"><div class="ico">🔒</div><h3>CLOSED BETA</h3><p>Invite-only through Google Play. Your save carries into the public release.</p></div>
+    <div class="pillar"><div class="ico">⏳</div><h3>14 DAYS</h3><p>Google requires testers to stay opted in for two continuous weeks. Play as much or as little as you like inside that.</p></div>
+  </div>
+  <div class="panel reveal mt-l">
+    <h2>What we actually want back</h2>
+    <p class="sub">Ratings are nice. These are better:</p>
+    <ul class="todo">
+      <li class="item"><p><strong>The moment you got confused.</strong> The first time you didn't know what to do next — that's a design bug, and we can't see it from in here.</p></li>
+      <li class="item"><p><strong>The moment you got bored.</strong> "I stopped playing at week 40" is the single most useful sentence you can send.</p></li>
+      <li class="item"><p><strong>Anything that crashed, froze or lost your save.</strong> There's a bug form with your device details already filled in.</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ─────────────────────────────────────────────────── -->
+<section id="how" class="wrap">
+  <div class="sec-head reveal"><h2>How it works</h2><p>Four steps. The first three take about a minute.</p></div>
+  <div class="steps reveal">
+    <div class="step"><div class="num">STEP 1</div><h3>Join the beta</h3><p>A short form — nickname, and how to reach you. Then one tap opts you in on Google Play.</p></div>
+    <div class="step"><div class="num">STEP 2</div><h3>Install the game</h3><p>It installs from the Play Store like any other app. Same updates, same account.</p></div>
+    <div class="step"><div class="num">STEP 3</div><h3>Play</h3><p>Ten minutes is enough to have an opinion. A full life takes longer, and it's worth it.</p></div>
+    <div class="step"><div class="num">STEP 4</div><h3>Tell us what you think</h3><p>Three questions on your dashboard. Bugs and ideas have their own forms.</p></div>
+  </div>
+  <div class="center mt-l reveal">
+    <a class="btn btn-p btn-lg" href="join.html" data-carry data-cta="how">START STEP 1</a>
+  </div>
+</section>
+
+<!-- ── WHY JOIN ─────────────────────────────────────────────────────── -->
+<section class="wrap">
+  <div class="sec-head reveal"><h2>Why bother?</h2><p>Honest list. Nothing here is money.</p></div>
+  <div class="grid-4 reveal">
+    <div class="pillar"><div class="ico">⚡</div><h3>PLAY IT FIRST</h3><p>The full game before the public launch, everything unlocked.</p></div>
+    <div class="pillar"><div class="ico">🛠️</div><h3>SHAPE IT</h3><p>The Ideas board isn't decoration. Top-voted features are what gets built next.</p></div>
+    <div class="pillar"><div class="ico">👥</div><h3>THE COMMUNITY</h3><p>Devlogs, the roadmap, and a Discord where the developer actually answers.</p></div>
+    <div class="pillar"><div class="ico">🏆</div><h3>FOUNDING PLAYER</h3><p>Tester badges and a permanent place on the first-20 list. Community recognition, not currency.</p></div>
+  </div>
+</section>
+
+<!-- ── FAQ ──────────────────────────────────────────────────────────── -->
+<section id="faq" class="wrap">
+  <div class="sec-head reveal"><h2>Questions</h2><p>Including the one you should always ask.</p></div>
+  <div class="faq reveal" id="faq-list"></div>
+</section>
+
+<!-- ── FINAL CTA ────────────────────────────────────────────────────── -->
+<section class="wrap">
+  <div class="panel center reveal" style="padding:56px 24px">
+    <h2 style="font-size:clamp(30px,5vw,46px);font-weight:800;margin-bottom:14px">START YOUR LIFE</h2>
+    <p class="muted" style="max-width:440px;margin:0 auto 26px">Start with almost nothing. Build the life you want. Find out what it costs.</p>
+    <a class="btn btn-p btn-lg" href="join.html" data-carry data-cta="footer">JOIN THE BETA</a>
+    <p class="small muted mt-m" id="final-note"></p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><img src="../assets/icon.png" alt="" style="width:30px;height:30px;border-radius:8px" /> Deep Life Simulator</div>
+    <div class="flinks">
+      <a href="../index.html">Main site</a>
+      <a href="community.html">Community</a>
+      <a href="ideas.html">Ideas</a>
+      <a href="bug.html">Report a bug</a>
+      <a href="dashboard.html">My dashboard</a>
+      <a id="f-privacy" href="../privacy.html">Privacy</a>
+      <a id="f-discord" href="https://discord.gg/rzktazdX8v" rel="noopener">Discord</a>
+    </div>
+    <p class="small">© <span id="year"></span> Deep Life Simulator · <a id="f-mail" href="mailto:deeplifesimulator@gmail.com">deeplifesimulator@gmail.com</a></p>
+  </div>
+</footer>
+
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="landing.js"></script>
+</body>
+</html>

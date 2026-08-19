@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Beta Hub Admin — Deep Life Simulator</title>
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#0F172A" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife <span class="small muted">Admin</span></a>
+  <div class="row" style="gap:9px">
+    <a class="btn btn-g btn-sm" href="index.html">View public hub</a>
+    <button class="btn btn-g btn-sm" id="signout" type="button" hidden>Sign out</button>
+  </div>
+</div></nav>
+
+<main id="main" class="wrap" style="padding:32px 22px 80px;max-width:1180px">
+
+  <!-- ── sign in ─────────────────────────────────────────────────────── -->
+  <section class="panel" id="gate" style="max-width:480px;margin:40px auto">
+    <h1 style="font-size:28px;font-weight:800;margin-bottom:8px">Admin sign in</h1>
+    <p class="sub">Your admin token. It is held for this browser tab only and never written to disk.</p>
+    <form class="form" id="gate-form">
+      <div class="field">
+        <label for="token">Admin token</label>
+        <input id="token" type="password" autocomplete="current-password" required />
+        <p class="err" id="err-token" role="alert"></p>
+      </div>
+      <button class="btn btn-p btn-lg btn-block" type="submit" id="gate-submit">SIGN IN</button>
+    </form>
+    <p class="small muted mt-m">Lost it? Rotate it with the SQL in <code>server/beta-hub/README.md</code> — the database stores only a hash, so nobody can read it back out.</p>
+  </section>
+
+  <!-- ── dashboard ───────────────────────────────────────────────────── -->
+  <div id="app" hidden>
+    <div class="tabs" role="tablist" aria-label="Admin sections">
+      <button role="tab" aria-selected="true" id="tabbtn-today" aria-controls="tab-today" data-tab="today">📊 Today</button>
+      <button role="tab" aria-selected="false" id="tabbtn-testers" aria-controls="tab-testers" data-tab="testers">👥 Testers</button>
+      <button role="tab" aria-selected="false" id="tabbtn-funnel" aria-controls="tab-funnel" data-tab="funnel">📈 Funnel &amp; sources</button>
+      <button role="tab" aria-selected="false" id="tabbtn-feedback" aria-controls="tab-feedback" data-tab="feedback">💬 Feedback</button>
+      <button role="tab" aria-selected="false" id="tabbtn-bugs" aria-controls="tab-bugs" data-tab="bugs">🐛 Bugs</button>
+      <button role="tab" aria-selected="false" id="tabbtn-ideas" aria-controls="tab-ideas" data-tab="ideas">💡 Ideas</button>
+      <button role="tab" aria-selected="false" id="tabbtn-links" aria-controls="tab-links" data-tab="links">🔗 Links &amp; QR</button>
+      <button role="tab" aria-selected="false" id="tabbtn-marketing" aria-controls="tab-marketing" data-tab="marketing">📣 Marketing</button>
+      <button role="tab" aria-selected="false" id="tabbtn-comms" aria-controls="tab-comms" data-tab="comms">✉️ Messages</button>
+      <button role="tab" aria-selected="false" id="tabbtn-community" aria-controls="tab-community" data-tab="community">🗺️ Community</button>
+      <button role="tab" aria-selected="false" id="tabbtn-settings" aria-controls="tab-settings" data-tab="settings">⚙️ Settings</button>
+    </div>
+
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-today" id="tab-today"></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-testers" id="tab-testers" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-funnel" id="tab-funnel" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-feedback" id="tab-feedback" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-bugs" id="tab-bugs" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-ideas" id="tab-ideas" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-links" id="tab-links" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-marketing" id="tab-marketing" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-comms" id="tab-comms" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-community" id="tab-community" hidden></section>
+    <section class="tabpanel" role="tabpanel" aria-labelledby="tabbtn-settings" id="tab-settings" hidden></section>
+  </div>
+</main>
+
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="qr.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

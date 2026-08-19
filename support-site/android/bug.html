@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Report a Bug — Deep Life Simulator</title>
+<meta name="description" content="Report a bug in the Deep Life Simulator Android beta. Device details are filled in for you." />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0F172A" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span></div>
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks" id="navlinks">
+    <a href="index.html">The game</a>
+    <a href="dashboard.html">My dashboard</a>
+    <a href="feedback.html">Feedback</a>
+    <a href="bug.html">Bugs</a>
+    <a href="ideas.html">Ideas</a>
+    <a href="community.html">Community</a>
+  </div>
+  <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+</div></nav>
+<main id="main" class="wrap" style="padding:38px 22px 80px;max-width:720px">
+  <div class="panel">
+    <span class="badge-android"><span class="dot"></span> Bug report</span>
+    <h1 style="font-size:clamp(26px,5vw,40px);font-weight:800;margin:14px 0 8px">Something broke?</h1>
+    <p class="sub">Only the title is required. Everything you can add narrows it down — but a one-line "the shop screen is blank" is still worth sending.</p>
+    <div class="notice mt-s" id="anon-note" hidden></div>
+  </div>
+
+  <form class="panel" id="bug-form" novalidate>
+    <div class="field">
+      <label for="title">One-line summary <span class="muted">(required)</span></label>
+      <input id="title" type="text" maxlength="140" required placeholder="e.g. Game crashes when I open the market" />
+      <p class="err" id="err-title" role="alert"></p>
+    </div>
+
+    <fieldset class="field">
+      <legend>What kind of bug?</legend>
+      <div class="chips" id="cats"></div>
+    </fieldset>
+
+    <div class="field">
+      <label for="severity">How bad is it?</label>
+      <select id="severity">
+        <option value="low">Low — cosmetic, I could ignore it</option>
+        <option value="medium" selected>Medium — annoying, but I could keep playing</option>
+        <option value="high">High — it blocked what I was trying to do</option>
+        <option value="critical">Critical — crash, or I lost my save</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="description">What happened?</label>
+      <textarea id="description" maxlength="4000" placeholder="In your own words."></textarea>
+    </div>
+    <div class="field">
+      <label for="steps">Steps to reproduce</label>
+      <textarea id="steps" maxlength="4000" placeholder="1. Open the market&#10;2. Tap a stock&#10;3. …"></textarea>
+    </div>
+    <div class="row" style="align-items:flex-start;gap:18px">
+      <div class="field" style="flex:1 1 240px">
+        <label for="expected">What you expected</label>
+        <textarea id="expected" maxlength="1000" style="min-height:80px"></textarea>
+      </div>
+      <div class="field" style="flex:1 1 240px">
+        <label for="actual">What actually happened</label>
+        <textarea id="actual" maxlength="1000" style="min-height:80px"></textarea>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="attachment">Screenshot or video link <span class="muted">(optional)</span></label>
+      <input id="attachment" type="url" maxlength="500" placeholder="https://… (Imgur, Drive, Discord, anywhere)" />
+      <p class="hint">We don't host uploads — paste a link, or send the file to us on Discord and mention this report.</p>
+    </div>
+
+    <fieldset class="panel" style="background:rgba(15,23,42,.5);padding:18px">
+      <legend class="small muted">AUTO-FILLED · edit anything that's wrong</legend>
+      <div class="row" style="align-items:flex-start;gap:14px">
+        <div class="field" style="flex:1 1 180px">
+          <label for="device">Device</label>
+          <input id="device" type="text" maxlength="80" />
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label for="android">Android version</label>
+          <input id="android" type="text" maxlength="40" />
+        </div>
+        <div class="field" style="flex:1 1 120px">
+          <label for="appVersion">Game version</label>
+          <input id="appVersion" type="text" maxlength="20" />
+        </div>
+      </div>
+      <p class="small muted mt-s" id="auto-note"></p>
+    </fieldset>
+
+    <button class="btn btn-p btn-lg btn-block mt-m" type="submit" id="bug-submit">SEND BUG REPORT</button>
+  </form>
+
+  <div class="panel center" id="thanks" hidden style="padding:52px 24px">
+    <div style="font-size:44px;margin-bottom:12px" aria-hidden="true">🐛</div>
+    <h2 style="font-size:28px;font-weight:800;margin-bottom:10px">Logged. Thank you.</h2>
+    <p class="muted" style="max-width:420px;margin:0 auto 24px">
+      It's on the board with your device details attached. You can see the status of everything you've filed on your dashboard.
+    </p>
+    <div class="actions" style="justify-content:center">
+      <a class="btn btn-p" href="dashboard.html">Back to my dashboard</a>
+      <button class="btn btn-g" type="button" id="another">File another</button>
+    </div>
+  </div>
+</main>
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="index.html">Beta home</a><a href="dashboard.html">My dashboard</a>
+    <a href="community.html">Community</a><a id="f-privacy" href="../privacy.html">Privacy</a>
+  </div>
+  <p class="small">© <span id="year"></span> Deep Life Simulator</p>
+</div></footer>
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="bug.js"></script>
+</body>
+</html>
