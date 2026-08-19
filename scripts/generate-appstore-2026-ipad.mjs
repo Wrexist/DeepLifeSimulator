@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 import { readFileSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { FRAMES, CAPTURES as SHOTS, frameHtml, layoutFor, artDataUri } from './lib/storeFrameSystem.mjs';
+import { FRAMES, CAPTURES as SHOTS, frameHtml, layoutFor, artDataUri, propDataUri } from './lib/storeFrameSystem.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CAP = join(ROOT, 'screenshots', 'appstore-2026', 'rich-captures-ipad');
@@ -80,6 +80,8 @@ for (const size of SIZES) {
       // The scene. Read from assets/images/ — the same plates the app renders,
       // so a frame cannot advertise art the game does not contain.
       art: artDataUri(f.art),
+      // The frame's own objects, keyed the way the frame names them.
+      props: Object.fromEntries((f.props || []).map((pr) => [pr.art, propDataUri(pr.art)])),
     }, L));
     await pg.goto('file://' + html, { waitUntil: 'networkidle' });
     await pg.evaluate(() => document.fonts.ready);

@@ -197,7 +197,7 @@ export const ART = {
   // wealth. Cropping to landscape and grading to blue strips the signal without
   // leaving the visual language. Its warm, un-cropped self is frame 07 — the
   // same land, empty at the start and owned later.
-  valley: { file: 'luxury/vineyard_estate.jpg', focus: '12% 30%', zoom: 2.4, bright: 0.86, contrast: 1.10, sat: 0.55, hue: 180 },
+  valley: { file: 'luxury/vineyard_estate.jpg', focus: '14% 26%', zoom: 2.2, bright: 1.08, contrast: 1.24, sat: 0.62, hue: 178 },
   // Frame 02 — open water under a dusk sky, cropped off the far end of the
   // yacht plate. Abstract on purpose: a decision frame should carry mood and no
   // claim, and this is the only plate here with a subject that can be cropped
@@ -208,16 +208,16 @@ export const ART = {
   // pass cropped the open sea off the yacht plate for this slot and it washed
   // out to pale grey — cropping into texture keeps the language and throws away
   // the light, which is the failure the whole relight rule exists to catch.
-  tarmac: { file: 'luxury/private_jet.webp', focus: '50% 52%', bright: 1.16, contrast: 1.10, sat: 1.02 },
+  tarmac: { file: 'luxury/private_jet.webp', focus: '50% 52%', bright: 1.42, contrast: 1.10, sat: 1.02 },
   yacht: { file: 'luxury/mega_yacht.jpg', focus: '50% 38%', bright: 1.06, contrast: 1.07, sat: 1.08 },
   // A dark interior looking out over a city at night — the closest thing the
   // library has to a trading desk, and it reads that way at thumbnail size.
-  penthouse: { file: 'luxury/trophy_penthouse.webp', focus: '58% 46%', bright: 1.30, contrast: 1.08, sat: 1.02 },
+  penthouse: { file: 'luxury/trophy_penthouse.webp', focus: '74% 40%', bright: 1.52, contrast: 1.10, sat: 1.08 },
   // Frame 05 — the black marble the diamond stands on, cropped so the diamond
   // is out of frame. Near-black with a faint sheen, which is the correct
   // backdrop for a terminal: the darkest frame in the set by design, and the one
   // place the screen should be the only light in the picture.
-  slate: { file: 'luxury/museum_diamond.webp', focus: '86% 78%', zoom: 2.4, bright: 1.60, contrast: 1.05, sat: 0.85 },
+  slate: { file: 'luxury/museum_diamond.webp', focus: '86% 78%', zoom: 2.4, bright: 2.10, contrast: 1.05, sat: 0.85 },
   // Frame 06 — a private box over a floodlit stadium. The most corporate room
   // in the library, and the floodlights give it a light source of its own.
   box: { file: 'luxury/sports_team_stake.webp', focus: '46% 46%', bright: 1.18, contrast: 1.06, sat: 1.06 },
@@ -234,7 +234,7 @@ export const ART = {
   // is a warm room with a wooden floor, lit walls and depth. By this point in
   // the arc the character is wealthy, so a grand interior is not overselling —
   // it is where they live.
-  gallery: { file: 'luxury/fine_art_collection.webp', focus: '50% 56%', bright: 1.34, contrast: 1.06, sat: 1.12 },
+  gallery: { file: 'luxury/fine_art_collection.webp', focus: '50% 56%', bright: 1.62, contrast: 1.06, sat: 1.12 },
   // Frame 10 — the calmest plate here: a yacht at dusk against mountains, cool
   // and still where frame 03's is golden and triumphant. The set ends on
   // arrival rather than acquisition.
@@ -260,6 +260,57 @@ export function artDataUri(key) {
   const p = join(ASSETS, entry.file);
   if (!existsSync(p)) {
     throw new Error(`Art plate missing: assets/images/${entry.file}. It ships in the app, so a missing file means it was moved or removed — update ART rather than dropping the scene.`);
+  }
+  const ext = entry.file.slice(entry.file.lastIndexOf('.')).toLowerCase();
+  return `data:${MIME[ext] || 'image/png'};base64,` + readFileSync(p).toString('base64');
+}
+
+/**
+ * PROPS — the game's own objects, composited into the frame as objects.
+ *
+ * The luxury frame was the clearest failure of the art-led set: it is the frame
+ * about COLLECTIBLES and it showed none of them. What it showed was a list of
+ * text cards, over a yacht that has nothing to do with what the player owns.
+ * Meanwhile every collectible in `lib/luxury/catalog.ts` ships with a render,
+ * and the ids in that catalog are the filenames in `assets/images/luxury/`.
+ *
+ * The compositing is the trick, and it is free: these renders are shot as a
+ * SUBJECT ON BLACK, so `mix-blend-mode: lighten` knocks the black out against
+ * whatever is behind them. No cutout, no mask, no alpha channel — the diamond
+ * and the watch case drop onto a golden-hour sea as if they were photographed
+ * there. `screen` was tried first and washes them out; `normal` shows the black
+ * box they were rendered in. Only plates lit this way qualify, which is why
+ * `blend` is per-prop and not a global.
+ *
+ * They sit BEHIND the device (z-index below the stage) on purpose. A prop
+ * overlapping the phone would blend with the SCREENSHOT, and a translucent
+ * object in front of the product is the opposite of the depth it is there to
+ * create.
+ *
+ * The honesty rule is the same as everywhere else in this file: a prop may only
+ * show something the frame's screenshot supports. Frame 03's chip reads
+ * `2 OF 6 TROPHIES ACQUIRED` and its capture reads `Collection (2)` — so the
+ * two props are the two items the capture actually bought, the Rare Watch
+ * Collection ($250K) and the Museum-Grade Diamond ($600K), whose resale sums to
+ * the `$510K` the same screen prints. Adding a third would be inventing a
+ * purchase.
+ */
+export const PROPS = {
+  // Only plates lit as a SUBJECT ON BLACK qualify. The three owned properties
+  // were tried here and removed: their renders draw the building in neon
+  // outline, and a lighten blend turns that into a glowing wireframe hanging in
+  // the scene. The blend flatters a lit object; it destroys a drawn one.
+  diamond: { file: 'luxury/museum_diamond.webp', blend: 'lighten' },
+  watches: { file: 'luxury/rare_watch_collection.webp', blend: 'lighten' },
+};
+
+/** One prop plate as a data URI, from the same directory the app renders from. */
+export function propDataUri(key) {
+  const entry = PROPS[key];
+  if (!entry) throw new Error(`No prop registered under "${key}" — see PROPS in storeFrameSystem.mjs.`);
+  const p = join(ASSETS, entry.file);
+  if (!existsSync(p)) {
+    throw new Error(`Prop plate missing: assets/images/${entry.file}. It is a luxury catalog item, so a missing file means the catalog moved — update PROPS rather than dropping the prop.`);
   }
   const ext = entry.file.slice(entry.file.lastIndexOf('.')).toLowerCase();
   return `data:${MIME[ext] || 'image/png'};base64,` + readFileSync(p).toString('base64');
@@ -411,7 +462,7 @@ export const FRAMES = [
     art: 'yacht',
     support: [],
     head: 'Buy the |impossible.|',
-    sub: 'Watches, supercars and museum-grade pieces.',
+    sub: 'A watch case. A museum-grade stone. Four to go.',
     num: '2 of 6',
     label: 'trophies acquired',
     hue: HUE.gold,
@@ -425,7 +476,14 @@ export const FRAMES = [
     // buys two pieces through the app's own Buy button and photographs the
     // Collection tab, so the caption describes something that is on screen.
     pick: 'luxury',
-    evidence: 'The Luxury Life card reads "2 / 6 collectibles" after the capture buys the watch case and the diamond.',
+    // The two items the capture actually bought, composited into the scene at
+    // the size they deserve. `edge` mode puts the device on the right, so the
+    // left of the canvas is theirs.
+    props: [
+      { art: 'diamond', x: 0.215, y: 0.415, w: 0.62, rot: -4, glow: 0.60, bright: 1.30 },
+      { art: 'watches', x: 0.300, y: 0.740, w: 0.62, rot: 5, glow: 0.42, bright: 1.45 },
+    ],
+    evidence: 'The Luxury Life card reads "2 / 6 collectibles" after the capture buys the watch case and the diamond; the two props are those two items.',
     assert: ['2 / 6 collectibles', 'Collection (2)'],
   },
 
@@ -798,6 +856,20 @@ export function frameHtml(frame, shots, L) {
 
   const alignLeft = mode === 'edge';
 
+  const propsHtml = (frame.props || []).length
+    ? `<div class="props">` + frame.props.map((pr) => {
+      const w = Math.round(L.W * pr.w);
+      const left = Math.round(L.W * pr.x - w / 2);
+      const top = Math.round(L.H * pr.y - w / 2);
+      return `<div class="prop" style="left:${left}px;top:${top}px;width:${w}px;">`
+        + `<div class="halo" style="background:radial-gradient(closest-side, rgba(${a},${pr.glow ?? 0.4}), transparent 70%);filter:blur(${Math.round(L.W * 0.03)}px);"></div>`
+        + `<img src="${S.props?.[pr.art] || ''}" style="mix-blend-mode:${PROPS[pr.art]?.blend || 'normal'};`
+        + `transform:rotate(${pr.rot || 0}deg);`
+        + `filter:brightness(${pr.bright ?? 1}) contrast(${pr.contrast ?? 1.05});">`
+        + `</div>`;
+    }).join('') + `</div>`
+    : '';
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   @font-face {
     font-family:'Inter Tight';
@@ -831,14 +903,14 @@ export function frameHtml(frame, shots, L) {
      different photographs reading as one series: the accent that colours the
      headline word and the chip is also the light in the room. */
   .tone {
-    position:absolute; inset:0; z-index:1; mix-blend-mode:soft-light;
-    background:linear-gradient(168deg, rgba(${a},0.34) 0%, transparent 48%, rgba(${a},0.20) 100%);
+    position:absolute; inset:0; mix-blend-mode:soft-light;
+    background:linear-gradient(168deg, rgba(${a},0.44) 0%, transparent 46%, rgba(${a},0.30) 100%);
   }
   /* The scrim. Heavy at the top so the headline has a ground, light through the
      middle where the art actually is, heavy again at the foot so the device
      sits on something. */
   .scrim {
-    position:absolute; inset:0; z-index:1;
+    position:absolute; inset:0;
     background:linear-gradient(180deg,
       rgba(3,6,13,0.90) 0%,
       rgba(3,6,13,0.72) ${(L.headBaseline / L.H * 100 * 0.55).toFixed(1)}%,
@@ -850,15 +922,15 @@ export function frameHtml(frame, shots, L) {
   /* GROUND — a window onto a panorama as wide as this frame's ACT. */
   .pano {
     position:absolute; top:0; left:${-originX}px;
-    width:${panoW}px; height:${L.H}px; z-index:1;
-    mix-blend-mode:screen; opacity:0.50;
+    width:${panoW}px; height:${L.H}px;
+    mix-blend-mode:screen; opacity:0.72;
     background:${washes};
   }
   /* The horizon the devices stand on. Continuous across the act, so the frames
      within one act read as one place and the act break reads as a cut. */
   .horizon {
     position:absolute; top:0; left:${-originX}px;
-    width:${panoW}px; height:${L.H}px; z-index:2;
+    width:${panoW}px; height:${L.H}px;
     background:linear-gradient(180deg,
       transparent ${(devTop / L.H * 100 - 6).toFixed(1)}%,
       rgba(${a},0.22) ${(devTop / L.H * 100).toFixed(1)}%,
@@ -868,11 +940,11 @@ export function frameHtml(frame, shots, L) {
      an OLED phone, and it marries the compressed art to the drawn layers over
      it — without it the scrim reads as a flat sheet laid on a photograph. */
   .grain {
-    position:absolute; inset:0; z-index:2; opacity:0.22; mix-blend-mode:overlay;
+    position:absolute; inset:0; opacity:0.22; mix-blend-mode:overlay;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   .vig {
-    position:absolute; inset:0; z-index:2;
+    position:absolute; inset:0;
     background:radial-gradient(130% 88% at 50% 38%, transparent 50%, rgba(0,0,0,0.46) 100%);
   }
 
@@ -934,6 +1006,24 @@ export function frameHtml(frame, shots, L) {
   }
   .chip .l { font-weight:700; opacity:0.70; }
 
+  /* PROPS — the game's own objects, lit into the scene.
+     Behind the device on purpose: these are blended, and a blended object in
+     FRONT of the product would let the screenshot show through it. */
+  .props { position:absolute; inset:0; }
+  /* No z-index anywhere between .art and here, and none on .prop: every one
+     would create a stacking context, and a stacking context isolates the blend
+     group — the prop would then lighten against transparent black and keep the
+     box it was rendered in. Everything from the plate up to the props stacks by
+     document order for that reason alone. */
+  .prop { position:absolute; }
+  .prop img { width:100%; display:block; }
+  /* The light the object sits in. Without it a lighten-blended render floats
+     with no relationship to the plate behind it. */
+  .prop .halo {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:150%; height:150%; border-radius:50%; pointer-events:none;
+  }
+
   /* The stage. ONE perspective origin for every device in the frame, so a turned
      screen faces the same viewer instead of tilting independently. */
   .stage {
@@ -954,7 +1044,7 @@ export function frameHtml(frame, shots, L) {
     box-shadow:
       0 ${Math.round(devW * 0.075)}px ${Math.round(devW * 0.19)}px rgba(0,0,0,0.72),
       0 ${Math.round(devW * 0.02)}px ${Math.round(devW * 0.05)}px rgba(0,0,0,0.58),
-      0 0 ${Math.round(devW * 0.24)}px rgba(${a},0.34),
+      0 0 ${Math.round(devW * 0.30)}px rgba(${a},0.44),
       inset 0 0 0 1px rgba(255,255,255,0.10);
   }
   .device::after {
@@ -1009,15 +1099,15 @@ export function frameHtml(frame, shots, L) {
     position:absolute; left:50%; transform:translateX(-50%) translateX(${dx}px);
     top:${devTop - Math.round(L.H * 0.075)}px;
     width:${Math.round(devW * 1.6)}px; height:${Math.round(L.H * 0.19)}px;
-    background:radial-gradient(closest-side, rgba(${a},0.34), transparent 72%);
-    filter:blur(${Math.round(L.W * 0.035)}px); z-index:2;
+    background:radial-gradient(closest-side, rgba(${a},0.52), transparent 72%);
+    filter:blur(${Math.round(L.W * 0.035)}px);
   }
   .contact {
     position:absolute; left:50%; transform:translateX(-50%) translateX(${dx}px);
     top:${devTop - Math.round(L.shadowH * 0.55)}px;
     width:${Math.round(devW * 0.9)}px; height:${L.shadowH}px;
     background:radial-gradient(closest-side, rgba(0,0,0,0.78), transparent 76%);
-    filter:blur(${Math.round(L.shadowH * 0.28)}px); z-index:2;
+    filter:blur(${Math.round(L.shadowH * 0.28)}px);
   }
   </style></head><body><div class="canvas">
     <div class="art"><img src="${S.art}"></div>
@@ -1032,6 +1122,7 @@ export function frameHtml(frame, shots, L) {
       <h1>${head}</h1>
       <div class="sub">${frame.sub}</div>
     </div>
+    ${propsHtml}
     <div class="spill"></div>
     <div class="contact"></div>
     <div class="stage">

@@ -110,6 +110,30 @@ a set drifts into being an advert, **the screenshot is still the subject.**
   under 4.5:1, flags under the 7:1 target. A photograph has no luminance you can
   reason about from the CSS, which is how a headline ships unreadable over a
   golden-hour sky
+- **the game's own objects, composited into the frame.** The luxury frame was
+  the clearest failure of the first art-led pass: it is the frame about
+  COLLECTIBLES and it showed none of them — a list of text cards over a yacht
+  that had nothing to do with what the player owns. Every collectible in
+  `lib/luxury/catalog.ts` ships with a render, and the catalog ids ARE the
+  filenames in `assets/images/luxury/`. `PROPS` in the design module composites
+  them in.
+- **the compositing is free, and it constrains what qualifies.** These renders
+  are shot as a subject on black, so `mix-blend-mode: lighten` knocks the black
+  out against whatever is behind them — no cutout, no mask, no alpha. `screen`
+  was tried and washes them out; `normal` shows the box. The catch is that the
+  blend flatters a LIT object and destroys a DRAWN one: the three owned
+  properties were tried as props and became glowing wireframes hanging in the
+  vines, because their renders draw the building in neon outline. So `blend` is
+  declared per prop and is never a default
+- **a prop is a claim.** Frame 03's chip reads `2 OF 6 TROPHIES ACQUIRED` and
+  its capture reads `Collection (2)`, so the two objects in the frame are the
+  two the capture actually bought — the Rare Watch Collection ($250K) and the
+  Museum-Grade Diamond ($600K), whose resale sums to the `$510K` the same screen
+  prints. A third would be inventing a purchase, and the claims test checks
+  every prop is registered and on disk
+- props sit BEHIND the device, not in front. A blended object overlapping the
+  phone would let the screenshot show through it, which is the opposite of the
+  depth it is there to create
 - flanks are dimmed, never blurred: a screenshot you cannot read is decoration,
   which is what made the 2026-07 flanks filler. They carry no claim; the chip
   always describes the hero
@@ -162,7 +186,7 @@ screenshots is all a search result shows.
 | | **Act I · the hook** — the only three a search result shows | | | | | |
 | 01 | Start with **nothing.** | Cold valley at first light | solo | Home, week one (pre-grant) | `$1,500` to your name | infoLight |
 | 02 | Every week, one **choice.** | Jet on wet tarmac, dusk | solo | Weekly event modal, OPEN | `Your call` · consequences included | danger |
-| 03 | Buy the **impossible.** | Mega-yacht, golden hour | edge | Luxury › **Collection** | `2 of 6` trophies acquired | gold |
+| 03 | Buy the **impossible.** | Mega-yacht, golden hour + **both owned trophies** | edge | Luxury › **Collection** | `2 of 6` trophies acquired | gold |
 | | **Act II · the systems** — why it is not a slot machine | | | | | |
 | 04 | Play the **markets.** | City at night from a high floor | trio | Stocks · Bank + Crypto | `25 listed` tickers | gems |
 | 05 | Work the **dark web.** | Near-black marble | solo | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |

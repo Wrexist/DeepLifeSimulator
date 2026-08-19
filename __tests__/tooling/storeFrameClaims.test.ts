@@ -43,6 +43,7 @@ type Frame = {
   act: string;
   mode: 'solo' | 'trio' | 'edge';
   art: string;
+  props?: { art: string; x: number; y: number; w: number }[];
   head: string;
   sub: string;
   num: string;
@@ -60,6 +61,7 @@ type Loaded = {
   frames: Frame[];
   captures: Record<string, string>;
   art: Record<string, { file: string }>;
+  props: Record<string, { file: string; blend: string }>;
   acts: { id: string; title: string; size: number }[];
   minScreenShare: number;
   layouts: Record<string, { H: number; devH: number; edgeH: number }>;
@@ -79,8 +81,8 @@ function loadModule(): Loaded {
   const out = execFileSync(
     process.execPath,
     ['--input-type=module', '-e',
-      `import { FRAMES, CAPTURES, ART, ACTS, MIN_SCREEN_SHARE, layoutFor } from ${JSON.stringify(src)};`
-      + ' process.stdout.write(JSON.stringify({ frames: FRAMES, captures: CAPTURES, art: ART, acts: ACTS,'
+      `import { FRAMES, CAPTURES, ART, PROPS, ACTS, MIN_SCREEN_SHARE, layoutFor } from ${JSON.stringify(src)};`
+      + ' process.stdout.write(JSON.stringify({ frames: FRAMES, captures: CAPTURES, art: ART, props: PROPS, acts: ACTS,'
       + ' minScreenShare: MIN_SCREEN_SHARE, layouts: {'
       + " 'iphone-6.9': layoutFor(1320, 2868, 'phone'),"
       + " 'iphone-6.5': layoutFor(1284, 2778, 'phone'),"
@@ -91,7 +93,7 @@ function loadModule(): Loaded {
 }
 
 
-const { frames, captures: CAPTURES, art: ART, acts: ACTS, minScreenShare: MIN_SCREEN_SHARE, layouts: LAYOUTS }
+const { frames, captures: CAPTURES, art: ART, props: PROPS, acts: ACTS, minScreenShare: MIN_SCREEN_SHARE, layouts: LAYOUTS }
   = loadModule();
 
 /**
@@ -215,6 +217,33 @@ describe('store frames only claim what their screenshot shows', () => {
       const p = join(ROOT, 'assets', 'images', ART[f.art].file);
       if (!existsSync(p)) {
         throw new Error(`${f.id} uses assets/images/${ART[f.art].file}, which is not in the repo.`);
+      }
+    }
+  });
+
+  it('only composites objects the app actually ships, lit the way the blend needs', () => {
+    // A prop is a picture of a thing the player owns, so it is a claim like any
+    // other — frame 03 shows the two collectibles its capture bought, and a
+    // third would be inventing a purchase. Two things have to hold: the render
+    // is in the repo, and it is registered with a blend. `lighten` is what
+    // knocks the black background out of a subject-on-black render for free;
+    // it also DESTROYS a render whose subject is drawn in light rather than lit
+    // (the neon property plates were tried and became glowing wireframes), so
+    // the blend is per-prop and never a default.
+    for (const f of frames) {
+      for (const pr of f.props ?? []) {
+        expect(PROPS[pr.art]).toBeDefined();
+        const p = join(ROOT, 'assets', 'images', PROPS[pr.art].file);
+        if (!existsSync(p)) {
+          throw new Error(`${f.id} composites assets/images/${PROPS[pr.art].file}, which is not in the repo.`);
+        }
+        expect(['lighten', 'screen', 'normal']).toContain(PROPS[pr.art].blend);
+        // Inside the canvas, and big enough to read as an object rather than debris.
+        expect(pr.x).toBeGreaterThan(0);
+        expect(pr.x).toBeLessThan(1);
+        expect(pr.y).toBeGreaterThan(0);
+        expect(pr.y).toBeLessThan(1);
+        expect(pr.w).toBeGreaterThanOrEqual(0.2);
       }
     }
   });

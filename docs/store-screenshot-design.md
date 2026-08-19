@@ -548,3 +548,59 @@ generated file could not be fetched anyway because the CDN host is denied by the
 session's egress policy. The prompts are recorded in the handover so they can be
 generated elsewhere and dropped into `assets/images/`; wiring a new plate in is
 one entry in `ART` plus a crop and a relight.
+
+## Same day — the collectibles frame had no collectibles in it
+
+The owner's next note was the sharpest one yet: *"I don't see any assets of the
+collectibles."* He was right, and it was the clearest failure left in the set.
+Frame 03 is the frame about owning beautiful objects, and what it showed was a
+list of text cards over a yacht that has nothing to do with what the player
+owns — while every item in `lib/luxury/catalog.ts` ships with a render, and the
+catalog ids are literally the filenames in `assets/images/luxury/`.
+
+`PROPS` composites them in, and the mechanism is free: those renders are shot as
+a **subject on black**, so `mix-blend-mode: lighten` knocks the background out
+against whatever is behind them. No cutout, no mask, no alpha channel — the
+diamond and the watch case drop onto a golden-hour sea as if they were
+photographed there. `screen` was measured first and washes them out; `normal`
+shows the box they were rendered in.
+
+Three things that took a wrong turn first and are worth keeping written down:
+
+- **A stacking context isolates a blend group.** The first render showed grey
+  boxes: `mix-blend-mode` composites against its backdrop only within the
+  nearest stacking context, and every `z-index` between the plate and the prop
+  was creating one. Everything from `.art` up to `.props` now stacks by document
+  order for that reason alone, and the rotation lives on the blended `img`
+  rather than on a wrapper — a `transform` on an ancestor isolates it again.
+- **The blend flatters a lit object and destroys a drawn one.** The three owned
+  properties were tried as props on frame 07 and became glowing wireframes
+  hanging in the vines, because those renders draw the building in neon outline
+  rather than lighting a subject. `blend` is per-prop and never a default.
+- **A prop is a claim.** Frame 03's chip reads `2 OF 6 TROPHIES ACQUIRED` and
+  its capture reads `Collection (2)`, so the two objects in the frame are the
+  two the capture bought — Rare Watch Collection ($250K) and Museum-Grade
+  Diamond ($600K), whose resale sums to the `$510K` the same screen prints. A
+  third would be inventing a purchase. The claims test now checks every prop is
+  registered, on disk, inside the canvas and large enough to read as an object
+  rather than debris.
+
+Props sit BEHIND the device on purpose: a blended object overlapping the phone
+would let the screenshot show through it, which is the opposite of the depth it
+is there to create.
+
+### What else was rejected in the same pass
+
+`assets/images/iap/` holds 28 glossy 3D-style icons — gem piles, treasure
+chests, a golden phoenix, a trophy — all on black, so all of them would
+composite. None are used. They are stylized illustrations, and scattering them
+across photoreal plates is precisely the "40 emoji stickers" tell the 2026-07
+set was rebuilt to remove. The rule that came out of it: **props are photoreal
+objects the player owns, never icons.**
+
+The same pass also raised the whole set's colour energy — the accent wash, the
+screen spill and the device glow had all been dialled back while the scrims were
+being tuned for contrast, and the result was ten technically-correct frames that
+read as murk at carousel size. The three darkest plates were lifted with them,
+and frame 04's crop was moved off the dark half of the penthouse interior and
+onto the window wall, which is where that frame's light actually is.
