@@ -881,26 +881,35 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
             {/* DeepLife+ subscription upsell — pinned above every tab. Self-hides
                 for members and opens the RevenueCat paywall (or the in-app one). */}
             <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
+            {/* Weekly rotation — an entry point, not an interruption. It states
+                which offer is featured and nothing else; the player opens it if
+                they want to.
+
+                Shown on BOTH real-money tabs. It lived on `gems` alone at first,
+                which put it one tab away from the shop's own front door: the HUD
+                button calls `openStore('store')`, so the tab a player actually
+                lands on is Featured. A weekly rotation nobody can find is not a
+                rotation. Deliberately NOT on `perks`/`upgrades` — those spend
+                gems the player already owns, and a real-money pack there is an
+                interruption rather than an option. */}
+            {(tab === 'gems' || tab === 'store') ? (
+              <TouchableOpacity
+                style={styles.offerCenterRow}
+                onPress={() => setShowOfferCenter(true)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Open the offer center. This week: ${weeklyOffer.name}`}
+              >
+                <Sparkles size={scale(15)} color="#FBBF24" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.offerCenterTitle}>This week: {weeklyOffer.name}</Text>
+                  <Text style={styles.offerCenterSub}>See the weekly rotation</Text>
+                </View>
+                <ChevronRight size={scale(16)} color="rgba(226, 232, 240, 0.5)" />
+              </TouchableOpacity>
+            ) : null}
             {tab === 'gems' ? (
               <>
-                {/* Weekly rotation — an entry point, not an interruption. It
-                    states which offer is featured and nothing else; the player
-                    opens it if they want to. */}
-                <TouchableOpacity
-                  style={styles.offerCenterRow}
-                  onPress={() => setShowOfferCenter(true)}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open the offer center. This week: ${weeklyOffer.name}`}
-                >
-                  <Sparkles size={scale(15)} color="#FBBF24" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.offerCenterTitle}>This week: {weeklyOffer.name}</Text>
-                    <Text style={styles.offerCenterSub}>See the weekly rotation</Text>
-                  </View>
-                  <ChevronRight size={scale(16)} color="rgba(226, 232, 240, 0.5)" />
-                </TouchableOpacity>
-
                 {/* Honest limited-time promo (only when a real store offer is live). */}
                 {gemPromo ? (
                   <View style={styles.promoBanner}>

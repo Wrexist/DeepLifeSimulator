@@ -174,16 +174,24 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
                 )}
               </View>
 
-              <View style={styles.priceRow}>
-                {/* Only ever rendered ALONGSIDE a proven discount — the two are
-                    emitted together or not at all. */}
-                {featuredPrice.strikethroughPrice && (
-                  <Text style={styles.strikethrough}>{featuredPrice.strikethroughPrice}</Text>
-                )}
-                <Text style={styles.price}>
-                  {featuredPrice.purchasable ? featuredPrice.displayPrice : 'Unavailable'}
+              {/* The price line is omitted entirely when the SKU did not load.
+                  It used to read "Unavailable" here AND on the button below it,
+                  which said the same thing twice and made the card look broken
+                  rather than simply offline. The button carries that state. */}
+              {featuredPrice.purchasable ? (
+                <View style={styles.priceRow}>
+                  {/* Only ever rendered ALONGSIDE a proven discount — the two are
+                      emitted together or not at all. */}
+                  {featuredPrice.strikethroughPrice && (
+                    <Text style={styles.strikethrough}>{featuredPrice.strikethroughPrice}</Text>
+                  )}
+                  <Text style={styles.price}>{featuredPrice.displayPrice}</Text>
+                </View>
+              ) : (
+                <Text style={styles.unavailableNote}>
+                  Not available from the App Store right now.
                 </Text>
-              </View>
+              )}
 
               <TouchableOpacity
                 style={[styles.cta, !featuredPrice.purchasable && styles.ctaDisabled]}
@@ -312,6 +320,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   price: { color: '#F8FAFC', fontSize: fontScale(20), fontWeight: '800' },
+  unavailableNote: { color: '#94A3B8', fontSize: fontScale(12) },
   cta: {
     paddingVertical: scale(12),
     borderRadius: scale(12),
