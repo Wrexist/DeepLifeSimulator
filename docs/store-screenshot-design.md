@@ -653,3 +653,25 @@ written: frame 10's label read "net worth", and the HUD chip is the **wallet**.
 The net-worth line lives below the fold and is not in the picture. It now reads
 `to your name` — the same words as frame 01's chip on the same screen, so the
 bookend is one label and one number that moved.
+
+### The garage frame: green, and no prop
+
+Two corrections from the owner on the same frame, and both went against calls I
+had reasoned my way into.
+
+**The accent is money green, not blue.** Blue was the defensible choice — a
+black car under warm rim light wants a cool room, and it makes a yellow prop pop
+hardest — but the emerald wash over a dark showroom is simply the stronger
+image, and it is also the right meaning: the frame is about what the money
+bought. Picked out of a side-by-side, which is the only way this kind of call
+should be settled.
+
+**No prop.** The car the capture buys was composited in first, and the version
+without it composes better: the PLATE is already a car, so the prop collided
+with both the plate's own front end and the yellow car inside the app UI —
+three cars competing for one job. The prop system is not the problem and stays
+(frame 03 needs it); this frame does not.
+
+Worth keeping from the attempt: **the vehicle renders ship with a real alpha
+channel**, the only props in the repo that need no blend at all. `PROPS.supercar`
+stays registered so the next person to reach for it can see that it was tried.

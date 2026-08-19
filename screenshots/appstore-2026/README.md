@@ -192,7 +192,7 @@ screenshots is all a search result shows.
 | 05 | Work the **dark web.** | Near-black marble | solo | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |
 | 06 | Found the **company.** | Private box over a floodlit stadium | trio | Hustle / companies · Politics + Apps | `$8,000` a week in revenue | happiness |
 | 07 | Own the **block.** | The valley again, warm and owned | edge | Real Estate › **Portfolio** | see the table row below | purple |
-| 08 | Drive what you **earned.** | Showroom floor + **the car you own** | edge (flipped) | Vehicles › **Garage** | `211 mph` exotic supercar · owned | infoLight |
+| 08 | Drive what you **earned.** | Showroom floor | edge (flipped) | Vehicles › **Garage** | `211 mph` exotic supercar · owned | money |
 | | **Act III · the life** — why anyone starts a second one | | | | | |
 | 09 | Fall for **someone.** | Private island at sunset | solo | Spark (dating profile) | `30 swipes` left · 1 super | reputation |
 | 10 | Then do it **again.** | Harbour at dusk | edge | Home, 104 weeks later | `$11M` net worth · age 22 | gold |

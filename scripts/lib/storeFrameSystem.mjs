@@ -614,15 +614,23 @@ export const FRAMES = [
     support: [],
     head: 'Drive what you |earned.|',
     sub: 'Sixteen models. Licence first, then the keys.',
-    // The car the capture actually bought, standing in front of the showroom
-    // it was bought in. Its render ships with a real alpha channel, so unlike
-    // the collectibles it needs no blend at all.
-    props: [
-      { art: 'supercar', x: 0.715, y: 0.505, w: 0.60, rot: 0, glow: 0.50, bright: 1.08 },
-    ],
+    // No prop, deliberately. The car the capture bought was composited in here
+    // first — its render ships with a real alpha channel, so unlike the
+    // collectibles it needs no blend at all — and side by side the frame is
+    // better without it: the PLATE is already a car, and a second one collided
+    // with both its front end and the yellow car inside the app UI. Three cars
+    // competing for one job. `PROPS.supercar` stays registered for the same
+    // reason the note does: the next person to reach for it should see that it
+    // was tried.
     num: '211 mph',
     label: 'exotic supercar · owned',
-    hue: HUE.identity,
+    // Money green, not the cooler blue this briefly carried. Blue was the
+    // "correct" call on paper — a warm-rim-lit black car wants a cool room, and
+    // it makes the yellow prop pop hardest — but the emerald wash over a dark
+    // showroom is the stronger image, and the owner picked it out of a
+    // side-by-side. Green also happens to be the right MEANING here: the frame
+    // is about what the money bought.
+    hue: HUE.money,
     // The third capture of this kind, and the one that was gated rather than
     // merely empty: the Vehicles app opens on a dealership behind a driver's
     // licence, with every Buy button reading "License needed". Every previous
