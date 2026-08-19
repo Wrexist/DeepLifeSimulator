@@ -190,45 +190,55 @@ export const CAPTURES = {
  * small figure under a light shaft, and centring the crop loses him.
  */
 export const ART = {
-  apartment: { file: 'Real Estate/City Apartment.webp', focus: '50% 42%', bright: 1.10, contrast: 1.05, sat: 1.04 },
-  // A lit cabin against a mountain at night. Chosen over the app icon's own
-  // main-menu plate (a lone figure under a light shaft), which was tried first
-  // and rejected on the evidence: at full size it is atmospheric, and at the
-  // ~141px a carousel actually gets it resolves to black. That is precisely the
-  // failure the relight rule exists to catch, and no amount of lift fixed it —
-  // a plate whose subject is small and unlit has nothing to lift. This one is
-  // lit from inside, so it survives the shrink.
-  cabin: { file: 'Real Estate/Mountain Cabin.webp', focus: '50% 42%', bright: 1.20, contrast: 1.06, sat: 1.08 },
+  // Frame 01 — the vineyard's HILLS, cropped away from the chateau and hue-turned
+  // cold. It reads as an ordinary valley at first light, which is what "start
+  // with nothing" needs and what nothing else in the library could give: the
+  // whole photoreal set is luxury catalogue art, so every plate in it signals
+  // wealth. Cropping to landscape and grading to blue strips the signal without
+  // leaving the visual language. Its warm, un-cropped self is frame 07 — the
+  // same land, empty at the start and owned later.
+  valley: { file: 'luxury/vineyard_estate.jpg', focus: '12% 30%', zoom: 2.4, bright: 0.86, contrast: 1.10, sat: 0.55, hue: 180 },
+  // Frame 02 — open water under a dusk sky, cropped off the far end of the
+  // yacht plate. Abstract on purpose: a decision frame should carry mood and no
+  // claim, and this is the only plate here with a subject that can be cropped
+  // out entirely and still leave a picture.
+  // Frame 02 — a jet on wet tarmac at dusk. Held for the decision frame rather
+  // than the company frame because it is the tensest plate in the library: low
+  // cloud, standing water, one aircraft lit against a darkening sky. An earlier
+  // pass cropped the open sea off the yacht plate for this slot and it washed
+  // out to pale grey — cropping into texture keeps the language and throws away
+  // the light, which is the failure the whole relight rule exists to catch.
+  tarmac: { file: 'luxury/private_jet.webp', focus: '50% 52%', bright: 1.16, contrast: 1.10, sat: 1.02 },
   yacht: { file: 'luxury/mega_yacht.jpg', focus: '50% 38%', bright: 1.06, contrast: 1.07, sat: 1.08 },
-  tower: { file: 'Real Estate/Office Tower.webp', focus: '50% 40%', bright: 1.12, contrast: 1.06, sat: 1.06 },
-  // A dark interior looking out over a city at night. It sits behind the dark
-  // web because it is the only plate in the library that reads as a ROOM
-  // somebody is working in late, rather than a building seen from outside.
-  backroom: { file: 'luxury/trophy_penthouse.webp', focus: '58% 46%', bright: 1.30, contrast: 1.08, sat: 1.02 },
-  // The most monumental plate available, which is what "empire" needs; it is
-  // also the only vertical subject here, so it breaks a run of low, wide
-  // buildings that was starting to read as one location.
-  spire: { file: 'Real Estate/Sky Castle.webp', focus: '50% 42%', bright: 1.30, contrast: 1.06, sat: 1.06 },
-  // Cropped hard LEFT rather than centred. In `edge` mode the device covers the
-  // right of the canvas, so a centred crop puts the building behind it and
-  // leaves the visible corner as empty dark wall — which is what the first
-  // render did. The crop has to be chosen against the composition that uses it,
-  // not against the picture on its own.
-  mansion: { file: 'Real Estate/Modern Mansion.webp', focus: '30% 46%', bright: 1.08, contrast: 1.05, sat: 1.05 },
-  // Sunset over an island. Warm and unpopulated where the frames either side of
-  // it are neon and architectural — the dating frame is the one place in the
-  // set that should not look like real estate.
+  // A dark interior looking out over a city at night — the closest thing the
+  // library has to a trading desk, and it reads that way at thumbnail size.
+  penthouse: { file: 'luxury/trophy_penthouse.webp', focus: '58% 46%', bright: 1.30, contrast: 1.08, sat: 1.02 },
+  // Frame 05 — the black marble the diamond stands on, cropped so the diamond
+  // is out of frame. Near-black with a faint sheen, which is the correct
+  // backdrop for a terminal: the darkest frame in the set by design, and the one
+  // place the screen should be the only light in the picture.
+  slate: { file: 'luxury/museum_diamond.webp', focus: '86% 78%', zoom: 2.4, bright: 1.60, contrast: 1.05, sat: 0.85 },
+  // Frame 06 — a private box over a floodlit stadium. The most corporate room
+  // in the library, and the floodlights give it a light source of its own.
+  box: { file: 'luxury/sports_team_stake.webp', focus: '46% 46%', bright: 1.18, contrast: 1.06, sat: 1.06 },
+  // Frame 07 — the same land as frame 01, warm and owned. The brightest plate in
+  // the set and the only one that needs its own type ground: measured at the
+  // default scrim it puts the headline at 6.1:1, over the 4.5:1 failure floor
+  // but under the 7:1 target. `shade` deepens the band under the type for this
+  // frame only, and the number came off scripts/check-store-contrast.mjs.
+  estate: { file: 'luxury/vineyard_estate.jpg', focus: '50% 56%', bright: 1.00, contrast: 1.08, sat: 1.05, shade: 0.16 },
   island: { file: 'luxury/private_island.jpg', focus: '50% 52%', bright: 1.04, contrast: 1.06, sat: 1.06 },
-  suburb: { file: 'Real Estate/Suburaban House.webp', focus: '50% 48%', bright: 1.10, contrast: 1.04, sat: 1.03 },
-  // Golden hour over an estate — the warmest plate in the library, and the only
-  // one that reads as an ending rather than an acquisition.
-  // The brightest plate in the set, and the only one that needed its own type
-  // ground: measured at the default scrim it put the headline at 5.7:1, over
-  // the 4.5:1 failure floor but under the 7:1 target this set is built to. The
-  // crop drops so the sky takes less of the type zone, and `shade` deepens the
-  // band under the type for this frame only. Both numbers came off
-  // scripts/check-store-contrast.mjs, not off a look at it.
-  vineyard: { file: 'luxury/vineyard_estate.jpg', focus: '50% 62%', bright: 0.98, contrast: 1.08, sat: 1.06, shade: 0.16 },
+  // Frame 09 — a warm lit room. By this point in the arc the character IS
+  // wealthy, so a grand interior is not overselling; it is where they live.
+  // Frame 09 — used WHOLE. Cropped into a corner it went muddy; the full plate
+  // is a warm room with a wooden floor, lit walls and depth. By this point in
+  // the arc the character is wealthy, so a grand interior is not overselling —
+  // it is where they live.
+  gallery: { file: 'luxury/fine_art_collection.webp', focus: '50% 56%', bright: 1.34, contrast: 1.06, sat: 1.12 },
+  // Frame 10 — the calmest plate here: a yacht at dusk against mountains, cool
+  // and still where frame 03's is golden and triumphant. The set ends on
+  // arrival rather than acquisition.
+  harbour: { file: 'luxury/luxury_yacht.webp', focus: '56% 46%', bright: 1.14, contrast: 1.07, sat: 1.06 },
 };
 
 /** Art lives beside the app, not beside this script. */
@@ -345,7 +355,7 @@ export const FRAMES = [
     // Reputation 0). Flanks would take a third of the width away from the only
     // thing here that has to be read.
     mode: 'solo',
-    art: 'apartment',
+    art: 'valley',
     support: [],
     head: 'Start with |nothing.|',
     sub: 'Twenty years old. Unemployed. Rent due.',
@@ -370,7 +380,7 @@ export const FRAMES = [
     // Solo, for the same reason: a decision modal is dense text, and a frame
     // that shows the loop without letting anyone read it shows nothing.
     mode: 'solo',
-    art: 'cabin',
+    art: 'tarmac',
     support: [],
     head: 'Every week, one |choice.|',
     sub: 'Good news, bad news — your call either way.',
@@ -427,7 +437,7 @@ export const FRAMES = [
     id: '04-play-the-markets',
     act: 'systems',
     mode: 'trio',
-    art: 'tower',
+    art: 'penthouse',
     support: ['bank', 'crypto'],
     head: 'Play the |markets.|',
     sub: 'Twenty-five tickers, six sectors, one call.',
@@ -449,7 +459,7 @@ export const FRAMES = [
     // Solo. A terminal is the densest screen in the app and the least
     // survivable at flank scale.
     mode: 'solo',
-    art: 'backroom',
+    art: 'slate',
     support: [],
     head: 'Work the |dark web.|',
     sub: 'High risk, higher reward. Watch your heat.',
@@ -464,7 +474,7 @@ export const FRAMES = [
     id: '06-found-the-company',
     act: 'systems',
     mode: 'trio',
-    art: 'spire',
+    art: 'box',
     support: ['politics', 'apps'],
     head: 'Found the |company.|',
     sub: 'Set the price. Take the market. Hire.',
@@ -479,7 +489,7 @@ export const FRAMES = [
     id: '07-own-the-block',
     act: 'systems',
     mode: 'edge',
-    art: 'mansion',
+    art: 'estate',
     support: [],
     head: 'Own the |block.|',
     sub: 'Studio to penthouse. Rent it out, or move in.',
@@ -534,7 +544,7 @@ export const FRAMES = [
     id: '09-raise-a-family',
     act: 'life',
     mode: 'trio',
-    art: 'suburb',
+    art: 'gallery',
     support: ['spark', 'life'],
     head: 'Raise a |family.|',
     sub: 'Marry, have kids, pass it all on.',
@@ -549,7 +559,7 @@ export const FRAMES = [
     id: '10-then-do-it-again',
     act: 'life',
     mode: 'edge',
-    art: 'vineyard',
+    art: 'harbour',
     support: [],
     head: 'Then do it |again.|',
     sub: 'Eleven million later. Prestige, and start over.',
@@ -814,7 +824,8 @@ export function frameHtml(frame, shots, L) {
   .art img {
     width:100%; height:100%; object-fit:cover;
     object-position:${plate.focus || '50% 45%'};
-    filter:brightness(${plate.bright ?? 1}) contrast(${plate.contrast ?? 1}) saturate(${plate.sat ?? 1});
+    transform:scale(${plate.zoom ?? 1});
+    filter:brightness(${plate.bright ?? 1}) contrast(${plate.contrast ?? 1}) saturate(${plate.sat ?? 1})${plate.hue ? ` hue-rotate(${plate.hue}deg)` : ''};
   }
   /* One hue over the whole plate, at low strength. This is what keeps ten
      different photographs reading as one series: the accent that colours the

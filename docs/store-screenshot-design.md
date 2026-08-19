@@ -498,3 +498,53 @@ result. Two details are load-bearing.
   "Vacant 0" with the summary's own headline rows above the fold, and the frame
   had no total to caption. The claims test caught it, which is the entire reason
   that test exists.
+
+## Same day — one art language, not two
+
+The first art-led pass drew six of its ten plates from `assets/images/Real Estate/`
+and four from `assets/images/luxury/`. Laid side by side those are two different
+visual languages: the Real Estate renders are neon-outlined night buildings with
+magenta and cyan tubes tracing every roofline, the luxury renders are photoreal
+— real light, dusk skies, wet tarmac, golden hour. A carousel that switches
+language every other frame reads as borrowed rather than art-directed, and the
+owner caught it immediately.
+
+**Grading was tried first and does not work.** Desaturating the neon does not
+make it photoreal; it makes it a dim laser outline on a black box, and it costs
+exactly the light the thumbnails need. Five grades were measured, down to
+near-monochrome: every one traded the mismatch for a darker, muddier plate.
+
+So the whole set now comes from `luxury/`, the only coherent photoreal library
+the binary ships. That has one hard consequence worth writing down, because it
+shapes the first two frames:
+
+**The luxury library is entirely wealth imagery.** There is no plate in it for
+"Start with nothing" and none for an ordinary evening, because it is a catalogue
+of things you buy. Two moves get around that without leaving the language:
+
+- **Frame 01 is the vineyard plate cropped away from the chateau and hue-turned
+  cold**, so it reads as an ordinary valley at first light. **Frame 07 is the
+  same plate whole and warm.** The same land, empty at the start and owned
+  later — the only source used twice in the set, and the reuse is the point.
+- **Frames 02 and 05 are chosen for mood rather than subject**: a jet on wet
+  tarmac under low cloud, and the black marble the museum diamond stands on with
+  the diamond cropped out. Neither says "wealth" at a glance; both carry their
+  own light.
+
+**Cropping into a plate for texture costs its light.** Frames 02, 06, 09 and 10
+were first built from tight crops — open sea off the yacht plate, a corner of
+the gallery, a slice of the stadium box — and all four washed out to pale grey
+or muddy black. The rule that came out of it: use whole plates wherever a whole
+plate will do, and crop only when the crop is the subject (frames 01 and 05).
+
+### What is still missing, and what would fix it
+
+Four frames would be better with purpose-made plates that do not exist: a cold
+dawn street for 01, a rain-streaked window for 02, a monitor-lit desk for 05,
+and a warm family room for 09. Generating them was attempted and is blocked in
+this environment for two independent reasons — the image models that produce
+photoreal environments require a paid plan on the connected account, and the
+generated file could not be fetched anyway because the CDN host is denied by the
+session's egress policy. The prompts are recorded in the handover so they can be
+generated elsewhere and dropped into `assets/images/`; wiring a new plate in is
+one entry in `ART` plus a crop and a relight.

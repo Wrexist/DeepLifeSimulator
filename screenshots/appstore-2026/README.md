@@ -73,11 +73,25 @@ a set drifts into being an advert, **the screenshot is still the subject.**
   frame to one of them, read from `assets/images/` directly so a frame can
   never advertise art the product does not contain
 - **the scene has to carry its own light.** Every plate declares a relight
-  (`bright`/`contrast`/`sat`) and a crop (`focus`), because these are wide
-  renders being cut to a 1:2.17 canvas. The app icon's own main-menu art was
-  tried for frame 02 and rejected on the evidence: atmospheric at full size,
-  flat black at the ~141px a carousel actually gives a frame. A plate whose
-  subject is small and unlit has nothing to lift
+  (`bright`/`contrast`/`sat`, sometimes `hue`/`zoom`/`shade`) and a crop
+  (`focus`), because these are wide renders being cut to a 1:2.17 canvas. Two
+  plates were tried and rejected on that rule alone. The app icon's own
+  main-menu art — a lone figure under a light shaft, on paper the perfect
+  picture for frame 02 — is atmospheric at full size and flat black at the
+  ~141px a carousel gives a frame; a plate whose subject is small and unlit has
+  nothing to lift. And **cropping into a plate for texture costs its light**:
+  frames 02, 06, 09 and 10 were first built from tight crops of open sea, a
+  gallery corner and a stadium box, and all four washed out. Whole plates,
+  wherever a whole plate will do
+- **the luxury library is entirely WEALTH imagery**, which is the constraint
+  that shapes the first two frames. "Start with nothing" cannot sit in front of
+  a yacht. Frame 01 is the vineyard plate cropped away from the chateau and
+  hue-turned cold, so it reads as an ordinary valley at first light; frame 07 is
+  the same plate whole and warm. The same land, empty at the start and owned
+  later — the only place in the set where one source is used twice, and it earns
+  it. Frames 02 and 05 are the other side of the same constraint: a jet on wet
+  tarmac and near-black marble, chosen for mood because nothing here can show
+  an ordinary night
 - **three compositions, not one.** `mode: 'solo'` for the frames whose argument
   is small text that has to survive a thumbnail (01, 02, 05, 08); `mode: 'trio'`
   — hero plus two flanks set back in 3D — where breadth is the point (04, 06,
@@ -146,18 +160,18 @@ screenshots is all a search result shows.
 | # | Headline | Scene | Mode | Hero screen | Proof chip | Accent |
 |---|----------|-------|------|-------------|------------|--------|
 | | **Act I · the hook** — the only three a search result shows | | | | | |
-| 01 | Start with **nothing.** | City apartment | solo | Home, week one (pre-grant) | `$1,500` to your name | infoLight |
-| 02 | Every week, one **choice.** | Mountain cabin at night | solo | Weekly event modal, OPEN | `Your call` · consequences included | danger |
+| 01 | Start with **nothing.** | Cold valley at first light | solo | Home, week one (pre-grant) | `$1,500` to your name | infoLight |
+| 02 | Every week, one **choice.** | Jet on wet tarmac, dusk | solo | Weekly event modal, OPEN | `Your call` · consequences included | danger |
 | 03 | Buy the **impossible.** | Mega-yacht, golden hour | edge | Luxury › **Collection** | `2 of 6` trophies acquired | gold |
 | | **Act II · the systems** — why it is not a slot machine | | | | | |
-| 04 | Play the **markets.** | Office tower, blue hour | trio | Stocks · Bank + Crypto | `25 listed` tickers | gems |
-| 05 | Work the **dark web.** | A room above a city at night | solo | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |
-| 06 | Found the **company.** | Neon spire | trio | Hustle / companies · Politics + Apps | `$8,000` a week in revenue | happiness |
-| 07 | Own the **block.** | Modern mansion | edge | Real Estate › **Portfolio** | see the table row below | purple |
+| 04 | Play the **markets.** | City at night from a high floor | trio | Stocks · Bank + Crypto | `25 listed` tickers | gems |
+| 05 | Work the **dark web.** | Near-black marble | solo | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |
+| 06 | Found the **company.** | Private box over a floodlit stadium | trio | Hustle / companies · Politics + Apps | `$8,000` a week in revenue | happiness |
+| 07 | Own the **block.** | The valley again, warm and owned | edge | Real Estate › **Portfolio** | see the table row below | purple |
 | | **Act III · the life** — why anyone starts a second one | | | | | |
 | 08 | Fall for **someone.** | Private island at sunset | solo | Spark (dating profile) | `30 swipes` left · 1 super | reputation |
-| 09 | Raise a **family.** | Suburban house | trio | Contacts · Spark + Life | `5 people` in your circle | infoLight |
-| 10 | Then do it **again.** | Vineyard estate, golden hour | edge | Home, 104 weeks later | `$11M` net worth · age 22 | gold |
+| 09 | Raise a **family.** | A warm lit room | trio | Contacts · Spark + Life | `5 people` in your circle | infoLight |
+| 10 | Then do it **again.** | Harbour at dusk | edge | Home, 104 weeks later | `$11M` net worth · age 22 | gold |
 
 **Frames 01 and 10 are the same screen.** Same character, photographed at week
 one and again 104 weeks later: age 20 → 22, $1,500 → $11M, Unemployed →
