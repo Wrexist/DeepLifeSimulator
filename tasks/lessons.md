@@ -3256,3 +3256,30 @@ live App Store upload set under `screenshots/appstore-2026/`.
   `git checkout HEAD -- <dir>` restored the set whole, and the one genuinely
   superseded subfolder was then removed on its own. Stage bulk deletes, verify,
   and commit last — the index is the undo buffer.
+
+## 2026-08-19 — the fabricated-property obituary bug, a third time
+
+The weekly audit's qualitative pass found `lib/legacy/obituaryGenerator.ts`
+summing real estate as `state.realEstate.reduce((sum, r: any) => sum + (r.value ?? 0), 0)`.
+`RealEstate` has no `value` field — market value is `currentValue` (falling back
+to `price`) — so every property evaluated to `undefined ?? 0`, the whole asset
+class dropped out of the death-screen and social-share net worth, and a
+property-rich, cash-poor character was eulogised as "humble". The same file's
+`career.name` bug (obituaryCareer.test.ts) and the Investment Portfolio's
+`stockInfo.currentPrice` bug were the first two of this class.
+
+- Rule: **the `(r: any)` cast is the whole bug, again.** It let a fabricated
+  property name compile and read `undefined` inside a falsy-coalescing gate —
+  exactly what CLAUDE.md §5 says clearing `as any` keeps catching. Static audits
+  are blind to it because the code type-checks; only reading the value against
+  the canonical reader (`lib/progress/achievements.ts` — `currentValue ?? price`,
+  skip `owned === false`) surfaces it.
+- Rule: **there is one net-worth reader; a second inline copy will drift.** The
+  obituary recomputed net worth by hand instead of calling the canonical path,
+  so it missed both the `currentValue` field and the `owned === false` skip. The
+  fix mirrors the canonical reader; a future one should call it outright.
+- Rule: when the static layer is fully green, the qualitative pass is where the
+  week's real finding lives. Four subagents (economy/save/logic/crash-perf) over
+  the newest systems (Spark v45, gem faucets v40/v46, welcome-back v44, mail v37,
+  grandchildren v34) returned all-clean EXCEPT this — and it is a player-facing
+  correctness bug in the share text, the cheapest acquisition channel.
