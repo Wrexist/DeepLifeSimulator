@@ -84,10 +84,10 @@ const COVERAGE_GOAL = 70;
  *    twice.
  */
 const COVERAGE_FLOORS = {
-  statements: 53.0,
-  branches: 35.0,
-  functions: 44.5,
-  lines: 54.3,
+  statements: 55.0,
+  branches: 36.3,
+  functions: 46.6,
+  lines: 56.2,
 };
 
 /**
@@ -117,15 +117,25 @@ const COVERAGE_FLOORS = {
  * tail) added ~140 tests: the constants below are that final figure, still
  * 0.5-1.0 over the floors, so the gain is locked without another floor move.
  *
+ * Re-measured 2026-08-19 with the retention work (`lib/goals`,
+ * `lib/anticipation`, `lib/offers` — three pure modules shipped with 50 tests).
+ * Every metric rose: statements 53.71 → 55.68, branches 35.99 → 37.20,
+ * functions 45.22 → 47.30, lines 55.01 → 56.89. Floors moved with the
+ * measurement in the same commit, keeping the same ~0.7-1.0 margin. Note the
+ * gain is larger than three small modules can account for on their own — some
+ * of it is coverage earned since 2026-08-16 that was never ratcheted in, which
+ * is exactly the quiet slide the 2026-08-04 entry above describes. Re-measuring
+ * on any commit that touches tested code is how it stays locked.
+ *
  * Re-measure and update BOTH this and the floors in the same commit. Raise them
  * in the commit that EARNS the coverage; never lower them to get a build
  * unstuck.
  */
 const MEASURED_COVERAGE = {
-  statements: 53.71,
-  branches: 35.99,
-  functions: 45.22,
-  lines: 55.01,
+  statements: 55.68,
+  branches: 37.20,
+  functions: 47.30,
+  lines: 56.89,
 };
 
 const METRICS = ['statements', 'branches', 'functions', 'lines'];

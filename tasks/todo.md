@@ -94,7 +94,13 @@ mistaking a missing `node_modules` for a failing suite twice.
 - `npx jest lib/goals lib/anticipation lib/offers --ci` — **7 suites, 50 tests,
   all passed**
 - `npm test -- --ci` — **599 suites, 7,804 passed, 1 skipped, 308 snapshots**
-- `npm run test:ci` (coverage + ratchet) — see below
+- `npm run test:ci` (coverage + ratchet) — exit 0,
+  `[coverage-ratchet] OK — no metric regressed.` Coverage measured
+  **55.68 / 37.20 / 47.30 / 56.89** against recorded 53.71 / 35.99 / 45.22 /
+  55.01, so the floors were raised to 55.0 / 36.3 / 46.6 / 56.2 in this commit
+  — the rule `scripts/lib/coverageRatchet.js` states in its own header, and the
+  thing its 2026-08-04 history entry exists to stop being skipped. Part of the
+  gain predates this change and had never been ratcheted in.
 
 ## One real bug the existing suite caught
 
