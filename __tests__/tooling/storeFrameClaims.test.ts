@@ -40,6 +40,9 @@ const CAPTURE_SETS = [
 
 type Frame = {
   id: string;
+  act: string;
+  mode: 'solo' | 'trio' | 'edge';
+  art: string;
   head: string;
   sub: string;
   num: string;
@@ -49,8 +52,17 @@ type Frame = {
   evidence: string;
   assert: string[];
   support: string[];
-  items?: string[];
+  items?: string[] | null;
   byKind?: Partial<Record<'phone' | 'tablet', { num: string; label: string; items?: string[] }>>;
+};
+
+type Loaded = {
+  frames: Frame[];
+  captures: Record<string, string>;
+  art: Record<string, { file: string }>;
+  acts: { id: string; title: string; size: number }[];
+  minScreenShare: number;
+  layouts: Record<string, { H: number; devH: number; edgeH: number }>;
 };
 
 /**
@@ -62,20 +74,25 @@ type Frame = {
  * sidecar for the test's benefit would let the copy under test drift from the
  * copy that renders, which is the whole bug class this file exists to catch.
  */
-function loadModule(): { frames: Frame[]; captures: Record<string, string> } {
+function loadModule(): Loaded {
   const src = join(ROOT, 'scripts', 'lib', 'storeFrameSystem.mjs');
   const out = execFileSync(
     process.execPath,
     ['--input-type=module', '-e',
-      `import { FRAMES, CAPTURES } from ${JSON.stringify(src)};`
-      + ' process.stdout.write(JSON.stringify({ frames: FRAMES, captures: CAPTURES }));'],
+      `import { FRAMES, CAPTURES, ART, ACTS, MIN_SCREEN_SHARE, layoutFor } from ${JSON.stringify(src)};`
+      + ' process.stdout.write(JSON.stringify({ frames: FRAMES, captures: CAPTURES, art: ART, acts: ACTS,'
+      + ' minScreenShare: MIN_SCREEN_SHARE, layouts: {'
+      + " 'iphone-6.9': layoutFor(1320, 2868, 'phone'),"
+      + " 'iphone-6.5': layoutFor(1284, 2778, 'phone'),"
+      + " 'ipad-13': layoutFor(2064, 2752, 'tablet') } }));"],
     { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
   );
-  return JSON.parse(out) as { frames: Frame[]; captures: Record<string, string> };
+  return JSON.parse(out) as Loaded;
 }
 
 
-const { frames, captures: CAPTURES } = loadModule();
+const { frames, captures: CAPTURES, art: ART, acts: ACTS, minScreenShare: MIN_SCREEN_SHARE, layouts: LAYOUTS }
+  = loadModule();
 
 /**
  * Collapse whitespace, normalise the dashes/quotes the UI renders, and fold
@@ -149,7 +166,7 @@ describe('store frames only claim what their screenshot shows', () => {
       // supporting `assert` strings. Digits only: "2.000 BTC" renders as
       // "2.000 ₿" on one screen and "2.000 BTC" on another, and a caption is
       // not wrong for spelling out the ticker.
-      const pill = { num: frame.num, items: frame.items, ...(frame.byKind?.[set.kind] ?? {}) };
+      const pill = { num: frame.num, items: frame.items ?? undefined, ...(frame.byKind?.[set.kind] ?? {}) };
       const digits = pill.num.match(/[\d][\d.,]*/)?.[0];
 
       if (pill.items) {
@@ -168,16 +185,66 @@ describe('store frames only claim what their screenshot shows', () => {
     }
   });
 
-  it('gives every frame two flanking screens, neither of them the hero', () => {
-    // The flanks carry no claim, but they are the composition: a frame that
-    // silently loses one renders as a lone device among nine trios, and
-    // nothing else in the pipeline would say so.
+  it('gives every composition mode the flanks it is supposed to have', () => {
+    // The set used to run ONE composition ten times over, which is most of why
+    // it read as a template rather than a series. There are three now, and each
+    // means something: `solo` for the frames whose argument is small text that
+    // has to survive a 141px thumbnail, `trio` where breadth is the point, and
+    // `edge` where the scene should out-argue the screen. A frame that silently
+    // loses or gains a flank breaks that reading and nothing else would say so.
     for (const f of frames) {
-      expect(f.support).toHaveLength(2);
+      expect(['solo', 'trio', 'edge']).toContain(f.mode);
+      expect(f.support).toHaveLength(f.mode === 'trio' ? 2 : 0);
       for (const k of f.support) expect(CAPTURES[k]).toBeDefined();
       expect(f.support).not.toContain(f.pick);
-      expect(new Set(f.support).size).toBe(2);
+      expect(new Set(f.support).size).toBe(f.support.length);
     }
+    // …and that all three are actually used. A "mode" system with one mode in
+    // practice is the template problem wearing a type annotation.
+    expect(new Set(frames.map((f) => f.mode)).size).toBe(3);
+  });
+
+  it('gives every frame a scene that ships in the app', () => {
+    // The art is read out of `assets/images/` — the same plates the game
+    // renders — so a frame cannot advertise art the product does not contain.
+    // A missing file means a plate was moved or deleted in the app, and the
+    // right fix is to update ART, never to let the generator fall back to
+    // nothing.
+    for (const f of frames) {
+      expect(ART[f.art]).toBeDefined();
+      const p = join(ROOT, 'assets', 'images', ART[f.art].file);
+      if (!existsSync(p)) {
+        throw new Error(`${f.id} uses assets/images/${ART[f.art].file}, which is not in the repo.`);
+      }
+    }
+  });
+
+  it('keeps the real screenshot the largest thing in every frame', () => {
+    // Guideline 2.3.3 asks that a screenshot represent the app in use, and the
+    // failure mode of an art-led set is shrinking the capture until the frame
+    // is an advert with a phone in the corner. This is the floor that stops
+    // that by construction, checked on every shelf because each derives its own
+    // numbers from its own canvas.
+    for (const [dir, L] of Object.entries(LAYOUTS)) {
+      expect(`${dir} solo/trio ${(L.devH / L.H).toFixed(3)}`)
+        .toBe(`${dir} solo/trio ${(L.devH / L.H).toFixed(3)}`);
+      expect(L.devH / L.H).toBeGreaterThanOrEqual(MIN_SCREEN_SHARE);
+      expect(L.edgeH / L.H).toBeGreaterThanOrEqual(MIN_SCREEN_SHARE);
+    }
+  });
+
+  it('runs three acts whose sizes match the frame list', () => {
+    // The acts are not decoration: the panorama is continuous WITHIN an act and
+    // cut between them, so a mismatch here does not fail loudly — it produces a
+    // carousel whose background sweep lands in the wrong place.
+    expect(ACTS.reduce((n, a) => n + a.size, 0)).toBe(frames.length);
+    for (const act of ACTS) {
+      expect(frames.filter((f) => f.act === act.id)).toHaveLength(act.size);
+    }
+    // Contiguous, and in the order ACTS declares. Interleaved acts would slice
+    // one act's panorama across another act's frames.
+    expect(frames.map((f) => f.act))
+      .toEqual(ACTS.flatMap((a) => Array.from({ length: a.size }, () => a.id)));
   });
 
   it('gives no two adjacent frames the same accent hue', () => {

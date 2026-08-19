@@ -277,18 +277,22 @@ All three sets are built and committed. Nothing to generate.
 - [ ] Upload all ten from each folder **in filename order** — `01…` first. The
       first two are the only ones most visitors see.
 
-They are composed from 33 real gameplay captures of the shipping UI, so they
-satisfy Guideline 2.3.3 for this build — and every caption on them is checked
-against the text of the screenshot it sits on by
-`__tests__/tooling/storeFrameClaims.test.ts`, so a pill claiming something the
-picture does not show fails in CI rather than at review. That check exists
-because an earlier set captioned "PhD unlocked" over a course catalogue and
-"Rare collection" over a screen reading `Collection (0)`.
+They are composed from 34 real gameplay captures of the shipping UI, each one
+sitting inside one of the game's own shipped art plates, so they satisfy
+Guideline 2.3.3 for this build. Two checks back that up rather than a promise:
+every caption is verified against the text of the screenshot it sits on by
+`__tests__/tooling/storeFrameClaims.test.ts` — which also asserts the real
+capture never drops below 55% of canvas height, the way an art-led set turns
+into an advert — and `npm run check:store-contrast` measures the headline
+against the plate behind it. The caption check exists because an earlier set
+captioned "PhD unlocked" over a course catalogue and "Rare collection" over a
+screen reading `Collection (0)`.
 
 - [ ] If the UI has changed since the last capture, **re-capture before
       uploading** — do not re-compose from stale frames. Procedure:
       [`../screenshots/appstore-2026/README.md`](../screenshots/appstore-2026/README.md).
-      Run `npx jest __tests__/tooling/storeFrameClaims.test.ts` afterwards.
+      Run `npx jest __tests__/tooling/storeFrameClaims.test.ts` and
+      `npm run check:store-contrast` afterwards.
 
 Design rationale, and the list of what was removed for reading as machine-made,
 is in [`store-screenshot-design.md`](./store-screenshot-design.md).

@@ -33,7 +33,7 @@ capture of the shipping UI.
 2. `node scripts/serve-web-export.mjs <dir> 8090`
    (a 30-line static server with SPA fallback, so the pipeline needs no network
    install; `npx serve -l 8090 -s <dir>` does the same if you have it)
-3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (33 numbered shots, `00`–`32`,
+3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (34 numbered shots, `00`–`33`,
    each with its on-screen text written beside it as `NN-name.txt`)
    - onboarding (Food Courier → Business Empire ambition)
    - Dev Tools: god-mode on, 2×52-week skips, top career, company, education,
@@ -48,36 +48,68 @@ capture of the shipping UI.
    and `iphone-6.5/` (1284×2778)
 5. `node scripts/generate-appstore-2026-ipad.mjs` → `ipad-13/` (2064×2752), from
    `rich-captures-ipad/`
+6. `npm run check:store-contrast` — measures the headline against the plate it
+   is printed on, on both shelves, and fails under 4.5:1. Run it after any
+   change to `ART`, to a crop, or to the scrim
 
 Steps 4 and 5 share `scripts/lib/storeFrameSystem.mjs` — change the design
 there, never in one generator.
 
 ## The design system
 
-`scripts/lib/storeFrameSystem.mjs` holds the palette, the type scale and the
-frame list; both generators import it, so the iPhone and iPad sets cannot drift
-apart. One rule runs through all of it: **the screenshot is the subject.**
+`scripts/lib/storeFrameSystem.mjs` holds the palette, the type scale, the art
+library and the frame list; both generators import it, so the iPhone and iPad
+sets cannot drift apart. Two rules run through all of it: **the frame is a
+picture of a life, not of a phone** — and, because that is exactly the direction
+a set drifts into being an advert, **the screenshot is still the subject.**
 
-- **three devices per frame**: a hero straight on, centred and fully contained
-  — sized from the height it is given, so it fills the frame with the tab bar
-  intact — plus two flanking screens set back in 3D and dimmed. The flanks are
-  never blurred: a screenshot you cannot read is decoration, which is what made
-  the 2026-07 flanks filler. They carry no claim; the pill always describes the
-  hero
-- the flanks differ per shelf because the canvas SHAPE does: raised above the
-  hero on the tall phone canvas, standing on the hero's baseline on the wide
-  tablet one
-- one ground, one type scale, one layout, one device treatment, one bloom
-  position across all ten
+- **the game's own art behind every frame.** This is the 2026-08 change and the
+  one that matters: every earlier version photographed a PHONE against a drawn
+  gradient — ten product shots of a user interface, when the thing being sold
+  is a life you gamble with and can lose. The binary already ships forty-plus
+  cinematic renders (`assets/images/luxury/`, `Real Estate/`, `Vehicles/`,
+  `Main_Menu/`) that every player sees inside the game and nobody deciding
+  whether to become a player ever had. `ART` in the design module maps each
+  frame to one of them, read from `assets/images/` directly so a frame can
+  never advertise art the product does not contain
+- **the scene has to carry its own light.** Every plate declares a relight
+  (`bright`/`contrast`/`sat`) and a crop (`focus`), because these are wide
+  renders being cut to a 1:2.17 canvas. The app icon's own main-menu art was
+  tried for frame 02 and rejected on the evidence: atmospheric at full size,
+  flat black at the ~141px a carousel actually gives a frame. A plate whose
+  subject is small and unlit has nothing to lift
+- **three compositions, not one.** `mode: 'solo'` for the frames whose argument
+  is small text that has to survive a thumbnail (01, 02, 05, 08); `mode: 'trio'`
+  — hero plus two flanks set back in 3D — where breadth is the point (04, 06,
+  09); `mode: 'edge'` where the scene should out-argue the screen, with the
+  device stepped off centre and turned (03, 07, 10). Ten frames sharing one
+  composition is most of why the previous set read as a template rather than a
+  series, and the claims test asserts all three modes are actually in use
+- **the real capture never drops below `MIN_SCREEN_SHARE` (55%) of canvas
+  height.** Guideline 2.3.3 asks that a screenshot represent the app in use, and
+  the failure mode of an art-led set is shrinking the capture until the frame is
+  an advert with a phone in the corner. `edgeH` is derived from that floor
+  rather than chosen, and the test checks it on all three shelves
+- **headline legibility is measured, not eyeballed.** `npm run check:store-contrast`
+  renders each frame twice — once normally, once with the type hidden — and
+  samples the p95 luminance of the backdrop the type actually sits on. Fails
+  under 4.5:1, flags under the 7:1 target. A photograph has no luminance you can
+  reason about from the CSS, which is how a headline ships unreadable over a
+  golden-hour sky
+- flanks are dimmed, never blurred: a screenshot you cannot read is decoration,
+  which is what made the 2026-07 flanks filler. They carry no claim; the chip
+  always describes the hero
+- **no device chrome.** A dark rim and a hairline, no metallic bezel and no
+  notch. The chrome the old set drew was ~12% of the canvas spent on a picture
+  of a phone — the thing this redesign is trying to stop being about — and with
+  a real scene behind it the screen separates on contrast alone
 - **one accent per frame**, and every one is a value from `lib/config/theme.ts`
-  — the app's own colour for that domain. It appears in exactly three places:
-  the accent word, the pill, and the light the screen spills on the ground.
-  This is not the "ten palettes" tell from the 2026-07 set: there, each frame
-  declared its own three glows *and* its own three accents, so ten frames
-  shared nothing
+  — the app's own colour for that domain. It appears in the accent word, the
+  chip, the light the screen spills, and as a soft-light tone over the plate, so
+  the accent is also the light in the room. No two adjacent frames share one
 - the accent word is a single flat colour, never a gradient
-- one proof-point pill per frame, same place, no rotation, and the number on it
-  is one you can find in the screenshot below it
+- one proof chip per frame, same place, no rotation, and the number on it is one
+  you can find in the screenshot below it
 - nothing decorative that is not doing work
 
 The type block is anchored by its BOTTOM edge, so a headline that wraps grows
@@ -102,38 +134,49 @@ gloss sweep over the UI — and why the result read as machine-made.
 `generate-appstore-2026-samples.mjs` produced the style candidates for that
 older direction and is superseded.
 
-## The story — ten frames, one life
+## The story — three acts, ten frames
 
 Matches the `FRAMES` array in `scripts/lib/storeFrameSystem.mjs`. This is a
-STORY, not a feature tour, and that is the change that matters most: the set it
-replaces listed ten domains in no particular order, each frame arguing on its
-own. A life sim's product is the ARC — the distance between where you start and
-where you end up.
+STORY, not a feature tour. The set it replaces listed ten domains in roughly the
+order they were built, each frame arguing on its own; a life sim's product is
+the ARC — the distance between where you start and where you end up — and the
+whole of that arc now lands inside the **first three frames**, because three
+screenshots is all a search result shows.
 
-| # | Headline | Hero screen | Flanks | Proof chip | Accent |
-|---|----------|-------------|--------|------------|--------|
-| 01 | Start with **nothing.** | Home, week one (pre-grant) | Work · Bank | `$1,500` to your name | infoLight |
-| 02 | Take any **job.** | Work / street jobs | Home · Market | `3 ways` to earn this week | happiness |
-| 03 | Every week, a **decision.** | Weekly event modal, OPEN | Life · Market | `Your call` · consequences included | danger |
-| 04 | Fall for **someone.** | Spark (dating profile) | Contacts · Pulse | `30 swipes` left · 1 super | reputation |
-| 05 | Play the **markets.** | Stocks | Bank · Crypto | `25 listed` tickers | purple |
-| 06 | Work the **dark web.** | Onion darknet terminal | Crypto · Desktop | `Opsec Lv4` heat cold | successLight |
-| 07 | Build the **empire.** | Hustle / companies | Politics · Apps | `$8,000` a week in revenue | money |
-| 08 | Buy the **impossible.** | Luxury › **Collection** | Garage · Travel | `2 of 6` trophies acquired | gems |
-| 09 | Raise a **family.** | Contacts | Spark · Life | `5 people` in your circle | reputation |
-| 10 | Leave a **legacy.** | Home, 104 weeks later | Stocks · Luxury | `$11M` net worth · age 22 | gold |
+| # | Headline | Scene | Mode | Hero screen | Proof chip | Accent |
+|---|----------|-------|------|-------------|------------|--------|
+| | **Act I · the hook** — the only three a search result shows | | | | | |
+| 01 | Start with **nothing.** | City apartment | solo | Home, week one (pre-grant) | `$1,500` to your name | infoLight |
+| 02 | Every week, one **choice.** | Mountain cabin at night | solo | Weekly event modal, OPEN | `Your call` · consequences included | danger |
+| 03 | Buy the **impossible.** | Mega-yacht, golden hour | edge | Luxury › **Collection** | `2 of 6` trophies acquired | gold |
+| | **Act II · the systems** — why it is not a slot machine | | | | | |
+| 04 | Play the **markets.** | Office tower, blue hour | trio | Stocks · Bank + Crypto | `25 listed` tickers | gems |
+| 05 | Work the **dark web.** | A room above a city at night | solo | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |
+| 06 | Found the **company.** | Neon spire | trio | Hustle / companies · Politics + Apps | `$8,000` a week in revenue | happiness |
+| 07 | Own the **block.** | Modern mansion | edge | Real Estate › **Portfolio** | see the table row below | purple |
+| | **Act III · the life** — why anyone starts a second one | | | | | |
+| 08 | Fall for **someone.** | Private island at sunset | solo | Spark (dating profile) | `30 swipes` left · 1 super | reputation |
+| 09 | Raise a **family.** | Suburban house | trio | Contacts · Spark + Life | `5 people` in your circle | infoLight |
+| 10 | Then do it **again.** | Vineyard estate, golden hour | edge | Home, 104 weeks later | `$11M` net worth · age 22 | gold |
 
-**Frames 01 and 10 are the same screen.** Same character — Isaac Carter, the
-Food Courier scenario — photographed at week one and again 104 weeks later:
-age 20 → 22, $1,500 → $11M, Unemployed → Engineering Manager, Single → Married,
-Reputation `0 · Unknown` → `100 · Icon`. Nothing else a store listing can do
-says "this is how far you get" as plainly as the same screen twice, and it is
-the reason `capture-rich-state.mjs` now photographs the life on its way past
-week one instead of only at the end.
+**Frames 01 and 10 are the same screen.** Same character, photographed at week
+one and again 104 weeks later: age 20 → 22, $1,500 → $11M, Unemployed →
+Engineering Manager, Single → Married, Reputation `0 · Unknown` → `100 · Icon`.
+Nothing else a store listing can do says "this is how far you get" as plainly as
+the same screen twice, and it is why `capture-rich-state.mjs` photographs the
+life on its way past week one instead of only at the end.
 
-Frames **01–03 have to work alone**: iOS renders the first three in search
-results before anyone opens the product page, so they carry hook → mechanic →
-stakes without the other seven.
+Three ordering decisions are worth arguing with rather than inheriting:
+
+- **The payoff moved from slot 8 to slot 3.** Money-Wealth is 13 of the 87
+  category-exact keywords, the largest money-shaped intent group in the account,
+  and slot 8 is past the fold of a page most people never scroll.
+- **Dating moved from slot 4 to slot 8.** It has ZERO keywords in
+  `category-exact.csv`, so it earns a frame on retention grounds and not one of
+  the three slots a scanner actually reaches. It is also the only human face in
+  the set, which is why Act III is where a character appears at all.
+- **Real estate gained slot 7**, which took a capture change rather than a
+  design one — see below.
 
 Order 01→10 is the upload order. Output sizes: **1320×2868** (iPhone 6.9",
 Apple's current primary), **1284×2778** (iPhone 6.5"), **2064×2752** (13" iPad
@@ -141,17 +184,20 @@ Pro) — each rendered natively at its own canvas, never scaled from another.
 iPhone captures are 1290×2796 (430×932 @3x); iPad captures are 2048×2732
 (1024×1366 @2x); both scale losslessly inside the frames.
 
-## The background is one panorama, sliced into ten
+## Three panoramas, not one
 
-The ten cards are windows onto a single field `10·W + 9·gutter` wide. Each
-frame contributes a wash of its own accent hue centred on its own card, so
-every frame carries its neighbours' colour bleeding in from both edges and the
-carousel reads as one continuous place rather than ten separate images.
+The set this replaces sliced ONE continuous field across all ten cards. That
+works when every card's background is a gradient the generator draws; it cannot
+work when each card is a different photograph. So the continuity device — the
+hue sweep and the horizon line — runs **per act**, and the two seams fall
+exactly on the act breaks. A carousel still pulls you sideways within an act,
+and the structure becomes visible rather than decorative.
 
 The gutter is the part people get wrong: the App Store draws a gap between
-screenshots, so slicing a panorama into ten EQUAL pieces leaves the halves not
-meeting, and the result looks like ten misaligned images — worse than not
-attempting it. `GUTTER` in the design module is that allowance.
+screenshots, so slicing a field into equal pieces leaves the halves not meeting,
+and the result looks like misaligned images — worse than not attempting it.
+`GUTTER` in the design module is that allowance, and the virtual canvas for an
+act of `n` frames is `n·W + (n-1)·gutter` wide.
 
 ## Which screens hold the ten slots — a demand decision
 
@@ -168,36 +214,42 @@ Two consequences are baked into the set:
   its slot to the open weekly decision — which the Choices-Story group ("choices
   game" is flagged large-volume) and `CPP-LifeSim` slot 2 both ask for.
   The Earned capture stays on disk for `CPP-Career`.
-- **Real estate has a group (8 keywords) and no frame.** Its capture is an
-  empty portfolio ($0 · 0 properties · "You don't own any property yet"), and
-  this set does not caption empty states. Featuring it waits on a capture step
-  that buys a property through the app's own UI, the way the luxury frame buys
-  its two trophies.
+- **Real estate now has its frame.** It had a group (8 keywords) and no frame
+  for the whole life of this set, for one reason: the app opens on an EMPTY
+  portfolio (`Portfolio equity $0`, `0 properties`, "You don't own any property
+  yet"), and this set does not caption empty states. That was a capture gap
+  being read as a content decision. `buyPropertyAndShowPortfolio` in
+  `capture-rich-state.mjs` now buys through the app's own listing CTA — with
+  cash rather than a mortgage, so the equity printed is simply what the
+  properties are worth — and photographs the Portfolio tab.
 
-## Six frames do NOT use the obvious capture
+## Seven frames do NOT use the obvious capture
 
 Each one is a claim an earlier set could not back up.
 
-- **08** is Education's **Earned** tab, not the Catalog. The Catalog is a list
-  of courses *not* taken, every row carrying a price and an Enroll button — so
-  the old caption "PhD unlocked" described something the picture did not have.
-  Earned is a transcript: `7 credentials earned`, each stamped *Graduated · On
-  record*.
-- **09** is Luxury's **Collection** tab, and the capture *buys two pieces*
+- **03** is Luxury's **Collection** tab, and the capture *buys two pieces*
   through the app's own Buy button to fill it. Browse read `Collection (0)` and
   `0 / 6 collectibles` under the caption "Rare collection".
-- **10** is Contacts, not the Family tab. Shown large and alone the Family tab
+- **07** is Real Estate's **Portfolio** tab after the capture buys property.
+  The tab the app opens on is an empty state, which is why this intent group
+  had no frame at all until 2026-08.
+- **09** is Contacts, not the Family tab. Shown large and alone the Family tab
   is an EMPTY STATE — a pink "Open the dating app" button under the words "No
   partner yet". Contacts carries the same idea and is full: parents, a spouse
   and both children.
-- **01** and **02** are shot BEFORE the dev-tools grants land, on the way past
-  week one. Every other capture is the one rich late-game save, which can only
-  ever show the destination — there was no picture of the start at all.
-- **03** is the weekly event modal photographed OPEN, before the capture's
+- **01** and **10** are the same screen at opposite ends of a life, and **01**
+  is shot BEFORE the dev-tools grants land, on the way past week one. Every
+  other capture is the one rich late-game save, which can only ever show the
+  destination — there was no picture of the start at all.
+- **02** is the weekly event modal photographed OPEN, before the capture's
   clean-up pass empties the inbox. The event's text varies per run, so its
   claim rests on the modal's unconditional chrome — the "Choice Effects" panel.
-- **09**'s alternative, the Garage, opens on an economy sedan behind a "Get
-  your driver’s licence — Pay $500" prompt.
+- Education's Earned tab is no longer on the main page but the capture stays:
+  the Catalog is a list of courses *not* taken, every row carrying a price and
+  an Enroll button, so the old caption "PhD unlocked" described something the
+  picture did not have.
+- The Garage, considered for the luxury slot, opens on an economy sedan behind
+  a "Get your driver’s licence — Pay $500" prompt.
 
 ## The claims are tested, not trusted
 

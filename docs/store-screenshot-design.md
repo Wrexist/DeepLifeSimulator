@@ -391,3 +391,110 @@ capture re-rolls.
 - **Education's Earned transcript** stays on disk for `CPP-Career`'s "Study,
   qualify, get promoted" slot — the right audience for it arrives through
   career searches, not the default page.
+
+---
+
+# 2026-08-19 — art-led: the round that changed what the frames are pictures OF
+
+Five rounds of work went into the frame *around* the screenshot: a panorama
+sliced with gutter compensation, three shelves rendered natively, an embedded
+typeface, a CI test that fails the build when a caption claims something its
+capture does not show. Every one of those was right and every one of them
+stays. None of them touched the thing that was actually wrong, which the owner
+named in one sentence: *"If I looked at App Store and saw this game I would not
+download it."*
+
+## The diagnosis
+
+Laid out as a contact sheet at the ~141px a carousel actually gives each frame,
+the set failed on five counts, in the order they cost money.
+
+1. **The subject of every frame was a phone.** Ten product shots of a user
+   interface. The thing being sold — a life you gamble with and can lose —
+   appeared in none of them.
+2. **One composition, ten times.** Identical centre hero, identical flank pair
+   at identical angles, identical headline slot. Across ten frames the only
+   variable was accent hue, which teaches the eye it has already seen frames
+   2–10 after looking at frame 1.
+3. **No face and nothing at stake.** One human face in the whole set, at ~6% of
+   its canvas, and not a single frame showing a consequence.
+4. **The app's own UI is poor raw material at this size.** Navy on navy, 11pt
+   labels, four-decimal figures — correct for a game you read closely, wrong for
+   an image that gets half a second. Below ~200px the hero screen is grey
+   texture, and no re-capture fixes that.
+5. **The best art in the app had never reached the store page.** Forty-plus
+   cinematic renders ship in the binary. Every player sees them; nobody deciding
+   whether to become a player ever had.
+
+The evidence for acting on it was already in the repo. `marketing/apple-ads/08-first-results-2026-08.md`:
+category-exact TTR **18.82%** against a 7.72% category floor (2.4×), product
+page conversion **40%** against a 66.2% benchmark (0.6×), CPA $2.18 against a
+$12.28 median. Demand is not the problem and price is not the problem.
+
+## What changed
+
+- **The game's own art behind every frame**, read from `assets/images/` — the
+  same plates the app renders, so a frame cannot advertise art the product does
+  not contain. `ART` in the design module holds the map, the crop and the
+  relight.
+- **Three compositions instead of one** — `solo`, `trio`, `edge` — assigned by
+  what each frame has to accomplish rather than applied uniformly.
+- **Three panoramas instead of one.** A single continuous field cannot span ten
+  different photographs, so the hue sweep and horizon run per ACT and cut at the
+  act breaks.
+- **The device chrome went.** No metallic bezel, no notch — a dark rim and a
+  hairline. That chrome was ~12% of the canvas spent on a picture of a phone.
+- **Real estate got its frame**, which took a capture change rather than a
+  design one (below).
+- **The payoff moved to slot 3 and dating to slot 8**, on the keyword evidence.
+
+## Two things this round refused to do
+
+**Shrink the screenshot.** The failure mode of an art-led set is a frame that is
+an advert with a phone in the corner, and Guideline 2.3.3 rejections cost a
+review cycle and take every attached IAP down with them. `MIN_SCREEN_SHARE`
+(0.55) is a floor the `edge` geometry is DERIVED from rather than checked
+against afterwards, and the claims test asserts it on all three shelves.
+
+**Judge legibility by eye.** A drawn gradient has a luminance you can reason
+about from the CSS; a photograph does not. `scripts/check-store-contrast.mjs`
+renders every frame twice — once normally, once with the type block hidden —
+samples the p95 luminance of the backdrop the type actually sits on, and fails
+below 4.5:1. That measurement is what caught the sub-line: at 70% opacity it was
+tuned against a gradient and the golden-hour plates ate it whole.
+
+## The plate that was tried and rejected
+
+Frame 02 was first given `Main_Menu/Mainmenu_1.webp` — the app icon's own
+image, a lone figure at a cliff edge under a light shaft, and on paper the
+perfect picture for "every week, one choice". At full size it is genuinely
+atmospheric. At carousel scale it is a black rectangle, and lifting it to
+`brightness(1.95) contrast(1.30)` did not save it: **a plate whose subject is
+small and unlit has nothing to lift.** It was replaced with a mountain cabin lit
+from inside, which survives the shrink because its light source is in the frame.
+
+That is the rule the whole art direction rests on, and it was learned twice —
+once in the three-frame side-by-side that started this round, once here.
+
+## Real estate: a capture gap that had been read as a content decision
+
+`RealEstate` carried 8 category-exact keywords and no frame for the entire life
+of this set. The reason was never editorial: the app opens on an empty portfolio
+reading `Portfolio equity $0`, `0 properties`, "You don't own any property yet",
+and this set does not caption empty states — so every previous round wrote the
+gap down as parked and moved on.
+
+`buyPropertyAndShowPortfolio` closes it the same way `buyLuxuryAndShowCollection`
+closed the luxury one: buy through the app's own listing CTA and photograph the
+result. Two details are load-bearing.
+
+- **Cash, not a mortgage.** The modal defaults to the `standard` down-payment
+  tier, whose confirm button reads "Sign Mortgage" — so pressing the affirmative
+  without switching the tier first is not a no-op, it signs a 30-year loan and
+  leaves the portfolio showing equity far below the headline value plus a weekly
+  debt line.
+- **Scroll to the top before shooting.** The first run of this landed mid-card:
+  switching to the Portfolio tab does not reset scroll, so the capture opened on
+  "Vacant 0" with the summary's own headline rows above the fold, and the frame
+  had no total to caption. The claims test caught it, which is the entire reason
+  that test exists.

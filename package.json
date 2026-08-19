@@ -46,7 +46,8 @@
     "aso": "node scripts/check-aso.mjs --emit",
     "asc:status": "node scripts/asc-release.mjs --status",
     "asc:release": "node scripts/asc-release.mjs",
-    "asc:release:apply": "node scripts/asc-release.mjs --apply"
+    "asc:release:apply": "node scripts/asc-release.mjs --apply",
+    "check:store-contrast": "node scripts/check-store-contrast.mjs"
   },
   "dependencies": {
     "@dicebear/avataaars": "^9.2.2",

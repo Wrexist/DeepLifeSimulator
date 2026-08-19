@@ -135,6 +135,89 @@ async function buyLuxuryAndShowCollection(page) {
 }
 
 /**
+ * Buys property, then photographs the PORTFOLIO.
+ *
+ * Same shape of problem as the Luxury app, and the same fix. Real Estate opens
+ * on an empty portfolio reading `Portfolio equity $0`, `0 properties` and
+ * "You don't own any property yet" — so the store set had no real-estate frame
+ * at all, against an 8-keyword `RealEstate` ad group in
+ * `marketing/apple-ads/keywords/category-exact.csv`. That was a capture gap
+ * being mistaken for a content decision.
+ *
+ * Cash, not a mortgage. The modal defaults to the `standard` down-payment tier
+ * (its confirm reads "Sign Mortgage"), which is the realistic path but leaves
+ * the portfolio showing equity far below the headline value plus a weekly debt
+ * line — a worse picture and a harder caption to keep true week to week. This
+ * save holds ~$11M, so "Pay cash" is a state the player can genuinely reach and
+ * the equity it prints is simply what the properties are worth.
+ */
+async function buyPropertyAndShowPortfolio(page) {
+  const owned = async () => {
+    const m = (await allText(page)).match(/(\d+) properties/);
+    return m ? Number(m[1]) : 0;
+  };
+  if (!(await clickAriaLast(page, 'Browse', { wait: 2000 }))) {
+    throw new Error('Real Estate › Browse tab not found — frame 07 would have no portfolio to show.');
+  }
+  await scrollMain(page, 0); await sleep(900);
+
+  let bought = 0;
+  for (let attempt = 0; attempt < 6 && bought < 3; attempt++) {
+    // The listing card's own handle. `RealEstateApp` puts
+    // `accessibilityLabel={`Buy ${p.name}`}` on the card CTA, which is stable
+    // where the visible label is not (it renders the price when unaffordable).
+    const buy = page.locator('[aria-label^="Buy "]').nth(bought);
+    if (!(await buy.count())) break;
+    try {
+      await buy.scrollIntoViewIfNeeded({ timeout: 3000 });
+      await buy.click({ timeout: 3000 });
+    } catch { break; }
+    await sleep(1200);
+    // Switch the down-payment tier before confirming: the confirm button's TEXT
+    // is derived from the tier ("Buy with Cash" vs "Sign Mortgage"), so pressing
+    // the wrong one is not a no-op, it signs a 30-year mortgage.
+    await clickText(page, 'Pay cash', { exact: true, wait: 900 });
+    if (!(await clickText(page, 'Buy with Cash', { exact: true, wait: 1600 }))) {
+      console.log('  ✗ Buy with Cash confirm never appeared');
+      break;
+    }
+    await sleep(1400);
+    // "🏠 Sold!" comes back through Alert.alert. Handle OK explicitly rather
+    // than leaning on dismissPopups, whose label list is tuned for the reward
+    // and onboarding sheets and does not include it.
+    await clickText(page, 'OK', { exact: true, wait: 900 });
+    await dismissPopups(page);
+    await sleep(900);
+    bought++;
+    console.log('  properties bought:', bought);
+  }
+
+  if (!(await clickAriaLast(page, 'Portfolio', { wait: 2000 }))) {
+    throw new Error('Real Estate › Portfolio tab not found after buying.');
+  }
+  // Back to the top before shooting. Switching tabs does not reset scroll, and
+  // the first run of this landed mid-card: the summary's own headline rows
+  // (Portfolio equity, the property count) were above the fold, so the shot
+  // opened on "Vacant 0" and the frame had no total to caption.
+  await scrollMain(page, -3000); await sleep(700);
+  await scrollMain(page, 0); await sleep(1200);
+  const shown = await allText(page);
+  const owns = Number((shown.match(/(\d+) properties/) || [, '0'])[1]);
+  // Two things, for the same reason the Luxury check needs two: the count alone
+  // can be read off a tab that is not open. The empty-state sentence is what
+  // proves the portfolio actually filled.
+  const stillEmpty = /don.t own any property yet/i.test(shown);
+  if (owns < 1 || stillEmpty) {
+    throw new Error(
+      `Real Estate shows ${owns} properties, empty-state visible: ${stillEmpty}, after `
+      + `${bought} purchase(s) — frame 07 would caption a portfolio that is not there. `
+      + `Screen: ${JSON.stringify(shown.replace(/\s+/g, ' ').slice(0, 400))}`,
+    );
+  }
+  await shot(page, 'x-realestate-portfolio');
+}
+
+/**
  * The text a reader can actually SEE in the shot — not `document.body.textContent`.
  *
  * This is the difference between a guard and a fig leaf. The whole-DOM text of
@@ -275,6 +358,11 @@ const SHOT_ORDER = [
   // DELETE all twelve of these from every capture — the game's core loop was
   // the one thing the store page could never show.
   'event-decision',
+  // The real-estate PORTFOLIO, after buying. Same reason as
+  // `x-luxury-collection` above: the app opens on an empty portfolio, so the
+  // only picture the pipeline could take of an 8-keyword intent group was of
+  // owning nothing.
+  'x-realestate-portfolio',
 ];
 /**
  * Empties the weekly-decision inbox.
@@ -778,6 +866,17 @@ async function main() {
       if (name === 'luxury') {
         try {
           await buyLuxuryAndShowCollection(page);
+        } catch (err) {
+          deferred.push(err);
+          console.log('  ‼ deferred:', err.message);
+        }
+      }
+      // Deferred for the same reason as the luxury step: it DRIVES the game, so
+      // it is among the likeliest things here to break when the UI moves, and
+      // throwing inline would discard every capture after it.
+      if (name === 'realestate') {
+        try {
+          await buyPropertyAndShowPortfolio(page);
         } catch (err) {
           deferred.push(err);
           console.log('  ‼ deferred:', err.message);
