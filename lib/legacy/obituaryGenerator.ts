@@ -61,8 +61,17 @@ export function generateObituary(state: GameState): Obituary {
         0
       )
     : 0;
+  // Mirror the canonical net-worth reader (lib/progress/achievements.ts):
+  // skip entries the player no longer owns (`owned === false`) and value each
+  // at its live currentValue, falling back to price. The old `r.value` field
+  // does not exist on RealEstate, so it silently read 0 and dropped every
+  // property from the obituary net worth and its wealth descriptor.
   const realEstate = Array.isArray(state.realEstate)
-    ? state.realEstate.reduce((sum: number, r: any) => sum + (r.value ?? 0), 0)
+    ? state.realEstate.reduce(
+        (sum: number, r) =>
+          r?.owned === false ? sum : sum + (r?.currentValue ?? r?.price ?? 0),
+        0
+      )
     : 0;
   const netWorth = cash + bank + stocks + realEstate;
 
@@ -83,8 +92,11 @@ export function generateObituary(state: GameState): Obituary {
   else if (netWorth >= 0) descriptor = 'humble';
   else descriptor = 'debt-ridden';
 
-  // Properties
-  const propertyCount = (state.realEstate || []).length;
+  // Properties — count only currently-owned entries. The array retains
+  // `owned === false` records (sold homes), so an unfiltered length overcounts.
+  const propertyCount = (state.realEstate || []).filter(
+    (r) => r?.owned !== false
+  ).length;
   if (propertyCount >= 3) facts.push(`owned ${propertyCount} properties`);
 
   // Companies
