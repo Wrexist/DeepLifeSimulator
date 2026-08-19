@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
+import { INITIAL_CAREERS } from '@/lib/careers/careerData';
 import type { GameState, Education, Career, Company, ChildInfo } from '@/contexts/game/types';
 import {
   X,
@@ -288,21 +289,37 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     warehouseLevel: 0,
     unlockedTechnologies: [],
   });
+  /**
+   * Seeds a REAL career out of the game's own `INITIAL_CAREERS`, rather than a
+   * synthetic one.
+   *
+   * This used to build a ladder called `Dev Career` whose six levels were
+   * literally named `Level 1` … `Level 6`, topping out at $13,000/wk — about
+   * 4× the highest salary the real data pays anywhere. Two things followed
+   * from that, and the second is why it is fixed here rather than worked
+   * around downstream:
+   *
+   * - the Job field on the home identity card reads `currentCareer.levels[level].name`,
+   *   so a granted career made the card say **"Job: Level 6"**;
+   * - the store-screenshot pipeline builds its save through these very grants,
+   *   so that placeholder went out on App Store product pages —
+   *   `screenshots/appstore-2026/` is composed from captures of this state.
+   *
+   * Using the real ladder makes the same grant read "Engineering Manager" at
+   * the salary the game actually pays, so what QA sees and what the store page
+   * shows are both the shipping economy.
+   */
   const makeCareerLadder = (id: string, topLevel = false): Career => {
-    const levels = [1200, 2200, 3600, 5600, 8500, 13000].map((salary, i) => ({
-      name: `Level ${i + 1}`,
-      salary,
-      experienceRequired: 0,
-    }));
+    const base =
+      INITIAL_CAREERS.find((c) => c.id === 'software') ?? INITIAL_CAREERS[0];
     return {
+      ...base,
       id,
-      name: 'Dev Career',
       accepted: true,
       applied: true,
-      level: topLevel ? levels.length - 1 : 0,
+      level: topLevel ? base.levels.length - 1 : 0,
       progress: topLevel ? 0 : 100,
       performance: 100,
-      levels,
     } as unknown as Career;
   };
   const makeSpouse = (): any => ({

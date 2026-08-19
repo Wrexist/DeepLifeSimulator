@@ -5,150 +5,1190 @@
  * sets cannot drift — the pair it replaces had diverged to the point of using
  * different decoration positions for the same frame.
  *
- * The rule behind every value below: **the screenshot is the subject.**
- * Everything else exists to frame it. `docs/store-screenshot-design.md` records
- * what the previous version did instead and why it read as machine-made.
+ * Three rules run through every value below.
+ *
+ * 1. **The frame is a picture of a LIFE, not of a phone.** Every version of
+ *    this set before 2026-08 photographed a device against a drawn gradient,
+ *    and the whole carousel read as ten product shots of a user interface.
+ *    Each frame now sits inside one of the game's own cinematic renders (`ART`),
+ *    read from `assets/images/` — art that ships in the binary, that every
+ *    player sees, and that nobody deciding whether to become a player had ever
+ *    been shown. The corollary is the constraint that keeps it honest: art is
+ *    the room, never the product.
+ *
+ * 2. **The screenshot is still the subject.** `MIN_SCREEN_SHARE` is the floor
+ *    the geometry is derived from, not a number checked afterwards, because the
+ *    failure mode of an art-led set is a frame that is an advert with a phone
+ *    in the corner — and Guideline 2.3.3 rejections cost a review cycle and
+ *    take every attached IAP down with them. `docs/store-screenshot-design.md`
+ *    records what the 2026-07 version did instead (40 emoji stickers, three-stop
+ *    gradient type, ten palettes, fake star dust, a halo ring, three skewed
+ *    phones, a gloss sweep) and why the result read as machine-made.
+ *
+ * 3. **Every claim on a frame is legible inside that frame.** A chip is a
+ *    caption for a number the reader can find in the screenshot beside it, not
+ *    a marketing line. An earlier set failed that on five of ten frames —
+ *    "PhD unlocked" over a course catalogue with nothing marked earned, and
+ *    "Rare collection" over a screen reading `Collection (0)` and
+ *    `0 / 6 collectibles`. `__tests__/tooling/storeFrameClaims.test.ts` checks
+ *    every claim against the visible text captured beside each screenshot, and
+ *    `scripts/check-store-contrast.mjs` checks that the type can be READ over
+ *    the plate it is printed on — a photograph has no luminance you can reason
+ *    about from the CSS.
  */
 
-/** One palette for the whole set. Taken from the app's own theme. */
-export const PALETTE = {
-  // Deliberately DEEPER than the app's own `#0B1220` chrome, so the device
-  // reads as lighter than the ground it sits on. The first pass used a ground
-  // almost identical to the UI and the phone dissolved into it.
-  ground: '#04070E',
-  groundHigh: '#0A1020',
-  bloom: '96,146,255',
-  headline: '#F3F6FF',
-  accent: '#6BA5FF',
-  sub: 'rgba(211,222,250,0.56)',
-  pillText: '#A8C6FF',
-  pillBorder: 'rgba(150,180,240,0.22)',
-  pillFill: 'rgba(120,160,240,0.07)',
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Inter Tight, embedded.
+ *
+ * NOT a stack of `-apple-system, 'SF Pro Display', …`. There is no Apple font
+ * and no Inter on a CI box or in this container, so that stack fell through to
+ * Liberation Sans — the headline shipped in an Arial clone, and in a different
+ * face depending on who ran the generator. See `fonts/README.md`.
+ */
+const FONT_B64 = readFileSync(join(HERE, 'fonts', 'InterTight.woff2')).toString('base64');
+
+/**
+ * ONE ground for the whole set, taken from the app's own theme.
+ *
+ * Deliberately DEEPER than the app's `#0F172A` chrome so the device reads as
+ * lighter than the ground it sits on; an earlier pass used a ground almost
+ * identical to the UI and the phone dissolved into it.
+ */
+export const GROUND = {
+  base: '#04070E',
+  high: '#0A1020',
+  foot: '#02040A',
+  headline: '#F4F7FF',
+  sub: 'rgba(206,219,247,0.70)',
+  // The sub-line over ART. 0.70 was tuned against a drawn gradient and is not
+  // enough over a photograph — the golden-hour plates ate it whole.
+  subStrong: 'rgba(223,233,252,0.92)',
+  pillLabel: 'rgba(206,219,247,0.72)',
 };
 
 /**
- * The ten frames, in upload order. `|word|` marks the accent word.
+ * The accent hues. **Every one is a value from `lib/config/theme.ts`** — the
+ * same colours the app paints its own UI with.
  *
- * `stat` is a proof point, not a sticker: one short line, same pill, same
- * place, every frame.
+ * This is not the "ten palettes" tell from the old set. There, each frame
+ * declared its own three background glows AND its own three accent colours, so
+ * ten frames shared nothing and the set had no identity. Here the ground, the
+ * type, the layout, the device treatment and the bloom geometry are IDENTICAL
+ * on all ten; one hue moves, it is the app's own colour for that domain
+ * (money is the app's money green, dating is the app's reputation pink, the
+ * darknet terminal is its own terminal green), and it appears in exactly three
+ * places — the accent word, the pill, and the light the screen spills on the
+ * ground. A reader scrolling the carousel sees one series whose colour tracks
+ * what is on screen, which is the opposite of ten unrelated images.
+ */
+export const HUE = {
+  identity: '#60A5FA', // palette.infoLight   — energy / primary UI
+  money: '#10B981', // palette.money       — cash, revenue, net worth
+  romance: '#EC4899', // palette.reputation  — dating, fame, social
+  market: '#F59E0B', // palette.happiness   — markets, crypto, trading
+  mind: '#8B5CF6', // palette.fitness     — education, skills
+  premium: '#A855F7', // accent.purple       — luxury, prestige
+  apps: '#6366F1', // palette.gems        — the phone, the app grid
+  terminal: '#34D399', // palette.successLight— the darknet terminal
+  gold: '#FACC15', // accent.gold        — prestige, legacy, the payoff
+  risk: '#EF4444', // palette.danger      — stakes, decisions, the bad week
+};
+
+/**
+ * Frame key → capture basename, shared by both generators AND the claims test.
+ *
+ * It lived in three places — once per generator and once in the test — until a
+ * frame list that added `earlyhome` and `earlywork` updated two of them and the
+ * test failed on a map it had no reason to know about. One table, imported.
+ *
+ * Four picks deliberately do NOT use the obvious capture, and each is a claim
+ * an earlier set could not back up:
+ *
+ * - `earlyhome` / `earlywork` are shot BEFORE any dev-tools grant lands. Every
+ *   other capture here is one rich late-game save, which can only ever show the
+ *   destination; these are the only way frame 01 can say "start with nothing".
+ * - `event` is a weekly decision photographed OPEN, before the capture's
+ *   clean-up pass empties the inbox — the pipeline's first act used to be
+ *   deleting all twelve of these from every capture, so the game's core loop
+ *   was the one thing the page could never show.
+ * - `luxury` is the **Collection** tab after the capture buys two pieces, not
+ *   the Browse shop, which read `Collection (0)` under the words "Rare collection".
+ * - `contacts`, not the Family tab, for the family frame: shown large and alone
+ *   the Family tab is an EMPTY STATE — a pink "Open the dating app" button
+ *   under "No partner yet". Contacts carries the same idea and is full.
+ */
+export const CAPTURES = {
+  earlyhome: '30-early-home.png',
+  earlywork: '31-early-work.png',
+  event: '32-event-decision.png',
+  home: '00-home.png',
+  spark: '05-app-spark.png',
+  stocks: '07-app-stocks.png',
+  contacts: '09-app-contacts.png',
+  apps: '03-apps.png',
+  company: '17-x-company.png',
+  darkweb: '18-x-darkweb.png',
+  crypto: '19-x-crypto.png',
+  luxury: '29-x-luxury-collection.png',
+  // The garage with a car in it, not the licence-gated dealership the app opens
+  // on. Third of the same kind as `luxury` and `realestate` above.
+  garage: '34-x-garage-owned.png',
+  // The real-estate PORTFOLIO after the capture buys property, not the empty
+  // one the app opens on. Same reason as `luxury` above: `RealEstate` is an
+  // 8-keyword ad group whose only available picture used to be of owning
+  // nothing (`Portfolio equity $0`, `0 properties`).
+  realestate: '33-x-realestate-portfolio.png',
+  // No longer on the main page (education has no search-demand ad group), but
+  // kept: CPP-Career in marketing/apple-ads/04-custom-product-pages.md wants
+  // the Earned transcript for its "Study, qualify, get promoted" slot.
+  education: '28-app-education-earned.png',
+  // Flank-only captures. These carry no claim — the chip always describes the
+  // hero — but they are real screens of the shipping build like everything else.
+  bank: '08-app-bank.png',
+  pulse: '06-app-pulse.png',
+  life: '11-life.png',
+  market: '13-life-market.png',
+  desktop: '16-desktop.png',
+  politics: '23-x-politics.png',
+  travel: '24-x-travel.png',
+  catalog: '10-app-education.png',
+};
+
+/**
+ * The scenes.
+ *
+ * This is the change the 2026-08 rebuild is actually about. Every previous
+ * version of this set photographed a PHONE against a gradient — ten product
+ * shots of a user interface, when what is being sold is a life you gamble with
+ * and can lose. Meanwhile the binary ships forty-plus cinematic renders that
+ * every player sees inside the game and nobody deciding whether to become a
+ * player ever had: `assets/images/luxury/`, `Real Estate/`, `Vehicles/`,
+ * `Main_Menu/`. They were the largest unused asset in the repository.
+ *
+ * Two rules govern what is in this table, both learned the expensive way.
+ *
+ * 1. **The scene has to carry its own light.** A side-by-side test of three
+ *    frames found the golden-hour yacht and the neon-lit tower transformed
+ *    their frames while the main-menu plate — which is nearly black — barely
+ *    improved on the flat gradient it replaced. So every entry declares a
+ *    relight (`bright`/`contrast`/`sat`) and is checked against the headline
+ *    contrast floor in `__tests__/tooling/storeFrameClaims.test.ts`.
+ *
+ * 2. **The art is the room, never the product.** Guideline 2.3.3 asks that a
+ *    screenshot represent the app in use, so the real capture stays the
+ *    loudest object in every frame and never drops below `MIN_SCREEN_SHARE` of
+ *    the canvas height. A yacht behind a spreadsheet is a room; a yacht INSTEAD
+ *    of a spreadsheet is a different game.
+ *
+ * `focus` is `object-position` — these are 16:9-ish renders being cropped to a
+ * 1:2.17 phone canvas, so which part survives the crop is a real decision and
+ * not a default. `Mainmenu_1` is the extreme case: its whole subject is one
+ * small figure under a light shaft, and centring the crop loses him.
+ */
+export const ART = {
+  // Frame 01 — the vineyard's HILLS, cropped away from the chateau and hue-turned
+  // cold. It reads as an ordinary valley at first light, which is what "start
+  // with nothing" needs and what nothing else in the library could give: the
+  // whole photoreal set is luxury catalogue art, so every plate in it signals
+  // wealth. Cropping to landscape and grading to blue strips the signal without
+  // leaving the visual language. Its warm, un-cropped self is frame 07 — the
+  // same land, empty at the start and owned later.
+  valley: { file: 'luxury/vineyard_estate.jpg', focus: '14% 26%', zoom: 2.2, bright: 1.08, contrast: 1.24, sat: 0.62, hue: 178 },
+  // Frame 02 — open water under a dusk sky, cropped off the far end of the
+  // yacht plate. Abstract on purpose: a decision frame should carry mood and no
+  // claim, and this is the only plate here with a subject that can be cropped
+  // out entirely and still leave a picture.
+  // Frame 02 — a jet on wet tarmac at dusk. Held for the decision frame rather
+  // than the company frame because it is the tensest plate in the library: low
+  // cloud, standing water, one aircraft lit against a darkening sky. An earlier
+  // pass cropped the open sea off the yacht plate for this slot and it washed
+  // out to pale grey — cropping into texture keeps the language and throws away
+  // the light, which is the failure the whole relight rule exists to catch.
+  tarmac: { file: 'luxury/private_jet.webp', focus: '50% 52%', bright: 1.42, contrast: 1.10, sat: 1.02 },
+  yacht: { file: 'luxury/mega_yacht.jpg', focus: '50% 38%', bright: 1.06, contrast: 1.07, sat: 1.08 },
+  // A dark interior looking out over a city at night — the closest thing the
+  // library has to a trading desk, and it reads that way at thumbnail size.
+  penthouse: { file: 'luxury/trophy_penthouse.webp', focus: '74% 40%', bright: 1.52, contrast: 1.10, sat: 1.08 },
+  // Frame 05 — the black marble the diamond stands on, cropped so the diamond
+  // is out of frame. Near-black with a faint sheen, which is the correct
+  // backdrop for a terminal: the darkest frame in the set by design, and the one
+  // place the screen should be the only light in the picture.
+  slate: { file: 'luxury/museum_diamond.webp', focus: '86% 78%', zoom: 2.4, bright: 2.10, contrast: 1.05, sat: 0.85 },
+  // Frame 06 — a private box over a floodlit stadium. The most corporate room
+  // in the library, and the floodlights give it a light source of its own.
+  box: { file: 'luxury/sports_team_stake.webp', focus: '46% 46%', bright: 1.18, contrast: 1.06, sat: 1.06 },
+  // Frame 07 — the same land as frame 01, warm and owned. The brightest plate in
+  // the set and the only one that needs its own type ground: measured at the
+  // default scrim it puts the headline at 6.1:1, over the 4.5:1 failure floor
+  // but under the 7:1 target. `shade` deepens the band under the type for this
+  // frame only, and the number came off scripts/check-store-contrast.mjs.
+  estate: { file: 'luxury/vineyard_estate.jpg', focus: '50% 56%', bright: 1.00, contrast: 1.08, sat: 1.05, shade: 0.16 },
+  island: { file: 'luxury/private_island.jpg', focus: '50% 52%', bright: 1.04, contrast: 1.06, sat: 1.06 },
+  // Frame 09 — a warm lit room. By this point in the arc the character IS
+  // wealthy, so a grand interior is not overselling; it is where they live.
+  // Frame 09 — used WHOLE. Cropped into a corner it went muddy; the full plate
+  // is a warm room with a wooden floor, lit walls and depth. By this point in
+  // the arc the character is wealthy, so a grand interior is not overselling —
+  // it is where they live.
+  // Frame 08 — the luxury catalog's own Hypercar render: a black carbon car on
+  // a wet showroom floor. It is the ROOM for the garage frame, not its subject.
+  // The car the player actually owns is the prop standing in front of it, which
+  // is why two cars in one frame reads as a garage rather than as a repeat.
+  showroom: { file: 'luxury/supercar.jpg', focus: '50% 54%', bright: 1.38, contrast: 1.08, sat: 1.05 },
+  gallery: { file: 'luxury/fine_art_collection.webp', focus: '50% 56%', bright: 1.62, contrast: 1.06, sat: 1.12 },
+  // Frame 10 — the calmest plate here: a yacht at dusk against mountains, cool
+  // and still where frame 03's is golden and triumphant. The set ends on
+  // arrival rather than acquisition.
+  harbour: { file: 'luxury/luxury_yacht.webp', focus: '56% 46%', bright: 1.14, contrast: 1.07, sat: 1.06 },
+};
+
+/** Art lives beside the app, not beside this script. */
+const ASSETS = join(HERE, '..', '..', 'assets', 'images');
+
+const MIME = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
+
+/**
+ * One art plate as a data URI.
+ *
+ * Reads from `assets/images/` — the SAME files the app renders, not a marketing
+ * copy of them. A separate copy would drift the moment one of them is retouched
+ * in the product, and then the store page would advertise art the game does not
+ * contain, which is the 2.3.3 problem wearing a different hat.
+ */
+export function artDataUri(key) {
+  const entry = ART[key];
+  if (!entry) throw new Error(`No art registered under "${key}" — see ART in storeFrameSystem.mjs.`);
+  const p = join(ASSETS, entry.file);
+  if (!existsSync(p)) {
+    throw new Error(`Art plate missing: assets/images/${entry.file}. It ships in the app, so a missing file means it was moved or removed — update ART rather than dropping the scene.`);
+  }
+  const ext = entry.file.slice(entry.file.lastIndexOf('.')).toLowerCase();
+  return `data:${MIME[ext] || 'image/png'};base64,` + readFileSync(p).toString('base64');
+}
+
+/**
+ * PROPS — the game's own objects, composited into the frame as objects.
+ *
+ * The luxury frame was the clearest failure of the art-led set: it is the frame
+ * about COLLECTIBLES and it showed none of them. What it showed was a list of
+ * text cards, over a yacht that has nothing to do with what the player owns.
+ * Meanwhile every collectible in `lib/luxury/catalog.ts` ships with a render,
+ * and the ids in that catalog are the filenames in `assets/images/luxury/`.
+ *
+ * The compositing is the trick, and it is free: these renders are shot as a
+ * SUBJECT ON BLACK, so `mix-blend-mode: lighten` knocks the black out against
+ * whatever is behind them. No cutout, no mask, no alpha channel — the diamond
+ * and the watch case drop onto a golden-hour sea as if they were photographed
+ * there. `screen` was tried first and washes them out; `normal` shows the black
+ * box they were rendered in. Only plates lit this way qualify, which is why
+ * `blend` is per-prop and not a global.
+ *
+ * They sit BEHIND the device (z-index below the stage) on purpose. A prop
+ * overlapping the phone would blend with the SCREENSHOT, and a translucent
+ * object in front of the product is the opposite of the depth it is there to
+ * create.
+ *
+ * The honesty rule is the same as everywhere else in this file: a prop may only
+ * show something the frame's screenshot supports. Frame 03's chip reads
+ * `2 OF 6 TROPHIES ACQUIRED` and its capture reads `Collection (2)` — so the
+ * two props are the two items the capture actually bought, the Rare Watch
+ * Collection ($250K) and the Museum-Grade Diamond ($600K), whose resale sums to
+ * the `$510K` the same screen prints. Adding a third would be inventing a
+ * purchase.
+ */
+export const PROPS = {
+  // Only plates lit as a SUBJECT ON BLACK qualify. The three owned properties
+  // were tried here and removed: their renders draw the building in neon
+  // outline, and a lighten blend turns that into a glowing wireframe hanging in
+  // the scene. The blend flatters a lit object; it destroys a drawn one.
+  diamond: { file: 'luxury/museum_diamond.webp', blend: 'lighten' },
+  watches: { file: 'luxury/rare_watch_collection.webp', blend: 'lighten' },
+  // The vehicle renders are the easy case and the only one in the repo: they
+  // ship with a real alpha channel, so they need no blend at all. `normal`
+  // keeps their own edges and their own shadow instead of borrowing the plate's
+  // luminance, which is why this prop reads as solid where the collectibles
+  // read as lit glass.
+  supercar: { file: 'Vehicles/exotic_supercar_final.webp', blend: 'normal' },
+};
+
+/** One prop plate as a data URI, from the same directory the app renders from. */
+export function propDataUri(key) {
+  const entry = PROPS[key];
+  if (!entry) throw new Error(`No prop registered under "${key}" — see PROPS in storeFrameSystem.mjs.`);
+  const p = join(ASSETS, entry.file);
+  if (!existsSync(p)) {
+    throw new Error(`Prop plate missing: assets/images/${entry.file}. It is a luxury catalog item, so a missing file means the catalog moved — update PROPS rather than dropping the prop.`);
+  }
+  const ext = entry.file.slice(entry.file.lastIndexOf('.')).toLowerCase();
+  return `data:${MIME[ext] || 'image/png'};base64,` + readFileSync(p).toString('base64');
+}
+
+/**
+ * The three acts.
+ *
+ * The set this replaces was ten features in roughly the order they were built.
+ * This one is an arc with a shape — you have nothing, every week you choose,
+ * you end up owning things people photograph — and the whole of it lands inside
+ * the FIRST THREE frames, because three screenshots is all a search result
+ * shows. Everything after frame 3 exists to prove there is a game underneath
+ * the fantasy.
+ *
+ * The acts are also what makes the panorama survive photographic art. The
+ * previous set ran ONE continuous background across all ten cards; ten
+ * different photographs cannot do that. So the continuity device — the hue
+ * sweep and the horizon line — runs per ACT, and the two seams fall exactly on
+ * the act breaks. The structure is visible instead of decorative, and a
+ * carousel still pulls sideways within each act.
+ */
+export const ACTS = [
+  { id: 'hook', title: 'The hook', size: 3 },
+  { id: 'systems', title: 'The systems', size: 5 },
+  { id: 'life', title: 'The life', size: 2 },
+];
+
+/**
+ * The floor under Guideline 2.3.3, as a share of canvas height.
+ *
+ * Art-led frames have one failure mode that matters more than looking bad:
+ * shrinking the real screenshot until the frame is an advert rather than a
+ * screenshot. This is the number that stops that happening by construction,
+ * and the claims test asserts every mode clears it.
+ */
+export const MIN_SCREEN_SHARE = 0.55;
+
+/**
+ * The ten frames — ONE LIFE, in order.
+ *
+ * This is a story, not a feature tour, and that is the change that matters
+ * most. The version this replaces was a catalogue: ten domains listed in no
+ * particular order, each frame arguing on its own. A life sim's product IS the
+ * arc — the distance between where you start and where you end up — so the set
+ * now runs start → grind → choices → love → markets → crime → empire → luxury →
+ * family → legacy, and the headlines read top to bottom as sentences of one
+ * story.
+ *
+ * WHICH screens hold the ten slots is a demand decision, not a taste one. The
+ * Apple Ads account (marketing/apple-ads/) ranks the search themes people
+ * actually arrive through: LifeSim-Core (18 keywords), Money-Wealth (13),
+ * Investing-Stocks (12), Crime-Underground (10), Business-Tycoon (10),
+ * RealEstate (8), Choices-Story (8), Career-Job (8) — and education has NO ad
+ * group at all, which is why the Earned-transcript frame gave its slot to the
+ * open weekly decision (frame 03). Real estate also has a group and no frame;
+ * its capture is an empty portfolio ($0, 0 properties), so featuring it waits
+ * on a capture that buys a property first — see the note in
+ * docs/store-screenshot-design.md.
+ *
+ * The bookend is deliberate: frame 01 and frame 10 are the SAME SCREEN, the
+ * home identity card, photographed at $1,500 and again at $11M. Nothing else
+ * in a store listing can say "this is how far you get" as plainly as the same
+ * screen twice.
+ *
+ * Ordering rules that came out of the research (see docs/store-screenshot-design.md):
+ *
+ * - **Frames 1–3 have to work alone.** iOS renders the first three in search
+ *   results, before anyone opens the page, so they carry hook → mechanic →
+ *   stakes on their own.
+ * - **Five words or fewer per headline.** These are read at thumbnail size.
+ * - **Adjacent frames never share a hue**, so the carousel reads as movement.
+ *
+ * Field notes:
+ * - `head` — `|word|` marks the accent word.
+ * - `num` / `label` — the proof chip, which sits ON the hero device rather than
+ *   floating in the type block, so the number is next to the pixels that prove
+ *   it. `num` must appear in the capture; `evidence` says where; `assert` is
+ *   what the test looks for.
+ * - `pick` is the hero capture, `support` the two flanks (which carry no claim).
  */
 export const FRAMES = [
-  { id: '01-live-any-life', head: 'Live any |life.|', sub: 'Hustle, love, get rich, leave a legacy.', stat: '$11M net worth · Generation 1', pick: 'home' },
-  { id: '02-find-your-person', head: 'Find your |person.|', sub: 'Swipe, match, fall in love — or don’t.', stat: '9 likes waiting', pick: 'spark' },
-  { id: '03-build-your-companies', head: 'Build an |empire.|', sub: 'Found companies. Hire. Scale.', stat: '$8,000 a week in revenue', pick: 'company' },
-  { id: '04-ride-the-bull-run', head: 'Ride the |bull run.|', sub: 'Trade crypto, mine it, time the market.', stat: '2.0 BTC held', pick: 'crypto' },
-  { id: '05-go-viral', head: 'Go |viral.|', sub: 'Post, trend, grow a following.', stat: 'Trending now', pick: 'pulse' },
-  { id: '06-enter-the-dark-web', head: 'Enter the |dark web.|', sub: 'High risk. Higher reward. Watch your heat.', stat: 'Opsec level 4', pick: 'darkweb' },
-  { id: '07-phone-full-of-lives', head: 'A phone full of |lives.|', sub: 'Dating, trading, banking, fame — all in game.', stat: 'Every app unlocked', pick: 'apps' },
-  { id: '08-train-your-mind', head: 'Train your |mind.|', sub: 'Degrees, skills and smarter choices.', stat: 'PhD unlocked', pick: 'education' },
-  { id: '09-live-the-luxury', head: 'Live the |luxury.|', sub: 'Watches, supercars and museum-grade pieces.', stat: 'Rare collection', pick: 'luxury' },
-  // Was the Family tab under "Your story, your rules". Shown large and alone,
-  // that capture is an EMPTY STATE — a pink "Open the dating app" call to
-  // action under the words "No partner yet", which is a dev-tools artifact and
-  // the wrong thing to put on a store page. Contacts carries the same idea and
-  // is full: parents, a spouse and both children, all with inherited faces.
-  { id: '10-raise-a-family', head: 'Raise a |family.|', sub: 'Marry, have kids, pass it all on.', stat: 'Generation 1 · 2 children', pick: 'contacts' },
+  // ── ACT I · THE HOOK ────────────────────────────────────────────────────────
+  // The only three frames a search result shows, so the whole arc lives here:
+  // you have nothing, every week you choose, you end up owning things people
+  // photograph. Frames 4-10 are seen only by somebody who already scrolled the
+  // product page, i.e. by somebody already half sold.
+  {
+    id: '01-start-with-nothing',
+    act: 'hook',
+    // Solo. This is the first thing anyone sees at ~141px wide, and the frame's
+    // whole argument is a set of small numbers on one card ($1,500, Unemployed,
+    // Reputation 0). Flanks would take a third of the width away from the only
+    // thing here that has to be read.
+    mode: 'solo',
+    art: 'valley',
+    support: [],
+    head: 'Start with |nothing.|',
+    sub: 'Twenty years old. Unemployed. Rent due.',
+    num: '$1,500',
+    label: 'to your name',
+    hue: HUE.identity,
+    pick: 'earlyhome',
+    // Photographed BEFORE any dev-tools grant lands, which is the only way this
+    // frame can be true — every other capture in the set is one rich late-game
+    // save and can only ever show the destination.
+    //
+    // The game writes this frame's copy better than marketing could: the screen
+    // itself carries a coaching card reading "You need work — No job means no
+    // money coming in", the Job field reads Unemployed and Reputation reads
+    // "0 · Unknown". Nothing here had to be dressed up.
+    evidence: 'The opening home screen reads $1,500, Job: Unemployed, Reputation 0 · Unknown, over a "You need work" card.',
+    assert: ['$1,500', 'Unemployed', 'You need work'],
+  },
+  {
+    id: '02-every-week-one-choice',
+    act: 'hook',
+    // Solo, for the same reason: a decision modal is dense text, and a frame
+    // that shows the loop without letting anyone read it shows nothing.
+    mode: 'solo',
+    art: 'tarmac',
+    support: [],
+    head: 'Every week, one |choice.|',
+    sub: 'Good news, bad news — your call either way.',
+    num: 'Your call',
+    label: 'consequences included',
+    hue: HUE.risk,
+    pick: 'event',
+    // The one frame whose subject is not a screen but the LOOP. The keyword
+    // account has a whole Choices-Story ad group ("choices game" is flagged as
+    // large volume), CPP-LifeSim's slot 2 asks for exactly this shot, and the
+    // capture pipeline's first act used to be deleting all twelve queued
+    // decisions from every capture — the core loop was the one thing the page
+    // could never show. The event's TEXT varies per run, so the claim rests on
+    // the modal's unconditional chrome: the "Choice Effects" panel that prices
+    // every option before you commit. No digits on this chip on purpose — a
+    // number here would be quoting an event that the next capture re-rolls.
+    evidence: 'The weekly event modal is open, with its Choice Effects panel pricing each option.',
+    assert: ['Choice Effects'],
+  },
+  {
+    id: '03-buy-the-impossible',
+    act: 'hook',
+    // Edge. The payoff frame is the one place the scene should out-argue the
+    // screen, so the device steps aside and the yacht gets the canvas — while
+    // still clearing MIN_SCREEN_SHARE, because a payoff nobody can trace back
+    // to the product is an advert.
+    mode: 'edge',
+    art: 'yacht',
+    support: [],
+    head: 'Buy the |impossible.|',
+    sub: 'A watch case. A museum-grade stone. Four to go.',
+    num: '2 of 6',
+    label: 'trophies acquired',
+    hue: HUE.gold,
+    // Promoted from slot 8, where nothing but a page-scroller ever saw it.
+    // Money-Wealth is 13 of the 87 category-exact keywords and the single
+    // largest money-shaped intent group in the account; leaving its frame past
+    // the fold was the clearest mis-allocation in the old order.
+    //
+    // Was "Rare collection" over the Browse tab, which read `Collection (0)` and
+    // `0 / 6 collectibles` — the player owned nothing at all. The capture now
+    // buys two pieces through the app's own Buy button and photographs the
+    // Collection tab, so the caption describes something that is on screen.
+    pick: 'luxury',
+    // The two items the capture actually bought, composited into the scene at
+    // the size they deserve. `edge` mode puts the device on the right, so the
+    // left of the canvas is theirs.
+    props: [
+      { art: 'diamond', x: 0.215, y: 0.415, w: 0.62, rot: -4, glow: 0.60, bright: 1.30 },
+      { art: 'watches', x: 0.300, y: 0.740, w: 0.62, rot: 5, glow: 0.42, bright: 1.45 },
+    ],
+    evidence: 'The Luxury Life card reads "2 / 6 collectibles" after the capture buys the watch case and the diamond; the two props are those two items.',
+    assert: ['2 / 6 collectibles', 'Collection (2)'],
+  },
+
+  // ── ACT II · THE SYSTEMS ────────────────────────────────────────────────────
+  // Four frames whose only job is to prove there is a game under the fantasy
+  // Act I sells. Ordered by the size of the ad group each one answers:
+  // Investing-Stocks 12, Crime-Underground 10, Business-Tycoon 10, RealEstate 8.
+  {
+    id: '04-play-the-markets',
+    act: 'systems',
+    mode: 'trio',
+    art: 'penthouse',
+    support: ['bank', 'crypto'],
+    head: 'Play the |markets.|',
+    sub: 'Twenty-five tickers, six sectors, one call.',
+    num: '25 listed',
+    label: 'tickers · sector rotation live',
+    hue: HUE.apps,
+    // "eleven sectors" is what the first draft of the sub-line said, and
+    // "15 advancing · 10 declining" is what this label said. `ALL_SECTORS` in
+    // `lib/stocks/sectors.ts` has SIX, and the advancing/declining split is
+    // re-rolled every run — it was true of one capture only. Copy written from
+    // memory is exactly how a set ends up claiming things the game does not do.
+    pick: 'stocks',
+    evidence: 'Header counter reads 25 Listed; lib/stocks/sectors.ts holds 25 tickers over 6 sectors.',
+    assert: ['25', 'Listed', 'Sector rotation'],
+  },
+  {
+    id: '05-work-the-dark-web',
+    act: 'systems',
+    // Solo. A terminal is the densest screen in the app and the least
+    // survivable at flank scale.
+    mode: 'solo',
+    art: 'slate',
+    support: [],
+    head: 'Work the |dark web.|',
+    sub: 'High risk, higher reward. Watch your heat.',
+    num: 'Opsec Lv4',
+    label: 'heat cold · vendors live',
+    hue: HUE.terminal,
+    pick: 'darkweb',
+    evidence: 'The decay line reads "(opsec Lv4)" and the threat monitor reads "band=Cold".',
+    assert: ['opsec Lv4', 'Cold'],
+  },
+  {
+    id: '06-found-the-company',
+    act: 'systems',
+    mode: 'trio',
+    art: 'box',
+    support: ['politics', 'apps'],
+    head: 'Found the |company.|',
+    sub: 'Set the price. Take the market. Hire.',
+    num: '$8,000',
+    label: 'a week in revenue',
+    hue: HUE.market,
+    pick: 'company',
+    evidence: 'The empire snapshot reads $8,000 / wk and the company card repeats it.',
+    assert: ['$8,000', 'EMPIRE SNAPSHOT'],
+  },
+  {
+    id: '07-own-the-block',
+    act: 'systems',
+    mode: 'edge',
+    art: 'estate',
+    support: [],
+    head: 'Own the |block.|',
+    sub: 'Studio to penthouse. Rent it out, or move in.',
+    hue: HUE.premium,
+    // The frame this set did not have. `RealEstate` carries 8 category-exact
+    // keywords and had no slot for one reason only: the app opens on an empty
+    // portfolio reading `Portfolio equity $0`, `0 properties`, "You don't own
+    // any property yet" — a capture gap that had been read as a content
+    // decision for the whole life of the set. `buyPropertyAndShowPortfolio` in
+    // the capture script now buys through the app's own listing CTA, with cash
+    // rather than a mortgage so the equity printed is simply what the
+    // properties are worth.
+    pick: 'realestate',
+    // Written FROM the capture rather than at it. The first draft of this frame
+    // claimed "Portfolio equity", which is on the screen but above the fold —
+    // the claims test rejected it, which is the whole reason that test exists.
+    // What the shot actually holds is better anyway: three owned properties,
+    // each with its own art, its price and its equity, which is a ladder rather
+    // than a total.
+    evidence: 'The portfolio lists three owned properties — Studio Apartment $95K, Duplex $320K, Luxury Condo $850K — each with its equity.',
+    assert: ['Your properties', '$850K', 'equity'],
+    num: '3 owned',
+    label: 'studio · duplex · condo',
+    // Counted, not quoted: nothing on the screen prints "3", so checking for the
+    // digit would check nothing. Every counted thing has to be visible and there
+    // have to be exactly as many as the chip says.
+    items: ['Studio Apartment', 'Duplex', 'Luxury Condo'],
+  },
+
+  // ── ACT III · THE LIFE ──────────────────────────────────────────────────────
+  // Two frames, because Act II earned a fifth. Dating leads the act rather than
+  // the page: it has ZERO keywords in the category-exact file, so it earns a
+  // frame on retention grounds and not a slot a scanner ever reaches. It is
+  // also the only human face in the set, which is why the act that holds it is
+  // where the character appears at all.
+  //
+  // The family frame that used to sit here was cut for the garage. It was the
+  // weakest image in the set — a contacts list over the murkiest plate — and
+  // the THIRD frame serving LifeSim-Core, which frames 01 and 10 already carry
+  // between them. Frame 10's identity card still reads Married, so the family
+  // is in the set; it just no longer spends a slot saying so.
+  {
+    id: '08-drive-what-you-earned',
+    act: 'systems',
+    // Mirrored: frame 07 is also `edge`, and two adjacent frames in the same
+    // composition read as one image rendered twice — the exact failure this
+    // mode system exists to prevent. Device left, car and type right.
+    mode: 'edge',
+    flip: true,
+    art: 'showroom',
+    support: [],
+    head: 'Drive what you |earned.|',
+    sub: 'Sixteen models. Licence first, then the keys.',
+    // No prop, deliberately. The car the capture bought was composited in here
+    // first — its render ships with a real alpha channel, so unlike the
+    // collectibles it needs no blend at all — and side by side the frame is
+    // better without it: the PLATE is already a car, and a second one collided
+    // with both its front end and the yellow car inside the app UI. Three cars
+    // competing for one job. `PROPS.supercar` stays registered for the same
+    // reason the note does: the next person to reach for it should see that it
+    // was tried.
+    num: '211 mph',
+    label: 'exotic supercar · owned',
+    // Money green, not the cooler blue this briefly carried. Blue was the
+    // "correct" call on paper — a warm-rim-lit black car wants a cool room, and
+    // it makes the yellow prop pop hardest — but the emerald wash over a dark
+    // showroom is the stronger image, and the owner picked it out of a
+    // side-by-side. Green also happens to be the right MEANING here: the frame
+    // is about what the money bought.
+    hue: HUE.money,
+    // The third capture of this kind, and the one that was gated rather than
+    // merely empty: the Vehicles app opens on a dealership behind a driver's
+    // licence, with every Buy button reading "License needed". Every previous
+    // capture of it was a picture of a locked shop, which is why there was
+    // never a vehicle frame.
+    pick: 'garage',
+    evidence: 'The garage lists the Exotic Supercar the capture bought, with its top speed.',
+    assert: ['Exotic Supercar'],
+  },
+  {
+    id: '09-fall-for-someone',
+    act: 'life',
+    mode: 'solo',
+    art: 'island',
+    support: [],
+    head: 'Fall for |someone.|',
+    sub: 'Swipe, match, fall in love — or don’t.',
+    num: '30 swipes',
+    label: 'left · 1 super',
+    hue: HUE.romance,
+    pick: 'spark',
+    evidence: 'The Spark card footer reads "30 swipes left · 1 super".',
+    assert: ['30 swipes left', '1 super'],
+  },
+  {
+    id: '10-then-do-it-again',
+    act: 'life',
+    mode: 'edge',
+    art: 'harbour',
+    support: [],
+    head: 'Then do it |again.|',
+    sub: 'Eleven million later. Prestige, and start over.',
+    // Deliberately the SAME label as frame 01, on the same screen, on the same
+    // chip: "$1,500 TO YOUR NAME" and "$11M TO YOUR NAME". Only the number moved.
+    //
+    // The label used to read "net worth", which the chip is not — it is the
+    // WALLET, and the net-worth line sits below the fold and out of the picture.
+    // Worth knowing which capture this frame reads: `home` is shot at the top of
+    // the desktop walk, BEFORE the run buys three properties, a supercar and two
+    // trophies. `home-final`, shot after, reads $8M for exactly that reason.
+    // Both are true states of the same save; this frame quotes the one it is
+    // actually a picture of.
+    num: '$11M',
+    label: 'to your name',
+    hue: HUE.gold,
+    pick: 'home',
+    // The bookend. Same screen as frame 01, same character, same age — only the
+    // number moved. That comparison is the whole product in one pair of images,
+    // and it is the reason the set opens on a capture taken before the grants.
+    evidence: 'HUD wallet chip reads $11M on the same home screen frame 01 shows at $1,500.',
+    assert: ['$11M', 'Age', '22'],
+  },
 ];
+
+/**
+ * Derives every layout number from the canvas.
+ *
+ * The set this replaces rendered ONE 1320×2868 canvas and scaled it to 6.5"
+ * with `scale(sx, sy)` where `sx !== sy` — 0.9727 across, 0.9686 down — so the
+ * whole 6.5" set was squashed 0.4% anamorphically. Every size now derives its
+ * own numbers from its own canvas and renders natively, which costs nothing
+ * and cannot distort.
+ *
+ * `kind` is `'phone'` or `'tablet'`: a tablet canvas is far wider relative to
+ * its height, so the device takes a smaller share of the width and the margins
+ * grow. The numbers differ; the design does not.
+ */
+export function layoutFor(W, H, kind = 'phone') {
+  const tablet = kind === 'tablet';
+
+  // The device is derived from the HEIGHT it is given, not from a share of the
+  // width, and it is fully CONTAINED. Sizing it by width instead is how the
+  // first attempt ended up running the phone 54px past the bottom edge — a
+  // 2% bleed, too small to read as a deliberate crop and too big to read as a
+  // margin, and it sliced the tab bar in half. The tab bar is product; a
+  // screenshot that eats it looks like a mistake, because it is one.
+  const devTop = Math.round(H * (tablet ? 0.286 : 0.272));
+  const footer = Math.round(H * (tablet ? 0.030 : 0.028));
+  const devH = H - devTop - footer;
+  // The capture's own aspect: 1290×2796 phone, 2048×2732 tablet.
+  const screenAspect = tablet ? 2732 / 2048 : 2796 / 1290;
+  const bezel = Math.round(H * (tablet ? 0.0055 : 0.0053));
+  const devW = Math.round((devH - bezel * 2) / screenAspect) + bezel * 2;
+
+  // Flank geometry, derived from the hero so the two can never disagree about
+  // proportion. Kept to the same aspect as the hero — a flank that is a
+  // different SHAPE from the device beside it reads as a different product.
+  // The two shelves need genuinely different flank models, because the SHAPE
+  // of the canvas differs, not just its size.
+  //
+  // A 2.17-tall phone canvas holding a 2.17-tall device leaves no width for a
+  // flank the same height, so the phone's flanks are much shorter and are
+  // RAISED — the empty ground that leaves falls in the bottom corners, where
+  // the vignette and the hero's contact shadow already are.
+  //
+  // A 1.33 tablet canvas is proportionally far wider, so the same treatment
+  // left two large empty rectangles low and outboard. There the flanks are
+  // near hero height and sit on the SAME baseline, and the three devices read
+  // as one band.
+  const sideW = Math.round(devW * (tablet ? 0.90 : 0.86));
+  const sideBezel = Math.max(1, Math.round(bezel * (tablet ? 0.70 : 0.735)));
+  const sideH = Math.round((sideW - sideBezel * 2) * screenAspect) + sideBezel * 2;
+
+  return {
+    W, H, kind, devW, devH, bezel, devTop,
+    devR: Math.round(devW * (tablet ? 0.055 : 0.093)),
+    scrR: Math.round(devW * (tablet ? 0.043 : 0.078)),
+
+    // The type block's BOTTOM edge; extra headline lines grow upward.
+    headBaseline: Math.round(H * (tablet ? 0.212 : 0.205)),
+    headPad: Math.round(W * (tablet ? 0.115 : 0.068)),
+    h1: Math.round(W * (tablet ? 0.075 : 0.0945)),
+    h1Track: -Math.round(W * (tablet ? 0.0018 : 0.0023) * 10) / 10,
+    sub: Math.round(W * (tablet ? 0.0265 : 0.0322)),
+    subGap: Math.round(H * 0.0118),
+    // The pill is a proof point, so it is sized to be READ, not to be tucked
+    // away — the version this replaces set it at 27px on a 1320px canvas and
+    // it vanished at carousel scale.
+    // The proof chip, anchored to the hero device rather than centred in the
+    // type block. It overhangs the device's left edge so it reads as a label ON
+    // the screen, the way a callout does — the number and the pixels that prove
+    // it end up in the same glance instead of 400px apart. Its X and Y are
+    // derived in `frameHtml` from where the device actually ends up, because
+    // `edge` mode moves the device and a fixed offset would leave the chip
+    // floating in open art.
+    chip: Math.round(W * (tablet ? 0.0185 : 0.0255)),
+    chipPadX: Math.round(W * (tablet ? 0.021 : 0.030)),
+    chipPadY: Math.round(W * (tablet ? 0.0105 : 0.0148)),
+
+    bloomW: Math.round(W * 1.15),
+    bloomH: Math.round(H * 0.55),
+    bloomY: Math.round(H * (tablet ? 0.30 : 0.315)),
+    shadowH: Math.round(H * 0.035),
+
+    // ── The flanking devices ────────────────────────────────────────────────
+    //
+    // A second and third screen per frame, which is what the ORIGINAL store set
+    // did and what this one lost when it was cut back to a single device. The
+    // difference is in the four things that made the original read as a
+    // template, all of which are fixed here rather than repeated:
+    //
+    //  - **Hierarchy.** There, the "main" phone was about a third of the frame
+    //    and the two flanks were the same size as each other and nearly as
+    //    large as it, so nothing led. Here the hero is ~2x the flank area and
+    //    sits in front; the flanks are context, not competition.
+    //  - **They were cropped to nothing.** `left:-160px` / `right:-160px` on a
+    //    ~400px device is 40% of each one off the canvas. The flanks here lose
+    //    a deliberate sliver at the edge and keep the rest.
+    //  - **The rotations were arbitrary** — `rotateY(±24deg) rotateZ(∓9deg)`,
+    //    a tilt with no optical justification, which is what made them read as
+    //    stickers. These share ONE perspective origin and rotate only in Y, so
+    //    the two flanks turn to face the same viewer. That is a camera, not a
+    //    decoration.
+    //  - **They were unreadable**, so they were texture standing in for
+    //    content. These stay legible: dimmed, never blurred. A screenshot you
+    //    cannot read is decoration no matter what is on it.
+    sideW: sideW,
+    sideH: sideH,
+    sideBezel: sideBezel,
+    sideR: Math.round(sideW * (tablet ? 0.055 : 0.093)),
+    sideScrR: Math.round(sideW * (tablet ? 0.043 : 0.078)),
+    // Raised above the hero's top edge so each flank shows its own header and
+    // first cards — the part of a screen that says what it is.
+    // BELOW the hero's top edge, never above it.
+    //
+    // The flanks used to be raised, which inverted the hierarchy — the hero was
+    // no longer the tallest thing in the frame — and worse, two flanks at the
+    // same raised height drew one hard horizontal line straight across the
+    // composition above the hero's head. It read as a shelf. Sitting them lower
+    // makes the hero the silhouette and leaves the flanks receding behind it.
+    sideTop: tablet
+      ? devTop + devH - sideH - Math.round(H * 0.030)
+      : devTop + Math.round(H * 0.034),
+    // Distance from canvas centre to each flank's centre.
+    sideDx: Math.round(W * (tablet ? 0.300 : 0.330)),
+    sideRotY: tablet ? 16 : 21,
+    perspective: Math.round(W * 2.1),
+    sideZ: Math.round(W * (tablet ? 0.13 : 0.14)),
+
+    // ── EDGE mode ───────────────────────────────────────────────────────────
+    //
+    // The device steps off centre and turns, so the scene behind it gets a
+    // corner of the canvas to itself instead of two thin margins. Used on the
+    // three frames whose art is the argument (the yacht, the mansion, the
+    // vineyard) and nowhere else — a composition used on every frame is the
+    // template problem again in a different pose.
+    //
+    // `edgeH` is what keeps this honest: it is derived so the screen still
+    // clears MIN_SCREEN_SHARE of the canvas height. Shrinking the real
+    // screenshot until the frame is an advert is the one failure mode that
+    // costs a 2.3.3 rejection rather than an install, so the floor is
+    // computed, not chosen.
+    edgeDx: Math.round(W * (tablet ? 0.150 : 0.175)),
+    edgeH: Math.max(Math.round(H * MIN_SCREEN_SHARE), Math.round(devH * 0.90)),
+    edgeTop: devTop + Math.round(H * (tablet ? 0.028 : 0.030)),
+    edgeRotY: tablet ? 8 : 10,
+  };
+}
+
+/** `#RRGGBB` → `"r,g,b"`, so one hue can drive both solid and alpha colours. */
+function rgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
+
+
+/**
+ * The carousel gutter, as a fraction of one card's width.
+ *
+ * The panoramic background below is one wide image sliced into ten cards, and
+ * this number is the whole reason it lines up. The App Store shows screenshots
+ * with a gap between them; slice a panorama into ten EQUAL pieces and ignore
+ * that gap and the halves do not meet — the effect reads as ten misaligned
+ * images rather than one continuous field, which is worse than not attempting
+ * it. So the virtual canvas is `10·W + 9·GUTTER` wide and each frame is a
+ * window into it at `i·(W + GUTTER)`.
+ */
+export const GUTTER = 0.045;
 
 /**
  * Builds one frame's HTML.
  *
- * `L` carries the per-device-size layout numbers; everything else is shared, so
- * the iPad set differs from the iPhone set only in proportion, never in style.
+ * `L` carries the per-canvas layout from `layoutFor`; everything else is
+ * shared, so the iPad set differs from the iPhone set only in proportion.
  */
-export function frameHtml(frame, shot, L) {
+export function frameHtml(frame, shots, L) {
+  // `shots` is { hero, left, right, art } — data URIs. A string is still
+  // accepted so a caller with one screen does not have to build an object.
+  const S = typeof shots === 'string' ? { hero: shots } : shots;
   const head = frame.head.replace('|', '<span class="acc">').replace('|', '</span>');
-  const P = PALETTE;
+  const A = frame.hue;
+  const a = rgb(A);
+  const G = GROUND;
+  const { num, label } = { num: frame.num, label: frame.label, ...(frame.byKind?.[L.kind] || {}) };
+  const mode = frame.mode || 'trio';
+  const plate = ART[frame.art] || {};
+
+  // ── The panorama, per ACT ───────────────────────────────────────────────────
+  //
+  // The version this replaces ran ONE continuous hue field across all ten
+  // cards. That works when every card's background is a gradient this file
+  // draws; it cannot work when each card is a different photograph. So the
+  // continuity device runs per act instead — the hue sweep and the horizon
+  // line are continuous across an act's frames and CUT at the act breaks.
+  //
+  // The gutter maths is the same and matters for the same reason: the App Store
+  // shows a gap between screenshots, so slicing a field into equal pieces and
+  // ignoring that gap means the halves do not meet, and the effect reads as
+  // misalignment rather than as one place. The virtual canvas is
+  // `n·W + (n-1)·GUTTER` wide and each frame is a window into it.
+  const idx = Math.max(0, FRAMES.indexOf(frame));
+  const act = ACTS.find((x) => x.id === frame.act) || ACTS[0];
+  const actStart = FRAMES.findIndex((f) => f.act === act.id);
+  const actFrames = FRAMES.filter((f) => f.act === act.id);
+  const n = actFrames.length;
+  const i = idx - actStart;
+  const gut = Math.round(L.W * GUTTER);
+  const stride = L.W + gut;
+  const panoW = n * L.W + (n - 1) * gut;
+  const originX = i * stride;
+  const washes = actFrames.map((f, j) => {
+    const cx = j * stride + L.W / 2;
+    return `radial-gradient(${Math.round(L.W * 1.05)}px ${Math.round(L.H * 0.86)}px at ${Math.round(cx)}px ${Math.round(L.H * 0.30)}px, rgba(${rgb(f.hue)},0.40), transparent 74%)`;
+  }).join(',\n      ');
+
+  // Where the device sits, which every light in the frame is derived from so
+  // the shadow and the spill cannot drift away from the object casting them.
+  // `flip` mirrors an edge frame — device left, type and props right. Frames 07
+  // and 08 are adjacent and both edge; without this they read as the same
+  // composition twice, which is the failure this whole mode system exists to
+  // avoid.
+  const side = frame.flip ? -1 : 1;
+  const dx = mode === 'edge' ? L.edgeDx * side : 0;
+  const devH = mode === 'edge' ? L.edgeH : L.devH;
+  const devTop = mode === 'edge' ? L.edgeTop : L.devTop;
+  const screenAspect = L.kind === 'tablet' ? 2732 / 2048 : 2796 / 1290;
+  const bez = Math.round(L.bezel * 0.62);
+  const devW = Math.round((devH - bez * 2) / screenAspect) + bez * 2;
+  const devR = Math.round(devW * (L.kind === 'tablet' ? 0.055 : 0.093));
+
+  const alignLeft = mode === 'edge';
+
+  const propsHtml = (frame.props || []).length
+    ? `<div class="props">` + frame.props.map((pr) => {
+      const w = Math.round(L.W * pr.w);
+      const left = Math.round(L.W * pr.x - w / 2);
+      const top = Math.round(L.H * pr.y - w / 2);
+      return `<div class="prop" style="left:${left}px;top:${top}px;width:${w}px;">`
+        + `<div class="halo" style="background:radial-gradient(closest-side, rgba(${a},${pr.glow ?? 0.4}), transparent 70%);filter:blur(${Math.round(L.W * 0.03)}px);"></div>`
+        + `<img src="${S.props?.[pr.art] || ''}" style="mix-blend-mode:${PROPS[pr.art]?.blend || 'normal'};`
+        + `transform:rotate(${pr.rot || 0}deg);`
+        + `filter:brightness(${pr.bright ?? 1}) contrast(${pr.contrast ?? 1.05});">`
+        + `</div>`;
+    }).join('') + `</div>`
+    : '';
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  @font-face {
+    font-family:'Inter Tight';
+    src:url(data:font/woff2;base64,${FONT_B64}) format('woff2');
+    font-weight:100 900; font-style:normal; font-display:block;
+  }
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:${L.W}px; height:${L.H}px; overflow:hidden; }
   body {
-    font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,'Helvetica Neue',sans-serif;
-    background:${P.ground};
+    font-family:'Inter Tight',-apple-system,'Segoe UI',sans-serif;
+    background:${G.base};
     -webkit-font-smoothing:antialiased;
+    text-rendering:geometricPrecision;
   }
   .canvas { position:relative; width:${L.W}px; height:${L.H}px; overflow:hidden; }
 
-  /* Ground: one vertical wash plus a single soft bloom, in a FIXED position on
-     every frame. The old set moved three coloured glows around per frame. */
-  .bg {
-    position:absolute; inset:0;
-    background:
-      radial-gradient(${L.bloomW}px ${L.bloomH}px at 50% ${L.bloomY}%, rgba(${P.bloom},0.20), transparent 70%),
-      radial-gradient(${Math.round(L.bloomW * 1.5)}px ${Math.round(L.bloomH * 0.55)}px at 50% 8%, rgba(${P.bloom},0.10), transparent 72%),
-      linear-gradient(180deg, ${P.groundHigh} 0%, ${P.ground} 58%, #02040A 100%);
+  /* ── THE SCENE ─────────────────────────────────────────────────────────────
+     The game's own art, full bleed. object-position is per-plate because
+     these are wide renders being cropped to a 1:2.17 canvas and the subject is
+     rarely dead centre. The filter is the relight: measured per plate, because
+     a plate that cannot carry its own light drags the whole frame back to
+     where this redesign started. */
+  .art { position:absolute; inset:0; z-index:0; }
+  .art img {
+    width:100%; height:100%; object-fit:cover;
+    object-position:${plate.focus || '50% 45%'};
+    transform:scale(${plate.zoom ?? 1});
+    filter:brightness(${plate.bright ?? 1}) contrast(${plate.contrast ?? 1}) saturate(${plate.sat ?? 1})${plate.hue ? ` hue-rotate(${plate.hue}deg)` : ''};
   }
-  /* A restrained vignette so the corners settle. */
+  /* One hue over the whole plate, at low strength. This is what keeps ten
+     different photographs reading as one series: the accent that colours the
+     headline word and the chip is also the light in the room. */
+  .tone {
+    position:absolute; inset:0; mix-blend-mode:soft-light;
+    background:linear-gradient(168deg, rgba(${a},0.44) 0%, transparent 46%, rgba(${a},0.30) 100%);
+  }
+  /* The scrim. Heavy at the top so the headline has a ground, light through the
+     middle where the art actually is, heavy again at the foot so the device
+     sits on something. */
+  .scrim {
+    position:absolute; inset:0;
+    background:linear-gradient(180deg,
+      rgba(3,6,13,0.90) 0%,
+      rgba(3,6,13,0.72) ${(L.headBaseline / L.H * 100 * 0.55).toFixed(1)}%,
+      rgba(3,6,13,0.22) ${(L.headBaseline / L.H * 100 + 4).toFixed(1)}%,
+      rgba(3,6,13,0.18) 52%,
+      rgba(3,6,13,0.58) 86%,
+      rgba(3,6,13,0.86) 100%);
+  }
+  /* GROUND — a window onto a panorama as wide as this frame's ACT. */
+  .pano {
+    position:absolute; top:0; left:${-originX}px;
+    width:${panoW}px; height:${L.H}px;
+    mix-blend-mode:screen; opacity:0.72;
+    background:${washes};
+  }
+  /* The horizon the devices stand on. Continuous across the act, so the frames
+     within one act read as one place and the act break reads as a cut. */
+  .horizon {
+    position:absolute; top:0; left:${-originX}px;
+    width:${panoW}px; height:${L.H}px;
+    background:linear-gradient(180deg,
+      transparent ${(devTop / L.H * 100 - 6).toFixed(1)}%,
+      rgba(${a},0.22) ${(devTop / L.H * 100).toFixed(1)}%,
+      transparent ${(devTop / L.H * 100 + 10).toFixed(1)}%);
+  }
+  /* Film grain. Two jobs: it kills the banding that big soft gradients show on
+     an OLED phone, and it marries the compressed art to the drawn layers over
+     it — without it the scrim reads as a flat sheet laid on a photograph. */
+  .grain {
+    position:absolute; inset:0; opacity:0.22; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
   .vig {
     position:absolute; inset:0;
-    background:radial-gradient(120% 78% at 50% 42%, transparent 52%, rgba(0,0,0,0.42) 100%);
+    background:radial-gradient(130% 88% at 50% 38%, transparent 50%, rgba(0,0,0,0.46) 100%);
   }
 
-  /* Anchored by its BOTTOM edge, not its top.
-     A headline that wraps to two lines then grows UPWARD into the top margin
-     instead of pushing the device down — so the device sits at exactly the
-     same height in all ten frames. Anchoring from the top makes the phone jump
-     between frames, which is the sort of thing that reads as "generated" even
-     when no single frame looks wrong. */
+  /* The type's own ground.
+     The scrim below is tuned for the WHOLE canvas and cannot also guarantee a
+     headline set over a golden-hour sky. This band exists only under the type
+     block, and it is why the contrast check in scripts/check-store-contrast.mjs
+     passes on the bright plates (the yacht, the island, the vineyard) as well
+     as the dark ones. Without it the sub-line loses against the art at exactly
+     the sizes that matter. */
+  .headshade {
+    position:absolute; top:0; left:0; right:0; z-index:5;
+    height:${L.headBaseline + Math.round(L.H * 0.05)}px;
+    background:linear-gradient(180deg,
+      rgba(3,6,13,${(0.80 + (plate.shade ?? 0)).toFixed(2)}) 0%,
+      rgba(3,6,13,${(0.70 + (plate.shade ?? 0)).toFixed(2)}) 46%,
+      rgba(3,6,13,${(0.40 + (plate.shade ?? 0)).toFixed(2)}) 78%,
+      rgba(3,6,13,0) 100%);
+  }
+
+  /* TYPE — anchored by its BOTTOM edge, so a headline that wraps grows UPWARD
+     into the top margin and the devices sit at the same height throughout an
+     act. A phone that jumps between frames reads as "generated" even when no
+     single frame looks wrong. */
   .head {
     position:absolute; bottom:${L.H - L.headBaseline}px; left:0; right:0;
-    text-align:center; padding:0 ${L.headPad}px; z-index:4;
+    text-align:${alignLeft ? (frame.flip ? 'right' : 'left') : 'center'}; padding:0 ${L.headPad}px; z-index:6;
   }
   h1 {
-    font-size:${L.h1}px; line-height:1.06; font-weight:700;
-    letter-spacing:${L.h1Track}px; color:${P.headline};
+    font-size:${L.h1}px; line-height:1.02; font-weight:800;
+    letter-spacing:${L.h1Track}px; color:${G.headline};
+    text-shadow:0 ${Math.round(L.H * 0.004)}px ${Math.round(L.H * 0.018)}px rgba(0,0,0,0.72);
   }
-  /* ONE accent colour. The previous version ran a three-stop rainbow here. */
-  h1 .acc { color:${P.accent}; }
+  /* ONE accent colour, flat. The version this replaces ran a three-stop rainbow
+     gradient through this word. */
+  h1 .acc { color:${A}; }
   .sub {
-    margin-top:${L.subGap}px; font-size:${L.sub}px; font-weight:500;
-    line-height:1.32; color:${P.sub}; letter-spacing:${L.subTrack}px;
-  }
-  .stat {
-    display:inline-block; margin-top:${L.pillGap}px;
-    padding:${L.pillPadY}px ${L.pillPadX}px; border-radius:999px;
-    font-size:${L.pill}px; font-weight:600; letter-spacing:${L.pillTrack}px;
-    color:${P.pillText}; background:${P.pillFill};
-    border:1px solid ${P.pillBorder};
+    margin-top:${L.subGap}px; font-size:${L.sub}px; font-weight:600;
+    line-height:1.3; color:${G.subStrong}; letter-spacing:0.1px;
+    text-shadow:0 ${Math.round(L.H * 0.002)}px ${Math.round(L.H * 0.012)}px rgba(0,0,0,0.8);
   }
 
-  /* One device, straight on, centred, fully contained. */
+  /* THE PROOF CHIP — on the device, not floating in the type block.
+     It used to be a pill centred under the sub-line, which put the number as
+     far from the pixels that prove it as the frame allows. Sitting it on the
+     hero's edge makes it a label on the thing it describes, and it is the one
+     element that reads as pointing INTO the product. */
+  .chip {
+    position:absolute; z-index:7;
+    left:${frame.flip
+      ? Math.min(Math.round(L.W * 0.965) - Math.round(L.W * 0.42), Math.round(L.W / 2 + dx + devW / 2 - L.W * 0.30))
+      : Math.max(Math.round(L.W * 0.035), Math.round(L.W / 2 + dx - devW / 2 - L.W * 0.02))}px;
+    top:${devTop + Math.round(L.H * (L.kind === 'tablet' ? 0.050 : 0.046))}px;
+    display:inline-flex; align-items:baseline; gap:${Math.round(L.chip * 0.4)}px;
+    padding:${L.chipPadY}px ${L.chipPadX}px; border-radius:999px;
+    font-size:${L.chip}px; font-weight:800; letter-spacing:${(L.chip * 0.035).toFixed(2)}px;
+    text-transform:uppercase; white-space:nowrap;
+    color:#07101C; background:${A};
+    box-shadow:0 ${Math.round(L.chip * 0.5)}px ${Math.round(L.chip * 1.4)}px rgba(0,0,0,0.6),
+               0 0 ${Math.round(L.chip * 2.2)}px rgba(${a},0.55);
+  }
+  .chip .l { font-weight:700; opacity:0.70; }
+
+  /* PROPS — the game's own objects, lit into the scene.
+     Behind the device on purpose: these are blended, and a blended object in
+     FRONT of the product would let the screenshot show through it. */
+  .props { position:absolute; inset:0; }
+  /* No z-index anywhere between .art and here, and none on .prop: every one
+     would create a stacking context, and a stacking context isolates the blend
+     group — the prop would then lighten against transparent black and keep the
+     box it was rendered in. Everything from the plate up to the props stacks by
+     document order for that reason alone. */
+  .prop { position:absolute; }
+  .prop img { width:100%; display:block; }
+  /* The light the object sits in. Without it a lighten-blended render floats
+     with no relationship to the plate behind it. */
+  .prop .halo {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:150%; height:150%; border-radius:50%; pointer-events:none;
+  }
+
+  /* The stage. ONE perspective origin for every device in the frame, so a turned
+     screen faces the same viewer instead of tilting independently. */
+  .stage {
+    position:absolute; inset:0; z-index:3;
+    perspective:${L.perspective}px; perspective-origin:50% ${devTop + Math.round(devH * 0.35)}px;
+    transform-style:preserve-3d;
+  }
+  /* The device. No metallic bezel and no notch — a dark rim and a hairline.
+     The chrome the old set drew was ~12% of the canvas spent on a picture of a
+     phone, which is the thing this redesign is trying to stop being about; with
+     a real scene behind it the screen separates on contrast alone. */
   .device {
-    position:absolute; left:50%; top:${L.devTop}px;
-    width:${L.devW}px; transform:translateX(-50%); z-index:3;
-    padding:${L.bezel}px; border-radius:${L.devR}px;
-    background:linear-gradient(155deg, #5A6274 0%, #2E3440 36%, #23272F 66%, #4A5265 100%);
+    position:absolute; left:50%; top:${devTop}px;
+    width:${devW}px; height:${devH}px;
+    transform:translateX(-50%) translateX(${dx}px)${mode === 'edge' ? ` rotateY(${-L.edgeRotY * side}deg)` : ''} translateZ(0);
+    padding:${bez}px; border-radius:${devR}px;
+    background:#080C15;
     box-shadow:
-      0 ${Math.round(L.devW * 0.10)}px ${Math.round(L.devW * 0.20)}px rgba(0,0,0,0.60),
-      0 ${Math.round(L.devW * 0.03)}px ${Math.round(L.devW * 0.07)}px rgba(0,0,0,0.45);
+      0 ${Math.round(devW * 0.075)}px ${Math.round(devW * 0.19)}px rgba(0,0,0,0.72),
+      0 ${Math.round(devW * 0.02)}px ${Math.round(devW * 0.05)}px rgba(0,0,0,0.58),
+      0 0 ${Math.round(devW * 0.30)}px rgba(${a},0.44),
+      inset 0 0 0 1px rgba(255,255,255,0.10);
   }
-  /* A hairline inner edge — the only "shine" on the device, and it sits on the
-     BEZEL, never across the screen. A gloss sweep over the UI hides the product. */
   .device::after {
-    content:''; position:absolute; inset:${Math.round(L.bezel * 0.35)}px;
-    border-radius:${L.devR - Math.round(L.bezel * 0.35)}px;
-    border:1px solid rgba(255,255,255,0.10); pointer-events:none;
+    content:''; position:absolute; inset:0;
+    border-radius:${devR}px;
+    border:1px solid rgba(255,255,255,0.16); pointer-events:none;
   }
-  .screen { position:relative; border-radius:${L.scrR}px; overflow:hidden; background:#0B1220; }
+  .screen {
+    position:relative; height:100%; border-radius:${Math.round(devR - bez)}px;
+    overflow:hidden; background:#0B1220;
+  }
   .screen img { display:block; width:100%; }
 
-  /* The shadow that sits the device on the ground. */
+  /* FLANKS — smaller, further back, dimmed, behind the hero. Dimmed, never
+     BLURRED: blur is the lazy way to say "background" and it turns a real
+     screenshot into texture. A reader can still tell what these two screens
+     are; they simply are not the one being read. */
+  .side {
+    position:absolute; top:${L.sideTop}px;
+    width:${L.sideW}px; height:${L.sideH}px;
+    padding:${Math.max(1, Math.round(bez * 0.75))}px; border-radius:${L.sideR}px;
+    background:#070A12;
+    box-shadow:
+      0 ${Math.round(L.sideW * 0.06)}px ${Math.round(L.sideW * 0.15)}px rgba(0,0,0,0.66),
+      0 0 ${Math.round(L.sideW * 0.14)}px rgba(${a},0.18),
+      inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .side .screen { border-radius:${L.sideScrR}px; }
+  /* Pushed BACK in 3D, not merely given a lower z-index.
+     transform-style:preserve-3d makes z-index INERT: children are painted by
+     their position in 3D space, so a flank carrying a rotateY and no translateZ
+     sorted IN FRONT of the un-transformed hero and clipped its left column —
+     the identity card read "Age 2" and "ried". Depth here has to be real depth.
+     It earns its keep twice over: a device further from the camera also
+     projects smaller, so the size falloff is the perspective doing it rather
+     than another number to keep in sync.
+     (Comments inside this template literal must not use backticks.) */
+  .side.l { left:50%; transform:translateX(-50%) translateX(-${L.sideDx}px) translateZ(-${L.sideZ}px) rotateY(${L.sideRotY}deg); }
+  .side.r { left:50%; transform:translateX(-50%) translateX(${L.sideDx}px) translateZ(-${L.sideZ}px) rotateY(-${L.sideRotY}deg); }
+  .side .screen::after {
+    content:''; position:absolute; inset:0; border-radius:inherit;
+    background:linear-gradient(180deg, rgba(4,7,14,0.20), rgba(4,7,14,0.38));
+  }
+  .side .screen img { filter:saturate(0.92) brightness(0.96); }
+
+  /* The light the screen spills into the room, and the shadow that sits the
+     device on it. Both are physical: a lit rectangle in a dark space throws
+     colour, and an object above a surface casts a contact shadow. With a real
+     photograph behind them they are also what stops the device reading as a
+     sticker pasted onto a stock image. */
+  .spill {
+    position:absolute; left:50%; transform:translateX(-50%) translateX(${dx}px);
+    top:${devTop - Math.round(L.H * 0.075)}px;
+    width:${Math.round(devW * 1.6)}px; height:${Math.round(L.H * 0.19)}px;
+    background:radial-gradient(closest-side, rgba(${a},0.52), transparent 72%);
+    filter:blur(${Math.round(L.W * 0.035)}px);
+  }
   .contact {
-    position:absolute; left:50%; transform:translateX(-50%);
-    top:${L.shadowTop}px; width:${Math.round(L.devW * 0.94)}px; height:${L.shadowH}px;
-    background:radial-gradient(closest-side, rgba(0,0,0,0.62), transparent 78%);
-    filter:blur(${Math.round(L.shadowH * 0.22)}px); z-index:2;
+    position:absolute; left:50%; transform:translateX(-50%) translateX(${dx}px);
+    top:${devTop - Math.round(L.shadowH * 0.55)}px;
+    width:${Math.round(devW * 0.9)}px; height:${L.shadowH}px;
+    background:radial-gradient(closest-side, rgba(0,0,0,0.78), transparent 76%);
+    filter:blur(${Math.round(L.shadowH * 0.28)}px);
   }
   </style></head><body><div class="canvas">
-    <div class="bg"></div>
+    <div class="art"><img src="${S.art}"></div>
+    <div class="tone"></div>
+    <div class="scrim"></div>
+    <div class="pano"></div>
+    <div class="horizon"></div>
     <div class="vig"></div>
+    <div class="grain"></div>
+    <div class="headshade"></div>
     <div class="head">
       <h1>${head}</h1>
       <div class="sub">${frame.sub}</div>
-      <div><span class="stat">${frame.stat}</span></div>
     </div>
+    ${propsHtml}
+    <div class="spill"></div>
     <div class="contact"></div>
-    <div class="device"><div class="screen"><img src="${shot}"></div></div>
+    <div class="stage">
+      ${S.left ? `<div class="side l"><div class="screen"><img src="${S.left}"></div></div>` : ''}
+      ${S.right ? `<div class="side r"><div class="screen"><img src="${S.right}"></div></div>` : ''}
+      <div class="device"><div class="screen"><img src="${S.hero}"></div></div>
+    </div>
+    <span class="chip">${num}<span class="l">${label}</span></span>
   </div></body></html>`;
 }

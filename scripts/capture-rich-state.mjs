@@ -4,6 +4,7 @@
  */
 import { chromium } from 'playwright';
 import { mkdir } from 'fs/promises';
+import { writeFileSync } from 'fs';
 import { join } from 'path';
 
 const OUT = process.env.OUT || 'screenshots/appstore-2026/rich-captures';
@@ -42,6 +43,306 @@ async function clickText(page, t, { exact = false, last = false, wait = 1400 } =
   await sleep(ok ? wait : 200);
   console.log(ok ? `  → dom-clicked ${JSON.stringify(t)}` : `  ✗ not found ${JSON.stringify(t)}`);
   return ok;
+}
+
+/**
+ * Buys luxury pieces through the app's own Buy buttons, then photographs the
+ * Collection tab.
+ *
+ * Asserts the collection is non-empty before shooting. Without that this is
+ * exactly the silent-staleness failure documented at the top of this file: if
+ * the Buy button is renamed or a confirm step is added, every click misses,
+ * the Collection tab still opens, and a shot of an EMPTY collection is written
+ * over the good one — which is the bug the whole capture is meant to remove.
+ */
+async function buyLuxuryAndShowCollection(page) {
+  const owned = async () => {
+    const m = (await allText(page)).match(/Collection \((\d+)\)/);
+    return m ? Number(m[1]) : 0;
+  };
+  let bought = await owned();
+  for (let attempt = 0; attempt < 5 && bought < 2; attempt++) {
+    // Target the aria-label, not the text.
+    //
+    // The first version matched the shortest element whose text was exactly
+    // "Buy" and called `.click()` on it, and every purchase silently missed.
+    // `LuxuryApp` renders that label as `affordable ? 'Buy' : formatMoney(price)`
+    // inside a Pressable, and the card's own accessibilityLabel is the stable
+    // handle: `Buy <name> for <price>`.
+    const buy = page.locator('[aria-label^="Buy "]').first();
+    if (!(await buy.count())) break;
+    try {
+      await buy.scrollIntoViewIfNeeded({ timeout: 3000 });
+      await buy.click({ timeout: 3000 });
+    } catch { break; }
+    await sleep(1400);
+    // The purchase routes through the shared ConfirmDialog, whose affirmative
+    // is "Acquire" — NOT Confirm/Buy Now/Yes/OK, which is what the first
+    // attempt guessed, so `dismissPopups` cancelled the sheet Buy had just
+    // raised, four times in a row.
+    //
+    // Match the aria-label, never the text: the Luxury screen's own item list
+    // sits under a section header that is ALSO the word "Acquire", and a
+    // text match takes the header (it is the shorter node), which is not
+    // clickable. `ConfirmDialog` puts `accessibilityLabel={confirmText}` on
+    // the button, so this addresses the dialog and nothing else.
+    const confirm = page.locator('[aria-label="Acquire"]').first();
+    if (!(await confirm.count())) {
+      console.log('  ✗ Acquire confirm never appeared');
+      break;
+    }
+    await confirm.click({ timeout: 3000 });
+    await sleep(1800);
+    const before = bought;
+    bought = await owned();
+    console.log('  luxury owned:', bought);
+    if (bought === before) {
+      // Say WHY rather than just counting again — a refused purchase surfaces
+      // as a toast, and that sentence is the whole diagnosis.
+      const t = (await allText(page)).replace(/\s+/g, ' ');
+      console.log('  luxury no-op, screen says:', JSON.stringify(t.slice(0, 400)));
+      break;
+    }
+  }
+  await scrollMain(page, -3000); await sleep(800);
+  if (!(await clickText(page, 'Collection', { wait: 2200 }))) {
+    throw new Error('Luxury › Collection tab not found — frame 09 would keep a stale file.');
+  }
+  await scrollMain(page, 0); await sleep(1000);
+  // Assert on the COUNT the tab itself prints, and nothing else.
+  //
+  // The first version also rejected `/No .*collectibles|nothing yet/i`, which
+  // looks like a reasonable belt-and-braces check and is not: `textContent` is
+  // one unbroken string, so `No .*collectibles` matches any page where the
+  // words "No " and "collectibles" both appear in that order — and this one
+  // has "No recent contact" long before it reaches "2 / 6 collectibles". Two
+  // successful purchases were thrown away by the guard meant to protect them.
+  const shown = await allText(page);
+  const owns = Number((shown.match(/Collection \((\d+)\)/) || [, '0'])[1]);
+  // Two separate things have to be true, and the count alone proves only the
+  // first: `Collection (n)` is the TAB LABEL, so it reads the same whichever
+  // tab is open. `resale value` comes from the collection summary, which only
+  // the collection tab renders — that is what proves the tab actually changed.
+  const onCollectionTab = /resale value/i.test(shown);
+  if (owns < 1 || !onCollectionTab) {
+    throw new Error(
+      `Luxury shows Collection (${owns}), collection tab open: ${onCollectionTab}, after `
+      + `${bought} purchase(s) — frame 09 would caption a collection that is not there. `
+      + `Screen: ${JSON.stringify(shown.replace(/\s+/g, ' ').slice(0, 400))}`,
+    );
+  }
+  await shot(page, 'x-luxury-collection');
+}
+
+/**
+ * Buys property, then photographs the PORTFOLIO.
+ *
+ * Same shape of problem as the Luxury app, and the same fix. Real Estate opens
+ * on an empty portfolio reading `Portfolio equity $0`, `0 properties` and
+ * "You don't own any property yet" — so the store set had no real-estate frame
+ * at all, against an 8-keyword `RealEstate` ad group in
+ * `marketing/apple-ads/keywords/category-exact.csv`. That was a capture gap
+ * being mistaken for a content decision.
+ *
+ * Cash, not a mortgage. The modal defaults to the `standard` down-payment tier
+ * (its confirm reads "Sign Mortgage"), which is the realistic path but leaves
+ * the portfolio showing equity far below the headline value plus a weekly debt
+ * line — a worse picture and a harder caption to keep true week to week. This
+ * save holds ~$11M, so "Pay cash" is a state the player can genuinely reach and
+ * the equity it prints is simply what the properties are worth.
+ */
+async function buyPropertyAndShowPortfolio(page) {
+  const owned = async () => {
+    const m = (await allText(page)).match(/(\d+) properties/);
+    return m ? Number(m[1]) : 0;
+  };
+  if (!(await clickAriaLast(page, 'Browse', { wait: 2000 }))) {
+    throw new Error('Real Estate › Browse tab not found — frame 07 would have no portfolio to show.');
+  }
+  await scrollMain(page, 0); await sleep(900);
+
+  let bought = 0;
+  for (let attempt = 0; attempt < 6 && bought < 3; attempt++) {
+    // The listing card's own handle. `RealEstateApp` puts
+    // `accessibilityLabel={`Buy ${p.name}`}` on the card CTA, which is stable
+    // where the visible label is not (it renders the price when unaffordable).
+    const buy = page.locator('[aria-label^="Buy "]').nth(bought);
+    if (!(await buy.count())) break;
+    try {
+      await buy.scrollIntoViewIfNeeded({ timeout: 3000 });
+      await buy.click({ timeout: 3000 });
+    } catch { break; }
+    await sleep(1200);
+    // Switch the down-payment tier before confirming: the confirm button's TEXT
+    // is derived from the tier ("Buy with Cash" vs "Sign Mortgage"), so pressing
+    // the wrong one is not a no-op, it signs a 30-year mortgage.
+    await clickText(page, 'Pay cash', { exact: true, wait: 900 });
+    if (!(await clickText(page, 'Buy with Cash', { exact: true, wait: 1600 }))) {
+      console.log('  ✗ Buy with Cash confirm never appeared');
+      break;
+    }
+    await sleep(1400);
+    // "🏠 Sold!" comes back through Alert.alert. Handle OK explicitly rather
+    // than leaning on dismissPopups, whose label list is tuned for the reward
+    // and onboarding sheets and does not include it.
+    await clickText(page, 'OK', { exact: true, wait: 900 });
+    await dismissPopups(page);
+    await sleep(900);
+    bought++;
+    console.log('  properties bought:', bought);
+  }
+
+  if (!(await clickAriaLast(page, 'Portfolio', { wait: 2000 }))) {
+    throw new Error('Real Estate › Portfolio tab not found after buying.');
+  }
+  // Back to the top before shooting. Switching tabs does not reset scroll, and
+  // the first run of this landed mid-card: the summary's own headline rows
+  // (Portfolio equity, the property count) were above the fold, so the shot
+  // opened on "Vacant 0" and the frame had no total to caption.
+  await scrollMain(page, -3000); await sleep(700);
+  await scrollMain(page, 0); await sleep(1200);
+  const shown = await allText(page);
+  const owns = Number((shown.match(/(\d+) properties/) || [, '0'])[1]);
+  // Two things, for the same reason the Luxury check needs two: the count alone
+  // can be read off a tab that is not open. The empty-state sentence is what
+  // proves the portfolio actually filled.
+  const stillEmpty = /don.t own any property yet/i.test(shown);
+  if (owns < 1 || stillEmpty) {
+    throw new Error(
+      `Real Estate shows ${owns} properties, empty-state visible: ${stillEmpty}, after `
+      + `${bought} purchase(s) — frame 07 would caption a portfolio that is not there. `
+      + `Screen: ${JSON.stringify(shown.replace(/\s+/g, ' ').slice(0, 400))}`,
+    );
+  }
+  await shot(page, 'x-realestate-portfolio');
+}
+
+/**
+ * Buys a driver's licence and a car, then photographs the GARAGE.
+ *
+ * The third instance of the same pattern, and the last one this set needs. Like
+ * Luxury and Real Estate, the Vehicles app opens on a shop rather than on
+ * anything owned — worse here, because it opens BEHIND a gate: "Get your
+ * driver's license — Costs $500 · Required to own any vehicle", with every Buy
+ * button in the dealership reading "License needed". So the only picture the
+ * pipeline could take of the garage was of a locked shop.
+ *
+ * The Exotic Supercar is the pick on purpose. It is $250,000 against the
+ * ~$9.7M this save is holding, it requires reputation 50 and the save has 100,
+ * and its render is the strongest object in `assets/images/Vehicles/` — which
+ * matters because the frame composites it.
+ *
+ * Cash, not finance. The modal defaults to the `standard` down-payment tier and
+ * its confirm reads "Sign Auto Loan"; pressing the affirmative without
+ * switching the tier first signs a loan and leaves the garage showing a debt
+ * line instead of a car somebody owns. Same trap as the property modal.
+ */
+async function buyVehicleAndShowGarage(page) {
+  // The app opens on Dealership when nothing is owned, but say so explicitly
+  // rather than relying on that: `activeTab` is initialised from the vehicle
+  // count, so the tab it lands on changes the moment this step succeeds once.
+  await clickAriaLast(page, 'Dealership', { wait: 1600 });
+  await scrollMain(page, 0); await sleep(800);
+
+  // The gate. Its label carries the price, which is a constant in
+  // `lib/vehicles`, so match on the stable prefix instead.
+  const licence = page.locator('[aria-label^="Pay 500 dollars for a driver"]').first();
+  if (await licence.count()) {
+    await licence.click({ timeout: 3000 });
+    await sleep(1400);
+    await clickText(page, 'OK', { exact: true, wait: 700 });
+    console.log('  driver licence bought');
+  }
+
+  const buy = page.locator('[aria-label^="Buy Exotic Supercar"]').first();
+  if (!(await buy.count())) {
+    throw new Error('Dealership has no Exotic Supercar row — the catalog moved, or the licence gate is still up.');
+  }
+  await buy.scrollIntoViewIfNeeded({ timeout: 3000 });
+  await buy.click({ timeout: 3000 });
+  await sleep(1300);
+  await clickText(page, 'Pay cash', { exact: true, wait: 900 });
+  if (!(await clickText(page, 'Buy with Cash', { exact: true, wait: 1600 }))) {
+    throw new Error('Vehicle purchase confirm never appeared — frame 08 would show an empty garage.');
+  }
+  await sleep(1500);
+  await clickText(page, 'OK', { exact: true, wait: 900 });
+  await dismissPopups(page);
+  await sleep(900);
+
+  if (!(await clickAriaLast(page, 'Garage', { wait: 2000 }))) {
+    throw new Error('Vehicles > Garage tab not found after buying.');
+  }
+  await scrollMain(page, -3000); await sleep(700);
+  await scrollMain(page, 0); await sleep(1200);
+  const shown = await allText(page);
+  // Two things again, for the reason the other two steps needed two: the car's
+  // name alone can be read off the dealership listing, so the empty-state
+  // sentence is what proves the GARAGE filled.
+  const stillEmpty = /Garage is empty|Get your license first/i.test(shown);
+  if (!/Exotic Supercar/i.test(shown) || stillEmpty) {
+    throw new Error(
+      `Garage does not show the Exotic Supercar (empty-state visible: ${stillEmpty}) — frame 08 `
+      + `would caption a garage with nothing in it. Screen: `
+      + `${JSON.stringify(shown.replace(/\s+/g, ' ').slice(0, 400))}`,
+    );
+  }
+  await shot(page, 'x-garage-owned');
+}
+
+/**
+ * The text a reader can actually SEE in the shot — not `document.body.textContent`.
+ *
+ * This is the difference between a guard and a fig leaf. The whole-DOM text of
+ * any screen in this app includes every other tab, every collapsed section and
+ * everything below the fold, so asserting a caption's number against it proves
+ * only that the string exists SOMEWHERE in the app — which is exactly the
+ * thing that was already true of "PhD unlocked" while the frame showed a
+ * catalogue of un-taken courses.
+ *
+ * A rect-in-viewport test alone is NOT enough, and the first version of this
+ * made exactly that mistake: every phone app in this game opens as a full
+ * screen ABOVE the tab layout, which stays mounted underneath with all its
+ * rects still inside the viewport. So the "visible" text of the Stocks app
+ * came back led by the home screen's HUD, net worth and daily-gem banner —
+ * none of which is in the picture. That is the same fig leaf as using the
+ * whole DOM, just harder to notice.
+ *
+ * So each text node is hit-tested with `elementFromPoint` at its own rect
+ * (a Range rect, not the parent's — a parent can be far larger than the line
+ * it holds). A node counts as visible only if the topmost element at that
+ * point is the node's own element, or in the same ancestor chain. Text under a
+ * translucent overlay is rejected too, which is stricter than the screenshot
+ * strictly is — the right direction for a check whose job is to refuse
+ * unsupported claims.
+ */
+async function visibleText(page) {
+  return page.evaluate(() => {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const out = [];
+    const range = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const t = (n.nodeValue || '').trim();
+      if (!t) continue;
+      const el = n.parentElement;
+      if (!el) continue;
+      const style = getComputedStyle(el);
+      if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) continue;
+      range.selectNodeContents(n);
+      const r = range.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) continue;
+      // Hit-test the middle of the part of the line that is actually on screen.
+      const x = Math.min(Math.max((r.left + r.right) / 2, 1), vw - 1);
+      const y = Math.min(Math.max((r.top + r.bottom) / 2, 1), vh - 1);
+      const hit = document.elementFromPoint(x, y);
+      if (!hit) continue;
+      if (hit !== el && !el.contains(hit) && !hit.contains(el)) continue;
+      out.push(t);
+    }
+    return out.join(' ').replace(/\s+/g, ' ').trim();
+  }).catch(() => '');
 }
 
 async function clickAriaLast(page, label, { wait = 1200 } = {}) {
@@ -101,6 +402,44 @@ const SHOT_ORDER = [
   'life', 'life-2', 'life-market', 'life-family', 'life-stats', 'desktop',
   'x-company', 'x-darkweb', 'x-crypto', 'x-realestate', 'x-garage', 'x-luxury',
   'x-politics', 'x-travel', 'x-streaming', 'x-youvideo', 'home-final',
+  // APPENDED, never inserted — the numbers above are baked into the generators
+  // and into `screenshots/appstore-2026/README.md`, so inserting in the middle
+  // silently remaps every later frame to the wrong screen.
+  //
+  // Both of these exist because the store set was making claims its pictures
+  // contradicted. The Education app opens on its *Catalog* tab, so the frame
+  // captioned "PhD unlocked" showed a course list with Enroll buttons and
+  // nothing marked earned; the Luxury app opens on *Browse*, so the frame
+  // captioned "Rare collection" showed `Collection (0)` and `0 / 6
+  // collectibles`. The fix is to photograph the screen that holds the proof.
+  'app-education-earned', 'x-luxury-collection',
+  // The BEGINNING of the life, shot before any dev-tools grant lands.
+  //
+  // Everything above is one rich late-game save, which can only ever show the
+  // destination. A life sim's pitch is the DISTANCE travelled, and the store
+  // set's first frame is the hook — "start with nothing" is the strongest
+  // opening this game has and there was no picture of it. These are free: the
+  // run already walks through onboarding on its way to the rich state, so
+  // photographing it on the way past costs two screenshots and no extra time.
+  'early-home', 'early-work',
+  // One weekly decision, OPEN, before the inbox is cleared.
+  //
+  // `CPP-LifeSim` slot 2 in marketing/apple-ads/04-custom-product-pages.md asks
+  // for exactly this ("Every week is a decision." — the week loop with an event
+  // choice open), and the Choices-Story ad group exists because "choices game"
+  // carries large search volume. Until now the pipeline's first act was to
+  // DELETE all twelve of these from every capture — the game's core loop was
+  // the one thing the store page could never show.
+  'event-decision',
+  // The real-estate PORTFOLIO, after buying. Same reason as
+  // `x-luxury-collection` above: the app opens on an empty portfolio, so the
+  // only picture the pipeline could take of an 8-keyword intent group was of
+  // owning nothing.
+  'x-realestate-portfolio',
+  // The GARAGE with a car in it. Third of the same kind: the Vehicles app opens
+  // on a dealership behind a driver's-licence gate, so every previous capture of
+  // it was a picture of a locked shop.
+  'x-garage-owned',
 ];
 /**
  * Empties the weekly-decision inbox.
@@ -155,6 +494,17 @@ async function shot(page, name) {
   // artifacts) are written without one so they never claim a canonical slot.
   const file = join(OUT, idx >= 0 ? `${String(idx).padStart(2, '0')}-${name}.png` : `dbg-${name}.png`);
   await page.screenshot({ path: file });
+  // Every capture gets its on-screen TEXT written beside it.
+  //
+  // This is what makes the store frames' proof pills checkable by a test
+  // instead of by eye. `__tests__/tooling/storeFrameClaims.test.ts` asserts
+  // that each frame's claim appears in the text of the capture it is printed
+  // over — so "PhD unlocked" over a course catalogue, or "Rare collection"
+  // over `Collection (0)`, fails in CI rather than on the product page. Both
+  // of those shipped.
+  if (idx >= 0) {
+    writeFileSync(file.replace(/\.png$/, '.txt'), (await visibleText(page)) + '\n');
+  }
   console.log('  📸', name, idx >= 0 ? `(#${idx})` : '(debug)');
 }
 
@@ -213,6 +563,8 @@ async function dismissPopups(page) {
 }
 
 async function main() {
+  /** Failures that must fail the run but should not abandon the shots after them. */
+  const deferred = [];
   await mkdir(OUT, { recursive: true });
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: DSF, isMobile: true, hasTouch: true });
@@ -262,6 +614,27 @@ async function main() {
   for (let i = 0; i < 3 && (await text(page)).includes('First Week Guide'); i++) {
     await clickText(page, 'Skip Guide', { wait: 1200 });
   }
+
+  // ---- Week one, before any grant: the start of the life
+  await dismissPopups(page);
+  await clickAriaLast(page, 'Dismiss', { wait: 800 });
+  await sleep(2500);
+  await scrollMain(page, 0); await sleep(800);
+  const openingCash = await allText(page);
+  // Assert we are actually at the START. If a grant has already landed, or the
+  // run is resuming a rich save, this shot would show a millionaire under the
+  // headline "start with nothing" — the exact class of contradiction the whole
+  // claims check exists to stop, and here it would be baked into the capture
+  // rather than the caption.
+  if (/\$\s?1[01]M|Net Worth\s*:?\s*\$1[0-9]\.\d+M/.test(openingCash)) {
+    throw new Error('early-home was reached with a rich state already applied — frame 01 would open on a millionaire.');
+  }
+  await shot(page, 'early-home');
+  await page.mouse.click(Math.round((VIEWPORT.width * 1.5) / 4), VIEWPORT.height - 25);
+  await sleep(2600); await scrollMain(page, 0); await sleep(800);
+  await shot(page, 'early-work');
+  await page.mouse.click(Math.round((VIEWPORT.width * 0.5) / 4), VIEWPORT.height - 25);
+  await sleep(2200);
 
   // ---- Dev tools: build the rich state
   await clickAriaLast(page, 'Open Settings', { wait: 3000 });
@@ -346,7 +719,64 @@ async function main() {
   await dismissPopups(page);
   console.log('STATE:', JSON.stringify((await text(page)).slice(0, 300)));
 
-  // Empty the decision inbox before anything is photographed — see
+  // Photograph ONE open decision before the inbox is emptied. The modal's
+  // header title varies by event type (Good News / Heads Up / Economic Event …)
+  // and the event text varies by run, but the "Choice Effects" panel title is
+  // unconditional chrome — that is what the claims test asserts on.
+  {
+    // Open with the DIRECT dom-click on the shortest matching element — the
+    // same move clearDecisions uses. Its log shows the polite path never
+    // works here: the Playwright locator click reports success on a text node
+    // whose press never reaches the pill's pressable, so a single
+    // clickText() "succeeds" and nothing opens. That is exactly what the
+    // first version of this block did, and frame 03's shot was silently
+    // skipped while the run stayed green until its deferred check.
+    let eventShotTaken = false;
+    for (let attempt = 0; attempt < 8 && !eventShotTaken; attempt++) {
+      const t0 = await allText(page);
+      const pill = /(\d+ decisions waiting|A decision is waiting)/.exec(t0);
+      // WAIT for the pill rather than concluding it is absent. It is gated on
+      // showEventPill = pendingEventCount > 0 && !higherModalUp && … , so for a
+      // few seconds after load — while a toast or popup is still settling — the
+      // decisions exist but the pill does not render. The first version broke
+      // out of the loop here and the iPad run photographed nothing; the
+      // clear-loop right below then found the pill on its first try.
+      if (!pill) { console.log('  event: no pill yet (attempt', attempt + ')'); await sleep(1500); continue; }
+      // `last: true` is the load-bearing word, and it took a debug screenshot
+      // to find. TWO elements carry this exact text: a row inside the LAST
+      // WEEK recap card (DOM-first; clicking it opens nothing) and the
+      // floating inbox pill at the bottom of the screen (DOM-last — overlays
+      // mount last). Both `.first()` and shortest-text DOM clicks land on the
+      // recap row, so eight straight attempts "succeeded" while the modal
+      // never mounted. clearDecisions never noticed the same bug because its
+      // lowest-big-button fallback happens to PRESS THE PILL by accident —
+      // the pill is the lowest labelled button on the home screen.
+      await clickText(page, pill[1], { last: true, wait: 1200 });
+      // The modal is lazy() — its chunk loads on first open — so poll rather
+      // than sleep once.
+      for (let i = 0; i < 10 && !eventShotTaken; i++) {
+        await sleep(700);
+        if ((await allText(page)).includes('Choice Effects')) {
+          await shot(page, 'event-decision');
+          eventShotTaken = true;
+        }
+      }
+      if (!eventShotTaken) {
+        // Portals APPEND to body, so the modal's text — if any — is at the
+        // END of textContent; the head is just the home screen.
+        const tail = (await allText(page)).replace(/\s+/g, ' ');
+        console.log('  event: no Choice Effects after click; text tail:', JSON.stringify(tail.slice(-400)));
+        await shot(page, 'dbg-event-attempt-' + attempt);
+      }
+    }
+    if (!eventShotTaken) {
+      deferred.push(new Error('The weekly decision modal could not be photographed open — frame 03 would keep a stale file.'));
+    }
+    // Leave the open decision for clearDecisions below — its loop re-finds the
+    // pill and resolves everything, including the one on screen.
+  }
+
+  // Empty the decision inbox before anything else is photographed — see
   // `clearDecisions`. Must run BEFORE the first shot, not after.
   await clearDecisions(page);
 
@@ -389,6 +819,21 @@ async function main() {
     }
     if (opened) {
       await shot(page, 'app-' + app.toLowerCase());
+      // Education opens on Catalog — a list of things NOT yet taken. The
+      // degrees this save actually holds live one tab over, and that is the
+      // screen a frame about education has to show.
+      if (app === 'Education') {
+        if (await clickText(page, 'Earned', { exact: true, wait: 2200 })) {
+          await scrollMain(page, 0); await sleep(900);
+          const earned = await allText(page);
+          if (!earned.includes('PhD')) {
+            throw new Error('Education › Earned does not list the PhD — the grant did not land, and frame 08 would caption a degree the picture cannot show.');
+          }
+          await shot(page, 'app-education-earned');
+        } else {
+          throw new Error('Education › Earned tab not found (renamed?) — capture would silently keep a stale file.');
+        }
+      }
       // leave the app via its top-left back arrow (apps cover the tab bar)
       await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1800);
     }
@@ -482,6 +927,46 @@ async function main() {
     if (!ok) { await scrollMain(page, 1100); await sleep(700); ok = await clickText(page, label, { exact: true, wait: 3200 }); }
     if (ok) {
       await shot(page, 'x-' + name);
+      // Luxury opens on Browse — a shop. The frame that sells "live the
+      // luxury" cannot be a shop the player has bought nothing in, so BUY two
+      // pieces with the money this save already has ($10.99M against a $250K
+      // watch case and a $600K diamond) and photograph the Collection tab.
+      // The purchases are made through the game's own Buy button, so what the
+      // shot shows is a state the player can actually reach.
+      // Deferred, not immediate. This step DRIVES the game (it buys two
+      // pieces), so it is the most likely thing in the run to break when the
+      // UI moves — and it sits two thirds of the way through, so throwing
+      // here threw away every later capture too. The error is remembered and
+      // re-raised at the end: the run still fails, loudly and with the same
+      // message, but one attempt now tells you about this AND leaves the
+      // other 29 shots on disk to look at.
+      if (name === 'luxury') {
+        try {
+          await buyLuxuryAndShowCollection(page);
+        } catch (err) {
+          deferred.push(err);
+          console.log('  ‼ deferred:', err.message);
+        }
+      }
+      // Deferred for the same reason as the luxury step: it DRIVES the game, so
+      // it is among the likeliest things here to break when the UI moves, and
+      // throwing inline would discard every capture after it.
+      if (name === 'realestate') {
+        try {
+          await buyPropertyAndShowPortfolio(page);
+        } catch (err) {
+          deferred.push(err);
+          console.log('  ‼ deferred:', err.message);
+        }
+      }
+      if (name === 'garage') {
+        try {
+          await buyVehicleAndShowGarage(page);
+        } catch (err) {
+          deferred.push(err);
+          console.log('  ‼ deferred:', err.message);
+        }
+      }
       // leave via back arrow (top-left) then fall back to tab bar
       await page.mouse.click(Math.round(VIEWPORT.width*0.05)+22, 36); await sleep(1500);
     } else {
@@ -491,6 +976,12 @@ async function main() {
   await goTab(0); await shot(page, 'home-final');
 
   await browser.close();
+  if (deferred.length) {
+    throw new Error(
+      `${deferred.length} capture step(s) failed:\n  - `
+      + deferred.map((e) => e.message).join('\n  - '),
+    );
+  }
   console.log('Done →', OUT);
 }
 
