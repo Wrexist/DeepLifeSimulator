@@ -1120,6 +1120,16 @@ one tenth the price.
 green the instant the submission is *scheduled*, so a rejected binary shows as a
 passing release. Paying 1x to keep the signal beats paying nothing to lose it.
 
+**AMENDED 2026-08-19 — read that as an objection to losing the SIGNAL, not to
+the flag.** The two were welded together here because at the time nothing else
+could report a submission's outcome; that is no longer true. `--no-wait` plus
+`scripts/wait-for-eas-submission.mjs` (which polls `eas submit:view --json`)
+keeps the red-on-rejection signal AND makes the wait legible, so the flag is now
+used in all three local-build workflows. What must never happen is `--no-wait`
+*alone* — the sentence above is exactly right about that, and the two steps are
+commented as a pair in each workflow so they are not separated later. See the
+2026-08-19 entry at the end of this file.
+
 **The generalisable lesson: on a metered runner, look at what each step is
 DOING, not how long it takes.** A step that is blocked on someone else's queue
 belongs on the cheapest runner that can hold the connection — and any job that
@@ -3283,3 +3293,87 @@ property-rich, cash-poor character was eulogised as "humble". The same file's
   the newest systems (Spark v45, gem faucets v40/v46, welcome-back v44, mail v37,
   grandchildren v34) returned all-clean EXCEPT this — and it is a player-facing
   correctness bug in the share text, the cheapest acquisition channel.
+
+## 2026-08-19 — 22 minutes and 28 log rows: a step that was blocked, not slow
+
+"Why is it taking 22+ min and it just 28 rows in?" — `Submit to TestFlight` in
+`eas-build-local-ios.yml`, sitting on `- Submitting` with no output.
+
+Reading the rows is the whole diagnosis. Rows 10–25 are the real work: the .ipa
+uploads to EAS Submit and the submission is scheduled, and that finishes in about
+90 seconds. Row 27 is `Waiting for submission to complete`, and everything after
+it is `eas submit`'s built-in wait — EAS queueing a submission worker, then that
+worker running Transporter against App Store Connect. None of it is the runner's
+work, and nothing in this repo can make it faster.
+
+What WAS fixable is that eas-cli prints **one spinner line for the entire wait**.
+It never says which state the submission is in, so 22 minutes in a queue and a
+wedged job produce byte-identical logs — there is no way to tell "working" from
+"stuck" without opening expo.dev. That is what made a normal wait read as a
+hang, and it is a nastier failure than the 10x-billing one from 2026-08-05,
+because it costs a judgement call rather than money.
+
+Fixed by splitting schedule from wait: `eas submit --no-wait` (the
+`Submission details: <url>` line is printed BEFORE the wait it skips, so the
+submission id survives in the transcript), then
+`scripts/wait-for-eas-submission.mjs`, which polls `eas submit:view <id> --json`
+and prints every state transition plus a two-minute heartbeat. Same wall clock,
+same red-on-ERRORED signal, but the log now says whether it is EAS's queue or the
+App Store Connect upload — and `wait_for_submission: false` ends the run at
+"handed to EAS" for when you would rather not sit through it.
+
+- Rule: **an unbounded wait needs a heartbeat, not just a timeout.** A timeout
+  bounds the damage; a heartbeat is what tells you, while it is happening,
+  whether waiting is the right thing to do. A step that has printed nothing for
+  twenty minutes is indistinguishable from a hung one, and the reader's next
+  move — cancel and rebuild — is the expensive wrong answer, because a rebuild
+  mints a new CFBundleVersion.
+- Rule: **when you report a timeout, say what it does NOT mean.** The watch
+  giving up is not Apple rejecting the binary; the submission is still running.
+  Without that sentence a red job reads as a rejection and buys a rebuild.
+- Rule: a custom `if:` on a GitHub Actions step **replaces** the implicit
+  `success()` check. `if: ${{ inputs.wait_for_submission }}` would have run the
+  watch after a FAILED submit, where it would have found the previous run's
+  submission and reported its outcome as this one's. Write `success() && …`.
+- Rule (repeat of the 2026-08-05 shape): **look at what a step is DOING, not how
+  long it takes.** Both findings in this workflow came from reading the step's
+  own output line by line rather than from the duration.
+
+Four more came out of auditing that change rather than writing it, and each one
+is a way the fix could have been quietly wrong:
+
+- Rule: **a comment saying "these two steps must stay together" is not a
+  guarantee — pin it.** `--no-wait` is safe only because a watch step follows
+  it; delete the watch and every release reports green on "scheduled". That is
+  one deleted step away at any time, so
+  `__tests__/tooling/submitWorkflowInvariants.test.ts` now asserts the pairing,
+  the `success() &&` guards and the `set -o pipefail` (without which `| tee`
+  returns 0 for a failed `eas submit`) across all three workflows. It was
+  verified by breaking each invariant and watching it go red — a guard nobody
+  has seen fail is not known to be a guard. Writing it also found a bug in
+  itself: matching `eas submit` in the raw YAML hit the workflows' own PROSE,
+  because these files discuss the command at length in comments.
+- Rule: **bound a retry loop by TIME, not by attempt count**, whenever the
+  interval is itself variable. "Give up after 5 failed polls" sounded generous
+  and was 40 seconds at the tight early cadence, so a one-minute network blip
+  would have failed a release that was fine. It is a five-minute grace now, and
+  the test asserts the grace stays well clear of the poll interval.
+- Rule: **say what a success does NOT mean.** EAS reports `FINISHED` when the
+  store accepts the UPLOAD; Apple validates afterwards, and that is exactly
+  where ITMS-91064 and the purpose-string rejections surface as Invalid Binary
+  (CLAUDE.md §9). A green step reading as "shipped" is how a build sits in
+  Invalid Binary for a day.
+- Rule: **a watcher that spawns a child must bound the child.** Found by review,
+  and it was the fix reproducing the bug it fixed: `readSubmission()` resolved
+  only on the child's `close`/`error`, so an `eas submit:view` that hung meant
+  the poll promise never settled - no heartbeat, and the elapsed-time check at
+  the BOTTOM of the loop never reached. A watcher built to make silence
+  impossible had a silent mode. Each read now has a 90s deadline, SIGTERM then
+  SIGKILL, and a blown deadline counts as an unreadable poll so the existing
+  grace handles it. Verified against a stub that hangs forever: the loop turns
+  every 12s and leaves no orphan children. **Ask of any loop whose body awaits
+  something external: what happens if that never returns?**
+- Rule: **a shared tool must not hardcode one caller's vocabulary.** The same
+  watcher runs on the Android workflow, where "App Store Connect accepted the
+  upload" and "Apple said" are simply false. One `storeName(platform)` helper,
+  and the failure line is platform-neutral.

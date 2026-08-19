@@ -33,3 +33,21 @@ Before triggering the build, verify:
 
 - Provide the EAS build URL for monitoring
 - Remind the user to check build status with `eas build:list`
+
+## After Submit
+
+A submission takes 10-25 minutes and spends nearly all of it in EAS's queue and
+the store upload. That is normal, not a hang. The release workflows schedule
+with `--no-wait` and watch the result with `scripts/wait-for-eas-submission.mjs`;
+from a laptop the same check is
+`npm run submit:watch -- --platform <ios|android>` — pass the platform this
+skill was invoked with, since the watcher's wording and the follow-up differ.
+
+`FINISHED` means the store ACCEPTED THE UPLOAD, which is not the same as
+accepting the build:
+
+- **iOS** — Apple validates afterwards, and that is where ITMS-91064 and the
+  purpose-string rejections surface as Invalid Binary. Confirm the build reaches
+  TestFlight before calling the release done.
+- **Android** — Play processes the bundle afterwards and can reject it there.
+  Confirm the release shows up on the chosen track in the Play Console.

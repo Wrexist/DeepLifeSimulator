@@ -35,6 +35,13 @@ on:
         # tick this when you actually want to upload. Untick to only produce the
         # .aab artifact (download it and upload by hand as a fallback).
         default: false
+      wait_for_submission:
+        description: 'Watch the upload until Google Play accepts it (untick to end the run as soon as the binary is handed to EAS)'
+        type: boolean
+        # On by default: the watch is what turns "scheduled" into "accepted".
+        # Unticking does NOT cancel anything — the submission still runs at EAS,
+        # you just read the outcome off the Expo dashboard instead of this run.
+        default: true
       track:
         description: 'Google Play track to upload to (only used when Submit is ticked)'
         type: choice
@@ -350,17 +357,52 @@ jobs:
 
       # Submit does NOT consume build credits. Uses submit.production.android from
       # eas.json (serviceAccountKeyPath + the track selected above).
+      #
+      # SCHEDULE ONLY — see the same pair of steps in eas-build-local-ios.yml.
+      # `eas submit` waits by default and prints one spinner line for the whole
+      # submission, so a long queue wait is indistinguishable from a hung job.
+      # --no-wait ends this step when the .aab has actually reached EAS; the
+      # `Submission details: <url>` line it prints first carries the id the
+      # watch step needs. The two steps must stay together: --no-wait alone
+      # would make a REJECTED upload read as a green release.
       - name: Submit to Google Play
         if: ${{ inputs.submit }}
         run: |
+          set -o pipefail
           eas submit \
             --platform android \
             --profile production \
             --path "$GITHUB_WORKSPACE/build/deeplife.aab" \
-            --non-interactive
+            --non-interactive \
+            --no-wait | tee "$RUNNER_TEMP/submit-android.log"
 
       # Remove the key from the runner's working tree promptly (runners are
-      # ephemeral, but don't leave a credential lying around mid-job).
+      # ephemeral, but don't leave a credential lying around mid-job). It sits
+      # there for a shorter time now: --no-wait means the key is only needed
+      # while the submission is being SCHEDULED, and the watch below reads the
+      # status from EAS, which needs no Play credential at all.
       - name: Clean up service-account key
         if: ${{ always() && inputs.submit }}
         run: rm -f play-service-account.json
+
+      # The wait, made legible: polls `eas submit:view --json` and prints every
+      # state change plus a 2-minute heartbeat. Red on ERRORED/CANCELED with the
+      # reason. `success() &&` is load-bearing — a custom `if:` replaces the
+      # implicit success check, so without it a failed submit would be followed
+      # by a watch reporting on the previous run's submission.
+      - name: Watch the Play submission
+        if: ${{ success() && inputs.submit && inputs.wait_for_submission }}
+        run: |
+          node scripts/wait-for-eas-submission.mjs \
+            --from-log "$RUNNER_TEMP/submit-android.log" \
+            --platform android \
+            --timeout-minutes 60
+
+      # Not waiting is a legitimate choice; losing the link is not.
+      - name: Submission link (not waiting)
+        if: ${{ success() && inputs.submit && !inputs.wait_for_submission }}
+        run: |
+          node scripts/wait-for-eas-submission.mjs \
+            --from-log "$RUNNER_TEMP/submit-android.log" \
+            --platform android \
+            --link-only
