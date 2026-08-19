@@ -3358,3 +3358,35 @@ A smaller note from the same change: that guard's first version failed on its
 own documentation — the comment explaining why `track('session_start', …)` is
 wrong contains that exact string. A source-level ban must read code, not prose.
 Strip comments before matching; the wrong fix is to stop explaining yourself.
+
+## 2026-08-19 — A priority constant with no claimant is a lie the compiler cannot catch
+
+`INTERRUPTION_PRIORITY` declared `LIFE_MOMENT: 80` and `EVENT_INBOX: 70` from
+the day it was written. Nothing ever claimed either. The app compiled, rendered,
+and quietly ignored the ordering those constants describe: both surfaces were
+suppressed downward by a local `higherModalUp` boolean, which hid everything in
+their own file while every surface in a DIFFERENT file stayed blind to them — so
+an auto-presented Life Moment could be covered by the ad orb or the premium
+promo. Precisely the cross-file blindness the queue was built to remove, still
+live for the two highest non-root surfaces.
+
+The general rule: **when a table declares intent, assert that every row has an
+implementation.** A registry, a priority enum, a capability list — each entry is
+a claim about behaviour, and an entry nothing reads is indistinguishable from a
+working one at every level except a sweep.
+
+Two process notes from the same audit, both worth more than the fix:
+
+1. **Three of my four hypotheses were wrong**, and each would have been a
+   confident-sounding finding. `SicknessModal` looked like an unqueued auto-popup
+   and is opened only by a tap. `CureSuccessModal` looked like dead code — a grep
+   for its flag hit only test files — and is set at three sites in
+   `ItemActionsContext` under a different spelling. CLAUDE.md §8 already says not
+   to trust an audit claim without re-reading the source; the ratio here was 3:1
+   against the hypothesis.
+
+2. **A guard that has not been seen failing is not known to guard anything.**
+   The new sweep was verified by re-introducing the exact regression (replacing
+   the constant with a bare `80` at the claim site) and confirming it went red,
+   then restoring. Cheap, and the only thing that distinguishes a guard from a
+   test that happens to pass.

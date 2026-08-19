@@ -270,3 +270,86 @@ eligible.
 The typed event catalogue rejected `goal_reached` at compile time until it was
 registered — the second time this session that guard caught an event that would
 otherwise have been a silent no-op.
+
+
+---
+
+# Session-start priority audit (2026-08-19)
+
+Brief §30: at most one critical item, one opportunity, one recommended goal on
+open. This was the item that might REMOVE rather than add, so it started as an
+inventory, not a change.
+
+## What the inventory found
+
+**The interruption problem is already solved, and solved well.**
+`contexts/InterruptionContext.tsx` is a declarative priority queue: a surface
+says "I want to show, at this priority" every render, and exactly one claimant
+wins. It replaced four independent, mutually-blind popup chains. Nothing in
+this audit improves on that design.
+
+Three hypotheses were checked and **rejected** — recorded because each would
+have been a plausible-sounding "finding" that was simply wrong:
+
+| Hypothesis | Reality |
+|---|---|
+| `SicknessModal` auto-pops outside the queue | It is opened ONLY by a tap on the TopStatsBar disease badge (`TopStatsBar.tsx:797`). Tap-initiated, correctly outside. |
+| `CureSuccessModal` is unreachable dead code | `ItemActionsContext` sets its flag at three sites when a cure is used. It is direct feedback for a deliberate tap. |
+| The new retention cards need slots | They are non-blocking cards, and the Offer Center is user-initiated. None interrupt. |
+
+## The one real finding
+
+`INTERRUPTION_PRIORITY` has carried **`LIFE_MOMENT: 80`** and
+**`EVENT_INBOX: 70`** since it was written, and **nothing ever claimed
+either**. Both were suppressed downward by a local `higherModalUp` boolean in
+`app/(tabs)/_layout.tsx` — the exact hand-rolled single-file chain the queue
+exists to replace.
+
+That chain works in one direction only. The two surfaces hid everything in
+their own file; every surface in a DIFFERENT file was blind to them. So an
+auto-presented Life Moment could be covered by the daily reward (50), welcome
+back (45) or community reward (42) from `home.tsx`, by the premium promo (20),
+or by the ad orb (10) — the modal the player is meant to read, buried under an
+upsell. `LifeMomentModal` auto-presents (`_layout.tsx:377`, no user action), so
+this was reachable in ordinary play.
+
+Both now claim. Death and wedding stay deliberately unclaimed: they are
+root-level modals that gate their own dismissal, which
+`InterruptionContext`'s own docs already record as a short-circuit.
+
+## The structural guard
+
+A priority constant with no claimant is a declared intention nothing
+implements, and nothing else in the codebase can report it — the app compiles,
+renders, and quietly ignores the ordering.
+`__tests__/components/interruptionClaimants.test.ts` sweeps the claim sites and
+fails on any unclaimed priority.
+
+**Verified to fail on the regression**: replacing
+`INTERRUPTION_PRIORITY.LIFE_MOMENT` with a bare `80` at the claim site turns
+2 of its 4 tests red, and restoring it turns them green. A guard that has not
+been seen failing is not known to guard anything.
+
+## Steps
+
+- [x] 1. Inventory every surface that can appear on open.
+- [x] 2. Verify each hypothesis against source before claiming it.
+- [x] 3. Claim `LIFE_MOMENT` and `EVENT_INBOX` in `app/(tabs)/_layout.tsx`.
+- [x] 4. Sweep test for unclaimed priorities, proven to fail on the regression.
+
+## Verification (actual output)
+
+- `npm run check:routes` — `OK — 18 routes, no conflicts, all groups anchored`
+- `npm run type-check` — clean
+- `npm run type-check:tests:ratchet` — holding at 0 (baseline 0)
+- `npm run lint:errors` — clean
+- `npm test -- --ci` — **604 suites, 7,840 passed, 1 skipped, 308 snapshots**
+
+## Not changed, and why
+
+The home CARD stack (now including the two retention cards) was reviewed and
+left alone. Cards are not interruptions: every one of them self-hides when it
+has nothing to say, the secondary tail is already collapsed behind "Show more",
+and §30's budget is about what the app THROWS at the player on open. Trimming a
+scrollable feed that the player controls would cost discoverability for no
+interruption saved.

@@ -201,6 +201,33 @@ export default function TabLayout() {
   const higherModalUp = !!(
     showDeathPopup || showWeddingPopup || pendingMoment || eventInboxOpen
   );
+
+  // ── The two surfaces the queue declared but nobody claimed ────────────────
+  //
+  // `INTERRUPTION_PRIORITY` has carried LIFE_MOMENT (80) and EVENT_INBOX (70)
+  // since it was written, and NOTHING claimed either. Both were suppressed
+  // downward by `higherModalUp` — which is exactly the hand-rolled, single-file
+  // chain the queue exists to replace. It works one way only: these two hid the
+  // surfaces in THIS file, while every surface in another file was blind to
+  // them. So an open Life Moment could be covered by the daily reward (50),
+  // welcome back (45) or community reward (42) from `home.tsx`, by the premium
+  // promo (20), or by the ad orb (10) — the modal the player is supposed to be
+  // reading, buried under an upsell.
+  //
+  // Claiming makes them visible to every other surface. Death and wedding stay
+  // deliberately unclaimed: they are root-level modals that gate their own
+  // dismissal, documented as short-circuiting locally in InterruptionContext.
+  // That is why both still appear in the guards below.
+  const showLifeMoment = useInterruptionSlot(
+    'tabs:life-moment',
+    INTERRUPTION_PRIORITY.LIFE_MOMENT,
+    !!pendingMoment && !showDeathPopup && !showWeddingPopup
+  );
+  const showEventInbox = useInterruptionSlot(
+    'tabs:event-inbox',
+    INTERRUPTION_PRIORITY.EVENT_INBOX,
+    eventInboxOpen && pendingEventCount > 0 && !showDeathPopup && !showWeddingPopup
+  );
   // The weekly sheet is a plain absolute View, so the RN Modals raised by Home
   // (goal / daily reward / welcome back / community) covered it outright and its
   // "Continue" button became unreachable until they were dismissed. Routing it
@@ -374,11 +401,11 @@ export default function TabLayout() {
         modal underneath would otherwise intercept taps and soft-lock the player.
         Same for the WeddingPopup — a wedding + life-moment landing on one tick
         stacked two full-screen modals. */}
-    {(showDeathPopup || showWeddingPopup) ? null : pendingMoment ? (
+    {showLifeMoment ? (
       <Suspense fallback={null}>
         <LifeMomentModal />
       </Suspense>
-    ) : eventInboxOpen && pendingEventCount > 0 ? (
+    ) : showEventInbox ? (
       <Suspense fallback={null}>
         <WeeklyEventModal />
       </Suspense>
