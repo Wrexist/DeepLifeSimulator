@@ -604,3 +604,52 @@ being tuned for contrast, and the result was ten technically-correct frames that
 read as murk at carousel size. The three darkest plates were lifted with them,
 and frame 04's crop was moved off the dark half of the penthouse interior and
 onto the window wall, which is where that frame's light actually is.
+
+## Same day — the garage, and the third gated shop
+
+The vehicle frame is the third instance of one pattern and the last one this set
+needs. Luxury opened on a shop with nothing bought; Real Estate opened on an
+empty portfolio; Vehicles opened on a dealership **behind a gate** — a driver's
+licence at $500, with every Buy button in the list reading "License needed". So
+the only picture the pipeline could ever take of the garage was of a locked shop,
+and that is why there had never been a vehicle frame.
+
+`buyVehicleAndShowGarage` buys the licence and an Exotic Supercar. Cash, not
+finance, for the same reason the property step buys with cash: the modal defaults
+to the `standard` down-payment tier and its confirm reads "Sign Auto Loan", so
+pressing the affirmative without switching the tier first signs a loan and leaves
+the garage showing a debt line instead of a car somebody owns.
+
+Three things worth keeping:
+
+- **The vehicle renders ship with a real alpha channel.** They are the only
+  props in the repo that need no blend at all — `normal` keeps their own edges
+  and their own shadow, which is why the car reads as solid where the
+  collectibles read as lit glass.
+- **`flip` exists because frames 07 and 08 are both `edge`.** Two adjacent
+  frames in the same composition read as one image rendered twice, which is the
+  failure the mode system was added to prevent. The flipped frame puts the
+  device left and the type and props right, and the chip hangs off the other
+  edge of the device.
+- **It cost the family frame.** Apple caps a shelf at ten. Frame 09 was the
+  weakest image in the set — a contacts list over the murkiest plate — and the
+  THIRD frame serving LifeSim-Core, which frames 01 and 10 already carry. Frame
+  10's identity card still reads Married, so the family has not left the set; it
+  has stopped spending a slot saying so.
+
+### The claims test earned its keep again, twice
+
+Adding purchases to the run moved the numbers, which is exactly what it is for.
+
+`home-final` fell from $11M to $8M once the capture started buying three
+properties, a supercar and two trophies. Frame 10 does **not** read that capture
+— it reads `home`, shot at the top of the desktop walk and before any of the
+spending — so its `$11M` is still true, and the test proved it by rejecting the
+"$8M" I had just corrected it to. Both numbers are true states of the same save
+at different moments; the frame quotes the one it is actually a picture of.
+
+The same pass found a mislabel that had been sitting there since the chip was
+written: frame 10's label read "net worth", and the HUD chip is the **wallet**.
+The net-worth line lives below the fold and is not in the picture. It now reads
+`to your name` — the same words as frame 01's chip on the same screen, so the
+bookend is one label and one number that moved.

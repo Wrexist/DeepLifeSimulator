@@ -136,6 +136,9 @@ export const CAPTURES = {
   darkweb: '18-x-darkweb.png',
   crypto: '19-x-crypto.png',
   luxury: '29-x-luxury-collection.png',
+  // The garage with a car in it, not the licence-gated dealership the app opens
+  // on. Third of the same kind as `luxury` and `realestate` above.
+  garage: '34-x-garage-owned.png',
   // The real-estate PORTFOLIO after the capture buys property, not the empty
   // one the app opens on. Same reason as `luxury` above: `RealEstate` is an
   // 8-keyword ad group whose only available picture used to be of owning
@@ -154,7 +157,6 @@ export const CAPTURES = {
   desktop: '16-desktop.png',
   politics: '23-x-politics.png',
   travel: '24-x-travel.png',
-  garage: '21-x-garage.png',
   catalog: '10-app-education.png',
 };
 
@@ -234,6 +236,11 @@ export const ART = {
   // is a warm room with a wooden floor, lit walls and depth. By this point in
   // the arc the character is wealthy, so a grand interior is not overselling —
   // it is where they live.
+  // Frame 08 — the luxury catalog's own Hypercar render: a black carbon car on
+  // a wet showroom floor. It is the ROOM for the garage frame, not its subject.
+  // The car the player actually owns is the prop standing in front of it, which
+  // is why two cars in one frame reads as a garage rather than as a repeat.
+  showroom: { file: 'luxury/supercar.jpg', focus: '50% 54%', bright: 1.38, contrast: 1.08, sat: 1.05 },
   gallery: { file: 'luxury/fine_art_collection.webp', focus: '50% 56%', bright: 1.62, contrast: 1.06, sat: 1.12 },
   // Frame 10 — the calmest plate here: a yacht at dusk against mountains, cool
   // and still where frame 03's is golden and triumphant. The set ends on
@@ -302,6 +309,12 @@ export const PROPS = {
   // the scene. The blend flatters a lit object; it destroys a drawn one.
   diamond: { file: 'luxury/museum_diamond.webp', blend: 'lighten' },
   watches: { file: 'luxury/rare_watch_collection.webp', blend: 'lighten' },
+  // The vehicle renders are the easy case and the only one in the repo: they
+  // ship with a real alpha channel, so they need no blend at all. `normal`
+  // keeps their own edges and their own shadow instead of borrowing the plate's
+  // luminance, which is why this prop reads as solid where the collectibles
+  // read as lit glass.
+  supercar: { file: 'Vehicles/exotic_supercar_final.webp', blend: 'normal' },
 };
 
 /** One prop plate as a data URI, from the same directory the app renders from. */
@@ -335,8 +348,8 @@ export function propDataUri(key) {
  */
 export const ACTS = [
   { id: 'hook', title: 'The hook', size: 3 },
-  { id: 'systems', title: 'The systems', size: 4 },
-  { id: 'life', title: 'The life', size: 3 },
+  { id: 'systems', title: 'The systems', size: 5 },
+  { id: 'life', title: 'The life', size: 2 },
 ];
 
 /**
@@ -578,13 +591,49 @@ export const FRAMES = [
   },
 
   // ── ACT III · THE LIFE ──────────────────────────────────────────────────────
-  // Why anyone starts a second life. Dating leads the act rather than the page:
-  // it has ZERO keywords in the category-exact file, so it earns a frame on
-  // retention grounds and not a slot a scanner ever reaches. It is also the only
-  // human face in the set, which is why the act that holds it is where the
-  // character appears at all.
+  // Two frames, because Act II earned a fifth. Dating leads the act rather than
+  // the page: it has ZERO keywords in the category-exact file, so it earns a
+  // frame on retention grounds and not a slot a scanner ever reaches. It is
+  // also the only human face in the set, which is why the act that holds it is
+  // where the character appears at all.
+  //
+  // The family frame that used to sit here was cut for the garage. It was the
+  // weakest image in the set — a contacts list over the murkiest plate — and
+  // the THIRD frame serving LifeSim-Core, which frames 01 and 10 already carry
+  // between them. Frame 10's identity card still reads Married, so the family
+  // is in the set; it just no longer spends a slot saying so.
   {
-    id: '08-fall-for-someone',
+    id: '08-drive-what-you-earned',
+    act: 'systems',
+    // Mirrored: frame 07 is also `edge`, and two adjacent frames in the same
+    // composition read as one image rendered twice — the exact failure this
+    // mode system exists to prevent. Device left, car and type right.
+    mode: 'edge',
+    flip: true,
+    art: 'showroom',
+    support: [],
+    head: 'Drive what you |earned.|',
+    sub: 'Sixteen models. Licence first, then the keys.',
+    // The car the capture actually bought, standing in front of the showroom
+    // it was bought in. Its render ships with a real alpha channel, so unlike
+    // the collectibles it needs no blend at all.
+    props: [
+      { art: 'supercar', x: 0.715, y: 0.505, w: 0.60, rot: 0, glow: 0.50, bright: 1.08 },
+    ],
+    num: '211 mph',
+    label: 'exotic supercar · owned',
+    hue: HUE.identity,
+    // The third capture of this kind, and the one that was gated rather than
+    // merely empty: the Vehicles app opens on a dealership behind a driver's
+    // licence, with every Buy button reading "License needed". Every previous
+    // capture of it was a picture of a locked shop, which is why there was
+    // never a vehicle frame.
+    pick: 'garage',
+    evidence: 'The garage lists the Exotic Supercar the capture bought, with its top speed.',
+    assert: ['Exotic Supercar'],
+  },
+  {
+    id: '09-fall-for-someone',
     act: 'life',
     mode: 'solo',
     art: 'island',
@@ -599,21 +648,6 @@ export const FRAMES = [
     assert: ['30 swipes left', '1 super'],
   },
   {
-    id: '09-raise-a-family',
-    act: 'life',
-    mode: 'trio',
-    art: 'gallery',
-    support: ['spark', 'life'],
-    head: 'Raise a |family.|',
-    sub: 'Marry, have kids, pass it all on.',
-    num: '5 people',
-    label: 'in your circle',
-    hue: HUE.identity,
-    pick: 'contacts',
-    evidence: 'The relationship portfolio card counts 5 people: both parents, a spouse and two children.',
-    assert: ['RELATIONSHIP PORTFOLIO', 'People', 'Strong'],
-  },
-  {
     id: '10-then-do-it-again',
     act: 'life',
     mode: 'edge',
@@ -621,8 +655,18 @@ export const FRAMES = [
     support: [],
     head: 'Then do it |again.|',
     sub: 'Eleven million later. Prestige, and start over.',
+    // Deliberately the SAME label as frame 01, on the same screen, on the same
+    // chip: "$1,500 TO YOUR NAME" and "$11M TO YOUR NAME". Only the number moved.
+    //
+    // The label used to read "net worth", which the chip is not — it is the
+    // WALLET, and the net-worth line sits below the fold and out of the picture.
+    // Worth knowing which capture this frame reads: `home` is shot at the top of
+    // the desktop walk, BEFORE the run buys three properties, a supercar and two
+    // trophies. `home-final`, shot after, reads $8M for exactly that reason.
+    // Both are true states of the same save; this frame quotes the one it is
+    // actually a picture of.
     num: '$11M',
-    label: 'net worth · age 22',
+    label: 'to your name',
     hue: HUE.gold,
     pick: 'home',
     // The bookend. Same screen as frame 01, same character, same age — only the
@@ -846,7 +890,12 @@ export function frameHtml(frame, shots, L) {
 
   // Where the device sits, which every light in the frame is derived from so
   // the shadow and the spill cannot drift away from the object casting them.
-  const dx = mode === 'edge' ? L.edgeDx : 0;
+  // `flip` mirrors an edge frame — device left, type and props right. Frames 07
+  // and 08 are adjacent and both edge; without this they read as the same
+  // composition twice, which is the failure this whole mode system exists to
+  // avoid.
+  const side = frame.flip ? -1 : 1;
+  const dx = mode === 'edge' ? L.edgeDx * side : 0;
   const devH = mode === 'edge' ? L.edgeH : L.devH;
   const devTop = mode === 'edge' ? L.edgeTop : L.devTop;
   const screenAspect = L.kind === 'tablet' ? 2732 / 2048 : 2796 / 1290;
@@ -971,7 +1020,7 @@ export function frameHtml(frame, shots, L) {
      single frame looks wrong. */
   .head {
     position:absolute; bottom:${L.H - L.headBaseline}px; left:0; right:0;
-    text-align:${alignLeft ? 'left' : 'center'}; padding:0 ${L.headPad}px; z-index:6;
+    text-align:${alignLeft ? (frame.flip ? 'right' : 'left') : 'center'}; padding:0 ${L.headPad}px; z-index:6;
   }
   h1 {
     font-size:${L.h1}px; line-height:1.02; font-weight:800;
@@ -994,7 +1043,9 @@ export function frameHtml(frame, shots, L) {
      element that reads as pointing INTO the product. */
   .chip {
     position:absolute; z-index:7;
-    left:${Math.max(Math.round(L.W * 0.035), Math.round(L.W / 2 + dx - devW / 2 - L.W * 0.02))}px;
+    left:${frame.flip
+      ? Math.min(Math.round(L.W * 0.965) - Math.round(L.W * 0.42), Math.round(L.W / 2 + dx + devW / 2 - L.W * 0.30))
+      : Math.max(Math.round(L.W * 0.035), Math.round(L.W / 2 + dx - devW / 2 - L.W * 0.02))}px;
     top:${devTop + Math.round(L.H * (L.kind === 'tablet' ? 0.050 : 0.046))}px;
     display:inline-flex; align-items:baseline; gap:${Math.round(L.chip * 0.4)}px;
     padding:${L.chipPadY}px ${L.chipPadX}px; border-radius:999px;
@@ -1038,7 +1089,7 @@ export function frameHtml(frame, shots, L) {
   .device {
     position:absolute; left:50%; top:${devTop}px;
     width:${devW}px; height:${devH}px;
-    transform:translateX(-50%) translateX(${dx}px)${mode === 'edge' ? ` rotateY(-${L.edgeRotY}deg)` : ''} translateZ(0);
+    transform:translateX(-50%) translateX(${dx}px)${mode === 'edge' ? ` rotateY(${-L.edgeRotY * side}deg)` : ''} translateZ(0);
     padding:${bez}px; border-radius:${devR}px;
     background:#080C15;
     box-shadow:

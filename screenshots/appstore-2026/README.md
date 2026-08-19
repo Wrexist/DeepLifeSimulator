@@ -33,7 +33,7 @@ capture of the shipping UI.
 2. `node scripts/serve-web-export.mjs <dir> 8090`
    (a 30-line static server with SPA fallback, so the pipeline needs no network
    install; `npx serve -l 8090 -s <dir>` does the same if you have it)
-3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (34 numbered shots, `00`–`33`,
+3. `node scripts/capture-rich-state.mjs` → `rich-captures/` (35 numbered shots, `00`–`34`,
    each with its on-screen text written beside it as `NN-name.txt`)
    - onboarding (Food Courier → Business Empire ambition)
    - Dev Tools: god-mode on, 2×52-week skips, top career, company, education,
@@ -192,9 +192,9 @@ screenshots is all a search result shows.
 | 05 | Work the **dark web.** | Near-black marble | solo | Onion darknet terminal | `Opsec Lv4` heat cold | successLight |
 | 06 | Found the **company.** | Private box over a floodlit stadium | trio | Hustle / companies · Politics + Apps | `$8,000` a week in revenue | happiness |
 | 07 | Own the **block.** | The valley again, warm and owned | edge | Real Estate › **Portfolio** | see the table row below | purple |
+| 08 | Drive what you **earned.** | Showroom floor + **the car you own** | edge (flipped) | Vehicles › **Garage** | `211 mph` exotic supercar · owned | infoLight |
 | | **Act III · the life** — why anyone starts a second one | | | | | |
-| 08 | Fall for **someone.** | Private island at sunset | solo | Spark (dating profile) | `30 swipes` left · 1 super | reputation |
-| 09 | Raise a **family.** | A warm lit room | trio | Contacts · Spark + Life | `5 people` in your circle | infoLight |
+| 09 | Fall for **someone.** | Private island at sunset | solo | Spark (dating profile) | `30 swipes` left · 1 super | reputation |
 | 10 | Then do it **again.** | Harbour at dusk | edge | Home, 104 weeks later | `$11M` net worth · age 22 | gold |
 
 **Frames 01 and 10 are the same screen.** Same character, photographed at week
@@ -252,6 +252,14 @@ Two consequences are baked into the set:
   its slot to the open weekly decision — which the Choices-Story group ("choices
   game" is flagged large-volume) and `CPP-LifeSim` slot 2 both ask for.
   The Earned capture stays on disk for `CPP-Career`.
+- **Vehicles now has a frame too, and it was the most gated of the three.**
+  The Vehicles app opens on a dealership behind a driver's licence — every Buy
+  button reads "License needed" — so every previous capture of it was a picture
+  of a locked shop. `buyVehicleAndShowGarage` buys the licence and an Exotic
+  Supercar with cash, and the frame composites the game's own render of that car
+  in front of the showroom plate. It cost the family frame: Apple caps a shelf
+  at ten, and that was the weakest image in the set as well as the third frame
+  serving LifeSim-Core, which frames 01 and 10 already carry between them.
 - **Real estate now has its frame.** It had a group (8 keywords) and no frame
   for the whole life of this set, for one reason: the app opens on an EMPTY
   portfolio (`Portfolio equity $0`, `0 properties`, "You don't own any property
@@ -261,7 +269,7 @@ Two consequences are baked into the set:
   cash rather than a mortgage, so the equity printed is simply what the
   properties are worth — and photographs the Portfolio tab.
 
-## Seven frames do NOT use the obvious capture
+## Eight frames do NOT use the obvious capture
 
 Each one is a claim an earlier set could not back up.
 
@@ -271,7 +279,10 @@ Each one is a claim an earlier set could not back up.
 - **07** is Real Estate's **Portfolio** tab after the capture buys property.
   The tab the app opens on is an empty state, which is why this intent group
   had no frame at all until 2026-08.
-- **09** is Contacts, not the Family tab. Shown large and alone the Family tab
+- **08** is Vehicles' **Garage** tab after the capture buys a licence and a car.
+  The tab the app opens on is a dealership with everything locked behind the
+  licence gate.
+- Contacts (used while a family frame existed) is not the Family tab. Shown large and alone the Family tab
   is an EMPTY STATE — a pink "Open the dating app" button under the words "No
   partner yet". Contacts carries the same idea and is full: parents, a spouse
   and both children.

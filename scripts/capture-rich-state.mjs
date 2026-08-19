@@ -218,6 +218,79 @@ async function buyPropertyAndShowPortfolio(page) {
 }
 
 /**
+ * Buys a driver's licence and a car, then photographs the GARAGE.
+ *
+ * The third instance of the same pattern, and the last one this set needs. Like
+ * Luxury and Real Estate, the Vehicles app opens on a shop rather than on
+ * anything owned — worse here, because it opens BEHIND a gate: "Get your
+ * driver's license — Costs $500 · Required to own any vehicle", with every Buy
+ * button in the dealership reading "License needed". So the only picture the
+ * pipeline could take of the garage was of a locked shop.
+ *
+ * The Exotic Supercar is the pick on purpose. It is $250,000 against the
+ * ~$9.7M this save is holding, it requires reputation 50 and the save has 100,
+ * and its render is the strongest object in `assets/images/Vehicles/` — which
+ * matters because the frame composites it.
+ *
+ * Cash, not finance. The modal defaults to the `standard` down-payment tier and
+ * its confirm reads "Sign Auto Loan"; pressing the affirmative without
+ * switching the tier first signs a loan and leaves the garage showing a debt
+ * line instead of a car somebody owns. Same trap as the property modal.
+ */
+async function buyVehicleAndShowGarage(page) {
+  // The app opens on Dealership when nothing is owned, but say so explicitly
+  // rather than relying on that: `activeTab` is initialised from the vehicle
+  // count, so the tab it lands on changes the moment this step succeeds once.
+  await clickAriaLast(page, 'Dealership', { wait: 1600 });
+  await scrollMain(page, 0); await sleep(800);
+
+  // The gate. Its label carries the price, which is a constant in
+  // `lib/vehicles`, so match on the stable prefix instead.
+  const licence = page.locator('[aria-label^="Pay 500 dollars for a driver"]').first();
+  if (await licence.count()) {
+    await licence.click({ timeout: 3000 });
+    await sleep(1400);
+    await clickText(page, 'OK', { exact: true, wait: 700 });
+    console.log('  driver licence bought');
+  }
+
+  const buy = page.locator('[aria-label^="Buy Exotic Supercar"]').first();
+  if (!(await buy.count())) {
+    throw new Error('Dealership has no Exotic Supercar row — the catalog moved, or the licence gate is still up.');
+  }
+  await buy.scrollIntoViewIfNeeded({ timeout: 3000 });
+  await buy.click({ timeout: 3000 });
+  await sleep(1300);
+  await clickText(page, 'Pay cash', { exact: true, wait: 900 });
+  if (!(await clickText(page, 'Buy with Cash', { exact: true, wait: 1600 }))) {
+    throw new Error('Vehicle purchase confirm never appeared — frame 08 would show an empty garage.');
+  }
+  await sleep(1500);
+  await clickText(page, 'OK', { exact: true, wait: 900 });
+  await dismissPopups(page);
+  await sleep(900);
+
+  if (!(await clickAriaLast(page, 'Garage', { wait: 2000 }))) {
+    throw new Error('Vehicles > Garage tab not found after buying.');
+  }
+  await scrollMain(page, -3000); await sleep(700);
+  await scrollMain(page, 0); await sleep(1200);
+  const shown = await allText(page);
+  // Two things again, for the reason the other two steps needed two: the car's
+  // name alone can be read off the dealership listing, so the empty-state
+  // sentence is what proves the GARAGE filled.
+  const stillEmpty = /Garage is empty|Get your license first/i.test(shown);
+  if (!/Exotic Supercar/i.test(shown) || stillEmpty) {
+    throw new Error(
+      `Garage does not show the Exotic Supercar (empty-state visible: ${stillEmpty}) — frame 08 `
+      + `would caption a garage with nothing in it. Screen: `
+      + `${JSON.stringify(shown.replace(/\s+/g, ' ').slice(0, 400))}`,
+    );
+  }
+  await shot(page, 'x-garage-owned');
+}
+
+/**
  * The text a reader can actually SEE in the shot — not `document.body.textContent`.
  *
  * This is the difference between a guard and a fig leaf. The whole-DOM text of
@@ -363,6 +436,10 @@ const SHOT_ORDER = [
   // only picture the pipeline could take of an 8-keyword intent group was of
   // owning nothing.
   'x-realestate-portfolio',
+  // The GARAGE with a car in it. Third of the same kind: the Vehicles app opens
+  // on a dealership behind a driver's-licence gate, so every previous capture of
+  // it was a picture of a locked shop.
+  'x-garage-owned',
 ];
 /**
  * Empties the weekly-decision inbox.
@@ -877,6 +954,14 @@ async function main() {
       if (name === 'realestate') {
         try {
           await buyPropertyAndShowPortfolio(page);
+        } catch (err) {
+          deferred.push(err);
+          console.log('  ‼ deferred:', err.message);
+        }
+      }
+      if (name === 'garage') {
+        try {
+          await buyVehicleAndShowGarage(page);
         } catch (err) {
           deferred.push(err);
           console.log('  ‼ deferred:', err.message);
