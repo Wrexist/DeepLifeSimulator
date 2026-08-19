@@ -47,6 +47,7 @@
     "asc:status": "node scripts/asc-release.mjs --status",
     "asc:release": "node scripts/asc-release.mjs",
     "asc:release:apply": "node scripts/asc-release.mjs --apply",
+    "submit:watch": "node scripts/wait-for-eas-submission.mjs",
     "check:store-contrast": "node scripts/check-store-contrast.mjs"
   },
   "dependencies": {

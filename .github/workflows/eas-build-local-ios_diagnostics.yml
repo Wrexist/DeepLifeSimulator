@@ -27,6 +27,11 @@ on:
         # Safe by default: TestFlight submission is outward-facing and hard to
         # reverse, so it is opt-in — tick this when you actually want to submit.
         default: false
+      wait_for_submission:
+        description: 'Watch the submission until App Store Connect accepts it (untick to end the run as soon as the binary is handed to EAS)'
+        type: boolean
+        # Mirrors eas-build-local-ios.yml — see the reasoning there.
+        default: true
 
 concurrency:
   group: ios-local-release
@@ -246,7 +251,8 @@ jobs:
     needs: build-ios
     if: ${{ inputs.submit }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # Backstop only — the watch step owns the real bound (--timeout-minutes).
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -280,10 +286,35 @@ jobs:
           name: deeplife-ios-ipa
           path: build
 
+      # Schedule, then watch — the same pair as eas-build-local-ios.yml, and for
+      # the same reason: `eas submit`'s built-in wait prints one spinner line
+      # for the whole submission, so a 22-minute queue wait and a hung job look
+      # identical. The two steps must stay together; --no-wait on its own would
+      # make a rejected submission read as a green release.
       - name: Submit to TestFlight
         run: |
+          set -o pipefail
           eas submit \
             --platform ios \
             --profile production \
             --path "$GITHUB_WORKSPACE/build/deeplife.ipa" \
-            --non-interactive
+            --non-interactive \
+            --no-wait | tee "$RUNNER_TEMP/submit-ios.log"
+
+      # `success() &&` is load-bearing: a custom `if:` replaces the implicit
+      # success check.
+      - name: Watch the TestFlight submission
+        if: ${{ success() && inputs.wait_for_submission }}
+        run: |
+          node scripts/wait-for-eas-submission.mjs \
+            --from-log "$RUNNER_TEMP/submit-ios.log" \
+            --platform ios \
+            --timeout-minutes 60
+
+      - name: Submission link (not waiting)
+        if: ${{ success() && !inputs.wait_for_submission }}
+        run: |
+          node scripts/wait-for-eas-submission.mjs \
+            --from-log "$RUNNER_TEMP/submit-ios.log" \
+            --platform ios \
+            --link-only

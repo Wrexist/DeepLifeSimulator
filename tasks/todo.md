@@ -1,83 +1,71 @@
-# Repo cleanup — screenshots and stale material (2026-08-17)
+# TestFlight submit: 22 minutes of a silent step (2026-08-19)
 
-Goal: delete regenerable/superseded binaries, make the App Store screenshot set
-findable, and stop the class from re-accumulating.
+Symptom: `eas-build-local-ios.yml` → **Submit to TestFlight** sat at 22m44s with
+28 log rows, the last one `- Submitting`, no way to tell stuck from working.
 
 ## Ground truth established first
 
-- `screenshots/` is **193 MB / 284 tracked files**. Nothing in it ships: preflight
-  §11 (`scripts/lib/assetBudget.js`) counts only `assets/` reachable through a
-  static `require()`, so this is repo weight and clone time, not download size.
-- Every directory in `screenshots/` is written by a `scripts/generate-*.mjs` or
-  `scripts/capture-*.mjs`. The scripts are the regeneration path and all stay.
-- No markdown file `![]()`-embeds any screenshot, so deleting them breaks no
-  rendered doc. Two docs mention a path in prose — fixed in step 4.
-- The asset tool's "18 unreferenced images in `assets/`" list is **not** safe to
-  act on: it scans static requires only, so `icon.png`, `adaptive-icon.png` and
-  `favicon.png` read as unreferenced while `app.config.js` uses all three. Only
-  the one file the repo itself declares unused is removed.
-
-## KEEP — the live App Store set and its inputs
-
-- [x] `screenshots/appstore-2026/iphone-6.9/` · `iphone-6.5/` · `ipad-13/` (10 each)
-      — the upload sets named by `docs/RELEASE_RUNBOOK.md` and `marketing/aso/README.md`
-- [x] `screenshots/appstore-2026/rich-captures/` + `rich-captures-ipad/` (28 each)
-      — the real-gameplay source frames the two composers read. Recomposing from
-      these is cheap; re-capturing is documented in that dir's README as silently
-      stale-prone, which is the whole reason it exists.
-- [x] `screenshots/appstore-2026/README.md` — the pipeline record
+- The step is not slow, it is **blocked**. `eas submit` uploads the archive and
+  schedules the submission in ~90 s (rows 10–25 of the log), then row 27 —
+  `Waiting for submission to complete` — blocks on EAS's submission queue and
+  EAS's Transporter upload to App Store Connect. Nothing in this repo makes
+  Apple's side faster.
+- `--wait` is the eas-cli default (`allowNo: true`, so `--no-wait` turns it off).
+  While waiting, the CLI prints ONE spinner line for the whole submission — it
+  never reports which state the submission is in, which is why 22 minutes
+  produced no rows.
+- The 2026-08-05 lesson already rejected bare `--no-wait`: it makes the job
+  green the instant the submission is *scheduled*, so a rejected binary reads as
+  a passing release. That objection is about losing the signal, not about
+  waiting, and eas-cli **22** ships the piece that was missing then:
+  `eas submit:view <id> --json` returns `status` +`error`, and the status enum is
+  `AWAITING_BUILD | IN_QUEUE | IN_PROGRESS | FINISHED | ERRORED | CANCELED`
+  (verified against the published tarball, not recalled).
+- `printSubmissionDetailsUrls` runs BEFORE the wait, so `--no-wait` still prints
+  `Submission details: …/submissions/<uuid>` — the id the poller needs.
 
 ## Steps
 
-- [x] 1. Delete superseded store sets (the pre-`appstore-2026` generation, 2026-07-24)
-      `iphone-6.9/` `ipad-13/` `app-store/` `hero-3d/` `iphone-hero/`
-      `iphone-real-hero/` `iphone-real/` `iphone-gameplay/` `flawless-final/`
-      and `appstore-2026/style-samples/` (its own README calls it superseded)
-- [x] 2. Delete dev design-review captures (regenerable, one script each)
-      66 root-level PNGs · `screenshots/app/` · `avatar-centered/` · `bbq-fixes/`
-- [x] 3. Delete stale non-screenshot material
-      `dev/.expo/` (TestFlight crash logs for 2.2.5; binary is 2.9.0) ·
-      `output/playwright/` · `.playwright-cli/` (2026-03-09 probes) ·
-      `tsc-current.txt` (388 KB tsc dump) · `.bolt/` · `.idea/` ·
-      `feedbackapple.txt` · `assets/images/backupMain_Menu.png` (`.easignore`
-      already records it as verified-unused) ·
-      `__tests__/Apple iphone 13 screenshots/` (evidence for the IAP bug fixed
-      in #90; 5 MB of an error dialog sitting in the test tree)
-- [x] 4. Repoint the three prose references at their generator scripts rather
-      than at deleted files (`docs/avatar-art-direction-research.md`,
-      `docs/avatar-approach-research.md`, `tasks/iap-fix.md`)
-- [x] 5. Add `screenshots/README.md` — an index saying which set is the App Store
-      upload, which are inputs, and how to rebuild. There is no index today.
-- [x] 6. `.gitignore`: ignore regenerable preview output so the 193 MB cannot
-      re-accumulate, and un-ignore the config that is deliberately tracked
-      (`.claude/settings.json`, `.cursor/rules/`, `.vscode/`) so it stops
-      showing as ignored-but-tracked.
-- [x] 7. Verify: `npm run check:routes`, `npm run type-check`, targeted Jest.
-
-## Verification (actual output)
-
-- `npm install` — exit 0. A cold container has no `node_modules`;
-  `tasks/lessons.md` records mistaking that for a failing suite twice.
-- `npm run check:routes` — `OK — 18 routes, no conflicts, all groups anchored`
-- `npm run type-check` — clean, no output
-- `npx jest __tests__/tooling __tests__/startup --ci` — **21 suites, 230 tests,
-  all passed** (20.5 s)
-- preflight §11 image payload — **156 images / 22.1 MB shipped, unchanged**,
-  which is the point: nothing deleted was reachable from a static `require()`.
-  Unreferenced-in-`assets/` warning drops 18 → 17 (`backupMain_Menu.png`).
+- [x] 1. `scripts/lib/easSubmission.mjs` — pure: id/URL parsing (ANSI-tolerant),
+      status classification, poll backoff, log-throttle, failure formatting
+- [x] 2. `scripts/wait-for-eas-submission.mjs` — polls `eas submit:view --json`,
+      prints every state change plus a heartbeat, bounded, red on ERRORED/CANCELED
+- [x] 3. `eas-build-local-ios.yml` — `--no-wait` + capture id, then the watch step
+      behind a `wait_for_submission` input (default true)
+- [x] 4. Same in `eas-build-local-android.yml` and the iOS diagnostics twin
+- [x] 5. `npm run submit:watch` for the same check from a laptop
+- [x] 6. `__tests__/tooling/easSubmissionWait.test.ts`
+- [x] 7. Amend the 2026-08-05 lesson in place — its `--no-wait` verdict is now
+      half-stale, and a stale absolute is a trap for the next reader
 
 ## Result
 
-- `screenshots/` 193 MB → 62 MB; 284 tracked files → 88
-- repo excluding `.git`/`node_modules` 284 MB → 144 MB
-- 251 files deleted
+- `Submit to TestFlight` now ends when the .ipa has actually reached EAS (~90 s)
+  and the waiting moved into `Watch the TestFlight submission`, which prints
+  `IN_QUEUE → IN_PROGRESS → FINISHED` plus a 2-minute heartbeat. Same wall clock,
+  same red-on-rejection signal, but "working" and "stuck" are now distinguishable.
+- `wait_for_submission: false` ends the run at "handed to EAS" and records the
+  link; the submission still completes.
+- Applied to all three local-build workflows (iOS, iOS diagnostics, Android).
 
-## One correction worth recording
+## Verification
 
-`git rm 'screenshots/*.png'` deleted 86 files it should not have: a git
-**pathspec** `*` matches across `/`, unlike a shell glob, so it swept
-`appstore-2026/**/*.png` — the entire live App Store set — not just the 66 PNGs
-at the top level. Caught by counting tracked files against the expected 88
-before committing; restored with `git checkout HEAD -- screenshots/appstore-2026`
-and the one genuinely superseded folder re-removed on its own. Appended to
-`tasks/lessons.md`.
+- `npx jest __tests__/tooling --ci` — **14 suites, 185 tests, all passed** (10.8 s),
+  23 of them the new `easSubmissionWait` suite
+- `npm run type-check` and `npm run type-check:tests` — both clean
+- `npx eslint` on the three new/changed source files — clean
+- `python3 -c "yaml.safe_load(...)"` over all 8 workflows — all parse
+- End-to-end smoke of the watcher against a stubbed `eas` on PATH: FINISHED
+  exits 0 with a step summary; ERRORED exits 1 carrying the error code and
+  message; `--link-only` exits 0 with the URL; five unreadable polls in a row
+  exit 1 rather than hanging to the timeout. The id was parsed out of a
+  transcript carrying real ANSI escapes, which is the case that decides whether
+  the watch runs at all.
+
+## Not done, and why
+
+- `eas submit` in `scripts/build-and-submit-testflight.{sh,ps1}` still waits
+  inline. A human running those is already watching the terminal, so the silent
+  step is not the same problem there.
+- Nothing here makes the submission FASTER. The 22 minutes are EAS's queue plus
+  the Transporter upload to App Store Connect; that is Apple's and Expo's side.

@@ -1120,6 +1120,16 @@ one tenth the price.
 green the instant the submission is *scheduled*, so a rejected binary shows as a
 passing release. Paying 1x to keep the signal beats paying nothing to lose it.
 
+**AMENDED 2026-08-19 — read that as an objection to losing the SIGNAL, not to
+the flag.** The two were welded together here because at the time nothing else
+could report a submission's outcome; that is no longer true. `--no-wait` plus
+`scripts/wait-for-eas-submission.mjs` (which polls `eas submit:view --json`)
+keeps the red-on-rejection signal AND makes the wait legible, so the flag is now
+used in all three local-build workflows. What must never happen is `--no-wait`
+*alone* — the sentence above is exactly right about that, and the two steps are
+commented as a pair in each workflow so they are not separated later. See the
+2026-08-19 entry at the end of this file.
+
 **The generalisable lesson: on a metered runner, look at what each step is
 DOING, not how long it takes.** A step that is blocked on someone else's queue
 belongs on the cheapest runner that can hold the connection — and any job that
@@ -3283,3 +3293,48 @@ property-rich, cash-poor character was eulogised as "humble". The same file's
   the newest systems (Spark v45, gem faucets v40/v46, welcome-back v44, mail v37,
   grandchildren v34) returned all-clean EXCEPT this — and it is a player-facing
   correctness bug in the share text, the cheapest acquisition channel.
+
+## 2026-08-19 — 22 minutes and 28 log rows: a step that was blocked, not slow
+
+"Why is it taking 22+ min and it just 28 rows in?" — `Submit to TestFlight` in
+`eas-build-local-ios.yml`, sitting on `- Submitting` with no output.
+
+Reading the rows is the whole diagnosis. Rows 10–25 are the real work: the .ipa
+uploads to EAS Submit and the submission is scheduled, and that finishes in about
+90 seconds. Row 27 is `Waiting for submission to complete`, and everything after
+it is `eas submit`'s built-in wait — EAS queueing a submission worker, then that
+worker running Transporter against App Store Connect. None of it is the runner's
+work, and nothing in this repo can make it faster.
+
+What WAS fixable is that eas-cli prints **one spinner line for the entire wait**.
+It never says which state the submission is in, so 22 minutes in a queue and a
+wedged job produce byte-identical logs — there is no way to tell "working" from
+"stuck" without opening expo.dev. That is what made a normal wait read as a
+hang, and it is a nastier failure than the 10x-billing one from 2026-08-05,
+because it costs a judgement call rather than money.
+
+Fixed by splitting schedule from wait: `eas submit --no-wait` (the
+`Submission details: <url>` line is printed BEFORE the wait it skips, so the
+submission id survives in the transcript), then
+`scripts/wait-for-eas-submission.mjs`, which polls `eas submit:view <id> --json`
+and prints every state transition plus a two-minute heartbeat. Same wall clock,
+same red-on-ERRORED signal, but the log now says whether it is EAS's queue or the
+App Store Connect upload — and `wait_for_submission: false` ends the run at
+"handed to EAS" for when you would rather not sit through it.
+
+- Rule: **an unbounded wait needs a heartbeat, not just a timeout.** A timeout
+  bounds the damage; a heartbeat is what tells you, while it is happening,
+  whether waiting is the right thing to do. A step that has printed nothing for
+  twenty minutes is indistinguishable from a hung one, and the reader's next
+  move — cancel and rebuild — is the expensive wrong answer, because a rebuild
+  mints a new CFBundleVersion.
+- Rule: **when you report a timeout, say what it does NOT mean.** The watch
+  giving up is not Apple rejecting the binary; the submission is still running.
+  Without that sentence a red job reads as a rejection and buys a rebuild.
+- Rule: a custom `if:` on a GitHub Actions step **replaces** the implicit
+  `success()` check. `if: ${{ inputs.wait_for_submission }}` would have run the
+  watch after a FAILED submit, where it would have found the previous run's
+  submission and reported its outcome as this one's. Write `success() && …`.
+- Rule (repeat of the 2026-08-05 shape): **look at what a step is DOING, not how
+  long it takes.** Both findings in this workflow came from reading the step's
+  own output line by line rather than from the duration.
