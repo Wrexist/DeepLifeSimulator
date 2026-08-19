@@ -25,9 +25,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
   Alert,
 } from 'react-native';
-import { Clock, Gift, Sparkles, X } from 'lucide-react-native';
+import { Check, Clock, Gift, X } from 'lucide-react-native';
 import { iapService } from '@/services/IAPService';
 import { track } from '@/lib/analytics';
 import {
@@ -37,6 +38,8 @@ import {
   resolveOfferPrice,
 } from '@/lib/offers';
 import type { OfferDefinition, ResolvedOfferPrice } from '@/lib/offers';
+import { offerBenefits } from '@/lib/offers/benefits';
+import { iapArtFor } from '@/utils/iapArt';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 
 interface OfferCenterModalProps {
@@ -87,6 +90,32 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
 
   const featured = window.current.offer;
   const featuredPrice = priceFor(featured);
+
+  /**
+   * The live USD amount, or null.
+   *
+   * Passed into `offerBenefits` so a scheduled App Store Connect discount makes
+   * the gems-per-dollar line BETTER — the one case where that number should
+   * move, and it moves because the store genuinely charges less. Same currency
+   * rule as the discount badge: outside USD we cannot compare, so we pass null
+   * and the ratio falls back to the config price rather than mixing currencies.
+   */
+  const featuredLiveUSD = useMemo(() => {
+    const p = productsById.get(featured.productId) as
+      | { priceAmount?: number; price?: number; currency?: string; currencyCode?: string; priceCurrencyCode?: string }
+      | undefined;
+    if (!p) return null;
+    const amount = typeof p.priceAmount === 'number' ? p.priceAmount
+      : typeof p.price === 'number' ? p.price : NaN;
+    const cur = (p.currency ?? p.currencyCode ?? p.priceCurrencyCode ?? '').toUpperCase();
+    return Number.isFinite(amount) && amount > 0 && cur === 'USD' ? amount : null;
+  }, [productsById, featured.productId]);
+
+  const benefits = useMemo(
+    () => offerBenefits(featured.productId, featuredLiveUSD),
+    [featured.productId, featuredLiveUSD],
+  );
+  const art = iapArtFor(featured.productId);
 
   useEffect(() => {
     if (!visible) return;
@@ -158,9 +187,13 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
             {/* ── This week ── */}
             <View style={styles.featuredCard}>
               <View style={styles.featuredHead}>
-                <View style={styles.crest}>
-                  <Sparkles size={scale(18)} color="#FBBF24" />
-                </View>
+                {/* The pack's own artwork, from the shared map. A shop card
+                    without its art is the one thing that makes a real product
+                    look like a placeholder. Falls back to nothing rather than
+                    to a generic icon — a wrong picture is worse than none. */}
+                {art ? (
+                  <Image source={art} style={styles.art} resizeMode="contain" />
+                ) : null}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.featuredName}>{featured.name}</Text>
                   <Text style={styles.featuredBlurb}>{featured.blurb}</Text>
@@ -173,6 +206,28 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
                   </View>
                 )}
               </View>
+
+              {/* What you actually get. Sourced from PRODUCT_DISPLAY_META, whose
+                  contents are the same list `applyProductBenefitsToState`
+                  grants — so every line here is a promise the purchase code
+                  keeps, not copy that can drift away from it. */}
+              {benefits.bullets.length > 0 && (
+                <View style={styles.benefits}>
+                  {benefits.bullets.map((line) => (
+                    <View key={line} style={styles.benefitRow}>
+                      <Check size={scale(13)} color="#34D399" />
+                      <Text style={styles.benefitText}>{line}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* A real ratio between two real prices, checkable against the
+                  gem ladder on the next tab. Omitted when it cannot be computed
+                  truthfully. Never a fabricated "worth $X". */}
+              {benefits.valueLine && (
+                <Text style={styles.valueLine}>{benefits.valueLine}</Text>
+              )}
 
               {/* The price line is omitted entirely when the SKU did not load.
                   It used to read "Unavailable" here AND on the button below it,
@@ -291,7 +346,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(251, 191, 36, 0.35)',
     gap: scale(12),
   },
-  featuredHead: { flexDirection: 'row', alignItems: 'flex-start', gap: scale(12) },
+  featuredHead: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
+  art: { width: scale(58), height: scale(58), borderRadius: scale(12) },
+  benefits: { gap: scale(6) },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(7) },
+  benefitText: { flex: 1, color: '#E2E8F0', fontSize: fontScale(12.5), fontWeight: '600' },
+  valueLine: { color: '#FBBF24', fontSize: fontScale(11.5), fontWeight: '700' },
   crest: {
     width: scale(40),
     height: scale(40),

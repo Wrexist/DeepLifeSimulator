@@ -22,6 +22,9 @@ import { activeGemPromo, formatPromoCountdown } from '@/lib/shop/gemPromo';
 import OfferCenterModal from '@/components/OfferCenterModal';
 import { currentOffer } from '@/lib/offers';
 import { IAP_PRODUCTS, getProductConfig, getProductDisplayMeta } from '@/utils/iapConfig';
+// One art map, shared with the Offer Center. These paths used to be inlined
+// here, which was fine while this was the only surface that rendered a product.
+import { IAP_ART } from '@/utils/iapArt';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
 import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
@@ -245,12 +248,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   // "Best Value" badge — not whatever the config's stale bestValue flag claims.
   const gemPacks = useMemo(() => {
     const base = [
-      { id: IAP_PRODUCTS.GEMS_100, gems: 100, image: require('@/assets/images/iap/gems/gems_100.webp') },
-      { id: IAP_PRODUCTS.GEMS_500, gems: 500, image: require('@/assets/images/iap/gems/gems_500.webp') },
-      { id: IAP_PRODUCTS.GEMS_1000, gems: 1000, image: require('@/assets/images/iap/gems/gems_1000.webp') },
-      { id: IAP_PRODUCTS.GEMS_5000, gems: 5000, image: require('@/assets/images/iap/gems/gems_5000.webp') },
-      { id: IAP_PRODUCTS.GEMS_15000, gems: 15000, image: require('@/assets/images/iap/gems/gems_15000.webp') },
-      { id: IAP_PRODUCTS.GEMS_50000, gems: 50000, image: require('@/assets/images/iap/gems/gems_50000.webp') },
+      { id: IAP_PRODUCTS.GEMS_100, gems: 100, image: IAP_ART[IAP_PRODUCTS.GEMS_100] },
+      { id: IAP_PRODUCTS.GEMS_500, gems: 500, image: IAP_ART[IAP_PRODUCTS.GEMS_500] },
+      { id: IAP_PRODUCTS.GEMS_1000, gems: 1000, image: IAP_ART[IAP_PRODUCTS.GEMS_1000] },
+      { id: IAP_PRODUCTS.GEMS_5000, gems: 5000, image: IAP_ART[IAP_PRODUCTS.GEMS_5000] },
+      { id: IAP_PRODUCTS.GEMS_15000, gems: 15000, image: IAP_ART[IAP_PRODUCTS.GEMS_15000] },
+      { id: IAP_PRODUCTS.GEMS_50000, gems: 50000, image: IAP_ART[IAP_PRODUCTS.GEMS_50000] },
     ];
     return base.map((p) => {
       const usd = usdToNumber(getProductConfig(p.id)?.price);
@@ -590,7 +593,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.REMOVE_ADS,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/premium/remove_ads.webp'),
+      image: IAP_ART[IAP_PRODUCTS.REMOVE_ADS],
       title: 'Remove Ads',
       description: getProductConfig(IAP_PRODUCTS.REMOVE_ADS)?.description ?? 'Ad-free gaming forever.',
       features: getProductDisplayMeta(IAP_PRODUCTS.REMOVE_ADS).contents,
@@ -600,7 +603,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.LIFETIME_PREMIUM,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/items/lifetime_premium.webp'),
+      image: IAP_ART[IAP_PRODUCTS.LIFETIME_PREMIUM],
       title: 'Lifetime Premium',
       description: getProductConfig(IAP_PRODUCTS.LIFETIME_PREMIUM)?.description ?? 'No ads, all future updates.',
       features: getProductDisplayMeta(IAP_PRODUCTS.LIFETIME_PREMIUM).contents,
@@ -613,7 +616,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.GEMS_STARTER,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/packs/starter_pack.webp'),
+      image: IAP_ART[IAP_PRODUCTS.GEMS_STARTER],
       title: 'Starter Pack',
       badges: getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.popular
         ? ([{ label: 'Most Popular', color: BADGE_POPULAR }] as ShopBadge[])
@@ -622,7 +625,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.GEMS_PREMIUM,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/packs/premium_pack.webp'),
+      image: IAP_ART[IAP_PRODUCTS.GEMS_PREMIUM],
       title: 'Premium Pack',
       badges: getProductConfig(IAP_PRODUCTS.GEMS_PREMIUM)?.popular
         ? ([{ label: 'Most Popular', color: BADGE_POPULAR }] as ShopBadge[])
@@ -631,14 +634,14 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.GEMS_ULTIMATE,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/packs/ultimate_pack.webp'),
+      image: IAP_ART[IAP_PRODUCTS.GEMS_ULTIMATE],
       title: 'Ultimate Pack',
       badges: undefined,
     },
     {
       id: IAP_PRODUCTS.GEMS_MEGA,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/packs/mega_pack.webp'),
+      image: IAP_ART[IAP_PRODUCTS.GEMS_MEGA],
       title: 'Mega Pack',
       badges: undefined,
     },
@@ -648,25 +651,25 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.YOUTH_PILL_SINGLE,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/items/youth_pill_single.webp'),
+      image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],
       title: 'Youth Pill',
     },
     {
       id: IAP_PRODUCTS.YOUTH_PILL_PACK,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/items/youth_pill_pack.webp'),
+      image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_PACK],
       title: 'Youth Pill Pack (5×)',
     },
     {
       id: IAP_PRODUCTS.MONEY_BOOST,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/items/money_boost.webp'),
+      image: IAP_ART[IAP_PRODUCTS.MONEY_BOOST],
       title: 'Money Boost',
     },
     {
       id: IAP_PRODUCTS.SKILL_BOOST,
       accent: 'packs' as ShopAccent,
-      image: require('@/assets/images/iap/items/skill_boost.webp'),
+      image: IAP_ART[IAP_PRODUCTS.SKILL_BOOST],
       title: 'Skill Boost',
     },
   ];
@@ -684,7 +687,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.UNLOCK_ALL_PERKS,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/premium/unlock_all_perks.webp'),
+      image: IAP_ART[IAP_PRODUCTS.UNLOCK_ALL_PERKS],
       title: 'Unlock All Perks',
       owned: allPerksOwned,
       badges: [{ label: 'Best Value', color: BADGE_BEST }] as ShopBadge[],
@@ -692,42 +695,42 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.WORK_BOOST,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/perks/work_pay_boost.webp'),
+      image: IAP_ART[IAP_PRODUCTS.WORK_BOOST],
       title: 'Work Pay Boost',
       owned: perks?.workBoost === true,
     },
     {
       id: IAP_PRODUCTS.MINDSET,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/perks/mindset.webp'),
+      image: IAP_ART[IAP_PRODUCTS.MINDSET],
       title: 'Mindset',
       owned: perks?.mindset === true,
     },
     {
       id: IAP_PRODUCTS.FAST_LEARNER,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/perks/fast_learner.webp'),
+      image: IAP_ART[IAP_PRODUCTS.FAST_LEARNER],
       title: 'Fast Learner',
       owned: perks?.fastLearner === true,
     },
     {
       id: IAP_PRODUCTS.GOOD_CREDIT,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/perks/good_credit_score.webp'),
+      image: IAP_ART[IAP_PRODUCTS.GOOD_CREDIT],
       title: 'Good Credit Score',
       owned: perks?.goodCredit === true,
     },
     {
       id: IAP_PRODUCTS.REMOVE_ADS,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/premium/remove_ads.webp'),
+      image: IAP_ART[IAP_PRODUCTS.REMOVE_ADS],
       title: 'Remove Ads',
       owned: settings?.adsRemoved === true,
     },
     {
       id: IAP_PRODUCTS.REVIVAL_PACK,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/items/youth_pill_single.webp'),
+      image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],
       title: 'Revival Pack',
       owned: settings?.hasRevivalPack === true,
       // The pack is a NON-CONSUMABLE, so once bought it can never be bought
@@ -740,7 +743,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     {
       id: IAP_PRODUCTS.LIFETIME_PREMIUM,
       accent: 'perks' as ShopAccent,
-      image: require('@/assets/images/iap/items/lifetime_premium.webp'),
+      image: IAP_ART[IAP_PRODUCTS.LIFETIME_PREMIUM],
       title: 'Lifetime Premium',
       owned: settings?.lifetimePremium === true,
     },
@@ -791,7 +794,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const starterOffer = {
     id: IAP_PRODUCTS.GEMS_STARTER,
     accent: 'packs' as ShopAccent,
-    image: require('@/assets/images/iap/packs/starter_pack.webp'),
+    image: IAP_ART[IAP_PRODUCTS.GEMS_STARTER],
     title: getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.name ?? 'Starter Pack',
     description:
       getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.description ??
