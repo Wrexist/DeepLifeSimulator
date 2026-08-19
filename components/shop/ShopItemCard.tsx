@@ -5,6 +5,33 @@ import { Check, Gem } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
+/**
+ * Whether the CTA already states the price, making the standalone price beside
+ * it a second copy of the same number.
+ *
+ * Real-money cards read "$19.99" on the left and "BUY · $19.99" on the button —
+ * the same figure twice, a few centimetres apart, on every card in the shop.
+ * Owner report, with device screenshots.
+ *
+ * DERIVED FROM THE BUTTON TEXT, not from `priceKind`, and that distinction is
+ * the whole point: gem-priced upgrades label their button "Redeem" or "Not
+ * enough gems" and never state the cost, so for those the standalone label is
+ * the ONLY place a player can see what an upgrade charges. Suppressing it there
+ * would hide the price entirely — a worse bug than the duplication. Keying off
+ * the strings means every caller gets the right answer without knowing the
+ * rule, and a button that later drops its price automatically gets its
+ * left-hand label back.
+ *
+ * Exported for its unit test: this repo's Jest setup mocks React Native deeply
+ * enough that a rendered tree carries no text, so the honest way to cover a
+ * rule like this is to make it a pure function and test the function.
+ */
+export function ctaStatesPrice(priceLabel: string, buttonText: string): boolean {
+  // The length guard matters: `''.includes('')` is true for every string, so a
+  // card with no resolved price would otherwise take the suppressed path.
+  return priceLabel.length > 0 && buttonText.includes(priceLabel);
+}
+
 // expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
 const LinearGradient = Gradient;
 
@@ -119,21 +146,28 @@ export default function ShopItemCard({
       </View>
     ) : null;
 
+  const priceIsDuplicated = ctaStatesPrice(priceLabel, buttonText);
+
   const priceBlock = (
     <View style={styles.priceColumn}>
-      <View style={styles.priceRow}>
-        {priceKind === 'gems' ? (
-          <Gem size={scale(13)} color={owned ? 'rgba(226, 232, 240, 0.45)' : '#A5B4FC'} />
-        ) : null}
-        <Text
-          style={[
-            hero ? styles.heroPrice : styles.price,
-            { color: owned ? 'rgba(226, 232, 240, 0.45)' : '#F8FAFC' },
-          ]}
-        >
-          {priceLabel}
-        </Text>
-      </View>
+      {priceIsDuplicated ? null : (
+        <View style={styles.priceRow}>
+          {priceKind === 'gems' ? (
+            <Gem size={scale(13)} color={owned ? 'rgba(226, 232, 240, 0.45)' : '#A5B4FC'} />
+          ) : null}
+          <Text
+            style={[
+              hero ? styles.heroPrice : styles.price,
+              { color: owned ? 'rgba(226, 232, 240, 0.45)' : '#F8FAFC' },
+            ]}
+          >
+            {priceLabel}
+          </Text>
+        </View>
+      )}
+      {/* Kept whatever happens to the price above it: the value line carries a
+          DIFFERENT fact ("≈ 500 gems / $1", "DeepLife+ 20% off"), which is why
+          this stayed a column rather than collapsing into a single row. */}
       {valueLine ? <Text style={styles.valueLine}>{valueLine}</Text> : null}
     </View>
   );
