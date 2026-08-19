@@ -26,6 +26,7 @@ import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { nonMirrorDeposits } from '@/lib/banking/operations';
 import Gradient from '@/components/ui/Gradient';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
+import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
 import {
@@ -35,7 +36,6 @@ import {
  Wallet,
  PiggyBank,
  Gem,
- Store,
  Plus,
  HelpCircle,
  Settings,
@@ -692,18 +692,15 @@ function TopStatsBarComponent() {
  {/* Same quiet circular button as Help/Settings beside it (the old big blue
      "Shop" pill dominated the HUD — owner feedback); the blue storefront
      glyph keeps it findable without shouting. */}
- <TouchableOpacity
+ {/* Gold, with a slow shine. It keeps the EXACT footprint of the grey
+     Help/Settings circles beside it — the owner rejected an earlier large
+     blue "Shop" pill for dominating the HUD, and this changes the finish,
+     not the size. Motion honours reduced-motion and carries no badge or
+     counter; see GoldStoreButton for the reasoning. */}
+ <GoldStoreButton
  onPress={() => { buttonPress(); openStore('store'); }}
- style={[styles.iconButton, darkMode && styles.iconButtonDark]}
- activeOpacity={0.85}
- accessibilityLabel="Open Shop"
- accessibilityRole="button"
- accessibilityHint="Tap to open the shop for gems, upgrades, perks, and Remove Ads"
- >
- <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
- <Store size={22} color="#60A5FA" />
- </LinearGradient>
- </TouchableOpacity>
+ buttonStyle={[styles.iconButton, darkMode && styles.iconButtonDark] as never}
+ />
  <TouchableOpacity
  onPress={() => { buttonPress(); setOpenModal('help'); }}
  style={[styles.iconButton, darkMode && styles.iconButtonDark]}
