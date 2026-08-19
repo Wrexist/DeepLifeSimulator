@@ -174,6 +174,9 @@ describe('failure reporting', () => {
     );
     expect(text).toContain('SUBMISSION_SERVICE_IOS_UNKNOWN_ERROR');
     expect(text).toContain('Invalid build number');
+    // Platform-neutral: this watcher also runs on the Android workflow, where
+    // "Apple said" would be a lie.
+    expect(text).not.toContain('Apple');
     expect(text).toContain(URL);
   });
 
@@ -212,5 +215,80 @@ describe('parsing eas submit:view --json', () => {
     expect(S.parseSubmissionJson('')).toBeNull();
     expect(S.parseSubmissionJson('not json at all')).toBeNull();
     expect(S.parseSubmissionJson('{ broken')).toBeNull();
+  });
+});
+
+describe('recovering the submission link from the payload', () => {
+  // The --platform fallback path has no transcript to read a URL from, and a
+  // failure report with no link is one nobody can act on.
+  const payload = {
+    id: ID,
+    app: { slug: 'deeplife-simulator', ownerAccount: { name: 'isacm' } },
+  };
+
+  it('rebuilds the same URL eas-cli prints', () => {
+    expect(S.submissionUrlFrom(payload)).toBe(URL);
+  });
+
+  it('returns null rather than a broken URL when a piece is missing', () => {
+    expect(S.submissionUrlFrom({ ...payload, app: undefined })).toBeNull();
+    expect(S.submissionUrlFrom({ ...payload, id: undefined })).toBeNull();
+    expect(S.submissionUrlFrom(null)).toBeNull();
+  });
+});
+
+describe('store-specific wording', () => {
+  it('names the right store per platform', () => {
+    expect(S.storeName('ios')).toBe('App Store Connect');
+    expect(S.storeName('IOS')).toBe('App Store Connect');
+    expect(S.storeName('android')).toBe('Google Play');
+    expect(S.storeName('ANDROID')).toBe('Google Play');
+  });
+
+  it('reads correctly on the Android workflow too', () => {
+    // The watcher is shared with eas-build-local-android.yml; a progress line
+    // telling an Android release about App Store Connect is just wrong.
+    expect(S.describeStatus('IN_PROGRESS', 'android')).toContain('Google Play');
+    expect(S.describeStatus('IN_PROGRESS', 'ios')).toContain('App Store Connect');
+    expect(S.formatProgressLine({ status: 'FINISHED', elapsedMs: 0, platform: 'android' })).toContain(
+      'Google Play'
+    );
+  });
+});
+
+describe('what FINISHED is allowed to claim', () => {
+  it('says the upload was accepted, not the review', () => {
+    // EAS finishes when the store accepts the UPLOAD. Apple validates
+    // afterwards, which is where ITMS-91064 and friends surface as Invalid
+    // Binary (CLAUDE.md section 9) — reading green as "shipped" is how a build
+    // sits in Invalid Binary for a day.
+    const text = S.formatSuccess({ elapsedMs: 12 * 60_000, url: URL, platform: 'ios' });
+    expect(text).toContain('12m00s');
+    expect(text).toContain('UPLOAD, not the review');
+    expect(text).toContain('Invalid Binary');
+    expect(text).toContain(URL);
+  });
+
+  it('uses Play wording for Android', () => {
+    const text = S.formatSuccess({ elapsedMs: 0, url: null, platform: 'android' });
+    expect(text).toContain('Google Play');
+    expect(text).not.toContain('Invalid Binary');
+  });
+});
+
+describe('the unreadable-status grace', () => {
+  it('is long enough to outlast a network blip at the tightest poll cadence', () => {
+    // Bounding this by ATTEMPTS instead of time is the trap: at the 10s early
+    // cadence, "5 attempts" is 40 seconds, so a one-minute blip would fail a
+    // release that was fine. Assert it survives at least ten of the widest
+    // polls' worth of tight ones.
+    expect(S.READ_FAILURE_GRACE_MS).toBeGreaterThanOrEqual(10 * S.pollDelayMs(0));
+    expect(S.READ_FAILURE_GRACE_MS).toBeGreaterThanOrEqual(4 * S.pollDelayMs(30 * 60_000));
+  });
+
+  it('is shorter than a sane watch timeout, so it reports the real reason', () => {
+    // If the grace outlived the timeout, an outage would be reported as "the
+    // submission is taking a long time" instead of "we cannot see it".
+    expect(S.READ_FAILURE_GRACE_MS).toBeLessThan(60 * 60_000);
   });
 });

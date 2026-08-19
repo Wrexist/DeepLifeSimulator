@@ -69,3 +69,36 @@ Symptom: `eas-build-local-ios.yml` → **Submit to TestFlight** sat at 22m44s wi
   step is not the same problem there.
 - Nothing here makes the submission FASTER. The 22 minutes are EAS's queue plus
   the Transporter upload to App Store Connect; that is Apple's and Expo's side.
+
+## Audit round (same day)
+
+Re-read the change looking for what it got wrong. Five things, all fixed:
+
+- [x] 8. **The pairing was only a comment.** `--no-wait` is safe only while a
+      watch step follows it. Added `__tests__/tooling/submitWorkflowInvariants.test.ts`,
+      which pins the pairing, the `success() &&` guards and `set -o pipefail`
+      across all three workflows — and verified it by breaking each invariant
+      and watching it go red.
+- [x] 9. **The retry budget was measured in attempts.** Five failed polls is 40
+      seconds at the tight early cadence, so a one-minute blip failed a release
+      that was fine. Now a five-minute grace, with the relationship to
+      `pollDelayMs` asserted.
+- [x] 10. **`FINISHED` was reported as if it meant approved.** It means the
+      store accepted the UPLOAD; Apple validates afterwards, which is where
+      Invalid Binary comes from. Both the annotation and the runbook say so now.
+- [x] 11. **The `--platform` fallback path had no link.** The payload carries
+      `app.ownerAccount.name` + `app.slug`, so the URL is rebuilt from it —
+      a failure report with no link is one nobody can act on.
+- [x] 12. **Android was reading iOS wording.** The shared watcher said "App
+      Store Connect" and "Apple said" on Play submissions. One
+      `storeName(platform)` helper; failure line made platform-neutral.
+
+## Verification (audit round)
+
+- `npx jest __tests__/tooling --ci` — **15 suites, 209 tests, all passed** (8.7 s)
+- Mutation-tested the new pin: dropping `--no-wait` fails it; dropping
+  `success()` fails it; the workflow was restored and verified clean against HEAD
+- Re-ran the watcher end to end against the stub for: transient read failures
+  recovering into a FINISHED (URL rebuilt from the payload, no `--from-log`),
+  an Android ERRORED (Play wording, exit 1), and a watch timeout (exit 1 with
+  the "this is not a rejection" wording)

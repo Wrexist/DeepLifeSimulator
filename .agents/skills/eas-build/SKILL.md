@@ -33,3 +33,12 @@ Before triggering the build, verify:
 
 - Provide the EAS build URL for monitoring
 - Remind the user to check build status with `eas build:list`
+
+## After Submit
+
+A submission takes 10-25 minutes and spends nearly all of it in EAS's queue and
+the store upload. That is normal, not a hang. The release workflows schedule
+with `--no-wait` and watch the result with `scripts/wait-for-eas-submission.mjs`;
+from a laptop the same check is `npm run submit:watch -- --platform ios`.
+`FINISHED` means the store ACCEPTED THE UPLOAD - Apple validates afterwards, so
+confirm the build reaches TestFlight before calling the release done.

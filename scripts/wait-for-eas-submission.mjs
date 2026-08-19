@@ -41,12 +41,16 @@ import {
   formatElapsed,
   formatFailure,
   formatProgressLine,
+  formatSuccess,
   formatWatchTimeout,
   isTerminal,
   parseSubmissionDetails,
   parseSubmissionJson,
   pollDelayMs,
+  READ_FAILURE_GRACE_MS,
+  storeName,
   shouldLog,
+  submissionUrlFrom,
   succeeded,
 } from './lib/easSubmission.mjs';
 
@@ -76,11 +80,6 @@ const platform = valueOf('--platform');
 const submissionUrl = valueOf('--url') ?? fromLog?.url ?? null;
 const linkOnly = has('--link-only');
 const timeoutMs = Number(valueOf('--timeout-minutes', '60')) * 60_000;
-
-// Consecutive read failures tolerated before giving up. A single failed poll is
-// a network blip and must not fail a release; a run of them means the CLI is
-// not going to answer and continuing would only burn the timeout.
-const MAX_CONSECUTIVE_READ_FAILURES = 5;
 
 if (!submissionId && !platform && !linkOnly) {
   console.error('Pass --id <submission-uuid>, --from-log <file>, or --platform <ios|android>.');
@@ -126,6 +125,10 @@ function summary(text) {
   }
 }
 
+/** The payload's platform beats the flag: with --from-log the flag may be absent. */
+const platformOf = (submission) =>
+  String(submission?.platform ?? platform ?? 'ios').toLowerCase();
+
 /** GitHub renders ::error:: / ::notice:: as annotations; %0A keeps them multiline. */
 const annotate = (level, text) => `::${level}::${text.replace(/\n/g, '%0A')}`;
 
@@ -150,15 +153,19 @@ async function main() {
     `Watching ${target}. Giving up after ${timeoutMinutes} minute${timeoutMinutes === 1 ? '' : 's'}.`
   );
   if (submissionUrl) console.log(`Submission details: ${submissionUrl}`);
+  const store = storeName(platform);
   console.log(
-    'The wait below is EAS queueing the job and uploading the binary to App Store\n' +
-      'Connect. It is not this runner doing work, and nothing here can make it faster -\n' +
-      'what it can do is say which of those two it is currently stuck on.'
+    `The wait below is EAS queueing the job and uploading the binary to ${store}.\n` +
+      'It is not this runner doing work, and nothing here can make it faster - what\n' +
+      'it can do is say which of those two it is currently stuck on.'
   );
 
   let previousStatus = null;
   let lastLoggedAtMs = -Infinity;
-  let consecutiveFailures = 0;
+  let unreadableSinceMs = null;
+  // Recovered from the payload when the transcript could not be parsed, so the
+  // --platform fallback path still reports a link.
+  let resolvedUrl = submissionUrl;
 
   for (;;) {
     const elapsedMs = Date.now() - startedAt;
@@ -166,35 +173,39 @@ async function main() {
     const status = submission?.status ?? null;
 
     if (!status) {
-      consecutiveFailures += 1;
+      if (unreadableSinceMs === null) unreadableSinceMs = elapsedMs;
+      const unreadableForMs = elapsedMs - unreadableSinceMs;
       console.log(
-        `[watch] could not read the submission status ` +
-          `(${consecutiveFailures}/${MAX_CONSECUTIVE_READ_FAILURES}). ${stderr.trim().split('\n').pop() ?? ''}`
+        `[watch] could not read the submission status (unreadable for ` +
+          `${formatElapsed(unreadableForMs)} of ${formatElapsed(READ_FAILURE_GRACE_MS)}). ` +
+          `${stderr.trim().split('\n').pop() ?? ''}`
       );
-      if (consecutiveFailures >= MAX_CONSECUTIVE_READ_FAILURES) {
+      if (unreadableForMs >= READ_FAILURE_GRACE_MS) {
         console.log(
           annotate(
             'error',
-            `Gave up reading the submission status after ${MAX_CONSECUTIVE_READ_FAILURES} attempts.\n` +
-              `The submission itself may be fine - check ${submissionUrl ?? 'https://expo.dev'}.`
+            `Could not read the submission status for ${formatElapsed(unreadableForMs)}; giving up.\n` +
+              'This is a failure to OBSERVE the submission, not a failed submission - it may\n' +
+              `well have succeeded. Check ${resolvedUrl ?? 'https://expo.dev'}.`
           )
         );
         process.exit(1);
       }
     } else {
-      consecutiveFailures = 0;
+      unreadableSinceMs = null;
+      resolvedUrl = resolvedUrl ?? submissionUrlFrom(submission);
       if (shouldLog({ status, previousStatus, elapsedMs, lastLoggedAtMs })) {
-        console.log(formatProgressLine({ status, elapsedMs }));
+        console.log(formatProgressLine({ status, elapsedMs, platform: platformOf(submission) }));
         lastLoggedAtMs = elapsedMs;
       }
       previousStatus = status;
 
       if (isTerminal(status)) {
-        const url = submissionUrl ?? null;
+        const url = resolvedUrl;
         if (succeeded(status)) {
-          const done = `Submission finished in ${formatElapsed(elapsedMs)} - the store has the binary.`;
+          const done = formatSuccess({ elapsedMs, url, platform: platformOf(submission) });
           console.log(annotate('notice', done));
-          summary(`### Submission finished\n\n${done}${url ? `\n\n${url}` : ''}`);
+          summary(`### Submission finished\n\n${done}`);
           return;
         }
         const failure = formatFailure(submission, url);
@@ -208,7 +219,8 @@ async function main() {
       const message = formatWatchTimeout({
         elapsedMs,
         status: previousStatus ?? 'unknown',
-        url: submissionUrl,
+        url: resolvedUrl,
+        platform: platform ?? 'ios',
       });
       console.log(annotate('error', message));
       summary(`### Stopped watching\n\n${message}`);

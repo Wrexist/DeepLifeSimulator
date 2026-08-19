@@ -3338,3 +3338,32 @@ App Store Connect upload — and `wait_for_submission: false` ends the run at
 - Rule (repeat of the 2026-08-05 shape): **look at what a step is DOING, not how
   long it takes.** Both findings in this workflow came from reading the step's
   own output line by line rather than from the duration.
+
+Four more came out of auditing that change rather than writing it, and each one
+is a way the fix could have been quietly wrong:
+
+- Rule: **a comment saying "these two steps must stay together" is not a
+  guarantee — pin it.** `--no-wait` is safe only because a watch step follows
+  it; delete the watch and every release reports green on "scheduled". That is
+  one deleted step away at any time, so
+  `__tests__/tooling/submitWorkflowInvariants.test.ts` now asserts the pairing,
+  the `success() &&` guards and the `set -o pipefail` (without which `| tee`
+  returns 0 for a failed `eas submit`) across all three workflows. It was
+  verified by breaking each invariant and watching it go red — a guard nobody
+  has seen fail is not known to be a guard. Writing it also found a bug in
+  itself: matching `eas submit` in the raw YAML hit the workflows' own PROSE,
+  because these files discuss the command at length in comments.
+- Rule: **bound a retry loop by TIME, not by attempt count**, whenever the
+  interval is itself variable. "Give up after 5 failed polls" sounded generous
+  and was 40 seconds at the tight early cadence, so a one-minute network blip
+  would have failed a release that was fine. It is a five-minute grace now, and
+  the test asserts the grace stays well clear of the poll interval.
+- Rule: **say what a success does NOT mean.** EAS reports `FINISHED` when the
+  store accepts the UPLOAD; Apple validates afterwards, and that is exactly
+  where ITMS-91064 and the purpose-string rejections surface as Invalid Binary
+  (CLAUDE.md §9). A green step reading as "shipped" is how a build sits in
+  Invalid Binary for a day.
+- Rule: **a shared tool must not hardcode one caller's vocabulary.** The same
+  watcher runs on the Android workflow, where "App Store Connect accepted the
+  upload" and "Apple said" are simply false. One `storeName(platform)` helper,
+  and the failure line is platform-neutral.

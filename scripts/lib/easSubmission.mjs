@@ -29,15 +29,22 @@ const TERMINAL = new Set([
   SUBMISSION_STATUS.CANCELED,
 ]);
 
+/** One place that turns a platform into the store it submits to. */
+export function storeName(platform) {
+  return String(platform).toLowerCase() === 'android' ? 'Google Play' : 'App Store Connect';
+}
+
 // What each state actually means for someone staring at the job, so the log
-// says "waiting for a worker" rather than repeating an enum name.
+// says "waiting for a worker" rather than repeating an enum name. Two of them
+// name the store, so this watcher reads correctly on the Android workflow too.
 const DESCRIPTIONS = {
-  [SUBMISSION_STATUS.AWAITING_BUILD]: 'waiting for the binary to finish uploading to EAS',
-  [SUBMISSION_STATUS.IN_QUEUE]: 'queued at EAS - waiting for a submission worker, not for our runner',
-  [SUBMISSION_STATUS.IN_PROGRESS]: 'EAS is uploading the binary to App Store Connect',
-  [SUBMISSION_STATUS.FINISHED]: 'App Store Connect accepted the upload',
-  [SUBMISSION_STATUS.ERRORED]: 'the submission failed',
-  [SUBMISSION_STATUS.CANCELED]: 'the submission was canceled',
+  [SUBMISSION_STATUS.AWAITING_BUILD]: () => 'waiting for the binary to finish uploading to EAS',
+  [SUBMISSION_STATUS.IN_QUEUE]: () =>
+    'queued at EAS - waiting for a submission worker, not for our runner',
+  [SUBMISSION_STATUS.IN_PROGRESS]: (store) => `EAS is uploading the binary to ${store}`,
+  [SUBMISSION_STATUS.FINISHED]: (store) => `${store} accepted the upload`,
+  [SUBMISSION_STATUS.ERRORED]: () => 'the submission failed',
+  [SUBMISSION_STATUS.CANCELED]: () => 'the submission was canceled',
 };
 
 // CSI sequences (colour, cursor) and OSC sequences (terminal hyperlinks). Both
@@ -67,6 +74,20 @@ export function parseSubmissionDetails(stdout) {
   return { id: match[1], url: match[0] };
 }
 
+/**
+ * Rebuild the submission's web URL from the payload itself, mirroring eas-cli's
+ * getSubmissionDetailsUrl. This is what keeps the `--platform` fallback path
+ * useful: when the transcript could not be parsed there is no URL to pass in,
+ * and a failure report with no link is a failure report nobody can act on.
+ */
+export function submissionUrlFrom(submission) {
+  const id = submission?.id;
+  const account = submission?.app?.ownerAccount?.name;
+  const slug = submission?.app?.slug;
+  if (!id || !account || !slug) return null;
+  return `https://expo.dev/accounts/${account}/projects/${slug}/submissions/${id}`;
+}
+
 export function isTerminal(status) {
   return TERMINAL.has(status);
 }
@@ -75,8 +96,9 @@ export function succeeded(status) {
   return status === SUBMISSION_STATUS.FINISHED;
 }
 
-export function describeStatus(status) {
-  return DESCRIPTIONS[status] ?? `unrecognized status ${String(status)}`;
+export function describeStatus(status, platform = 'ios') {
+  const describe = DESCRIPTIONS[status];
+  return describe ? describe(storeName(platform)) : `unrecognized status ${String(status)}`;
 }
 
 /**
@@ -106,13 +128,24 @@ export function formatElapsed(ms) {
  */
 export const HEARTBEAT_MS = 2 * 60_000;
 
+/**
+ * How long `eas submit:view` may stay unreadable before the watcher gives up.
+ * Bounded by TIME rather than attempt count on purpose: the poll tightens to
+ * 10s early on, so "five failed attempts" is a 40-second sample of transient
+ * and a one-minute network blip would fail a release that was perfectly fine.
+ * It must stay comfortably larger than several pollDelayMs intervals - the
+ * accompanying test asserts that, because shrinking it silently converts blips
+ * into red releases.
+ */
+export const READ_FAILURE_GRACE_MS = 5 * 60_000;
+
 export function shouldLog({ status, previousStatus, elapsedMs, lastLoggedAtMs }) {
   if (status !== previousStatus) return true;
   return elapsedMs - lastLoggedAtMs >= HEARTBEAT_MS;
 }
 
-export function formatProgressLine({ status, elapsedMs }) {
-  return `[${formatElapsed(elapsedMs)}] ${status} - ${describeStatus(status)}`;
+export function formatProgressLine({ status, elapsedMs, platform = 'ios' }) {
+  return `[${formatElapsed(elapsedMs)}] ${status} - ${describeStatus(status, platform)}`;
 }
 
 /**
@@ -125,7 +158,7 @@ export function formatFailure(submission, url) {
   const code = submission?.error?.errorCode;
   const message = submission?.error?.message;
   if (code) lines.push(`Error code: ${code}`);
-  if (message) lines.push(`EAS/Apple said: ${message}`);
+  if (message) lines.push(`Reason reported by EAS: ${message}`);
   if (url) lines.push(`Submission details: ${url}`);
   return lines.join('\n');
 }
@@ -136,13 +169,38 @@ export function formatFailure(submission, url) {
  * treats a red job as a rejected build and rebuilds for nothing (and a rebuild
  * is the one thing that is never free here: it mints a new CFBundleVersion).
  */
-export function formatWatchTimeout({ elapsedMs, status, url }) {
+export function formatWatchTimeout({ elapsedMs, status, url, platform = 'ios' }) {
   return [
     `Stopped watching after ${formatElapsed(elapsedMs)} - last status ${status}.`,
     'This does NOT mean the submission failed: it is still running at EAS and',
     'may yet finish. Do not rebuild on the strength of this alone.',
-    url ? `Check it here: ${url}` : 'Check it with: npm run submit:watch',
+    url ? `Check it here: ${url}` : `Check it with: npm run submit:watch -- --platform ${platform}`,
   ].join('\n');
+}
+
+/**
+ * What FINISHED does and does not mean. EAS reports finished when App Store
+ * Connect ACCEPTS THE UPLOAD; Apple then validates the binary asynchronously,
+ * which is where ITMS-91064 (privacy manifest) and friends surface, minutes
+ * later, by email and as "Invalid Binary" in App Store Connect (CLAUDE.md 9).
+ * A green watch step is therefore "Apple has it", not "Apple accepted it" —
+ * worth spelling out, because reading it as the latter is how a build sits in
+ * Invalid Binary for a day while everyone believes the release went out.
+ */
+export function formatSuccess({ elapsedMs, url, platform = 'ios' }) {
+  const store = storeName(platform);
+  const afterwards =
+    String(platform).toLowerCase() === 'android'
+      ? 'Play still processes the bundle afterwards and can reject it there.'
+      : 'Apple still validates the binary afterwards and can return it as Invalid Binary.';
+  return [
+    `Submission finished in ${formatElapsed(elapsedMs)} - ${store} accepted the upload.`,
+    `That is the UPLOAD, not the review. ${afterwards}`,
+    `Check the build in ${store} before calling the release done.`,
+    url ?? '',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /**
