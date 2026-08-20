@@ -17,6 +17,18 @@ name: iOS TestFlight (local build · no cloud credits)
 # EXPO_TOKEN, none of which require macOS, so it moves to ubuntu and picks the
 # binary up from the artifact the build job already uploads. Same wait, same
 # pass/fail signal, one tenth the cost.
+#
+# Why the submission is scheduled and watched separately (2026-08-19): `eas
+# submit` waits by default and, while waiting, prints ONE spinner line for the
+# whole submission. A run that spent 22 minutes in EAS's queue was therefore
+# byte-identical in the log to a wedged one — 28 rows, last line `- Submitting`,
+# no way to tell. It now schedules with `--no-wait` (~90 s, and the submission
+# id is printed before the wait would have started) and hands the id to
+# scripts/wait-for-eas-submission.mjs, which polls `eas submit:view --json` and
+# prints every state change plus a two-minute heartbeat. Same wall clock, same
+# red-on-rejection signal, but the log says whether it is EAS's queue or the
+# App Store Connect upload — and `wait_for_submission: false` skips the watch
+# entirely when you do not want to sit through it.
 
 on:
   workflow_dispatch:
@@ -34,6 +46,15 @@ on:
         # Safe by default: TestFlight submission is outward-facing and hard to
         # reverse, so it is opt-in — tick this when you actually want to submit.
         default: false
+      wait_for_submission:
+        description: 'Watch the submission until App Store Connect accepts it (adds ~10–25 min of waiting; untick to end the run as soon as the binary is handed to EAS)'
+        type: boolean
+        # On by default: the watch is what turns "scheduled" into "accepted",
+        # and a release that reports green on "scheduled" is the failure mode
+        # tasks/lessons.md (2026-08-05) warns about. Untick it deliberately when
+        # you would rather read the outcome off the Expo dashboard later —
+        # unticking does NOT cancel anything, the submission still runs at EAS.
+        default: true
 
 concurrency:
   group: ios-local-release
@@ -247,9 +268,10 @@ jobs:
     needs: build-ios
     if: ${{ inputs.submit }}
     runs-on: ubuntu-latest
-    # The wait is EAS's queue, not our work. Bounded so a stuck submission ends
-    # in a red job instead of running to the 6h default — at 1x, but still.
-    timeout-minutes: 120
+    # Backstop only. The watch step owns the real bound (--timeout-minutes) and
+    # explains itself when it fires; this is here so a hang in any OTHER step
+    # cannot run to the 6h default — at 1x, but still.
+    timeout-minutes: 90
     steps:
       # eas.json (the submit profile) and app.config.js (the EAS project id)
       # both come from the repo.
@@ -286,10 +308,49 @@ jobs:
           name: deeplife-ios-ipa
           path: build
 
+      # SCHEDULE ONLY. --no-wait stops eas-cli blocking here on EAS's queue
+      # behind a single spinner line; the step now ends in ~90s, when the .ipa
+      # has actually reached EAS. eas-cli prints `Submission details: <url>`
+      # BEFORE the wait it is skipping, so the transcript carries the submission
+      # id and the watch step below picks it up from there.
+      #
+      # Bare --no-wait would be a regression on its own — a scheduled-but-
+      # rejected submission would read as a green release (tasks/lessons.md,
+      # 2026-08-05). It is only safe here because the watch step restores the
+      # signal, so the two must stay together.
       - name: Submit to TestFlight
         run: |
+          set -o pipefail
           eas submit \
             --platform ios \
             --profile production \
             --path "$GITHUB_WORKSPACE/build/deeplife.ipa" \
-            --non-interactive
+            --non-interactive \
+            --no-wait | tee "$RUNNER_TEMP/submit-ios.log"
+
+      # The wait, made legible: polls `eas submit:view --json` and prints every
+      # state change (IN_QUEUE → IN_PROGRESS → FINISHED) plus a 2-minute
+      # heartbeat, so a slow submission never looks like a hung one. Red on
+      # ERRORED/CANCELED with Apple's reason — that is the release signal, and
+      # it is why this step is on by default.
+      #
+      # `success() &&` is load-bearing: a custom `if:` REPLACES the implicit
+      # success check, so without it a failed submit step would still be
+      # followed by a watch reporting on the PREVIOUS run's submission.
+      - name: Watch the TestFlight submission
+        if: ${{ success() && inputs.wait_for_submission }}
+        run: |
+          node scripts/wait-for-eas-submission.mjs \
+            --from-log "$RUNNER_TEMP/submit-ios.log" \
+            --platform ios \
+            --timeout-minutes 60
+
+      # Not waiting is a legitimate choice; losing the link is not. Records
+      # where the outcome will show up, so the run is still traceable.
+      - name: Submission link (not waiting)
+        if: ${{ success() && !inputs.wait_for_submission }}
+        run: |
+          node scripts/wait-for-eas-submission.mjs \
+            --from-log "$RUNNER_TEMP/submit-ios.log" \
+            --platform ios \
+            --link-only

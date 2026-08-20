@@ -164,6 +164,23 @@ eas build --platform ios --profile production
 > `eas build --local` never auto-increments the build number. If you build
 > locally, set `BUILD_NUMBER` yourself or the submit is rejected as a duplicate.
 
+> **The submission itself takes 10–25 minutes and that is normal.** The
+> `iOS TestFlight (local build)` workflow uploads the .ipa to EAS in ~90 s, then
+> waits while EAS queues a worker and uploads to App Store Connect. Its
+> `Watch the TestFlight submission` step names which of the two it is on and
+> heartbeats every two minutes, so a quiet log is not a stuck one — do not
+> cancel and rebuild, a rebuild mints a new `CFBundleVersion` for nothing.
+> Untick **Watch the submission until App Store Connect accepts it** to end the
+> run as soon as the binary reaches EAS; the submission still completes, and
+> `npm run submit:watch -- --platform ios` reports how it went afterwards.
+
+> 🟡 **A green watch step means Apple HAS the build, not that Apple accepted
+> it.** EAS reports `FINISHED` when the upload lands; validation runs afterwards
+> and is where ITMS-91064 and the other privacy-manifest / purpose-string
+> rejections surface, by email and as **Invalid Binary** in App Store Connect
+> (see §"Privacy manifest" in CLAUDE.md §9). Confirm the build appears in
+> TestFlight before you treat the release as shipped.
+
 ---
 
 ## Part 5 · App Store Connect — metadata (10 min)
