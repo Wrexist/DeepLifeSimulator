@@ -18,30 +18,30 @@ don't have). C2 depends on C1. C is native and cannot ship over OTA.
 
 ## A. Version the deployed edge functions  ✅ no runtime change
 
-- [ ] A1. Capture deployed `save` (v2) and `leaderboard` (v2) verbatim into
+- [x] A1. Capture deployed `save` (v2) and `leaderboard` (v2) verbatim into
       `server/cloud-save/save/index.ts` and `server/cloud-save/leaderboard/index.ts`.
       **Byte-for-byte as deployed** — this step captures, it does not refactor.
-- [ ] A2. Reconstruct `server/cloud-save/schema.sql` from live introspection
+- [x] A2. Reconstruct `server/cloud-save/schema.sql` from live introspection
       (`cloud_saves`, `leaderboard_entries`, `backend_config` + PKs, CHECKs, RLS).
       Introspected, not guessed.
-- [ ] A3. `server/cloud-save/README.md` pointing at `docs/CLOUD-SAVE-BACKEND.md`
+- [x] A3. `server/cloud-save/README.md` pointing at `docs/CLOUD-SAVE-BACKEND.md`
       as the contract, and recording the redeploy-from-repo procedure.
-- [ ] A4. Note in the README that both functions bumped v1→v2 at
+- [x] A4. Note in the README that both functions bumped v1→v2 at
       2026-08-20T16:48:06Z with identical timestamps (a platform rebundle, not
       an edit) — and that from this commit on, any change is diffable.
 
 ## B. Erasure + retention  ⚠️ changes live function behaviour
 
-- [ ] B1. `DELETE /save?userId=&slotId=` — erase one slot.
-- [ ] B2. `DELETE /save?userId=` (no slot) — erase **every** slot for that user.
+- [x] B1. `DELETE /save?userId=&slotId=` — erase one slot.
+- [x] B2. `DELETE /save?userId=` (no slot) — erase **every** slot for that user.
       This is the GDPR article 17 path.
-- [ ] B3. Both return `200 {success, deleted:<n>}`; `400` malformed id;
+- [x] B3. Both return `200 {success, deleted:<n>}`; `400` malformed id;
       `401` bad token. Deleting nothing is `200 {deleted:0}`, not an error —
       erasure is idempotent.
 - [ ] B4. Client: a "Delete my cloud backup" action in
       `components/settings/CloudBackupRow.tsx`, behind a confirm. A server
       endpoint no player can reach is not a right.
-- [ ] B5. Retention prune for abandoned rows — **needs the window decided**
+- [x] B5. Retention prune for abandoned rows — **needs the window decided**
       (see Open questions).
 - [ ] B6. Update `docs/CLOUD-SAVE-BACKEND.md`: move item 3 of *Future work*
       into the contract, document the DELETE routes.
@@ -64,20 +64,20 @@ don't have). C2 depends on C1. C is native and cannot ship over OTA.
       secure-store-unavailable fallback.
 
 ### C2. Transfer code (cross-device without accounts)
-- [ ] C2a. Table `save_transfer_codes(code pk, user_id, created_at, expires_at,
+- [x] C2a. Table `save_transfer_codes(code pk, user_id, created_at, expires_at,
       claimed_at, claimed_by)`, RLS on, no policies (matches house posture).
-- [ ] C2b. `POST /save/transfer` → mint a single-use, short-TTL code for the
+- [x] C2b. `POST /save/transfer` → mint a single-use, short-TTL code for the
       caller's userId.
-- [ ] C2c. `POST /save/claim` {code, newUserId} → **copy** every `cloud_saves`
+- [x] C2c. `POST /save/claim` {code, newUserId} → **copy** every `cloud_saves`
       row from the source user to the claiming device's own id.
       **Copy, not repoint**: repointing would leave two devices writing to one
       id, clobbering each other. Copying leaves the old phone working and the
       two diverging independently.
-- [ ] C2d. The claim must be **atomic** — one `update … where claimed_at is null
+- [x] C2d. The claim must be **atomic** — one `update … where claimed_at is null
       returning …` (or a `security definer` function), so two devices racing the
       same code cannot both win. This is CLAUDE.md §4.4's gate→grant rule in
       server form; the same double-tap bug class, over HTTP.
-- [ ] C2e. Rate-limit claim attempts. A code is a bearer credential: anyone
+- [x] C2e. Rate-limit claim attempts. A code is a bearer credential: anyone
       holding it gets the save.
 - [ ] C2f. UI: reveal-code on the old device, enter-code on the new one.
 - [ ] C2g. Document the whole flow in `docs/CLOUD-SAVE-BACKEND.md`.
