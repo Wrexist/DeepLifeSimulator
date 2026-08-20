@@ -45,7 +45,12 @@ there is no password to lose and nothing to reset.
 `admin_token`, so the settings form cannot escalate privileges, and `readConfig`
 skips the key so no response can echo it back.
 
-### Rotating the admin token
+### Setting or rotating the admin token
+
+`schema.sql` creates `beta_config` empty — it seeds no `admin_token` row. Until
+one exists every `/admin` route answers **503 `admin token is not configured on
+this deployment`**, so this is a required setup step on a new project, not only
+a rotation step.
 
 ```bash
 # 1. mint a new one and hash it (never paste the plaintext anywhere but the admin page)
@@ -54,10 +59,19 @@ console.log('token:',t);console.log('hash :',c.createHash('sha256').update(t).di
 ```
 
 ```sql
--- 2. store ONLY the hash
-update public.beta_config
-   set value = jsonb_build_object('v', '<hash>'), updated_at = now()
- where key = 'admin_token';
+-- 2. store ONLY the hash. Upsert, not update: on a fresh project there is no
+-- row to update, and a bare UPDATE would match zero rows, report success, and
+-- leave every admin route answering 503 with nothing to show for it.
+insert into public.beta_config (key, value, updated_at)
+values ('admin_token', jsonb_build_object('v', '<hash>'), now())
+on conflict (key) do update
+   set value = excluded.value, updated_at = excluded.updated_at;
+```
+
+Verify it landed — this must print `64`, the length of a SHA-256 hex digest:
+
+```sql
+select length(value->>'v') from public.beta_config where key = 'admin_token';
 ```
 
 The old token stops working immediately. Any open admin tab keeps its stale
