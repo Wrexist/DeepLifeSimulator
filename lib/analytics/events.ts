@@ -29,6 +29,47 @@ export type AnalyticsEventName =
   | 'challenge_completed'
   | 'streak_changed'
   | 'achievement_unlocked'
+  // ── Retention cohorts ──
+  //
+  // Fired once per NEW day index for an install, carrying how many days after
+  // install that is. This is the fact D1/D7/D30 are computed FROM: without it
+  // the funnel records that sessions happen but not when, relative to install,
+  // and no cohort can be recovered downstream. Emitted alongside `session_start`
+  // (which carries the same numbers) so "how many installs returned on day N"
+  // is a count over one event rather than a de-dupe across every session.
+  //
+  // `anchorEstimated` marks installs whose real install date is unknowable —
+  // everyone who predates this code. A retention curve MUST filter those out;
+  // see `lib/analytics/retentionCohort.ts`.
+  | 'retention_day'
+  // ── Direction & anticipation ──
+  //
+  // The retention question these answer is "does telling players what to do
+  // next change what they do?". `goal_tapped` carries the goal id, its horizon
+  // and its progress, so a goal nobody ever taps is visible as dead weight
+  // rather than as a card that merely looks fine. `week_ahead_shown` records
+  // that the anticipation surface had something to say at all — a player who
+  // never sees it cannot be retained by it, and the row count separates
+  // "shown and ignored" from "never shown".
+  | 'goal_tapped'
+  // Fired when a recommended goal's achievement LEVEL rises — a savings rung
+  // crossed, a job taken, a property bought. Carries the level so "how far up
+  // each ladder do players actually get" is answerable, which is the question
+  // that says whether the mid-game flattens.
+  | 'goal_reached'
+  | 'week_ahead_shown'
+  // ── Rotating offers ──
+  //
+  // The full funnel for the weekly rotation: opened → the featured offer was
+  // rendered → the buy button was tapped. Purchase itself continues to be
+  // reported by the existing `purchase_*` events, which carry the productId,
+  // so offer revenue joins on that rather than being double-counted here.
+  // `offer_shown` carries `discounted` so a week WITH a scheduled App Store
+  // Connect price change can be compared against a week without one — the only
+  // way to tell whether the discount or the rotation is doing the work.
+  | 'offer_center_opened'
+  | 'offer_shown'
+  | 'offer_cta_tapped'
   // ── Monetisation funnel ──
   | 'paywall_open_tapped'
   | 'paywall_viewed'
@@ -74,6 +115,13 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'challenge_completed',
   'streak_changed',
   'achievement_unlocked',
+  'retention_day',
+  'goal_tapped',
+  'goal_reached',
+  'week_ahead_shown',
+  'offer_center_opened',
+  'offer_shown',
+  'offer_cta_tapped',
   'paywall_open_tapped',
   'paywall_viewed',
   'paywall_cta_tapped',

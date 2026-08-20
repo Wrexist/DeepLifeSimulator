@@ -3427,3 +3427,108 @@ Five rules, each of which was a bug I nearly shipped or a claim I nearly made.
   call that follows it — the function connects in a different session and reads
   the pre-update value. That looked exactly like a waitlist bug for a minute.
   Commit first, then call.
+
+## 2026-08-19 — A goal you cannot see yourself approaching is not a goal
+
+Building the replacement for the deleted linear goal system
+(`utils/goalSystem.ts`), the obvious way to measure "get hired" is
+`currentJob ? 1 : 0`. That is the SAME defect the deleted system died of, in a
+different costume: the goal stops being eligible the instant the measure would
+read 1, so across the entire region where the player can see it, the bar is
+pinned at zero. It never lies — it just never moves.
+
+The general rule, now asserted structurally in
+`lib/goals/__tests__/goalCatalogue.test.ts`: **a goal's progress must take at
+least two distinct values across its own eligible region.** If it cannot, the
+measure is wrong — measure the thing the player is actually doing (applications
+sent, relationship score, arrears covered), not the binary outcome that ends the
+goal.
+
+Writing the test first surfaced five more goals whose progress was pinned — all
+five turned out to be gaps in the probe states rather than defects, which is
+also worth knowing: a "0 distinct values" result means the probe never made the
+goal eligible, and that is a failing test, not a passing one.
+
+## 2026-08-19 — Research the offer mechanism before designing the offer UI
+
+A rotating IAP sale reads like a UI problem. It is not. Apple's Promotional
+Offers API — the thing every "how to run a sale" article points at — covers
+**auto-renewable subscriptions only**, and this app's gem packs are consumables.
+An implementation built on it would have been dead code against the entire
+catalogue.
+
+The mechanism that works for consumables is an App Store Connect **scheduled
+temporary price change** (start date, end date, max one year), which the app
+cannot trigger and cannot see. StoreKit exposes the current price and nothing
+else — there is no "is this on sale" flag. So a discount badge has to be
+DERIVED by comparing the live price against a recorded regular price, and it has
+to refuse to claim anything it cannot prove: no numeric price, non-USD
+storefront, or a live price at or above the record all render as "featured, at
+its normal price". Documented in `docs/IAP-PRICE-ROTATION.md`; the refusals are
+the bulk of `lib/offers/__tests__/pricing.test.ts`.
+
+The general rule: when a feature's correctness depends on a platform mechanism,
+find the primary documentation for that mechanism BEFORE designing around it.
+The design that survives is shaped by what the platform actually offers.
+
+## 2026-08-19 — A unit test can prove a sink works while the wiring above it is dead
+
+`__tests__/services/analyticsFanout.test.ts` proved, correctly and in detail,
+that `track()` forwards to Firebase with `telemetry: false` — two independent
+sinks, exactly as designed. It passed by calling
+`analytics.configure({ consent: true })` directly.
+
+Underneath it, the shipping app measured nothing. `analytics.init()` and
+`setConsent()` had one production call site, inside `if (enableTelemetry)` in
+`app/_layout.tsx`. The `production` EAS profile sets
+`EXPO_PUBLIC_ENABLE_FIREBASE=true` but not `EXPO_PUBLIC_ENABLE_ANALYTICS`, so
+`telemetry` was false, the block never ran, `consent` stayed false forever, and
+every custom event was dropped at the first branch of `track()` — Firebase
+included. Firebase kept collecting its own automatic events, so the dashboard
+looked alive.
+
+The general rule: **when a design says two things are independent, test the
+independence at the level where it is decided.** A unit test that constructs the
+service by hand can only prove the sink is independent; whether the app ever
+reaches that code is a different claim, in a different file, and it needs its
+own assertion. Pinned now in
+`__tests__/services/analyticsFunnelReachesProduction.test.ts`, at source level,
+because the relationship is between `app/_layout.tsx` and `eas.json` and cannot
+be observed by importing either.
+
+A smaller note from the same change: that guard's first version failed on its
+own documentation — the comment explaining why `track('session_start', …)` is
+wrong contains that exact string. A source-level ban must read code, not prose.
+Strip comments before matching; the wrong fix is to stop explaining yourself.
+
+## 2026-08-19 — A priority constant with no claimant is a lie the compiler cannot catch
+
+`INTERRUPTION_PRIORITY` declared `LIFE_MOMENT: 80` and `EVENT_INBOX: 70` from
+the day it was written. Nothing ever claimed either. The app compiled, rendered,
+and quietly ignored the ordering those constants describe: both surfaces were
+suppressed downward by a local `higherModalUp` boolean, which hid everything in
+their own file while every surface in a DIFFERENT file stayed blind to them — so
+an auto-presented Life Moment could be covered by the ad orb or the premium
+promo. Precisely the cross-file blindness the queue was built to remove, still
+live for the two highest non-root surfaces.
+
+The general rule: **when a table declares intent, assert that every row has an
+implementation.** A registry, a priority enum, a capability list — each entry is
+a claim about behaviour, and an entry nothing reads is indistinguishable from a
+working one at every level except a sweep.
+
+Two process notes from the same audit, both worth more than the fix:
+
+1. **Three of my four hypotheses were wrong**, and each would have been a
+   confident-sounding finding. `SicknessModal` looked like an unqueued auto-popup
+   and is opened only by a tap. `CureSuccessModal` looked like dead code — a grep
+   for its flag hit only test files — and is set at three sites in
+   `ItemActionsContext` under a different spelling. CLAUDE.md §8 already says not
+   to trust an audit claim without re-reading the source; the ratio here was 3:1
+   against the hypothesis.
+
+2. **A guard that has not been seen failing is not known to guard anything.**
+   The new sweep was verified by re-introducing the exact regression (replacing
+   the constant with a bare `80` at the claim site) and confirming it went red,
+   then restoring. Cheap, and the only thing that distinguishes a guard from a
+   test that happens to pass.

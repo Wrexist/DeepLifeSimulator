@@ -24,6 +24,14 @@ import {
   AnalyticsProps,
   isKnownAnalyticsEvent,
 } from './events';
+import {
+  createCohortRecord,
+  parseCohortRecord,
+  recordSession,
+  RETENTION_COHORT_KEY,
+  type RetentionCohortRecord,
+  type RetentionSnapshot,
+} from './retentionCohort';
 
 // ── Lazy AsyncStorage (never touch native at module load) ──────────────────
 let _realAsyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
@@ -126,6 +134,8 @@ class AnalyticsService {
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private isFlushing = false;
   private initialized = false;
+  /** Install-scoped retention cohort, loaded in `init()`. Null until then. */
+  private cohort: RetentionCohortRecord | null = null;
 
   /**
    * Read feature flags + env, load/generate the anonymous install id, then
@@ -138,12 +148,21 @@ class AnalyticsService {
     try {
       this.endpoint = process.env.EXPO_PUBLIC_ANALYTICS_URL ?? null;
 
-      let id = await storage.getItem(INSTALL_ID_KEY);
+      const existingInstallId = await storage.getItem(INSTALL_ID_KEY);
+      let id = existingInstallId;
       if (!id) {
         id = randomId() + randomId();
         await storage.setItem(INSTALL_ID_KEY, id);
       }
       this.installId = id;
+
+      // Retention cohort. `hasPriorHistory` is "was there already an install id
+      // on disk?" — the only evidence available that this player predates the
+      // cohort feature. It is not perfect (an install id is written on the very
+      // first run, so a first session that crashes before this line and then
+      // relaunches would look prior), but it errs toward `anchorEstimated:
+      // true`, which excludes rather than corrupts. See retentionCohort.ts.
+      await this.loadCohort(!!existingInstallId);
 
       await this.loadQueue();
 
@@ -155,6 +174,80 @@ class AnalyticsService {
       logger.debug('[analytics] init failed (non-fatal)', { error });
       this.enabled = false;
     }
+  }
+
+  /**
+   * Load (or create) the install-scoped cohort record.
+   *
+   * Never throws and never blocks init: a cohort we cannot read is a cohort
+   * absent from the event, not a failed startup.
+   */
+  private async loadCohort(hasPriorHistory: boolean): Promise<void> {
+    try {
+      const stored = parseCohortRecord(await storage.getItem(RETENTION_COHORT_KEY));
+      if (stored) {
+        this.cohort = stored;
+        return;
+      }
+      const fresh = createCohortRecord(Date.now(), hasPriorHistory);
+      this.cohort = fresh;
+      await storage.setItem(RETENTION_COHORT_KEY, JSON.stringify(fresh));
+    } catch (error) {
+      logger.debug('[analytics] cohort load failed (non-fatal)', { error });
+      this.cohort = null;
+    }
+  }
+
+  /**
+   * Fold this session into the cohort and return what to attach to
+   * `session_start`. Returns null when the cohort could not be loaded, in
+   * which case the event simply carries no cohort properties.
+   *
+   * Call exactly ONCE per app launch — it increments the session counter. The
+   * one caller is `trackSessionStart()` below, which exists so that contract
+   * has a single enforceable home rather than living in a comment.
+   */
+  private advanceCohort(nowMs: number): RetentionSnapshot | null {
+    if (!this.cohort) return null;
+    try {
+      const { next, snapshot } = recordSession(this.cohort, nowMs);
+      this.cohort = next;
+      // Fire-and-forget: the snapshot is already computed, so a failed write
+      // costs one session of accuracy, never the event.
+      void storage.setItem(RETENTION_COHORT_KEY, JSON.stringify(next));
+      return snapshot;
+    } catch (error) {
+      logger.debug('[analytics] cohort advance failed (non-fatal)', { error });
+      return null;
+    }
+  }
+
+  /**
+   * Track `session_start` with its cohort attached.
+   *
+   * The ONE way to emit a session start. `dayIndex` is the fact the whole
+   * retention program was missing — without it no D1/D7/D30 can be computed
+   * from this data at any point downstream, only guessed at from raw counts.
+   * `anchorEstimated` marks installs whose true install date is unknowable
+   * (everyone who predates this code); a retention curve must filter those out.
+   */
+  trackSessionStart(props?: AnalyticsProps): void {
+    const snapshot = this.advanceCohort(Date.now());
+    this.track('session_start', snapshot ? { ...props, ...snapshot } : props);
+    // A separate, once-per-day event so "how many installs came back on day N"
+    // is a count over one event rather than a de-dupe over every session.
+    if (snapshot?.isNewDay) {
+      this.track('retention_day', {
+        dayIndex: snapshot.dayIndex,
+        daysSeen: snapshot.daysSeen,
+        anchorEstimated: snapshot.anchorEstimated,
+      });
+    }
+  }
+
+  /** The current cohort record, for tests and the debug snapshot. */
+  getCohort(): RetentionCohortRecord | null {
+    return this.cohort;
   }
 
   /** Grant/revoke consent (call after ATT/UMP resolves). No sends without it. */
