@@ -45,6 +45,48 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.10.0',
+    date: 'August 2026',
+    headline: 'Your life tells you what to do next',
+    summary:
+      'A new card reads your situation and points you toward what matters, the weeks ahead are visible before they land, and a weekly deal actually changes weekly.',
+    changes: [
+      {
+        category: 'new',
+        title: 'What next',
+        bullets: [
+          'A card on your home screen suggests one thing to do now, one soon, and one big dream.',
+          'It reads your actual life — no job, low health, a bill piling up — not a generic list.',
+          'Reach one and it tells you right there, instead of just quietly moving the goalposts.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'See it coming',
+        bullets: [
+          'Graduation, a loan clearing, a baby due, a wedding booked — shown before they land.',
+          'A disease that could turn fatal is flagged early enough to actually do something about it.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'A deal that actually rotates',
+        bullets: [
+          "The shop button lights up gold when there's something worth a look.",
+          'One featured item each week, with last week and next week shown so nothing feels random.',
+          'The full price and what you get are shown up front — no surprises, no double-counted numbers.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Store polish',
+        bullets: [
+          'Prices no longer show twice on the same item.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.9.0',
     date: 'August 2026',
     headline: 'New faces, real conversations, nothing left locked',
