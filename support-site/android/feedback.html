@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Send Feedback — Deep Life Simulator</title>
+<meta name="description" content="Tell us what you think of Deep Life Simulator. Three questions, no survey." />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0F172A" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span></div>
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks" id="navlinks">
+    <a href="index.html">The game</a>
+    <a href="dashboard.html">My dashboard</a>
+    <a href="feedback.html">Feedback</a>
+    <a href="bug.html">Bugs</a>
+    <a href="ideas.html">Ideas</a>
+    <a href="community.html">Community</a>
+  </div>
+  <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+</div></nav>
+<main id="main" class="wrap" style="padding:38px 22px 80px;max-width:720px">
+  <div class="panel">
+    <span class="badge-android"><span class="dot"></span> Two minutes, tops</span>
+    <h1 style="font-size:clamp(26px,5vw,40px);font-weight:800;margin:14px 0 8px">What did you think?</h1>
+    <p class="sub">No long survey. Answer what you have an opinion on and skip the rest — a single honest sentence beats a fully-filled form.</p>
+    <div class="notice mt-s" id="anon-note" hidden></div>
+  </div>
+
+  <form class="panel" id="fb-form" novalidate>
+    <fieldset class="field">
+      <legend>Overall <span class="muted">(required)</span></legend>
+      <div class="stars" id="stars" role="radiogroup" aria-label="Overall rating out of 5">
+        <button type="button" role="radio" aria-checked="false" aria-label="1 star" data-v="1">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="2 stars" data-v="2">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="3 stars" data-v="3">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="4 stars" data-v="4">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="5 stars" data-v="5">★</button>
+      </div>
+      <p class="err" id="err-rating" role="alert"></p>
+    </fieldset>
+
+    <fieldset class="field mt-m">
+      <legend>How did it leave you feeling?</legend>
+      <div class="moods" id="moods">
+        <button type="button" aria-pressed="false" data-v="great" aria-label="Great">😀</button>
+        <button type="button" aria-pressed="false" data-v="fine" aria-label="Fine">😐</button>
+        <button type="button" aria-pressed="false" data-v="meh" aria-label="Confused or flat">😕</button>
+        <button type="button" aria-pressed="false" data-v="bad" aria-label="Frustrated">😡</button>
+      </div>
+    </fieldset>
+
+    <fieldset class="field mt-m">
+      <legend>What is this about? <span class="muted">(pick any)</span></legend>
+      <div class="chips" id="cats"></div>
+    </fieldset>
+
+    <div class="field mt-m">
+      <label for="best">What was the best part?</label>
+      <textarea id="best" maxlength="2000" placeholder="The thing you'd tell a friend about."></textarea>
+    </div>
+    <div class="field">
+      <label for="confusing">What was confusing?</label>
+      <textarea id="confusing" maxlength="2000" placeholder="The first moment you didn't know what to do next. This one is worth the most to us."></textarea>
+    </div>
+    <div class="field">
+      <label for="change">What would you change?</label>
+      <textarea id="change" maxlength="2000" placeholder="One thing. Anything."></textarea>
+    </div>
+    <div class="field">
+      <label for="keep">What made you want to keep playing?</label>
+      <textarea id="keep" maxlength="2000"></textarea>
+    </div>
+    <div class="field">
+      <label for="stop">What made you want to stop?</label>
+      <textarea id="stop" maxlength="2000" placeholder="&quot;I stopped at week 40 because…&quot; is the single most useful sentence you can write here."></textarea>
+    </div>
+
+    <button class="btn btn-p btn-lg btn-block mt-m" type="submit" id="fb-submit">SEND FEEDBACK</button>
+    <p class="small muted center mt-s">Found a bug instead? <a href="bug.html" style="text-decoration:underline">There's a form for that</a>.</p>
+  </form>
+
+  <div class="panel center" id="thanks" hidden style="padding:52px 24px">
+    <div style="font-size:44px;margin-bottom:12px" aria-hidden="true">🙏</div>
+    <h2 style="font-size:28px;font-weight:800;margin-bottom:10px">Got it. Thank you.</h2>
+    <p class="muted" style="max-width:420px;margin:0 auto 24px" id="thanks-sub">
+      That goes straight onto the board. If you left something confusing, that's the part we'll look at first.
+    </p>
+    <div class="actions" style="justify-content:center">
+      <a class="btn btn-p" href="dashboard.html">Back to my dashboard</a>
+      <a class="btn btn-g" href="ideas.html">Suggest a feature</a>
+    </div>
+  </div>
+</main>
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="index.html">Beta home</a><a href="dashboard.html">My dashboard</a>
+    <a href="community.html">Community</a><a id="f-privacy" href="../privacy.html">Privacy</a>
+  </div>
+  <p class="small">© <span id="year"></span> Deep Life Simulator</p>
+</div></footer>
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="feedback.js"></script>
+</body>
+</html>

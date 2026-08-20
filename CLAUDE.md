@@ -79,6 +79,9 @@ services/            IAP, RevenueCat, AdMob, Firebase/analytics, cloud sync
 hooks/               useTheme, useAchievements, useTimerManager, …
 scripts/             preflight, audits, route guard, asset/screenshot generators
 scripts/audit/       the five weekly audit analyzers (.cjs)
+support-site/        GitHub Pages site — hand-written HTML/CSS/JS, no build step
+  android/           the Beta Hub: recruitment → onboarding → feedback → admin
+server/beta-hub/     Beta Hub API — Supabase edge function `betahub` + schema
 __tests__/           cross-cutting suites by domain (see §8)
 .agents/skills/      project skills: preflight, test-suite, eas-build, weekly-audit
 tasks/               todo.md, lessons.md, dated audit reports
@@ -875,6 +878,8 @@ replaced with review checklists.
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |
 | **`docs/RELEASE_RUNBOOK.md`** | **The step-by-step release procedure — follow it top to bottom** |
 | `docs/LAUNCH_CHECKLIST.md`, `docs/LAUNCH_PLAN.md`, `docs/STORE_LISTING.md`, `docs/DATA_SAFETY.md` | Store/release reference |
+| **`docs/BETA-HUB.md`** | **The Android Beta Hub — tester recruitment, onboarding, feedback, bugs, ideas, marketing centre, admin dashboard. Read before touching `support-site/android/`** |
+| `server/beta-hub/README.md` | The Beta Hub API — endpoints, the three auth tiers, and how to rotate the admin token |
 | `marketing/aso/` | Store metadata as data + `npm run check:aso`. `docs/store-screenshot-design.md` covers the screenshot system |
 | `marketing/apple-ads/` | Apple Ads (App Store Ads) program — campaign structure, keyword + negative-keyword CSVs, CPP briefs, LTV→max-CPA model, optimization playbook. Start at its `README.md` |
 | `docs/RELEASE_SECRETS.md`, `tasks/leaked-key-rotation-runbook.md` | Secret handling |

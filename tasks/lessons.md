@@ -3380,6 +3380,54 @@ is a way the fix could have been quietly wrong:
 
 ---
 
+## 2026-08-19 — Beta Hub: what building the recruitment funnel taught
+
+Five rules, each of which was a bug I nearly shipped or a claim I nearly made.
+
+- Rule: **a derived badge must be derived from the holder, not from the crowd.**
+  The "First 20" tester badge first read `rank` from the PUBLIC signup total,
+  because that number was already on the page. It works right up until the 21st
+  person joins, at which point tester #5 silently *loses* a badge they had
+  earned. `rank` is now this tester's own join position, computed server-side
+  from `created_at`. Ask of any achievement: *does this stay true when other
+  people act?*
+- Rule: **the same gate-then-grant rule as §4.4 applies to a web backend, and
+  the enforcement point is the database.** Idea voting checks "have you already
+  voted" and increments a tally — the exact double-tap shape that has shipped
+  in this repo repeatedly. Both halves live in one `plpgsql` function
+  (`beta_cast_vote`): the ballot is a primary-key insert, and the tally moves
+  only when that insert reported a row. A double vote cannot count, and a lost
+  increment cannot leave a ballot with no tally. Same for XP: every award is
+  gated on `!tester[step]`, checked against the STORED row, so a re-submitted
+  form pays once. Verified by calling each endpoint twice and asserting the
+  totals (XP came out at exactly the predicted 305).
+- Rule: **an allow-list is only proven by trying to get past it.** The admin
+  settings endpoint writes config through `WRITABLE_CONFIG_KEYS`. That reads as
+  obviously safe — so the smoke test POSTed `{"admin_token":"HACK"}` through it
+  and then re-read the stored hash to confirm it had not moved. A config write
+  that accepted its own auth key would have been privilege escalation reachable
+  from a form.
+- Rule: **a hand-written encoder needs a decoder, not an eyeball.** The QR
+  generator for recruitment links is ~300 lines of ISO 18004 written from the
+  spec, and a wrong format-bit placement or a wrong block interleave produces a
+  square that *looks* exactly like a working QR code and scans as nothing. The
+  test suite unmasks the symbol, de-interleaves the blocks and reads the payload
+  back. It caught two real errors before anything shipped: format-info bits
+  placed with row and column transposed, and alignment patterns skipped wherever
+  they overlapped the timing row (which drops every alignment pattern from
+  version 7 up). Neither is visible by looking at the output.
+- Rule: **when the sandbox cannot reach the deployment, find another caller.**
+  Outbound egress to `*.supabase.co` is blocked here, so `curl` and WebFetch
+  could not smoke-test the deployed edge function at all. The database can:
+  `create extension http` let every route be exercised from inside SQL — signup,
+  tester token, progress, feedback, bug, idea, vote, all seven admin routes, CSV
+  export, the 401/404 paths — then the extension was dropped and the test rows
+  deleted. One trap worth knowing: a multi-statement SQL request runs in ONE
+  transaction, so an `update` in the same request is **invisible** to the HTTP
+  call that follows it — the function connects in a different session and reads
+  the pre-update value. That looked exactly like a waitlist bug for a minute.
+  Commit first, then call.
+
 ## 2026-08-19 — A goal you cannot see yourself approaching is not a goal
 
 Building the replacement for the deleted linear goal system

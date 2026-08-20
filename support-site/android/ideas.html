@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>What Should We Add? — Deep Life Simulator</title>
+<meta name="description" content="Propose features for Deep Life Simulator and vote on what other players want. Top-voted ideas are what gets built next." />
+<meta name="theme-color" content="#0F172A" />
+<meta property="og:title" content="What should we add to Deep Life Simulator?" />
+<meta property="og:description" content="Propose a feature, vote on everyone else's. Top-voted ideas are what gets built next." />
+<meta property="og:image" content="https://wrexist.github.io/DeepLifeSimulator/assets/shot3.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span></div>
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks" id="navlinks">
+    <a href="index.html">The game</a>
+    <a href="community.html">Community</a>
+    <a href="dashboard.html">My dashboard</a>
+    <a href="feedback.html">Feedback</a>
+    <a href="bug.html">Bugs</a>
+  </div>
+  <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+</div></nav>
+
+<main id="main" class="wrap" style="padding:38px 22px 80px;max-width:840px">
+  <div class="panel">
+    <span class="badge-android"><span class="dot"></span> Player-driven roadmap</span>
+    <h1 style="font-size:clamp(28px,5.4vw,44px);font-weight:800;margin:14px 0 8px">WHAT SHOULD WE ADD?</h1>
+    <p class="sub">Post what you want built. Vote on what everyone else wants. One vote per tester, no way to stack them — so the ordering means something, and it is what gets looked at first.</p>
+    <div class="actions mt-m">
+      <button class="btn btn-p" type="button" id="open-new">+ Propose a feature</button>
+      <a class="btn btn-g" href="community.html#roadmap">See the roadmap</a>
+    </div>
+  </div>
+
+  <form class="panel" id="new-idea" hidden novalidate>
+    <div class="panel-head"><h2>Your idea</h2>
+      <button class="btn btn-g btn-sm" type="button" id="close-new">Cancel</button></div>
+    <div class="field">
+      <label for="i-title">The feature, in one line <span class="muted">(required)</span></label>
+      <input id="i-title" type="text" maxlength="140" required placeholder="e.g. Let me co-own a business with a friend NPC" />
+      <p class="err" id="err-i-title" role="alert"></p>
+    </div>
+    <div class="field">
+      <label for="i-desc">How would it work?</label>
+      <textarea id="i-desc" maxlength="3000" placeholder="As much or as little detail as you have."></textarea>
+    </div>
+    <div class="field">
+      <label for="i-why">Why do you want it?</label>
+      <textarea id="i-why" maxlength="2000" placeholder="The problem it solves, or the moment it would have made the game better." style="min-height:80px"></textarea>
+    </div>
+    <div class="field">
+      <label for="i-priority">How much do you want it?</label>
+      <select id="i-priority">
+        <option value="nice">Would be nice</option>
+        <option value="want" selected>I really want this</option>
+        <option value="need">The game feels incomplete without it</option>
+      </select>
+    </div>
+    <button class="btn btn-p btn-lg btn-block" type="submit" id="i-submit">POST IT</button>
+    <p class="small muted center mt-s" id="join-hint" hidden>
+      You'll need to <a href="join.html" style="text-decoration:underline">join the beta</a> to vote — posting works either way.
+    </p>
+  </form>
+
+  <div class="panel">
+    <div class="tabs" role="tablist" aria-label="Sort ideas">
+      <button role="tab" aria-selected="true" data-sort="trending">🔥 Trending</button>
+      <button role="tab" aria-selected="false" data-sort="top">⭐ Most requested</button>
+      <button role="tab" aria-selected="false" data-sort="new">🆕 New</button>
+      <button role="tab" aria-selected="false" data-sort="planned">🛠️ On the roadmap</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="index.html">Beta home</a><a href="community.html">Community</a>
+    <a href="dashboard.html">My dashboard</a><a id="f-privacy" href="../privacy.html">Privacy</a>
+  </div>
+  <p class="small">© <span id="year"></span> Deep Life Simulator</p>
+</div></footer>
+
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="ideas.js"></script>
+</body>
+</html>

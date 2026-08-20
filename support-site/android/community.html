@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Community & Roadmap — Deep Life Simulator</title>
+<meta name="description" content="Announcements, devlogs and the public roadmap for Deep Life Simulator. See what is being built and what shipped." />
+<meta name="theme-color" content="#0F172A" />
+<meta property="og:title" content="Deep Life Simulator — Community & Roadmap" />
+<meta property="og:description" content="Announcements, devlogs and what's being built next." />
+<meta property="og:image" content="https://wrexist.github.io/DeepLifeSimulator/assets/shot3.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span></div>
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks" id="navlinks">
+    <a href="index.html">The game</a>
+    <a href="ideas.html">Ideas</a>
+    <a href="dashboard.html">My dashboard</a>
+    <a href="feedback.html">Feedback</a>
+    <a href="bug.html">Bugs</a>
+  </div>
+  <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+</div></nav>
+
+<main id="main" class="wrap" style="padding:38px 22px 80px;max-width:900px">
+  <div class="panel">
+    <span class="badge-android"><span class="dot"></span> Beta community</span>
+    <h1 style="font-size:clamp(28px,5.4vw,44px);font-weight:800;margin:14px 0 8px">What's happening</h1>
+    <p class="sub">Announcements, devlogs, and the board of what's being built. The fastest way to reach us is Discord; the most useful is the feedback form.</p>
+    <div class="actions mt-m">
+      <a class="btn btn-p" id="discord" href="https://discord.gg/rzktazdX8v" rel="noopener" target="_blank">Join the Discord</a>
+      <a class="btn btn-g" href="ideas.html">Ideas board</a>
+      <a class="btn btn-g" href="bug.html">Report a bug</a>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Community sections">
+    <button role="tab" aria-selected="true" aria-controls="t-news" id="tab-news">📣 Announcements</button>
+    <button role="tab" aria-selected="false" aria-controls="t-devlog" id="tab-devlog">📓 Devlog</button>
+    <button role="tab" aria-selected="false" aria-controls="t-roadmap" id="tab-roadmap">🗺️ Roadmap</button>
+    <button role="tab" aria-selected="false" aria-controls="t-ideas" id="tab-ideas">💡 Top ideas</button>
+    <button role="tab" aria-selected="false" aria-controls="t-discuss" id="tab-discuss">💬 Discussion</button>
+  </div>
+
+  <section class="tabpanel" id="t-news" role="tabpanel" aria-labelledby="tab-news"></section>
+  <section class="tabpanel" id="t-devlog" role="tabpanel" aria-labelledby="tab-devlog" hidden></section>
+
+  <section class="tabpanel" id="t-roadmap" role="tabpanel" aria-labelledby="tab-roadmap" hidden>
+    <div class="panel" id="roadmap">
+      <div class="panel-head"><h2>Roadmap</h2>
+        <span class="small muted">Only things actually planned. No wish list.</span></div>
+      <div class="board">
+        <div class="lane coming"><h3>COMING</h3><div id="lane-coming"></div></div>
+        <div class="lane building"><h3>IN DEVELOPMENT</h3><div id="lane-building"></div></div>
+        <div class="lane done"><h3>DONE</h3><div id="lane-done"></div></div>
+      </div>
+      <p class="small muted mt-m">Want something that isn't here? <a href="ideas.html" style="text-decoration:underline">Put it on the ideas board</a> — that's where roadmap items come from.</p>
+    </div>
+  </section>
+
+  <section class="tabpanel" id="t-ideas" role="tabpanel" aria-labelledby="tab-ideas" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Most requested</h2>
+        <a class="btn btn-g btn-sm" href="ideas.html">Full board →</a></div>
+      <div id="top-ideas"></div>
+    </div>
+  </section>
+
+  <section class="tabpanel" id="t-discuss" role="tabpanel" aria-labelledby="tab-discuss" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Beta discussion</h2></div>
+      <p class="sub">There's no forum here on purpose — a dead forum is worse than no forum, and everyone is already somewhere else. Conversation happens in Discord, where the developer actually answers.</p>
+      <div class="todo">
+        <div class="item"><p><strong>#beta-discussion</strong><br><span class="small muted">General chat about the Android build.</span></p>
+          <a class="btn btn-p btn-sm" id="d1" href="https://discord.gg/rzktazdX8v" target="_blank" rel="noopener">Open Discord</a></div>
+        <div class="item"><p><strong>Structured feedback</strong><br><span class="small muted">Goes on the board and gets acted on — use the form, not chat.</span></p>
+          <a class="btn btn-g btn-sm" href="feedback.html">Feedback form</a></div>
+        <div class="item"><p><strong>Bugs</strong><br><span class="small muted">Device details attached automatically. Far easier to fix than a chat message.</span></p>
+          <a class="btn btn-g btn-sm" href="bug.html">Bug form</a></div>
+        <div class="item"><p><strong>Email</strong><br><span class="small muted">For anything private, or if you'd rather not use Discord.</span></p>
+          <a class="btn btn-g btn-sm" id="mailto" href="mailto:deeplifesimulator@gmail.com">Email us</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="index.html">Beta home</a><a href="ideas.html">Ideas</a>
+    <a href="dashboard.html">My dashboard</a><a id="f-privacy" href="../privacy.html">Privacy</a>
+  </div>
+  <p class="small">© <span id="year"></span> Deep Life Simulator</p>
+</div></footer>
+
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="community.js"></script>
+</body>
+</html>
