@@ -18,12 +18,22 @@ Time: about **40 minutes of your attention**, spread across ~2 hours of waiting.
 
 Nothing else in this document works until this is on `main`.
 
-Two automated reviewers commented and neither reviewed: Codex hit its usage
-limit, and CodeRabbit skips repositories under 10 stars. **There is no CI on
-pull requests in this repo** — every workflow is `workflow_dispatch` — so a
-green PR page means nothing was run, not that everything passed. The
-verification that exists is in the PR body, and the build workflow in Step 3
-re-runs type-check, lint, tests and preflight before it builds anything.
+Two automated reviewers commented and **neither reviewed**: Codex hit its usage
+limit, and CodeRabbit skips repositories under 10 stars. Don't read their
+presence as a review having happened.
+
+**CI does run on this PR**, and both checks passed:
+
+| Check | Trigger | Result |
+|---|---|---|
+| `eas-update` | every PR to `main` | ✅ success |
+| `preflight` | PRs touching `app.config.js`, `eas.json`, `package.json`, `app/entry.ts`, `app/_layout.tsx`, `assets/**`, or the preflight script | ✅ success |
+
+`preflight` fired here because this branch touches `app/_layout.tsx` (and the
+merge with `main` brought a `package.json` change). That is the real gate — a
+green preflight means native config, the privacy manifest and the purpose
+strings all validated. The build workflow in Step 3 re-runs type-check, lint,
+tests and preflight again before it builds anything.
 
 ---
 
