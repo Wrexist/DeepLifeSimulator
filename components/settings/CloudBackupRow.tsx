@@ -5,6 +5,11 @@
  * EXPO_PUBLIC_ENABLE_CLOUD_SAVE and EXPO_PUBLIC_CLOUD_SAVE_URL) — a row that
  * cannot do anything is worse than no row, because the player will try it.
  *
+ * Four actions beyond backup/restore's two: a transfer code out, a transfer
+ * code in, and a delete. Delete is the GDPR article 17 path and erases more
+ * than the backup — leaderboard entries too — which the confirm copy states,
+ * because "delete backup" would otherwise undersell what it does.
+ *
  * Restore is behind a confirm dialog: it replaces the game currently in
  * memory. The one case that is NOT a choice is a cloud copy that sits behind
  * the live game — `fetchCloudRestoreCandidate` refuses that outright and this
@@ -13,7 +18,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { CloudUpload, CloudDownload } from 'lucide-react-native';
+import { CloudUpload, CloudDownload, Smartphone, KeyRound, Trash2 } from 'lucide-react-native';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Gradient from '@/components/ui/Gradient';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -23,6 +28,9 @@ import {
   isCloudBackupEnabled,
   type CloudRestoreOutcome,
 } from '@/services/cloudBackup';
+import CloudTransferModal, { type TransferMode } from '@/components/settings/CloudTransferModal';
+import { deleteCloudSave } from '@/lib/progress/cloud';
+import { resolveDeviceId } from '@/utils/deviceIdentity';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
@@ -49,8 +57,10 @@ export default function CloudBackupRow() {
   const { backUpToCloud, restoreFromCloud } = useGameActions();
   const enabled = isCloudBackupEnabled();
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null);
-  const [busy, setBusy] = useState<'backup' | 'restore' | null>(null);
+  const [busy, setBusy] = useState<'backup' | 'restore' | 'delete' | null>(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [transfer, setTransfer] = useState<TransferMode | null>(null);
 
   const refreshStatus = useCallback(async () => {
     const at = await getLastCloudBackupAt();
@@ -84,6 +94,30 @@ export default function CloudBackupRow() {
       setBusy(null);
     }
   }, [busy, restoreFromCloud]);
+
+  const handleDelete = useCallback(async () => {
+    if (busy) return;
+    setBusy('delete');
+    try {
+      const userId = await resolveDeviceId();
+      if (!userId) {
+        // No identity means nothing was ever uploaded under one, so there is
+        // nothing to erase — and saying "deleted" would be a lie.
+        Alert.alert('Nothing To Delete', 'This device has no cloud backup.');
+        return;
+      }
+      const result = await deleteCloudSave(userId);
+      await refreshStatus();
+      Alert.alert(
+        result.success ? 'Cloud Backup Deleted' : 'Delete Failed',
+        result.success
+          ? 'Your cloud backup and any leaderboard entries for this device have been erased. Your local save is untouched.'
+          : (result.error ?? 'Could not reach the server.')
+      );
+    } finally {
+      setBusy(null);
+    }
+  }, [busy, refreshStatus]);
 
   if (!enabled) return null;
 
@@ -130,6 +164,45 @@ export default function CloudBackupRow() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Get a code to move this save to a new phone"
+            disabled={busy !== null}
+            onPress={() => setTransfer('show')}
+            style={[styles.action, busy !== null && styles.actionDisabled]}
+          >
+            <Smartphone size={scale(14)} color="#38BDF8" />
+            <Text style={styles.actionText}>Move to a new phone</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Enter a transfer code from another device"
+            disabled={busy !== null}
+            onPress={() => setTransfer('enter')}
+            style={[styles.action, busy !== null && styles.actionDisabled]}
+          >
+            <KeyRound size={scale(14)} color="#38BDF8" />
+            <Text style={styles.actionText}>I have a code</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Delete this device's cloud backup permanently"
+            disabled={busy !== null}
+            onPress={() => setConfirmDelete(true)}
+            style={[styles.action, busy !== null && styles.actionDisabled]}
+          >
+            <Trash2 size={scale(14)} color="#F87171" />
+            <Text style={[styles.actionText, styles.actionTextDanger]}>
+              {busy === 'delete' ? 'Deleting…' : 'Delete cloud backup'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       <ConfirmDialog
@@ -145,6 +218,28 @@ export default function CloudBackupRow() {
           void handleRestore();
         }}
         onCancel={() => setConfirmRestore(false)}
+      />
+
+      <ConfirmDialog
+        visible={confirmDelete}
+        title="Delete Cloud Backup?"
+        message="This permanently erases this device's cloud backup and any leaderboard entries it has. Your local save stays on this phone. This cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        destructive
+        type="danger"
+        onConfirm={() => {
+          setConfirmDelete(false);
+          void handleDelete();
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
+      <CloudTransferModal
+        visible={transfer !== null}
+        mode={transfer ?? 'show'}
+        onClose={() => setTransfer(null)}
+        onClaimed={() => void refreshStatus()}
       />
     </>
   );
@@ -197,5 +292,8 @@ const styles = StyleSheet.create({
   },
   actionTextWarning: {
     color: '#FBBF24',
+  },
+  actionTextDanger: {
+    color: '#F87171',
   },
 });

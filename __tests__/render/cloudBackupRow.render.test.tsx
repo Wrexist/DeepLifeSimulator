@@ -48,10 +48,16 @@ describe('render — Settings cloud backup row', () => {
     expect(json).not.toContain('Cloud backup');
     expect(json).not.toContain('Back up now');
     expect(json).not.toContain('Restore from cloud');
+    // The destructive and transfer actions must be absent too. A delete button
+    // in a build with no cloud configured has nothing to delete, and a code
+    // minted against no backend cannot be claimed anywhere.
+    expect(json).not.toContain('Delete cloud backup');
+    expect(json).not.toContain('Move to a new phone');
+    expect(json).not.toContain('I have a code');
     unmount();
   });
 
-  it('renders the row and BOTH actions when the flag is on', () => {
+  it('renders the row and EVERY action when the flag is on', () => {
     const previous = { ...process.env };
     Object.assign(process.env, CLOUD_ENV);
     try {
@@ -69,6 +75,14 @@ describe('render — Settings cloud backup row', () => {
         expect(json).toContain('Cloud backup');
         expect(json).toContain('Back up now');
         expect(json).toContain('Restore from cloud');
+        // The cross-device pair. Without both halves visible the feature is
+        // unreachable: a code minted on the old phone needs somewhere to be
+        // typed on the new one.
+        expect(json).toContain('Move to a new phone');
+        expect(json).toContain('I have a code');
+        // Erasure is the GDPR article 17 path. An endpoint no player can reach
+        // is not a right, so its presence in the row is the thing under test.
+        expect(json).toContain('Delete cloud backup');
         // The status line is part of the row, not decoration: it is the only
         // thing telling the player whether a backup exists at all.
         expect(json).toContain('Not backed up yet');

@@ -120,10 +120,17 @@ cannot see an uncommitted row. Re-tested against committed data in both cases.
 
 ## Still open
 
-- [ ] B4/C2f. The UI: delete button, reveal-code, enter-code. **No player can
-      reach any of this yet** — the endpoints exist, the screens do not.
-- [ ] B6/C2g. Update `docs/CLOUD-SAVE-BACKEND.md` with the four new routes.
-- [ ] C1. expo-secure-store. **Native dependency — no OTA, needs a new build.**
+- [x] B4/C2f. UI wired: delete, "Move to a new phone", "I have a code".
+- [x] B6/C2g. `docs/CLOUD-SAVE-BACKEND.md` covers all four routes + retention.
+- [x] C1. expo-secure-store wired, with the legacy-id promotion path tested.
+
+**Nothing here has run on real hardware.** The remaining work is device
+validation, and one item is now platform-split: reinstall survival should PASS
+on iOS (keychain) and FAIL on Android (uninstall takes the Keystore value), so
+an Android tester must mint a transfer code before uninstalling. See
+`tasks/cowork-handoff-cloud-backup.md`.
+
+**Next build must be a native one** — expo-secure-store cannot ship over OTA.
 
 ## Constraints carried into every step
 
