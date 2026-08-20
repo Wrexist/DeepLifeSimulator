@@ -92,6 +92,39 @@ don't have). C2 depends on C1. C is native and cannot ship over OTA.
 3. **Sequencing: build A, B, C1 and C2 in one pass.** Accepted risk: C2 sits on
    C1's identity layer, so a hardware surprise in C1 reworks part of C2.
 
+## Deployed and verified end-to-end (2026-08-20)
+
+`save` edge function is live at **v3**, `verify_jwt` still false. Exercised
+through the real HTTPS endpoint (via the database's `http` extension, since the
+sandbox cannot reach `*.supabase.co`):
+
+| Case | Result |
+|---|---|
+| Unauthenticated GET | `401` |
+| POST upload x2, GET readback | `200`, state round-trips intact |
+| Mint code | `200`, 10 chars, alphabet as specified |
+| Claim | `{success:true, slots:2}`, copies verified row by row |
+| **Same code, second device** | `Code is invalid, expired or already used` |
+| DELETE one slot | `{deleted:1}` |
+| DELETE same slot again | `{deleted:0, success:true}` — idempotent |
+| DELETE bad slotId | `400` |
+| DELETE whole device | `{deleted:2, leaderboardDeleted:1}` |
+| Advisors after | 16 INFO (the 2 new tables), no warnings, no errors |
+
+All test rows removed; `http` extension dropped. Counts back to 0/0/0/0.
+
+Two results needed a second pass to read correctly, both MVCC rather than bugs:
+a subquery in the same statement as a volatile function cannot see that
+function's writes, and the edge function runs on a different connection so it
+cannot see an uncommitted row. Re-tested against committed data in both cases.
+
+## Still open
+
+- [ ] B4/C2f. The UI: delete button, reveal-code, enter-code. **No player can
+      reach any of this yet** — the endpoints exist, the screens do not.
+- [ ] B6/C2g. Update `docs/CLOUD-SAVE-BACKEND.md` with the four new routes.
+- [ ] C1. expo-secure-store. **Native dependency — no OTA, needs a new build.**
+
 ## Constraints carried into every step
 
 - `node_modules` is ABSENT in this container — `npm install` before any
