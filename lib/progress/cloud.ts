@@ -398,3 +398,104 @@ export async function downloadGameState(request?: CloudReadRequest): Promise<Clo
     return null;
   }
 }
+
+/**
+ * Erase this device's cloud data.
+ *
+ * With a `slotId`, one slot. Without one, EVERYTHING the device has — saves,
+ * leaderboard entries, transfer codes — which is the GDPR article 17 path the
+ * settings screen offers.
+ *
+ * Deliberately NOT gated on `cloudWritesAllowed()`. That guard disables itself
+ * after repeated failures to stop a broken transport retrying forever, which is
+ * right for a backup and wrong for an erasure: a player asking to delete their
+ * data must not be refused because an earlier upload failed. Erasure is also
+ * idempotent server-side, so a retry after a dropped response is safe.
+ */
+export async function deleteCloudSave(
+  userId: string,
+  slotId?: string
+): Promise<{ success: boolean; deleted?: number; error?: string }> {
+  if (!API_URL) return { success: false, error: 'Cloud save is not configured' };
+  if (!isValidCloudUserId(userId)) return { success: false, error: 'Invalid user id' };
+  if (slotId !== undefined && !isValidSlotId(slotId)) {
+    return { success: false, error: 'Invalid slot id' };
+  }
+
+  const query = new URLSearchParams({ userId });
+  if (slotId !== undefined) query.set('slotId', slotId);
+
+  try {
+    const response = await fetchWithTimeout(`${API_URL}?${query.toString()}`, {
+      method: 'DELETE',
+      headers: buildCloudHeaders(),
+    });
+    if (!response.ok) {
+      log.warn('Cloud delete failed', { status: response.status });
+      return { success: false, error: `Server returned ${response.status}` };
+    }
+    const body = await response.json();
+    return { success: true, deleted: Number(body?.deleted ?? 0) };
+  } catch (error) {
+    log.warn('Cloud delete threw', { error: error instanceof Error ? error.message : String(error) });
+    return { success: false, error: 'Could not reach the server' };
+  }
+}
+
+/** Mint a single-use, short-lived code that moves this device's saves to another. */
+export async function mintTransferCode(
+  userId: string
+): Promise<{ success: boolean; code?: string; expiresAt?: number; error?: string }> {
+  if (!API_URL) return { success: false, error: 'Cloud save is not configured' };
+  if (!isValidCloudUserId(userId)) return { success: false, error: 'Invalid user id' };
+
+  try {
+    const response = await fetchWithTimeout(`${API_URL}/transfer`, {
+      method: 'POST',
+      headers: buildCloudHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ userId }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.code) {
+      return { success: false, error: body?.message ?? `Server returned ${response.status}` };
+    }
+    return { success: true, code: String(body.code), expiresAt: Number(body.expiresAt) };
+  } catch (error) {
+    log.warn('Transfer mint threw', { error: error instanceof Error ? error.message : String(error) });
+    return { success: false, error: 'Could not reach the server' };
+  }
+}
+
+/**
+ * Spend a code minted on another device, copying its saves onto this one.
+ *
+ * The server's message is surfaced verbatim on failure: it says only "invalid,
+ * expired or already used" without distinguishing them, because telling a
+ * guesser which of the three a code was is free information.
+ */
+export async function claimTransferCode(
+  userId: string,
+  code: string
+): Promise<{ success: boolean; slots?: number; error?: string }> {
+  if (!API_URL) return { success: false, error: 'Cloud save is not configured' };
+  if (!isValidCloudUserId(userId)) return { success: false, error: 'Invalid user id' };
+
+  const normalized = code.trim().toUpperCase();
+  if (!normalized) return { success: false, error: 'Enter the code from your old device' };
+
+  try {
+    const response = await fetchWithTimeout(`${API_URL}/claim`, {
+      method: 'POST',
+      headers: buildCloudHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ userId, code: normalized }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      return { success: false, error: body?.message ?? `Server returned ${response.status}` };
+    }
+    return { success: true, slots: Number(body?.slots ?? 0) };
+  } catch (error) {
+    log.warn('Transfer claim threw', { error: error instanceof Error ? error.message : String(error) });
+    return { success: false, error: 'Could not reach the server' };
+  }
+}

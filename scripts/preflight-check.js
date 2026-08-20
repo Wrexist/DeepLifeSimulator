@@ -549,6 +549,15 @@ try {
       'react-native-google-mobile-ads': {
         userTrackingUsageDescription: 'NSUserTrackingUsageDescription',
       },
+      // We deliberately do NOT pass faceIDPermission today: SecureStore is used
+      // for an anonymous device id, with no biometric gate, so writing a Face ID
+      // purpose string would declare a capability the app never exercises and
+      // hand App Review something to reject for nothing. The row exists so that
+      // if anyone ever DOES set it, it is validated like every other one rather
+      // than shipping unchecked.
+      'expo-secure-store': {
+        faceIDPermission: 'NSFaceIDUsageDescription',
+      },
     };
 
     (Array.isArray(expoConfig?.plugins) ? expoConfig.plugins : []).forEach((entry) => {

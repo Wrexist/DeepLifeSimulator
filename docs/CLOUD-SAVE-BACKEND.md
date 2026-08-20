@@ -6,18 +6,31 @@ The backend behind **cloud device backup** (`services/cloudBackup.ts`,
 
 Scope today is **device backup**, not cross-device sync: identity is an
 anonymous per-install id, so there is no account to carry a save to a second
-phone. Cross-device requires sign-in — see *Future work*.
+phone **without a transfer code** — see `POST /save/transfer` below. Sign-in was
+considered and rejected: offering Google obliges offering Sign in with Apple
+(App Store guideline 4.8), and having accounts at all obliges in-app account
+deletion (5.1.1(v)). A transfer code gets the save across without either.
 
 What is **supported today is same-install restore**: recovering a save into the
 same app installation it was backed up from (a deleted or corrupted slot, a
 cleared game save). That is the case the validation pass is written to prove.
 
-**Whether a backup survives a REINSTALL is an open question, not a promise.**
-The identity is `cloud_user_id`, minted per install and stored in AsyncStorage
-(`services/CloudSyncService.ts`). AsyncStorage is not guaranteed to survive an
-iOS app delete + reinstall, and if the id does not survive, the new install
-mints a different one and finds no backup — the backup row is still there, but
-nothing points at it. Nobody has run that on a device yet. The device
+**Reinstall survival is now platform-dependent, and the difference is not a
+detail.** The identity is resolved by `utils/deviceIdentity.ts`, which reads
+secure-store before falling back to AsyncStorage:
+
+| | Survives uninstall? | Why |
+|---|---|---|
+| **iOS** | **Yes** | Keychain items outlive app deletion, so reinstall recovers the id |
+| **Android** | **No** | Keystore-backed values live in app storage, which uninstall deletes |
+
+Android cannot be fixed by configuration. Auto-backup would carry the
+ciphertext to a device whose Keystore lacks the key, restoring undecryptable
+garbage rather than an absent key — which is why the config plugin excludes it
+(`app.config.js`). On Android the answer to reinstall is the same as the answer
+to a new phone: **mint a transfer code before uninstalling.**
+
+Neither has been run on real hardware yet. The device
 validation in `tasks/cowork-handoff-cloud-backup.md` exists to settle it; if
 the id is lost, the fix is to move it to the Keychain/Keystore
 (`expo-secure-store`), which does survive a reinstall. Do not describe
@@ -102,6 +115,45 @@ revision, hash, signature`), or `200 null` when the slot has no backup —
 the client reads JSON `null` as "nothing to restore". `400` on a malformed
 id, `401` on a bad token.
 
+### `DELETE /save?userId=&slotId=`
+Erase ONE slot.
+→ `200 {success:true, deleted:0|1}` · `400` invalid id · `401` bad token
+
+### `DELETE /save?userId=`
+Erase **everything** for that device: saves, leaderboard entries and transfer
+codes. This is the GDPR article 17 path, so it deliberately reaches past
+`cloud_saves` — a player asking to be erased means all of it.
+→ `200 {success:true, deleted:n, leaderboardDeleted:n}` · `400` invalid id
+
+Erasure is **idempotent**: deleting nothing answers `200 {deleted:0}`, never an
+error, so a client retrying after a dropped response does not see a failure for
+work that already succeeded.
+
+### `POST /save/transfer`
+Body: `{ userId }` → mint a single-use transfer code for that device.
+→ `200 {success:true, code, expiresAt, expiresInMinutes:15}`
+
+A code is a **bearer credential** — whoever holds it can copy the save. Hence:
+15-minute TTL, single use, 10 characters of crypto-random entropy (~49.5 bits)
+over an alphabet with `0/O/1/I/L` removed so it can be read aloud. Minting
+again invalidates the previous unclaimed code.
+
+### `POST /save/claim`
+Body: `{ userId, code }` → spend a code, copying the source device's saves onto
+the caller.
+→ `200 {success:true, slots:n}` · `404` invalid, expired **or** already used ·
+`429` too many attempts
+
+`404` does not distinguish those three cases: telling a guesser which one a
+code was is free information. `slots:0` is a legitimate success — a code minted
+by a device that had not backed up yet.
+
+It **copies, never repoints.** Repointing would leave two phones writing to one
+key, clobbering each other on every backup; copying leaves the old phone
+working and lets the two diverge. The claim and the copy happen in ONE Postgres
+transaction (`claim_save_transfer`), so two devices racing the same code cannot
+both win.
+
 ### `POST /leaderboard/{category}`
 Body: `{ name, score, userId, runSignature, revision }` → upserts only when
 it beats the player's existing score.
@@ -141,6 +193,15 @@ curl -s -X POST "$BASE/save" -H "Authorization: Bearer <TOKEN>" \
   -d '{"state":{"weeksLived":1},"updatedAt":1,"userId":"player_curl_1","slotId":"slot_1","revision":1,"hash":"deadbeef01","signature":"0123456789abcdef0123"}'
 curl -s "$BASE/save?userId=player_curl_1&slotId=slot_1" -H "Authorization: Bearer <TOKEN>"
 ```
+
+## Retention
+
+Backups untouched for **18 months** are deleted by
+`prune_abandoned_cloud_saves()`, run daily at 03:17 UTC via `pg_cron`. Spent
+transfer codes are dropped a week after expiry.
+
+Keep the 18-month figure in step with the privacy policy — it is the number
+that must be defensible, and it is the one players are entitled to be told.
 
 ## Rollout
 
