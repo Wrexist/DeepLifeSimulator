@@ -3427,3 +3427,24 @@ Five rules, each of which was a bug I nearly shipped or a claim I nearly made.
   call that follows it — the function connects in a different session and reads
   the pre-update value. That looked exactly like a waitlist bug for a minute.
   Commit first, then call.
+
+## 2026-08-20 — Weekly routine audit (STATE_VERSION 46)
+
+- Verdict: **CLEAN, no blockers.** Static five-domain audit all green; deep
+  qualitative pass (three subagents over Economy, Save/State, Game-Logic/Stability)
+  found no CRITICAL/HIGH. Dynamic backstop green: money-conservation, performance
+  (late-game tick mean 3.49ms), save-migration audit, long-run save/load (520/1040/5200
+  weeks), type-check, route check.
+- Rule: **a second gate copy must mirror EVERY guard the primary path enforces, not
+  just the one the author remembered.** `applyRecruiterLeverage` (`lib/mail/resolve.ts`)
+  is a second raise-granting path beside `JobActions.grantRaise`. Its own docstring
+  promises "it spends the same window — you cannot do both," and it *does* copy the
+  `RAISE_MIN_PERFORMANCE` floor (with a comment explaining why two copies of a number
+  would let one path reward what the other punishes) — but it silently omits the
+  `RAISE_COOLDOWN_WEEKS` check the normal path enforces. So a normal raise at week N
+  followed by a recruiter letter at week N+1 grants a second raise inside the cooldown
+  the design says is spent. Bounded (raiseMultiplier hard-capped at +100%, letters
+  throttled to ≤1/8wk, `weeksLived`-derived so not device-clock-farmable), hence LOW
+  and filed, not hotfixed. The lesson is the pattern: when you fork a gated action,
+  audit the fork against the *full* gate list of the original, because the partial
+  copy looks correct — it copies the guard you were thinking about.

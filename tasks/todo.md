@@ -39,3 +39,23 @@ RECRUIT → ONBOARD → INSTALL → PLAY → FEEDBACK → IMPROVE → RETAIN →
 Paste the **Google Play closed-test opt-in URL** into Admin → Settings. Until
 then onboarding shows a "not published yet" notice rather than a dead button.
 Get it from Play Console → Testing → Closed testing → Testers → Copy link.
+
+---
+
+## Backlog — from weekly audit 2026-08-20 (non-blocking)
+
+- [ ] **LOW · balance/consistency** — `applyRecruiterLeverage` (`lib/mail/resolve.ts:220`)
+  grants a raise checking only `isRaisePremiumMaxed` + `RAISE_MIN_PERFORMANCE`, NOT the
+  `RAISE_COOLDOWN_WEEKS` gate the normal raise path enforces (`JobActions.ts`). Its
+  docstring already promises "it spends the same window." Fix: before granting, reject
+  when `atWeek - (career.lastRaiseWeeksLived ?? career.startedWeeksLived ?? -Infinity)
+  < RAISE_COOLDOWN_WEEKS` with a "window already spent" outcome. Bounded (cap +100%,
+  letters ≤1/8wk, not clock-farmable) so backlog, not a hotfix. Add a dating/careers
+  test asserting the leverage path respects a recent raise stamp.
+- [ ] (info, no action) `SparkActions.playConversationOption` returns `{success:true}` +
+  npcText even when its updater rejects a same-batch double-spend — money stays safe
+  (rejected via `return prev`), only the returned message is briefly stale; screen
+  self-corrects from committed state. Matches the established snapshot-reporting pattern.
+- [ ] (info, no action) `lib/legacy/grandchildren.ts` keeps a bespoke FNV `hash()`
+  instead of shared `fnv1a32` — deliberate: switching would re-roll v34 grandchildren
+  in live saves.
