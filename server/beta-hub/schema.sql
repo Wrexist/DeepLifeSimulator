@@ -220,3 +220,12 @@ end;
 $$;
 
 revoke all on function public.beta_cast_vote(uuid, uuid) from public, anon, authenticated;
+
+-- Why this still leaves the edge function able to call it: Supabase ships
+-- ALTER DEFAULT PRIVILEGES for `postgres`/`supabase_admin` in schema public
+-- granting EXECUTE on new functions to anon, authenticated AND service_role,
+-- so creation stamps all three on explicitly. The revoke above names only
+-- public, anon and authenticated, which leaves service_role's own grant
+-- standing — exactly the intent, since the edge function reaches this through
+-- `rpc/beta_cast_vote` with the service key. Do NOT widen the revoke to
+-- service_role: that kills idea voting outright.
