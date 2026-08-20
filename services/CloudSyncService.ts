@@ -10,16 +10,25 @@
  * `EXPO_PUBLIC_CLOUD_SAVE_URL` are set — shipping to the `preview` profile
  * first (owner decision).
  *
- * SCOPE: this is a backup of THIS DEVICE, not a cross-device account. The
- * identity is the anonymous per-device id in `cloud_user_id` (see
- * `resolveUserId`), so a reinstall still orphans the old saves and there is no
- * "sign in on a new phone and get your game" path. That is the remaining
- * future work, and it is an IDENTITY problem, not a transport one:
+ * SCOPE: this is a backup of THIS DEVICE, not a cross-device account, and it
+ * stays that way ON PURPOSE. Accounts were considered and rejected: offering
+ * Google sign-in obliges offering Sign in with Apple (App Store guideline 4.8),
+ * and having accounts at all obliges in-app account deletion (5.1.1(v)).
+ * Staying account-free avoids both, and a guest still gets their save onto a
+ * new phone — through a transfer code rather than a login
+ * (`server/cloud-save`, POST /save/transfer, owner decision 2026-08-20).
  *
- *   1. A real account (sign-in) to key saves on, replacing the device id.
- *   2. Server-side verification of the `hash`/`signature` integrity proof this
+ * The identity is the anonymous per-device id resolved by
+ * `utils/deviceIdentity.ts`, which reads secure-store before AsyncStorage so
+ * the id outlives a reinstall on iOS. It does NOT on Android, where uninstall
+ * takes the Keystore-backed value with it — that file explains why, and why a
+ * transfer code is the answer there.
+ *
+ * Remaining future work, an INTEGRITY problem rather than an identity one:
+ *
+ *   1. Server-side verification of the `hash`/`signature` integrity proof this
  *      client already sends — a proof only the client checks is decoration.
- *   3. A cross-device conflict UX beyond the single alert wired here.
+ *   2. A cross-device conflict UX beyond the single alert wired here.
  *
  * The class stays INERT ON IMPORT regardless. It used to arm a network
  * listener and a 30-second `setInterval` in its constructor, and the module
@@ -33,6 +42,7 @@ import { GameState, Relationship } from '@/contexts/game/types';
 import { uploadGameState, downloadGameState, getCloudSyncStatus } from '@/lib/progress/cloud';
 import { logger } from '@/utils/logger';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
+import { resolveDeviceId } from '@/utils/deviceIdentity';
 import { offlineManager } from '@/utils/offlineManager';
 import { calculateChecksum, calculateHmacSignature } from '@/utils/saveValidation';
 import { hydrateLoadedState } from '@/utils/hydrateLoadedState';
@@ -51,10 +61,8 @@ export type ConflictCallback = (conflict: SyncConflict & { remoteState: GameStat
 
 class CloudSyncService {
   private static instance: CloudSyncService;
-  private static readonly CLOUD_USER_ID_KEY = 'cloud_user_id';
   /** Epoch ms of the last successful upload — survives a cold start (see `performUpload`). */
   private static readonly LAST_BACKUP_AT_KEY = 'cloud_backup_last_at';
-  private static readonly RESERVED_USER_IDS = new Set(['local_player', 'guest', 'anonymous', 'unknown', 'null', 'undefined']);
   /** The backend column is `revision integer CHECK (revision >= 1)` — int4. */
   private static readonly MIN_CLOUD_REVISION = 1;
   private static readonly MAX_CLOUD_REVISION = 2147483647;
@@ -146,11 +154,6 @@ class CloudSyncService {
     return `slot_${slot}`;
   }
 
-  private isValidCloudUserId(userId?: string): boolean {
-    if (!userId || typeof userId !== 'string') return false;
-    const normalized = userId.trim().toLowerCase();
-    return normalized.length >= 3 && !CloudSyncService.RESERVED_USER_IDS.has(normalized);
-  }
 
   /**
    * The backup identity: the anonymous per-device id in `cloud_user_id`,
@@ -159,7 +162,7 @@ class CloudSyncService {
    * This used to prefer `userProfile.username` / `.handle` and fall back to the
    * device id. Both halves of that were wrong for a device backup, and the
    * first was actively dangerous: `initialGameState` ships
-   * `userProfile.username = 'player'`, which passes `isValidCloudUserId`, so
+   * `userProfile.username = 'player'`, which passed the validity check, so
    * EVERY install would have uploaded to the single cloud key `player` and
    * restored whichever device wrote last. The fallback was unreachable for the
    * same reason. A display name is not an identity — it is player-editable and
@@ -172,32 +175,15 @@ class CloudSyncService {
    * Returns null when there is no identity this device could use AGAIN — every
    * caller already treats null as "skip this operation" (`performUpload` throws,
    * `downloadState` / `checkConflict` warn and return null).
+   *
+   * The resolution itself now lives in `utils/deviceIdentity.ts`, which added a
+   * secure-store tier beneath this one so the id can outlive a reinstall (on
+   * iOS; see that file for why Android cannot). Kept as a thin method rather
+   * than inlined at the call sites so the null contract stays stated in one
+   * place.
    */
   private async resolveUserId(): Promise<string | null> {
-    const existing = await safeGetItem(CloudSyncService.CLOUD_USER_ID_KEY);
-    if (this.isValidCloudUserId(existing ?? undefined)) {
-      return existing!.trim();
-    }
-
-    const generated = `player_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-    // A generated id is only an identity if it SURVIVES a restart. The write
-    // result used to be discarded, so a storage failure returned an id the
-    // device could never recover: the next launch mints a DIFFERENT one, and
-    // everything uploaded under the first is orphaned in the cloud — a backup
-    // that reports success and can never be restored.
-    //
-    // No retry here on purpose: `safeSetItem` already does the
-    // QuotaExceededError cleanup-and-retry internally (`utils/safeStorage.ts`),
-    // so a `false` means the value is genuinely not stored, and the honest
-    // answer is then "no identity", not "here is a throwaway one".
-    const persisted = await safeSetItem(CloudSyncService.CLOUD_USER_ID_KEY, generated);
-    if (!persisted) {
-      logger.error(
-        '[CloudSync] Could not persist a new cloud user id — refusing to sync under an unrecoverable identity'
-      );
-      return null;
-    }
-    return generated;
+    return resolveDeviceId();
   }
 
   /**

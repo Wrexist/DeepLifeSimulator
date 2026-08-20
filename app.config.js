@@ -165,6 +165,19 @@ module.exports = {
     // Missing iosAppId causes native startup aborts in TestFlight builds.
     // IMPORTANT: Plugin uses camelCase property names (iosAppId, NOT ios_app_id)
     plugins: [
+      // Bare string on purpose — no options.
+      //
+      // configureAndroidBackup defaults to TRUE, which is what we want: it points
+      // android:dataExtractionRules at rules that EXCLUDE SecureStore from
+      // Android auto-backup. Without that, auto-backup would carry the encrypted
+      // SharedPreferences to a new device where the Android Keystore key does not
+      // exist, and the restored value would be undecryptable garbage rather than
+      // an absent key — a worse failure than having no backup at all.
+      //
+      // faceIDPermission is deliberately NOT passed. Supplying it writes an
+      // NSFaceIDUsageDescription, and we never gate the store behind biometrics.
+      // See scripts/preflight-check.js PLUGIN_PURPOSE_OPTIONS.
+      "expo-secure-store",
       [
         "expo-build-properties",
         {
