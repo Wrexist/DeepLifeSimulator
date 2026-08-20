@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Join the Android Beta — Deep Life Simulator</title>
+<meta name="description" content="Join the Deep Life Simulator Android closed beta. Under a minute: one short form, one tap on Google Play, then play. Free, no ads, everything unlocked." />
+<meta name="theme-color" content="#0F172A" />
+<meta property="og:title" content="Join the Deep Life Simulator Android beta" />
+<meta property="og:description" content="Under a minute from here to playing. Free, closed beta, Android only." />
+<meta property="og:image" content="https://wrexist.github.io/DeepLifeSimulator/assets/shot1.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span></div>
+
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks" id="navlinks">
+    <a href="index.html">The game</a>
+    <a href="community.html">Community</a>
+    <a href="ideas.html">Ideas</a>
+    <a href="dashboard.html">My dashboard</a>
+  </div>
+  <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+</div></nav>
+
+<main id="main" class="wrap" style="padding:44px 22px 80px;max-width:760px">
+
+  <ol class="rail" id="rail">
+    <li id="r-join"><span class="chip"><span class="mark">1</span> Join</span></li>
+    <li id="r-install"><span class="chip"><span class="mark">2</span> Install</span></li>
+    <li id="r-play"><span class="chip"><span class="mark">3</span> Play</span></li>
+    <li id="r-feedback"><span class="chip"><span class="mark">4</span> Feedback</span></li>
+  </ol>
+
+  <!-- ── STAGE 1: the form ────────────────────────────────────────────── -->
+  <section id="stage-form" class="panel">
+    <span class="badge-android"><span class="dot"></span> Android closed beta</span>
+    <h1 style="font-size:clamp(28px,5vw,40px);font-weight:800;margin:16px 0 10px">Join the beta</h1>
+    <p class="sub">Six short questions, four of them optional. Then one tap and you're in.</p>
+
+    <div class="notice mt-s" id="capacity" hidden></div>
+
+    <form class="form mt-m" id="signup" novalidate>
+      <div class="field">
+        <label for="nickname">What should we call you? <span class="muted">(required)</span></label>
+        <input id="nickname" name="nickname" type="text" autocomplete="nickname" maxlength="40"
+               required placeholder="A first name or a handle" />
+        <p class="err" id="err-nickname" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="contactKind">How should we reach you if something breaks?</label>
+        <select id="contactKind" name="contactKind">
+          <option value="none">Don't contact me — I'll check back here</option>
+          <option value="email" selected>Email</option>
+          <option value="discord">Discord handle</option>
+          <option value="other">Something else</option>
+        </select>
+        <p class="hint">Only used to send you beta instructions and to follow up on what you report. Never shared, never sold, and you can delete it in one tap from your dashboard.</p>
+      </div>
+
+      <div class="field" id="contact-field">
+        <label for="contact" id="contact-label">Email address</label>
+        <input id="contact" name="contact" type="email" autocomplete="email" maxlength="120"
+               placeholder="you@example.com" />
+        <p class="err" id="err-contact" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="device">Which Android phone? <span class="muted">(optional)</span></label>
+        <input id="device" name="device" type="text" maxlength="60" placeholder="e.g. Pixel 8, Galaxy S23" />
+        <p class="hint">Helps us reproduce anything you report. Pre-filled from your browser where we can — edit it if it's wrong.</p>
+      </div>
+
+      <div class="row" style="gap:18px;align-items:flex-start">
+        <div class="field" style="flex:1 1 200px">
+          <label for="country">Country <span class="muted">(optional)</span></label>
+          <input id="country" name="country" type="text" maxlength="60" autocomplete="country-name" placeholder="Sweden" />
+          <p class="hint">Google Play needs your country enabled on the test track, so this is genuinely useful.</p>
+        </div>
+        <div class="field" style="flex:1 1 160px">
+          <label for="ageRange">Age range <span class="muted">(optional)</span></label>
+          <select id="ageRange" name="ageRange">
+            <option value="">Prefer not to say</option>
+            <option>Under 18</option><option>18–24</option><option>25–34</option>
+            <option>35–44</option><option>45–54</option><option>55+</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="found">How did you find us? <span class="muted">(optional)</span></label>
+        <select id="found" name="found">
+          <option value="">Pick one</option>
+          <option value="reddit">Reddit</option><option value="discord">Discord</option>
+          <option value="tiktok">TikTok</option><option value="instagram">Instagram</option>
+          <option value="youtube">YouTube</option><option value="x">X / Twitter</option>
+          <option value="friend">A friend told me</option>
+          <option value="test-for-test">Test-for-test group</option>
+          <option value="testflight">I tested the iOS version</option>
+          <option value="other">Somewhere else</option>
+        </select>
+        <p class="hint">Tells us which channels are worth our time. Pre-filled from your link if we already know.</p>
+      </div>
+
+      <div class="notice" id="privacy-note">
+        We store your nickname and whatever contact method you chose, plus anything optional you filled in.
+        <strong>We never ask for your Google password</strong> — Google Play handles the opt-in itself, and nobody
+        legitimate will ever ask you for it. <a id="privacy-link" href="../privacy.html">Privacy policy</a>.
+      </div>
+
+      <button class="btn btn-p btn-lg btn-block" type="submit" id="submit-join">CONTINUE →</button>
+      <p class="small muted center">Already joined? <a href="dashboard.html" style="text-decoration:underline">Open your dashboard</a>.</p>
+    </form>
+  </section>
+
+  <!-- ── STAGE 2: the steps ───────────────────────────────────────────── -->
+  <section id="stage-steps" hidden>
+    <div class="panel">
+      <span class="badge-android"><span class="dot"></span> <span id="welcome-status">You're in</span></span>
+      <h1 style="font-size:clamp(26px,5vw,38px);font-weight:800;margin:16px 0 8px" id="welcome">Welcome, tester.</h1>
+      <p class="sub" id="welcome-sub">Four steps left, and the first two take a minute.</p>
+      <div class="notice ok mt-s" id="waitlist-note" hidden></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Step 1 · Join the Google Play closed test</h2></div>
+      <p class="sub">Opens Google Play. Tap <strong>“Become a tester”</strong> on the page that loads. Make sure your phone's Play Store is signed into the account you want to test with.</p>
+      <a class="btn btn-p btn-lg btn-block" id="play-beta" href="#" target="_blank" rel="noopener">JOIN GOOGLE PLAY BETA</a>
+      <div class="notice warn mt-s" id="no-link" hidden>
+        The Play opt-in link isn't published yet — the closed track is still being set up.
+        We'll email you the moment it's live. Nothing else to do right now.
+      </div>
+      <div class="row mt-m">
+        <button class="btn btn-ok" id="confirm-optin" type="button">✓ I'm opted in</button>
+        <span class="small muted">Tap this once you've hit “Become a tester”.</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Step 2 · Install Deep Life Simulator</h2></div>
+      <p class="sub">Same page, the “Download it on Google Play” link. If it says <em>item not found</em>, wait about 15 minutes — that's Google propagating, not you.</p>
+      <a class="btn btn-p btn-lg btn-block" id="play-install" href="#" target="_blank" rel="noopener">INSTALL DEEP LIFE SIMULATOR</a>
+      <div class="row mt-m">
+        <button class="btn btn-ok" id="confirm-install" type="button">✓ It's installed</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Step 3 · Open it and play for ten minutes</h2></div>
+      <p class="sub">Create a character, pick a starting life, and run a few weeks. Ten minutes is enough to have an opinion — and an opinion is what we're after.</p>
+      <div class="mission mt-s">
+        <div class="k">SUGGESTED FIRST RUN</div>
+        <h3 id="first-mission">Take any job and work it for 10 weeks</h3>
+        <p id="first-mission-detail">Then tell us whether the pay felt worth the weeks.</p>
+      </div>
+      <div class="row mt-m">
+        <button class="btn btn-ok" id="confirm-played" type="button">✓ I've played</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Step 4 · Tell us what you think</h2></div>
+      <p class="sub">Three questions, no survey. Bugs and feature ideas have their own forms and both are quick.</p>
+      <div class="actions">
+        <a class="btn btn-p" href="feedback.html">SEND FEEDBACK</a>
+        <a class="btn btn-g" href="bug.html">REPORT A BUG</a>
+        <a class="btn btn-g" href="ideas.html">SUGGEST A FEATURE</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Step 5 · Stay opted in for 14 days</h2></div>
+      <p class="sub">This is the one that actually matters. Google requires the tester count to hold continuously for two weeks before the game can go public — one person leaving early resets the clock for everyone. Play as much or as little as you like inside that window.</p>
+      <a class="btn btn-p btn-lg btn-block mt-s" href="dashboard.html">OPEN MY DASHBOARD →</a>
+    </div>
+  </section>
+
+</main>
+
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="index.html">Beta home</a><a href="community.html">Community</a>
+    <a href="dashboard.html">My dashboard</a><a id="f-privacy" href="../privacy.html">Privacy</a>
+  </div>
+  <p class="small">© <span id="year"></span> Deep Life Simulator</p>
+</div></footer>
+
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="join.js"></script>
+</body>
+</html>

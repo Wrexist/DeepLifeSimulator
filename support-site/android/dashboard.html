@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>My Beta Dashboard — Deep Life Simulator</title>
+<meta name="description" content="Your Deep Life Simulator beta progress, missions, badges and referral link." />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0F172A" />
+<link rel="icon" href="../assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="beta.css" />
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg"></div>
+<div class="orbs"><span class="orb a"></span><span class="orb b"></span></div>
+
+<nav><div class="wrap">
+  <a class="brand" href="index.html"><img src="../assets/icon.png" alt="" /> DeepLife</a>
+  <div class="navlinks" id="navlinks">
+    <a href="index.html">The game</a>
+    <a href="community.html">Community</a>
+    <a href="ideas.html">Ideas</a>
+    <a href="feedback.html">Feedback</a>
+    <a href="bug.html">Report a bug</a>
+  </div>
+  <button class="navtoggle" id="navtoggle" aria-expanded="false" aria-controls="navlinks" aria-label="Menu">☰</button>
+</div></nav>
+
+<main id="main" class="wrap" style="padding:38px 22px 80px;max-width:880px">
+  <div id="loading">
+    <div class="panel"><h2>Loading your dashboard…</h2><div class="mt-m" id="skel"></div></div>
+  </div>
+
+  <!-- Not a tester on this device -->
+  <div id="stranger" hidden>
+    <div class="panel center" style="padding:52px 24px">
+      <h1 style="font-size:clamp(26px,5vw,38px);font-weight:800;margin-bottom:12px">No tester found on this device</h1>
+      <p class="muted" style="max-width:460px;margin:0 auto 24px">
+        Your dashboard lives in this browser. If you joined on another phone or cleared your browser data,
+        sign up again — it takes under a minute and we'll merge you up on our side.
+      </p>
+      <a class="btn btn-p btn-lg" href="join.html">JOIN THE BETA</a>
+    </div>
+  </div>
+
+  <div id="dash" hidden>
+    <!-- header -->
+    <section class="panel">
+      <div class="row-between">
+        <div>
+          <span class="badge-android"><span class="dot"></span> <span id="status-label">Beta tester</span></span>
+          <h1 style="font-size:clamp(26px,5vw,40px);font-weight:800;margin:14px 0 6px">
+            WELCOME BACK, <span class="grad" id="nick" style="background:linear-gradient(120deg,#818CF8,#C4B5FD);-webkit-background-clip:text;background-clip:text;color:transparent"></span>
+          </h1>
+          <p class="muted" id="level-line"></p>
+        </div>
+        <div style="min-width:170px">
+          <div class="stat"><div class="n" id="xp">0</div><div class="l">Tester XP</div>
+            <div class="bar mt-s" style="height:8px"><i id="xp-bar" style="width:0%"></i></div>
+            <div class="d" id="xp-next"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- progress -->
+    <section class="panel">
+      <div class="panel-head"><h2>Beta progress</h2><div class="l muted" id="pct-label"></div></div>
+      <div class="bar"><i id="progress-bar" style="width:0%"></i></div>
+      <ol class="rail mt-m" id="rail"></ol>
+      <div id="next-action" class="mt-s"></div>
+    </section>
+
+    <!-- mission -->
+    <section class="panel">
+      <div class="panel-head"><h2>Today's mission</h2><span class="small muted">Rotates daily</span></div>
+      <div class="mission" id="mission-box"></div>
+      <details class="mt-m">
+        <summary class="small muted" style="cursor:pointer">All beta missions (<span id="mission-count">0</span> done)</summary>
+        <div class="mt-s" id="mission-list"></div>
+      </details>
+    </section>
+
+    <!-- badges -->
+    <section class="panel">
+      <div class="panel-head"><h2>Badges</h2><span class="small muted">Community achievements — they buy nothing in-game</span></div>
+      <div class="badgegrid" id="badges"></div>
+    </section>
+
+    <!-- what you've sent -->
+    <section class="panel">
+      <div class="panel-head"><h2>What you've sent us</h2></div>
+      <div class="stats">
+        <div class="stat"><div class="n" id="c-feedback">0</div><div class="l">Feedback</div></div>
+        <div class="stat"><div class="n" id="c-bugs">0</div><div class="l">Bugs filed</div></div>
+        <div class="stat"><div class="n" id="c-ideas">0</div><div class="l">Ideas</div></div>
+        <div class="stat"><div class="n" id="c-refs">0</div><div class="l">Referrals</div></div>
+      </div>
+      <div class="actions mt-m">
+        <a class="btn btn-p" href="feedback.html">Send feedback</a>
+        <a class="btn btn-g" href="bug.html">Report a bug</a>
+        <a class="btn btn-g" href="ideas.html">Suggest a feature</a>
+      </div>
+      <div class="mt-m" id="my-bugs"></div>
+    </section>
+
+    <!-- referral -->
+    <section class="panel">
+      <div class="panel-head"><h2>Bring someone in</h2></div>
+      <p class="sub">Every real tester moves the launch closer. This link credits them to you — no rewards attached unless we announce some, and we won't invent any.</p>
+      <div class="mono" id="ref-link"></div>
+      <div class="actions mt-m">
+        <button class="btn btn-p" id="copy-ref" type="button">Copy link</button>
+        <button class="btn btn-g" id="share-ref" type="button" hidden>Share</button>
+      </div>
+      <div class="mt-m" id="ref-list"></div>
+    </section>
+
+    <!-- privacy -->
+    <section class="panel">
+      <div class="panel-head"><h2>Your data</h2></div>
+      <p class="sub">We hold your nickname, your chosen contact method, and whatever optional details you filled in.
+        No passwords, no Google credentials, nothing about you from anywhere else.</p>
+      <div class="actions">
+        <a class="btn btn-g" id="privacy-link" href="../privacy.html">Privacy policy</a>
+        <button class="btn btn-g" id="forget" type="button">Delete everything about me</button>
+      </div>
+      <p class="small muted mt-s">Deleting is immediate and permanent, and it also removes your feedback.
+        It does <strong>not</strong> remove you from the Google Play test — do that from the Play opt-in link.</p>
+    </section>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <div class="flinks">
+    <a href="index.html">Beta home</a><a href="community.html">Community</a>
+    <a href="ideas.html">Ideas</a><a id="f-privacy" href="../privacy.html">Privacy</a>
+  </div>
+  <p class="small">© <span id="year"></span> Deep Life Simulator</p>
+</div></footer>
+
+<script src="beta-config.js"></script>
+<script src="beta-content.js"></script>
+<script src="beta-api.js"></script>
+<script src="beta-ui.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>
