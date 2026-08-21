@@ -3612,3 +3612,34 @@ defensible the mechanic is. `calcCompanyWeeklyIncome` / `companyIncomePaidWeekly
 are that definition for company income; `PassiveIncomeResult` now carries
 `gross` / `skillBonus` / `efficiency` / `overhead` so a breakdown can close its
 own arithmetic instead of listing rows that do not sum to the total.
+
+## 2026-08-21 — A helper written to make a mechanic visible is not the mechanic being visible
+
+Two independent instances in one session, both found from the same support email.
+
+**1. `getOperatingOverhead` had only test callers.** It was written explicitly to
+make the >$10M passive-income soft cap legible — its own docstring says "the
+mechanic is defensible; being INVISIBLE is not" — and no component ever rendered
+it. The cap stayed invisible for its whole life, and a player reported it as
+money going missing.
+
+**2. `weeklyCareerSalary` fixed half a bug and the other half shipped.** It was
+added (R3-M3) because four loan screens read the ANNUAL political salary into a
+DTI gate. The DISPLAY half was never touched: six surfaces kept printing
+`levels[level].salary` next to "/wk", including the Politics app, whose variable
+was NAMED `salaryWeekly` while holding the annual number. A President was shown
+$100,000/wk and paid $1,923.
+
+**The rule.** "We added the helper" and "the player can see it" are different
+claims, and only the second one closes a report. When you add a function whose
+purpose is to surface something, grep for its callers before calling the work
+done — and add the assertion that a surface renders it, because a helper with
+only test callers passes every test it has.
+
+**And: do not inherit a survey's verdict about a file you have not read.**
+A subagent survey of every income readout reported that `PoliticalApp`
+"correctly handles (divides by WEEKS_PER_YEAR)". It does not. The claim was
+plausible because a nearby variable was named `salaryWeekly`. CLAUDE.md §8
+already says not to trust a survey claim without re-reading the source; this is
+the second time that has paid, and the tell was the same both times — a NAME
+that asserts the property instead of code that establishes it.
