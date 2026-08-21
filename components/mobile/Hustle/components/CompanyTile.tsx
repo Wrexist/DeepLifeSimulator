@@ -30,9 +30,16 @@ interface CompanyTileProps {
   onPress: () => void;
   /** Highest weekly income across the portfolio — scales the revenue bar. */
   maxWeekly?: number;
+  /**
+   * This company's contribution to the paycheck, from the tick's own
+   * `companyWeeklyIncomeFor`. Passed in because the full chain needs the whole
+   * GameState (family brand, political perks, government contracts) and this
+   * tile is presentational. Falls back to the overlay-only figure when absent.
+   */
+  weekly?: number;
 }
 
-export default function CompanyTile({ company, overlay, onPress, maxWeekly }: CompanyTileProps) {
+export default function CompanyTile({ company, overlay, onPress, maxWeekly, weekly: weeklyProp }: CompanyTileProps) {
   const { theme, isDark } = useTheme();
   const Icon = INDUSTRY_ICON[company.type] ?? Building2;
   const color = industryColor(company.type);
@@ -49,10 +56,17 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly }: Co
   // applies at PAYOUT; none of them writes `company.weeklyIncome`. So the card
   // showed a number that could not move no matter what the player did — two
   // restaurants at 10.8% and 32.9% share rendered identically.
+  // `companyIncomeFactors` is only ONE step of that chain, though — the family
+  // brand and legacy multipliers, the political business perk and government
+  // contracts also land at payout. `weeklyProp` carries the tick's own answer
+  // (`companyWeeklyIncomeFor`); the local expression is the fallback for callers
+  // that have no GameState to hand.
   const stored = company.weeklyIncome ?? 0;
   const base = company.baseWeeklyIncome ?? 0;
   const factors = companyIncomeFactors(overlay);
-  const weekly = Math.round(stored * factors.multiplier);
+  const weekly = typeof weeklyProp === 'number' && Number.isFinite(weeklyProp) && weeklyProp >= 0
+    ? weeklyProp
+    : Math.round(stored * factors.multiplier);
   const lift = Math.max(0, weekly - base);
   const peak = Math.max(maxWeekly ?? weekly, weekly, 1);
   const revPct = Math.max(4, Math.min(100, (weekly / peak) * 100));

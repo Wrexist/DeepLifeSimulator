@@ -58,6 +58,7 @@ import ApplyCardModal from '@/components/banking/ApplyCardModal';
 import AddBillModal from '@/components/banking/AddBillModal';
 import TaxStatement from '@/components/banking/TaxStatement';
 import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
+import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 
 import { BankAccount, BudgetCategory, CreditCardTier, SavingsGoalCategory } from '@/contexts/game/types';
@@ -179,7 +180,10 @@ function BankAppInner({ onBack }: BankAppProps) {
     // read them all as weekly, so an elected player's borrowing capacity was
     // inflated 52x at the DTI gate. One shared helper now encodes the rule.
     income += weeklyCareerSalary(gameState);
-    for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
+    // Same fix as AdvancedBankApp: the stored `weeklyIncome` is the base before
+    // every step of the payout chain, so summing it overstated both this
+    // headline and the DTI gate it feeds.
+    income += companyIncomePaidWeekly(gameState);
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies]);
 

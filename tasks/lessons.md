@@ -3578,3 +3578,37 @@ reason `applyCardModalScroll.test.ts` gives — reproducing the overflow needs a
 real viewport and a real layout pass, and the RN test mock provides neither.
 Verified by stashing the four fixes and watching 13 of its 20 assertions go red,
 then restoring.
+
+## 2026-08-21 — "I make 360k but only receive 60k" (player report)
+
+**What went wrong.** A player at $26M net worth reported earning $360K/wk and
+banking a fraction of it. Nothing was broken in the tick. Three drags were being
+applied at payout and *none* of them appeared anywhere on screen:
+
+1. the portfolio-size management penalty (up to −30% for 11+ companies),
+2. `PER_SOURCE_CAPS.companies` — a hard $200K/wk ceiling on TOTAL company income,
+3. the net-worth soft cap — above $10M the whole passive total is multiplied by
+   `0.9^floor((netWorth − 10M) / 10M)`, floored at 25%.
+
+Worse, the *advertised* number was not even the pre-cap payout: the Hustle
+dashboard, both bank apps and the real-estate / vehicle DTI gates each summed the
+raw stored `company.weeklyIncome`, which is the base before the family-brand and
+legacy multipliers, the political business perk, government contracts and the
+Hustle overlay multiplier. Four independent reasons for the displayed figure to
+disagree with the paid one, in the same readout.
+
+**The pattern.** This is the advertised-vs-actual class again, with a twist worth
+naming: `getOperatingOverhead` had been written *specifically* to make the soft
+cap legible — and was never wired to a single component. It had only test
+callers. **A helper written to make a mechanic visible does nothing until a
+screen renders it**; "we added the readout function" is not the same claim as
+"the player can see it", and only the second one closes the report.
+
+**The rule.** A number the tick derives gets ONE definition, exported from the
+module that pays it, and every readout calls that. If a cap or a penalty removes
+money, the surface showing the income must show the removal too — an unexplained
+gap between two numbers on screen reads to the player as theft, however
+defensible the mechanic is. `calcCompanyWeeklyIncome` / `companyIncomePaidWeekly`
+are that definition for company income; `PassiveIncomeResult` now carries
+`gross` / `skillBonus` / `efficiency` / `overhead` so a breakdown can close its
+own arithmetic instead of listing rows that do not sum to the total.

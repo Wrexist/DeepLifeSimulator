@@ -22,6 +22,7 @@ import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState , Loan } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
@@ -259,7 +260,16 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // Guard the level index the same way `job` (line ~153) does: a stale/migrated
   // save can carry a `level` out of bounds for `levels`, making the lookup
   // undefined and crashing the home tab with `.salary of undefined`.
-  const jobIncome = currentCareer?.levels?.[currentCareer.level]?.salary ?? 0;
+  // Through `weeklyCareerSalary`, not `levels[level].salary` directly: the
+  // `political` ladder stores ANNUAL salaries (ANNUAL_SALARY_CAREER_IDS), so
+  // reading the raw field showed an elected player 52x the weekly pay the tick
+  // credits — and fed that same 52x figure into the cash-flow and expense
+  // projections below.
+  const jobIncome = useMemo(
+    () => weeklyCareerSalary(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gameState.careers, gameState.currentJob]
+  );
 
   // Partner / spouse weekly income (counts even after marriage) — 25% of the
   // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
@@ -949,6 +959,38 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
+              </Text>
+            </View>
+          )}
+          {passiveInfo.skillBonus > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Sparkles size={14} color="#10B981" />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Wealth Mastery: +{formatMoney(passiveInfo.skillBonus)}
+              </Text>
+            </View>
+          )}
+          {/*
+            The rows above are per-source figures after their own caps but
+            BEFORE the net-worth soft cap, which above $10M can remove most of
+            the total. Leaving that out is what made the drag invisible: the
+            rows added up to one number and the paycheck paid another, with
+            nothing on screen explaining the gap. Name it, then restate the
+            total the tick actually credits.
+          */}
+          {passiveInfo.overhead > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <TrendingUp size={14} color="#EF4444" />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Operating overhead: -{formatMoney(passiveInfo.overhead)} ({Math.round(passiveInfo.efficiency * 100)}% efficiency above $10M net worth)
+              </Text>
+            </View>
+          )}
+          {passiveInfo.overhead > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={14} color="#10B981" />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Paid to you: {formatMoney(passive)}
               </Text>
             </View>
           )}

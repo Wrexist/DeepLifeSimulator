@@ -17,6 +17,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import {
+  calcCompanyWeeklyIncome,
+  companyIncomePaidWeekly,
+  companyWeeklyIncomeFor,
+  managementLevels,
+  passiveIncomeEfficiency,
+} from '@/lib/economy/passiveIncome';
+import { netWorth } from '@/lib/progress/achievements';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { Z_INDEX } from '@/utils/zIndexConstants';
@@ -68,22 +76,22 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   const lifetime = gameState.hustleApp?.lifetimeStats;
 
   const series = useMemo(() => {
-    const revenue = companies.map((c) => c.weeklyIncome ?? 0);
+    // The bars must plot the same figure the tiles print — the stored
+    // `weeklyIncome` is only the FIRST step of the payout chain.
+    const revenue = companies.map((c) => companyWeeklyIncomeFor(gameState, c, 1));
     const employees = companies.map((c) => c.employees ?? 0);
     const share = companies.map((c) => overlays[c.id]?.marketSharePercent ?? 5);
     const brand = companies.map((c) => overlays[c.id]?.brand?.score ?? 50);
     return { revenue, employees, share, brand };
-  }, [companies, overlays]);
+  }, [companies, overlays, gameState]);
 
   const totals = useMemo(() => {
-    let weekly = 0;
     let employees = 0;
     let brandSum = 0;
     let shareSum = 0;
     let campaigns = 0;
     let scandals = 0;
     for (const c of companies) {
-      weekly += c.weeklyIncome ?? 0;
       // c.employees is the canonical headcount and already INCLUDES named
       // hires (hireCandidate/fireNamedHire keep it in sync) — never add
       // overlay.hiringPipeline.namedHires.length on top of this.
@@ -100,7 +108,6 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
       }
     }
     return {
-      weekly,
       employees,
       campaigns,
       scandals,
@@ -108,6 +115,33 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
       share: companies.length > 0 ? +(shareSum / companies.length).toFixed(1) : 0,
     };
   }, [companies, overlays]);
+
+  /**
+   * What the empire actually pays into the weekly paycheck.
+   *
+   * The headline used to be `sum(company.weeklyIncome)`, which is the stored
+   * base before EVERY step of the payout chain: the family-brand and legacy
+   * multipliers, the political business perk, government contracts, the Hustle
+   * overlay multiplier, the portfolio-size management penalty, the $200K/wk
+   * ceiling and the net-worth soft cap. A tycoon whose companies stored
+   * $360K/wk read "$360,000 / wk" here and banked a fraction of it, with
+   * nothing on screen accounting for the difference. Both drags are named
+   * below the number now.
+   */
+  const empire = useMemo(() => {
+    const company = calcCompanyWeeklyIncome(gameState);
+    const softCap = passiveIncomeEfficiency(netWorth(gameState), managementLevels(gameState.companies));
+    const paid = companyIncomePaidWeekly(gameState);
+    return {
+      gross: company.afterBonuses,
+      paid,
+      lost: Math.max(0, company.afterBonuses - paid),
+      overCap: company.afterEfficiency > company.cap,
+      cap: company.cap,
+      managementDrag: company.efficiency < 1,
+      softCap,
+    };
+  }, [gameState]);
 
   const maxWeekly = useMemo(() => Math.max(...series.revenue, 1), [series.revenue]);
 
@@ -160,13 +194,23 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
             {isDark && <View pointerEvents="none" style={styles.heroHairline} />}
             <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Empire snapshot</Text>
             <Text style={[styles.heroValue, { color: theme.text }]}>
-              ${totals.weekly.toLocaleString()}<Text style={[styles.heroSuffix, { color: theme.textSecondary }]}> / wk</Text>
+              ${empire.paid.toLocaleString()}<Text style={[styles.heroSuffix, { color: theme.textSecondary }]}> / wk</Text>
             </Text>
             <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
               {companies.length} {companies.length === 1 ? 'company' : 'companies'} · {totals.employees} employees
               {totals.campaigns > 0 ? ` · ${totals.campaigns} campaign${totals.campaigns === 1 ? '' : 's'}` : ''}
               {totals.scandals > 0 ? ` · ${totals.scandals} scandal${totals.scandals === 1 ? '' : 's'}` : ''}
             </Text>
+            {empire.lost > 0 ? (
+              <Text style={[styles.heroDrag, { color: theme.textMuted }]}>
+                Take-home. ${empire.gross.toLocaleString()}/wk earned, ${empire.lost.toLocaleString()} to{' '}
+                {[
+                  empire.managementDrag ? 'management overhead' : null,
+                  empire.overCap ? `the $${(empire.cap / 1000).toFixed(0)}K/wk ceiling` : null,
+                  empire.softCap < 1 ? `net-worth overhead (${Math.round(empire.softCap * 100)}% efficiency)` : null,
+                ].filter(Boolean).join(' + ')}.
+              </Text>
+            ) : null}
             {companies.length > 1 ? (
               <View style={styles.heroChart} pointerEvents="none">
                 <HeroRevenueBars data={series.revenue} color={HUSTLE_COLORS.accent} />
@@ -178,7 +222,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
 
         {/* KPI grid — each tile carries a mini chart from real per-company data */}
         <View style={styles.kpiGrid}>
-          <KPICard icon={DollarSign} label="Weekly" value={`$${(totals.weekly / 1000).toFixed(1)}K`} accentColor={HUSTLE_COLORS.success} chart={series.revenue} caption={`${companies.length} co${companies.length === 1 ? '' : 's'}`} />
+          <KPICard icon={DollarSign} label="Weekly" value={`$${(empire.paid / 1000).toFixed(1)}K`} accentColor={HUSTLE_COLORS.success} chart={series.revenue} caption={`${companies.length} co${companies.length === 1 ? '' : 's'}`} />
           <KPICard icon={Users} label="Employees" value={String(totals.employees)} chart={series.employees} />
           <KPICard icon={TrendingUp} label="Market" value={`${totals.share}%`} accentColor={HUSTLE_COLORS.accentSecondary} chart={series.share} />
           <KPICard icon={Briefcase} label="Brand" value={String(totals.brand)} chart={series.brand} caption={lifetime ? `peak ${lifetime.peakBrandScore}` : undefined} />
@@ -209,7 +253,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
           <>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>Your companies</Text>
             {companies.map((c) => (
-              <CompanyTile key={c.id} company={c} overlay={overlays[c.id]} onPress={() => handleTilePress(c.id)} maxWeekly={maxWeekly} />
+              <CompanyTile key={c.id} company={c} overlay={overlays[c.id]} onPress={() => handleTilePress(c.id)} maxWeekly={maxWeekly} weekly={companyWeeklyIncomeFor(gameState, c, 1)} />
             ))}
           </>
         ) : (
@@ -359,6 +403,11 @@ const styles = StyleSheet.create({
   heroSub: {
     fontSize: fontScale(12),
     marginTop: 2,
+  },
+  heroDrag: {
+    fontSize: fontScale(11),
+    marginTop: 6,
+    lineHeight: fontScale(15),
   },
   heroChart: {
     marginTop: responsiveSpacing.sm,
