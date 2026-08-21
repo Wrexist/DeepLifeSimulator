@@ -4,6 +4,7 @@
  */
 
 import type { Dispatch, SetStateAction } from 'react';
+import { mintUniqueId } from '@/utils/uniqueId';
 import { GameState, Pet } from '../types';
 import {
   PET_BREEDS,
@@ -47,7 +48,12 @@ export function buyPet(
   if (safe(gameState.stats?.money, 0) < breed.price) {
     return { success: false, message: `Need $${breed.price.toLocaleString()}.` };
   }
-  const id = `pet_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  // Minted against the pets already owned, because the duplicate-id guard in
+  // the updater below makes a collision SILENTLY DESTRUCTIVE: it would reject a
+  // genuine second purchase, take no money, and still report success. The old
+  // `Date.now()`-plus-1-of-1000 suffix collided at 1/1000 for two pets bought in
+  // the same millisecond, and did exactly that.
+  const id = mintUniqueId('pet', (gameState.pets ?? []).map((p) => p?.id));
   const pet: Pet = {
     id,
     name: name || breed.name,

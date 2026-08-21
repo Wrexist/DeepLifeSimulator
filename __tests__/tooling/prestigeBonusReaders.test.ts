@@ -36,6 +36,7 @@ import { PRESTIGE_BONUSES, INERT_BONUS_IDS as UNSOLD_BONUS_IDS } from '@/lib/pre
 import { INERT_BONUS_IDS } from '@/lib/prestige/inertBonuses';
 import fs from 'fs';
 import path from 'path';
+import { realCallersOf } from '@/__tests__/helpers/sourceCallers';
 
 /**
  * There are TWO registries called `INERT_BONUS_IDS`, and they mean different
@@ -67,6 +68,13 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '__tests__', 'tasks', 'docs',
 const NOT_READERS = [
   path.join('lib', 'prestige', 'prestigeBonuses.ts'),
   path.join('lib', 'prestige', 'inertBonuses.ts'),
+  // The two surfaces whose JOB is to state what a bonus does. `PrestigeInfoModal`
+  // maps ids to effect copy ("Real estate available at age 18"); `PrestigeShopModal`
+  // renders the card. Counting either as a reader makes the check circular:
+  // the claim would satisfy the search for the implementation, which is the
+  // exact confusion behind all four dead bonuses found so far.
+  path.join('components', 'PrestigeInfoModal.tsx'),
+  path.join('components', 'PrestigeShopModal.tsx'),
 ];
 
 function collectSources(dir: string, out: string[] = []): string[] {
@@ -89,6 +97,75 @@ const files = collectSources(repoRoot).filter((f) => !NOT_READERS.some((n) => f.
 const stripComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 const blob = files.map((f) => stripComments(fs.readFileSync(f, 'utf8'))).join('\n');
+
+/**
+ * Is the body of `if (… 'id' …) { … }` empty once comments are stripped?
+ *
+ * Brace-matched rather than regex-terminated, because the condition itself
+ * contains parentheses (`unlockedBonuses.includes('id')`) and the body can
+ * contain nested blocks.
+ */
+export function guardBodyIsEmpty(src: string, id: string): boolean {
+  const marker = `'${id}'`;
+  let from = 0;
+  let sawGuard = false;
+  for (;;) {
+    const at = src.indexOf(marker, from);
+    if (at === -1) break;
+    from = at + marker.length;
+
+    // Walk back to the `if (` that owns this literal, if there is one.
+    const lineStart = src.lastIndexOf('\n', at) + 1;
+    const head = src.slice(lineStart, at);
+    if (!/\bif\s*\($/.test(head.replace(/[^(]*$/, (m) => (m.includes('if') ? m : ''))) && !/\bif\s*\(/.test(head)) continue;
+
+    const open = src.indexOf('{', at);
+    if (open === -1) continue;
+    let depth = 1;
+    let i = open + 1;
+    while (i < src.length && depth > 0) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}') depth--;
+      i++;
+    }
+    sawGuard = true;
+    if (stripComments(src.slice(open + 1, i - 1)).trim().length > 0) return false;
+  }
+  return sawGuard;
+}
+
+/**
+ * Exported predicate functions in `src` whose body returns a check on `id`,
+ * e.g. `export function hasX(b) { return b.includes('id'); }`.
+ */
+function predicateNamesFor(src: string, id: string): string[] {
+  const re = new RegExp(`export function (\\w+)\\([^)]*\\)[^{]*\\{\\s*return [^;]*'${id}'[^;]*;\\s*\\}`, 'g');
+  return [...src.matchAll(re)].map((m) => m[1]);
+}
+
+/**
+ * Does anything read this bonus id AND act on it?
+ *
+ * An occurrence does NOT count when it is the whole body of an empty guard, or
+ * when it lives inside a predicate function nothing calls.
+ */
+export function hasConsumingReader(id: string): boolean {
+  for (const file of files) {
+    const src = stripComments(fs.readFileSync(file, 'utf8'));
+    if (!src.includes(`'${id}'`) && !src.includes(`"${id}"`) && !src.includes(`\`${id}\``)) continue;
+
+    const predicates = predicateNamesFor(src, id);
+    const predicatesAreDead = predicates.length > 0 && predicates.every((fn) => realCallersOf(fn).length === 0);
+
+    // Count the occurrences this file's own shapes explain away.
+    const occurrences = (src.match(new RegExp(`['\"\`]${id}['\"\`]`, 'g')) ?? []).length;
+    const inDeadPredicates = predicatesAreDead ? predicates.length : 0;
+    const emptyGuards = guardBodyIsEmpty(src, id) ? 1 : 0;
+
+    if (occurrences > inDeadPredicates + emptyGuards) return true;
+  }
+  return false;
+}
 
 describe('no prestige bonus is sold without being wired', () => {
   it('the scan actually ran (the control)', () => {
@@ -119,11 +196,66 @@ describe('no prestige bonus is sold without being wired', () => {
   });
 
   it('the inert list does not hide a bonus that IS wired', () => {
-    // If someone wires up `legacy_business`, this fails and the warning in the
+    // If someone wires up an inert bonus, this fails and the warning in the
     // shop must come off. An inert entry that quietly goes stale would keep
     // telling players a working purchase does nothing.
+    //
+    // This used to assert the id appeared NOWHERE in source, which was true of
+    // the only members at the time (the automation five, whose engine had been
+    // deleted). It is the wrong test for the three found on 2026-08-21: each of
+    // those DOES appear, and is dead anyway. `hasConsumingReader` is the
+    // question that was actually meant.
     for (const id of INERT_BONUS_IDS) {
-      expect(blob.includes(`'${id}'`) || blob.includes(`"${id}"`)).toBe(false);
+      expect(`${id}: ${hasConsumingReader(id)}`).toBe(`${id}: false`);
     }
+  });
+
+  /**
+   * ── The blind spot this section closes ────────────────────────────────────
+   *
+   * The check above counts a LITERAL occurrence of a bonus id as a reader. All
+   * three bonuses found dead on 2026-08-21 had one, and all three did nothing:
+   *
+   *   early_item_access       `if (unlockedBonuses.includes(id)) { }` — body is
+   *                           two comments explaining that the shop UI could
+   *                           check this. No shop UI does.
+   *   early_real_estate       same empty guard, plus an exported
+   *                           `hasEarlyRealEstateAccess()` predicate that is
+   *                           imported into one modal and never called.
+   *   auto_manage_properties  `shouldAutoCollectRent()` — imported into
+   *                           `MoneyActionsContext` and never called. Rent is
+   *                           collected unconditionally for everyone anyway.
+   *
+   * So a "reader" only counts when it CONSUMES the id: a guard with a
+   * non-empty body, or a predicate something actually calls.
+   */
+  it('every sold bonus has a reader that does something with it', () => {
+    const sold = PRESTIGE_BONUSES
+      .map((b) => b.id)
+      .filter((id) => !DECLARED_INERT.has(id));
+
+    const hollow = sold.filter((id) => !hasConsumingReader(id));
+
+    // Naming them, so a failure says which bonus and not just a count.
+    expect(hollow).toEqual([]);
+  });
+
+  it('detects a hollow reader (the control)', () => {
+    // Proves the check above can fail, on the exact two shapes it exists for.
+    expect(guardBodyIsEmpty(`
+      if (unlockedBonuses.includes('zz_probe')) {
+        // a comment, and nothing else
+      }
+    `, 'zz_probe')).toBe(true);
+
+    expect(guardBodyIsEmpty(`
+      if (unlockedBonuses.includes('zz_probe')) {
+        newState.something = true;
+      }
+    `, 'zz_probe')).toBe(false);
+
+    // And a predicate nobody calls is not a reader.
+    expect(realCallersOf('hasEarlyItemAccess')).toHaveLength(0);
+    expect(realCallersOf('hasEarlyCareerAccess').length).toBeGreaterThan(0);
   });
 });

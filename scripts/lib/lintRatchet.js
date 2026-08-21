@@ -130,7 +130,19 @@ const MAX_ERRORS = 0;
  * with the fix and were stripped separately. Nothing lints that, so it would
  * have landed silently.
  */
-const MAX_WARNINGS = 842;
+/*
+ * 842 → 797 on 2026-08-21. Not an autofix pass: the difference is dead code
+ * DELETED — five exported helpers with zero real callers
+ * (`hasEarlyItemAccess`, `hasEarlyRealEstateAccess`, `hasEarlyEducationAccess`,
+ * `getQOLBonuses`, `shouldAutoCollectRent`), their imports, and two empty
+ * `if (unlockedBonuses.includes(id)) { }` branches. Three of those symbols were
+ * the only thing making three prestige bonuses look wired; see
+ * `lib/prestige/inertBonuses.ts`.
+ *
+ * Lowered in the commit that earned it, which is the rule for every ratchet in
+ * this repo. Never raise it to get a build unstuck.
+ */
+const MAX_WARNINGS = 797;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

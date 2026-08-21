@@ -7,6 +7,7 @@
  */
 
 import type { Dispatch, SetStateAction } from 'react';
+import { mintId } from '@/utils/uniqueId';
 import { GameState, GamingStreamingState, Video, StreamHistoryItem } from '../types';
 import { computeQuality, qualityMultiplier } from '@/lib/content/quality';
 import { projectStreamOutcome, projectVideoOutcome } from '@/lib/content/algorithm';
@@ -127,7 +128,7 @@ export function publishVideo(
   const earnings = videoEarnings(outcome.views, quality);
 
   const video: Video = {
-    id: `vid_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    id: mintId('vid'),
     title: args.title,
     game: args.game,
     views: outcome.views,
@@ -230,7 +231,7 @@ export function runStream(
   const earnings = streamEarnings(outcome.viewers, args.duration, outcome.donations, quality);
 
   const stream: StreamHistoryItem = {
-    id: `stream_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    id: mintId('stream'),
     game: args.game,
     duration: args.duration,
     viewers: outcome.viewers,
@@ -360,7 +361,7 @@ export function startLiveStream(
     // runStream so consecutive-week live broadcasts still build the streak.
     const nextStreak = nextHypeStreak(ch.hypeStreak, ch.lastStreamWeek, currentWeek);
     const live = {
-      id: `live_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      id: mintId('live'),
       game: args.game,
       duration: 0,
       viewers: 0,

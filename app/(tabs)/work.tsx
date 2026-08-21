@@ -90,7 +90,11 @@ function WorkScreen() {
 function WorkScreenContent() {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
-    const [activeTab, setActiveTab] = useState<'street' | 'career' | 'skills'>('street');
+    // Career is the landing tab. Work opened on Street Hustle — the $20-a-tap
+    // filler — so the first thing the screen offered was the least valuable
+    // thing on it, and the career ladder (the actual progression system) was one
+    // tap behind a segment most players never pressed.
+    const [activeTab, setActiveTab] = useState<'street' | 'career' | 'skills'>('career');
     const [workFeedback, setWorkFeedback] = useState<{ [key: string]: string }>({});
     const [selectedSkillTree, setSelectedSkillTree] = useState<CrimeSkillId | null>(null);
     const [feedbackOpacity] = useState(new Animated.Value(0));
@@ -168,14 +172,13 @@ function WorkScreenContent() {
 
     // State for negative stats popup
 
-    // Auto-switch to career tab if player doesn't have a job or is coming from tutorial
-    useEffect(() => {
-        if (!gameState.currentJob && (gameState?.stats?.money ?? 0) < 1000 && !gameState.hasSeenJobTutorial) {
-            setActiveTab('career');
-            // Mark that we've shown the job tutorial to prevent repeated switching
-            setGameState(prev => ({ ...prev, hasSeenJobTutorial: true }));
-        }
-    }, [gameState.currentJob, gameState?.stats?.money, gameState.hasSeenJobTutorial, setGameState]);
+    // The one-shot "auto-switch to the career tab" effect that used to live here
+    // is gone with the default above. It fired once per life, for a jobless
+    // player under $1,000, and burned its `hasSeenJobTutorial` flag doing it —
+    // so now that Career IS the landing tab, its first (and only) firing would
+    // land on the tab already shown and consume the flag for nothing. What
+    // remained was a `setGameState` on every Work open for a broke player: a
+    // save-dirtying write and a re-render with no visible effect.
 
     useEffect(() => {
         let animationRef: Animated.CompositeAnimation | null = null;
@@ -1012,8 +1015,8 @@ function WorkScreenContent() {
                         <SegmentedControl
                             style={local.workTabs}
                             segments={[
-                                { key: 'street', label: t('work.street') },
                                 { key: 'career', label: t('work.career') },
+                                { key: 'street', label: t('work.street') },
                                 { key: 'skills', label: t('work.crimeJobs') },
                             ]}
                             value={activeTab}

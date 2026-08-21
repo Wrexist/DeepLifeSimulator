@@ -70,3 +70,31 @@ All eleven steps landed. Added after the plan was written, at the owner's reques
       over five pure resolvers in `lib/politics/lifeOperations.ts`, which is the
       sound fix that file prescribes. The ratchet stayed at 101 — it was not
       raised.
+
+## 2026-08-21 — follow-up pass (owner request)
+
+- [x] Work tab lands on Career, not Street Hustle. Career is also the first
+      segment now, and the one-shot effect that used to force the tab is gone
+      (with Career as the default its only firing would land on the tab already
+      shown, leaving a `setGameState` on every Work open for a broke player).
+- [x] Three prestige bonuses verified dead and registered in
+      `lib/prestige/inertBonuses.ts`, so the shop warns before taking 15,000
+      points. The product call — wire, remove, or re-purpose — is the owner's
+      and stays open.
+- [x] Closed the blind spot that hid them: `prestigeBonusReaders` no longer
+      counts a hollow reader (an empty guard body, or a predicate nothing
+      calls) or a description surface as wiring.
+- [x] Deleted the five uncalled helpers that made them look wired, and lowered
+      the lint ceiling 842 → 797 in the same commit.
+- [x] Fixed an id-collision bug found via a flaky suite: four call sites minted
+      `${prefix}_${Date.now()}_${rand(0..999)}`. For pets a collision was
+      silently destructive — the duplicate-id guard dropped a genuine second
+      purchase, took no money, and still reported "Welcome Rex!".
+
+### Still open for the owner
+
+- Story mode / monthly ticks (the player's other ask) — v38, removed after
+  playtesting. Not rebuilt.
+- Income caps made visible but not retuned: $200K/wk company ceiling, and
+  `ops_management` lifting the soft-cap floor only 25% → 45%.
+- The three inert prestige bonuses: wire, remove, or re-purpose.

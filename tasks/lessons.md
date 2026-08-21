@@ -3643,3 +3643,40 @@ plausible because a nearby variable was named `salaryWeekly`. CLAUDE.md §8
 already says not to trust a survey claim without re-reading the source; this is
 the second time that has paid, and the tell was the same both times — a NAME
 that asserts the property instead of code that establishes it.
+
+## 2026-08-21 (2) — "It has a reader" is not "it does something"
+
+Three prestige bonuses — 15,000 points between them — were sold in the shop and
+did nothing:
+
+| bonus | price | what it promised | what was there |
+|---|---|---|---|
+| `early_item_access` | 4,000 | "Unlock premium items early" | no premium item tier exists |
+| `early_real_estate` | 6,000 | "Access real estate at age 18" | real estate has no age gate, and everyone starts at 18+ |
+| `auto_manage_properties` | 5,000 | "Automatically collect rent" | rent is already collected for everyone by the weekly tick |
+
+`__tests__/tooling/prestigeBonusReaders.test.ts` existed precisely to catch
+this, and passed all three, because it counted a LITERAL occurrence of the id as
+a reader. Each of the three had one, and each one was hollow:
+
+- `if (unlockedBonuses.includes(id)) { }` — a body of two comments explaining
+  that the check happens somewhere else. For one of them that was even true.
+- an exported `hasX()` predicate, imported by one modal, called by nobody.
+
+**The pattern, third time this session.** `getOperatingOverhead` was written to
+make the passive-income soft cap visible and had only test callers.
+`weeklyCareerSalary` fixed the DTI half of the annual-salary bug while six
+screens kept printing the raw annual figure. Now this. In all three, a symbol
+that LOOKS like the wiring stood in for the wiring, and every guard that went
+looking accepted the resemblance.
+
+**The rule.** A guard that searches for an implementation must not accept the
+CLAIM as the answer. Concretely: the file whose job is to describe a thing is
+never evidence that the thing exists — `PrestigeInfoModal` maps ids to effect
+copy, so counting it as a reader made the check circular. And a predicate is
+only wiring if something calls it: `__tests__/helpers/sourceCallers.ts` now
+answers that, ignoring imports, comments and the declaration itself.
+
+**Corollary for dead code.** The five uncalled helpers were deleted rather than
+left in place. Leaving them is what made the bonuses look wired for years — and
+it is why removing them dropped the lint ceiling 842 → 797 as a side effect.

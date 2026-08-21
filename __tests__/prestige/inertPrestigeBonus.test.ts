@@ -31,6 +31,31 @@ import { PRESTIGE_BONUSES } from '@/lib/prestige/prestigeBonuses';
 import { INERT_BONUS_IDS, inertBonusReason, isInertBonus } from '@/lib/prestige/inertBonuses';
 import fs from 'fs';
 import path from 'path';
+import { realCallersOf, sourceFiles } from '@/__tests__/helpers/sourceCallers';
+
+/**
+ * Files that MENTION a bonus id without being its implementation.
+ *
+ * The catalogue declares it, this registry records it, and the two prestige
+ * modals RENDER its description — counting any of them would make the check
+ * circular: the advertised claim would satisfy the search for the code that
+ * delivers it. That confusion is what all four dead bonuses had in common.
+ */
+const NOT_IMPLEMENTATIONS = [
+  'lib/prestige/prestigeBonuses.ts',
+  'lib/prestige/inertBonuses.ts',
+  'components/PrestigeInfoModal.tsx',
+  'components/PrestigeShopModal.tsx',
+];
+
+/** Gameplay files that reference the bonus id at all. */
+function gameplayReferences(id: string): string[] {
+  return sourceFiles()
+    .filter(([file, src]) =>
+      !NOT_IMPLEMENTATIONS.some((n) => file.replace(/\\/g, '/').endsWith(n))
+      && (src.includes(`'${id}'`) || src.includes(`"${id}"`)))
+    .map(([file]) => file);
+}
 
 const repoRoot = path.join(__dirname, '..', '..');
 const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
@@ -90,15 +115,55 @@ describe('the registry still behaves, for the next dead bonus', () => {
     }
   });
 
-  it('is currently empty — no bonus is known-dead', () => {
-    expect(INERT_BONUS_IDS).toEqual([]);
+  it('names the three bonuses verified dead on 2026-08-21', () => {
+    // A ratchet, not a snapshot: an id LEAVING this list must be a deliberate
+    // wiring, and one arriving must be a deliberate finding. Both should fail
+    // here first. `legacy_business` is deliberately absent — it was wired.
+    expect([...INERT_BONUS_IDS].sort()).toEqual([
+      'auto_manage_properties',
+      'early_item_access',
+      'early_real_estate',
+    ]);
   });
 
-  it('every listed id would still have to exist in the catalogue', () => {
-    // Vacuously true while the list is empty, and that is fine: it is the
-    // guard that stops a stale entry warning about a bonus nobody can buy.
+  it('each one is dead for the reason recorded, not by assertion', () => {
+    // The claims, re-derived from source, so an entry cannot go stale by
+    // someone quietly wiring a bonus and leaving the warning up.
+
+    // No gameplay file consumes any of the three. `hasConsumingReader` in
+    // `__tests__/tooling/prestigeBonusReaders.test.ts` is the general form of
+    // this; here it is the direct statement, since the whole registry rests on
+    // it being true.
+    for (const id of INERT_BONUS_IDS) {
+      expect(`${id}: ${gameplayReferences(id).length}`).toBe(`${id}: 0`);
+    }
+
+    // And the predicates that used to front them are gone, rather than sitting
+    // there uncalled — a predicate named for a bonus reads as its wiring, which
+    // is why two of these survived a previous audit.
+    for (const fn of ['hasEarlyItemAccess', 'hasEarlyRealEstateAccess', 'shouldAutoCollectRent']) {
+      expect(`${fn}: ${realCallersOf(fn).length}`).toBe(`${fn}: 0`);
+      expect(`${fn} declared: ${sourceFiles().some(([, src]) => src.includes(`function ${fn}`))}`)
+        .toBe(`${fn} declared: false`);
+    }
+
+    // Rent really is collected for everyone, which is what makes wiring
+    // `auto_manage_properties` a product decision rather than a fix.
+    expect(code('contexts/game/actions/weekly/applyRentAndHousing.ts'))
+      .toMatch(/rentalIncome/);
+  });
+
+  it('every listed id still exists in the catalogue', () => {
+    // The guard that stops a stale entry warning about a bonus nobody can buy.
     for (const id of INERT_BONUS_IDS) {
       expect(PRESTIGE_BONUSES.some((b) => b.id === id)).toBe(true);
+    }
+  });
+
+  it('and each carries a reason the player can read', () => {
+    for (const id of INERT_BONUS_IDS) {
+      const reason = inertBonusReason(id);
+      expect(`${id}: ${typeof reason === 'string' && reason.length > 30}`).toBe(`${id}: true`);
     }
   });
 
