@@ -3532,3 +3532,49 @@ Two process notes from the same audit, both worth more than the fix:
    the constant with a bare `80` at the claim site) and confirming it went red,
    then restoring. Cheap, and the only thing that distinguishes a guard from a
    test that happens to pass.
+
+## 2026-08-21 — A blocking popup with no scroll surface is a soft lock, not an overflow
+
+A bug report arrived as a screenshot: `WeddingPopup` open, card ending at the
+closing line, "won't let me scroll or do anything". The card is bounded
+(`maxHeight: height * 0.85`) and clips (`overflow: 'hidden'`), the column inside
+it — crest, congratulation line, celebration box, three reward rows, closing
+line, CTA — measures taller than that bound on an ordinary phone, and there was
+no scroll surface. So the "Continue Your Love Story" button, the ONLY thing that
+clears `showWeddingPopup`, rendered off the bottom of the card and was clipped
+away. `app/_layout.tsx` gates the entire HUD behind that flag, so the player was
+not looking at a cosmetic overflow: they were locked out of the save.
+
+This is the THIRD instance of one shape (`ApplyCardModal`, then `DeathPopup`,
+now four popups at once), which makes it a class rather than a bug:
+
+> **A modal whose dismiss control can leave the viewport must have a scroll
+> surface.** Bound the card, put the body in a `flexShrink: 1` ScrollView, and
+> pin the dismiss control outside it.
+
+Three details that are all load-bearing, each learned the expensive way:
+
+1. **`flexShrink: 1`, never `flex: 1`.** `flex: 1` is flexBasis 0 + grow with
+   shrink still 0, so a footer taller than the left-over space takes ALL of it
+   and the scroll area resolves to zero height — the same bug wearing a
+   different hat, and exactly what `DeathPopup` documents.
+2. **The bound is half the fix.** `flexShrink` is a no-op with nothing bounded
+   above it; the card just grows off-screen as before. `WelcomeBackPopup` and
+   `LifeMomentModal` had no height cap at all and needed one added.
+3. **Pin the CTA — unless the CTA is a list.** `LifeMomentModal` has no single
+   dismiss button: its unbounded `choices` list IS the way out, so there every
+   choice goes inside the scroller. Pinning one and clipping the rest would have
+   looked like a fix and shipped the same lock.
+
+The audit note: the four were found by asking not "which modals lack a
+ScrollView" (31 files, mostly harmless) but **"which modals can grow past the
+viewport AND put their only escape at the bottom"**. `PromotionCelebrationModal`
+and `CommunityRewardPopup` lack a scroller too and are fine — their content is
+fixed-size. Variable-length content (free-form prose, a conditional row block, a
+`.map()` over choices) is the discriminator, not the missing ScrollView.
+
+Guard: `__tests__/render/blockingPopupScroll.test.ts`, source-level for the
+reason `applyCardModalScroll.test.ts` gives — reproducing the overflow needs a
+real viewport and a real layout pass, and the RN test mock provides neither.
+Verified by stashing the four fixes and watching 13 of its 20 assertions go red,
+then restoring.

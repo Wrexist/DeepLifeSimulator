@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Platform, Modal,
   View,
   Text,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Animated,
@@ -210,185 +211,210 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
             end={{ x: 1, y: 1 }}
             style={styles.content}
           >
-            {/* Header with animated home icon */}
-            <View style={styles.header}>
-              <Animated.View
-                style={[
-                  styles.iconContainer,
-                  {
-                    transform: [{ scale: pulseAnim }],
-                  },
-                ]}
-              >
-                <LinearGradient
-                  colors={['#3B82F6', '#2563EB', '#1D4ED8']}
-                  style={styles.iconGradient}
+            {/* ── The scroll surface ───────────────────────────────────────
+                Everything from the home crest down to the "what's waiting"
+                rows scrolls; the Continue button stays pinned below it.
+
+                The body here is VARIABLE height — the info block renders
+                between one and six rows depending on streak, pending events,
+                an unresolved cliffhanger and a neglected partner — on top of a
+                fixed crest, title, and two stat cards. A returning player who
+                triggers most of those pushes the column past the screen, and
+                Continue is the ONLY way out of this popup: it has no close X
+                and no backdrop tap, and `onRequestClose` is Android's hardware
+                back button alone. Off the bottom of the screen means stuck.
+
+                `flexShrink: 1`, not `flex: 1` — see the note in
+                `WeddingPopup`/`ApplyCardModal`: grow-with-no-shrink lets a tall
+                pinned footer collapse the scroller to zero height, which is the
+                same bug wearing a different hat. */}
+            <ScrollView
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={true}
+              bounces={false}
+            >
+              {/* Header with animated home icon */}
+              <View style={styles.header}>
+                <Animated.View
+                  style={[
+                    styles.iconContainer,
+                    {
+                      transform: [{ scale: pulseAnim }],
+                    },
+                  ]}
                 >
-                  <Home size={scale(40)} color="#FFFFFF" strokeWidth={2.5} />
-                </LinearGradient>
+                  <LinearGradient
+                    colors={['#3B82F6', '#2563EB', '#1D4ED8']}
+                    style={styles.iconGradient}
+                  >
+                    <Home size={scale(40)} color="#FFFFFF" strokeWidth={2.5} />
+                  </LinearGradient>
 
-                {/* Sparkle accents */}
-                <View style={[styles.sparkleAccent, styles.sparkleTopLeft]}>
-                  <Sparkles size={scale(14)} color="#60A5FA" fill="#60A5FA" />
-                </View>
-                <View style={[styles.sparkleAccent, styles.sparkleTopRight]}>
-                  <Sparkles size={scale(12)} color="#93C5FD" fill="#93C5FD" />
-                </View>
-              </Animated.View>
-            </View>
+                  {/* Sparkle accents */}
+                  <View style={[styles.sparkleAccent, styles.sparkleTopLeft]}>
+                    <Sparkles size={scale(14)} color="#60A5FA" fill="#60A5FA" />
+                  </View>
+                  <View style={[styles.sparkleAccent, styles.sparkleTopRight]}>
+                    <Sparkles size={scale(12)} color="#93C5FD" fill="#93C5FD" />
+                  </View>
+                </Animated.View>
+              </View>
 
-            {/* Title */}
-            <View style={styles.titleContainer}>
-              <Text style={[styles.title, isDarkMode && styles.titleDark]}>
-                {getWelcomeMessage()}
-              </Text>
-              <View style={styles.timeAwayContainer}>
-                <Clock size={scale(16)} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
-                <Text style={[styles.timeAway, isDarkMode && styles.timeAwayDark]}>
-                  Last played: {getTimeAwayText()}
+              {/* Title */}
+              <View style={styles.titleContainer}>
+                <Text style={[styles.title, isDarkMode && styles.titleDark]}>
+                  {getWelcomeMessage()}
                 </Text>
-              </View>
-            </View>
-
-            {/* Stats Preview */}
-            <View style={styles.statsContainer}>
-              <View style={[styles.statCard, isDarkMode && styles.statCardDark]}>
-                <View style={styles.statIconContainer}>
-                  <DollarSign size={scale(20)} color="#10B981" />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={[styles.statLabel, isDarkMode && styles.statLabelDark]}>
-                    Net Worth
-                  </Text>
-                  <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                    {formatMoney((gameState.stats.money || 0) + (gameState.bankSavings || 0))}
+                <View style={styles.timeAwayContainer}>
+                  <Clock size={scale(16)} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+                  <Text style={[styles.timeAway, isDarkMode && styles.timeAwayDark]}>
+                    Last played: {getTimeAwayText()}
                   </Text>
                 </View>
               </View>
 
-              <View style={[styles.statCard, isDarkMode && styles.statCardDark]}>
-                <View style={styles.statIconContainer}>
-                  <Heart size={scale(20)} color="#EF4444" />
+              {/* Stats Preview */}
+              <View style={styles.statsContainer}>
+                <View style={[styles.statCard, isDarkMode && styles.statCardDark]}>
+                  <View style={styles.statIconContainer}>
+                    <DollarSign size={scale(20)} color="#10B981" />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text style={[styles.statLabel, isDarkMode && styles.statLabelDark]}>
+                      Net Worth
+                    </Text>
+                    <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
+                      {formatMoney((gameState.stats.money || 0) + (gameState.bankSavings || 0))}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.statContent}>
-                  <Text style={[styles.statLabel, isDarkMode && styles.statLabelDark]}>
-                    Life Progress
-                  </Text>
-                  <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                    Week {gameState.weeksLived || 0} | Age {Math.floor(gameState.date?.age ?? 0)}
-                  </Text>
+
+                <View style={[styles.statCard, isDarkMode && styles.statCardDark]}>
+                  <View style={styles.statIconContainer}>
+                    <Heart size={scale(20)} color="#EF4444" />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text style={[styles.statLabel, isDarkMode && styles.statLabelDark]}>
+                      Life Progress
+                    </Text>
+                    <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
+                      Week {gameState.weeksLived || 0} | Age {Math.floor(gameState.date?.age ?? 0)}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
 
-            {/* ENGAGEMENT: Scaled Welcome Back Bonus + "what's waiting" preview.
-                Surfacing pending events / cliffhanger / partner status creates a
-                forward narrative hook ("I want to see what happens") rather than
-                just a stats snapshot ("here's what you had"). */}
-            <View style={styles.infoContainer}>
-              {(() => {
-                // Calculate welcome bonus based on player income level. Uses the
-                // shared helper so the displayed amount is exactly what the
-                // caller grants on close.
-                const welcomeBonus = computeWelcomeBackBonus(gameState, daysAway);
-                const streakCount = gameState.playStreak?.count || 0;
-                const pendingEventsCount = (gameState.pendingEvents || []).length;
-                const hasCliffhanger = !!gameState.pendingCliffhanger;
-                // The same derived recommendation the home screen shows, so the
-                // return screen and the dashboard cannot tell the player two
-                // different things. Pure and cheap; nothing is stored or paid.
-                const nextGoal = primaryGoal(gameState);
-                const neglectedPartner = (gameState.relationships || []).find(
-                  (r: any) =>
-                    (r?.type === 'partner' || r?.type === 'spouse') &&
-                    typeof r?.relationshipScore === 'number' &&
-                    r.relationshipScore <= 40
-                );
-                return (
-                  <>
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIcon}>
-                        <DollarSign size={scale(18)} color="#10B981" />
-                      </View>
-                      <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                        Welcome back bonus: +{formatMoney(welcomeBonus)}
-                      </Text>
-                    </View>
-                    {streakCount > 1 && (
+              {/* ENGAGEMENT: Scaled Welcome Back Bonus + "what's waiting" preview.
+                  Surfacing pending events / cliffhanger / partner status creates a
+                  forward narrative hook ("I want to see what happens") rather than
+                  just a stats snapshot ("here's what you had"). */}
+              <View style={styles.infoContainer}>
+                {(() => {
+                  // Calculate welcome bonus based on player income level. Uses the
+                  // shared helper so the displayed amount is exactly what the
+                  // caller grants on close.
+                  const welcomeBonus = computeWelcomeBackBonus(gameState, daysAway);
+                  const streakCount = gameState.playStreak?.count || 0;
+                  const pendingEventsCount = (gameState.pendingEvents || []).length;
+                  const hasCliffhanger = !!gameState.pendingCliffhanger;
+                  // The same derived recommendation the home screen shows, so the
+                  // return screen and the dashboard cannot tell the player two
+                  // different things. Pure and cheap; nothing is stored or paid.
+                  const nextGoal = primaryGoal(gameState);
+                  const neglectedPartner = (gameState.relationships || []).find(
+                    (r: any) =>
+                      (r?.type === 'partner' || r?.type === 'spouse') &&
+                      typeof r?.relationshipScore === 'number' &&
+                      r.relationshipScore <= 40
+                  );
+                  return (
+                    <>
                       <View style={styles.infoRow}>
                         <View style={styles.infoIcon}>
-                          <TrendingUp size={scale(18)} color="#F59E0B" />
+                          <DollarSign size={scale(18)} color="#10B981" />
                         </View>
                         <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                          Play streak: {streakCount} days (+{Math.min(streakCount * 2, 20)}% income)
+                          Welcome back bonus: +{formatMoney(welcomeBonus)}
                         </Text>
                       </View>
-                    )}
-                    {pendingEventsCount > 0 && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIcon}>
-                          <Mail size={scale(18)} color="#3B82F6" />
+                      {streakCount > 1 && (
+                        <View style={styles.infoRow}>
+                          <View style={styles.infoIcon}>
+                            <TrendingUp size={scale(18)} color="#F59E0B" />
+                          </View>
+                          <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                            Play streak: {streakCount} days (+{Math.min(streakCount * 2, 20)}% income)
+                          </Text>
                         </View>
-                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                          {pendingEventsCount === 1
-                            ? '1 event is waiting for your decision'
-                            : `${pendingEventsCount} events are waiting for your decision`}
-                        </Text>
-                      </View>
-                    )}
-                    {hasCliffhanger && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIcon}>
-                          <BookOpen size={scale(18)} color="#A855F7" />
+                      )}
+                      {pendingEventsCount > 0 && (
+                        <View style={styles.infoRow}>
+                          <View style={styles.infoIcon}>
+                            <Mail size={scale(18)} color="#3B82F6" />
+                          </View>
+                          <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                            {pendingEventsCount === 1
+                              ? '1 event is waiting for your decision'
+                              : `${pendingEventsCount} events are waiting for your decision`}
+                          </Text>
                         </View>
-                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]} numberOfLines={2}>
-                          Story unresolved: {gameState.pendingCliffhanger?.teaser || 'something happened while you were away.'}
-                        </Text>
-                      </View>
-                    )}
-                    {neglectedPartner && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIcon}>
-                          <Heart size={scale(18)} color="#EF4444" />
+                      )}
+                      {hasCliffhanger && (
+                        <View style={styles.infoRow}>
+                          <View style={styles.infoIcon}>
+                            <BookOpen size={scale(18)} color="#A855F7" />
+                          </View>
+                          <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]} numberOfLines={2}>
+                            Story unresolved: {gameState.pendingCliffhanger?.teaser || 'something happened while you were away.'}
+                          </Text>
                         </View>
-                        <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                          {neglectedPartner.name || 'Your partner'} has been missing you.
-                        </Text>
-                      </View>
-                    )}
-                    {/* The one FORWARD-looking line on a screen that is
-                        otherwise entirely a report of the past.
+                      )}
+                      {neglectedPartner && (
+                        <View style={styles.infoRow}>
+                          <View style={styles.infoIcon}>
+                            <Heart size={scale(18)} color="#EF4444" />
+                          </View>
+                          <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
+                            {neglectedPartner.name || 'Your partner'} has been missing you.
+                          </Text>
+                        </View>
+                      )}
+                      {/* The one FORWARD-looking line on a screen that is
+                          otherwise entirely a report of the past.
                         
-                        This replaced "Continue your life journey" — a row that
-                        occupied the most valuable slot on the return screen and
-                        told the player nothing they did not already know. The
-                        return screen's job is to answer "what happened while I
-                        was away", and then "so what do I do now"; without the
-                        second half it closes on a shrug.
+                          This replaced "Continue your life journey" — a row that
+                          occupied the most valuable slot on the return screen and
+                          told the player nothing they did not already know. The
+                          return screen's job is to answer "what happened while I
+                          was away", and then "so what do I do now"; without the
+                          second half it closes on a shrug.
                         
-                        Derived, never stored, and it pays nothing — the same
-                        read-only recommendation the home screen shows, so the
-                        two surfaces cannot disagree. Falls back to the original
-                        line when no goal is eligible. */}
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIcon}>
-                        <Zap size={scale(18)} color="#8B5CF6" />
+                          Derived, never stored, and it pays nothing — the same
+                          read-only recommendation the home screen shows, so the
+                          two surfaces cannot disagree. Falls back to the original
+                          line when no goal is eligible. */}
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIcon}>
+                          <Zap size={scale(18)} color="#8B5CF6" />
+                        </View>
+                        <Text
+                          style={[styles.infoText, isDarkMode && styles.infoTextDark]}
+                          numberOfLines={2}
+                        >
+                          {nextGoal
+                            ? `Next: ${nextGoal.title} — ${nextGoal.progressLabel}`
+                            : 'Continue your life journey'}
+                        </Text>
                       </View>
-                      <Text
-                        style={[styles.infoText, isDarkMode && styles.infoTextDark]}
-                        numberOfLines={2}
-                      >
-                        {nextGoal
-                          ? `Next: ${nextGoal.title} — ${nextGoal.progressLabel}`
-                          : 'Continue your life journey'}
-                      </Text>
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
+                    </>
+                  );
+                })()}
+              </View>
+            </ScrollView>
 
-            {/* Action Button */}
+            {/* Action Button — pinned OUTSIDE the scroller, because it is the
+                only way to dismiss this popup. */}
             <TouchableOpacity
               style={styles.continueButton}
               onPress={handleClose}
@@ -423,6 +449,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: scale(420),
     position: 'relative',
+    // The bound the scroll area shrinks within. Without something bounded
+    // above it `flexShrink` is a no-op and the card just grows off-screen
+    // again. '100%' is the overlay's height minus its padding.
+    maxHeight: '100%',
   },
   glowCircle: {
     position: 'absolute',
@@ -448,7 +478,10 @@ const styles = StyleSheet.create({
   content: {
     borderRadius: responsiveBorderRadius.xl,
     padding: responsiveSpacing.xl,
-    alignItems: 'center',
+    // `stretch` rather than `center` so the ScrollView spans the card width;
+    // the children that wanted centring get it from `scrollContent`.
+    alignItems: 'stretch',
+    flexShrink: 1,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.3)',
@@ -462,6 +495,12 @@ const styles = StyleSheet.create({
       },
     }),
     elevation: 12,
+  },
+  scrollArea: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    alignItems: 'center',
   },
   header: {
     alignItems: 'center',

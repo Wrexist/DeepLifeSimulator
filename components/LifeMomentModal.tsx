@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { Platform, View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
@@ -125,64 +125,83 @@ export default function LifeMomentModal() {
           colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#F8FAFC', '#FFFFFF']}
           style={styles.container}
         >
-          <Text style={[styles.title, settings.darkMode && styles.titleDark]}>
-            Life Moment
-          </Text>
-          <Text style={[styles.situation, settings.darkMode && styles.situationDark]}>
-            {moment.situation}
-          </Text>
+          {/* ── One scroll surface for the whole card ────────────────────
+              Unlike the celebration popups there is no footer to pin here:
+              the CHOICES are the only way out of this modal (it has no close
+              X and no backdrop tap), so every one of them has to stay
+              reachable. Both halves of the column are variable — `situation`
+              is free-form prose and `choices` is an unbounded list where each
+              option can carry its own row of effect chips — so a wordy moment
+              with four options runs past the card and takes the last choices
+              off the bottom of the screen with it. Everything scrolls.
+
+              `flexShrink: 1` against the card's `maxHeight` bound, not
+              `flex: 1` — see the note in `WeddingPopup`/`ApplyCardModal`. */}
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+          >
+            <Text style={[styles.title, settings.darkMode && styles.titleDark]}>
+              Life Moment
+            </Text>
+            <Text style={[styles.situation, settings.darkMode && styles.situationDark]}>
+              {moment.situation}
+            </Text>
           
-          <View style={styles.choicesContainer}>
-            {!hasChoices && (
-              <TouchableOpacity
-                style={[
-                  styles.choiceButton,
-                  settings.darkMode && styles.choiceButtonDark
-                ]}
-                onPress={handleDismiss}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
-                  Dismiss
-                </Text>
-              </TouchableOpacity>
-            )}
-            {hasChoices && moment.choices.map((choice, index) => (
-              <TouchableOpacity
-                key={choice.id}
-                style={[
-                  styles.choiceButton,
-                  settings.darkMode && styles.choiceButtonDark
-                ]}
-                onPress={() => handleChoice(choice.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
-                  {choice.text}
-                </Text>
-                {choice.quickEffect.length > 0 && (
-                  <View style={styles.effectsContainer}>
-                    {choice.quickEffect.map((effect, i) => (
-                      <View key={i} style={styles.effectItem}>
-                        {effect.amount > 0 ? (
-                          <ArrowUp size={12} color="#10B981" />
-                        ) : effect.amount < 0 ? (
-                          <ArrowDown size={12} color="#EF4444" />
-                        ) : null}
-                        <Text style={[
-                          styles.effectText,
-                          effect.amount > 0 ? styles.positiveEffect : styles.negativeEffect,
-                          settings.darkMode && styles.effectTextDark
-                        ]}>
-                          {effect.label}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
+            <View style={styles.choicesContainer}>
+              {!hasChoices && (
+                <TouchableOpacity
+                  style={[
+                    styles.choiceButton,
+                    settings.darkMode && styles.choiceButtonDark
+                  ]}
+                  onPress={handleDismiss}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
+                    Dismiss
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {hasChoices && moment.choices.map((choice, index) => (
+                <TouchableOpacity
+                  key={choice.id}
+                  style={[
+                    styles.choiceButton,
+                    settings.darkMode && styles.choiceButtonDark
+                  ]}
+                  onPress={() => handleChoice(choice.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.choiceText, settings.darkMode && styles.choiceTextDark]}>
+                    {choice.text}
+                  </Text>
+                  {choice.quickEffect.length > 0 && (
+                    <View style={styles.effectsContainer}>
+                      {choice.quickEffect.map((effect, i) => (
+                        <View key={i} style={styles.effectItem}>
+                          {effect.amount > 0 ? (
+                            <ArrowUp size={12} color="#10B981" />
+                          ) : effect.amount < 0 ? (
+                            <ArrowDown size={12} color="#EF4444" />
+                          ) : null}
+                          <Text style={[
+                            styles.effectText,
+                            effect.amount > 0 ? styles.positiveEffect : styles.negativeEffect,
+                            settings.darkMode && styles.effectTextDark
+                          ]}>
+                            {effect.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </LinearGradient>
       </View>
     </Modal>
@@ -202,6 +221,10 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    // The bound the scroll area shrinks within — '100%' is the overlay's
+    // height less its padding. Without it `flexShrink` has nothing to shrink
+    // against and the card grows off-screen exactly as before.
+    maxHeight: '100%',
     ...Platform.select({
       web: { boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.3)' } as any,
       default: {
@@ -232,6 +255,14 @@ const styles = StyleSheet.create({
   },
   situationDark: {
     color: '#D1D5DB',
+  },
+  scrollArea: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    // The card's own padding still frames the content; the scroller only
+    // needs to stop the last choice sitting flush against the card edge.
+    paddingBottom: 4,
   },
   choicesContainer: {
     gap: 12,

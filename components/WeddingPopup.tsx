@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { Heart, Sparkles, Crown, PartyPopper, Gem as Rings } from 'lucide-react-native';
@@ -142,57 +142,85 @@ export default function WeddingPopup() {
             colors={['#FF69B4', '#FF1493', '#DC143C', '#C71585']}
             style={styles.gradientBackground}
           >
-            {/* Header with animated heart */}
-            <View style={styles.header}>
-              <Animated.View style={{ transform: [{ scale: heartPulseAnim }] }}>
-                <View style={styles.heartContainer}>
-                  <Rings size={scale(50)} color="#FFD700" strokeWidth={2} />
-                  <Heart 
-                    size={scale(50)} 
-                    color="#FFFFFF" 
-                    fill="#FFFFFF" 
-                    style={styles.heartIcon}
-                  />
+            {/* ── The scroll surface ───────────────────────────────────────
+                Header + body live inside a shrinking scroller; the Continue
+                button stays pinned below it as a sibling.
+
+                The card is bounded (`maxHeight: height * 0.85`) and clips
+                (`overflow: 'hidden'`), and this column — crest, congratulation
+                line, celebration box, three reward rows, closing line, CTA —
+                measures taller than that bound on a normal phone. With nothing
+                scrollable, the overflow went off the bottom of the card and
+                took the Continue button with it: the popup blocks every other
+                surface, so a player whose button was clipped had no way out of
+                it at all (the bug report screenshot ends at the closing line).
+
+                `flexShrink: 1` rather than `flex: 1` is deliberate, and it is
+                the same rule `ApplyCardModal` follows: `flex: 1` is flexBasis 0
+                + grow with shrink still 0, so a footer taller than the
+                left-over space takes ALL of it and the scroll area resolves to
+                zero height — the DeathPopup failure. Shrink lets the scroller
+                take whatever the pinned button leaves, at any screen size. */}
+            <ScrollView
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={true}
+              bounces={false}
+            >
+              {/* Header with animated heart */}
+              <View style={styles.header}>
+                <Animated.View style={{ transform: [{ scale: heartPulseAnim }] }}>
+                  <View style={styles.heartContainer}>
+                    <Rings size={scale(50)} color="#FFD700" strokeWidth={2} />
+                    <Heart 
+                      size={scale(50)} 
+                      color="#FFFFFF" 
+                      fill="#FFFFFF" 
+                      style={styles.heartIcon}
+                    />
+                  </View>
+                </Animated.View>
+                <Text style={styles.title}>YOU'RE MARRIED!</Text>
+              </View>
+
+              {/* Main content */}
+              <View style={styles.content}>
+                <Text style={styles.message}>
+                  Congratulations! You and <Text style={styles.partnerName}>{weddingPartnerName}</Text> are now officially married!
+                </Text>
+
+                <View style={styles.celebrationBox}>
+                  <Text style={styles.celebrationText}>Wedding Celebration</Text>
+                  <Text style={styles.celebrationSubtext}>
+                    Your special day has arrived! Time to celebrate your love story together.
+                  </Text>
                 </View>
-              </Animated.View>
-              <Text style={styles.title}>YOU'RE MARRIED!</Text>
-            </View>
 
-            {/* Main content */}
-            <View style={styles.content}>
-              <Text style={styles.message}>
-                Congratulations! You and <Text style={styles.partnerName}>{weddingPartnerName}</Text> are now officially married!
-              </Text>
+                <View style={styles.benefitsContainer}>
+                  <Text style={styles.benefitsTitle}>Wedding Rewards:</Text>
+                  <View style={styles.benefitItem}>
+                    <Crown size={scale(22)} color="#FFD700" />
+                    <Text style={styles.benefitText}>+20 Relationship Points</Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <Heart size={scale(22)} color="#FF69B4" />
+                    <Text style={styles.benefitText}>Spouse Status Unlocked</Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <PartyPopper size={scale(22)} color="#9370DB" />
+                    <Text style={styles.benefitText}>Happiness Boost</Text>
+                  </View>
+                </View>
 
-              <View style={styles.celebrationBox}>
-                <Text style={styles.celebrationText}>Wedding Celebration</Text>
-                <Text style={styles.celebrationSubtext}>
-                  Your special day has arrived! Time to celebrate your love story together.
+                <Text style={styles.congratulations}>
+                  May your love story be filled with joy, adventure, and happily ever after.
                 </Text>
               </View>
+            </ScrollView>
 
-              <View style={styles.benefitsContainer}>
-                <Text style={styles.benefitsTitle}>Wedding Rewards:</Text>
-                <View style={styles.benefitItem}>
-                  <Crown size={scale(22)} color="#FFD700" />
-                  <Text style={styles.benefitText}>+20 Relationship Points</Text>
-                </View>
-                <View style={styles.benefitItem}>
-                  <Heart size={scale(22)} color="#FF69B4" />
-                  <Text style={styles.benefitText}>Spouse Status Unlocked</Text>
-                </View>
-                <View style={styles.benefitItem}>
-                  <PartyPopper size={scale(22)} color="#9370DB" />
-                  <Text style={styles.benefitText}>Happiness Boost</Text>
-                </View>
-              </View>
-
-              <Text style={styles.congratulations}>
-                May your love story be filled with joy, adventure, and happily ever after.
-              </Text>
-            </View>
-
-            {/* Continue button */}
+            {/* Continue button — pinned OUTSIDE the scroller on purpose, so the
+                one way to dismiss the popup is on screen the moment it opens
+                and never scrolls away. */}
             <TouchableOpacity style={styles.continueButton} onPress={closePopup}>
               <LinearGradient
                 colors={['#FFD700', '#FFA500', '#FF8C00']}
@@ -233,6 +261,18 @@ const styles = StyleSheet.create({
   },
   gradientBackground: {
     padding: responsivePadding.large,
+    // `stretch`, not `center`: a centred cross-axis would size the ScrollView
+    // to its content width instead of the card's. The children that wanted
+    // centring get it from `scrollContent` below.
+    alignItems: 'stretch',
+    // Lets the gradient give height back to the card's `maxHeight` bound
+    // instead of growing past it and clipping the button away.
+    flexShrink: 1,
+  },
+  scrollArea: {
+    flexShrink: 1,
+  },
+  scrollContent: {
     alignItems: 'center',
   },
   header: {
