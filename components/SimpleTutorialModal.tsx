@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { X, ArrowRight, Lightbulb } from 'lucide-react-native';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -65,8 +65,21 @@ export default function SimpleTutorialModal({
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
-          <View style={styles.content}>
+          {/* ── The scroll surface ───────────────────────────────────────
+              The card is capped at `maxHeight: '80%'`, and the step body is
+              free-form copy: a long `step.description` (or a large system font
+              scale) pushes the footer — Skip Tour and Next, the two controls
+              that move the tour along — past that cap. Only the header X would
+              be left, which quits the tour rather than continuing it.
+
+              `flexShrink: 1` against the cap, not `flex: 1` — see the note in
+              `WeddingPopup`/`ApplyCardModal`. */}
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+          >
             <View style={styles.iconContainer}>
               <Lightbulb size={32} color="#F59E0B" />
             </View>
@@ -76,9 +89,10 @@ export default function SimpleTutorialModal({
             <Text style={[styles.message, darkMode && styles.messageDark]}>
               {step.description}
             </Text>
-          </View>
+          </ScrollView>
 
-          {/* Footer */}
+          {/* Footer — pinned outside the scroller so Next is on screen from
+              the moment the step opens. */}
           <View style={styles.footer}>
             <TouchableOpacity onPress={onSkip} style={styles.skipButton}>
               <Text style={[styles.skipText, darkMode && styles.skipTextDark]}>
@@ -153,6 +167,11 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.sm,
     marginLeft: responsiveSpacing.md,
   },
+  scrollArea: {
+    flexShrink: 1,
+  },
+  // Now the ScrollView's contentContainerStyle, which is what it has always
+  // effectively been: a padded, centred column.
   content: {
     padding: responsiveSpacing.lg,
     alignItems: 'center',
