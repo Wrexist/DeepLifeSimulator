@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
+import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
 import { summarizeCriminalRecord, criminalProgress } from '@/lib/crime/criminalRecord';
 import { activeLegacyBuffs } from '@/lib/legacy/activeBuffs';
 import { View,
@@ -641,7 +642,12 @@ function WorkScreenContent() {
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
         const { happinessPenalty, healthPenalty } = getCareerPenalties();
 
-        const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level?.salary ?? 0}/wk`;
+        // Through `displayWeeklySalary`, not `level.salary` raw: the political
+        // ladder stores ANNUAL salaries, so the raw field printed a President's
+        // pay as 52x the weekly figure the tick credits.
+        const reward = requiresEdu && !hasEdu
+            ? '— Locked'
+            : `$${displayWeeklySalary(career.id, level?.salary).toLocaleString()}/wk`;
         // Only entry-tier jobs have a hiring bar; everything else is governed by
         // the career's own `requirements`.
         const entryHiring = isEntryTierCareer(career.id) && !isEmployedHere && !career.accepted
@@ -846,7 +852,8 @@ function WorkScreenContent() {
         state: { isLocked: boolean; isApplied: boolean; isAccepted: boolean; lockReqs: string[] },
     ): React.ReactElement => {
         const displayName = career.levels?.[0]?.name ?? career.id;
-        const salary = career.levels?.[0]?.salary ?? 0;
+        // Weekly, via the shared converter — the political ladder is annual.
+        const salary = displayWeeklySalary(career.id, career.levels?.[0]?.salary);
         const { isLocked, isApplied, isAccepted, lockReqs } = state;
 
         const metadata: JobCardMetadata[] = [
@@ -939,7 +946,7 @@ function WorkScreenContent() {
         ? (gameState.careers || []).find(c => c.id === gameState.currentJob)
         : undefined;
     const currentJobLevel = currentJob ? (currentJob.levels?.[currentJob.level] ?? currentJob.levels?.[0]) : undefined;
-    const currentJobSalary = currentJobLevel?.salary ?? 0;
+    const currentJobSalary = displayWeeklySalary(currentJob?.id, currentJobLevel?.salary);
     const currentJobRaisePct = currentJob ? raisePremiumPct(currentJob.raiseMultiplier) : 0;
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 

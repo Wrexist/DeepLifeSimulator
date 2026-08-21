@@ -14,6 +14,7 @@
  */
 
 import React, { useState } from 'react';
+import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
 import {
  View,
  Text,
@@ -126,7 +127,9 @@ export default function ShareLifeCard({ gameState, onClose }: ShareLifeCardProps
  const careerName = workingCareer?.id
  ? workingCareer.id.charAt(0).toUpperCase() + workingCareer.id.slice(1)
  : 'Unemployed';
- const salary = workingCareer?.levels[workingCareer.level]?.salary || 0;
+ // Weekly: the political ladder stores ANNUAL salaries, and this card labels
+ // the figure "/week" in the shared image and "/wk" in the stat row.
+ const salary = displayWeeklySalary(workingCareer?.id, workingCareer?.levels[workingCareer.level]?.salary);
  const netWorth = calculateNetWorth(gameState);
  const spouse = gameState.family?.spouse;
  const childrenCount = gameState.family?.children?.length || 0;

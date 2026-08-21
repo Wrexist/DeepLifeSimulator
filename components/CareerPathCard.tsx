@@ -7,6 +7,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { applyRaisePremium, resolveRaisePremium } from '@/lib/careers/raisePremium';
+import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import {
     Briefcase,
@@ -98,7 +99,11 @@ function CareerItem({
     // Reported as "Ask for a raise doesn't apply to the income. It stays flat
     // rate." The raise was real; it was just never displayed.
     const raiseMult = resolveRaisePremium(career.raiseMultiplier);
-    const paidSalary = (base: number | undefined) => applyRaisePremium(base ?? 0, career.raiseMultiplier);
+    // Weekly, and with the negotiated premium on top. `displayWeeklySalary`
+    // converts the political ladder's ANNUAL figures; every other ladder passes
+    // through unchanged.
+    const paidSalary = (base: number | undefined) =>
+        displayWeeklySalary(career.id, applyRaisePremium(base ?? 0, career.raiseMultiplier));
     const hasRaise = raiseMult > 1;
     const tier = getCareerTier(career.level, career.levels ? career.levels.length : 1);
     const tierInfo = CAREER_TIERS[tier];
@@ -149,7 +154,7 @@ function CareerItem({
                     )}
                 </View>
                 <View style={styles.careerHeaderRight}>
-                    <Text style={styles.salaryText}>${paidSalary(currentLevel?.salary)}/wk</Text>
+                    <Text style={styles.salaryText}>${paidSalary(currentLevel?.salary).toLocaleString()}/wk</Text>
                     {isExpanded ? (
                         <ChevronDown size={18} color="#94A3B8" />
                     ) : (
@@ -247,7 +252,7 @@ function CareerItem({
                                         ]} numberOfLines={1}>
                                             {level.name}
                                         </Text>
-                                        <Text style={styles.levelSalary}>${paidSalary(level.salary)}</Text>
+                                        <Text style={styles.levelSalary}>${paidSalary(level.salary).toLocaleString()}</Text>
                                         {idx < (career.levels?.length || 0) - 1 && (
                                             <View style={styles.levelConnector} />
                                         )}
@@ -262,7 +267,7 @@ function CareerItem({
                         <View style={styles.promotionBanner}>
                             <TrendingUp size={16} color="#10B981" />
                             <Text style={styles.promotionText}>
-                                Promotion available to {nextLevel?.name}! (+${paidSalary(nextLevel?.salary) - paidSalary(currentLevel?.salary)}/wk)
+                                Promotion available to {nextLevel?.name}! (+${(paidSalary(nextLevel?.salary) - paidSalary(currentLevel?.salary)).toLocaleString()}/wk)
                             </Text>
                         </View>
                     )}
@@ -310,7 +315,8 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
         // Same raise premium as the expanded card above — this compact summary
         // is what the player sees first, so it must not disagree with it.
         const raiseMult = resolveRaisePremium(currentCareer.raiseMultiplier);
-        const paidSalary = (base: number | undefined) => applyRaisePremium(base ?? 0, currentCareer.raiseMultiplier);
+        const paidSalary = (base: number | undefined) =>
+            displayWeeklySalary(currentCareer.id, applyRaisePremium(base ?? 0, currentCareer.raiseMultiplier));
         const canPromote = !!nextLevel && getPromotionEligibility(currentCareer, gameState.weeksLived).eligible;
         const careerDisplayName = formatCareerName(currentCareer.id);
 
@@ -327,7 +333,7 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
                 </View>
                 <View style={styles.compactDetails}>
                     <Text style={styles.compactLevel}>{currentLevel?.name}</Text>
-                    <Text style={styles.compactSalary}>${paidSalary(currentLevel?.salary)}/wk</Text>
+                    <Text style={styles.compactSalary}>${paidSalary(currentLevel?.salary).toLocaleString()}/wk</Text>
                 </View>
                 <View style={styles.compactProgress}>
                     <View style={styles.compactProgressBar}>

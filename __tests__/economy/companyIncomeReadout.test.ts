@@ -105,9 +105,12 @@ describe('the summary reconciles', () => {
   });
 
   it('survives a missing / corrupt companies list', () => {
-    const base = createTestGameState();
     for (const bad of [undefined, null, 'nope']) {
-      const summary = calcCompanyWeeklyIncome({ ...base, companies: bad } as unknown as GameState);
+      // Through the factory (Hard Rule #3) — only the ONE field under test is
+      // widened, rather than casting a hand-built object to GameState and
+      // losing the compile-time check on every other field.
+      const state = createTestGameState({ companies: bad as never });
+      const summary = calcCompanyWeeklyIncome(state);
       expect(`${summary.paid}:${summary.lost}:${summary.efficiency}`).toBe('0:0:1');
     }
   });

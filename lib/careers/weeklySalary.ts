@@ -57,3 +57,32 @@ export function weeklyCareerSalary(state: Pick<GameState, 'careers' | 'currentJo
   const weekly = isAnnualSalaryCareer(job.id) ? raw / WEEKS_PER_YEAR : raw;
   return Number.isFinite(weekly) && weekly > 0 ? Math.round(weekly) : 0;
 }
+
+/**
+ * A career-level salary converted to the WEEKLY figure a player is actually
+ * paid — for display.
+ *
+ * `weeklyCareerSalary` above answers "what does the player earn right now",
+ * which needs `currentJob` and `accepted`. Screens ask a different question:
+ * they hold a career and a rung (often one the player does not hold — a job
+ * listing, the next promotion, a career they are browsing) and want to print a
+ * number with `/wk` after it.
+ *
+ * Every one of those screens read `levels[level].salary` raw, so the political
+ * ladder — the one ladder whose salaries are ANNUAL — was rendered as weekly
+ * across the entire app. A President saw "$100,000/wk" on the Work tab and was
+ * paid $1,923. The Politics app got it right (`PoliticalApp` divides), which is
+ * how the same save showed two numbers 52x apart depending on which screen you
+ * opened.
+ *
+ * Returns a finite, non-negative integer for any input, so a corrupt save
+ * prints $0 rather than `NaN/wk`.
+ */
+export function displayWeeklySalary(
+  careerId: string | undefined,
+  rawSalary: number | undefined | null,
+): number {
+  if (typeof rawSalary !== 'number' || !Number.isFinite(rawSalary) || rawSalary <= 0) return 0;
+  const weekly = isAnnualSalaryCareer(careerId) ? rawSalary / WEEKS_PER_YEAR : rawSalary;
+  return Number.isFinite(weekly) && weekly > 0 ? Math.round(weekly) : 0;
+}

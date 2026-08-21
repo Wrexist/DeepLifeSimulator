@@ -6,6 +6,8 @@ import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
 import { getSocialMediaData } from '@/lib/social/socialMedia';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
+import { appointmentWeeklySalary } from '@/lib/politics/appointments';
+import { readPensionWeekly } from '@/lib/politics/retirement';
 import { netWorth } from '@/lib/progress/achievements';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -82,7 +84,14 @@ export interface PassiveIncomeResult {
  * produce a 52x pension — so there is exactly one copy.
  */
 export function getPoliticalWeeklySalary(state: GameState): number {
-  if (!state.politics || !(state.politics.careerLevel > 0)) return 0;
+  // Paid political WORK, which is the elected seat plus any appointed post
+  // (Ambassador, Cabinet Secretary, Lobbyist, …). A pension is deliberately
+  // NOT here: this figure is what `applyLifetimeStatistics` counts as work
+  // toward a pension, so folding the pension in would let it compound on
+  // itself. `getPoliticalPensionWeekly` pays that, separately.
+  const appointmentPay = appointmentWeeklySalary(state?.politics?.appointment?.id);
+
+  if (!state.politics || !(state.politics.careerLevel > 0)) return appointmentPay;
   // CRITICAL: Validate careers array exists before using find
   const careers = Array.isArray(state.careers) ? state.careers : [];
   const politicalCareer = careers.find(c => c && c.id === 'political');
@@ -93,15 +102,29 @@ export function getPoliticalWeeklySalary(state: GameState): number {
     politicalCareer.level < 0 ||
     politicalCareer.level >= POLITICAL_CAREER.levels.length
   ) {
-    return 0;
+    return appointmentPay;
   }
   const level = POLITICAL_CAREER.levels[politicalCareer.level];
   if (!level || typeof level.salary !== 'number' || !isFinite(level.salary) || level.salary <= 0) {
-    return 0;
+    return appointmentPay;
   }
   // Convert annual salary to weekly (salary is annual in POLITICAL_CAREER)
   const weeklySalary = level.salary / WEEKS_PER_YEAR;
-  return isFinite(weeklySalary) && weeklySalary > 0 ? Math.round(weeklySalary) : 0;
+  const office = isFinite(weeklySalary) && weeklySalary > 0 ? Math.round(weeklySalary) : 0;
+  return office + appointmentPay;
+}
+
+/**
+ * The weekly pension a retired official draws — 0 for everyone else.
+ *
+ * Kept out of `getPoliticalWeeklySalary` on purpose: that number is the WORK
+ * the lifetime-statistics tick counts toward earning a pension, and a pension
+ * that counted as work toward itself would compound. Both are paid through the
+ * same `political` line below, so `PER_SOURCE_CAPS.political` ($50K/wk) still
+ * binds the pair of them together.
+ */
+export function getPoliticalPensionWeekly(state: GameState): number {
+  return readPensionWeekly(state?.politics?.retirement);
 }
 
 export function calcWeeklyPassiveIncome(
@@ -359,7 +382,7 @@ export function calcWeeklyPassiveIncome(
 
   // Political career salary (weekly income from political office)
   // (getPoliticalWeeklySalary already guarantees a finite, non-negative number.)
-  const politicalIncome = getPoliticalWeeklySalary(state);
+  const politicalIncome = getPoliticalWeeklySalary(state) + getPoliticalPensionWeekly(state);
 
   // Crypto mining income (Bitcoin mining from companies and warehouse)
   let cryptoMiningIncome = 0;

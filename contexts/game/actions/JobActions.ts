@@ -19,6 +19,7 @@ import {
   resolveRaisePremium,
   RAISE_MIN_PERFORMANCE,
 } from '@/lib/careers/raisePremium';
+import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
@@ -1110,12 +1111,17 @@ export const promoteCareer = (
   // moment both rungs are known — `career` is the pre-promotion snapshot, so
   // once state commits the old title and salary are unrecoverable.
   const previousLevelData = career.levels[career.level];
-  const paid = (base: number) => applyRaisePremium(base, career.raiseMultiplier);
+  // WEEKLY, with the negotiated premium on top. `PendingPromotion.fromSalary`
+  // is documented as weekly pay and the celebration modal prints it with "/wk",
+  // but `levels[].salary` is ANNUAL on the political ladder — so a promotion to
+  // Governor announced "$15,000/wk" for a job that pays $288.
+  const paid = (base: number) =>
+    displayWeeklySalary(careerId, applyRaisePremium(base, career.raiseMultiplier));
   const topLevel = Math.max(0, career.levels.length - 1);
 
   return {
     success: true,
-    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${levelData.salary}/week.`,
+    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${displayWeeklySalary(careerId, applyRaisePremium(levelData.salary, career.raiseMultiplier)).toLocaleString()}/week.`,
     promotion: {
       careerId,
       fromTitle: previousLevelData?.name ?? 'Your old role',

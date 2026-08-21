@@ -3539,6 +3539,64 @@ export interface PoliticsState {
   pac?: PACPoolState;
   /** Last week we checked for scandal exposure (so we don't double-roll). */
   lastScandalCheckWeek?: number;
+
+  // ── Political Life expansion (STATE_VERSION 47) ─────────────────────────
+  //
+  // Five optional fields, one version bump. Every default is `undefined`, so
+  // this is a CARVE-OUT: no backfill and no `repairGameState` mirror, because
+  // absence already resolves correctly for all five and writing a value would
+  // be a guess in a direction that HANDS OUT or TAKES AWAY something real.
+  // See the v47 note in CLAUDE.md §7.
+
+  /**
+   * Standing inside the party, 0-100. `party` alone was a label read by nothing
+   * but a chip; this is what makes it a relationship — it gates the party's
+   * endorsement (which moves election odds) and its campaign funding.
+   *
+   * Read through `readPartySupport` (lib/politics/parties.ts), which applies
+   * the fresh-member baseline at read time and returns 0 for `independent`
+   * (which has no machine to stand in).
+   */
+  partySupport?: number;
+
+  /**
+   * Times the player has crossed the floor. Each defection costs more approval
+   * than the last, so party choice is a commitment rather than a pre-election
+   * button. Absent means "never switched", which is what a save with a `party`
+   * and no counter genuinely represents.
+   */
+  partySwitches?: number;
+
+  /**
+   * The appointed position currently held — one at a time. Not part of the
+   * elected ladder: Party Chair, Ambassador, Cabinet Secretary, Federal Judge,
+   * Lobbyist, Corporate Board Seat. Some of them BAR sitting in elected office,
+   * which is checked at the point the player runs.
+   */
+  appointment?: { id: string; startedWeek: number };
+
+  /**
+   * Money diverted from the war chest to personal cash, and the exposure it
+   * bought. `heat` feeds the EXISTING scandal roll (expressed in the same
+   * dollar currency as `pac.lifetimeDirtyUSD`, so corruption risk stays one
+   * tuning point). Read through `readEmbezzlement`.
+   */
+  embezzlement?: { totalUSD: number; heat: number; lastWeek: number };
+
+  /**
+   * The record written when the player stands down voluntarily — the third exit
+   * from office, and the only one they choose. Carries the pension and the
+   * title, captured while the title is still TRUE (the v42 reasoning: retiring
+   * resets `careers.political.level` to 0, so a title derived afterwards would
+   * name whatever level 0 is called).
+   */
+  retirement?: {
+    retiredWeek: number;
+    officeLevel: number;
+    title: string;
+    termsServed: number;
+    weeklyPension: number;
+  };
 }
 
 export interface Goal {

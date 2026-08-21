@@ -1168,6 +1168,40 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 46;
     return state;
   },
+
+  /**
+   * v47 — the Political Life expansion: `partySupport`, `partySwitches`,
+   * `appointment`, `embezzlement` and `retirement` on `PoliticsState`.
+   *
+   * Five fields, one bump, and a stub migration because every one of them
+   * defaults to `undefined` — a CARVE-OUT (no backfill, no `repairGameState`
+   * mirror). Absence already resolves for all five, and writing a value would
+   * be actively wrong in a different direction for each:
+   *
+   *   - `partySupport` — `readPartySupport` applies the fresh-member baseline
+   *     at read time, so an existing party member loads as a member in good
+   *     standing. Stamping a number would either hand out an endorsement they
+   *     never earned or start them under a primary challenge they never lost.
+   *   - `partySwitches` — absent means "never crossed the floor", which is the
+   *     truth for every save written before switching had a cost.
+   *   - `appointment` — absent means holding none. Inventing one would pay a
+   *     salary for a job nobody took, and two of the posts BAR elected office,
+   *     so it could also silently disqualify a sitting official.
+   *   - `embezzlement` — absent means clean hands. Writing zeros is harmless
+   *     but pointless; writing anything else would accuse the player of a crime
+   *     they did not commit and feed it into the scandal roll.
+   *   - `retirement` — absent means still in the game. Inventing a record would
+   *     pay a pension nobody earned AND stamp a title on a career that never
+   *     reached it.
+   *
+   * The fields still have to survive the LOAD, which `loadedStateMerge`
+   * guarantees by keeping the saved object's own keys rather than iterating
+   * `initialGameState`'s (the whole-category bug behind v28 and v39).
+   */
+  47: (state) => {
+    state.version = 47;
+    return state;
+  },
 };
 
 /**

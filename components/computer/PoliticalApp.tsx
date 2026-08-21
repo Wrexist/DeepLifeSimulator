@@ -39,6 +39,9 @@ import {
   Award,
   DollarSign,
   Landmark,
+  Banknote,
+  ShieldAlert,
+  LogOut,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,10 +68,33 @@ import {
   joinParty,
   hireLobbyist,
   formAlliance,
+  availableAppointments,
+  takeAppointment,
+  resignAppointment,
+  embezzleCampaignFunds,
+  retireFromPolitics,
 } from '@/contexts/game/actions/PoliticalActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { ensurePoliticsHasNewFields } from '@/lib/politics/operations';
+import {
+  ENDORSEMENT_THRESHOLD,
+  POLITICAL_PARTIES,
+  facesPrimaryChallenge,
+  findParty,
+  hasPartyMachine,
+  isEndorsed,
+  readPartySupport,
+} from '@/lib/politics/parties';
+import { findAppointment } from '@/lib/politics/appointments';
+import {
+  maxWeeklySkim,
+  readEmbezzlement,
+  skimmablePot,
+  skimmedThisWeek,
+} from '@/lib/politics/embezzlement';
+import { calculatePension, retirementBlocker } from '@/lib/politics/retirement';
+import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS } from '@/lib/careers/political';
 import { getPolicyById, calculatePolicyEffects } from '@/lib/politics/policies';
 import type { Policy } from '@/lib/politics/policies';
@@ -122,7 +148,7 @@ interface PoliticalAppProps {
   onBack: () => void;
 }
 
-type Tab = 'office' | 'policies' | 'influence';
+type Tab = 'office' | 'career' | 'policies' | 'influence';
 
 // Local list→detail routing. `null` = the tabbed home; anything else takes
 // over the scroll body (presentational pages over existing data only).
@@ -153,6 +179,7 @@ const ALLIANCE_INFLUENCE = 10;
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { id: 'office',     label: 'Office',    icon: Briefcase },
+  { id: 'career',     label: 'Career',    icon: Landmark },
   { id: 'policies',   label: 'Policies',  icon: ClipboardList },
   { id: 'influence',  label: 'Influence', icon: TrendingUp },
 ];
@@ -277,6 +304,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   const [suppressTargetId, setSuppressTargetId] = useState<string | null>(null);
   const [showEnactPolicy, setShowEnactPolicy] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
+  const [showEmbezzle, setShowEmbezzle] = useState(false);
 
   const cash = gameState.stats?.money ?? 0;
   const btcOwned = useMemo(
@@ -300,7 +328,13 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   const careerLevel = politics.careerLevel ?? 0;
   const officeName = OFFICE_NAME[careerLevel] ?? `Office Lv ${careerLevel}`;
-  const salaryWeekly = careerLevel >= 1 ? (POLITICAL_CAREER.levels[careerLevel - 1]?.salary ?? 0) : 0;
+  // NAMED weekly and rendered with "/wk" in three places — but
+  // `POLITICAL_CAREER.levels[].salary` is ANNUAL, so this printed a President's
+  // pay as $100,000/wk against the $1,923 the tick credits. Through the shared
+  // converter now, the same one the Work tab and the career cards use.
+  const salaryWeekly = careerLevel >= 1
+    ? displayWeeklySalary('political', POLITICAL_CAREER.levels[careerLevel - 1]?.salary)
+    : 0;
   const weeksToElection = politics.nextElectionWeek != null
     ? Math.max(0, politics.nextElectionWeek - gameState.weeksLived)
     : null;
@@ -325,7 +359,9 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         index,
         name: OFFICE_NAME[index] ?? `Office Lv ${index}`,
         status,
-        salaryWeekly: index >= 1 ? (POLITICAL_CAREER.levels[index - 1]?.salary ?? 0) : 0,
+        salaryWeekly: index >= 1
+          ? displayWeeklySalary('political', POLITICAL_CAREER.levels[index - 1]?.salary)
+          : 0,
         cost: key ? (CAMPAIGN_COST[key] ?? 0) : 0,
         key,
       };
@@ -348,7 +384,64 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   const handleJoinParty = useCallback((party: 'democratic' | 'republican' | 'independent') => {
     const result = joinParty(gameState, setGameState, party);
+    // Crossing the floor costs approval and standing, so the outcome is
+    // reported either way rather than silently applied.
+    Alert.alert(result.success ? 'Party membership' : 'Could not join', result.message);
     if (result.success) queueSave();
+  }, [gameState, setGameState, queueSave]);
+
+  const handleTakeAppointment = useCallback((appointmentId: string) => {
+    const result = takeAppointment(gameState, setGameState, appointmentId);
+    Alert.alert(result.success ? 'Appointment' : 'Not offered', result.message);
+    if (result.success) queueSave();
+  }, [gameState, setGameState, queueSave]);
+
+  const handleResignAppointment = useCallback(() => {
+    const result = resignAppointment(gameState, setGameState);
+    if (result.success) queueSave();
+    else Alert.alert('Appointment', result.message);
+  }, [gameState, setGameState, queueSave]);
+
+  /**
+   * Retiring is irreversible — the seat is gone and only a new election gets it
+   * back — so it asks first, with the pension named in the prompt.
+   */
+  const handleRetire = useCallback(() => {
+    const politicalCareer = (gameState.careers ?? []).find((c) => c.id === 'political');
+    const weeksInOffice = typeof politicalCareer?.startedWeeksLived === 'number'
+      ? Math.max(0, (gameState.weeksLived ?? 0) - politicalCareer.startedWeeksLived)
+      : (politicalCareer?.progress ?? 0);
+    const blocker = retirementBlocker({
+      careerLevel: gameState.politics?.careerLevel,
+      termsServed: gameState.politics?.electionsWon,
+      weeksInOffice,
+    });
+    if (blocker) {
+      Alert.alert('Cannot retire yet', blocker);
+      return;
+    }
+    const pension = calculatePension({
+      officeLevel: gameState.politics?.careerLevel,
+      termsServed: gameState.politics?.electionsWon,
+      approvalRating: gameState.politics?.approvalRating,
+    });
+    Alert.alert(
+      'Stand down?',
+      `You will leave office for good and draw ${formatMoney(pension)}/wk for life. `
+      + 'Getting the seat back means winning another election.',
+      [
+        { text: 'Stay in office', style: 'cancel' },
+        {
+          text: 'Retire',
+          style: 'destructive',
+          onPress: () => {
+            const result = retireFromPolitics(gameState, setGameState);
+            Alert.alert(result.success ? 'Retired' : 'Could not retire', result.message);
+            if (result.success) queueSave();
+          },
+        },
+      ],
+    );
   }, [gameState, setGameState, queueSave]);
 
   const handleEnactPolicy = useCallback((policyId: string) => {
@@ -531,32 +624,262 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         <Text style={[styles.secondaryCtaText, { color: SKY }]}>Fund a campaign push (raise approval)</Text>
       </TouchableOpacity>
 
-      {/* Party affiliation — unlocks party events and a small approval bump. */}
-      {politics.party ? (
-        <Text style={[styles.helperText, { color: theme.textMuted }]}>
-          Registered with the {politics.party.charAt(0).toUpperCase() + politics.party.slice(1)} Party.
+      {/* Party, appointments, the war chest and retirement all live on the
+          Career tab — this tab is the seat you hold right now. */}
+      <TouchableOpacity
+        onPress={() => setActiveTab('career')}
+        activeOpacity={0.85}
+        style={[getGlassButton(darkMode), styles.secondaryCta]}
+        accessibilityRole="button"
+        accessibilityLabel="Open your political career: party, appointments and retirement"
+      >
+        <Landmark size={scale(15)} color={SKY} />
+        <Text style={[styles.secondaryCtaText, { color: SKY }]}>
+          {politics.party
+            ? `${findParty(politics.party)?.name ?? politics.party} Party · career & appointments`
+            : 'Join a party, take an appointment, plan your exit'}
         </Text>
-      ) : (
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Choose a party</SectionTitle>
-          <View style={styles.partyRow}>
-            {PARTIES.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                onPress={() => handleJoinParty(p.id)}
-                activeOpacity={0.85}
-                style={[getGlassButton(darkMode), styles.partyBtn]}
-                accessibilityRole="button"
-                accessibilityLabel={`Join ${p.label} Party`}
-              >
-                <Text style={[styles.partyBtnText, { color: theme.text }]}>{p.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
+      </TouchableOpacity>
     </View>
   );
+
+  // --- Career tab --------------------------------------------------------
+  //
+  // Everything a political life is made of that is not the seat itself: the
+  // party machine that backs you, the appointed posts that pay when you are out
+  // of office, the war chest (and the temptation it represents), and the exit.
+  const renderCareer = () => {
+    const party = politics.party;
+    const partyDef = findParty(party);
+    const support = readPartySupport(party, politics.partySupport);
+    const endorsed = isEndorsed(party, politics.partySupport);
+    const challenged = facesPrimaryChallenge(party, politics.partySupport);
+
+    const appointment = findAppointment(politics.appointment?.id);
+    const offers = availableAppointments(gameState);
+
+    const embezzlement = readEmbezzlement(politics.embezzlement);
+    const pot = skimmablePot({ campaignFunds: politics.campaignFunds, pacCleanUSD: politics.pac?.cleanUSD });
+    const skimAllowance = maxWeeklySkim(pot);
+    const skimmedAlready = skimmedThisWeek(embezzlement, gameState.weeksLived);
+
+    const politicalCareer = (gameState.careers ?? []).find((c) => c.id === 'political');
+    const weeksInOffice = typeof politicalCareer?.startedWeeksLived === 'number'
+      ? Math.max(0, (gameState.weeksLived ?? 0) - politicalCareer.startedWeeksLived)
+      : (politicalCareer?.progress ?? 0);
+    const retireBlocker = retirementBlocker({
+      careerLevel,
+      termsServed: politics.electionsWon,
+      weeksInOffice,
+    });
+    const retired = politics.retirement;
+
+    return (
+      <View style={{ gap: responsiveSpacing.lg }}>
+        {/* ── Party ──────────────────────────────────────────────────── */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <SectionTitle theme={theme}>{party ? 'Your party' : 'Choose a party'}</SectionTitle>
+
+          {party ? (
+            <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{partyDef?.name ?? party} Party</Text>
+              {hasPartyMachine(party) ? (
+                <>
+                  <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                    Standing {support}/100 · {endorsed
+                      ? 'endorsed — the machine is behind you'
+                      : challenged
+                        ? 'the party is shopping for another candidate'
+                        : `${ENDORSEMENT_THRESHOLD - support} more for an endorsement`}
+                  </Text>
+                  <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
+                    <View
+                      style={[
+                        styles.meterFill,
+                        {
+                          width: `${support}%`,
+                          backgroundColor: endorsed ? accent.success : challenged ? accent.danger : SKY,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.helperText, { color: theme.textMuted }]}>
+                    An endorsement moves election odds and pays into your war chest every week. Enacting
+                    the platform raises standing; scandals cost it.
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                  No platform to answer to, and nobody to call when you need money.
+                </Text>
+              )}
+            </View>
+          ) : null}
+
+          <View style={styles.partyRow}>
+            {POLITICAL_PARTIES.map((p) => {
+              const isCurrent = party === p.id;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => handleJoinParty(p.id)}
+                  disabled={isCurrent}
+                  activeOpacity={0.85}
+                  style={[getGlassButton(darkMode), styles.partyBtn, isCurrent && { opacity: 0.45 }]}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isCurrent, selected: isCurrent }}
+                  accessibilityLabel={isCurrent ? `Already in the ${p.name} Party` : `Join the ${p.name} Party`}
+                >
+                  <Text style={[styles.partyBtnText, { color: theme.text }]}>{p.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {party ? (
+            <Text style={[styles.helperText, { color: theme.textMuted }]}>
+              Crossing the floor costs public approval — more every time — and drops you to the bottom of
+              the new party&apos;s pecking order.
+            </Text>
+          ) : null}
+        </View>
+
+        {/* ── Appointments ───────────────────────────────────────────── */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <SectionTitle theme={theme}>Appointed positions</SectionTitle>
+
+          {appointment ? (
+            <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{appointment.title}</Text>
+              <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                {formatMoney(appointment.weeklySalary)}/wk · serving since week {politics.appointment?.startedWeek ?? 0}
+              </Text>
+              <TouchableOpacity
+                onPress={handleResignAppointment}
+                activeOpacity={0.85}
+                style={[getGlassButton(darkMode), styles.secondaryCta]}
+                accessibilityRole="button"
+                accessibilityLabel={`Step down as ${appointment.title}`}
+              >
+                <LogOut size={scale(15)} color={theme.textSecondary} />
+                <Text style={[styles.secondaryCtaText, { color: theme.textSecondary }]}>Step down</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {offers.map((offer) => {
+            const held = politics.appointment?.id === offer.id;
+            if (held) return null;
+            return (
+              <TouchableOpacity
+                key={offer.id}
+                onPress={() => handleTakeAppointment(offer.id)}
+                disabled={!!offer.blocker}
+                activeOpacity={0.85}
+                style={[
+                  getGlassCard(darkMode, 6),
+                  styles.lifeCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                  !!offer.blocker && { opacity: 0.55 },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !!offer.blocker }}
+                accessibilityLabel={
+                  offer.blocker
+                    ? `${offer.title}, unavailable: ${offer.blocker}`
+                    : `Accept the position of ${offer.title}, ${formatMoney(offer.weeklySalary)} per week`
+                }
+              >
+                <View style={styles.lifeCardHeader}>
+                  <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{offer.title}</Text>
+                  <Text style={[styles.lifeCardPay, { color: accent.success }]}>{formatMoney(offer.weeklySalary)}/wk</Text>
+                </View>
+                <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>{offer.blurb}</Text>
+                {offer.blocker ? (
+                  <Text style={[styles.helperText, { color: accent.warning }]}>{offer.blocker}</Text>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* ── The war chest ──────────────────────────────────────────── */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <SectionTitle theme={theme}>The war chest</SectionTitle>
+          <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.lifeCardHeader}>
+              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{formatMoney(pot)}</Text>
+              <Text style={[styles.lifeCardPay, { color: embezzlement.heat > 50 ? accent.danger : theme.textSecondary }]}>
+                Exposure {embezzlement.heat}%
+              </Text>
+            </View>
+            <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+              Campaign funds plus clean PAC money. Nobody audits it every week.
+            </Text>
+            {embezzlement.totalUSD > 0 ? (
+              <Text style={[styles.helperText, { color: theme.textMuted }]}>
+                {formatMoney(embezzlement.totalUSD)} diverted so far. Exposure feeds the scandal that ends careers —
+                it only cools in a week you keep your hands out.
+              </Text>
+            ) : null}
+            <TouchableOpacity
+              onPress={() => setShowEmbezzle(true)}
+              disabled={skimAllowance <= 0 || skimmedAlready}
+              activeOpacity={0.85}
+              style={[
+                getGlassButton(darkMode),
+                styles.secondaryCta,
+                (skimAllowance <= 0 || skimmedAlready) && { opacity: 0.45 },
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: skimAllowance <= 0 || skimmedAlready }}
+              accessibilityLabel="Divert campaign funds into your personal accounts"
+            >
+              <Banknote size={scale(15)} color={accent.warning} />
+              <Text style={[styles.secondaryCtaText, { color: accent.warning }]}>
+                {skimmedAlready
+                  ? 'Already moved money this week'
+                  : skimAllowance > 0
+                    ? `Divert funds (up to ${formatMoney(skimAllowance)} this week)`
+                    : 'Not enough in the chest to be worth the risk'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── The exit ───────────────────────────────────────────────── */}
+        <View style={{ gap: responsiveSpacing.sm }}>
+          <SectionTitle theme={theme}>Retirement</SectionTitle>
+          {retired ? (
+            <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>Retired as {retired.title}</Text>
+              <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                {retired.termsServed} election win{retired.termsServed === 1 ? '' : 's'} ·
+                {' '}{formatMoney(retired.weeklyPension)}/wk pension for life
+              </Text>
+            </View>
+          ) : null}
+          <TouchableOpacity
+            onPress={handleRetire}
+            disabled={!!retireBlocker}
+            activeOpacity={0.85}
+            style={[getGlassButton(darkMode), styles.secondaryCta, !!retireBlocker && { opacity: 0.45 }]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !!retireBlocker }}
+            accessibilityLabel="Stand down from office with a pension"
+          >
+            <ShieldAlert size={scale(15)} color={theme.textSecondary} />
+            <Text style={[styles.secondaryCtaText, { color: theme.textSecondary }]}>
+              {retireBlocker ?? 'Stand down with a pension'}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.helperText, { color: theme.textMuted }]}>
+            Retiring keeps your title and pays a pension scaled by the office you held, the elections you
+            won and how the public saw you on the way out. You can still take appointments afterwards.
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   // --- Policies tab ------------------------------------------------------
   const renderPolicies = () => {
@@ -1092,6 +1415,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           : (
             <>
               {activeTab === 'office' && renderOffice()}
+              {activeTab === 'career' && renderCareer()}
               {activeTab === 'policies' && renderPolicies()}
               {activeTab === 'influence' && renderInfluence()}
             </>
@@ -1194,6 +1518,27 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           if (result.success) queueSave();
           else Alert.alert('Campaign', result.message);
           setShowCampaign(false);
+        }}
+      />
+
+      <AmountInputModal
+        visible={showEmbezzle}
+        title="Divert campaign funds"
+        subtitle={
+          `Move money out of the war chest and into your own accounts. Auditors notice — every dollar `
+          + `raises your exposure, and exposure is what turns into the scandal that ends careers. `
+          + `Available this week: ${formatMoney(maxWeeklySkim(skimmablePot({ campaignFunds: politics.campaignFunds, pacCleanUSD: politics.pac?.cleanUSD })))}`
+        }
+        confirmLabel="Move it"
+        maxAmount={maxWeeklySkim(skimmablePot({ campaignFunds: politics.campaignFunds, pacCleanUSD: politics.pac?.cleanUSD }))}
+        presets={[5_000, 25_000, 100_000]}
+        darkMode={darkMode}
+        onClose={() => setShowEmbezzle(false)}
+        onConfirm={(amt) => {
+          const result = embezzleCampaignFunds(gameState, setGameState, amt);
+          if (result.success) queueSave();
+          Alert.alert(result.success ? 'Funds moved' : 'Cannot move that', result.message);
+          setShowEmbezzle(false);
         }}
       />
 
@@ -1655,6 +2000,25 @@ const styles = StyleSheet.create({
   linkBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
 
   partyRow: { flexDirection: 'row', gap: responsiveSpacing.sm },
+  // Career-tab cards. Full four-sided hairline (Hard Rule #7 — no one-sided
+  // decorative accent bars anywhere in the app).
+  lifeCard: {
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius.lg,
+    padding: responsiveSpacing.md,
+    gap: responsiveSpacing.xs,
+  },
+  lifeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: responsiveSpacing.sm,
+  },
+  lifeCardTitle: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  lifeCardPay: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  lifeCardMeta: { fontSize: responsiveFontSize.sm, lineHeight: responsiveFontSize.lg },
+  // The party-standing bar reuses the lobbyist roster's `meterTrack`/`meterFill`
+  // further down rather than declaring a second pair at a different height.
   partyBtn: {
     flex: 1,
     paddingVertical: responsiveSpacing.sm,
