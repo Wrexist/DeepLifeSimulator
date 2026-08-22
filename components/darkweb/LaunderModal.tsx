@@ -91,7 +91,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
             keyboardShouldPersistTaps="handled"
           >
           <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-            Dirty wallet: <Text style={{ color: theme.text, fontWeight: '700' }}>{dirtyBtc.toFixed(4)} â‚¿</Text>
+            Dirty wallet: <Text style={{ color: theme.text, fontWeight: '700' }}>{dirtyBtc.toFixed(4)} ₿</Text>
           </Text>
 
           <View>
@@ -118,7 +118,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
                       {TIER_LABEL[t]}
                     </Text>
                     <Text style={[styles.tierMeta, { color: active ? 'white' : theme.textMuted }]}>
-                      {(params.feePct * 100).toFixed(0)}% fee Â· {params.delayWeeks}w
+                      {(params.feePct * 100).toFixed(0)}% fee · {params.delayWeeks}w
                     </Text>
                     <Text style={[styles.tierMeta, { color: active ? 'white' : theme.textMuted }]}>
                       {(params.failProbability * 100).toFixed(1)}% fail
@@ -155,7 +155,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
           {amount > 0 && (
             <View style={[styles.summary, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
               <Text style={[styles.summaryRow, { color: theme.textSecondary }]}>
-                Sent in: {amount.toFixed(4)} â‚¿
+                Sent in: {amount.toFixed(4)} ₿
               </Text>
               <Text style={[styles.summaryRow, { color: theme.textSecondary }]}>
                 Effective fee: {(effectiveFee * 100).toFixed(2)}% (skill −{(skillReduction * 100).toFixed(1)}%
@@ -167,7 +167,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
                 </Text>
               )}
               <Text style={[styles.summaryHighlight, { color: theme.text }]}>
-                Expected out: {expectedOut.toFixed(4)} â‚¿
+                Expected out: {expectedOut.toFixed(4)} ₿
               </Text>
             </View>
           )}

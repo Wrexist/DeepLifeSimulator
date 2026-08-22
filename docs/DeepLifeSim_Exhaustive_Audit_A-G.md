@@ -1,4 +1,4 @@
-﻿# Deep Life Simulator Exhaustive Failure/Exploit Audit
+# Deep Life Simulator Exhaustive Failure/Exploit Audit
 
 ## SECTION A, CRITICAL (WILL KILL REVIEWS / SAVES)
 

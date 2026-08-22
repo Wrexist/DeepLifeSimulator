@@ -91,7 +91,7 @@ export default function PlaceOrderModal({ visible, coin, cash, darkMode, onClose
 
           <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: responsiveSpacing.md }}>
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-              Mid {formatPrice(midPrice)} Â· You own {owned.toFixed(4)} {coin?.symbol} Â· Cash {formatPrice(cash)}
+              Mid {formatPrice(midPrice)} · You own {owned.toFixed(4)} {coin?.symbol} · Cash {formatPrice(cash)}
             </Text>
 
             <SegRow
@@ -172,12 +172,12 @@ export default function PlaceOrderModal({ visible, coin, cash, darkMode, onClose
 
             {side === 'buy' && estimatedCoins > 0 && (
               <Text style={[styles.estimate, { color: theme.textMuted }]}>
-                â‰ˆ {estimatedCoins.toFixed(6)} {coin?.symbol} at mid (excludes spread + slippage)
+                ≈ {estimatedCoins.toFixed(6)} {coin?.symbol} at mid (excludes spread + slippage)
               </Text>
             )}
             {side === 'sell' && estimatedUSD > 0 && (
               <Text style={[styles.estimate, { color: theme.textMuted }]}>
-                â‰ˆ {formatPrice(estimatedUSD)} at mid (excludes spread + slippage)
+                ≈ {formatPrice(estimatedUSD)} at mid (excludes spread + slippage)
               </Text>
             )}
           </ScrollView>
