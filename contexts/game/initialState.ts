@@ -1166,10 +1166,19 @@ export const initialGameState: GameState = {
     cleanBtc: 0,
     playerReputation: 0,
     vendors: [
-      { id: 'vendor-shadow',    handle: 'shadow.eth',     reputation: 35, reviewCount: 12 },
-      { id: 'vendor-zerocool',  handle: 'zerocool',       reputation: 65, reviewCount: 84 },
-      { id: 'vendor-veil',      handle: 'veil_market',    reputation: 80, reviewCount: 230 },
-      { id: 'vendor-burner',    handle: 'b4n3_drop',      reputation: 15, reviewCount: 3 },
+      // reviewCount is 0 on every seed ON PURPOSE. The Contacts app's network
+      // tab (lib/contacts/aggregator.ts) treats any vendor with a review count
+      // as "someone you've done business with", so these non-zero seeds made
+      // shadow.eth & co. appear as personal contacts from the FIRST frame of a
+      // brand-new save — and, since both prestige paths rebuild from
+      // initialGameState, they reappeared after every prestige ("Dark Web
+      // vendors don't go away after prestige" — BBQ). Reputation stays: it is
+      // marketplace data the Onion shop shows. A vendor becomes a contact the
+      // first time the player actually buys from them.
+      { id: 'vendor-shadow',    handle: 'shadow.eth',     reputation: 35, reviewCount: 0 },
+      { id: 'vendor-zerocool',  handle: 'zerocool',       reputation: 65, reviewCount: 0 },
+      { id: 'vendor-veil',      handle: 'veil_market',    reputation: 80, reviewCount: 0 },
+      { id: 'vendor-burner',    handle: 'b4n3_drop',      reputation: 15, reviewCount: 0 },
     ],
     listings: [],
     activeJobs: [],

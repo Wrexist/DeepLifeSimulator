@@ -59,6 +59,7 @@ import { runWeeklyBankingTick } from '@/lib/banking/weeklyTick';
 import { runCryptoWeeklyTick } from '@/lib/crypto/weeklyTick';
 import { runDarkWebWeeklyTick } from '@/lib/darkweb/weeklyTick';
 import { runPoliticsWeeklyTick } from '@/lib/politics/weeklyTick';
+import { applyOfficeExit } from '@/lib/politics/operations';
 import { runStocksWeeklyTick } from '@/lib/stocks/weeklyTick';
 // R3-A: hoist the modules previously `require()`'d inside the `nextWeek`
 // updater. The per-call require() lookups were a constant overhead AND the
@@ -2975,13 +2976,18 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // (lib/economy/passiveIncome.ts), so zeroing it here stops the paycheck. The
  // re-election-loss path in the tick already sets careerLevel:0; this also covers
  // the scandal-resignation flag.
- nextPolitics = politicsTick.politics;
- if (politicsTick.forcedResignation || politicsTick.lostOffice) {
- nextPolitics = {
-...nextPolitics,
- careerLevel: 0,
- nextElectionWeek: undefined,
- };
+  nextPolitics = politicsTick.politics;
+  if (politicsTick.forcedResignation || politicsTick.lostOffice) {
+  // applyOfficeExit settles what belonged to the OFFICE — resolves frozen
+  // active scandals and deactivates lobbyists (stripping their influence).
+  // Idempotent: the voted-out branch inside the tick already applied it, so a
+  // second pass is a no-op; this call exists for the scandal-forced-resignation
+  // path, whose exit happens outside the tick's own loss branch.
+  nextPolitics = applyOfficeExit({
+  ...nextPolitics,
+  careerLevel: 0,
+  nextElectionWeek: undefined,
+  });
  // Also reset the political career entry + currentJob so lifestyle costs and
  // the "in office?" UI stop treating a voted-out / resigned player as a sitting
  // official — zeroing politics.careerLevel alone left careers.political (read by
@@ -4230,35 +4236,46 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
 : prevState.prestige;
 
- // Achievements are a Legacy Pass XP source (LEGACY_PASS_XP.achievement).
- return awardLegacyPassXp({
+  // Achievements are a Legacy Pass XP source (LEGACY_PASS_XP.achievement) —
+  // but only the FIRST time an id mints across lives. A repeat claim in a
+  // later life still records the per-life claim above (per-life UI behaviour
+  // unchanged), yet awards NOTHING: no gems (the `alreadyMintedEver` guard),
+  // no Legacy Pass XP, no bump to the lifetime "Achievements Unlocked"
+  // counter — otherwise prestige let a completed board re-earn XP every
+  // cycle. PLAYER REPORT (BBQ, 2026-08-21): "Achievements reset as well, can
+  // reclaim gems that I already completed in gen1."
+  const baseClaim = {
 ...prevState,
- claimedProgressAchievements: newClaimed,
+  claimedProgressAchievements: newClaimed,
 ...(newPrestige ? { prestige: newPrestige } : {}),
- achievementUnlocks: {
+  achievementUnlocks: {
 ...(prevState.achievementUnlocks || {}),
- [achievementId]: {
- unlockedAt: achievementTimestamp,
- age: Math.floor(prevState.date?.age || 18),
- weeksLived: prevState.weeksLived || 0,
- money: Math.round(prevState.stats.money || 0),
- year: Math.floor(prevState.date?.year || 2025),
- },
- },
- stats: {
+  [achievementId]: {
+  unlockedAt: achievementTimestamp,
+  age: Math.floor(prevState.date?.age || 18),
+  weeksLived: prevState.weeksLived || 0,
+  money: Math.round(prevState.stats.money || 0),
+  year: Math.floor(prevState.date?.year || 2025),
+  },
+  },
+  stats: {
 ...prevState.stats,
- gems: newGems,
- },
- // Mirror the unlock into lifetimeStatistics for the
- // StatisticsApp "Achievements Unlocked" tile.
- lifetimeStatistics: prevState.lifetimeStatistics
- ? {
+  gems: newGems,
+  },
+  };
+  if (alreadyMintedEver) return baseClaim;
+  return awardLegacyPassXp({
+...baseClaim,
+  // Mirror the unlock into lifetimeStatistics for the
+  // StatisticsApp "Achievements Unlocked" tile.
+  lifetimeStatistics: prevState.lifetimeStatistics
+  ? {
 ...prevState.lifetimeStatistics,
- totalAchievementsUnlocked: (prevState.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
- }
+  totalAchievementsUnlocked: (prevState.lifetimeStatistics.totalAchievementsUnlocked ?? 0) + 1,
+  }
 : prevState.lifetimeStatistics,
- }, LEGACY_PASS_XP.achievement);
- });
+  }, LEGACY_PASS_XP.achievement);
+  });
 
  track('achievement_unlocked', { achievementId });
 

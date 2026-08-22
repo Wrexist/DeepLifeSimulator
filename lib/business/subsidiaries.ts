@@ -12,10 +12,11 @@
  *
  * ## Why this is balance-safe
  *
- * It cannot inflate income. `PER_SOURCE_CAPS.companies` in
- * `lib/economy/passiveIncome.ts` is a hard **$200k/wk ceiling on total company
- * income**, and the five maxed originals already produce ~$238k/wk before the
- * cap. Every subsidiary founded past that point therefore adds **cost and no
+ * It cannot inflate income. Company income in `lib/economy/passiveIncome.ts`
+ * is capped PER COMPANY by `companyIncomeCap` — $200k/wk base plus $5k per
+ * employee (BBQ report 2026-08-21 replaced the old shared $200k pool) — and
+ * the five maxed originals already produce ~$238k/wk combined before their own
+ * caps. Every subsidiary founded past that point therefore adds **cost and no
  * income** — and trips the existing multi-company efficiency penalty sooner
  * (4+ companies → 90%, 7+ → 80%, 11+ → 70%).
  *

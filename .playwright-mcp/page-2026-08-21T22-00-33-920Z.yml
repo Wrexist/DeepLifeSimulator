@@ -1,0 +1,164 @@
+- generic [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e626]:
+      - generic [ref=e627]:
+        - generic [ref=e628]: Gen 1
+        - generic [ref=e630]:
+          - button "Open Shop" [ref=e631] [cursor=pointer]
+          - button "Open Help Menu" [ref=e639] [cursor=pointer]
+          - button "Open Settings" [ref=e644] [cursor=pointer]
+          - generic [ref=e650] [cursor=pointer]
+        - generic [ref=e655]:
+          - button "Health level" [ref=e657] [cursor=pointer]:
+            - progressbar "Health level" [ref=e659]
+            - generic [ref=e660]: "100"
+          - button "Happiness level" [ref=e666] [cursor=pointer]:
+            - progressbar "Happiness level" [ref=e668]
+            - generic [ref=e669]: "100"
+          - button "Energy level" [ref=e675] [cursor=pointer]:
+            - progressbar "Energy level" [ref=e677]
+            - generic [ref=e678]: "100"
+        - generic [ref=e684]:
+          - button "Your current money balance" [ref=e685] [cursor=pointer]:
+            - generic [ref=e686]: $1,500
+          - 'button "Total savings: 0" [ref=e692] [cursor=pointer]':
+            - generic [ref=e693]: "0"
+          - 'button "Gems: 0. Tap to buy more gems." [ref=e699] [cursor=pointer]':
+            - generic [ref=e700]: "0"
+      - generic [ref=e708]:
+        - generic [ref=e710]:
+          - generic [ref=e711]: "2025"
+          - generic [ref=e713]: January
+          - generic [ref=e714]: Age 20
+        - button "Advance to next week" [ref=e723] [cursor=pointer]
+    - generic [ref=e729]:
+      - generic [ref=e736]:
+        - generic [ref=e737]:
+          - generic [ref=e738]: JANUARY
+          - generic [ref=e740]: WEEK 1
+          - generic [ref=e744]: AGE 20
+        - generic [ref=e746]:
+          - generic [ref=e752]:
+            - generic [ref=e753]: You need work
+            - generic [ref=e754]: No job means no money coming in. Pick one up in the Work tab.
+          - button "Find a job" [ref=e756] [cursor=pointer]
+        - generic [ref=e761]:
+          - generic [ref=e762]:
+            - button "Open DeepLife Plus, 7-day free trial" [ref=e799] [cursor=pointer]
+            - generic [ref=e806]: Patrick Perez
+            - generic [ref=e808]: Food Courier
+            - generic [ref=e809]:
+              - generic [ref=e810]:
+                - generic [ref=e811]: Age
+                - generic [ref=e812]: "20"
+              - generic [ref=e813]:
+                - generic [ref=e814]: Sex
+                - generic [ref=e815]: Male
+              - generic [ref=e816]:
+                - generic [ref=e817]: Relationship
+                - generic [ref=e818]: Single
+              - generic [ref=e819]:
+                - generic [ref=e820]: Job
+                - generic [ref=e821]: Unemployed
+              - generic [ref=e822]:
+                - generic [ref=e823]: Reputation
+                - generic [ref=e824]: 0 · Unknown
+            - generic [ref=e825]:
+              - generic "Daily gem claim streak this week" [ref=e826]:
+                - generic [ref=e827]: M
+                - generic [ref=e830]: T
+                - generic [ref=e833]: W
+                - generic [ref=e836]: T
+                - generic [ref=e839]: F
+                - generic [ref=e842]: S
+                - generic [ref=e845]: S
+              - button "Claim your 20 daily gems" [ref=e849] [cursor=pointer]
+              - button "Upgrade to DeepLife Plus for 250 gems a day, 12 times more than your 20 a day" [ref=e857] [cursor=pointer]:
+                - generic [ref=e861]:
+                  - generic [ref=e862]: Unlock 250 gems a day with DeepLife+
+                  - generic [ref=e863]: 12× your 20/day · 83,950 more a year
+            - generic [ref=e866] [cursor=pointer]: "Net Worth: $1,500"
+          - generic [ref=e872]:
+            - generic [ref=e873] [cursor=pointer]: "Cash Flow: $0"
+            - generic [ref=e880] [cursor=pointer]: 0 Perks
+            - generic [ref=e887] [cursor=pointer]: 3 Traits
+            - generic [ref=e894] [cursor=pointer]: Modifiers
+          - generic [ref=e902]:
+            - generic [ref=e903]: Health Issues
+            - generic [ref=e907]: You're in good shape — no health issues right now.
+        - button "Open DeepLife Plus, 7-day free trial" [ref=e910] [cursor=pointer]:
+          - generic [ref=e915]: DeepLife+
+          - generic [ref=e916]: 7-DAY FREE
+        - generic [ref=e924] [cursor=pointer]:
+          - generic [ref=e925]: Find your first job
+          - generic [ref=e926]: Street jobs pay 2–4× more than entry careers.
+        - generic [ref=e930]:
+          - generic [ref=e936]:
+            - generic [ref=e937]: WHAT NEXT
+            - generic [ref=e938]: Your next moves
+          - generic [ref=e939]:
+            - 'button "NOW: Get hired. No applications sent." [ref=e940] [cursor=pointer]':
+              - generic [ref=e946]:
+                - generic [ref=e947]: NOW
+                - generic [ref=e948]: Get hired
+                - generic [ref=e949]: A steady wage is what every other plan is funded by.
+                - generic [ref=e951]: No applications sent
+            - 'button "SOON: Buy your first property. $2k / $50k." [ref=e954] [cursor=pointer]':
+              - generic [ref=e958]:
+                - generic [ref=e959]: SOON
+                - generic [ref=e960]: Buy your first property
+                - generic [ref=e961]: Owning beats renting — it appreciates instead of vanishing.
+                - generic [ref=e964]: $2k / $50k
+            - 'button "DREAM: Reach a fortune. $2k / $100k." [ref=e967] [cursor=pointer]':
+              - generic [ref=e971]:
+                - generic [ref=e972]: DREAM
+                - generic [ref=e973]: Reach a fortune
+                - generic [ref=e974]: The number that decides how the story is remembered.
+                - generic [ref=e977]: $2k / $100k
+        - generic [ref=e981]:
+          - generic [ref=e986]:
+            - generic [ref=e987]: "Chapter 1: Fresh Start"
+            - generic [ref=e988]: 0/3 goals complete
+          - generic [ref=e989]:
+            - generic [ref=e992]:
+              - generic [ref=e993]: Earn $500
+              - generic [ref=e995]: Earn $500 of your own
+            - generic [ref=e998]:
+              - generic [ref=e999]: Get Hired
+              - generic [ref=e1001]: Get accepted into a career
+            - generic [ref=e1004]:
+              - generic [ref=e1005]: Survive 4 Weeks
+              - generic [ref=e1007]: Live for 4 weeks
+          - generic [ref=e1008]: "Reward: $800 + 35 gems"
+        - generic [ref=e1015]:
+          - generic [ref=e1021]:
+            - generic [ref=e1022]: LIFE AMBITION
+            - generic [ref=e1023]: Choose what this life is for
+            - generic [ref=e1024]: A lifelong goal in four stages, with a one-time payoff when you finish it.
+          - button "Choose a life ambition" [ref=e1025] [cursor=pointer]:
+            - generic [ref=e1028]: Pick an Ambition
+        - button "Your Progress Prestige, Legacy Pass, life story & lifetime stats" [ref=e1030] [cursor=pointer]:
+          - generic [ref=e1038]:
+            - generic [ref=e1039]: Your Progress
+            - generic [ref=e1040]: Prestige, Legacy Pass, life story & lifetime stats
+        - button "Show more" [ref=e1043] [cursor=pointer]
+      - tablist [ref=e1048]:
+        - tab "Home" [selected] [ref=e1050] [cursor=pointer]
+        - tab "Work" [ref=e1066] [cursor=pointer]
+        - tab "Apps" [ref=e1078] [cursor=pointer]
+        - tab "Life" [ref=e1094] [cursor=pointer]
+  - dialog [ref=e1104]:
+    - generic [ref=e1106]:
+      - button "Dismiss the first week guide" [active] [ref=e1107] [cursor=pointer]
+      - generic [ref=e1108]:
+        - generic [ref=e1109]:
+          - generic [ref=e1110]: First Week Guide
+          - generic [ref=e1114] [cursor=pointer]
+        - generic [ref=e1122]:
+          - generic [ref=e1127]: Find Work
+          - generic [ref=e1128]: Street jobs pay 2-4x more than entry careers! Start with street jobs to build cash, then apply for a career later.
+          - generic [ref=e1129]: Important First Step
+        - generic [ref=e1131]:
+          - generic [ref=e1132] [cursor=pointer]: Skip Guide
+          - generic [ref=e1134] [cursor=pointer]: Next
+        - generic [ref=e1138]: 1 of 3 tips

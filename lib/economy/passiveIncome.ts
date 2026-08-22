@@ -42,6 +42,26 @@ interface PassiveIncomeBreakdown {
 }
 
 /**
+ * Per-company weekly-income ceiling (PLAYER REPORT BBQ, 2026-08-21 — see the
+ * call site in `calcWeeklyPassiveIncome` for the full story). The old GLOBAL
+ * $200k/week pool across ALL companies became a per-company ceiling that grows
+ * with that company's own headcount: $5,000 of extra ceiling per employee.
+ *
+ * Exported so the Hustle/company UI can show the SAME ceiling the payout
+ * honors instead of a second hardcoded number.
+ */
+export const COMPANY_INCOME_CAP_BASE = 200_000;
+export const COMPANY_INCOME_CAP_PER_EMPLOYEE = 5_000;
+
+export function companyIncomeCap(company: { employees?: number } | null | undefined): number {
+  const employees =
+    typeof company?.employees === 'number' && isFinite(company.employees) && company.employees > 0
+      ? Math.floor(company.employees)
+      : 0;
+  return COMPANY_INCOME_CAP_BASE + employees * COMPANY_INCOME_CAP_PER_EMPLOYEE;
+}
+
+/**
  * Weekly pay from holding political office — 0 when not in office.
  *
  * Exported because TWO subsystems need this number and must not disagree about
@@ -306,7 +326,18 @@ export function calcWeeklyPassiveIncome(
     // CRITICAL: Validate efficiencyMultiplier before applying
     const safeEfficiencyMultiplier = isFinite(efficiencyMultiplier) && efficiencyMultiplier > 0 ? efficiencyMultiplier : 1;
     weeklyIncome = Math.round(weeklyIncome * safeEfficiencyMultiplier);
-    
+
+    // PLAYER REPORT (BBQ, 2026-08-21): "the hard cap of 200k needs to go.
+    // Maybe have a cap per company. Not overall." — and he is right that a
+    // shared pool punishes exactly the play the game asks for (more companies,
+    // deeper expenses, real taxes). The cap is now PER COMPANY and scales with
+    // that company's own payroll: headcount is bought with money and paid
+    // every week, so it is an honest measure of how big the operation actually
+    // is. A starter business still tops out at the old $200k/week; a company
+    // employing hundreds clears it well past $1M/week — and pays its payroll
+    // and taxes on every dollar on the way.
+    weeklyIncome = Math.min(weeklyIncome, companyIncomeCap(company));
+
     // Final validation before adding to total
     if (isFinite(weeklyIncome) && weeklyIncome > 0) {
       companyIncome += weeklyIncome;
@@ -531,6 +562,10 @@ export function calcWeeklyPassiveIncome(
 
   // CRITICAL: Validate all income components before summing to prevent NaN propagation
   // ANTI-EXPLOIT: Apply per-source caps to prevent any single income stream from dominating
+  // NOTE: `companies` is deliberately ABSENT — company income is capped
+  // PER COMPANY by `companyIncomeCap` in the aggregation loop above (BBQ
+  // report: the shared $200k pool punished owning several businesses). The
+  // ultra-rich soft cap below still bounds the combined total.
   const PER_SOURCE_CAPS: Record<string, number> = {
     stocks: 200000,       // $200K/week max from dividends
     realEstate: 150000,   // $150K/week max from rent
@@ -539,7 +574,6 @@ export function calcWeeklyPassiveIncome(
     businessOps: 50000,   // $50K/week max from travel business opportunities
     political: 50000,     // $50K/week max from political income
     cryptoMining: 100000, // $100K/week max (already capped above, this is defense-in-depth)
-    companies: 200000,    // $200K/week max from company income
     gamingStreaming: 75000, // $75K/week max from gaming/streaming
   };
   // Life Skills: Investing (+5% stock returns) used to scale the weekly
@@ -554,7 +588,7 @@ export function calcWeeklyPassiveIncome(
   const safeBusinessOpportunitiesIncome = Math.min(PER_SOURCE_CAPS.businessOps, isFinite(businessOpportunitiesIncome) && businessOpportunitiesIncome >= 0 ? businessOpportunitiesIncome : 0);
   const safePoliticalIncome = Math.min(PER_SOURCE_CAPS.political, isFinite(politicalIncome) && politicalIncome >= 0 ? politicalIncome : 0);
   const safeCryptoMiningIncome = Math.min(PER_SOURCE_CAPS.cryptoMining, isFinite(cryptoMiningIncome) && cryptoMiningIncome >= 0 ? cryptoMiningIncome : 0);
-  const safeCompanyIncome = Math.min(PER_SOURCE_CAPS.companies, isFinite(companyIncome) && companyIncome >= 0 ? companyIncome : 0);
+  const safeCompanyIncome = isFinite(companyIncome) && companyIncome >= 0 ? companyIncome : 0;
   
   const realEstateForTotal = opts?.excludeRealEstate ? 0 : safeRealEstateIncome;
   const rawTotal = Math.round(

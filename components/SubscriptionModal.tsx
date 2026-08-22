@@ -24,8 +24,10 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
   Platform,
   Linking,
+  type ImageSourcePropType,
 } from 'react-native';
 import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight, Sparkles, Gift } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -77,6 +79,12 @@ const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: 
   cosmetics: Palette,
   welcome_gems: Gem,
   vip_support: Headphones,
+};
+
+const BENEFIT_ART: Record<string, ImageSourcePropType> = {
+  no_ads: require('@/assets/images/iap/premium/remove_ads.webp'),
+  income_boost: require('@/assets/images/iap/perks/work_pay_boost.webp'),
+  welcome_gems: require('@/assets/images/iap/gems/gems_500.webp'),
 };
 
 // Short right-aligned value chip per benefit (mockup-style). Honest labels only.
@@ -330,10 +338,15 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <View style={styles.benefits}>
               {DEEP_LIFE_PLUS_BENEFITS.map((b) => {
                 const Icon = BENEFIT_ICON[b.id] ?? Check;
+                const Art = BENEFIT_ART[b.id];
                 return (
                   <View key={b.id} style={styles.benefitRow}>
                     <View style={styles.benefitIcon}>
-                      <Icon size={scale(18)} color={GOLD} />
+                      {Art ? (
+                        <Image source={Art} style={styles.benefitArt} resizeMode="contain" />
+                      ) : (
+                        <Icon size={scale(14)} color={GOLD} />
+                      )}
                     </View>
                     <View style={styles.benefitText}>
                       <Text style={styles.benefitTitle}>{b.title}</Text>
@@ -482,16 +495,10 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             <TouchableOpacity onPress={handleManage} accessibilityRole="button" accessibilityLabel="Manage subscription">
               <Text style={styles.footerLink}>Manage</Text>
             </TouchableOpacity>
-            {/* Apple requires a Terms (EULA) link on the paywall; the standard
-                EULA is iOS-specific, so link it on iOS only. */}
-            {Platform.OS === 'ios' ? (
-              <>
-                <Text style={styles.footerDivider}>·</Text>
-                <TouchableOpacity onPress={openTerms} accessibilityRole="link" accessibilityLabel="Terms of Use">
-                  <Text style={styles.footerLink}>Terms</Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
+            <Text style={styles.footerDivider}>·</Text>
+            <TouchableOpacity onPress={openTerms} accessibilityRole="link" accessibilityLabel="Terms of Use">
+              <Text style={styles.footerLink}>Terms of Use</Text>
+            </TouchableOpacity>
             <Text style={styles.footerDivider}>·</Text>
             <TouchableOpacity onPress={openPrivacy} accessibilityRole="link" accessibilityLabel="Privacy Policy">
               <Text style={styles.footerLink}>Privacy</Text>
@@ -577,31 +584,32 @@ const styles = StyleSheet.create({
     borderRadius: scale(18),
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    padding: scale(14),
-    marginBottom: scale(14),
+    padding: scale(10),
+    marginBottom: scale(12),
   },
-  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(12), paddingVertical: scale(7) },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), paddingVertical: scale(4) },
   benefitIcon: {
-    width: scale(38),
-    height: scale(38),
-    borderRadius: scale(12),
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(9),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: GOLD_TINT,
     borderWidth: 1,
     borderColor: GOLD_BORDER,
   },
+  benefitArt: { width: scale(22), height: scale(22) },
   benefitText: { flex: 1 },
-  benefitTitle: { fontSize: fontScale(15), fontWeight: '800', color: TEXT },
-  benefitDesc: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(1) },
+  benefitTitle: { fontSize: fontScale(13.5), fontWeight: '800', color: TEXT },
+  benefitDesc: { fontSize: fontScale(11.5), color: TEXT_MUTED, marginTop: scale(1) },
   benefitChip: {
     borderWidth: 1,
     borderColor: GOLD_BORDER,
     backgroundColor: GOLD_TINT,
-    borderRadius: scale(9),
-    paddingHorizontal: scale(9),
-    paddingVertical: scale(5),
-    marginLeft: scale(8),
+    borderRadius: scale(8),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(3),
+    marginLeft: scale(6),
   },
   benefitChipText: { color: GOLD_SOFT, fontSize: fontScale(11), fontWeight: '900', letterSpacing: 0.3 },
 
@@ -733,7 +741,19 @@ const styles = StyleSheet.create({
   trustRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(14), marginTop: scale(12) },
   trustItem: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   trustText: { fontSize: fontScale(11.5), fontWeight: '600', color: TEXT_MUTED },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(8), marginTop: scale(12) },
+  // flexWrap + horizontal padding: on narrow phones the four links ("Restore ·
+  // Manage · Terms of Use · Privacy") overflow a single 390pt row and clip at
+  // the sheet edges — wrapping to a second centred line keeps every link
+  // reachable (Apple reviewers tap these).
+  footerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: scale(8),
+    paddingHorizontal: scale(6),
+    marginTop: scale(12),
+  },
   footerLink: { fontSize: fontScale(13), fontWeight: '700', color: TEXT_MUTED },
   footerDivider: { fontSize: fontScale(13), color: TEXT_DIM },
   legal: { fontSize: fontScale(10), lineHeight: fontScale(14), color: TEXT_DIM, textAlign: 'center', marginTop: scale(10) },

@@ -770,3 +770,125 @@ function introNameFor(favor: Favor): string {
   const from = favor.note?.replace(/ owes you a .*$/, '') ?? 'A contact';
   return `${from}'s associate`;
 }
+
+// ---------------------------------------------------------------------------
+// X-3 — remove a contact · invest in a bond
+// ---------------------------------------------------------------------------
+
+/**
+ * PLAYER REPORT (BBQ, 2026-08-21): "there needs to be a way to remove or make
+ * inactive [contacts]" / "would like options in this area of contacts to raise
+ * the relationship or remove them."
+ *
+ * Two personal-contact actions, same module conventions as `recordInteraction`
+ * above: pre-checks for immediate feedback, authoritative re-check + effect +
+ * cost inside ONE updater against `prev`, so a same-batch double-tap pays and
+ * applies once.
+ */
+
+/** Relationship types that are FAMILY — they outlive the player's patience. */
+const FAMILY_RELATIONSHIP_TYPES = new Set(['parent', 'child', 'spouse', 'sibling', 'grandparent', 'grandchild']);
+
+export function isFamilyRelationship(rel: Pick<Relationship, 'type'> | null | undefined): boolean {
+  return !!rel && typeof rel.type === 'string' && FAMILY_RELATIONSHIP_TYPES.has(rel.type);
+}
+
+/**
+ * Remove a personal contact from `relationships`.
+ *
+ * Family (parents, children, spouse, siblings, grandparents/grandchildren) is
+ * refused — the family tree owns them, and another system is responsible for
+ * what crosses a life boundary. Friends/acquaintances/rivals can be cut loose.
+ */
+export function removeContact(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string
+): { success: boolean; message: string } {
+  const rel = gameState.relationships?.find((r) => r.id === contactId);
+  if (!rel) return { success: false, message: 'Contact not found.' };
+  if (isFamilyRelationship(rel)) {
+    return { success: false, message: `${rel.name} is family — they stay in your life.` };
+  }
+  setGameState((prev) => ({
+    ...prev,
+    relationships: (prev.relationships ?? []).filter((r) => r?.id !== contactId),
+  }));
+  log.info('Contact removed', { contactId });
+  return { success: true, message: `${rel.name} is no longer part of your life.` };
+}
+
+/** Cash for one Bond attempt — grows with the current score, so late points cost real money. */
+export const RELATIONSHIP_BOND_BASE_COST = 400;
+export const RELATIONSHIP_BOND_SCORE_MULTIPLIER = 60;
+
+export function relationshipBondCost(currentScore: number): number {
+  const score =
+    typeof currentScore === 'number' && isFinite(currentScore) && currentScore > 0
+      ? Math.min(100, Math.floor(currentScore))
+      : 0;
+  return RELATIONSHIP_BOND_BASE_COST + score * RELATIONSHIP_BOND_SCORE_MULTIPLIER;
+}
+
+/**
+ * Raise a relationship by investing time AND money (a proper gesture, not a tap).
+ * Gains diminish toward 100: roughly +8 when cold, +2 near max. The cost is
+ * re-derived from `prev` inside the updater so a stale snapshot cannot buy a
+ * cheaper bond, and the once-per-week gate rides the existing per-action map.
+ */
+export function raiseRelationship(
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  contactId: string
+): { success: boolean; message: string } {
+  const rel = gameState.relationships?.find((r) => r.id === contactId);
+  if (!rel) return { success: false, message: 'Contact not found.' };
+  const ws = gameState.weeksLived ?? 0;
+  const actionKey = 'bond';
+  // Snapshot pre-checks, for instant UI feedback only.
+  if (rel.actions?.[actionKey] === ws) {
+    return { success: false, message: `Already made a gesture toward ${rel.name} this week.` };
+  }
+  if ((rel.relationshipScore ?? 0) >= 100) {
+    return { success: true, message: `${rel.name} couldn't think higher of you already.` };
+  }
+  const previewCost = relationshipBondCost(rel.relationshipScore ?? 0);
+  if ((gameState.stats?.money ?? 0) < previewCost) {
+    return { success: false, message: `A meaningful gesture costs $${previewCost.toLocaleString()} — you have $${Math.floor(gameState.stats?.money ?? 0).toLocaleString()}.` };
+  }
+
+  setGameState((prev) => {
+    const rels = prev.relationships ?? [];
+    const idx = rels.findIndex((r) => r?.id === contactId);
+    if (idx === -1) return prev;
+    const target = rels[idx];
+    const prevWs = prev.weeksLived ?? 0;
+    // Authoritative gates against `prev` — a second tap in the same React
+    // batch lands here with the week marker already stamped and no-ops.
+    if (target.actions?.[actionKey] === prevWs) return prev;
+    const score = target.relationshipScore ?? 0;
+    if (score >= 100) return prev;
+    const freshCost = relationshipBondCost(score);
+    // applyMoneyDelta is the PURE charge (§4.4): it debits inside THIS updater
+    // and returns null when prev can't afford it — the atomic reject.
+    const charge = applyMoneyDelta(prev, -freshCost, `Quality time with ${target.name}`);
+    if (!charge) return prev; // could not afford — reject atomically
+    // Diminishing returns: gain shrinks as the bond strengthens (8 → 2).
+    const gain = Math.max(2, Math.round((100 - score) / 12));
+    const weeklyInteractions =
+      target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
+    const nextRels = [...rels];
+    nextRels[idx] = {
+      ...target,
+      relationshipScore: Math.max(0, Math.min(100, score + gain)),
+      lastInteractionWeek: prevWs,
+      weeklyInteractions,
+      actions: { ...(target.actions ?? {}), [actionKey]: prevWs },
+    };
+    return { ...prev, ...charge, relationships: nextRels };
+  });
+
+  log.info('Relationship bond raised', { contactId });
+  const afterScore = Math.min(100, (rel.relationshipScore ?? 0) + Math.max(2, Math.round((100 - (rel.relationshipScore ?? 0)) / 12)));
+  return { success: true, message: `You spent real time with ${rel.name} · Bond ${afterScore}/100.` };
+}

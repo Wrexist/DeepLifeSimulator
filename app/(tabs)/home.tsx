@@ -37,7 +37,7 @@ import NextGoalsCard from '@/components/NextGoalsCard';
 import WeekAheadCard from '@/components/WeekAheadCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
-import { FirstWeekGuide, ContextualTip, useContextualTip } from '@/components/FirstWeekGuide';
+import { FirstWeekGuide, ContextualTip, useContextualTip, shouldShowFirstWeekGuide } from '@/components/FirstWeekGuide';
 import FirstSessionCoach from '@/components/FirstSessionCoach';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -844,8 +844,16 @@ function HomeScreenContent() {
 
       {/* First Week Guide — presents its own Modal, so it sits above the HUD
           and the tab bar rather than under them. No spacer is reserved in the
-          feed for it any more; it no longer occupies feed space. */}
-      {weeksThisLife <= 3 && !hasCompletedTutorial && (
+          feed for it any more; it no longer occupies feed space.
+
+          `shouldShowFirstWeekGuide` owns the game-state half of the gate: first
+          life only, and a pre-v43 save (no `lifeStartWeek`) still qualifies —
+          the bare `weeksThisLife <= 3` this replaces could never pass in life 1
+          of those saves (the baseline is absent, so the counter falls back to
+          the absolute one) and first passed right after the FIRST prestige,
+          when prestigeExecution stamps the baseline. Playtester-reported:
+          "only appears after the first prestige, not when first starting." */}
+      {shouldShowFirstWeekGuide(gameState) && !hasCompletedTutorial && (
         <FirstWeekGuide currentWeek={weeksThisLife} />
       )}
 
