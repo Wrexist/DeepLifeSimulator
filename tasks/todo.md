@@ -1,62 +1,66 @@
-# Plan — Income reads one number everywhere (BBQ: "conflicting numbers") — 2026-08-22 — DONE
+# Plan — Work tab: the ladder question, and three bugs found answering it — 2026-08-22 — DONE
 
-## Report
-Surgical Director, same save, three screens, three numbers:
-- Promotion modal: **$26K/wk** (was $19.25K, +35%)
-- Work tab job card: **$13000/wk** — with a "Manage Job (+100%)" button right under it
-- Cash Flow → Income Sources: **Job Income: $13K**
+## The ladder question: already handled, my earlier claim was wrong
 
-## Root cause
-`Career.levels[].salary` is a BASE figure. What payroll actually credits
-(`contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts`) is that base times a
-stack of multipliers, and every reader applied a different subset:
+I told the user BBQ's save "can't reach the capstones without a migration".
+Not true. `repairGameState` (`utils/saveValidation.ts` ~line 904) already
+reconciles every saved ladder against the catalog on load — it adopts the
+catalog `levels` whenever the catalog is LONGER, preserves level/progress/
+raiseMultiplier, and clamps the level index. It runs on every load path
+(`loadGame` and CloudSync both go through `hydrateLoadedState` → repair), and
+it is covered by `__tests__/actions/careerPromotionGating.test.ts`.
 
-| reader | premium | work_boost | perks.workBoost | life skill | DeepLife+ | political ÷52 | jail |
-|---|---|---|---|---|---|---|---|
-| payroll (the truth) | ✓ | ✓ | ✓ | ✓ | ✓ | n/a (skipped) | ✓ |
-| promotion modal (JobActions) | ✓ | — | — | — | — | — | — |
-| CareerPathCard | ✓ | — | — | — | — | — | — |
-| work.tsx card `reward` | — | — | — | — | — | — | — |
-| IdentityCard `jobIncome` | — | — | — | — | — | — | — |
-| ShareLifeCard | — | — | — | — | — | — | — |
+Verified by probe: a 6-rung surgeon save comes back with 8 rungs, level index 4
+("Surgical Director") intact, repair logged. So BBQ's "Lv 5/6" is simply a
+build that predates the capstone rungs; the next update fixes it with no work
+from us. Nothing to do — and the git history here is a shallow clone rooted at
+0a8fd34, which is why `git log -S` appeared to date both changes to one commit.
 
-$26K = 13000 × 2 (premium), $13000 = the raw base. Neither is what lands when the
-player has a boost, a life skill or DeepLife+.
+## What the search DID turn up — all three in the reported family
 
-Second, worse bug on the same line: `IdentityCard.jobIncome` reads
-`levels[level].salary` for **political** too, where the ladder is ANNUAL — a President
-reads **$100,000/wk** instead of $1,923, and `passive` already counts the office pay,
-so Cash Flow double-counts it at 52x. It also feeds `calcWeeklyExpenses`, so the tax
-line is computed off that number.
+- [x] **A. The "Current Job" hero shows base pay next to the raise percentage.**
+      `work.tsx:952` `currentJobSalary = currentJobLevel?.salary` — raw base,
+      rendered at :1009 as `$13,000/wk · Lv 5/8 · +100%`. It prints the base and
+      the premium side by side without applying one to the other. This is the
+      most prominent income surface on the screen, and the previous commit made
+      it worse by fixing the card below it and not this. → `paidWeeklyCareerSalary`.
 
-## Steps
-- [x] 1. `lib/careers/weeklySalary.ts`: add `careerPayMultiplier(state)` +
-      `paidWeeklySalaryForLevel(state, career, level)` + `paidWeeklyCareerSalary(state)`
-      — one implementation of "what payroll credits", political and jail included.
-- [x] 2. `applyCareerSalaryAndPenalty.ts` calls it, so the truth and the readers cannot drift.
-- [x] 3. `work.tsx` card `reward` + "Tops out" → paid figure.
-- [x] 4. `IdentityCard` → paid figure; political pay counted ONCE (job line, netted out of passive).
-- [x] 5. `JobActions.promoteCareer` promotion payload → paid figure.
-- [x] 6. `CareerPathCard` (expanded + compact) → paid figure.
-- [x] 7. `ShareLifeCard` → paid figure.
-- [x] 8. Tests: new `__tests__/economy/paidWeeklySalary.test.ts` pinning payroll ≡ readers.
-- [x] 9. type-check · type-check:tests · lint:errors · targeted suites.
+- [x] **B. Three careers render nowhere.** `work.tsx:917`
+      `advancedIds = ['politician', 'celebrity', 'athlete']` excludes them from
+      "Standard Careers", but the "Advanced Careers" section iterates
+      `ADVANCED_CAREERS`, which is `ceo · research_scientist ·
+      creative_director · investment_banker · surgeon` — a different set. So
+      politician, celebrity and athlete are filtered out of the only screen that
+      can apply for them. All three are live content: achievements read their
+      level (`achievementsData.ts`), ambitions read them (`POLITICS_CAREERS`,
+      `FAME_CAREERS`), and `events/engine.ts:524` gates an event on holding one.
+      → exclude the ids the Advanced section actually renders.
+
+- [x] **C. The five real advanced careers render TWICE once applied.** They are
+      pushed into `gameState.careers` on apply, so they pass the `basicCareers`
+      filter and render via `renderCareerCard` (real level, real pay, "Manage
+      Job"), AND again from the catalog via `renderAdvancedCareerCard` at
+      `levels[0].salary` with the button "Working". For BBQ that is
+      "Surgical Director $26K/wk" and "Resident $1,150/wk" on one screen — a 22x
+      disagreement, which is exactly the report. → one card per career: the
+      Advanced section delegates to `renderCareerCard` for a career the player
+      has already applied to or holds, and keeps the catalog stub only for ones
+      they have not.
+
+- [x] D. `renderAdvancedCareerCard`'s reward is `$${salary.toLocaleString()}/wk`
+      off `levels[0]` — a fourth money format with no multipliers. → same
+      `formatMoney(paidWeeklySalaryForLevel(...))` as everywhere else.
+
+- [x] E. Test + full verification.
 
 ## Verification
-- `npm run type-check` ✓ · `type-check:tests` ✓ · `lint:errors` ✓ · `check:routes` ✓
-- Full Jest: **620 suites / 8126 tests pass**, 308 snapshots, 1 skipped.
-- New suite `__tests__/economy/paidWeeklySalary.test.ts` — 21 tests. Behavioural,
-  not source-pattern: it runs `applyCareerSalaryAndPenalty` and asserts each
-  reader equals the `careerSalary` the week loop returns, for the bare base, a
-  maxed raise, each multiplier alone, all of them stacked, jail, unemployment,
-  an out-of-range level, a corrupt salary and an out-of-cap stored premium.
-- Two existing source-pattern suites went red on the refactor and were
-  re-pointed at the new indirection rather than relaxed:
-  `raisePremiumConsistency` (now also pins `lib/careers/weeklySalary.ts`, so the
-  chain is covered end to end) and `playerReports20260802`.
-
-## What the reported save now reads
-Surgical Director, base 13000, raise premium at the +100% cap:
-promotion modal **$26K/wk** · work card **$26K/wk** · Cash Flow **$26K** —
-and `payrollCredits` returns 26000. The work card also switched to `formatMoney`,
-so it reads "$26K/wk" rather than "$26000/wk".
+- `type-check` ✓ · `type-check:tests` ✓ · `lint:errors` ✓ · `check:routes` ✓
+- Full Jest: **621 suites / 8136 tests pass**, 308 snapshots, 1 skipped.
+- New `__tests__/economy/workTabCareerLists.test.ts` (9) — pins the PARTITION,
+  not the literal: the derived id set matches the catalog, the two catalogs are
+  disjoint, and every catalogued career lands in exactly one list.
+- New case in `__tests__/save/hydrateLoadedState.test.ts` — the ladder question
+  answered end to end. `careerPromotionGating` already covered `repairGameState`
+  in isolation; what was uncovered is the step AFTER it, where this function
+  merges onto `initialGameState` and could have taken `careers` from the wrong
+  side and undone the repair silently. Both load paths run through here.

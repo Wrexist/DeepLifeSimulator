@@ -3636,3 +3636,59 @@ callers rather than for readers of the field.
 > field, not every caller of the bug.**
 
 Guard: `__tests__/economy/paidWeeklySalary.test.ts` (21 assertions, behavioural).
+
+---
+
+## 2026-08-22 (b) — A hand-written mirror of a catalog, and a wrong answer given confidently
+
+Two things, from following up the same report.
+
+**I told the user their save "can't reach the capstones without a migration".**
+It can. `repairGameState` has reconciled every saved ladder against the catalog
+on load for some time, preserving level/progress/premium and clamping the index,
+and it is tested. I asserted the gap from one true premise — ladders are
+persisted in the save — without checking for the mechanism that closes it. The
+tell I ignored: the repo has a documented habit of closing exactly this class of
+gap, so "there is no reconciliation" was the surprising claim and it was the one
+I made without evidence.
+
+> **A mechanism you have not looked for is not a mechanism that is missing.**
+> Before reporting a gap, grep for the thing that would close it.
+
+Worth noting what made this harder to check: the container holds a SHALLOW clone
+rooted at one commit, so `git log -S` reported both the capstone rungs and the
+reconciliation as introduced by that root. Two unrelated features "landing in one
+commit" is the signature of a shallow clone, not of history.
+
+**The bug the follow-up actually found.** `work.tsx` decided which careers the
+"Standard Careers" list should skip with a literal:
+
+```js
+const advancedIds = ['politician', 'celebrity', 'athlete'];
+```
+
+The "Advanced Careers" section beneath it iterates `ADVANCED_CAREERS`, which is
+`ceo · research_scientist · creative_director · investment_banker · surgeon` — a
+completely different set. So one literal produced two opposite failures at once:
+politician, celebrity and athlete were excluded from Standard and never picked
+up by Advanced, rendering **nowhere** (all three still read by achievements, two
+ambition lines, and a weekly event gate); while the five real advanced careers
+rendered **twice** once applied for — the player's own entry with their real
+level and pay, and the catalog stub at rung 0. "Surgical Director $26K/wk" and
+"Resident $1,150/wk", same job, one screen.
+
+> **A set that must mirror a catalog is derived from the catalog or it is a
+> second catalog.** `ADVANCED_CAREER_IDS` is now exported from the module that
+> defines them.
+
+The general shape is the same one the salary fix hit hours earlier, which is why
+it is worth naming separately: not "two places compute a number differently" but
+**two places enumerate a set differently**. The salary version announces itself
+(the player sees two numbers). This one is silent in the direction that HIDES
+content — nobody reports a career they have never seen.
+
+Also caught, and mine: the "Current Job" hero still read the base salary,
+printing `$13,000/wk · Lv 5/8 · +100%` — stating the premium and withholding it
+on one line. The earlier commit fixed the card below it and not the header,
+which is the ordinary cost of fixing readers one at a time instead of listing
+them first.
