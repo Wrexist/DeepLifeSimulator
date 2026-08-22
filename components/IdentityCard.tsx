@@ -24,6 +24,7 @@ import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
+import { getTotalLuxuryYield } from '@/lib/luxury/operations';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -293,8 +294,22 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // actually inside `passiveInfo.total` (per-source caps applied), so the two
   // rows sum to the same money the week loop pays no matter what the cap does.
   const officePay = passiveInfo.breakdown.political;
-  const passive = Math.max(0, passiveInfo.total - officePay);
   const jobIncome = jobPay.fromPayroll + officePay;
+
+  // Luxury yield — charter fees, vintage sales, a season dividend — is credited
+  // every week by `applyLuxuryItems`, and is NOT part of `calcWeeklyPassiveIncome`.
+  // Added here rather than there on purpose: the weekly tick consumes
+  // `calcWeeklyPassiveIncome(...).total` directly (`applyIncome.ts`), so folding
+  // luxury into it would credit the yield twice. This panel is the only reader
+  // that needs the combined figure.
+  //
+  // Its cost side now sits in `calcWeeklyExpenses` (breakdown.luxury), so the
+  // two halves arrive together — showing a $301,200/wk yield without the
+  // $556,820/wk upkeep beneath it would be a worse lie than showing neither.
+  const luxuryYield = getTotalLuxuryYield(
+    Array.isArray(gameState.luxuryItems) ? gameState.luxuryItems : [],
+  );
+  const passive = Math.max(0, passiveInfo.total - officePay) + luxuryYield;
 
   // Partner / spouse weekly income (counts even after marriage) — 25% of the
   // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
@@ -974,6 +989,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           {/* Office pay is reported under Job Income above and netted out of
               `passive`, so it must not also appear here — the breakdown would
               list money the section total no longer contains. */}
+          {luxuryYield > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Luxury Yield: {formatMoney(luxuryYield)}
+              </Text>
+            </View>
+          )}
           {passiveInfo.breakdown.gamingStreaming > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
@@ -1411,6 +1434,52 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 ) : null;
               })()}
             </>
+          )}
+
+          {/* The five lines the tick charges that this breakdown never named.
+              Luxury, pets and subscriptions were missing from the TOTAL as well
+              — a full collection alone owes $556,820/wk — while student loans
+              and income tax were counted in the total but had no row, so the
+              itemisation did not add up to the number above it. */}
+          {expenseInfo.breakdown.luxury > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Sparkles size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Luxury Upkeep: {formatMoney(expenseInfo.breakdown.luxury)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.pets > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Heart size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Pet Food: {formatMoney(expenseInfo.breakdown.pets)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.subscriptions > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Smartphone size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Subscriptions: {formatMoney(expenseInfo.breakdown.subscriptions)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.studentLoans > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <CreditCard size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Student Loans: {formatMoney(expenseInfo.breakdown.studentLoans)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.incomeTax > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Income Tax: {formatMoney(expenseInfo.breakdown.incomeTax)}
+              </Text>
+            </View>
           )}
         </View>
         </>

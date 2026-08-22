@@ -30,6 +30,9 @@
 import type { PulseVerifiedPro, SparkPremium } from '@/contexts/game/types';
 import { perksForTier } from '@/lib/dating/sparkLogic';
 import { BANKRUPTCY_FLOOR } from '@/lib/config/gameConstants';
+// Shared with the home tab's Weekly Expenses panel, which has to report the
+// same charge this function makes — see lib/subscription/billing.ts.
+import { isInGameBillable, isPrepaidThisWeek } from '@/lib/subscription/billing';
 
 export interface SubscriptionBillingInput {
   verifiedPro: PulseVerifiedPro | undefined;
@@ -53,30 +56,6 @@ export interface SubscriptionBillingResult {
   notifications: string[];
 }
 
-/** True when a subscription is an active, in-game-billed (cash) subscription. */
-function isInGameBillable(
-  sub: { active?: boolean; weeklyPrice?: number } | undefined,
-): boolean {
-  return (
-    !!sub &&
-    sub.active === true &&
-    typeof sub.weeklyPrice === 'number' &&
-    Number.isFinite(sub.weeklyPrice) &&
-    sub.weeklyPrice > 0
-  );
-}
-
-/** Whether an annual prepay term is still covering this week (no charge due). */
-function isPrepaidThisWeek(
-  sub: { plan?: string; paidThroughWeek?: number },
-  nextWeeksLived: number,
-): boolean {
-  return (
-    sub.plan === 'annual' &&
-    typeof sub.paidThroughWeek === 'number' &&
-    nextWeeksLived < sub.paidThroughWeek
-  );
-}
 
 /**
  * A renewal is affordable only when it leaves the player at or above the

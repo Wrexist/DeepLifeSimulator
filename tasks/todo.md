@@ -86,3 +86,60 @@ from us. Nothing to do — and the git history here is a shallow clone rooted at
 ## Final verification
 - `type-check` ✓ · `type-check:tests` ✓ · `lint:errors` ✓
 - Full Jest: **621 suites / 8139 tests pass**, 308 snapshots, 1 skipped.
+
+
+---
+
+# Pass 2 — the same shape, audited across the economy — 2026-08-22
+
+Asked: does "two places compute one quantity" appear elsewhere? Yes, and the
+biggest instance in the game was on the same panel as the reported bug.
+
+## Found: "Weekly Cash Flow" was not the player's cash flow
+Three costs the tick charges had NO representation in `calcWeeklyExpenses`:
+
+| line | charged by | size |
+|---|---|---|
+| luxury upkeep | `applyLuxuryItems` | up to **$556,820/wk** (full collection) |
+| pet food | `applyPets` | $15/wk per living pet |
+| subscriptions | `applySubscriptions` | Pulse Verified Pro + Spark Premium |
+
+…and luxury **yield** (up to $301,200/wk, credited by the same subsystem) was
+missing from the income side. Net: a collector's Cash Flow was optimistic by
+more than a quarter of a million dollars a week. Two further lines —
+`studentLoans` and `incomeTax` — were inside the TOTAL but had no row, so the
+itemisation did not add up to the figure printed above it.
+
+- [x] `lib/subscription/billing.ts` — `isInGameBillable` / `isPrepaidThisWeek`
+      moved down out of `applySubscriptions` (lib cannot import from contexts),
+      plus `totalSubscriptionWeeklyCharge`. The tick imports them back.
+- [x] `PET_WEEKLY_FOOD_COST` moved to `lib/pets/lifecycle.ts`, re-exported from
+      `applyPets` so its importers are untouched.
+- [x] `calcWeeklyExpenses` gains `luxury` / `pets` / `subscriptions`, each
+      computed by calling the CHARGING subsystem's own function — never by
+      restating its rules.
+- [x] `IdentityCard` gains the five missing rows and the luxury-yield income
+      line. Yield is added at the DISPLAY layer, not to `calcWeeklyPassiveIncome`
+      — the tick consumes that function's `.total` directly (`applyIncome.ts`)
+      while `applyLuxuryItems` credits the yield separately, so folding it in
+      would pay it twice. A test guards that reasoning.
+- [x] `__tests__/economy/cashFlowCompleteness.test.ts` — 11 tests.
+
+## Checked, no divergence found
+- Net worth — already single-sourced (`canonicalNetWorth`); its own comment
+  records killing a "sixth divergent basis".
+- Company income — already single-sourced (`companyIncomeFactors`).
+- Political office pay — `getPoliticalWeeklySalary`, one copy, now read by the
+  Politics app too (previous commit).
+- Vehicles / diet / mining / rent / loans — already in the breakdown.
+- `applyContentMemberships` — no direct `stats.money` mutation found; left
+  alone rather than guessed at.
+
+## Verification
+- `type-check` ✓ · `type-check:tests` ✓ · `lint:errors` ✓
+- Full Jest: **622 suites / 8150 tests pass**, 308 snapshots, 1 skipped.
+- App boots clean in the web preview with every change in place (no page
+  errors beyond the expected `Unsupported platform: web` from IAP). Driving the
+  automated browser deeper than the perks screen was blocked by an overlay
+  intercepting the tap, so the Cash Flow panel itself is verified by tests and
+  by the provider-tree mount test, not by eye.

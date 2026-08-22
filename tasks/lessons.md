@@ -3692,3 +3692,48 @@ printing `$13,000/wk · Lv 5/8 · +100%` — stating the premium and withholding
 on one line. The earlier commit fixed the card below it and not the header,
 which is the ordinary cost of fixing readers one at a time instead of listing
 them first.
+
+---
+
+## 2026-08-22 (c) — The audit found a bigger one than the report did
+
+Asked "is the same shape anywhere else?" after the salary work. It was, on the
+same panel, an order of magnitude larger.
+
+"Weekly Cash Flow" is supposed to answer *what will this week take*. It was
+answering with a subset: `calcWeeklyExpenses` had no term at all for luxury
+upkeep, pet food or subscription renewals, all three of which the tick charges
+every week. Luxury alone is up to **$556,820/wk** for a full collection. Its
+yield (up to $301,200/wk) was missing from the income side too, so the panel was
+optimistic by roughly a quarter of a million dollars a week for a collector.
+
+Two things worth keeping from it.
+
+**The omission is a harder bug to see than the disagreement.** The salary bug
+announced itself — the player saw two numbers and reported it. Nobody reports a
+line that was never on the screen; they just quietly find the game's economy
+confusing. A completeness check ("does every charging subsystem appear here?")
+finds what a consistency check ("do these two numbers match?") cannot.
+
+> **For a summary view, enumerate the producers and check coverage. Comparing
+> the numbers that ARE shown only validates the ones somebody remembered.**
+
+**Not every duplicate should be de-duplicated.** Luxury yield is credited by
+`applyLuxuryItems`, and the tick separately credits
+`calcWeeklyPassiveIncome(prev).total` (`applyIncome.ts`). The tidy-looking move —
+fold luxury into `calcWeeklyPassiveIncome` so there is "one income function" —
+would have paid the yield **twice every week**. The display needed the combined
+figure; the tick did not. So the sum lives at the display layer and a test pins
+the reason.
+
+> **Before merging two calculations, check whether anything already adds them
+> together.** "One source of truth" is a property of the CONSUMERS, not of the
+> functions.
+
+Mechanics that made the fix safe rather than a fifth opinion: every new line
+calls the charging subsystem's own function (`getTotalLuxuryUpkeep`,
+`PET_WEEKLY_FOOD_COST`, `totalSubscriptionWeeklyCharge`). Two of those had to be
+moved DOWN into `lib/` first, because `lib/` may not import values from
+`contexts/` — the same relocation the raise-premium and money-delta symbols
+needed. That import rule keeps turning out to be the thing that forces the
+shared code into the right layer rather than getting duplicated across it.
