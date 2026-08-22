@@ -622,7 +622,9 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 {trialMentioned ? (
                   <View style={styles.trialBanner}>
                     <View style={styles.trialBannerBody}>
-                      <Text style={styles.trialBannerTitle}>{trialDays} days risk-free</Text>
+                      <Text style={styles.trialBannerTitle}>
+                        {trialPromised ? `${trialDays} days risk-free` : `${trialDays}-day free trial`}
+                      </Text>
                       <Text style={styles.trialBannerSub}>
                         {trialPromised
                           ? 'Try every perk. Love it or cancel — no charge.'
@@ -823,13 +825,18 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 ? 'Manage or cancel anytime in your store account.'
                 : lifetime
                   ? 'One-time purchase. Yours forever — no subscription, never renews.'
-                  : !canPurchase
-                    ? 'Prices could not be loaded from the store. Your exact price and renewal terms are always shown by the store before any charge.'
-                    : trialPromised
-                      ? `${trialDays}-day free trial, then ${selectedLabel} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
-                      : trialMentioned
-                        ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial — the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
-                        : `${selectedLabel} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
+                  : prices.state === 'store-disabled'
+                    // Prices ARE on screen in this state (the config fallback,
+                    // shown only where nothing can be purchased), so claiming
+                    // none loaded would contradict the cards right above.
+                    ? 'Purchases are unavailable in this build. Prices shown are indicative — the store always shows your exact price and renewal terms before any charge.'
+                    : !canPurchase
+                      ? 'Prices could not be loaded from the store. Your exact price and renewal terms are always shown by the store before any charge.'
+                      : trialPromised
+                        ? `${trialDays}-day free trial, then ${selectedLabel} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
+                        : trialMentioned
+                          ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial — the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
+                          : `${selectedLabel} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
           </Text>
         </View>
       </View>
