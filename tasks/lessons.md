@@ -4,6 +4,62 @@
 
 ## Patterns to Watch For
 
+### 2026-08-22 - A price is data the app must be GIVEN, not a string it can keep; and "not proven false" is not "true"
+
+The DeepLife+ paywall rendered every figure — plan cards, CTA, legal disclosure,
+"just $0.96/week", "SAVE 17%" — from `SUBSCRIPTION_CONFIGS`, a static map of
+US-dollar strings. On any non-US storefront the player read a price they would
+never be charged, on the one screen selling a recurring charge, beside a working
+buy button.
+
+- **A config price is a build-time guess about a run-time fact.** The gem shop
+  had already learned this and resolves live localized prices; the subscription
+  paywall was the one money surface that had not. When a value belongs to the
+  player's storefront, account or device, the only correct source is the thing
+  that owns it. Anything cached in the repo is a fallback at best, and a
+  fallback needs to know it is one — `PlanPrice.fromStore` exists so the UI can
+  gate its purchase button on having a real answer.
+- **Derived claims inherit the trust level of their worst input.** The "SAVE
+  17%" badge was arithmetic on two USD constants. Apple sets monthly and yearly
+  tiers independently per storefront, so the real ratio moves and the badge
+  could be flatly false abroad. The rule now: a derived number is computed only
+  from same-currency numeric store prices and returns 0/'' otherwise. Rounding
+  has a direction too — a derived price rounds UP and a discount FLOORS, so
+  neither can flatter the offer.
+- **The dead-code tell: a reader with no writer.** `lib/offers/pricing.ts` and
+  the gem shop's `storePriceInfo` both read `priceAmount`. Nothing ever wrote
+  it: `normalizeProduct` in the expo-iap adapter overwrote the numeric `price`
+  with a display string. Two correct, tested features — a discount badge and a
+  currency-honest value line — were unreachable on every live storefront. The
+  gem shop's own comment ("a clean numeric is NOT guaranteed") had documented
+  the symptom for months without anyone following it back one call to the cause.
+- **"Not proven false" is not "true".** The trial claim was shown whenever
+  eligibility was not a definite `'ineligible'`. `'unknown'` is the answer for
+  ALL of Android, every build without RevenueCat keys and every failed lookup —
+  so the overwhelmingly common case showed "Start for $0.00 Today" to players
+  the store was about to charge in full. A three-valued answer needs three
+  branches: a hard promise for a confirmed yes, copy that holds either way for
+  unknown, silence for no. This is the same shape as the save-format carve-outs
+  in CLAUDE.md §7, where `undefined` (unknown) must stay distinguishable from a
+  concrete default — `storeFreeTrialDays` returns `null` for unknown and `0` for
+  "no offer" for exactly that reason.
+- **`setBusy(true)` is not a lock.** The purchase handler guarded on the `busy`
+  STATE, which does not update until React re-renders, so two taps in one batch
+  would both pass. Same gate-then-act shape as §4.4's money bugs, just with a
+  store sheet instead of a grant. The latch has to be a ref.
+- **When you delete a wrong helper, delete it.** `yearlyPerWeek()` and
+  `yearlySavingsPercent()` were removed rather than left deprecated. A helper
+  that silently answers in the wrong currency is precisely the thing the next
+  person reaches for; a comment saying where it went is safer than a working
+  function that lies.
+
+Guards: `lib/subscription/__tests__/planPricing.test.ts` (37, incl. the
+cross-currency refusal and the whole trial matrix),
+`__tests__/render/SubscriptionModal.render.test.tsx` (asserts NEGATIVELY — no
+purchase CTA and no "$0.00" promise when nothing can be proven), and two cases
+in `__tests__/monetization/expoIapAdapter.test.ts` pinning `priceAmount`.
+
+
 ### 2026-08-16 - The hardening pass: a sweep's enforcement must be as wide as its claim, and parallel edits in one tree need file-scoped commits
 
 - **A fix "across the board" is only as broad as the ratchet that guards it.**

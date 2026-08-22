@@ -9,9 +9,26 @@
  * Marketing choices (all App Store compliant — NO countdown timers, fake
  * scarcity, or strike-through "was" prices, per the app's review notes):
  *   • Annual plan pre-selected (higher LTV; users anchor to the default).
- *   • Free trial is the primary hook ("Start my 7-day free trial").
- *   • Yearly framed per-week ("just $0.96/week") — the strongest value cue.
+ *   • Free trial is the primary hook, but only where it is TRUE (see below).
+ *   • Yearly framed per-week — the strongest value cue.
  *   • Every listed benefit is one the game actually grants (kept truthful).
+ *
+ * ── TWO THINGS THIS SCREEN IS NOT ALLOWED TO GUESS ──────────────────────────
+ *
+ * THE PRICE. Every figure here used to come from the static `SUBSCRIPTION_CONFIGS`
+ * map ('$4.99' / '$49.99'), so a player on a non-US storefront read a US-dollar
+ * price they would never be charged, and the derived "SAVE n%" and per-week
+ * lines were computed from those same USD constants. Prices now come from the
+ * store for THIS player (`useSubscriptionPrices`), and when the store has not
+ * given us one the screen shows a placeholder and refuses to present a purchase
+ * CTA rather than printing a number it cannot stand behind.
+ *
+ * THE TRIAL. The trial claim was shown whenever eligibility was not a definite
+ * 'ineligible' — which is every Android user, every build without RevenueCat
+ * keys, and every failed lookup. So a returning subscriber who had already spent
+ * their trial was shown "Start for $0.00 Today" and charged in full on tap.
+ * `resolveTrialClaim` now separates a hard promise (store confirms the offer AND
+ * this player's eligibility) from conditional copy that is true either way.
  */
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
@@ -45,11 +62,17 @@ import {
   DEEP_LIFE_PLUS_BENEFITS,
   DEEP_LIFE_PLUS_LIFETIME,
   DEEP_LIFE_PLUS_FREE_TRIAL_DAYS,
-  yearlyPerWeek,
-  yearlySavingsPercent,
   isDeepLifePlusActive,
   type DeepLifePlusPlan,
 } from '@/lib/subscription/deepLifePlus';
+import {
+  perWeekPrice,
+  yearlySavingsPercent,
+  storeFreeTrialDays,
+  resolveTrialClaim,
+  type PlanPrice,
+} from '@/lib/subscription/planPricing';
+import { useSubscriptionPrices, useOnceLatch } from '@/hooks/useSubscriptionPrices';
 
 interface Props {
   visible: boolean;
@@ -107,27 +130,85 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     () => DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'yearly') ?? DEEP_LIFE_PLUS_PLANS[0],
     [],
   );
+  const monthlyPlan = useMemo(
+    () => DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'monthly'),
+    [],
+  );
   // Annual pre-selected — the higher-LTV default that users anchor to.
   const [selected, setSelected] = useState<DeepLifePlusPlan>(yearlyPlan);
   const [lifetime, setLifetime] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Set once the purchase completes, so the sheet can hand the player a welcome
+  // instead of dropping them back on the sales pitch they just accepted.
+  const [purchased, setPurchased] = useState<null | { lifetime: boolean }>(null);
   const active = isDeepLifePlusActive();
 
   // Store-confirmed intro-offer eligibility for the selected plan (checked below).
-  // Defaults to 'unknown', which keeps the trial copy; only a definitive store
-  // 'ineligible' hides it.
   const [introStatus, setIntroStatus] = useState<'eligible' | 'ineligible' | 'unknown'>('unknown');
 
-  const trialDays = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS;
-  const perWeek = useMemo(() => yearlyPerWeek(), []);
-  const savingsPct = useMemo(() => yearlySavingsPercent(), []);
-  // Advertise the free trial only when the store hasn't told us the user is
-  // INELIGIBLE (e.g. already consumed it) — otherwise "$0.00 today" would be a
-  // false promise and StoreKit would charge immediately. 'unknown' (Android /
-  // dev / before the check resolves) keeps the trial copy: Play enforces the
-  // real terms at checkout, and iOS is re-checked in the effect below.
-  const trialEligible = !active && !lifetime && trialDays > 0 && introStatus !== 'ineligible';
+  // ── Live, localized prices ────────────────────────────────────────────────
+  const pricedIds = useMemo(
+    () =>
+      [yearlyPlan?.productId, monthlyPlan?.productId, DEEP_LIFE_PLUS_LIFETIME.productId].filter(
+        (id): id is string => typeof id === 'string' && id.length > 0,
+      ),
+    [yearlyPlan, monthlyPlan],
+  );
+  const prices = useSubscriptionPrices(pricedIds, visible && !active);
+  const yearlyPrice = prices.priceFor(yearlyPlan?.productId ?? '');
+  const monthlyPrice = prices.priceFor(monthlyPlan?.productId ?? '');
+  const lifetimePrice = prices.priceFor(DEEP_LIFE_PLUS_LIFETIME.productId);
+  const selectedPrice = lifetime ? lifetimePrice : prices.priceFor(selected.productId);
+
+  /**
+   * What to print for a plan.
+   *
+   * `store-disabled` is the ONLY state that falls back to the config price: no
+   * store exists in that build, so nothing can be charged and no wrong number
+   * can lead to a wrong payment — it keeps the layout reviewable in Expo Go and
+   * the web preview, with the CTA disabled (the same way GemShopModal degrades).
+   * Every other state shows a placeholder, because there a purchase COULD still
+   * be attempted and a stale USD figure would be a false price.
+   */
+  const priceLabel = useCallback(
+    (resolved: PlanPrice, configPrice: string): string => {
+      if (resolved.fromStore) return resolved.displayPrice;
+      return prices.state === 'store-disabled' ? configPrice : '—';
+    },
+    [prices.state],
+  );
+
+  // Derived value framing — silent unless it can be computed from real,
+  // same-currency store prices (see lib/subscription/planPricing.ts).
+  const perWeek = useMemo(() => perWeekPrice(yearlyPrice), [yearlyPrice]);
+  const savingsPct = useMemo(
+    () => yearlySavingsPercent(monthlyPrice, yearlyPrice),
+    [monthlyPrice, yearlyPrice],
+  );
+
+  // ── What we may claim about the free trial ────────────────────────────────
+  // Two independent questions: does the PRODUCT carry a free-trial offer (the
+  // store's product data), and may THIS player still use it (the per-user
+  // eligibility check below). Only a yes to both earns the "$0.00 today"
+  // promise; a partial answer gets copy that holds either way.
+  const trial = useMemo(() => {
+    if (active || lifetime) return { claim: 'none' as const, days: 0 };
+    const product = prices.productFor(selected.productId);
+    return resolveTrialClaim({
+      eligibility: introStatus,
+      storeTrialDays: storeFreeTrialDays(product),
+      configuredTrialDays: DEEP_LIFE_PLUS_FREE_TRIAL_DAYS,
+    });
+  }, [active, lifetime, prices, selected.productId, introStatus]);
+  const trialDays = trial.days;
+  const trialPromised = trial.claim === 'promise';
+  const trialMentioned = trial.claim !== 'none';
+
+  // Can the player actually buy right now? Gated on having a real price to show
+  // them — presenting a purchase button beside a price we could not load is the
+  // failure this whole screen was rebuilt to prevent.
+  const canPurchase = selectedPrice.fromStore;
 
   // Motion that makes the sheet feel alive: a slow gold pulse behind the crest,
   // twinkling hero sparkles, and a periodic light sweep across the CTA. All
@@ -173,14 +254,72 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     };
   }, [visible, reducedMotion, glow, sparkle, shine]);
 
+  // ── Funnel instrumentation ────────────────────────────────────────────────
+  // `once` keeps the per-open events (viewed, intro offer shown) to one each per
+  // presentation, so a re-render caused by a price landing cannot inflate them.
+  const once = useOnceLatch();
+  const openedAt = useRef<number>(0);
+  const planTouched = useRef(false);
+
   useEffect(() => {
-    if (visible) track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
-  }, [visible, active]);
+    if (!visible) {
+      once.reset();
+      planTouched.current = false;
+      openedAt.current = 0;
+      // Reset the post-purchase view, or reopening the paywall later would greet
+      // the player with the same welcome panel instead of their member state.
+      // Safe to do here: `handleClose` has already read `purchased` from its own
+      // closure by this point, so the dismissal event stays correctly suppressed
+      // for a session that ended in a purchase.
+      setPurchased(null);
+      setMessage(null);
+      return;
+    }
+    openedAt.current = Date.now();
+    if (once.fire('viewed')) {
+      track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
+    }
+  }, [visible, active, once]);
+
+  // Record that a trial was actually PRESENTED, and in which form. Without this
+  // the trial cannot be evaluated: a conditional mention and a hard promise
+  // convert very differently, and the split between them is decided by store
+  // data we do not otherwise log.
+  useEffect(() => {
+    if (!visible || trial.claim === 'none') return;
+    if (!once.fire(`intro:${trial.claim}:${trialDays}`)) return;
+    track('paywall_intro_offer_shown', {
+      surface: 'deeplife_plus',
+      claim: trial.claim,
+      days: trialDays,
+      productId: selected.productId,
+    });
+  }, [visible, trial.claim, trialDays, selected.productId, once]);
+
+  /**
+   * Report a dismissal with enough context to tell the two kinds apart: a player
+   * who never touched a plan was not interested, while one who selected a plan
+   * and then left was lost at the price or the terms. `dwellMs` separates both
+   * from an accidental open.
+   */
+  const handleClose = useCallback(() => {
+    if (openedAt.current > 0 && !purchased) {
+      track('paywall_dismissed', {
+        surface: 'deeplife_plus',
+        dwellMs: Date.now() - openedAt.current,
+        planTouched: planTouched.current,
+        selectedProductId: lifetime ? DEEP_LIFE_PLUS_LIFETIME.productId : selected.productId,
+        priceState: prices.state,
+        trialClaim: trial.claim,
+      });
+    }
+    onClose();
+  }, [onClose, purchased, lifetime, selected.productId, prices.state, trial.claim]);
 
   // Re-check StoreKit/RevenueCat intro-offer eligibility for the selected plan
-  // whenever the sheet opens or the plan changes, so the free-trial copy is only
-  // shown to users the store will actually grant a trial. Best-effort: any
-  // failure leaves 'unknown' (trial copy stays).
+  // whenever the sheet opens or the plan changes. Best-effort: any failure
+  // leaves 'unknown', which `resolveTrialClaim` downgrades to conditional copy
+  // rather than a promise.
   useEffect(() => {
     if (!visible || active || lifetime) return;
     let cancelled = false;
@@ -193,18 +332,46 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     };
   }, [visible, active, lifetime, selected.productId]);
 
+  // A REF, not the `busy` state, is what actually closes the double-tap window.
+  // `setBusy(true)` does not update `busy` until React re-renders, so two taps
+  // landing in one batch would both read `busy === false` and both open a store
+  // sheet — the same gate-then-act shape that has produced double-grant bugs in
+  // this repo (CLAUDE.md §4.4). The ref flips synchronously, so the second tap
+  // is refused before it can reach the store. `busy` is kept for the UI.
+  const purchaseInFlight = useRef(false);
+
   const handleSubscribe = useCallback(async () => {
-    if (busy) return;
+    if (purchaseInFlight.current || busy || !canPurchase) return;
+    purchaseInFlight.current = true;
     setBusy(true);
     setMessage(null);
     try {
       const productId = lifetime ? DEEP_LIFE_PLUS_LIFETIME.productId : selected.productId;
-      track('paywall_cta_tapped', { surface: 'deeplife_plus', productId, trial: trialEligible });
+      track('paywall_cta_tapped', {
+        surface: 'deeplife_plus',
+        productId,
+        trialClaim: trial.claim,
+        // The price the player was actually looking at when they committed —
+        // the only way to reconcile the funnel against a storefront's real tiers.
+        displayPrice: selectedPrice.displayPrice,
+        currency: selectedPrice.currency,
+      });
+      // purchase_started / _succeeded / _cancelled / _failed are emitted centrally
+      // by IAPService.purchaseProduct, so they are not repeated here.
       const res = await subscriptionService.purchasePremium(productId);
       if (res.success) {
         setGameState((prev) => applyDeepLifePlusBenefits(prev));
         void saveGame?.(false);
-        setMessage(lifetime ? 'Premium unlocked forever — enjoy!' : 'DeepLife+ activated — welcome to the club!');
+        // Distinct from purchase_succeeded: that says the store took the money,
+        // this says the entitlement reached the save. A gap between the two is a
+        // fulfilment bug that would otherwise only ever surface as a support email.
+        track('premium_activated', {
+          surface: 'deeplife_plus',
+          productId,
+          kind: lifetime ? 'lifetime' : selected.period,
+        });
+        setPurchased({ lifetime });
+        setMessage(null);
       } else {
         setMessage(res.message || 'Purchase could not be completed.');
       }
@@ -212,27 +379,37 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       logger.error('[SubscriptionModal] purchase failed', { productId: selected.productId, error });
       setMessage('Something went wrong. Please try again.');
     } finally {
+      purchaseInFlight.current = false;
       setBusy(false);
     }
-  }, [busy, lifetime, selected, trialEligible, setGameState, saveGame]);
+  }, [busy, canPurchase, lifetime, selected, trial.claim, selectedPrice, setGameState, saveGame]);
 
   const handleRestore = useCallback(async () => {
-    if (busy) return;
+    if (purchaseInFlight.current || busy) return;
+    purchaseInFlight.current = true; // shared latch: never restore mid-purchase
     setBusy(true);
     setMessage(null);
+    track('restore_started', { surface: 'deeplife_plus' });
     try {
       await subscriptionService.restoreSubscriptions();
       if (isDeepLifePlusActive()) {
         setGameState((prev) => applyDeepLifePlusBenefits(prev));
         void saveGame?.(false);
+        track('restore_succeeded', { surface: 'deeplife_plus' });
         setMessage('Subscription restored.');
       } else {
+        // Not an error: a player with nothing to restore is the common case.
+        // Tracked apart from a failure so a spike in genuine restore FAILURES —
+        // the ones that cost a paying player their entitlement — stays visible.
+        track('restore_failed', { surface: 'deeplife_plus', reason: 'nothing_to_restore' });
         setMessage('No active subscription found to restore.');
       }
     } catch (error) {
       logger.error('[SubscriptionModal] restore failed', { error });
+      track('restore_failed', { surface: 'deeplife_plus', reason: 'error' });
       setMessage('Could not restore purchases. Please try again.');
     } finally {
+      purchaseInFlight.current = false;
       setBusy(false);
     }
   }, [busy, setGameState, saveGame]);
@@ -256,9 +433,26 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const openTerms = useCallback(() => openLink(TERMS_OF_USE_URL, 'terms'), [openLink]);
   const openPrivacy = useCallback(() => openLink(PRIVACY_POLICY_URL, 'privacy'), [openLink]);
 
-  const selectYearly = useCallback(() => { setLifetime(false); setSelected(yearlyPlan); }, [yearlyPlan]);
-  const selectPlan = useCallback((plan: DeepLifePlusPlan) => { setLifetime(false); setSelected(plan); }, []);
-  const selectLifetime = useCallback(() => setLifetime(true), []);
+  // Plan selection is a funnel step in its own right: a player who switches to
+  // monthly, or to the pay-once option, is telling us the default did not fit.
+  const trackPlan = useCallback((productId: string, planKind: string) => {
+    planTouched.current = true;
+    track('paywall_plan_selected', { surface: 'deeplife_plus', productId, plan: planKind });
+  }, []);
+  const selectYearly = useCallback(() => {
+    setLifetime(false);
+    setSelected(yearlyPlan);
+    trackPlan(yearlyPlan.productId, 'yearly');
+  }, [yearlyPlan, trackPlan]);
+  const selectPlan = useCallback((plan: DeepLifePlusPlan) => {
+    setLifetime(false);
+    setSelected(plan);
+    trackPlan(plan.productId, plan.period);
+  }, [trackPlan]);
+  const selectLifetime = useCallback(() => {
+    setLifetime(true);
+    trackPlan(DEEP_LIFE_PLUS_LIFETIME.productId, 'lifetime');
+  }, [trackPlan]);
 
   const glowStyle = {
     opacity: glow,
@@ -280,29 +474,81 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     ],
   };
 
-  // Primary CTA copy — trial-led when eligible.
-  const ctaTitle = active
-    ? 'Manage subscription'
-    : lifetime
-      ? `Unlock Forever · ${DEEP_LIFE_PLUS_LIFETIME.price}`
-      : trialEligible
-        ? 'Start for $0.00 Today'
-        : `Continue · ${selected.price} ${selected.unit}`;
-  const ctaSub = active
-    ? undefined
-    : lifetime
-      ? 'One-time payment · yours forever, never renews'
-      : trialEligible
-        ? `${trialDays} days free, then ${selected.price} ${selected.unit} · cancel anytime`
-        : 'Cancel anytime';
+  // ── Primary CTA ───────────────────────────────────────────────────────────
+  // A four-state machine, because "we could not load the price" and "the store
+  // is not present in this build" are different situations with different right
+  // answers, and neither may end in a purchase button next to a made-up figure.
+  //
+  //   active          → Manage. No selling to an existing member.
+  //   loading         → Disabled placeholder; the price is still arriving.
+  //   store-disabled  → Disabled. Nothing here can charge anyone (Expo Go, web).
+  //   unavailable     → RETRY, not a dead end: a store IS present, it just has
+  //                     not answered, and the player must not be stuck.
+  //   ready           → The real CTA, trial-led only where the trial is real.
+  const selectedLabel = lifetime
+    ? priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)
+    : priceLabel(selectedPrice, selected.price);
+  const ctaMode: 'manage' | 'loading' | 'disabled' | 'retry' | 'buy' = active
+    ? 'manage'
+    : canPurchase
+      ? 'buy'
+      : prices.state === 'loading'
+        ? 'loading'
+        : prices.state === 'store-disabled'
+          ? 'disabled'
+          : 'retry';
+
+  const ctaTitle =
+    ctaMode === 'manage'
+      ? 'Manage subscription'
+      : ctaMode === 'loading'
+        ? 'Loading plans…'
+        : ctaMode === 'disabled'
+          ? 'Store unavailable'
+          : ctaMode === 'retry'
+            ? 'Retry'
+            : lifetime
+              ? `Unlock Forever · ${selectedLabel}`
+              // "$0.00 today" is a hard promise about THIS player's next charge,
+              // so it is reserved for a store-confirmed eligible trial. Everyone
+              // else is shown the price they will actually be charged.
+              : trialPromised
+                ? 'Start for $0.00 Today'
+                : `Continue · ${selectedLabel} ${selected.unit}`;
+
+  const ctaSub =
+    ctaMode === 'manage'
+      ? undefined
+      : ctaMode === 'loading'
+        ? 'Fetching prices from the store'
+        : ctaMode === 'disabled'
+          ? 'Purchases are not available in this build'
+          : ctaMode === 'retry'
+            ? "We couldn't reach the store — tap to try again"
+            : lifetime
+              ? 'One-time payment · yours forever, never renews'
+              : trialPromised
+                ? `${trialDays} days free, then ${selectedLabel} ${selected.unit} · cancel anytime`
+                : trialMentioned
+                  // True whether or not this particular player still qualifies:
+                  // it describes the OFFER, and the store decides who gets it.
+                  ? `${selectedLabel} ${selected.unit} · includes a ${trialDays}-day free trial for new subscribers`
+                  : 'Cancel anytime';
+
+  const ctaDisabled = busy || ctaMode === 'loading' || ctaMode === 'disabled';
+  const onCtaPress = ctaMode === 'manage'
+    ? handleManage
+    : ctaMode === 'retry'
+      ? prices.reload
+      : handleSubscribe;
 
   return (
-    <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           {/* Close */}
           <TouchableOpacity
-            onPress={onClose}
+            onPress={handleClose}
             style={styles.closeBtn}
             accessibilityRole="button"
             accessibilityLabel="Close DeepLife Plus"
@@ -330,7 +576,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 DeepLife<Text style={styles.brandPlus}>+</Text>
               </Text>
               <Text style={styles.tagline}>
-                {active ? 'Your membership is active — thank you!' : 'Your best life, unlocked.'}
+                {purchased
+                  ? "You're in. Here's everything you just unlocked."
+                  : active
+                    ? 'Your membership is active — thank you!'
+                    : 'Your best life, unlocked.'}
               </Text>
             </View>
 
@@ -362,25 +612,36 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
               })}
             </View>
 
-            {!active && (
+            {!active && !purchased && (
               <>
-                {/* Free-trial banner — the hook */}
-                {trialEligible ? (
+                {/* Free-trial banner — the hook, in whichever form is TRUE.
+                    A promise ("no charge") is only made when the store has
+                    confirmed both that the offer exists and that this player is
+                    eligible for it; otherwise the copy describes the offer
+                    without asserting anything about this player's next charge. */}
+                {trialMentioned ? (
                   <View style={styles.trialBanner}>
                     <View style={styles.trialBannerBody}>
                       <Text style={styles.trialBannerTitle}>{trialDays} days risk-free</Text>
                       <Text style={styles.trialBannerSub}>
-                        Try every perk. Love it or cancel — no charge.
+                        {trialPromised
+                          ? 'Try every perk. Love it or cancel — no charge.'
+                          : 'New subscribers start with a free trial — the store confirms your terms at checkout.'}
                       </Text>
                     </View>
-                    <View style={styles.riskSeal}>
-                      <Text style={styles.riskSealPct} numberOfLines={1} adjustsFontSizeToFit>
-                        100%
-                      </Text>
-                      <Text style={styles.riskSealLabel} numberOfLines={1} adjustsFontSizeToFit>
-                        RISK-FREE
-                      </Text>
-                    </View>
+                    {/* The "100% RISK-FREE" seal is an absolute claim, so it
+                        rides only on a confirmed promise — never on the
+                        conditional wording. */}
+                    {trialPromised ? (
+                      <View style={styles.riskSeal}>
+                        <Text style={styles.riskSealPct} numberOfLines={1} adjustsFontSizeToFit>
+                          100%
+                        </Text>
+                        <Text style={styles.riskSealLabel} numberOfLines={1} adjustsFontSizeToFit>
+                          RISK-FREE
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
 
@@ -392,15 +653,17 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                     onPress={selectYearly}
                     activeOpacity={0.9}
                     accessibilityRole="button"
-                    accessibilityLabel={`Annual plan, ${yearlyPlan.price} per year${savingsPct ? `, save ${savingsPct} percent` : ''}`}
+                    accessibilityLabel={`Annual plan, ${priceLabel(yearlyPrice, yearlyPlan.price)} per year${savingsPct ? `, save ${savingsPct} percent` : ''}`}
                   >
+                    {/* Only rendered when the saving is provable from two real,
+                        same-currency store prices — never from config USD. */}
                     {savingsPct ? (
                       <View style={styles.saveBadge}>
                         <Text style={styles.saveBadgeText}>SAVE {savingsPct}%</Text>
                       </View>
                     ) : null}
                     <Text style={styles.planPeriod}>Annual</Text>
-                    <Text style={styles.planPrice}>{yearlyPlan.price}</Text>
+                    <Text style={styles.planPrice}>{priceLabel(yearlyPrice, yearlyPlan.price)}</Text>
                     <Text style={styles.planUnit}>per year</Text>
                     {perWeek ? <Text style={styles.planPerWeek}>just {perWeek}/week</Text> : null}
                   </TouchableOpacity>
@@ -413,10 +676,10 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                       onPress={() => selectPlan(plan)}
                       activeOpacity={0.9}
                       accessibilityRole="button"
-                      accessibilityLabel={`Monthly plan, ${plan.price} per month`}
+                      accessibilityLabel={`Monthly plan, ${priceLabel(monthlyPrice, plan.price)} per month`}
                     >
                       <Text style={styles.planPeriod}>Monthly</Text>
-                      <Text style={styles.planPrice}>{plan.price}</Text>
+                      <Text style={styles.planPrice}>{priceLabel(monthlyPrice, plan.price)}</Text>
                       <Text style={styles.planUnit}>per month</Text>
                       <Text style={styles.planPerWeekMuted}>billed monthly</Text>
                     </TouchableOpacity>
@@ -429,36 +692,74 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                   onPress={selectLifetime}
                   activeOpacity={0.9}
                   accessibilityRole="button"
-                  accessibilityLabel={`Unlock forever, one-time ${DEEP_LIFE_PLUS_LIFETIME.price}`}
+                  accessibilityLabel={`Unlock forever, one-time ${priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)}`}
                 >
                   <View style={styles.lifetimeLeft}>
                     <Text style={styles.lifetimeTitle}>Unlock forever</Text>
                     <Text style={styles.lifetimeSub}>Pay once · no subscription, never renews</Text>
                   </View>
-                  <Text style={styles.lifetimePrice}>{DEEP_LIFE_PLUS_LIFETIME.price}</Text>
+                  <Text style={styles.lifetimePrice}>
+                    {priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
 
+            {/* ── The activation moment ──────────────────────────────────
+                A purchase used to end with a one-line string under the plan
+                selector the player had just accepted — no acknowledgement, no
+                statement of what they now have, and nothing to do next. That is
+                the moment a subscriber decides whether the charge was a good
+                idea, and the first premium perk they actually USE is the best
+                predictor of whether they renew.
+
+                So: name what they unlocked, and point them at the fastest one to
+                feel — the welcome gems are already in their balance, granted by
+                `applyDeepLifePlusBenefits` in the same handler. */}
+            {purchased ? (
+              <View style={styles.welcome}>
+                <Text style={styles.welcomeTitle}>
+                  {purchased.lifetime ? 'Premium unlocked — forever' : 'Welcome to DeepLife+'}
+                </Text>
+                <Text style={styles.welcomeSub}>
+                  Every perk below is live right now. Your welcome gems are already in your
+                  balance.
+                </Text>
+                {DEEP_LIFE_PLUS_BENEFITS.map((b) => (
+                  <View key={b.id} style={styles.welcomeRow}>
+                    <Check size={scale(14)} color={GOLD} />
+                    <Text style={styles.welcomeRowText}>{b.title}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
             {message ? <Text style={styles.message}>{message}</Text> : null}
           </ScrollView>
 
-          {/* Primary CTA */}
+          {/* Primary CTA — after a purchase it becomes the way OUT of the
+              sheet, so a new subscriber is never left tapping a buy button for
+              something they already own. */}
           <TouchableOpacity
-            style={[styles.cta, busy && styles.ctaDisabled]}
-            onPress={active ? handleManage : handleSubscribe}
-            disabled={busy}
+            style={[styles.cta, (ctaDisabled || busy) && styles.ctaDisabled]}
+            onPress={purchased ? handleClose : onCtaPress}
+            disabled={!purchased && ctaDisabled}
             activeOpacity={0.9}
             accessibilityRole="button"
-            accessibilityLabel={ctaTitle}
+            accessibilityState={{ disabled: !purchased && ctaDisabled, busy }}
+            accessibilityLabel={purchased ? 'Start playing with DeepLife Plus' : ctaTitle}
           >
             <Animated.View style={[styles.ctaShine, shineStyle]} pointerEvents="none" />
             {busy ? (
               <ActivityIndicator color="#1A1206" />
             ) : (
               <>
-                <Text style={styles.ctaText}>{ctaTitle}</Text>
-                {ctaSub ? <Text style={styles.ctaSub}>{ctaSub}</Text> : null}
+                <Text style={styles.ctaText}>{purchased ? 'Start playing' : ctaTitle}</Text>
+                {purchased ? (
+                  <Text style={styles.ctaSub}>Your perks are active from this week on</Text>
+                ) : ctaSub ? (
+                  <Text style={styles.ctaSub}>{ctaSub}</Text>
+                ) : null}
                 <View style={styles.ctaChevronWrap} pointerEvents="none">
                   <ChevronRight size={scale(20)} color="#1A1206" />
                 </View>
@@ -467,7 +768,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           </TouchableOpacity>
 
           {/* Trust row */}
-          {!active ? (
+          {!active && !purchased ? (
             <View style={styles.trustRow}>
               <View style={styles.trustItem}>
                 <ShieldCheck size={scale(13)} color={TEXT_MUTED} />
@@ -505,15 +806,30 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Compliant legal disclosure */}
+          {/* ── Compliant legal disclosure ───────────────────────────────────
+              Apple requires the recurring nature, the price and the billing
+              period to be clear before purchase. The price quoted here is the
+              SAME resolved store price shown on the plan card and the CTA —
+              they read from one value, so the disclosure and the button can
+              never quote different figures. When no price could be loaded the
+              disclosure says so plainly instead of inventing one; the CTA is a
+              retry in that state, so nothing can be bought on an unstated price. */}
           <Text style={styles.legal}>
-            {active
-              ? 'Manage or cancel anytime in your store account.'
-              : lifetime
-                ? 'One-time purchase. Yours forever — no subscription, never renews.'
-                : trialEligible
-                  ? `${trialDays}-day free trial, then ${selected.price} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
-                  : `${selected.price} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
+            {purchased
+              ? purchased.lifetime
+                ? 'One-time purchase — no subscription, nothing renews.'
+                : 'Your subscription renews automatically until cancelled. Manage or cancel anytime in your store account.'
+              : active
+                ? 'Manage or cancel anytime in your store account.'
+                : lifetime
+                  ? 'One-time purchase. Yours forever — no subscription, never renews.'
+                  : !canPurchase
+                    ? 'Prices could not be loaded from the store. Your exact price and renewal terms are always shown by the store before any charge.'
+                    : trialPromised
+                      ? `${trialDays}-day free trial, then ${selectedLabel} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
+                      : trialMentioned
+                        ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial — the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
+                        : `${selectedLabel} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
           </Text>
         </View>
       </View>
@@ -706,6 +1022,43 @@ const styles = StyleSheet.create({
   lifetimePrice: { fontSize: fontScale(20), fontWeight: '900', color: GOLD_SOFT },
 
   message: { fontSize: fontScale(13), fontWeight: '700', color: TEXT, textAlign: 'center', marginTop: scale(12) },
+
+  // Activation moment. Full four-sided border (Hard Rule #7 — no one-sided
+  // accent stripes anywhere in the app).
+  welcome: {
+    marginTop: scale(4),
+    backgroundColor: GOLD_TINT,
+    borderWidth: 1,
+    borderColor: GOLD_BORDER,
+    borderRadius: scale(16),
+    padding: scale(14),
+  },
+  welcomeTitle: {
+    fontSize: fontScale(16),
+    fontWeight: '900',
+    color: GOLD,
+    textAlign: 'center',
+  },
+  welcomeSub: {
+    fontSize: fontScale(12),
+    color: TEXT_MUTED,
+    textAlign: 'center',
+    marginTop: scale(4),
+    marginBottom: scale(10),
+    lineHeight: fontScale(17),
+  },
+  welcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    paddingVertical: scale(3),
+  },
+  welcomeRowText: {
+    fontSize: fontScale(13),
+    fontWeight: '700',
+    color: TEXT,
+    flexShrink: 1,
+  },
 
   // CTA
   cta: {

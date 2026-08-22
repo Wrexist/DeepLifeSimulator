@@ -71,12 +71,48 @@ export type AnalyticsEventName =
   | 'offer_shown'
   | 'offer_cta_tapped'
   // ── Monetisation funnel ──
+  //
+  // The subscription funnel, end to end:
+  //
+  //   paywall_open_tapped  (which surface sent them)
+  //     → paywall_viewed   (the sheet rendered)
+  //     → paywall_plan_selected / paywall_intro_offer_shown
+  //     → paywall_cta_tapped
+  //     → purchase_started → purchase_succeeded | purchase_cancelled | purchase_failed
+  //     → premium_activated (entitlement actually applied to the save)
+  //     → first_premium_value (they USED a perk they are paying for)
+  //
+  // Every step above used to stop at `paywall_cta_tapped`, so the largest drop-
+  // off on any subscription funnel — CTA to completed purchase — was invisible,
+  // and so was the question that decides renewal: do new subscribers ever touch
+  // what they bought? A subscriber who never uses a perk churns, and without
+  // `first_premium_value` that is only knowable after they have already gone.
+  //
+  // `paywall_dismissed` carries how long the sheet was open and whether a plan
+  // was ever selected, which separates "not interested" from "interested, lost
+  // at the price".
   | 'paywall_open_tapped'
   | 'paywall_viewed'
+  | 'paywall_plan_selected'
+  | 'paywall_intro_offer_shown'
   | 'paywall_cta_tapped'
+  | 'paywall_dismissed'
   | 'purchase_started'
   | 'purchase_succeeded'
+  // A player backing out of the store sheet, kept apart from a real failure:
+  // one is a pricing/offer signal, the other is a defect to fix.
+  | 'purchase_cancelled'
   | 'purchase_failed'
+  | 'restore_started'
+  | 'restore_succeeded'
+  | 'restore_failed'
+  // Entitlement applied to the save — the step between "the store took the
+  // money" and "the player has the thing". A gap between purchase_succeeded and
+  // premium_activated is a fulfilment bug that would otherwise surface only as
+  // a support ticket.
+  | 'premium_activated'
+  // The first time a subscriber uses a perk they are paying for.
+  | 'first_premium_value'
   | 'ad_shown'
   | 'ad_rewarded'
   // ── Navigation ──
@@ -124,10 +160,19 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'offer_cta_tapped',
   'paywall_open_tapped',
   'paywall_viewed',
+  'paywall_plan_selected',
+  'paywall_intro_offer_shown',
   'paywall_cta_tapped',
+  'paywall_dismissed',
   'purchase_started',
   'purchase_succeeded',
+  'purchase_cancelled',
   'purchase_failed',
+  'restore_started',
+  'restore_succeeded',
+  'restore_failed',
+  'premium_activated',
+  'first_premium_value',
   'ad_shown',
   'ad_rewarded',
   'screen_view',

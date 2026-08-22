@@ -61,6 +61,36 @@ describe('expoIapAdapter', () => {
     expect(res.results[0].price).toBe('$0.99');
   });
 
+  it('PRESERVES the numeric price as priceAmount alongside the display string', async () => {
+    // `price` is stringified for the legacy display contract, which used to
+    // destroy the only numeric price on the object. Everything that needs a real
+    // amount — the featured-offer discount badge (lib/offers/pricing.ts), the
+    // gem shop's currency-honest ratio line, and the paywall's per-week and
+    // savings framing — reads `priceAmount`, so dropping it silently disabled
+    // all three on every live storefront.
+    const adapter = await freshAdapter();
+    fetchMock.mockResolvedValueOnce([
+      { id: 'deeplife_premium_yearly', displayPrice: '54,99 €', price: 54.99, currency: 'EUR' },
+    ]);
+
+    const res = await adapter.getProductsAsync(['deeplife_premium_yearly'], 'subs');
+    const product = res.results[0];
+    expect(product.price).toBe('54,99 €'); // display contract unchanged
+    expect(product.priceAmount).toBe(54.99); // numeric now survives
+    expect(product.currency).toBe('EUR'); // carried through by the spread
+  });
+
+  it('leaves priceAmount undefined when the SDK exposed no numeric price', async () => {
+    // Undefined must stay distinguishable from a real amount: callers treat it
+    // as "cannot compare" and omit their derived claims rather than guessing.
+    const adapter = await freshAdapter();
+    fetchMock.mockResolvedValueOnce([{ id: 'deeplife_gems_100', displayPrice: '$0.99' }]);
+
+    const res = await adapter.getProductsAsync(['deeplife_gems_100']);
+    expect(res.results[0].priceAmount).toBeUndefined();
+    expect(res.results[0].price).toBe('$0.99');
+  });
+
   it('purchaseItemAsync resolves OK when the purchase event fires', async () => {
     const adapter = await freshAdapter();
     const p = adapter.purchaseItemAsync('deeplife_money_boost');
