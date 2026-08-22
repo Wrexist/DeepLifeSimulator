@@ -1,5 +1,71 @@
 # What's New — DeepLife Simulator
 
+## v2.10.0 — The numbers on the screen are the numbers in the game
+
+**Covers:** the money-and-careers batch. Other v2.10.0 work (cloud backup, the
+blocking-popup soft lock, paywall polish) belongs in this section too — add it
+alongside.
+**Compatibility:** every existing save loads, and the save format does not move.
+Nothing about your money, your job or your progress changes — only what the game
+shows you about them.
+
+---
+
+### Store "What's New" (copy-paste ready)
+
+```text
+Every screen now shows the same income — the one you're actually paid.
+
+• Your salary is one number again. The promotion popup, the job card, the
+  career ladder and Cash Flow each did their own maths, so the same job could
+  read $26K on one screen and $13,000 on another. They now all read what
+  payroll actually pays — including your negotiated raise, Work Pay Boost, the
+  salary life skills and DeepLife+.
+• Political office pay was wrong by 52x. The Politics screen showed the YEARLY
+  salary with "/wk" next to it, so President read $100K a week against the
+  $1,923 it really pays — while the campaign cost beside it was real. Every
+  rung of that ladder now shows true weekly pay.
+• Cash Flow shows your whole weekly bill. Luxury upkeep, pet food and app
+  subscriptions were always being charged; they just weren't listed. Luxury
+  income wasn't listed either. If you own a collection, expect your cash flow
+  to look very different — nothing changed about your money, only about how
+  honestly it's reported.
+• Politician, Celebrity and Athlete are back on the Work tab. A filter bug had
+  hidden all three from the only screen that can apply for them.
+• Elite careers show one card, not two. Working as a Surgeon used to draw a
+  second card advertising the entry-level wage for the job you already had.
+```
+
+---
+
+### What changed, and why
+
+**One salary, computed once.** `Career.levels[].salary` is a *base* rate, and the
+weekly tick multiplies it by the raise premium, Work Pay Boost, the
+Negotiation/Executive life skills and the DeepLife+ boost. Six screens each
+applied a different subset of that stack. The arithmetic now lives in one
+function — and, crucially, the tick calls the same one, so a screen that
+disagrees with the paycheck is no longer possible.
+
+**The political ladder is stored annual.** Every other career stores weekly pay;
+`POLITICAL_CAREER` stores yearly. Three separate screens have now read that
+field raw and labelled it "/wk". The conversion has one owner.
+
+**Cash Flow was a subset of the bill.** Three costs the tick charges every week
+had no line at all — luxury upkeep (up to $556,820/wk for a full collection),
+pet food, and subscription renewals — and luxury yield was missing from the
+income side. Two more lines, student loans and income tax, were inside the
+total with no row to show them, so the itemisation didn't add up to the figure
+above it. Every line is now computed by calling the function belonging to the
+subsystem that does the charging.
+
+**Expect the collection to look expensive.** For a player with luxury items this
+is the most visible change in the release, and it will read as a nerf. It isn't:
+that upkeep has always been leaving your account every week. The panel just
+stopped omitting it.
+
+---
+
 ## v2.9.0 — New faces, real conversations, nothing left locked
 
 **Covers:** everything since **v2.8.0** (cut 2026-08-11) up to 2026-08-17.
