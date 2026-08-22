@@ -3634,3 +3634,162 @@ reason `applyCardModalScroll.test.ts` gives — reproducing the overflow needs a
 real viewport and a real layout pass, and the RN test mock provides neither.
 Verified by stashing the four fixes and watching 13 of its 20 assertions go red,
 then restoring.
+
+---
+
+## 2026-08-22 — Three screens, one salary, three numbers
+
+Reported with three screenshots of the same Surgical Director in the same save:
+promotion modal **$26K/wk**, work-tab job card **$13000/wk**, Cash Flow → Income
+Sources **$13K**. "Unsure of what the income is. Usually the case with every
+job. Conflicting numbers."
+
+Nothing was miscalculating. Each screen was computing a **different quantity**
+and calling it "salary". `Career.levels[].salary` is a listed base, and
+`applyCareerSalaryAndPenalty` multiplies it by a stack — negotiated raise
+premium, the Work Pay Boost gold upgrade, the workBoost IAP perk, the
+Negotiation/Executive life skills, the DeepLife+ income boost — of which the
+promotion modal applied the first and the other two applied none.
+
+This is the **fourth** time this exact shape has been fixed here (company income
+multiplier; the raise premium itself; `weeklyCareerSalary` for the four DTI
+gates; now this), which makes it the house bug:
+
+> **A displayed number that a subsystem also computes must come from the
+> subsystem's own function, not from a reimplementation that agrees today.**
+
+Two things this round taught that the earlier three did not:
+
+1. **Extracting the arithmetic is not the fix; making the PAYER call it is.**
+   `applyRaisePremium` was already a shared helper, and all four readers used
+   it — the divergence just moved up one layer to the multipliers nobody
+   extracted. The property that actually holds is "payroll and the screens
+   execute the same function", so `applyCareerSalaryAndPenalty` now calls
+   `paidWeeklySalaryForLevel` too. A helper the payer does not use is a fifth
+   opinion with better branding.
+
+2. **Pinning it needs a test that compares the two sides, not two constants.**
+   The new suite runs the week-loop subsystem and asserts each reader equals
+   `careerSalary` — so re-tuning a multiplier cannot split them apart again.
+   The source-pattern tests that already guarded this
+   (`raisePremiumConsistency`, `playerReports20260802`) both went red on the
+   refactor and had to be re-pointed at the new indirection: they pin the SHAPE
+   of the call, which is real coverage but is exactly what a legitimate
+   refactor changes. Keep both kinds; only the behavioural one survives a
+   rewrite.
+
+Found on the way, same line of code: `IdentityCard`'s `jobIncome` read
+`levels[level].salary` for **political** too, where the ladder is stored ANNUAL.
+A President's Job Income line said **$100,000/wk** instead of $1,923 — and
+office pay is credited by `calcWeeklyPassiveIncome`, so that 52x figure was
+being added on top of a passive line that already contained it, then handed to
+`calcWeeklyExpenses` as the basis for the tax estimate. The annual/weekly trap
+(`lib/careers/weeklySalary.ts`, 2026-07-31) had been closed for the four loan
+screens and left open on the home tab, because that fix went looking for DTI
+callers rather than for readers of the field.
+
+> **When a field means two things depending on a key, fix every reader of the
+> field, not every caller of the bug.**
+
+Guard: `__tests__/economy/paidWeeklySalary.test.ts` (21 assertions, behavioural).
+
+---
+
+## 2026-08-22 (b) — A hand-written mirror of a catalog, and a wrong answer given confidently
+
+Two things, from following up the same report.
+
+**I told the user their save "can't reach the capstones without a migration".**
+It can. `repairGameState` has reconciled every saved ladder against the catalog
+on load for some time, preserving level/progress/premium and clamping the index,
+and it is tested. I asserted the gap from one true premise — ladders are
+persisted in the save — without checking for the mechanism that closes it. The
+tell I ignored: the repo has a documented habit of closing exactly this class of
+gap, so "there is no reconciliation" was the surprising claim and it was the one
+I made without evidence.
+
+> **A mechanism you have not looked for is not a mechanism that is missing.**
+> Before reporting a gap, grep for the thing that would close it.
+
+Worth noting what made this harder to check: the container holds a SHALLOW clone
+rooted at one commit, so `git log -S` reported both the capstone rungs and the
+reconciliation as introduced by that root. Two unrelated features "landing in one
+commit" is the signature of a shallow clone, not of history.
+
+**The bug the follow-up actually found.** `work.tsx` decided which careers the
+"Standard Careers" list should skip with a literal:
+
+```js
+const advancedIds = ['politician', 'celebrity', 'athlete'];
+```
+
+The "Advanced Careers" section beneath it iterates `ADVANCED_CAREERS`, which is
+`ceo · research_scientist · creative_director · investment_banker · surgeon` — a
+completely different set. So one literal produced two opposite failures at once:
+politician, celebrity and athlete were excluded from Standard and never picked
+up by Advanced, rendering **nowhere** (all three still read by achievements, two
+ambition lines, and a weekly event gate); while the five real advanced careers
+rendered **twice** once applied for — the player's own entry with their real
+level and pay, and the catalog stub at rung 0. "Surgical Director $26K/wk" and
+"Resident $1,150/wk", same job, one screen.
+
+> **A set that must mirror a catalog is derived from the catalog or it is a
+> second catalog.** `ADVANCED_CAREER_IDS` is now exported from the module that
+> defines them.
+
+The general shape is the same one the salary fix hit hours earlier, which is why
+it is worth naming separately: not "two places compute a number differently" but
+**two places enumerate a set differently**. The salary version announces itself
+(the player sees two numbers). This one is silent in the direction that HIDES
+content — nobody reports a career they have never seen.
+
+Also caught, and mine: the "Current Job" hero still read the base salary,
+printing `$13,000/wk · Lv 5/8 · +100%` — stating the premium and withholding it
+on one line. The earlier commit fixed the card below it and not the header,
+which is the ordinary cost of fixing readers one at a time instead of listing
+them first.
+
+---
+
+## 2026-08-22 (c) — The audit found a bigger one than the report did
+
+Asked "is the same shape anywhere else?" after the salary work. It was, on the
+same panel, an order of magnitude larger.
+
+"Weekly Cash Flow" is supposed to answer *what will this week take*. It was
+answering with a subset: `calcWeeklyExpenses` had no term at all for luxury
+upkeep, pet food or subscription renewals, all three of which the tick charges
+every week. Luxury alone is up to **$556,820/wk** for a full collection. Its
+yield (up to $301,200/wk) was missing from the income side too, so the panel was
+optimistic by roughly a quarter of a million dollars a week for a collector.
+
+Two things worth keeping from it.
+
+**The omission is a harder bug to see than the disagreement.** The salary bug
+announced itself — the player saw two numbers and reported it. Nobody reports a
+line that was never on the screen; they just quietly find the game's economy
+confusing. A completeness check ("does every charging subsystem appear here?")
+finds what a consistency check ("do these two numbers match?") cannot.
+
+> **For a summary view, enumerate the producers and check coverage. Comparing
+> the numbers that ARE shown only validates the ones somebody remembered.**
+
+**Not every duplicate should be de-duplicated.** Luxury yield is credited by
+`applyLuxuryItems`, and the tick separately credits
+`calcWeeklyPassiveIncome(prev).total` (`applyIncome.ts`). The tidy-looking move —
+fold luxury into `calcWeeklyPassiveIncome` so there is "one income function" —
+would have paid the yield **twice every week**. The display needed the combined
+figure; the tick did not. So the sum lives at the display layer and a test pins
+the reason.
+
+> **Before merging two calculations, check whether anything already adds them
+> together.** "One source of truth" is a property of the CONSUMERS, not of the
+> functions.
+
+Mechanics that made the fix safe rather than a fifth opinion: every new line
+calls the charging subsystem's own function (`getTotalLuxuryUpkeep`,
+`PET_WEEKLY_FOOD_COST`, `totalSubscriptionWeeklyCharge`). Two of those had to be
+moved DOWN into `lib/` first, because `lib/` may not import values from
+`contexts/` — the same relocation the raise-premium and money-delta symbols
+needed. That import rule keeps turning out to be the thing that forces the
+shared code into the right layer rather than getting duplicated across it.

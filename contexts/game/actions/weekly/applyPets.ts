@@ -21,7 +21,10 @@ import type { WeekContext } from './weekContext';
 import { chargeOrDefer } from './chargeOrDefer';
 
 /** Weekly food cost per alive pet (USD). Matches the legacy inline constant. */
-export const PET_WEEKLY_FOOD_COST = 15;
+// Re-exported from `@/lib/pets/lifecycle`, which now owns it: the Weekly
+// Expenses panel needs the same number and `lib/` cannot import from here.
+export { PET_WEEKLY_FOOD_COST } from '@/lib/pets/lifecycle';
+import { PET_WEEKLY_FOOD_COST } from '@/lib/pets/lifecycle';
 
 /**
  * Consecutive weeks at zero health before a pet dies. The real decay engine

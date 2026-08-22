@@ -70,6 +70,7 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import { ensurePoliticsHasNewFields } from '@/lib/politics/operations';
 import { POLITICAL_CAREER, POLITICAL_CAREER_REQUIREMENTS } from '@/lib/careers/political';
+import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { getPolicyById, calculatePolicyEffects } from '@/lib/politics/policies';
 import type { Policy } from '@/lib/politics/policies';
 import {
@@ -300,7 +301,26 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   const careerLevel = politics.careerLevel ?? 0;
   const officeName = OFFICE_NAME[careerLevel] ?? `Office Lv ${careerLevel}`;
-  const salaryWeekly = careerLevel >= 1 ? (POLITICAL_CAREER.levels[careerLevel - 1]?.salary ?? 0) : 0;
+  // `POLITICAL_CAREER.levels[].salary` is ANNUAL — 800 for a Local Council
+  // Member up to 100,000 for a President — while every figure on this screen is
+  // labelled "/wk". Reading it raw put "In office · $100K/wk" in front of a
+  // President the tick actually pays $1,923, and it did the same to every rung
+  // of the ladder below, which is the screen a player uses to decide whether an
+  // office is worth its campaign cost: a 52x salary against a real cost.
+  //
+  // Third screen to fall into this field. `weeklyCareerSalary` closed it for the
+  // four loan/DTI gates (2026-07-31) and `paidWeeklyCareerSalary` closed it for
+  // the home tab's Cash Flow panel; both went looking for callers of the bug
+  // rather than readers of the field. `paidWeeklySalaryForLevel` owns the
+  // conversion — and deliberately applies no boosts to political pay, because
+  // office money is credited by `calcWeeklyPassiveIncome`, which applies none.
+  //
+  // The `>= 1` guards stay: `careerLevel` is the 1-based office RANK (0 =
+  // Citizen), and the helper CLAMPS an out-of-range index rather than returning
+  // 0, so rank 0 would otherwise read as a council member's pay.
+  const salaryWeekly = careerLevel >= 1
+    ? paidWeeklySalaryForLevel(gameState, POLITICAL_CAREER, careerLevel - 1)
+    : 0;
   const weeksToElection = politics.nextElectionWeek != null
     ? Math.max(0, politics.nextElectionWeek - gameState.weeksLived)
     : null;
@@ -325,12 +345,12 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         index,
         name: OFFICE_NAME[index] ?? `Office Lv ${index}`,
         status,
-        salaryWeekly: index >= 1 ? (POLITICAL_CAREER.levels[index - 1]?.salary ?? 0) : 0,
+        salaryWeekly: index >= 1 ? paidWeeklySalaryForLevel(gameState, POLITICAL_CAREER, index - 1) : 0,
         cost: key ? (CAMPAIGN_COST[key] ?? 0) : 0,
         key,
       };
     });
-  }, [careerLevel]);
+  }, [careerLevel, gameState]);
 
   // Compact 3-rung window around the current office (held → current → next).
   const compactRungs = useMemo(() => {

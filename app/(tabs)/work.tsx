@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
+import { paidCareerCeiling, paidWeeklyCareerSalary, paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { summarizeCriminalRecord, criminalProgress } from '@/lib/crime/criminalRecord';
 import { activeLegacyBuffs } from '@/lib/legacy/activeBuffs';
 import { View,
@@ -27,7 +29,6 @@ import {
     evaluateHiring,
     getJobBoard,
     weeksUntilBoardRefresh,
-    careerCeiling,
     growthLabel,
 } from '@/lib/careers/jobMarket';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
@@ -68,7 +69,17 @@ import { logger } from '@/utils/logger';
 import { colors as themeColors } from '@/lib/config/theme';
 import { styles } from '@/components/work/workScreenStyles';
 import { CareerPathCard } from '@/components/CareerPathCard';
-import type { AdvancedCareer } from '@/lib/careers/advancedCareers';
+// Static, not the lazy `require` this screen used inside the render callback:
+// `advancedCareers.ts` is pure data with no top-level side effects and imports
+// nothing but types, so there is no cycle to break and nothing to defer — and
+// the catalog is now needed at module scope to derive `advancedIds`.
+import {
+  ADVANCED_CAREERS,
+  getUnlockedAdvancedCareers,
+  isAdvancedCareer,
+  isCareerUnlocked,
+  type AdvancedCareer,
+} from '@/lib/careers/advancedCareers';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 const LinearGradient = Gradient;
 
@@ -641,7 +652,14 @@ function WorkScreenContent() {
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
         const { happinessPenalty, healthPenalty } = getCareerPenalties();
 
-        const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level?.salary ?? 0}/wk`;
+        // What payroll will ACTUALLY pay for this rung, not the listed base.
+        // This card showed `levels[level].salary` raw while the promotion modal
+        // showed the same rung with the raise premium applied and the Cash Flow
+        // panel showed a third figure — one Surgical Director reading $26K,
+        // $13000 and $13K across three screens. `paidWeeklySalaryForLevel` is
+        // the function the week loop itself pays from.
+        const paidWeekly = paidWeeklySalaryForLevel(gameState, career, career.level);
+        const reward = requiresEdu && !hasEdu ? '— Locked' : `${formatMoney(paidWeekly)}/wk`;
         // Only entry-tier jobs have a hiring bar; everything else is governed by
         // the career's own `requirements`.
         const entryHiring = isEntryTierCareer(career.id) && !isEmployedHere && !career.accepted
@@ -672,11 +690,13 @@ function WorkScreenContent() {
         // climbs, and what a week of it costs you.
         const entryProfile = getEntryJobProfile(career.id);
         if (entryProfile && !isEmployedHere) {
-            const ceiling = careerCeiling(career);
-            if (ceiling > (level?.salary ?? 0)) {
+            // Same money as the wage above it — a ceiling in base pay next to a
+            // boosted starting wage reads as a career that gets WORSE.
+            const ceiling = paidCareerCeiling(gameState, career);
+            if (ceiling > paidWeekly) {
                 metadata.push({
                     icon: <TrendingUp size={scale(13)} color="rgba(232, 193, 92, 0.95)" />,
-                    value: `Tops out $${ceiling.toLocaleString()}/wk`,
+                    value: `Tops out ${formatMoney(ceiling)}/wk`,
                 });
             }
             metadata.push({
@@ -846,7 +866,11 @@ function WorkScreenContent() {
         state: { isLocked: boolean; isApplied: boolean; isAccepted: boolean; lockReqs: string[] },
     ): React.ReactElement => {
         const displayName = career.levels?.[0]?.name ?? career.id;
-        const salary = career.levels?.[0]?.salary ?? 0;
+        // Rung 0 is the right rung for a career the player does not hold, but it
+        // has to be quoted in the same money as every other card on the screen —
+        // `formatMoney` of what payroll would pay, not a raw `toLocaleString` of
+        // the listed base.
+        const salary = paidWeeklySalaryForLevel(gameState, career, 0);
         const { isLocked, isApplied, isAccepted, lockReqs } = state;
 
         const metadata: JobCardMetadata[] = [
@@ -891,7 +915,7 @@ function WorkScreenContent() {
                 accent="career"
                 title={displayName}
                 description={career.description}
-                reward={isLocked ? '— Locked' : `$${salary.toLocaleString()}/wk`}
+                reward={isLocked ? '— Locked' : `${formatMoney(salary)}/wk`}
                 metadata={metadata}
                 buttonText={buttonText}
                 onPress={onPress}
@@ -904,8 +928,19 @@ function WorkScreenContent() {
     const sortedCareers = [...(gameState.careers || [])].sort(
         (a, b) => (a.levels?.[0]?.salary ?? 0) - (b.levels?.[0]?.salary ?? 0)
     );
-    const advancedIds = ['politician', 'celebrity', 'athlete'];
-    const basicCareers = sortedCareers.filter(c => !advancedIds.includes(c.id));
+    // Careers the "Advanced Careers" section below renders, so they are not also
+    // listed under "Standard Careers".
+    //
+    // This was hand-written as `['politician', 'celebrity', 'athlete']`, which is
+    // a DIFFERENT set from the one that section iterates — those three live in
+    // `INITIAL_CAREERS`, and `ADVANCED_CAREERS` is ceo / research_scientist /
+    // creative_director / investment_banker / surgeon. So the list did both
+    // halves of its job wrong: it hid politician, celebrity and athlete from the
+    // only screen that can apply for them (all three are live content —
+    // achievements read their level, two ambition lines read them, and
+    // `lib/events/engine.ts` gates an event on holding one), while the five it
+    // was meant to cover rendered twice over.
+    const basicCareers = sortedCareers.filter(c => !isAdvancedCareer(c.id));
 
     // THE JOB BOARD.
     // Every entry-tier career used to render at once: eight near-identical
@@ -939,7 +974,12 @@ function WorkScreenContent() {
         ? (gameState.careers || []).find(c => c.id === gameState.currentJob)
         : undefined;
     const currentJobLevel = currentJob ? (currentJob.levels?.[currentJob.level] ?? currentJob.levels?.[0]) : undefined;
-    const currentJobSalary = currentJobLevel?.salary ?? 0;
+    // The paid figure, not the ladder's listed base. This hero prints the salary
+    // and the negotiated premium on the SAME line — "$13,000/wk · Lv 5/8 · +100%"
+    // — so showing the base here states the premium and withholds it in one
+    // breath. It is also the most prominent income number on the screen, which
+    // makes it the one a player checks their paycheck against.
+    const currentJobSalary = paidWeeklyCareerSalary(gameState).total;
     const currentJobRaisePct = currentJob ? raisePremiumPct(currentJob.raiseMultiplier) : 0;
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 
@@ -996,7 +1036,7 @@ function WorkScreenContent() {
                                     </View>
 
                                     <Text style={local.heroMeta} numberOfLines={1}>
-                                        ${currentJobSalary.toLocaleString()}/wk · Lv {currentJob.level + 1}/{currentJob.levels.length}
+                                        {formatMoney(currentJobSalary)}/wk · Lv {currentJob.level + 1}/{currentJob.levels.length}
                                         {currentJobRaisePct > 0 ? ` · +${currentJobRaisePct}%` : ''}
                                     </Text>
                                 </View>
@@ -1146,8 +1186,6 @@ function WorkScreenContent() {
                                     <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
-                                        const { getUnlockedAdvancedCareers, isCareerUnlocked } = require('@/lib/careers/advancedCareers');
-                                        // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         const { calculateNetWorth } = require('@/lib/statistics/statisticsTracker');
                                         // Shared gate input: live claimed-achievement store + consolidated net worth.
                                         const advCareerGate = {
@@ -1168,14 +1206,24 @@ function WorkScreenContent() {
                                         // Creative Director) were invisible with no hint of what to do.
                                         // A locked goal you can see is a goal; one you cannot is nothing.
                                         // 2026-07-30 audit GP-10.
-                                        // eslint-disable-next-line @typescript-eslint/no-require-imports
-                                        const { ADVANCED_CAREERS } = require('@/lib/careers/advancedCareers');
                                         void getUnlockedAdvancedCareers; // still exported for other callers
 
                                         return (ADVANCED_CAREERS as AdvancedCareer[]).map((career: AdvancedCareer) => {
+                                            // A career the player has already applied to or holds lives in
+                                            // `gameState.careers` with their real level, progress and raise
+                                            // premium — so render THAT, through the same card every other
+                                            // career uses. The catalog stub below can only describe rung 0,
+                                            // and rendering both put "Surgical Director $26K/wk" and
+                                            // "Resident $1,150/wk" on one screen for the same job. It also
+                                            // left the promote and Manage Job controls on a card that the
+                                            // `advancedIds` filter is now, correctly, removing from the
+                                            // Standard list.
+                                            const held = gameState.careers.find(c => c.id === career.id);
+                                            if (held) return renderCareerCard(held);
+
                                             const isLocked = !isCareerUnlocked(career, advCareerGate);
-                                            const isApplied = gameState.careers.some(c => c.id === career.id && c.applied);
-                                            const isAccepted = gameState.careers.some(c => c.id === career.id && c.accepted);
+                                            const isApplied = false;
+                                            const isAccepted = false;
 
                                             const lockReqs: string[] = [];
                                             if (isLocked) {

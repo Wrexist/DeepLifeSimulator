@@ -7,7 +7,7 @@ import { View,
   ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import DailyGemClaim from '@/components/DailyGemClaim';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import {
@@ -22,7 +22,9 @@ import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState , Loan } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
+import { getTotalLuxuryYield } from '@/lib/luxury/operations';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -244,6 +246,36 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // a pointer compare in the common case.
   const netWorth = canonicalNetWorth(gameState);
 
+  // What the tick will actually credit for the job — NOT `levels[level].salary`,
+  // which is the listed base and was wrong here in two independent ways.
+  //
+  // It ignored every multiplier the paycheck applies (raise premium, Work Pay
+  // Boost, life skills, DeepLife+), so this panel disagreed with both the work
+  // tab and the promotion modal — "unsure of what the income is, usually the
+  // case with every job, conflicting numbers".
+  //
+  // And it read the POLITICAL ladder, which is stored ANNUAL, as a weekly
+  // figure: a President's Job Income line said $100,000/wk instead of $1,923.
+  // Office pay is credited by `calcWeeklyPassiveIncome`, so that 52x figure was
+  // also being added ON TOP of the passive line that already contained it, and
+  // then handed to `calcWeeklyExpenses` as the basis for the tax estimate.
+  // `paidWeeklyCareerSalary` splits the two so office pay is shown under Job
+  // Income (where a player looks for it) and netted out of Passive (where it is
+  // actually credited) — counted once, either way.
+  //
+  // It also guards the level index the way `job` (line ~153) does: a
+  // stale/migrated save can carry a `level` out of bounds for `levels`, which
+  // used to crash the home tab with `.salary of undefined`.
+  const jobPay = useMemo(
+    () => paidWeeklyCareerSalary(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      gameState.careers, gameState.currentJob, gameState.jailWeeks, gameState.politics,
+      gameState.goldUpgrades, gameState.perks, gameState.unlockedLifeSkills, gameState.settings,
+    ]
+  );
+
+
   // calcWeeklyPassiveIncome walks owned properties + companies. Only re-run
   // when those arrays actually change, not on every unrelated gameState
   // mutation (otherwise the home tab recomputes on every stat decay tick).
@@ -255,11 +287,29 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
   );
-  const passive = passiveInfo.total;
-  // Guard the level index the same way `job` (line ~153) does: a stale/migrated
-  // save can carry a `level` out of bounds for `levels`, making the lookup
-  // undefined and crashing the home tab with `.salary of undefined`.
-  const jobIncome = currentCareer?.levels?.[currentCareer.level]?.salary ?? 0;
+  // Office pay is credited by `calcWeeklyPassiveIncome`, but a player in office
+  // looks for it under Job Income, not under Passive. Move it across rather
+  // than counting it twice — and take the figure from `breakdown.political`
+  // rather than from `jobPay.fromOffice`, because the breakdown is what is
+  // actually inside `passiveInfo.total` (per-source caps applied), so the two
+  // rows sum to the same money the week loop pays no matter what the cap does.
+  const officePay = passiveInfo.breakdown.political;
+  const jobIncome = jobPay.fromPayroll + officePay;
+
+  // Luxury yield — charter fees, vintage sales, a season dividend — is credited
+  // every week by `applyLuxuryItems`, and is NOT part of `calcWeeklyPassiveIncome`.
+  // Added here rather than there on purpose: the weekly tick consumes
+  // `calcWeeklyPassiveIncome(...).total` directly (`applyIncome.ts`), so folding
+  // luxury into it would credit the yield twice. This panel is the only reader
+  // that needs the combined figure.
+  //
+  // Its cost side now sits in `calcWeeklyExpenses` (breakdown.luxury), so the
+  // two halves arrive together — showing a $301,200/wk yield without the
+  // $556,820/wk upkeep beneath it would be a worse lie than showing neither.
+  const luxuryYield = getTotalLuxuryYield(
+    Array.isArray(gameState.luxuryItems) ? gameState.luxuryItems : [],
+  );
+  const passive = Math.max(0, passiveInfo.total - officePay) + luxuryYield;
 
   // Partner / spouse weekly income (counts even after marriage) — 25% of the
   // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
@@ -936,11 +986,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               </Text>
             </View>
           )}
-          {passiveInfo.breakdown.political > 0 && (
+          {/* Office pay is reported under Job Income above and netted out of
+              `passive`, so it must not also appear here — the breakdown would
+              list money the section total no longer contains. */}
+          {luxuryYield > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Landmark size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                Political: {formatMoney(passiveInfo.breakdown.political)}
+                Luxury Yield: {formatMoney(luxuryYield)}
               </Text>
             </View>
           )}
@@ -1381,6 +1434,52 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 ) : null;
               })()}
             </>
+          )}
+
+          {/* The five lines the tick charges that this breakdown never named.
+              Luxury, pets and subscriptions were missing from the TOTAL as well
+              — a full collection alone owes $556,820/wk — while student loans
+              and income tax were counted in the total but had no row, so the
+              itemisation did not add up to the number above it. */}
+          {expenseInfo.breakdown.luxury > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Sparkles size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Luxury Upkeep: {formatMoney(expenseInfo.breakdown.luxury)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.pets > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Heart size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Pet Food: {formatMoney(expenseInfo.breakdown.pets)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.subscriptions > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Smartphone size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Subscriptions: {formatMoney(expenseInfo.breakdown.subscriptions)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.studentLoans > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <CreditCard size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Student Loans: {formatMoney(expenseInfo.breakdown.studentLoans)}
+              </Text>
+            </View>
+          )}
+          {expenseInfo.breakdown.incomeTax > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={scale(18)} color="#EF4444" />
+              <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                Income Tax: {formatMoney(expenseInfo.breakdown.incomeTax)}
+              </Text>
+            </View>
           )}
         </View>
         </>

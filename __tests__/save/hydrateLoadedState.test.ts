@@ -26,6 +26,7 @@
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
 import { hydrateLoadedState, hydrateRemoteState } from '@/utils/hydrateLoadedState';
 import { createTestGameState } from '../helpers/createTestGameState';
+import { ADVANCED_CAREERS } from '@/lib/careers/advancedCareers';
 
 /** A save as it comes off disk: a plain object, not a `GameState`. */
 const asSave = (state: unknown): Record<string, unknown> =>
@@ -178,6 +179,47 @@ describe('hydrateLoadedState', () => {
 
       expect(at(state, path)).toEqual(value);
     });
+  });
+
+  it('extends a short career ladder end to end, not just inside repair', () => {
+    // The question behind the "Lv 5/6" screenshot: a save captured before the
+    // capstone rungs were added persists its own `levels` snapshot, so does the
+    // player stay capped at the old ladder?
+    //
+    // No — `repairGameState` reconciles every saved ladder against the catalog,
+    // and `__tests__/actions/careerPromotionGating.test.ts` covers that in
+    // isolation. What was NOT covered is the step after it: this function
+    // merges the repaired state onto `initialGameState`, and a merge that took
+    // `careers` from the wrong side would undo the repair silently. Both load
+    // paths (`loadGame` and cloud-apply) run through here, so this is the
+    // assertion that makes the answer "yes, on load" rather than "yes, in a
+    // helper".
+    const surgeon = asSave(ADVANCED_CAREERS.find(c => c.id === 'surgeon')) as Record<string, unknown>;
+    const fullLadder = (surgeon.levels as unknown[]).length;
+    expect(fullLadder).toBeGreaterThan(6); // guards the fixture below
+
+    const save = asSave(createTestGameState());
+    save.currentJob = 'surgeon';
+    save.careers = [{
+      ...surgeon,
+      levels: (surgeon.levels as unknown[]).slice(0, 6), // the pre-capstone ladder
+      level: 4,                                          // "Surgical Director"
+      accepted: true,
+      applied: true,
+      progress: 0,
+    }];
+
+    const { state } = hydrateLoadedState(save, { source: 'test:short-ladder' });
+    const loaded = state.careers.find(c => c.id === 'surgeon')!;
+
+    expect(loaded.levels.length).toBe(fullLadder);
+    // The player does not move: same rung, same title, one rung further from
+    // the top than before. Adopting the catalog by INDEX is only safe while
+    // rungs are appended, which is what the disjointness of these two
+    // assertions checks.
+    expect(loaded.level).toBe(4);
+    expect(loaded.levels[4].name).toBe('Surgical Director');
+    expect(loaded.level).toBeLessThan(loaded.levels.length - 1);
   });
 
   it('applies permanent perks', () => {

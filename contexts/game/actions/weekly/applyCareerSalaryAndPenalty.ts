@@ -19,17 +19,15 @@
  * the helper. Same pattern as `preTick.calculateNetWorth` — keeping the
  * legacy log lines makes operational debugging unchanged.
  *
- * Work Pay Boost stacking matches the legacy code:
- *   - `goldUpgrades.work_boost`  → ×1.5
- *   - `perks.workBoost`          → ×1.5
- *   - Both → ×2.25 (multiplicative)
+ * The salary arithmetic itself (raise premium, Work Pay Boost stacking, life
+ * skills, DeepLife+) lives in `paidWeeklySalaryForLevel`
+ * (`lib/careers/weeklySalary.ts`) so the screens that display a salary compute
+ * it from the same source as the paycheck.
  */
 
 import type { GameState } from '@/contexts/game/types';
-import { applyRaisePremium } from '@/lib/careers/raisePremium';
+import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { logger } from '@/utils/logger';
-import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
-import { DEEP_LIFE_PLUS_INCOME_MULTIPLIER, hasDeepLifePlusEntitlement } from '@/lib/subscription/deepLifePlus';
 import type { WeekContext } from './weekContext';
 
 export interface CareerSalaryAndPenaltyResult {
@@ -71,24 +69,20 @@ export function applyCareerSalaryAndPenalty(
       if (isPoliticalOffice) {
         logger.info('[WEEK PROGRESSION] Political salary owned by passiveIncome (annual÷52); skipping generic weekly pay to avoid double-count');
       } else if (levelData && typeof levelData.salary === 'number' && levelData.salary > 0) {
-        // Salary is stored as weekly amount (e.g., 55 = $55/week). Apply any
-        // negotiated raise premium (raiseMultiplier, 1 = base) from the
-        // "Ask for a raise" action. The clamp lives in the shared helper: this
-        // site used to allow up to 3x while the writer caps at 2x, so a save
-        // carrying an out-of-range value paid a premium the game never grants.
-        careerSalary = applyRaisePremium(levelData.salary, currentCareer.raiseMultiplier);
-
-        // Work Pay Boost perk (+50% earnings). The $1.99 perks.workBoost IAP
-        // previously set the flag with no callsite consuming it — paying users
-        // got nothing. Match the applyPerkEffects 'income' case: gold upgrade
-        // and IAP each stack at 1.5×, multiplicatively.
-        let payMultiplier = 1;
-        if (prevState.goldUpgrades?.work_boost) payMultiplier *= 1.5;
-        if (prevState.perks?.workBoost) payMultiplier *= 1.5;
-        // Life Skills: Negotiation (+15%) / Executive (+10%) salary premium.
-        // Clamped multiplier from the centralized accessor (never negative/NaN).
-        payMultiplier *= getLifeSkillModifiers(prevState).salaryMult;
-
+        // Salary is stored as weekly amount (e.g., 55 = $55/week). The whole
+        // multiplier stack — negotiated raise premium, Work Pay Boost (gold
+        // upgrade AND the $1.99 IAP perk, 1.5x each, multiplicative), the
+        // Negotiation/Executive life skills, and the DeepLife+ income boost —
+        // lives in `paidWeeklySalaryForLevel`.
+        //
+        // It is shared rather than inlined here because the screens that SHOW a
+        // salary each applied a different subset of it and disagreed with the
+        // paycheck and with each other: the promotion modal and the career
+        // ladder applied the raise premium only, while the work-tab job card and
+        // the Cash Flow panel showed the raw base. Reported as "unsure of what
+        // the income is, usually the case with every job, conflicting numbers".
+        // Payroll calls the same function they do, so the answer is one number.
+        //
         // Wages are NOT indexed to the price index. This is deliberate, and it
         // is a correction of something I got wrong.
         //
@@ -110,14 +104,7 @@ export function applyCareerSalaryAndPenalty(
         // Inflation still runs and still feeds the two costs it genuinely
         // reaches; if it should move the whole catalogue one day, that is a
         // deliberate pass over every price surface, not a multiplier here.
-        // DeepLife+ members earn a career-income boost (+25% salary). Read the
-        // in-state entitlement flag so weekly progression stays a pure function.
-        if (hasDeepLifePlusEntitlement(prevState.settings)) {
-          payMultiplier *= DEEP_LIFE_PLUS_INCOME_MULTIPLIER;
-        }
-        if (payMultiplier !== 1) {
-          careerSalary = Math.round(careerSalary * payMultiplier);
-        }
+        careerSalary = paidWeeklySalaryForLevel(prevState, currentCareer, safeLevel);
 
         // No earned income while incarcerated — withhold the paycheck this week.
         // The career stat toll below still applies (the role is held, not worked).
