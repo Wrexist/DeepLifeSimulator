@@ -128,3 +128,5 @@ screenshots/appstore-2026/*
 *.tmp.mjs
 *.tmp.cjs
 *.tmp.js
+
+# Playwright MCP session artifacts (console logs, page snapshots).playwright-mcp/
