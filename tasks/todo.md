@@ -64,3 +64,25 @@ from us. Nothing to do — and the git history here is a shallow clone rooted at
   in isolation; what was uncovered is the step AFTER it, where this function
   merges onto `initialGameState` and could have taken `careers` from the wrong
   side and undone the repair silently. Both load paths run through here.
+
+## Follow-up: one more, found by asking "is anything left?"
+- [x] **`PoliticalApp` quoted the ANNUAL political ladder as "/wk".** The Politics
+      app renders the whole 7-rung ladder with `formatMoney(salaryWeekly)}/wk`
+      off `POLITICAL_CAREER.levels[i].salary`, which is annual: a President read
+      **$100K/wk** against the $1,923 the tick pays, a Local Council Member
+      **$800/wk** against $15. Worst instance of the three, because that ladder
+      exists to weigh an office against its campaign COST — and the cost side was
+      always real. Third screen to read this field raw; routed through
+      `paidWeeklySalaryForLevel`, which owns the conversion. 3 tests added to
+      `paidWeeklySalary.test.ts` (24 total).
+
+## Checked and deliberately left alone
+- `work.tsx:929` sorts careers by `levels[0].salary` — ordering only, never shown.
+- Hustle employee salaries (`CompanyTile`, `HireEmployeeModal`, `CompanyDetailScreen`)
+  are per-employee weekly wages the player sets, a different quantity entirely.
+- `HealthBreakdownModal` / `HappinessBreakdownModal` / `DeathPopup` read
+  `levels[level].name` — titles, not money.
+
+## Final verification
+- `type-check` ✓ · `type-check:tests` ✓ · `lint:errors` ✓
+- Full Jest: **621 suites / 8139 tests pass**, 308 snapshots, 1 skipped.

@@ -33,6 +33,8 @@ import { promoteCareer } from '@/contexts/game/actions/JobActions';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import type { GameState } from '@/contexts/game/types';
+import fs from 'fs';
+import path from 'path';
 
 /** The reported ladder, trimmed to the two rungs the screenshots show. */
 const SURGEON_LEVELS = [
@@ -248,5 +250,50 @@ describe('careerPayMultiplier and paidCareerCeiling', () => {
 
   it('is 0 for a career with no ladder', () => {
     expect(paidCareerCeiling(createTestGameState(), { id: 'x', levels: [] })).toBe(0);
+  });
+});
+
+describe('no screen quotes the annual political ladder as a weekly figure', () => {
+  const president = POLITICAL_CAREER.levels.length - 1;
+
+  it('converts every rung, including the ones a player has not reached', () => {
+    // The Politics app renders the whole ladder so the player can weigh an
+    // office against its campaign cost. It read `levels[i].salary` raw and
+    // labelled it "/wk", so a President showed $100K/wk against a real $1,923
+    // and a Local Council Member showed $800/wk against $15. The cost side of
+    // that comparison was always real, which is what made it a trap.
+    const state = createTestGameState();
+    for (let i = 0; i <= president; i++) {
+      const annual = POLITICAL_CAREER.levels[i].salary;
+      const weekly = paidWeeklySalaryForLevel(state, POLITICAL_CAREER, i);
+      // Labelled so a failure names the rung rather than just two numbers.
+      expect(`${POLITICAL_CAREER.levels[i].name}:${weekly}`)
+        .toBe(`${POLITICAL_CAREER.levels[i].name}:${Math.round(annual / WEEKS_PER_YEAR)}`);
+      // The tell, stated directly: never the raw catalogue number.
+      expect(weekly).toBeLessThan(annual);
+    }
+  });
+
+  it('the Politics app reads the helper rather than the ladder', () => {
+    const src = fs
+      .readFileSync(path.join(__dirname, '..', '..', 'components', 'computer', 'PoliticalApp.tsx'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(src).not.toMatch(/POLITICAL_CAREER\.levels\[[^\]]+\]\?\.salary/);
+    expect(src).toMatch(/paidWeeklySalaryForLevel\(gameState, POLITICAL_CAREER,/);
+  });
+
+  it('agrees with the money office actually credits', () => {
+    // `getPoliticalWeeklySalary` (lib/economy/passiveIncome.ts) OWNS paying it.
+    // A display that disagrees with the payer is the whole bug class.
+    const base = createTestGameState();
+    const state = {
+      ...base,
+      currentJob: 'political',
+      politics: { ...base.politics!, careerLevel: president + 1 },
+      careers: [{ ...POLITICAL_CAREER, level: president, applied: true, accepted: true, progress: 0 }],
+    } as GameState;
+    expect(paidWeeklySalaryForLevel(state, POLITICAL_CAREER, president))
+      .toBe(paidWeeklyCareerSalary(state).fromOffice);
   });
 });
