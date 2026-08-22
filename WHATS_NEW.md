@@ -1,51 +1,72 @@
 # What's New — DeepLife Simulator
 
-## v2.10.0 — The numbers on the screen are the numbers in the game
+## v2.10.0 — Your life tells you what to do next, and the numbers tell you the truth
 
-**Covers:** the money-and-careers batch. Other v2.10.0 work (cloud backup, the
-blocking-popup soft lock, paywall polish) belongs in this section too — add it
-alongside.
-**Compatibility:** every existing save loads, and the save format does not move.
-Nothing about your money, your job or your progress changes — only what the game
-shows you about them.
+**Covers:** everything since **v2.9.0** (cut 2026-08-17) up to 2026-08-22.
+**Compatibility:** every existing save loads, and the save format does **not**
+move — it stays at v46. Nothing about your money, your job or your progress
+changes; a lot about what the game *shows* you does.
 
 ---
 
 ### Store "What's New" (copy-paste ready)
 
 ```text
-Every screen now shows the same income — the one you're actually paid.
+Your life tells you what to do next — and every number finally agrees.
 
-• Your salary is one number again. The promotion popup, the job card, the
-  career ladder and Cash Flow each did their own maths, so the same job could
-  read $26K on one screen and $13,000 on another. They now all read what
-  payroll actually pays — including your negotiated raise, Work Pay Boost, the
-  salary life skills and DeepLife+.
-• Political office pay was wrong by 52x. The Politics screen showed the YEARLY
-  salary with "/wk" next to it, so President read $100K a week against the
-  $1,923 it really pays — while the campaign cost beside it was real. Every
-  rung of that ladder now shows true weekly pay.
+• A card that reads your actual life. It suggests one thing to do now, one
+  soon, and one big dream — based on your situation, not a generic list. No
+  job, low health, a bill piling up: it notices. Reach one and it says so,
+  instead of quietly moving the goalposts.
+• See it coming. Graduation, a loan clearing, a baby due, a wedding booked —
+  the weeks ahead are visible before they land. A disease that could turn
+  fatal is flagged early enough to do something about it.
+• Every screen shows the same income. The promotion popup, the job card, the
+  career ladder and Cash Flow each did their own maths, so one job could read
+  $26K on one screen and $13,000 on another. They all show what you're
+  actually paid now — raise, boosts, perks and all.
 • Cash Flow shows your whole weekly bill. Luxury upkeep, pet food and app
   subscriptions were always being charged; they just weren't listed. Luxury
-  income wasn't listed either. If you own a collection, expect your cash flow
-  to look very different — nothing changed about your money, only about how
-  honestly it's reported.
+  income wasn't either. If you own a collection, expect the number to look
+  very different — nothing changed about your money, only about how honestly
+  it's reported.
+• Political office pay was wrong by 52x. The Politics screen showed the yearly
+  salary with "/wk" beside it — President read $100K a week against the $1,923
+  it really pays, while the campaign cost next to it was real. Fixed.
+• A popup could lock you out of your own save. The wedding celebration could
+  run off the bottom of the screen, taking the only button that closes it —
+  and the whole game sits behind that button. Four popups had the shape; all
+  four scroll now.
+• Your save, on your terms. Back it up to the cloud, move it to a new phone
+  with a code, or delete it outright — the delete really deletes, leaderboard
+  entries included.
 • Politician, Celebrity and Athlete are back on the Work tab. A filter bug had
   hidden all three from the only screen that can apply for them.
-• Elite careers show one card, not two. Working as a Surgeon used to draw a
-  second card advertising the entry-level wage for the job you already had.
+• Leaving office actually ends. Scandals resolve, lobbyists go home, and a
+  failed run at a higher office no longer wrecks the seat you already hold.
+• Your contacts are yours. Strengthen a friendship, or remove someone you'd
+  rather not see again.
+• A weekly deal that actually rotates, with last week and next week shown so
+  nothing feels random — and prices that only appear once.
 ```
 
 ---
 
 ### What changed, and why
 
-**One salary, computed once.** `Career.levels[].salary` is a *base* rate, and the
-weekly tick multiplies it by the raise premium, Work Pay Boost, the
+**Direction, not a to-do list.** The new home-screen card reads your real
+state — unemployed, sick, in arrears, close to a milestone — and names one
+thing for now, one for soon, and one long-range ambition. Reaching a goal is
+acknowledged where you are, rather than the target silently sliding up. The
+weeks ahead are surfaced the same way: graduation, a loan clearing, a due date,
+a wedding, and a disease heading somewhere bad while there is still time to act.
+
+**One salary, computed once.** `Career.levels[].salary` is a *base* rate, and
+the weekly tick multiplies it by the raise premium, Work Pay Boost, the
 Negotiation/Executive life skills and the DeepLife+ boost. Six screens each
-applied a different subset of that stack. The arithmetic now lives in one
-function — and, crucially, the tick calls the same one, so a screen that
-disagrees with the paycheck is no longer possible.
+applied a different subset. The arithmetic now lives in one function — and the
+tick calls the same one, so a screen that disagrees with the paycheck is no
+longer possible.
 
 **The political ladder is stored annual.** Every other career stores weekly pay;
 `POLITICAL_CAREER` stores yearly. Three separate screens have now read that
@@ -54,15 +75,37 @@ field raw and labelled it "/wk". The conversion has one owner.
 **Cash Flow was a subset of the bill.** Three costs the tick charges every week
 had no line at all — luxury upkeep (up to $556,820/wk for a full collection),
 pet food, and subscription renewals — and luxury yield was missing from the
-income side. Two more lines, student loans and income tax, were inside the
-total with no row to show them, so the itemisation didn't add up to the figure
-above it. Every line is now computed by calling the function belonging to the
-subsystem that does the charging.
+income side. Student loans and income tax were inside the total with no row, so
+the itemisation didn't add up to the figure above it. Every line is now computed
+by calling the function belonging to the subsystem that does the charging.
 
 **Expect the collection to look expensive.** For a player with luxury items this
 is the most visible change in the release, and it will read as a nerf. It isn't:
 that upkeep has always been leaving your account every week. The panel just
 stopped omitting it.
+
+**A blocking popup with no way out is a lost save.** The wedding card is bounded
+and clips, and its contents measure taller than the bound on an ordinary phone —
+so "Continue Your Love Story" rendered off the bottom, and the HUD sits behind
+that button. Reported as "won't let me scroll or do anything". Three more popups
+had the identical shape (welcome-back, life moments, the tutorial) and are fixed
+with it.
+
+**Cloud saves you can actually control.** The erase and transfer endpoints
+existed with no way for a player to reach them, which for erasure is the
+difference between having a data-deletion path and only claiming one. Settings
+now offers backup deletion (leaderboard entries included), and a code to move a
+save to a new phone. The transfer sheet says the two things you would otherwise
+learn the hard way: the code is a bearer credential, and claiming *copies*
+rather than moves, so both phones keep playing and diverge.
+
+**Loose ends from the last release.** Leaving political office now resolves
+active scandals and stands the lobbyists down, and losing a bid for a higher
+office no longer costs you the seat you hold. Company income is capped per
+company rather than by one global pool. The First Week Guide shows on your first
+life instead of waiting for a prestige. Prestige no longer carries over dark-web
+vendor reviews or lets a claimed achievement pay out twice, and mining rigs can
+be sold. The obituary counts the property you owned.
 
 ---
 

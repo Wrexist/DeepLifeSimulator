@@ -49,7 +49,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: 'August 2026',
     headline: 'Your life tells you what to do next',
     summary:
-      'A new card reads your situation and points you toward what matters, the weeks ahead are visible before they land, and a weekly deal actually changes weekly.',
+      'A new card reads your situation and points you toward what matters, the weeks ahead are visible before they land, and every screen finally agrees on what you earn.',
     changes: [
       {
         category: 'new',
@@ -79,9 +79,51 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         category: 'fixed',
-        title: 'Store polish',
+        title: 'The money you see is the money you get',
+        bullets: [
+          'Your salary read differently on four screens. They all show what you are paid now.',
+          'That includes your raise, work boosts, life skills and DeepLife+ — not the base rate.',
+          'Political office pay was showing the yearly figure per week. President said $100K/wk.',
+          'Cash Flow left out luxury upkeep, pet food and subscriptions. It shows the whole bill.',
+          'Owning luxury will look far more expensive. It always cost that; it was never listed.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'A popup could lock you out of your save',
+        bullets: [
+          'The wedding celebration could run off screen, taking the only button that closes it.',
+          'The whole game sits behind that button. Four popups had it; all four scroll now.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'Your save, on your terms',
+        bullets: [
+          'Back your save up, and move it to a new phone with a code.',
+          'Delete it whenever you like — that really deletes it, leaderboard entries included.',
+          'A transfer copies rather than moves, so the old phone keeps working. We say so up front.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Careers and politics',
+        bullets: [
+          'Politician, Celebrity and Athlete were missing from the Work tab. They are back.',
+          'Elite careers drew two cards for one job, at two different wages. Now one.',
+          'Leaving office ends properly: scandals resolve and lobbyists go home.',
+          'Losing a run at a higher office no longer wrecks the seat you already hold.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Loose ends',
         bullets: [
           'Prices no longer show twice on the same item.',
+          'Strengthen a friendship, or remove a contact you would rather not see again.',
+          'The starter guide shows on your first life instead of waiting for a new generation.',
+          'A new generation no longer re-pays claimed achievements, and rigs can be sold.',
+          'Your obituary counts the property you owned.',
         ],
       },
     ],
