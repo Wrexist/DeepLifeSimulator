@@ -8,6 +8,13 @@
 // ── Contact ───────────────────────────────────────────────
 export const SUPPORT_EMAIL = 'deeplifesimulator@gmail.com';
 export const DISCORD_URL = 'https://discord.gg/rzktazdX8v';
+/**
+ * The same invite with the scheme stripped — what a join surface SHOWS the
+ * player so the destination is visible before they tap. Derived from
+ * `DISCORD_URL` rather than typed twice: a displayed link that has drifted from
+ * the one that actually opens reads as a phishing tell.
+ */
+export const DISCORD_INVITE_LABEL = DISCORD_URL.replace(/^https?:\/\//, '');
 export const PRIVACY_POLICY_URL = 'https://wrexist.github.io/DeepLifeSimulator/privacy.html';
 // Terms of Use (EULA). Apple REQUIRES a functional Terms link on any
 // auto-renewing-subscription paywall (App Store Review 3.1.2); the paywall

@@ -1,15 +1,51 @@
-import React, { useEffect, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { MessageCircle, DollarSign, Gift } from 'lucide-react-native';
-import { useGameState } from '@/contexts/game';
-import { safeSettings } from '@/utils/safeGameState';
-import {
-  scale,
-  responsivePadding,
-  responsiveBorderRadius,
-  responsiveFontSize,
-  responsiveSpacing,
-} from '@/utils/scaling';
+/**
+ * CommunityRewardPopup — the one-time "join our Discord for a cash reward"
+ * invite, shown once early in a life and never again.
+ *
+ * ## Shape
+ *
+ * A bottom SHEET, deliberately built in the same visual language as the
+ * rewarded-ad sheet the side orb opens (`components/AdRewardOrb.tsx`): dimmed
+ * backdrop, rounded top corners, a close affordance top-right, a gradient hero
+ * badge, one reward card stating exactly what is paid, and a single full-width
+ * gradient CTA. Rewards in this game are offered in one consistent frame, so a
+ * player who has tapped an ad orb already knows how to read this.
+ *
+ * What differs from the ad sheet, on purpose:
+ *   - the hero carries Discord's OWN mark in brand blurple, not a generic chat
+ *     bubble, so the destination is recognizable before any text is read;
+ *   - the invite URL is PRINTED under the CTA. The button leaves the app, and a
+ *     button that leaves the app without naming where it goes is the shape of a
+ *     scam. Showing `discord.gg/…` is also the fallback for a player whose
+ *     device cannot open the link.
+ *
+ * ## Ownership
+ *
+ * Presentational only. The parent owns the grant and the durable exactly-once
+ * marker (`utils/discordRewardClaim.ts`, shared with the Settings entry point),
+ * so this file can never double-pay. Its own re-entrancy guard is narrower: it
+ * stops ONE tap from firing `onJoin` twice while the sheet is closing.
+ */
+import React, { useCallback, useEffect, useRef } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { X, ExternalLink } from 'lucide-react-native';
+import Gradient from '@/components/ui/Gradient';
+import DiscordLogo, { DISCORD_BLURPLE } from '@/components/ui/DiscordLogo';
+import { useTheme } from '@/hooks/useTheme';
+import { DISCORD_INVITE_LABEL } from '@/lib/config/appConfig';
+import { formatMoney } from '@/utils/moneyFormatting';
+import { haptic } from '@/utils/haptics';
+import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
+
+const LinearGradient = Gradient;
+// Blurple → the lighter brand tint. Same two-stop treatment as the ad sheet's
+// money/vitality gradients, so the CTA and hero read as the same component family.
+const DISCORD_GRADIENT = [DISCORD_BLURPLE, '#7B87FF'] as const;
+const MONEY_GREEN = '#10B981';
+
+/** Stable identity for the sheet's tap-swallowing responder. */
+const returnTrue = () => true;
 
 interface CommunityRewardPopupProps {
   visible: boolean;
@@ -21,268 +57,310 @@ interface CommunityRewardPopupProps {
   onDismiss: () => void;
 }
 
-/**
- * CommunityRewardPopup — a sleek, low-key invite to join the Discord community
- * in exchange for a one-time cash reward. Presentational only: the parent owns
- * the grant + persistence (shared `discord_reward_claimed` flag) so it can't be
- * double-claimed with the Settings entry point.
- *
- * Visual language matches DailyRewardPopup (scale+fade sheet, dark/light palette)
- * so it feels native and unobtrusive rather than like an ad.
- */
+/** What the player gets, beyond the cash. Three lines, no scrolling. */
+const PERKS = [
+  'Patch notes and sneak peeks before release',
+  'Report a bug straight to the devs',
+  'Giveaways, codes and community events',
+] as const;
+
 export default function CommunityRewardPopup({
   visible,
   rewardAmount,
   onJoin,
   onDismiss,
 }: CommunityRewardPopupProps) {
-  const { gameState } = useGameState();
-  const settings = safeSettings(gameState);
-  const isDarkMode = settings?.darkMode || false;
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+
   const safeRewardAmount =
-    typeof rewardAmount === 'number' && isFinite(rewardAmount) && rewardAmount >= 0 ? rewardAmount : 0;
+    typeof rewardAmount === 'number' && Number.isFinite(rewardAmount) && rewardAmount >= 0
+      ? rewardAmount
+      : 0;
+  const rewardLabel = formatMoney(safeRewardAmount);
 
-  const isMountedRef = useRef(true);
-  // Guards a single tap from firing join/dismiss twice during the exit animation.
+  // Re-entrancy guard: one tap must fire exactly one callback, even while the
+  // sheet is animating out and still mounted.
   const actionInProgressRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
   useEffect(() => {
     if (visible) actionInProgressRef.current = false;
   }, [visible]);
 
-  const scaleAnim = useRef(new Animated.Value(0.96)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      scaleAnim.setValue(0.96);
-      fadeAnim.setValue(0);
-      Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, tension: 60, friction: 9, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [visible, scaleAnim, fadeAnim]);
-
-  const animateOut = (then: () => void) => {
+  const handleJoin = useCallback(() => {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
-    Animated.parallel([
-      Animated.timing(scaleAnim, { toValue: 0.96, duration: 160, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
-    ]).start(() => {
-      if (isMountedRef.current) then();
-    });
-  };
+    haptic.success();
+    onJoin();
+  }, [onJoin]);
 
-  const handleJoin = () => animateOut(onJoin);
-  const handleDismiss = () => animateOut(onDismiss);
+  const handleDismiss = useCallback(() => {
+    if (actionInProgressRef.current) return;
+    actionInProgressRef.current = true;
+    onDismiss();
+  }, [onDismiss]);
 
-  const palette = isDarkMode
-    ? {
-        backdrop: 'rgba(0, 0, 0, 0.65)',
-        sheet: '#0F172A',
-        border: 'rgba(255,255,255,0.06)',
-        title: '#F9FAFB',
-        subtitle: '#94A3B8',
-        infoBg: 'rgba(255,255,255,0.04)',
-        infoText: '#D1D5DB',
-      }
-    : {
-        backdrop: 'rgba(15, 23, 42, 0.55)',
-        sheet: '#FFFFFF',
-        border: 'rgba(15,23,42,0.06)',
-        title: '#0F172A',
-        subtitle: '#64748B',
-        infoBg: '#F1F5F9',
-        infoText: '#475569',
-      };
+  const joinLabel =
+    safeRewardAmount > 0 ? `Join Discord & claim ${rewardLabel}` : 'Join our Discord';
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleDismiss}>
-      <View style={[styles.overlay, { backgroundColor: palette.backdrop }]}>
-        <Animated.View
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleDismiss}>
+      {/* Tapping the dimmed area is the same quiet "not now" as the X. */}
+      <Pressable
+        style={styles.backdrop}
+        onPress={handleDismiss}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
+        {/* Swallow taps inside the sheet so they never reach the backdrop.
+            A responder-claiming View rather than a Pressable: nesting a
+            pressable inside a pressable maps to a <button> inside a <button>
+            on react-native-web, which is invalid markup. */}
+        <View
+          onStartShouldSetResponder={returnTrue}
           style={[
             styles.sheet,
             {
-              backgroundColor: palette.sheet,
-              borderColor: palette.border,
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
+              backgroundColor: theme.surface,
+              paddingBottom: responsiveSpacing.lg + insets.bottom,
             },
           ]}
         >
-          <View style={styles.iconWrap}>
-            <View style={styles.iconCircle}>
-              <MessageCircle size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
-            </View>
+          <View style={styles.sheetHeader}>
+            <Pressable
+              onPress={handleDismiss}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              style={styles.closeBtn}
+            >
+              <X size={fontScale(22)} color={theme.text} />
+            </Pressable>
           </View>
 
-          <Text style={[styles.title, { color: palette.title }]}>Join the Community</Text>
-          <Text style={[styles.subtitle, { color: palette.subtitle }]}>
-            Tips, updates &amp; a welcome gift from the team
+          <LinearGradient
+            colors={DISCORD_GRADIENT as unknown as string[]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroBadge}
+          >
+            <DiscordLogo size={scale(38)} color="#FFFFFF" />
+          </LinearGradient>
+
+          <Text style={[styles.title, { color: theme.text }]}>Join our Discord</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Hang out with other players and the devs — and take a one-time welcome bonus with you.
           </Text>
 
           {safeRewardAmount > 0 && (
-            <View style={[styles.rewardRow, { borderColor: palette.border, backgroundColor: palette.infoBg }]}>
-              <View style={[styles.rewardIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                <DollarSign size={scale(20)} color="#10B981" strokeWidth={2.4} />
+            <View
+              style={[
+                styles.rewardCard,
+                { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+              ]}
+            >
+              <Text style={[styles.rewardKicker, { color: theme.textSecondary }]}>
+                WELCOME BONUS
+              </Text>
+              <View style={styles.rewardRow}>
+                <Text style={[styles.rewardValue, { color: MONEY_GREEN }]}>+{rewardLabel}</Text>
+                <Text style={[styles.rewardUnit, { color: theme.textSecondary }]}>cash</Text>
               </View>
-              <Text style={[styles.rewardLabel, { color: palette.subtitle }]}>Welcome bonus</Text>
-              <Text style={[styles.rewardAmount, { color: palette.title }]}>
-                +${safeRewardAmount.toLocaleString()}
+              <Text style={[styles.note, { color: theme.textSecondary }]}>
+                Added instantly · one time only
               </Text>
             </View>
           )}
 
-          <View style={[styles.infoBlock, { backgroundColor: palette.infoBg, borderColor: palette.border }]}>
-            <View style={styles.infoRow}>
-              <Gift size={scale(14)} color={palette.subtitle} />
-              <Text style={[styles.infoText, { color: palette.infoText }]}>
-                Opens Discord — your reward is added instantly, one time.
-              </Text>
-            </View>
+          <View style={styles.perks}>
+            {PERKS.map((perk) => (
+              <View key={perk} style={styles.perkRow}>
+                <View style={[styles.perkDot, { backgroundColor: DISCORD_BLURPLE }]} />
+                <Text style={[styles.perkText, { color: theme.textSecondary }]}>{perk}</Text>
+              </View>
+            ))}
           </View>
 
-          <TouchableOpacity
-            style={styles.joinButton}
+          <Pressable
             onPress={handleJoin}
-            activeOpacity={0.88}
             accessibilityRole="button"
-            accessibilityLabel={`Join our Discord and claim ${safeRewardAmount.toLocaleString()} dollars`}
+            accessibilityLabel={
+              safeRewardAmount > 0
+                ? `Join our Discord and claim ${rewardLabel}`
+                : 'Join our Discord'
+            }
+            style={styles.cta}
           >
-            <Text style={styles.joinButtonText}>
-              {safeRewardAmount > 0 ? `Join & Claim $${safeRewardAmount.toLocaleString()}` : 'Join Our Discord'}
-            </Text>
-          </TouchableOpacity>
+            <LinearGradient
+              colors={DISCORD_GRADIENT as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaFill}
+            >
+              <DiscordLogo size={scale(20)} color="#FFFFFF" />
+              <Text style={styles.ctaText}>{joinLabel}</Text>
+            </LinearGradient>
+          </Pressable>
 
-          <TouchableOpacity
-            style={styles.dismissButton}
+          {/* The destination, in plain sight. Tapping it does exactly what the
+              CTA does — the reward is granted either way, so a player who aims
+              for the link instead of the button is never shortchanged. */}
+          <Pressable
+            onPress={handleJoin}
+            accessibilityRole="link"
+            accessibilityLabel={`Open ${DISCORD_INVITE_LABEL}`}
+            hitSlop={6}
+            style={styles.linkRow}
+          >
+            <ExternalLink size={fontScale(12)} color={theme.textSecondary} />
+            <Text style={[styles.linkText, { color: theme.textSecondary }]} numberOfLines={1}>
+              {DISCORD_INVITE_LABEL}
+            </Text>
+          </Pressable>
+
+          <Pressable
             onPress={handleDismiss}
-            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Maybe later"
+            style={styles.dismissBtn}
           >
-            <Text style={[styles.dismissText, { color: palette.subtitle }]}>Maybe later</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
+            <Text style={[styles.dismissText, { color: theme.textSecondary }]}>Maybe later</Text>
+          </Pressable>
+        </View>
+      </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  backdrop: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: responsivePadding.horizontal,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
   },
   sheet: {
-    width: '100%',
-    maxWidth: scale(360),
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    paddingHorizontal: responsiveSpacing.lg,
-    paddingTop: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.md,
-    alignItems: 'stretch',
+    borderTopLeftRadius: scale(24),
+    borderTopRightRadius: scale(24),
+    padding: responsiveSpacing.lg,
   },
-  iconWrap: {
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.sm,
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
-  iconCircle: {
-    width: scale(56),
-    height: scale(56),
-    borderRadius: scale(28),
-    // Discord blurple — recognizable but understated.
-    backgroundColor: '#5865F2',
+  closeBtn: {
+    width: touchTargets.minimum,
+    height: touchTargets.minimum,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  heroBadge: {
+    alignSelf: 'center',
+    width: scale(72),
+    height: scale(72),
+    borderRadius: scale(36),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: responsiveSpacing.md,
+  },
   title: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '700',
     textAlign: 'center',
+    fontSize: fontScale(22),
+    fontWeight: '800',
   },
   subtitle: {
-    fontSize: responsiveFontSize.sm,
     textAlign: 'center',
-    marginTop: scale(2),
+    fontSize: fontScale(13),
+    marginTop: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.sm,
+  },
+  rewardCard: {
+    borderRadius: scale(14),
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: responsiveSpacing.md,
+    alignItems: 'center',
     marginBottom: responsiveSpacing.md,
+    gap: 4,
+  },
+  rewardKicker: {
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    letterSpacing: 1.1,
   },
   rewardRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    gap: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.md,
+    alignItems: 'baseline',
+    gap: 6,
   },
-  rewardIcon: {
-    width: scale(34),
-    height: scale(34),
-    borderRadius: scale(17),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rewardLabel: {
-    flex: 1,
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '500',
-  },
-  rewardAmount: {
-    fontSize: responsiveFontSize.lg,
+  rewardValue: {
+    fontSize: fontScale(28),
     fontWeight: '800',
-    letterSpacing: 0.2,
+    fontVariant: ['tabular-nums'],
   },
-  infoBlock: {
-    borderRadius: responsiveBorderRadius.lg,
-    borderWidth: 1,
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: scale(6),
-    marginBottom: responsiveSpacing.md,
+  rewardUnit: {
+    fontSize: fontScale(13),
   },
-  infoRow: {
+  note: {
+    fontSize: fontScale(11),
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  perks: {
+    alignSelf: 'stretch',
+    gap: responsiveSpacing.xs,
+    marginBottom: responsiveSpacing.lg,
+    paddingHorizontal: responsiveSpacing.xs,
+  },
+  perkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: responsiveSpacing.xs,
+    gap: scale(8),
   },
-  infoText: {
+  perkDot: {
+    width: scale(5),
+    height: scale(5),
+    borderRadius: scale(2.5),
+  },
+  perkText: {
     flex: 1,
-    fontSize: responsiveFontSize.xs,
+    fontSize: fontScale(12),
     fontWeight: '500',
   },
-  joinButton: {
-    backgroundColor: '#5865F2',
-    borderRadius: responsiveBorderRadius.lg,
+  cta: {
+    borderRadius: scale(14),
+    overflow: 'hidden',
+  },
+  ctaFill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(8),
     paddingVertical: responsiveSpacing.md,
-    alignItems: 'center',
+    paddingHorizontal: responsiveSpacing.md,
   },
-  joinButtonText: {
+  ctaText: {
     color: '#FFFFFF',
-    fontSize: responsiveFontSize.base,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontSize: fontScale(15),
+    fontWeight: '800',
   },
-  dismissButton: {
-    paddingVertical: responsiveSpacing.sm,
-    marginTop: scale(4),
+  linkRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(5),
+    marginTop: responsiveSpacing.sm,
+  },
+  linkText: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  dismissBtn: {
+    alignItems: 'center',
+    paddingVertical: responsiveSpacing.sm,
+    marginTop: scale(2),
   },
   dismissText: {
-    fontSize: responsiveFontSize.sm,
-    fontWeight: '500',
+    fontSize: fontScale(13),
+    fontWeight: '600',
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import CommunityRewardPopup from '@/components/CommunityRewardPopup';
 import { DISCORD_JOIN_REWARD_MONEY } from '@/lib/config/gameConstants';
+import { DISCORD_INVITE_LABEL } from '@/lib/config/appConfig';
 
 /**
  * Render smoke test for the in-game "join the community" cash-reward popup.
@@ -23,6 +24,10 @@ describe('render — CommunityRewardPopup', () => {
     expect(json).toContain(DISCORD_JOIN_REWARD_MONEY.toLocaleString());
     expect(json).toContain('Join');
     expect(json).toContain('Maybe later');
+    // The invite URL is PRINTED on the sheet: the CTA leaves the app, so the
+    // destination has to be visible before the tap (and it is the fallback for
+    // a device that cannot open the link at all).
+    expect(json).toContain(DISCORD_INVITE_LABEL);
     unmount();
   });
 
