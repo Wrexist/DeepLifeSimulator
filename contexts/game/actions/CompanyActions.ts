@@ -59,10 +59,10 @@ export const createCompany = (
   // CRITICAL: Validate priceIndex before calculation
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
   // Conglomerate: a subsidiary of a type already owned costs 2.5x the last.
-  // This cannot inflate income — PER_SOURCE_CAPS.companies is a hard $200k/wk
-  // ceiling on total company income that the five maxed originals already
-  // exceed — so every company past that point is pure SINK, which is what the
-  // late-game economy lacks.
+  // This cannot inflate income — company income is capped PER COMPANY by
+  // `companyIncomeCap` in passiveIncome ($200k/wk base + $5k per employee),
+  // which the maxed originals already sit at — so every company past that
+  // point is pure SINK, which is what the late-game economy lacks.
   const ownedOfType = countCompaniesOfType(gameState.companies, companyType);
   const cost = getInflatedPrice(subsidiaryCost(baseCost, ownedOfType), priceIndex);
   

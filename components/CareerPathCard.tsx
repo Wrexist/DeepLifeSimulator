@@ -6,8 +6,8 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { applyRaisePremium, resolveRaisePremium } from '@/lib/careers/raisePremium';
-import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
+import { resolveRaisePremium } from '@/lib/careers/raisePremium';
+import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import {
     Briefcase,
@@ -98,12 +98,14 @@ function CareerItem({
     // who successfully asked for a raise saw the exact same number afterwards.
     // Reported as "Ask for a raise doesn't apply to the income. It stays flat
     // rate." The raise was real; it was just never displayed.
+    //
+    // The premium was only half of it: the paycheck also carries Work Pay Boost,
+    // the salary life skills and DeepLife+, and this card carried none of them
+    // — so it still disagreed with the paycheck and with the work tab.
+    // `paidWeeklySalaryForLevel` is the whole stack, and payroll calls it too.
     const raiseMult = resolveRaisePremium(career.raiseMultiplier);
-    // Weekly, and with the negotiated premium on top. `displayWeeklySalary`
-    // converts the political ladder's ANNUAL figures; every other ladder passes
-    // through unchanged.
-    const paidSalary = (base: number | undefined) =>
-        displayWeeklySalary(career.id, applyRaisePremium(base ?? 0, career.raiseMultiplier));
+    const paidSalary = (levelIndex: number | undefined) =>
+        paidWeeklySalaryForLevel(gameState, career, levelIndex);
     const hasRaise = raiseMult > 1;
     const tier = getCareerTier(career.level, career.levels ? career.levels.length : 1);
     const tierInfo = CAREER_TIERS[tier];
@@ -154,7 +156,7 @@ function CareerItem({
                     )}
                 </View>
                 <View style={styles.careerHeaderRight}>
-                    <Text style={styles.salaryText}>${paidSalary(currentLevel?.salary).toLocaleString()}/wk</Text>
+                    <Text style={styles.salaryText}>${paidSalary(career.level)}/wk</Text>
                     {isExpanded ? (
                         <ChevronDown size={18} color="#94A3B8" />
                     ) : (
@@ -252,7 +254,7 @@ function CareerItem({
                                         ]} numberOfLines={1}>
                                             {level.name}
                                         </Text>
-                                        <Text style={styles.levelSalary}>${paidSalary(level.salary).toLocaleString()}</Text>
+                                        <Text style={styles.levelSalary}>${paidSalary(idx)}</Text>
                                         {idx < (career.levels?.length || 0) - 1 && (
                                             <View style={styles.levelConnector} />
                                         )}
@@ -267,7 +269,7 @@ function CareerItem({
                         <View style={styles.promotionBanner}>
                             <TrendingUp size={16} color="#10B981" />
                             <Text style={styles.promotionText}>
-                                Promotion available to {nextLevel?.name}! (+${(paidSalary(nextLevel?.salary) - paidSalary(currentLevel?.salary)).toLocaleString()}/wk)
+                                Promotion available to {nextLevel?.name}! (+${paidSalary(career.level + 1) - paidSalary(career.level)}/wk)
                             </Text>
                         </View>
                     )}
@@ -315,8 +317,8 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
         // Same raise premium as the expanded card above — this compact summary
         // is what the player sees first, so it must not disagree with it.
         const raiseMult = resolveRaisePremium(currentCareer.raiseMultiplier);
-        const paidSalary = (base: number | undefined) =>
-            displayWeeklySalary(currentCareer.id, applyRaisePremium(base ?? 0, currentCareer.raiseMultiplier));
+        const paidSalary = (levelIndex: number | undefined) =>
+            paidWeeklySalaryForLevel(gameState, currentCareer, levelIndex);
         const canPromote = !!nextLevel && getPromotionEligibility(currentCareer, gameState.weeksLived).eligible;
         const careerDisplayName = formatCareerName(currentCareer.id);
 
@@ -333,7 +335,7 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
                 </View>
                 <View style={styles.compactDetails}>
                     <Text style={styles.compactLevel}>{currentLevel?.name}</Text>
-                    <Text style={styles.compactSalary}>${paidSalary(currentLevel?.salary).toLocaleString()}/wk</Text>
+                    <Text style={styles.compactSalary}>${paidSalary(currentCareer.level)}/wk</Text>
                 </View>
                 <View style={styles.compactProgress}>
                     <View style={styles.compactProgressBar}>

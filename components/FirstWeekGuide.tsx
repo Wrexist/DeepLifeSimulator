@@ -33,6 +33,63 @@ const LinearGradient = Gradient;
 
 const FIRST_WEEK_GUIDE_KEY = '@deep_life_first_week_guide_seen';
 
+/**
+ * Structural slice of GameState this gate reads, so call sites pass the live
+ * state straight through and tests build it with createTestGameState().
+ */
+export interface FirstWeekGuideGateState {
+    prestige?: { prestigeLevel?: number };
+    weeksLived?: number;
+    lifeStartWeek?: number;
+}
+
+/**
+ * Whether the First Week Guide may mount for this game state.
+ *
+ * ── The bug ────────────────────────────────────────────────────────────────
+ *
+ * The spawner gated on `weeksInThisLife(state) <= 3`, which is correct ONLY
+ * while `lifeStartWeek` exists. It is a v43 carve-out with no backfill
+ * (CLAUDE.md §7), so every save created earlier has no baseline and
+ * `weeksSinceLifeStart` falls back to the ABSOLUTE `weeksLived`
+ * (utils/weekCounters.ts) — 104+ for any starting age above 18. The gate could
+ * never pass in life 1 of those saves. The first prestige then stamps
+ * `lifeStartWeek` (lib/prestige/prestigeExecution.ts, both paths), the counter
+ * reads newborn-small, and the guide appeared — after the first prestige, not
+ * when first starting the game. Playtester-reported 2026-08.
+ *
+ * ── The rule ───────────────────────────────────────────────────────────────
+ *
+ *   1. FIRST LIFE ONLY. Any prestige level > 0 means the player is past the
+ *      point this guide teaches; a fresh prestige state looks newborn precisely
+ *      because `lifeStartWeek` was re-stamped, so the week check alone cannot
+ *      tell "new player" from "new generation".
+ *   2. Pre-v43 first-life saves have an unknowable week number — the baseline
+ *      cannot be derived once `weeksLived` has moved. Rather than hide the
+ *      guide from them forever, show it: they are demonstrably still in their
+ *      first life, the card is one tap to dismiss, and that dismissal persists
+ *      device-wide (@deep_life_first_week_guide_seen), so it never nags.
+ *   3. Otherwise, the normal rule: first few weeks of this life.
+ */
+export function shouldShowFirstWeekGuide(
+    state: FirstWeekGuideGateState | undefined | null
+): boolean {
+    // No game in hand: fail closed. (The spawner always has live state, but a
+    // pure gate should not answer "show" to a question it cannot read.)
+    if (!state) return false;
+
+    const prestigeLevel = state.prestige?.prestigeLevel;
+    if (typeof prestigeLevel === 'number' && prestigeLevel > 0) return false;
+
+    // Same validity rule weekCounters applies: non-finite or negative resolves
+    // as "no baseline", i.e. a pre-v43 save.
+    const baseline = state.lifeStartWeek;
+    if (typeof baseline !== 'number' || !Number.isFinite(baseline) || baseline < 0) {
+        return true;
+    }
+    return weeksSinceLifeStart(state.weeksLived, baseline) <= 3;
+}
+
 interface GuideStepReward {
     type: 'money' | 'gems' | 'energy';
     amount: number;

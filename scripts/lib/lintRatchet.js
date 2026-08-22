@@ -141,8 +141,19 @@ const MAX_ERRORS = 0;
  *
  * Lowered in the commit that earned it, which is the rule for every ratchet in
  * this repo. Never raise it to get a build unstuck.
+ *
+ * 797 → 798 on the merge with `main`, and the +1 is worth explaining because it
+ * looks like exactly what the line above forbids. 797 was measured on this
+ * branch ALONE; `main` meanwhile landed the paywall/pricing and
+ * conflicting-numbers batches, whose new files carry warnings of their own, and
+ * its own ceiling was still 842. The merged tree measures 798 — one dead import
+ * (`resolveRaisePremium`, left behind by the conflict resolution in
+ * `JobActions`) was removed rather than absorbed into the number, and the rest
+ * is `main`'s pre-existing code arriving. This is a re-base onto the merged
+ * reality, still 44 below the ceiling that shipped it, not headroom bought to
+ * get a build green.
  */
-const MAX_WARNINGS = 797;
+const MAX_WARNINGS = 798;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

@@ -11,15 +11,13 @@ import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { rejectIfBlocked } from './_guards';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
+import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import {
-  applyRaisePremium,
   raisePremiumPct,
   isRaisePremiumMaxed,
   nextRaisePremium,
-  resolveRaisePremium,
   RAISE_MIN_PERFORMANCE,
 } from '@/lib/careers/raisePremium';
-import { displayWeeklySalary } from '@/lib/careers/weeklySalary';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTransportTier, getDeliveryTerms } from '@/lib/vehicles/scooterRental';
 import { jobOfferMultiplier, highestGpa } from '@/lib/education/gpa';
@@ -1111,23 +1109,23 @@ export const promoteCareer = (
   // moment both rungs are known — `career` is the pre-promotion snapshot, so
   // once state commits the old title and salary are unrecoverable.
   const previousLevelData = career.levels[career.level];
-  // WEEKLY, with the negotiated premium on top. `PendingPromotion.fromSalary`
-  // is documented as weekly pay and the celebration modal prints it with "/wk",
-  // but `levels[].salary` is ANNUAL on the political ladder — so a promotion to
-  // Governor announced "$15,000/wk" for a job that pays $288.
-  const paid = (base: number) =>
-    displayWeeklySalary(careerId, applyRaisePremium(base, career.raiseMultiplier));
+  // Both rungs priced the way payroll prices them. This used to apply the raise
+  // premium alone, so a player with a Work Pay Boost, a salary life skill or
+  // DeepLife+ was celebrated with a number the paycheck then beat — and the
+  // work tab, which showed the raw base, disagreed with both. One function,
+  // `paidWeeklySalaryForLevel`, now answers for all of them.
+  const paid = (levelIndex: number) => paidWeeklySalaryForLevel(gameState, career, levelIndex);
   const topLevel = Math.max(0, career.levels.length - 1);
 
   return {
     success: true,
-    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${displayWeeklySalary(careerId, applyRaisePremium(levelData.salary, career.raiseMultiplier)).toLocaleString()}/week.`,
+    message: `Congratulations! You've been promoted to ${levelData.name}! Your new salary is $${paid(newLevel).toLocaleString()}/week.`,
     promotion: {
       careerId,
       fromTitle: previousLevelData?.name ?? 'Your old role',
       toTitle: levelData.name,
-      fromSalary: paid(previousLevelData?.salary ?? 0),
-      toSalary: paid(levelData.salary),
+      fromSalary: paid(career.level),
+      toSalary: paid(newLevel),
       level: newLevel,
       topLevel,
       isTopRank: newLevel >= topLevel,

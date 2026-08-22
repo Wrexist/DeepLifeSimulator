@@ -24,7 +24,7 @@
 import type { Company, GameState } from '@/contexts/game/types';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import {
-  COMPANY_INCOME_CAP,
+  companyIncomeCap,
   calcCompanyWeeklyIncome,
   calcWeeklyPassiveIncome,
   companyCountEfficiency,
@@ -84,22 +84,43 @@ describe('portfolio-size efficiency', () => {
 describe('the summary reconciles', () => {
   it('names every step between what companies earn and what is paid', () => {
     // 12 companies at $30k = $360k stored — the reporter's number.
+    //
+    // The ceiling is PER COMPANY now (`companyIncomeCap`, $200k base + $5k per
+    // employee), so a portfolio of small companies is no longer capped at all;
+    // what still bites is the portfolio-size management penalty. That is the
+    // point of the change that landed on main — a shared $200k pool punished
+    // owning more companies, which is the play the game asks for.
     const companies = Array.from({ length: 12 }, (_, i) => company(`c${i}`, 30_000));
     const summary = calcCompanyWeeklyIncome(stateWith(companies, 26_000_000));
 
     expect(summary.stored).toBe(360_000);
     expect(summary.efficiency).toBe(0.7); // 11+ companies
     expect(summary.afterEfficiency).toBe(252_000);
-    expect(summary.cap).toBe(COMPANY_INCOME_CAP);
-    expect(summary.paid).toBe(COMPANY_INCOME_CAP); // ceilinged
-    expect(summary.capped).toBe(true);
-    expect(summary.lost).toBe(summary.afterBonuses - summary.paid);
+    expect(summary.paid).toBe(252_000);
+    expect(summary.cap).toBe(companies.reduce((s, c) => s + companyIncomeCap(c), 0));
+    expect(summary.capped).toBe(true); // still short of `stored`, via the penalty
+    expect(summary.lost).toBe(360_000 - 252_000);
+  });
+
+  it('caps a single huge company by its own headcount, not a shared pool', () => {
+    // The player report behind the main-branch change: one big company used to
+    // be squeezed by a ceiling shared with every other company it owned.
+    const small = company('a', 5_000_000);
+    const staffed = { ...company('b', 5_000_000), employees: 400 };
+
+    const summarySmall = calcCompanyWeeklyIncome(stateWith([small], 100_000));
+    const summaryStaffed = calcCompanyWeeklyIncome(stateWith([staffed], 100_000));
+
+    expect(summarySmall.paid).toBe(companyIncomeCap(small));       // $200k floor
+    expect(summaryStaffed.paid).toBe(companyIncomeCap(staffed));   // $200k + 400×$5k
+    expect(summaryStaffed.paid).toBeGreaterThan(summarySmall.paid);
   });
 
   it('reports no drag at all for a small portfolio and a modest net worth', () => {
     const summary = calcCompanyWeeklyIncome(stateWith([company('a', 5_000)], 100_000));
     expect(summary.efficiency).toBe(1);
     expect(summary.paid).toBe(summary.afterBonuses);
+    expect(summary.paid).toBe(5_000); // well under its own ceiling
     expect(summary.lost).toBe(0);
     expect(summary.capped).toBe(false);
   });

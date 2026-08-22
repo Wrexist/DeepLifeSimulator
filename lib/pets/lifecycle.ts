@@ -61,3 +61,15 @@ export function isPastLifespan(pet: Pet, breed?: PetBreed): boolean {
 export function ageInYears(pet: Pet): number {
   return Math.floor(safe(pet.age, 0) / WEEKS_PER_YEAR);
 }
+
+/**
+ * Weekly food cost per living pet (USD).
+ *
+ * Lives here rather than beside the tick that charges it because the home tab's
+ * "Weekly Expenses" panel has to report the same number — and `lib/` cannot
+ * import values from `contexts/`, so a constant needed on both sides has to sit
+ * at the lower layer or become two constants that agree until one is edited.
+ * `contexts/game/actions/weekly/applyPets.ts` re-exports it, so its importers
+ * are untouched.
+ */
+export const PET_WEEKLY_FOOD_COST = 15;

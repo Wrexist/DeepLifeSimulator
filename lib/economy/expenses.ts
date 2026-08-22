@@ -4,6 +4,9 @@ import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
+import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
+import { PET_WEEKLY_FOOD_COST } from '@/lib/pets/lifecycle';
+import { totalSubscriptionWeeklyCharge } from '@/lib/subscription/billing';
 import { logger } from '@/utils/logger';
 
 // Type guard helpers for Loan properties. Field-only intersections (not `Loan & ...`)
@@ -36,6 +39,12 @@ export interface ExpenseBreakdown {
   studentLoans: number;
   /** Weekly income tax. 0 unless a taxable income is supplied — see below. */
   incomeTax: number;
+  /** Luxury & collectibles upkeep, charged by `applyLuxuryItems`. */
+  luxury: number;
+  /** Pet food, charged by `applyPets` at a flat rate per living pet. */
+  pets: number;
+  /** In-game subscription renewals, charged by `applySubscriptions`. */
+  subscriptions: number;
 }
 
 interface LoanLike {
@@ -313,8 +322,44 @@ export function calcWeeklyExpenses(
       if (isFinite(owed) && owed > 0) incomeTaxCost = owed;
     }
 
+    // Three costs the weekly tick charges that this panel did not report.
+    //
+    // "Weekly Expenses" answers "what will the week take", and the answer was a
+    // subset of the bill — the same complaint the tax and student-loan lines
+    // were added to fix, one layer further down. Each is computed by calling the
+    // function the CHARGING subsystem calls, never by reimplementing its rules.
+    //
+    // Luxury is the big one by an order of magnitude: a full collection owes
+    // $556,820/wk of upkeep (`applyLuxuryItems`), so the Cash Flow beneath this
+    // was optimistic by more than a quarter of a million a week for a collector.
+    // Its YIELD is likewise absent from the income side, and is added there
+    // rather than netted off here — the two are separate lines in the tick.
+    const luxuryCosts = getTotalLuxuryUpkeep(
+      Array.isArray(state.luxuryItems) ? state.luxuryItems : [],
+    );
+
+    // `applyPets` charges a flat rate per LIVING pet; a dead pet eats nothing.
+    const alivePets = (Array.isArray(state.pets) ? state.pets : []).filter(
+      (pet) => pet && !pet.isDead,
+    ).length;
+    const petCosts = alivePets * PET_WEEKLY_FOOD_COST;
+
+    // Billed against the week being processed, which is the week AFTER the one
+    // the state is sitting on — matching `applySubscriptions`, so an annual
+    // prepay lapsing this week is not reported as free.
+    const nextWeeksLived = (typeof state.weeksLived === 'number' && isFinite(state.weeksLived)
+      ? state.weeksLived
+      : 0) + 1;
+    const subscriptionCosts = totalSubscriptionWeeklyCharge(
+      [state.socialMedia?.verifiedPro, state.sparkApp?.premium],
+      nextWeeksLived,
+    );
+
     // CRITICAL: Validate all components before summing to prevent NaN propagation
     const safeUpkeep = isFinite(upkeep) && upkeep >= 0 ? upkeep : 0;
+    const safeLuxury = isFinite(luxuryCosts) && luxuryCosts >= 0 ? luxuryCosts : 0;
+    const safePets = isFinite(petCosts) && petCosts >= 0 ? petCosts : 0;
+    const safeSubscriptions = isFinite(subscriptionCosts) && subscriptionCosts >= 0 ? subscriptionCosts : 0;
     const safeLoanPayments = isFinite(loanPayments) && loanPayments >= 0 ? loanPayments : 0;
     const safeMiningPowerCosts = isFinite(miningPowerCosts) && miningPowerCosts >= 0 ? miningPowerCosts : 0;
     const safeVehicleCosts = isFinite(vehicleCosts) && vehicleCosts >= 0 ? vehicleCosts : 0;
@@ -324,7 +369,8 @@ export function calcWeeklyExpenses(
     const safeIncomeTax = isFinite(incomeTaxCost) && incomeTaxCost >= 0 ? incomeTaxCost : 0;
     
     const total = safeUpkeep + safeLoanPayments + safeMiningPowerCosts + safeVehicleCosts
-      + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax;
+      + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax
+      + safeLuxury + safePets + safeSubscriptions;
     
     // CRITICAL: Final validation - ensure total is always valid
     const safeTotal = isFinite(total) && total >= 0 ? total : 0;
@@ -340,6 +386,9 @@ export function calcWeeklyExpenses(
         rent: safeRentCosts,
         studentLoans: safeStudentLoans,
         incomeTax: safeIncomeTax,
+        luxury: safeLuxury,
+        pets: safePets,
+        subscriptions: safeSubscriptions,
       } 
     };
   } catch (error) {
@@ -356,6 +405,9 @@ export function calcWeeklyExpenses(
         rent: 0,
         studentLoans: 0,
         incomeTax: 0,
+        luxury: 0,
+        pets: 0,
+        subscriptions: 0,
       },
     };
   }

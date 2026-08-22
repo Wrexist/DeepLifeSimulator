@@ -73,6 +73,26 @@ export interface PassiveIncomeResult {
 }
 
 /**
+ * Per-company weekly-income ceiling (PLAYER REPORT BBQ, 2026-08-21 — see the
+ * call site in `calcWeeklyPassiveIncome` for the full story). The old GLOBAL
+ * $200k/week pool across ALL companies became a per-company ceiling that grows
+ * with that company's own headcount: $5,000 of extra ceiling per employee.
+ *
+ * Exported so the Hustle/company UI can show the SAME ceiling the payout
+ * honors instead of a second hardcoded number.
+ */
+export const COMPANY_INCOME_CAP_BASE = 200_000;
+export const COMPANY_INCOME_CAP_PER_EMPLOYEE = 5_000;
+
+export function companyIncomeCap(company: { employees?: number } | null | undefined): number {
+  const employees =
+    typeof company?.employees === 'number' && isFinite(company.employees) && company.employees > 0
+      ? Math.floor(company.employees)
+      : 0;
+  return COMPANY_INCOME_CAP_BASE + employees * COMPANY_INCOME_CAP_PER_EMPLOYEE;
+}
+
+/**
  * Weekly pay from holding political office — 0 when not in office.
  *
  * Exported because TWO subsystems need this number and must not disagree about
@@ -475,6 +495,10 @@ export function calcWeeklyPassiveIncome(
 
   // CRITICAL: Validate all income components before summing to prevent NaN propagation
   // ANTI-EXPLOIT: Apply per-source caps to prevent any single income stream from dominating
+  // NOTE: `companies` is deliberately ABSENT — company income is capped
+  // PER COMPANY by `companyIncomeCap` in the aggregation loop above (BBQ
+  // report: the shared $200k pool punished owning several businesses). The
+  // ultra-rich soft cap below still bounds the combined total.
   const PER_SOURCE_CAPS: Record<string, number> = {
     stocks: 200000,       // $200K/week max from dividends
     realEstate: 150000,   // $150K/week max from rent
@@ -483,7 +507,6 @@ export function calcWeeklyPassiveIncome(
     businessOps: 50000,   // $50K/week max from travel business opportunities
     political: 50000,     // $50K/week max from political income
     cryptoMining: 100000, // $100K/week max (already capped above, this is defense-in-depth)
-    companies: COMPANY_INCOME_CAP, // $200K/week max from company income
     gamingStreaming: 75000, // $75K/week max from gaming/streaming
   };
   // Life Skills: Investing (+5% stock returns) used to scale the weekly
@@ -498,7 +521,7 @@ export function calcWeeklyPassiveIncome(
   const safeBusinessOpportunitiesIncome = Math.min(PER_SOURCE_CAPS.businessOps, isFinite(businessOpportunitiesIncome) && businessOpportunitiesIncome >= 0 ? businessOpportunitiesIncome : 0);
   const safePoliticalIncome = Math.min(PER_SOURCE_CAPS.political, isFinite(politicalIncome) && politicalIncome >= 0 ? politicalIncome : 0);
   const safeCryptoMiningIncome = Math.min(PER_SOURCE_CAPS.cryptoMining, isFinite(cryptoMiningIncome) && cryptoMiningIncome >= 0 ? cryptoMiningIncome : 0);
-  const safeCompanyIncome = Math.min(PER_SOURCE_CAPS.companies, isFinite(companyIncome) && companyIncome >= 0 ? companyIncome : 0);
+  const safeCompanyIncome = isFinite(companyIncome) && companyIncome >= 0 ? companyIncome : 0;
   
   const realEstateForTotal = opts?.excludeRealEstate ? 0 : safeRealEstateIncome;
   const rawTotal = Math.round(
@@ -718,13 +741,18 @@ export function getOperatingOverhead(
 // Company weekly income — ONE definition, shared by the tick and every readout.
 // ---------------------------------------------------------------------------
 
-/**
- * Hard ceiling on TOTAL weekly company income, whatever the portfolio earns.
+/*
+ * The GLOBAL `COMPANY_INCOME_CAP` that used to live here is gone. It was a
+ * $200k/week pool shared across the whole portfolio, and it was replaced on
+ * `main` by `companyIncomeCap(company)` — a PER-COMPANY ceiling that grows with
+ * that company's own headcount — in response to a player report ("the hard cap
+ * of 200k needs to go. Maybe have a cap per company. Not overall.").
  *
- * Also the value in `PER_SOURCE_CAPS.companies`; exported so a readout can name
- * the number instead of the player having to infer it from a paycheck.
+ * That change and this extraction landed on separate branches and are merged
+ * here rather than either one winning: the ceiling is applied per company
+ * inside `companyWeeklyIncomeFor` below, which is what every readout now calls,
+ * so the new economics and the one-definition rule hold at the same time.
  */
-export const COMPANY_INCOME_CAP = 200_000;
 
 /**
  * Management efficiency for a portfolio of `companyCount` companies.
@@ -747,7 +775,7 @@ type CompanyLike = NonNullable<GameState['companies']>[number];
 
 /**
  * What ONE company contributes to the weekly paycheck, before the portfolio-wide
- * `COMPANY_INCOME_CAP` and the net-worth soft cap.
+ * its own `companyIncomeCap` and the net-worth soft cap.
  *
  * The full chain, in the order the tick applies it: stored `weeklyIncome` →
  * family brand → legacy generations → political business perk → government
@@ -858,6 +886,13 @@ export function companyWeeklyIncomeFor(
     isFinite(efficiencyMultiplier) && efficiencyMultiplier > 0 ? efficiencyMultiplier : 1;
   weeklyIncome = Math.round(weeklyIncome * safeEfficiencyMultiplier);
 
+  // The ceiling, per company and scaled by its own payroll. A shared pool
+  // punished exactly the play the game asks for (more companies, deeper
+  // expenses, real taxes); headcount is bought with money and paid every week,
+  // so it is an honest measure of how big the operation actually is. A starter
+  // business still tops out at the old $200k/week.
+  weeklyIncome = Math.min(weeklyIncome, companyIncomeCap(company));
+
   // Final validation
   return isFinite(weeklyIncome) && weeklyIncome > 0 ? weeklyIncome : 0;
 }
@@ -865,21 +900,24 @@ export function companyWeeklyIncomeFor(
 export interface CompanyIncomeSummary {
   /** Sum of the raw stored `company.weeklyIncome` values. */
   stored: number;
-  /** After every per-company bonus, before the portfolio-size penalty. */
+  /** After every per-company bonus and ceiling, before the portfolio penalty. */
   afterBonuses: number;
   /** The portfolio-size management efficiency (0.7 – 1.0). */
   efficiency: number;
-  /** What actually enters the weekly passive-income total, pre-cap. */
+  /** What actually enters the weekly passive-income total. */
   afterEfficiency: number;
-  /** The portfolio-wide ceiling. */
+  /**
+   * Combined per-company ceiling — the sum of `companyIncomeCap(c)` across the
+   * portfolio. Not a cap that is applied here (each company was already capped
+   * individually); reported so a readout can say how much room is left.
+   */
   cap: number;
   /**
-   * `min(cap, afterEfficiency)` — what the paycheck credits for companies
-   * BEFORE the net-worth soft cap (`passiveIncomeEfficiency`) applies to the
-   * combined passive total.
+   * What the paycheck credits for companies BEFORE the net-worth soft cap
+   * (`passiveIncomeEfficiency`) applies to the combined passive total.
    */
   paid: number;
-  /** Weekly dollars lost to the portfolio-size penalty and the cap. */
+  /** Weekly dollars lost to the portfolio-size penalty and the ceilings. */
   lost: number;
   /** True once any of that drag is doing something. */
   capped: boolean;
@@ -915,16 +953,20 @@ export function calcCompanyWeeklyIncome(state: GameState): CompanyIncomeSummary 
   if (!isFinite(afterBonuses) || afterBonuses < 0) afterBonuses = 0;
   if (!isFinite(stored) || stored < 0) stored = 0;
 
-  const paid = Math.min(COMPANY_INCOME_CAP, afterEfficiency);
+  // No portfolio-wide ceiling any more: each company was capped by its own
+  // `companyIncomeCap` inside `companyWeeklyIncomeFor`, so what survives the
+  // management penalty IS what gets paid.
+  const paid = afterEfficiency;
+  const cap = companies.reduce((sum, c) => sum + (c ? companyIncomeCap(c) : 0), 0);
   return {
     stored,
     afterBonuses,
     efficiency,
     afterEfficiency,
-    cap: COMPANY_INCOME_CAP,
+    cap,
     paid,
-    lost: Math.max(0, afterBonuses - paid),
-    capped: afterBonuses > paid,
+    lost: Math.max(0, stored - paid),
+    capped: stored > paid,
   };
 }
 

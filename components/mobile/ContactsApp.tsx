@@ -43,6 +43,8 @@ import {
   Baby,
   Ban,
   Gem,
+  HeartHandshake,
+  UserMinus,
   Pin,
   Target,
   X as XIcon,
@@ -64,6 +66,10 @@ import {
   lendMoney,
   recordFavor,
   askNetworkFavor,
+  removeContact as removeContactAction,
+  raiseRelationship as raiseRelationshipAction,
+  relationshipBondCost,
+  isFamilyRelationship,
   FAVOR_KIND_BY_CONTACT,
   NETWORK_FAVOR_MIN_STRENGTH,
 } from '@/contexts/game/actions/ContactsActions';
@@ -343,6 +349,41 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       flash(r.message, contactId);
     },
     [gameState, setGameState, flash]
+  );
+
+  // Bond / Remove — PLAYER REPORT (BBQ, 2026-08-21): "there needs to be a way
+  // to remove or make inactive [contacts]" and "options … to raise the
+  // relationship or remove them." Both route through ContactsActions so state
+  // is never mutated inline; the action module owns the family guard, the
+  // once-per-week gate and the atomic money leg.
+  const handleBond = useCallback(
+    (contactId: string) => {
+      const r = raiseRelationshipAction(gameState, setGameState, contactId);
+      flash(r.message, contactId);
+    },
+    [gameState, setGameState, flash]
+  );
+
+  const handleRemoveContact = useCallback(
+    (rel: Relationship) => {
+      Alert.alert(
+        'Remove contact',
+        `Cut ${rel.name} out of your life? This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => {
+              const r = removeContactAction(gameState, setGameState, rel.id);
+              if (r.success) saveGame();
+              flash(r.message, rel.id);
+            },
+          },
+        ]
+      );
+    },
+    [gameState, setGameState, flash, saveGame]
   );
 
 
@@ -757,6 +798,18 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} darkMode={darkMode} />
               <ActionBtn label="Lend $100" Icon={Handshake} color={accent.purple} onPress={() => handleLendMoney(c.id, 100)} darkMode={darkMode} />
             </View>
+            {!isFamilyRelationship(r) ? (
+              <View style={styles.actionsRow}>
+                <ActionBtn
+                  label={`Bond · $${relationshipBondCost(r.relationshipScore ?? 0).toLocaleString()}`}
+                  Icon={HeartHandshake}
+                  color={accent.info}
+                  onPress={() => handleBond(c.id)}
+                  darkMode={darkMode}
+                />
+                <ActionBtn label="Remove" Icon={UserMinus} color={accent.danger} onPress={() => handleRemoveContact(r)} darkMode={darkMode} />
+              </View>
+            ) : null}
             {isPartner && (
               <>
                 <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Dating</Text>

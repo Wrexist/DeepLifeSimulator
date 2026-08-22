@@ -90,11 +90,34 @@ function mapErrorCode(code?: string): number {
 }
 
 // Normalize an expo-iap Product to the field names the service reads.
+//
+// `price` is STRINGIFIED here because the legacy shape the service and the shop
+// UIs read expects a display string. That overwrite used to destroy the only
+// numeric price on the object, and expo-iap carries no other numeric field — so
+// every consumer that asks for a real amount got nothing:
+//
+//   • `lib/offers/pricing.ts` reads `priceAmount` to decide whether the live
+//     store price is below the recorded regular price. It never was, because
+//     `priceAmount` did not exist → the featured-offer discount badge could not
+//     fire at all.
+//   • `storePriceInfo` in `components/GemShopModal.tsx` reads `priceAmount`
+//     then a NUMERIC `price` to label the gems-per-unit line in the real
+//     storefront currency. Both were absent → it always fell through to the
+//     config-USD line, even on a live non-USD storefront.
+//
+// Both were written correctly; the data simply never arrived. `priceAmount`
+// preserves expo-iap's `ProductCommon.price` (`number | null`) alongside the
+// display string, so the amount and the currency (which already survives the
+// spread as `currency`) can be read together. Purely additive — `price` keeps
+// its string shape, so no existing reader changes behaviour.
 function normalizeProduct(p: any): any {
   return {
     ...p,
     productId: p?.id,
     price: p?.displayPrice ?? (p?.price != null ? String(p.price) : ''),
+    // Only a finite, positive amount is worth carrying — callers treat null as
+    // "the SDK did not expose a numeric price" and degrade rather than guess.
+    priceAmount: typeof p?.price === 'number' && Number.isFinite(p.price) ? p.price : undefined,
     title: p?.title,
     description: p?.description,
   };

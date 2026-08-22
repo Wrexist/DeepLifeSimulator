@@ -53,6 +53,44 @@ export function addScandal(politics: PoliticsState, scandal: PoliticalScandalEnt
 }
 
 /**
+ * Settle everything that belongs to the OFFICE when the player leaves it —
+ * whether by losing re-election, a scandal resignation, or any future exit.
+ *
+ * PLAYER REPORT (BBQ, 2026-08-21): "Scandals still appear even when you're a
+ * citizen. (Lost office)" / "Lobbyist stay active."
+ *
+ * Both were the same hole: nothing cleaned up on exit. The weekly tick
+ * early-returns for citizens (`careerLevel === 0`), so a scandal frozen
+ * mid-news-cycle stayed `active: true` forever and the Politics app kept
+ * listing it under Active; hired lobbyists kept their retainer, their contact
+ * card in the Contacts app (the aggregator skips only INACTIVE lobbyists), and
+ * their policy-influence contribution indefinitely.
+ *
+ * - Scandals resolve as 'survived' — they leave the news cycle when the office,
+ *   and the microscope that comes with it, goes away. They stay in history.
+ * - Lobbyists are deactivated, not deleted (history + analytics keep their
+ *   records), and their influence contribution is stripped from
+ *   `policyInfluence` the same way `fireLobbyist` strips one.
+ */
+export function applyOfficeExit(politics: PoliticsState): PoliticsState {
+  const scandals = (politics.scandals ?? []).map((s) =>
+    s.active ? { ...s, active: false, resolution: 'survived' as const } : s,
+  );
+  let strippedInfluence = 0;
+  const lobbyists = (politics.lobbyists ?? []).map((l) => {
+    if (!l || !l.active) return l;
+    strippedInfluence += safe(l.influence, 0);
+    return { ...l, active: false };
+  });
+  return {
+    ...politics,
+    scandals,
+    lobbyists,
+    policyInfluence: Math.max(0, Math.min(100, safe(politics.policyInfluence, 0) - strippedInfluence)),
+  };
+}
+
+/**
  * Process all active scandals: drain approval each week, decay their lifetime,
  * mark them resolved when expired. Returns updated politics + total approval
  * damage so the caller applies it to politics.approvalRating.

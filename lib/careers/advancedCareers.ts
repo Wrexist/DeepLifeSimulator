@@ -444,3 +444,28 @@ export function getUnlockedAdvancedCareers(
   return ADVANCED_CAREERS.filter(career => isCareerUnlocked(career, gameState));
 }
 
+
+/**
+ * The ids this catalog defines — the set the Work tab's "Advanced Careers"
+ * section renders, and therefore the set its "Standard Careers" list must
+ * exclude.
+ *
+ * Derived, never written by hand. `app/(tabs)/work.tsx` used to carry the
+ * literal `['politician', 'celebrity', 'athlete']` for this job, which is a
+ * DIFFERENT set: those three are `INITIAL_CAREERS` entries, so the filter hid
+ * three careers from the only screen that can apply for them while the five
+ * defined here rendered twice — once from the player's own `careers` entry with
+ * their real level and pay, and once from the catalog stub at rung 0. Same job,
+ * two cards, "Surgical Director $26K/wk" against "Resident $1,150/wk".
+ *
+ * A hand-maintained mirror of a catalog is a copy that only agrees until
+ * someone edits one of them.
+ */
+export const ADVANCED_CAREER_IDS: ReadonlySet<string> = new Set(
+  ADVANCED_CAREERS.map((c) => c.id),
+);
+
+/** True when the Advanced Careers section owns rendering this career. */
+export function isAdvancedCareer(careerId: string | undefined): boolean {
+  return !!careerId && ADVANCED_CAREER_IDS.has(careerId);
+}

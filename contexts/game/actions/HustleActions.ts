@@ -717,8 +717,8 @@ export const launchIPO = (
  * survives the division and lands on `baseWeeklyIncome` as a permanent absurd
  * number. Well above any realistic target — generated offers top out orders of
  * magnitude below it — so it never binds on real data and only catches
- * corruption. `PER_SOURCE_CAPS.companies` separately caps total company income
- * at $200k/wk when it reaches passive income.
+ * corruption. `companyIncomeCap` separately caps each company's income when it
+ * reaches passive income ($200k/wk base + $5k per employee).
  */
 export const MAX_ACQUISITION_ANNUAL_REVENUE = 100_000_000;
 
@@ -854,8 +854,9 @@ export const acceptAcquisition = (
      * revenue, so simple payback is 208–520 game weeks. That is a realistic
      * multiple and a slow one; it is left alone deliberately because changing it
      * is an economy decision, not a correctness fix. Company income is also
-     * capped at $200k/wk in total by `PER_SOURCE_CAPS.companies`, so past that
-     * ceiling an acquisition buys market share and valuation rather than cash.
+     * capped PER COMPANY by `companyIncomeCap` in passiveIncome ($200k/wk base
+     * + $5k per employee), so past a target's own ceiling an acquisition buys
+     * market share and valuation rather than cash.
      */
     // Validate before arithmetic: a malformed offer (NaN / Infinity) would
     // otherwise be divided, rounded and PERSISTED onto `baseWeeklyIncome`,

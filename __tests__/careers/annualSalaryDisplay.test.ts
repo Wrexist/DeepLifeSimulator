@@ -1,113 +1,95 @@
 /**
- * The political ladder is ANNUAL. Every screen labels salaries "/wk".
+ * No screen quotes a career salary it computed itself.
  *
- * `Career.levels[].salary` is a WEEKLY figure for every ladder except
- * `political`, whose `POLITICAL_CAREER` levels are annual — 800 for a Local
- * Council Member up to 100,000 for a President. `weeklyCareerSalary` was added
- * (R3-M3) when four loan screens read the raw field into a DTI gate and
- * inflated an elected player's borrowing capacity 52x.
+ * The companion to `__tests__/economy/paidWeeklySalary.test.ts`, which pins what
+ * the pay helpers RETURN. This one pins who CALLS them, across every surface
+ * that prints a salary — the property that keeps the "conflicting numbers"
+ * report closed as new screens are added.
  *
- * The DISPLAY half of that bug was never fixed. Seven surfaces printed
- * `levels[level].salary` straight into a string ending in "/wk" or "/week",
- * including the Politics app itself — whose variable was even NAMED
- * `salaryWeekly` while holding the annual number. A President saw
- * "$100,000/wk" on the Work tab, the career card, the share card, the
- * promotion celebration AND the politics screen, and was paid $1,923.
+ * Two independent branches fixed halves of this in the same week, which is the
+ * reason a cross-surface sweep is worth having on its own:
  *
- * Two layers: the converter's own behaviour, and a source-level ratchet so a
- * new screen cannot reintroduce the raw read.
+ *   - `weeklyCareerSalary` (2026-07-31) fixed the four loan/DTI gates, which
+ *     read the ANNUAL political ladder as weekly and inflated borrowing
+ *     capacity 52x. Six DISPLAY surfaces kept the bug.
+ *   - `paidWeeklySalaryForLevel` / `paidWeeklyCareerSalary` (2026-08-21) fixed
+ *     those, and went further: every screen had been applying a different
+ *     subset of the pay stack (raise premium, Work Pay Boost, salary life
+ *     skills, DeepLife+), so one Surgical Director read $26K, $13000 and $13K
+ *     across three screens.
+ *
+ * Both went looking for callers of the bug rather than readers of the field.
+ * A per-file assertion is what finds the seventh screen.
  */
-
 import fs from 'fs';
 import path from 'path';
-import {
-  ANNUAL_SALARY_CAREER_IDS,
-  displayWeeklySalary,
-  isAnnualSalaryCareer,
-  weeklyCareerSalary,
-} from '@/lib/careers/weeklySalary';
+import { ANNUAL_SALARY_CAREER_IDS, isAnnualSalaryCareer } from '@/lib/careers/weeklySalary';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
-import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 const code = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
 
-describe('displayWeeklySalary', () => {
-  it('divides the political ladder and passes every other ladder through', () => {
-    expect(displayWeeklySalary('political', 100_000)).toBe(Math.round(100_000 / WEEKS_PER_YEAR));
-    expect(displayWeeklySalary('technology', 100_000)).toBe(100_000);
-    expect(displayWeeklySalary(undefined, 5_000)).toBe(5_000);
+/** The pay helpers. A surface must reach a salary through one of these. */
+const PAY_HELPERS = /paidWeeklySalaryForLevel|paidWeeklyCareerSalary|paidCareerCeiling|weeklyCareerSalary/;
+
+/**
+ * Every surface that prints a career salary to the player, or builds a record
+ * that will be printed as one.
+ */
+const SURFACES = [
+  'app/(tabs)/work.tsx',
+  'components/CareerPathCard.tsx',
+  'components/ShareLifeCard.tsx',
+  'components/IdentityCard.tsx',
+  'components/computer/PoliticalApp.tsx',
+  'contexts/game/actions/JobActions.ts',
+];
+
+describe('every salary surface goes through a pay helper', () => {
+  it.each(SURFACES)('%s', (rel) => {
+    expect(code(rel)).toMatch(PAY_HELPERS);
   });
 
-  it('agrees with `weeklyCareerSalary` for the job the player actually holds', () => {
-    // Two functions, one rule. If they can disagree, the DTI gate and the
-    // screen above it are back to showing different numbers.
-    for (let level = 0; level < POLITICAL_CAREER.levels.length; level++) {
-      const state = {
-        currentJob: 'political',
-        careers: [{ ...POLITICAL_CAREER, level, accepted: true }],
-      } as unknown as Parameters<typeof weeklyCareerSalary>[0];
-      const viaJob = weeklyCareerSalary(state);
-      const viaDisplay = displayWeeklySalary('political', POLITICAL_CAREER.levels[level].salary);
-      expect(`level ${level}: ${viaDisplay}`).toBe(`level ${level}: ${viaJob}`);
+  it('and none of them still divides or multiplies a salary by hand', () => {
+    // The shape the bug took before there was a helper: a screen doing the
+    // annual→weekly conversion itself, which is how two of them ended up
+    // disagreeing about whether to do it at all.
+    for (const rel of SURFACES) {
+      const src = code(rel);
+      expect(`${rel}: ${/salary\s*\/\s*WEEKS_PER_YEAR/.test(src)}`).toBe(`${rel}: false`);
+      expect(`${rel}: ${/levels\[[^\]]*\]\?\.salary\s*\*/.test(src)}`).toBe(`${rel}: false`);
     }
   });
 
-  it('never emits NaN, Infinity or a negative from a corrupt save', () => {
-    for (const bad of [undefined, null, NaN, Infinity, -1, 0, '5000']) {
-      const v = displayWeeklySalary('political', bad as number);
-      expect(`${String(bad)}: ${Number.isInteger(v) && v >= 0}`).toBe(`${String(bad)}: true`);
-    }
+  it('the Politics app no longer names the annual figure weekly (the regression)', () => {
+    // Its variable was called `salaryWeekly` and held the raw annual number, so
+    // a President read "$100,000/wk" against the $1,923 office credits. The
+    // NAME asserting the property is why this survived an earlier sweep.
+    const src = code('components/computer/PoliticalApp.tsx');
+    expect(src).not.toMatch(/salaryWeekly\s*=\s*careerLevel >= 1 \? \(POLITICAL_CAREER/);
+    expect(src).toMatch(/paidWeeklySalaryForLevel\(gameState, POLITICAL_CAREER/);
   });
 
-  it('keeps `political` the only annual ladder', () => {
-    // A second annual ladder added without updating the set would silently
-    // reintroduce the 52x bug on that ladder alone.
+  it('the promotion record is built weekly at its SOURCE, not in the modal', () => {
+    // `PendingPromotion.fromSalary` is documented as weekly and rendered with
+    // "/wk". Converting in the modal instead would leave every future reader of
+    // the record to remember to divide.
+    expect(code('contexts/game/actions/JobActions.ts')).toMatch(/paidWeeklySalaryForLevel\(gameState, career/);
+  });
+});
+
+describe('the annual ladder is still the only one', () => {
+  it('political, and nothing else', () => {
+    // A second annual ladder added without updating the set would reintroduce
+    // the 52x bug on that ladder alone, silently.
     expect([...ANNUAL_SALARY_CAREER_IDS]).toEqual(['political']);
     expect(isAnnualSalaryCareer('political')).toBe(true);
     expect(isAnnualSalaryCareer('technology')).toBe(false);
     expect(isAnnualSalaryCareer(undefined)).toBe(false);
   });
 
-  it('a President is worth four figures a week, not six', () => {
-    // The number in the support report, pinned.
+  it('and a President is worth four figures a week, not six (the premise)', () => {
     const president = POLITICAL_CAREER.levels[POLITICAL_CAREER.levels.length - 1].salary;
     expect(president).toBe(100_000);
-    expect(displayWeeklySalary('political', president)).toBeLessThan(2_500);
-  });
-});
-
-describe('no screen reads the raw salary into a weekly label', () => {
-  /**
-   * Surfaces that print a career salary with a weekly suffix. Each must route
-   * through one of the two converters rather than reading `levels[].salary`.
-   */
-  const SURFACES = [
-    'app/(tabs)/work.tsx',
-    'components/CareerPathCard.tsx',
-    'components/ShareLifeCard.tsx',
-    'components/IdentityCard.tsx',
-    'components/computer/PoliticalApp.tsx',
-    'contexts/game/actions/JobActions.ts',
-  ];
-
-  it.each(SURFACES)('%s converts before displaying', (rel) => {
-    const src = code(rel);
-    expect(src).toMatch(/displayWeeklySalary|weeklyCareerSalary/);
-  });
-
-  it('the Politics app no longer calls the annual figure weekly', () => {
-    const src = code('components/computer/PoliticalApp.tsx');
-    // The exact expression that shipped the bug: the variable was named
-    // `salaryWeekly` and assigned the raw annual `POLITICAL_CAREER` salary.
-    expect(src).not.toMatch(/salaryWeekly\s*=\s*careerLevel >= 1 \? \(POLITICAL_CAREER/);
-    expect(src).toMatch(/displayWeeklySalary\('political'/);
-  });
-
-  it('the promotion celebration is fed a weekly figure at the source', () => {
-    // `PendingPromotion.fromSalary` is documented as weekly and rendered with
-    // "/wk", so the conversion belongs where the record is built, not in the
-    // modal — otherwise every future reader has to remember to divide.
-    const src = code('contexts/game/actions/JobActions.ts');
-    expect(src).toMatch(/displayWeeklySalary\(careerId, applyRaisePremium/);
+    expect(Math.round(president / 52)).toBeLessThan(2_500);
   });
 });

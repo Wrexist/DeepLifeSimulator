@@ -8,6 +8,7 @@
 
 import { PoliticsState } from '@/contexts/game/types';
 import {
+  applyOfficeExit,
   driftApproval,
   ensurePoliticsHasNewFields,
   rollScandal,
@@ -174,12 +175,18 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
         message: `Voters returned you to office as ${officeTitle}. Approval +5.`,
       });
     } else {
-      politics = {
+      // Voted out. Everything that belonged to the office is settled here —
+      // active scandals leave the news cycle and lobbyists are deactivated —
+      // via `applyOfficeExit`. Without it both froze forever: the citizen
+      // early-return at the top of this tick stops processing them, so the
+      // Politics app showed a permanent "active" scandal and the Contacts app
+      // kept the lobbyist cards for the rest of the life.
+      politics = applyOfficeExit({
         ...politics,
         careerLevel: 0,
         approvalRating: Math.max(0, approval - 10),
         nextElectionWeek: undefined,
-      };
+      });
       lostOffice = true;
       notifications.push({
         id: `politics-reelect-loss-${input.currentWeek}`,

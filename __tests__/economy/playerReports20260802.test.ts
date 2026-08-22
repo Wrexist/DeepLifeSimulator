@@ -152,7 +152,11 @@ describe('a negotiated raise is visible on the career card', () => {
     // (`applyCareerSalaryAndPenalty.ts`, `salary * raisePremium`) — but NO
     // component read `raiseMultiplier`, so the number never moved.
     expect(src).toMatch(/career\.raiseMultiplier/);
-    expect(src).toMatch(/paidSalary\(currentLevel\?\.salary\)/);
+    // `paidSalary` now takes a level INDEX and resolves the whole paycheck
+    // stack through `paidWeeklySalaryForLevel` — the premium was only part of
+    // what this card was missing (2026-08-22 "conflicting numbers" report).
+    expect(src).toMatch(/paidSalary\(career\.level\)/);
+    expect(src).toMatch(/paidWeeklySalaryForLevel/);
     expect(src).not.toMatch(/\$\{currentLevel\?\.salary\}\/wk/);
   });
 

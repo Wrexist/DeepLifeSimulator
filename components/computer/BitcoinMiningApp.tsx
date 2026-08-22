@@ -29,6 +29,7 @@ import {
   Hammer,
   Briefcase,
   Plus,
+  Minus,
   Cpu,
   Bitcoin,
   Zap,
@@ -69,6 +70,7 @@ import {
   ENERGY_TYPES,
 } from '@/contexts/game/actions/MiningActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { sellMiner } from '@/contexts/game/company';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import CoinRow from '@/components/crypto/CoinRow';
@@ -387,6 +389,33 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       };
     });
     queueSave();
+  };
+
+  // PLAYER REPORT (BBQ, 2026-08-21): "Crypto: unable to remove/sell purchased
+  // mines." The action layer had `sellMiner` all along — no screen ever called
+  // it, so a rig could only ever be bought. Sell at half the CURRENT catalog
+  // price (the same number the Buy button shows), confirmed before it fires.
+  const handleSellMiner = (tierId: string, label: string) => {
+    const price = MINER_PRICES[tierId];
+    if (price == null) return;
+    const owned = gameState.warehouse?.miners?.[tierId] ?? 0;
+    if (owned <= 0) {
+      Alert.alert('Nothing to sell', `You don't own a ${label}.`);
+      return;
+    }
+    const proceeds = Math.floor(price * 0.5);
+    Alert.alert('Sell rig', `Sell one ${label} for ${formatMoneyCompact(proceeds)}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sell',
+        style: 'destructive',
+        onPress: () => {
+          const res = sellMiner(gameState, setGameState, tierId, label, price);
+          Alert.alert(res.success ? 'Rig sold' : 'Cannot sell', res.message ?? '');
+          if (res.success) queueSave();
+        },
+      },
+    ]);
   };
 
   const handleSelectMineTarget = (coinId: string) => {
@@ -868,6 +897,30 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                   {fleetAtCap ? 'Fleet at $100K/wk cap' : `Buy · ${formatMoneyCompact(price)}`}
                 </Text>
               </TouchableOpacity>
+
+              {/* Sell — the removal half of rig ownership (BBQ report). Only for
+                  owned tiers; half of the current catalog price, confirmed. */}
+              {owned > 0 ? (
+                <TouchableOpacity
+                  onPress={() => handleSellMiner(tier.id, tier.label)}
+                  style={[
+                    styles.buyBtn,
+                    {
+                      marginTop: responsiveSpacing.xs,
+                      backgroundColor: 'transparent',
+                      borderWidth: 1,
+                      borderColor: accent.danger,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sell one ${tier.label} for ${formatMoneyCompact(Math.floor(price * 0.5))}`}
+                >
+                  <Minus size={scale(13)} color={accent.danger} />
+                  <Text style={[styles.buyBtnText, { color: accent.danger }]}>
+                    Sell · {formatMoneyCompact(Math.floor(price * 0.5))}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </TouchableOpacity>
           );
         })}

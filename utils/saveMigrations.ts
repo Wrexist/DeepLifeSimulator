@@ -495,11 +495,15 @@ const migrations: Record<number, (state: any) => any> = {
         dirtyBtc: 0,
         cleanBtc: 0,
         playerReputation: 0,
+        // reviewCount 0 — same reasoning as initialState: a vendor the player
+        // never bought from is marketplace data, not a contact, and non-zero
+        // seeds made shadow.eth & co. show in Contacts → Network for players
+        // who had never touched the dark web.
         vendors: [
-          { id: 'vendor-shadow',   handle: 'shadow.eth',  reputation: 35, reviewCount: 12 },
-          { id: 'vendor-zerocool', handle: 'zerocool',    reputation: 65, reviewCount: 84 },
-          { id: 'vendor-veil',     handle: 'veil_market', reputation: 80, reviewCount: 230 },
-          { id: 'vendor-burner',   handle: 'b4n3_drop',   reputation: 15, reviewCount: 3 },
+          { id: 'vendor-shadow',   handle: 'shadow.eth',  reputation: 35, reviewCount: 0 },
+          { id: 'vendor-zerocool', handle: 'zerocool',    reputation: 65, reviewCount: 0 },
+          { id: 'vendor-veil',     handle: 'veil_market', reputation: 80, reviewCount: 0 },
+          { id: 'vendor-burner',   handle: 'b4n3_drop',   reputation: 15, reviewCount: 0 },
         ],
         listings: [],
         activeJobs: [],

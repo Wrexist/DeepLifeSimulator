@@ -524,7 +524,19 @@ export const runForOffice = (
           alliances: [],
           campaignFunds: 0,
         },
-        approvalRating: Math.max(0, (prev.politics?.approvalRating ?? 50) - 5),
+        // PLAYER REPORT (BBQ, 2026-08-21): "It resets when trying for state
+        // representative … you have to wait the full length again." The -5
+        // approval per failed bid applied to SITTING officials too, so climbing
+        // attempts dragged approval down until the automatic re-election roll
+        // (successChance reads approval) threw them out of their CURRENT seat —
+        // which zeroes the career and restarts the whole tenure ladder. A
+        // citizen pays the hit (nothing to lose the seat over); an officeholder
+        // keeps their approval and their seat when a higher rung says no.
+        approvalRating: Math.max(
+          0,
+          (prev.politics?.approvalRating ?? 50) -
+            ((prev.politics?.careerLevel ?? 0) > 0 ? 0 : 5)
+        ),
         lastElectionAttemptWeek: currentWeek,
       },
       };
