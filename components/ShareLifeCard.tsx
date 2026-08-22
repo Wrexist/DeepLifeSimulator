@@ -27,6 +27,7 @@ import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { Heart, Share2 } from 'lucide-react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
+import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { scale, fontScale, responsiveWidth } from '@/utils/scaling';
 import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -126,7 +127,10 @@ export default function ShareLifeCard({ gameState, onClose }: ShareLifeCardProps
  const careerName = workingCareer?.id
  ? workingCareer.id.charAt(0).toUpperCase() + workingCareer.id.slice(1)
  : 'Unemployed';
- const salary = workingCareer?.levels[workingCareer.level]?.salary || 0;
+ // What the week actually pays, not the ladder's listed base — a share card
+ // quoting a different salary than the work tab is the same conflicting-
+ // numbers report, screenshotted and posted somewhere public.
+ const salary = paidWeeklyCareerSalary(gameState).total;
  const netWorth = calculateNetWorth(gameState);
  const spouse = gameState.family?.spouse;
  const childrenCount = gameState.family?.children?.length || 0;

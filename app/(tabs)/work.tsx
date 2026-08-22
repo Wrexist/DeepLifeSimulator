@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
+import { paidCareerCeiling, paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
+import { formatMoney } from '@/utils/moneyFormatting';
 import { summarizeCriminalRecord, criminalProgress } from '@/lib/crime/criminalRecord';
 import { activeLegacyBuffs } from '@/lib/legacy/activeBuffs';
 import { View,
@@ -27,7 +29,6 @@ import {
     evaluateHiring,
     getJobBoard,
     weeksUntilBoardRefresh,
-    careerCeiling,
     growthLabel,
 } from '@/lib/careers/jobMarket';
 import { useJobActions } from '@/contexts/game/JobActionsContext';
@@ -641,7 +642,14 @@ function WorkScreenContent() {
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
         const { happinessPenalty, healthPenalty } = getCareerPenalties();
 
-        const reward = requiresEdu && !hasEdu ? '— Locked' : `$${level?.salary ?? 0}/wk`;
+        // What payroll will ACTUALLY pay for this rung, not the listed base.
+        // This card showed `levels[level].salary` raw while the promotion modal
+        // showed the same rung with the raise premium applied and the Cash Flow
+        // panel showed a third figure — one Surgical Director reading $26K,
+        // $13000 and $13K across three screens. `paidWeeklySalaryForLevel` is
+        // the function the week loop itself pays from.
+        const paidWeekly = paidWeeklySalaryForLevel(gameState, career, career.level);
+        const reward = requiresEdu && !hasEdu ? '— Locked' : `${formatMoney(paidWeekly)}/wk`;
         // Only entry-tier jobs have a hiring bar; everything else is governed by
         // the career's own `requirements`.
         const entryHiring = isEntryTierCareer(career.id) && !isEmployedHere && !career.accepted
@@ -672,11 +680,13 @@ function WorkScreenContent() {
         // climbs, and what a week of it costs you.
         const entryProfile = getEntryJobProfile(career.id);
         if (entryProfile && !isEmployedHere) {
-            const ceiling = careerCeiling(career);
-            if (ceiling > (level?.salary ?? 0)) {
+            // Same money as the wage above it — a ceiling in base pay next to a
+            // boosted starting wage reads as a career that gets WORSE.
+            const ceiling = paidCareerCeiling(gameState, career);
+            if (ceiling > paidWeekly) {
                 metadata.push({
                     icon: <TrendingUp size={scale(13)} color="rgba(232, 193, 92, 0.95)" />,
-                    value: `Tops out $${ceiling.toLocaleString()}/wk`,
+                    value: `Tops out ${formatMoney(ceiling)}/wk`,
                 });
             }
             metadata.push({

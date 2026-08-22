@@ -1,45 +1,62 @@
-# Plan — Paywall polish + BBQ feedback batch (2026-08-21) — DONE
+# Plan — Income reads one number everywhere (BBQ: "conflicting numbers") — 2026-08-22 — DONE
 
-Executed via agents where they held (paywall, FirstWeekGuide) and directly elsewhere.
-All verified: type-check ✓ type-check:tests ✓ lint:errors ✓ targeted suites ✓ visual ✓.
+## Report
+Surgical Director, same save, three screens, three numbers:
+- Promotion modal: **$26K/wk** (was $19.25K, +35%)
+- Work tab job card: **$13000/wk** — with a "Manage Job (+100%)" button right under it
+- Cash Flow → Income Sources: **Job Income: $13K**
 
-## A1 — Paywall (agent + coordinator fix)
-- [x] Footer: Restore · Manage · Terms of Use · Privacy — Terms now on BOTH platforms
-- [x] Privacy URL → https://wrexist.github.io/DeepLifeSimulator/privacy.html (appConfig constant)
-- [x] Benefits compacted — all 7 fit above the fold (icon 38→28, title 15→13.5, desc 12.5→11.5)
-- [x] Real game IAP art in benefit rows (remove_ads / work_pay_boost / gems_500 .webp)
-- [x] Footer flexWrap fix (clipped at 390pt before)
+## Root cause
+`Career.levels[].salary` is a BASE figure. What payroll actually credits
+(`contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts`) is that base times a
+stack of multipliers, and every reader applied a different subset:
 
-## A2 — Politics lifecycle
-- [x] applyOfficeExit (lib/politics/operations.ts): active scandals resolve 'survived' + lobbyists
-      deactivated w/ influence stripped — wired into voted-out (weeklyTick) + forced-resignation (GameActionsContext)
-- [x] Failed bid for higher office no longer drains a sitting official's approval (PoliticalActions loss path)
-- [x] Regression tests: lib/politics/__tests__/officeExit.test.ts (93 politics tests pass)
+| reader | premium | work_boost | perks.workBoost | life skill | DeepLife+ | political ÷52 | jail |
+|---|---|---|---|---|---|---|---|
+| payroll (the truth) | ✓ | ✓ | ✓ | ✓ | ✓ | n/a (skipped) | ✓ |
+| promotion modal (JobActions) | ✓ | — | — | — | — | — | — |
+| CareerPathCard | ✓ | — | — | — | — | — | — |
+| work.tsx card `reward` | — | — | — | — | — | — | — |
+| IdentityCard `jobIncome` | — | — | — | — | — | — | — |
+| ShareLifeCard | — | — | — | — | — | — | — |
 
-## A3 — Company cap
-- [x] Global $200k/wk pool removed → per-company cap: $200k base + $5k/employee
-      (companyIncomeCap in lib/economy/passiveIncome.ts); stale comments updated
+$26K = 13000 × 2 (premium), $13000 = the raw base. Neither is what lands when the
+player has a boost, a life skill or DeepLife+.
 
-## A4 — Contacts UX
-- [x] removeContact (family refused) + raiseRelationship (Bond: cash cost scales w/ score,
-      diminishing gains, once/week, atomic §4.4) in ContactsActions.ts
-- [x] UI: Bond · $cost + Remove (confirm) rows in ContactsApp detail (family hidden)
+Second, worse bug on the same line: `IdentityCard.jobIncome` reads
+`levels[level].salary` for **political** too, where the ladder is ANNUAL — a President
+reads **$100,000/wk** instead of $1,923, and `passive` already counts the office pay,
+so Cash Flow double-counts it at 52x. It also feeds `calcWeeklyExpenses`, so the tax
+line is computed off that number.
 
-## A5 — First Week Guide (agent)
-- [x] Root cause: lifeStartWeek carve-out → pre-v43 saves never saw it until prestige stamped
-      baseline; also wasn't gated to first life. shouldShowFirstWeekGuide gate added; verified live on web.
-
-## A6 — Post-prestige state leaks
-- [x] Dark web vendor seeds reviewCount 12/84/230/3 → 0 (initialState + v18 migration):
-      vendors stop appearing as contacts from birth & after prestige; snapshots updated
-- [x] Achievements: repeat claims across lives now award NOTHING (gems were already guarded;
-      Legacy Pass XP + lifetime counter now gated too)
-- [x] Crypto rigs: Sell button wired to orphaned sellMiner (half current price, confirmed)
+## Steps
+- [x] 1. `lib/careers/weeklySalary.ts`: add `careerPayMultiplier(state)` +
+      `paidWeeklySalaryForLevel(state, career, level)` + `paidWeeklyCareerSalary(state)`
+      — one implementation of "what payroll credits", political and jail included.
+- [x] 2. `applyCareerSalaryAndPenalty.ts` calls it, so the truth and the readers cannot drift.
+- [x] 3. `work.tsx` card `reward` + "Tops out" → paid figure.
+- [x] 4. `IdentityCard` → paid figure; political pay counted ONCE (job line, netted out of passive).
+- [x] 5. `JobActions.promoteCareer` promotion payload → paid figure.
+- [x] 6. `CareerPathCard` (expanded + compact) → paid figure.
+- [x] 7. `ShareLifeCard` → paid figure.
+- [x] 8. Tests: new `__tests__/economy/paidWeeklySalary.test.ts` pinning payroll ≡ readers.
+- [x] 9. type-check · type-check:tests · lint:errors · targeted suites.
 
 ## Verification
-- npm run type-check ✓ · type-check:tests ✓ · lint:errors ✓
-- Suites: politics 8/8 (93), contacts+aggregator+economy 10/10 (135),
-  integration/onboarding/monetization 39/39 (546), subsystemEquivalence 405/405 (6 snapshots updated)
-- Pre-existing failures (NOT ours, confirmed on stashed clean tree): PromotionCelebrationModal +
-  screens.render "$2,310" vs thin-space formatter; commitmentModalLayout stale source-pattern assert
-- Visual: paywall-full.png (repo root) — benefits/art/footer verified live on web preview
+- `npm run type-check` ✓ · `type-check:tests` ✓ · `lint:errors` ✓ · `check:routes` ✓
+- Full Jest: **620 suites / 8126 tests pass**, 308 snapshots, 1 skipped.
+- New suite `__tests__/economy/paidWeeklySalary.test.ts` — 21 tests. Behavioural,
+  not source-pattern: it runs `applyCareerSalaryAndPenalty` and asserts each
+  reader equals the `careerSalary` the week loop returns, for the bare base, a
+  maxed raise, each multiplier alone, all of them stacked, jail, unemployment,
+  an out-of-range level, a corrupt salary and an out-of-cap stored premium.
+- Two existing source-pattern suites went red on the refactor and were
+  re-pointed at the new indirection rather than relaxed:
+  `raisePremiumConsistency` (now also pins `lib/careers/weeklySalary.ts`, so the
+  chain is covered end to end) and `playerReports20260802`.
+
+## What the reported save now reads
+Surgical Director, base 13000, raise premium at the +100% cap:
+promotion modal **$26K/wk** · work card **$26K/wk** · Cash Flow **$26K** —
+and `payrollCredits` returns 26000. The work card also switched to `formatMoney`,
+so it reads "$26K/wk" rather than "$26000/wk".

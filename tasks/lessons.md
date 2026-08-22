@@ -3578,3 +3578,61 @@ reason `applyCardModalScroll.test.ts` gives — reproducing the overflow needs a
 real viewport and a real layout pass, and the RN test mock provides neither.
 Verified by stashing the four fixes and watching 13 of its 20 assertions go red,
 then restoring.
+
+---
+
+## 2026-08-22 — Three screens, one salary, three numbers
+
+Reported with three screenshots of the same Surgical Director in the same save:
+promotion modal **$26K/wk**, work-tab job card **$13000/wk**, Cash Flow → Income
+Sources **$13K**. "Unsure of what the income is. Usually the case with every
+job. Conflicting numbers."
+
+Nothing was miscalculating. Each screen was computing a **different quantity**
+and calling it "salary". `Career.levels[].salary` is a listed base, and
+`applyCareerSalaryAndPenalty` multiplies it by a stack — negotiated raise
+premium, the Work Pay Boost gold upgrade, the workBoost IAP perk, the
+Negotiation/Executive life skills, the DeepLife+ income boost — of which the
+promotion modal applied the first and the other two applied none.
+
+This is the **fourth** time this exact shape has been fixed here (company income
+multiplier; the raise premium itself; `weeklyCareerSalary` for the four DTI
+gates; now this), which makes it the house bug:
+
+> **A displayed number that a subsystem also computes must come from the
+> subsystem's own function, not from a reimplementation that agrees today.**
+
+Two things this round taught that the earlier three did not:
+
+1. **Extracting the arithmetic is not the fix; making the PAYER call it is.**
+   `applyRaisePremium` was already a shared helper, and all four readers used
+   it — the divergence just moved up one layer to the multipliers nobody
+   extracted. The property that actually holds is "payroll and the screens
+   execute the same function", so `applyCareerSalaryAndPenalty` now calls
+   `paidWeeklySalaryForLevel` too. A helper the payer does not use is a fifth
+   opinion with better branding.
+
+2. **Pinning it needs a test that compares the two sides, not two constants.**
+   The new suite runs the week-loop subsystem and asserts each reader equals
+   `careerSalary` — so re-tuning a multiplier cannot split them apart again.
+   The source-pattern tests that already guarded this
+   (`raisePremiumConsistency`, `playerReports20260802`) both went red on the
+   refactor and had to be re-pointed at the new indirection: they pin the SHAPE
+   of the call, which is real coverage but is exactly what a legitimate
+   refactor changes. Keep both kinds; only the behavioural one survives a
+   rewrite.
+
+Found on the way, same line of code: `IdentityCard`'s `jobIncome` read
+`levels[level].salary` for **political** too, where the ladder is stored ANNUAL.
+A President's Job Income line said **$100,000/wk** instead of $1,923 — and
+office pay is credited by `calcWeeklyPassiveIncome`, so that 52x figure was
+being added on top of a passive line that already contained it, then handed to
+`calcWeeklyExpenses` as the basis for the tax estimate. The annual/weekly trap
+(`lib/careers/weeklySalary.ts`, 2026-07-31) had been closed for the four loan
+screens and left open on the home tab, because that fix went looking for DTI
+callers rather than for readers of the field.
+
+> **When a field means two things depending on a key, fix every reader of the
+> field, not every caller of the bug.**
+
+Guard: `__tests__/economy/paidWeeklySalary.test.ts` (21 assertions, behavioural).

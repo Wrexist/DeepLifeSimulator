@@ -7,7 +7,7 @@ import { View,
   ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import DailyGemClaim from '@/components/DailyGemClaim';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Landmark, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import {
@@ -22,6 +22,7 @@ import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState , Loan } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { perks as allPerks } from '@/src/features/onboarding/perksData';
@@ -244,6 +245,36 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // a pointer compare in the common case.
   const netWorth = canonicalNetWorth(gameState);
 
+  // What the tick will actually credit for the job — NOT `levels[level].salary`,
+  // which is the listed base and was wrong here in two independent ways.
+  //
+  // It ignored every multiplier the paycheck applies (raise premium, Work Pay
+  // Boost, life skills, DeepLife+), so this panel disagreed with both the work
+  // tab and the promotion modal — "unsure of what the income is, usually the
+  // case with every job, conflicting numbers".
+  //
+  // And it read the POLITICAL ladder, which is stored ANNUAL, as a weekly
+  // figure: a President's Job Income line said $100,000/wk instead of $1,923.
+  // Office pay is credited by `calcWeeklyPassiveIncome`, so that 52x figure was
+  // also being added ON TOP of the passive line that already contained it, and
+  // then handed to `calcWeeklyExpenses` as the basis for the tax estimate.
+  // `paidWeeklyCareerSalary` splits the two so office pay is shown under Job
+  // Income (where a player looks for it) and netted out of Passive (where it is
+  // actually credited) — counted once, either way.
+  //
+  // It also guards the level index the way `job` (line ~153) does: a
+  // stale/migrated save can carry a `level` out of bounds for `levels`, which
+  // used to crash the home tab with `.salary of undefined`.
+  const jobPay = useMemo(
+    () => paidWeeklyCareerSalary(gameState),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      gameState.careers, gameState.currentJob, gameState.jailWeeks, gameState.politics,
+      gameState.goldUpgrades, gameState.perks, gameState.unlockedLifeSkills, gameState.settings,
+    ]
+  );
+
+
   // calcWeeklyPassiveIncome walks owned properties + companies. Only re-run
   // when those arrays actually change, not on every unrelated gameState
   // mutation (otherwise the home tab recomputes on every stat decay tick).
@@ -255,11 +286,15 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
   );
-  const passive = passiveInfo.total;
-  // Guard the level index the same way `job` (line ~153) does: a stale/migrated
-  // save can carry a `level` out of bounds for `levels`, making the lookup
-  // undefined and crashing the home tab with `.salary of undefined`.
-  const jobIncome = currentCareer?.levels?.[currentCareer.level]?.salary ?? 0;
+  // Office pay is credited by `calcWeeklyPassiveIncome`, but a player in office
+  // looks for it under Job Income, not under Passive. Move it across rather
+  // than counting it twice — and take the figure from `breakdown.political`
+  // rather than from `jobPay.fromOffice`, because the breakdown is what is
+  // actually inside `passiveInfo.total` (per-source caps applied), so the two
+  // rows sum to the same money the week loop pays no matter what the cap does.
+  const officePay = passiveInfo.breakdown.political;
+  const passive = Math.max(0, passiveInfo.total - officePay);
+  const jobIncome = jobPay.fromPayroll + officePay;
 
   // Partner / spouse weekly income (counts even after marriage) — 25% of the
   // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
@@ -936,14 +971,9 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               </Text>
             </View>
           )}
-          {passiveInfo.breakdown.political > 0 && (
-            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Landmark size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
-              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
-                Political: {formatMoney(passiveInfo.breakdown.political)}
-              </Text>
-            </View>
-          )}
+          {/* Office pay is reported under Job Income above and netted out of
+              `passive`, so it must not also appear here — the breakdown would
+              list money the section total no longer contains. */}
           {passiveInfo.breakdown.gamingStreaming > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
               <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />

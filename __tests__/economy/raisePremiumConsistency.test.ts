@@ -100,10 +100,20 @@ describe('one definition of the raise premium', () => {
 });
 
 describe('every reader goes through it — no site keeps its own clamp', () => {
+  // The premium is now reached through one more layer at the payout sites:
+  // `paidWeeklySalaryForLevel` (`lib/careers/weeklySalary.ts`) applies it
+  // alongside the boosts/life-skills/DeepLife+ multipliers the paycheck also
+  // carries, because applying the premium alone still left the screens
+  // disagreeing with each other and with the paycheck (the "conflicting
+  // numbers" report — see __tests__/economy/paidWeeklySalary.test.ts). The
+  // property this suite pins is unchanged: no site owns its own arithmetic.
+  // `weeklySalary.ts` is listed too, so the chain is pinned end to end rather
+  // than stopping at the new indirection.
   const SITES: [string, RegExp][] = [
-    ['contexts/game/actions/JobActions.ts', /resolveRaisePremium|applyRaisePremium/],
-    ['contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts', /resolveRaisePremium|applyRaisePremium/],
-    ['components/CareerPathCard.tsx', /resolveRaisePremium|applyRaisePremium/],
+    ['contexts/game/actions/JobActions.ts', /resolveRaisePremium|paidWeeklySalaryForLevel/],
+    ['contexts/game/actions/weekly/applyCareerSalaryAndPenalty.ts', /paidWeeklySalaryForLevel/],
+    ['lib/careers/weeklySalary.ts', /applyRaisePremium/],
+    ['components/CareerPathCard.tsx', /resolveRaisePremium|paidWeeklySalaryForLevel/],
     ['app/(tabs)/work.tsx', /raisePremiumPct/],
   ];
 
