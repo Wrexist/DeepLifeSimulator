@@ -83,7 +83,7 @@ export default function CoinRow({ coin, market, darkMode, onPress, showHoldings 
         <View style={styles.holdingsRow}>
           <Text style={[styles.holdingsLabel, { color: theme.textMuted }]}>Holdings</Text>
           <Text style={[styles.holdingsValue, { color: theme.text }]}>
-            {formatCoin(coin.owned)} {coin.symbol} Â· {formatPrice(coin.owned * coin.price)}
+            {formatCoin(coin.owned)} {coin.symbol} · {formatPrice(coin.owned * coin.price)}
           </Text>
         </View>
       )}

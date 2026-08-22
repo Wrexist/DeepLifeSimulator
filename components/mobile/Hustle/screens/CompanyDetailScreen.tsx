@@ -43,6 +43,7 @@ import { PATENT_COSTS } from '@/lib/config/gameConstants';
 import { COMPANY_UPGRADES, COMPANY_UPGRADE_COST_MULTIPLIER } from '@/contexts/game/companyUpgradeCatalog';
 import { getInflatedPrice } from '@/lib/economy/inflation';
 import { generateBoardSeats, generateSuppliers , companyIncomeFactors } from '@/lib/business/hustleLogic';
+import { companyWeeklyIncomeFor } from '@/lib/economy/passiveIncome';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 
@@ -258,7 +259,10 @@ export default function CompanyDetailScreen({
   // showing the raw stored field is what made brand / share / hires /
   // acquisitions look inert to players.
   const factors = companyIncomeFactors(overlay);
-  const weekly = Math.round((company.weeklyIncome ?? 0) * factors.multiplier);
+  // The tick's own per-company figure: the overlay multiplier `factors` covers
+  // is only one step of the payout chain (family brand, legacy generations, the
+  // political business perk and government contracts land there too).
+  const weekly = companyWeeklyIncomeFor(gameState, company, 1);
   const payroll = (overlay?.hiringPipeline?.namedHires ?? []).reduce(
     (sum, h) => sum + (typeof h.salary === 'number' && isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
     0,

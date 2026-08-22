@@ -104,6 +104,7 @@ import {
 import { acceptLoan, prepayLoan, refinanceLoan } from '@/contexts/game/actions/LoanActions';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { clampTaxMult, taxYearOf } from '@/lib/economy/taxLedger';
+import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import TaxStatement from '@/components/banking/TaxStatement';
 
@@ -241,7 +242,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     // read them all as weekly, so an elected player's borrowing capacity was
     // inflated 52x at the DTI gate. One shared helper now encodes the rule.
     income += weeklyCareerSalary(gameState);
-    for (const co of (gameState.companies ?? [])) income += co.weeklyIncome ?? 0;
+    // The stored `weeklyIncome` is the base BEFORE the family-brand and legacy
+    // multipliers, the political business perk, government contracts, the
+    // Hustle overlay multiplier, the portfolio-size management penalty, the
+    // $200K/wk ceiling and the net-worth soft cap. Summing it here showed a
+    // tycoon a "Weekly income" several times what the tick pays — and inflated
+    // the DTI gate by the same factor. One shared helper encodes the payout.
+    income += companyIncomePaidWeekly(gameState);
     for (const rel of (gameState.relationships ?? [])) {
       if (rel?.income && (rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 50) {
         income += Math.round(rel.income * 0.25);

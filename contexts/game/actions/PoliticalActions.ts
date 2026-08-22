@@ -27,6 +27,15 @@ import {
   pacSpend,
 } from '@/lib/politics/operations';
 import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
+import { appointmentBlocker, findAppointment, POLITICAL_APPOINTMENTS } from '@/lib/politics/appointments';
+import {
+  highestOfficeHeld,
+  resolveEmbezzle,
+  resolveJoinParty,
+  resolveResignAppointment,
+  resolveRetirement,
+  resolveTakeAppointment,
+} from '@/lib/politics/lifeOperations';
 
 const log = logger.scope('PoliticalActions');
 
@@ -198,6 +207,17 @@ export const runForOffice = (
   if (!requirements) {
     log.error(`Unknown office: ${office}`);
     return { success: false, message: `Unknown office: ${office}` };
+  }
+
+  // A Federal Judge, a lobbyist and a sitting board member cannot also run for
+  // office. The conflict of interest IS the mechanic: those posts pay well
+  // precisely because taking one closes the ballot to you until you resign it.
+  const blockingAppointment = findAppointment(gameState.politics?.appointment?.id);
+  if (blockingAppointment?.requirements.barsElectedOffice) {
+    return {
+      success: false,
+      message: `You cannot run for office while serving as ${blockingAppointment.title}. Step down first.`,
+    };
   }
   let career = gameState.careers.find(c => c.id === 'political');
   
@@ -718,31 +738,31 @@ export const lobby = (
   return { success: true, message: `Lobbied for ${policy.name}. Policy influence increased!` };
 };
 
+/**
+ * Join a party, or cross the floor to another one.
+ *
+ * Joining for the FIRST time is free and starts you at the party's baseline
+ * standing. Every switch afterwards costs public approval — more each time —
+ * and drops you to the bottom of the new party's pecking order. That cost is
+ * the point: without it, affiliation is a button a player presses before each
+ * election to collect whichever endorsement is cheapest.
+ *
+ * Preview/commit over ONE pure resolver (C-9 / ARCH-1's sound fix): the message
+ * and the state come from the same function of the same input, so they cannot
+ * disagree, and a same-batch double tap resolves against the already-switched
+ * `prev` and refuses.
+ */
 export const joinParty = (
-  _gameState: GameState,
+  gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   party: 'democratic' | 'republican' | 'independent'
 ): { success: boolean; message: string } => {
-  setGameState(prev => ({
-    ...prev,
-    politics: {
-      ...prev.politics || {
-        careerLevel: 0,
-        approvalRating: 50,
-        policyInfluence: 0,
-        electionsWon: 0,
-        policiesEnacted: [],
-        lobbyists: [],
-        alliances: [],
-        campaignFunds: 0,
-      },
-      party,
-      approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 5),
-    },
-  }));
-
-  log.info(`Joined ${party} party`);
-  return { success: true, message: `You joined the ${party} party!` };
+  const preview = resolveJoinParty(gameState, party);
+  if (preview.ok) {
+    setGameState(prev => resolveJoinParty(prev, party).next);
+    log.info(`Party membership -> ${party}`);
+  }
+  return { success: preview.ok, message: preview.message };
 };
 
 export const formAlliance = (
@@ -1096,3 +1116,120 @@ export const suppressPoliticalScandal = (
 // Expose severity params for the UI's suppression-cost display.
 export { SEVERITY_PARAMS };
 
+
+// ---------------------------------------------------------------------------
+// Political Life expansion — appointments, embezzlement, retirement
+// ---------------------------------------------------------------------------
+
+/**
+ * The appointed positions on offer right now, each with the reason it is
+ * refused when it is.
+ *
+ * Returns the whole catalog rather than the eligible subset so the UI can show
+ * a player what to go and do — a greyed row with no explanation is the reason
+ * `politicalPromotionBlocker` returns a message instead of a boolean.
+ */
+export const availableAppointments = (
+  gameState: GameState,
+): { id: string; title: string; blurb: string; weeklySalary: number; blocker: string | null }[] => {
+  const hasEducation = (id: string) =>
+    (gameState.educations || []).some(e => e && e.id === id && e.completed);
+  const input = {
+    highestOfficeHeld: highestOfficeHeld(gameState),
+    inOffice: (gameState.politics?.careerLevel ?? 0) > 0,
+    reputation: gameState.stats?.reputation,
+    party: gameState.politics?.party,
+    partySupport: gameState.politics?.partySupport,
+    hasEducation,
+  };
+  return POLITICAL_APPOINTMENTS.map(a => ({
+    id: a.id,
+    title: a.title,
+    blurb: a.blurb,
+    weeklySalary: a.weeklySalary,
+    blocker: appointmentBlocker(a, input),
+  }));
+};
+
+/**
+ * Take an appointed position.
+ *
+ * One at a time: accepting a second replaces the first, which the message says
+ * rather than silently doing. Preview/commit over one pure resolver, so the
+ * reputation cost is charged exactly once even on a same-batch double tap — the
+ * second resolve sees the post already held and refuses.
+ */
+export const takeAppointment = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  appointmentId: string,
+): { success: boolean; message: string } => {
+  const preview = resolveTakeAppointment(gameState, appointmentId);
+  if (preview.ok) {
+    setGameState(prev => resolveTakeAppointment(prev, appointmentId).next);
+    log.info(`Took appointment ${appointmentId}`);
+  }
+  return { success: preview.ok, message: preview.message };
+};
+
+/** Step down from an appointed position. No penalty — it is a job, not an office. */
+export const resignAppointment = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+): { success: boolean; message: string } => {
+  const preview = resolveResignAppointment(gameState);
+  if (preview.ok) {
+    setGameState(prev => resolveResignAppointment(prev).next);
+    log.info('Resigned appointment');
+  }
+  return { success: preview.ok, message: preview.message };
+};
+
+/**
+ * Move money from the war chest into your own pocket.
+ *
+ * The pot is `campaignFunds` plus the CLEAN PAC balance — never the dirty
+ * balance, which is already laundered money the player put in themselves and
+ * would otherwise round-trip out for free.
+ *
+ * The debit, the credit and the one-per-week marker are one object built by one
+ * pure resolver, so they cannot be separated by a re-render (§4.4). The gate is
+ * `weeksLived`, never the device clock — a wall-clock gate on a lever that pays
+ * cash is farmable by scrubbing the date, which this codebase has now fixed
+ * five times over (v28/v31/v35/v40/v44).
+ */
+export const embezzleCampaignFunds = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+  amount: number,
+): { success: boolean; message: string } => {
+  const preview = resolveEmbezzle(gameState, amount);
+  if (preview.ok) {
+    setGameState(prev => resolveEmbezzle(prev, amount).next);
+    log.info(`Diverted campaign funds: $${amount}`);
+  }
+  return { success: preview.ok, message: preview.message };
+};
+
+/**
+ * Stand down voluntarily, with a pension and the title.
+ *
+ * The third exit from office and the only one the player chooses. It resets
+ * `careers.political.level` and `politics.careerLevel` the same way the
+ * voted-out path does — so lifestyle costs and the "in office?" UI stop
+ * treating a private citizen as a sitting official — but it records the title
+ * FIRST, while it is still true (the v42 reasoning).
+ */
+export const retireFromPolitics = (
+  gameState: GameState,
+  setGameState: Dispatch<SetStateAction<GameState>>,
+): { success: boolean; message: string } => {
+  const preview = resolveRetirement(gameState);
+  if (preview.ok) {
+    // The second resolve of a same-batch double tap finds careerLevel 0 and
+    // refuses, so it cannot stamp a second, wrongly-titled record.
+    setGameState(prev => resolveRetirement(prev).next);
+    log.info('Retired from politics');
+  }
+  return { success: preview.ok, message: preview.message };
+};

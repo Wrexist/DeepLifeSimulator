@@ -1005,6 +1005,38 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               </Text>
             </View>
           )}
+          {passiveInfo.skillBonus > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <Sparkles size={14} color="#10B981" />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Wealth Mastery: +{formatMoney(passiveInfo.skillBonus)}
+              </Text>
+            </View>
+          )}
+          {/*
+            The rows above are per-source figures after their own caps but
+            BEFORE the net-worth soft cap, which above $10M can remove most of
+            the total. Leaving that out is what made the drag invisible: the
+            rows added up to one number and the paycheck paid another, with
+            nothing on screen explaining the gap. Name it, then restate the
+            total the tick actually credits.
+          */}
+          {passiveInfo.overhead > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <TrendingUp size={14} color="#EF4444" />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Operating overhead: -{formatMoney(passiveInfo.overhead)} ({Math.round(passiveInfo.efficiency * 100)}% efficiency above $10M net worth)
+              </Text>
+            </View>
+          )}
+          {passiveInfo.overhead > 0 && (
+            <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+              <DollarSign size={14} color="#10B981" />
+              <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                Passive after overhead: {formatMoney(passiveInfo.total)}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.modalSection}>

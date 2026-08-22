@@ -274,7 +274,56 @@ const CARVE_OUTS: CarveOut[] = [
         version: STATE_VERSION,
       }),
   },
+  { version: 47, path: 'politics.partySupport', value: 72, build: () => politicsState() },
+  { version: 47, path: 'politics.partySwitches', value: 2, build: () => politicsState() },
+  {
+    version: 47,
+    path: 'politics.appointment',
+    value: { id: 'ambassador', startedWeek: 3_700 },
+    build: () => politicsState(),
+  },
+  {
+    version: 47,
+    path: 'politics.embezzlement',
+    value: { totalUSD: 250_000, heat: 41, lastWeek: 3_770 },
+    build: () => politicsState(),
+  },
+  {
+    version: 47,
+    path: 'politics.retirement',
+    value: { retiredWeek: 3_760, officeLevel: 6, title: 'President', termsServed: 3, weeklyPension: 2_100 },
+    build: () => politicsState(),
+  },
 ];
+
+/**
+ * A save carrying all five v47 political carve-outs. One shape shared by the
+ * five rows above, for the same reason `sparkMatchState` is shared: five
+ * independently-built states that happen to agree prove less than one.
+ */
+function politicsState(): GameState {
+  const s = base();
+  if (!s.politics) {
+    throw new Error('politicsState: base() returned a state without politics');
+  }
+  return {
+    ...s,
+    politics: {
+      ...s.politics,
+      partySupport: 72,
+      partySwitches: 2,
+      appointment: { id: 'ambassador', startedWeek: 3_700 },
+      embezzlement: { totalUSD: 250_000, heat: 41, lastWeek: 3_770 },
+      retirement: {
+        retiredWeek: 3_760,
+        officeLevel: 6,
+        title: 'President',
+        termsServed: 3,
+        weeklyPension: 2_100,
+      },
+    },
+  };
+}
 
 /**
  * A save with one Spark match carrying both v45 carve-outs. Shared by the two
@@ -309,7 +358,7 @@ describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(17);
+    expect(CARVE_OUTS).toHaveLength(22);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

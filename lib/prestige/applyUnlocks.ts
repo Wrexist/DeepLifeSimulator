@@ -28,23 +28,17 @@ export function applyUnlockBonuses(
     }));
   }
 
-  // Early item access - unlock premium items
-  if (unlockedBonuses.includes('early_item_access')) {
-    // Items are already in the game state, this is more of a flag
-    // The shop UI can check this to show premium items early
-  }
 
-  // Early real estate access - can access at age 18
-  if (unlockedBonuses.includes('early_real_estate')) {
-    // This is checked in the real estate app to allow access at age 18
-    // No state change needed, just a flag
-  }
-
-  // Early company access - can start companies without education
-  if (unlockedBonuses.includes('early_company_access')) {
-    // This is checked when creating companies
-    // No state change needed, just a flag
-  }
+  /*
+   * The `early_real_estate` and `early_company_access` branches that stood here
+   * were empty — a condition, then two comments saying the check happens
+   * somewhere else. For `early_company_access` that was TRUE
+   * (`hasEarlyCompanyAccess` gates company creation in three places). For
+   * `early_real_estate` it was not: the real-estate app has no age gate at all,
+   * and never did, so there was nothing for the bonus to lift. An empty branch
+   * that names a bonus reads as its implementation, which is why a 6,000-point
+   * purchase went years without anyone noticing it did nothing.
+   */
 
   return newState;
 }
@@ -56,26 +50,22 @@ export function hasEarlyCareerAccess(unlockedBonuses: string[]): boolean {
   return unlockedBonuses.includes('early_career_access');
 }
 
-/**
- * Check if early education access is unlocked
+/*
+ * DELETED 2026-08-21: `hasEarlyEducationAccess`, `hasEarlyItemAccess` and
+ * `hasEarlyRealEstateAccess`.
+ *
+ * All three were exported, imported by `PrestigeInfoModal`, and CALLED BY
+ * NOTHING. That is worse than absent: a predicate named for a bonus reads as
+ * the bonus's wiring, and it is why two of these bonuses were sold for a
+ * combined 10,000 points while doing nothing at all. `early_item_access` and
+ * `early_real_estate` are now in `lib/prestige/inertBonuses.ts`, so the shop
+ * warns before taking the points.
+ *
+ * `early_education_access` is the one that genuinely works — `applyUnlockBonuses`
+ * above completes every education — so its predicate was simply redundant.
+ *
+ * If one of these is wired later, write the check where the gate actually is.
  */
-export function hasEarlyEducationAccess(unlockedBonuses: string[]): boolean {
-  return unlockedBonuses.includes('early_education_access');
-}
-
-/**
- * Check if early item access is unlocked
- */
-export function hasEarlyItemAccess(unlockedBonuses: string[]): boolean {
-  return unlockedBonuses.includes('early_item_access');
-}
-
-/**
- * Check if early real estate access is unlocked
- */
-export function hasEarlyRealEstateAccess(unlockedBonuses: string[]): boolean {
-  return unlockedBonuses.includes('early_real_estate');
-}
 
 /**
  * Check if early company access is unlocked

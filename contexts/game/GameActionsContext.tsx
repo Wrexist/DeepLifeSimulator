@@ -1067,6 +1067,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    () => calcWeeklyPassiveIncome(prevState, { excludeRealEstate: true }),
    {
      total: 0,
+     gross: 0,
+     skillBonus: 0,
+     efficiency: 1,
+     overhead: 0,
      breakdown: {
        stocks: 0,
        realEstate: 0,

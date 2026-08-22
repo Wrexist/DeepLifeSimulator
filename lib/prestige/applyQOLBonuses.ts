@@ -1,30 +1,13 @@
 import { getEventFrequencyBoost } from './applyBonuses';
 
-/**
- * Quality of Life bonus flags
+/*
+ * DELETED 2026-08-21: `QOLBonuses` and `getQOLBonuses`.
+ *
+ * A five-field flag object assembled from five bonus ids, with no callers
+ * anywhere. Four of those ids have real readers further down this file; the
+ * fifth (`auto_manage_properties`) does not, and this aggregate was the only
+ * thing making it look otherwise.
  */
-export interface QOLBonuses {
-  autoSaveEnergy: boolean;
-  autoManageProperties: boolean;
-  autoInvestDividends: boolean;
-  increasedEnergyRegen: boolean;
-  reducedEventFrequency: boolean;
-}
-
-/**
- * Get active QoL bonuses from unlocked bonuses
- * @param unlockedBonuses Array of unlocked bonus IDs
- * @returns QoL bonus flags
- */
-export function getQOLBonuses(unlockedBonuses: string[]): QOLBonuses {
-  return {
-    autoSaveEnergy: unlockedBonuses.includes('auto_save_energy'),
-    autoManageProperties: unlockedBonuses.includes('auto_manage_properties'),
-    autoInvestDividends: unlockedBonuses.includes('auto_invest_dividends'),
-    increasedEnergyRegen: unlockedBonuses.includes('increased_energy_regen'),
-    reducedEventFrequency: unlockedBonuses.includes('reduced_event_frequency'),
-  };
-}
 
 /**
  * Check if auto-rest should trigger
@@ -37,14 +20,19 @@ export function shouldAutoRest(energy: number, unlockedBonuses: string[]): boole
   return energy < 20; // Auto-rest when energy < 20%
 }
 
-/**
- * Check if auto-collect rent should trigger
- * @param unlockedBonuses Array of unlocked bonus IDs
- * @returns True if auto-collect should trigger
+/*
+ * DELETED 2026-08-21: `shouldAutoCollectRent`.
+ *
+ * Imported by `MoneyActionsContext` and never called — so the 5,000-point
+ * "Property Manager" bonus it fronted did nothing. It could not have done much
+ * anyway: rent is collected for EVERY player by the weekly tick
+ * (`applyRentAndHousing` → `runRealEstateWeeklyTick`), so the bonus sells
+ * something that is already free. Same shape as `legacy_business`, which sold
+ * an inheritance that already happened unconditionally. It is registered in
+ * `lib/prestige/inertBonuses.ts`; wiring it would mean taking automatic rent
+ * away from everyone who does not own it, which is a product decision, not a
+ * bug fix.
  */
-export function shouldAutoCollectRent(unlockedBonuses: string[]): boolean {
-  return unlockedBonuses.includes('auto_manage_properties');
-}
 
 /**
  * Check if auto-reinvest dividends should trigger

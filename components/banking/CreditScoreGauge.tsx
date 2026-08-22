@@ -24,7 +24,7 @@ const BAND_COLOR: Record<CreditBand, string> = {
 export default function CreditScoreGauge({ score, band, darkMode, compact = false }: Props) {
   const theme = getThemeColors(darkMode);
   const color = BAND_COLOR[band];
-  // Map 300-850 â†’ 0-1 for the fill bar.
+  // Map 300-850 → 0-1 for the fill bar.
   const fill = Math.max(0, Math.min(1, (score - 300) / (850 - 300)));
 
   return (

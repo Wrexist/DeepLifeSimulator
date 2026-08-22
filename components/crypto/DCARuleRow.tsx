@@ -34,14 +34,14 @@ export default function DCARuleRow({ rule, currentWeek, darkMode, onDelete }: Pr
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.title, { color: theme.text }]}>
-          {formatMoney(rule.amount)} â†’ {rule.cryptoId.toUpperCase()}
+          {formatMoney(rule.amount)} → {rule.cryptoId.toUpperCase()}
         </Text>
         <Text style={[styles.sub, { color: theme.textMuted }]}>
-          {rule.cadence === 'weekly' ? 'Weekly' : 'Monthly'} Â· {dueText}
+          {rule.cadence === 'weekly' ? 'Weekly' : 'Monthly'} · {dueText}
         </Text>
         {rule.totalInvested > 0 && (
           <Text style={[styles.stats, { color: theme.textSecondary }]}>
-            {formatMoney(rule.totalInvested)} invested Â· {rule.totalCoinsBought.toFixed(4)} {rule.cryptoId.toUpperCase()} Â· avg {formatMoney(avgCost)}
+            {formatMoney(rule.totalInvested)} invested · {rule.totalCoinsBought.toFixed(4)} {rule.cryptoId.toUpperCase()} · avg {formatMoney(avgCost)}
           </Text>
         )}
       </View>

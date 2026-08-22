@@ -19,12 +19,6 @@ import {
   getRelationshipGainMultiplier,
  hasImmortality } from '@/lib/prestige/applyBonuses';
 import {
-  hasEarlyCareerAccess,
-  hasEarlyEducationAccess,
-  hasEarlyRealEstateAccess,
-  hasEarlyCompanyAccess,
-} from '@/lib/prestige/applyUnlocks';
-import {
   getEventFrequencyModifier,
 } from '@/lib/prestige/applyQOLBonuses';
 const LinearGradient = Gradient;

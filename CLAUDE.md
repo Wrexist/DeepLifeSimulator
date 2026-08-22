@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 46`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 47`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -331,7 +331,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 46`** — single source of truth in
+- **Canonical `STATE_VERSION = 47`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -627,6 +627,34 @@ including the crash screen.
   boundary (see the note there).
   Numbered 46 because the Spark carve-out above reached `main` first and owns
   45; one version number must mean one schema shape.
+- **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
+  `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
+  built from a player request for "campaign retirement and other positions you
+  can have that pay, you can choose to steal stake money, join political
+  parties". Five fields, ONE bump, because they are one feature and one schema
+  shape — the v36 `dynasty` precedent (four systems, one carve-out) rather than
+  five separate backfills. Every default is `undefined`, so it is a CARVE-OUT:
+  version bumped, NO backfill and no `repairGameState` mirror. Absence resolves
+  for all five, and a written value would be wrong in a DIFFERENT direction for
+  each — which is the useful thing to notice here. `partySupport` reads through
+  `readPartySupport` (fresh-member baseline at read time, and always 0 for
+  `independent`, which has no machine to stand in), so stamping a number would
+  either hand out an endorsement nobody earned or open a primary challenge
+  nobody lost. `appointment` would pay a salary for a job nobody took — and two
+  of the six posts BAR elected office, so it could silently disqualify a sitting
+  official. `embezzlement` would accuse a player of a crime they did not commit
+  AND feed it into the scandal roll. `retirement` would pay a pension nobody
+  earned and stamp a title on a career that never reached it. Only
+  `partySwitches` is harmless either way, and "never crossed the floor" is the
+  truth for every save written before switching had a cost.
+  Two things worth reading together: the pension is paid through
+  `getPoliticalPensionWeekly` and NOT folded into `getPoliticalWeeklySalary`,
+  because that figure is the WORK `applyLifetimeStatistics` counts toward
+  earning a pension — a pension inside it would compound on itself. And
+  embezzlement heat is expressed in the same dollar currency as
+  `pac.lifetimeDirtyUSD` so it feeds the EXISTING `scandalProbability` driver:
+  corruption risk stays one number with one tuning point, not two curves that
+  have to be kept in step.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.

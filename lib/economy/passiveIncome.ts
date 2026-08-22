@@ -6,6 +6,8 @@ import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { calculateInfluencerIncome } from '@/lib/social/brandPartnerships';
 import { getSocialMediaData } from '@/lib/social/socialMedia';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
+import { appointmentWeeklySalary } from '@/lib/politics/appointments';
+import { readPensionWeekly } from '@/lib/politics/retirement';
 import { netWorth } from '@/lib/progress/achievements';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -42,6 +44,35 @@ interface PassiveIncomeBreakdown {
 }
 
 /**
+ * The weekly passive-income answer, with the drag on it named.
+ *
+ * `breakdown` rows are per-source figures AFTER their per-source caps but
+ * BEFORE the net-worth soft cap, so above $10M they do not sum to `total` on
+ * their own. That silent gap is what made the cap invisible: a readout could
+ * list nine sources adding to $360K and then show a paycheck a fraction of it,
+ * with nothing on screen accounting for the difference.
+ *
+ * `gross`, `skillBonus`, `efficiency` and `overhead` close the arithmetic:
+ *
+ *   sum(breakdown, minus realEstate when excluded) === gross
+ *   gross + skillBonus - overhead === total
+ */
+export interface PassiveIncomeResult {
+  /** What the paycheck actually credits. */
+  total: number;
+  /** Sum of the capped per-source rows, pre-life-skill and pre-soft-cap. */
+  gross: number;
+  /** Dollars added by the Wealth Mastery life skill. */
+  skillBonus: number;
+  /** 0..1 — the net-worth soft-cap efficiency actually applied (1 = no drag). */
+  efficiency: number;
+  /** Dollars removed by the net-worth soft cap. */
+  overhead: number;
+  breakdown: PassiveIncomeBreakdown;
+  reinvested?: number;
+}
+
+/**
  * Per-company weekly-income ceiling (PLAYER REPORT BBQ, 2026-08-21 — see the
  * call site in `calcWeeklyPassiveIncome` for the full story). The old GLOBAL
  * $200k/week pool across ALL companies became a per-company ceiling that grows
@@ -73,7 +104,14 @@ export function companyIncomeCap(company: { employees?: number } | null | undefi
  * produce a 52x pension — so there is exactly one copy.
  */
 export function getPoliticalWeeklySalary(state: GameState): number {
-  if (!state.politics || !(state.politics.careerLevel > 0)) return 0;
+  // Paid political WORK, which is the elected seat plus any appointed post
+  // (Ambassador, Cabinet Secretary, Lobbyist, …). A pension is deliberately
+  // NOT here: this figure is what `applyLifetimeStatistics` counts as work
+  // toward a pension, so folding the pension in would let it compound on
+  // itself. `getPoliticalPensionWeekly` pays that, separately.
+  const appointmentPay = appointmentWeeklySalary(state?.politics?.appointment?.id);
+
+  if (!state.politics || !(state.politics.careerLevel > 0)) return appointmentPay;
   // CRITICAL: Validate careers array exists before using find
   const careers = Array.isArray(state.careers) ? state.careers : [];
   const politicalCareer = careers.find(c => c && c.id === 'political');
@@ -84,15 +122,29 @@ export function getPoliticalWeeklySalary(state: GameState): number {
     politicalCareer.level < 0 ||
     politicalCareer.level >= POLITICAL_CAREER.levels.length
   ) {
-    return 0;
+    return appointmentPay;
   }
   const level = POLITICAL_CAREER.levels[politicalCareer.level];
   if (!level || typeof level.salary !== 'number' || !isFinite(level.salary) || level.salary <= 0) {
-    return 0;
+    return appointmentPay;
   }
   // Convert annual salary to weekly (salary is annual in POLITICAL_CAREER)
   const weeklySalary = level.salary / WEEKS_PER_YEAR;
-  return isFinite(weeklySalary) && weeklySalary > 0 ? Math.round(weeklySalary) : 0;
+  const office = isFinite(weeklySalary) && weeklySalary > 0 ? Math.round(weeklySalary) : 0;
+  return office + appointmentPay;
+}
+
+/**
+ * The weekly pension a retired official draws — 0 for everyone else.
+ *
+ * Kept out of `getPoliticalWeeklySalary` on purpose: that number is the WORK
+ * the lifetime-statistics tick counts toward earning a pension, and a pension
+ * that counted as work toward itself would compound. Both are paid through the
+ * same `political` line below, so `PER_SOURCE_CAPS.political` ($50K/wk) still
+ * binds the pair of them together.
+ */
+export function getPoliticalPensionWeekly(state: GameState): number {
+  return readPensionWeekly(state?.politics?.retirement);
 }
 
 export function calcWeeklyPassiveIncome(
@@ -106,7 +158,7 @@ export function calcWeeklyPassiveIncome(
   // market-bounded rent source for cash. Projections/UI (no opts) still show
   // the property-level estimate.
   opts?: { excludeRealEstate?: boolean }
-): { total: number; breakdown: PassiveIncomeBreakdown; reinvested?: number } {
+): PassiveIncomeResult {
   // CRITICAL: Wrap entire function in try-catch to prevent crashes
   try {
     // STOCK DIVIDENDS ARE NOT PAID HERE. `lib/stocks/dividends.ts` pays them,
@@ -218,133 +270,14 @@ export function calcWeeklyPassiveIncome(
   const contractsIncome = 0;
   const sponsorsIncome = 0;
 
-  // Company weekly income (base business income)
-  let companyIncome = 0;
-  const companyCount = (state.companies || []).length;
-  
-  // ECONOMY FIX: Add diminishing returns across multiple companies
-  // Managing multiple companies becomes harder, not easier (management overhead)
-  // 1-3 companies: 100% efficiency (no penalty)
-  // 4-6 companies: 90% efficiency (10% penalty)
-  // 7-10 companies: 80% efficiency (20% penalty)
-  // 11+ companies: 70% efficiency (30% penalty)
-  let efficiencyMultiplier = 1.0;
-  if (companyCount > 10) {
-    efficiencyMultiplier = 0.7;
-  } else if (companyCount > 6) {
-    efficiencyMultiplier = 0.8;
-  } else if (companyCount > 3) {
-    efficiencyMultiplier = 0.9;
-  }
-  
-  (state.companies || []).forEach(company => {
-    if (!company) return; // Skip invalid companies
-    
-    // CRITICAL: Validate weeklyIncome before calculation
-    let weeklyIncome = typeof company.weeklyIncome === 'number' && isFinite(company.weeklyIncome) && company.weeklyIncome >= 0 ? company.weeklyIncome : 0;
-
-    /**
-     * C-2: a family business's Brand lifts its weekly income. Applied FIRST,
-     * before the political and contract bonuses below, so those keep
-     * compounding on top exactly as they did — brand scales the business, it
-     * does not reorder the existing stack.
-     *
-     * Neutral at brand 0, which is what `createFamilyBusiness` seeds, so no
-     * existing save's income moves until the player spends on marketing.
-     * Companies that are not family businesses are untouched.
-     */
-    const familyMeters = findFamilyBusiness(state.familyBusinesses, company.id);
-    if (familyMeters && weeklyIncome > 0) {
-      weeklyIncome = Math.round(weeklyIncome * familyBrandIncomeMultiplier(familyMeters.brandValue));
-
-      /*
-       * The `legacy_business` prestige bonus, applied on top of brand rather
-       * than instead of it. Scales with `generationsHeld`, which the heir flow
-       * already increments and which nothing else consumed.
-       *
-       * Neutral (1.0) for every player who does not own the bonus, and neutral
-       * at generation 0 even for those who do, so no existing save's income
-       * moves on upgrade. See lib/business/familyBusinessEffects.ts.
-       */
-      const held = (state.familyBusinesses || [])
-        .find((fb) => fb && fb.companyId === company.id)?.generationsHeld;
-      const legacyMult = legacyGenerationIncomeMultiplier(held, state.prestige?.unlockedBonuses);
-      if (legacyMult !== 1) {
-        weeklyIncome = Math.round(weeklyIncome * legacyMult);
-      }
-    }
-    
-    // Apply political perks (business income bonus)
-    if (state.politics && state.politics.careerLevel > 0) {
-      try {
-        const perkEffects = getCombinedPerkEffects(state.politics.careerLevel);
-        const businessIncomeBonus = typeof perkEffects?.businessIncomeBonus === 'number' && isFinite(perkEffects.businessIncomeBonus) && perkEffects.businessIncomeBonus > 0 ? perkEffects.businessIncomeBonus : 0;
-        if (businessIncomeBonus > 0 && weeklyIncome > 0) {
-          const bonus = Math.round(weeklyIncome * (businessIncomeBonus / 100));
-          if (isFinite(bonus) && bonus > 0) {
-            weeklyIncome += bonus;
-          }
-        }
-      } catch (error) {
-        // Skip perk bonus if calculation fails
-      }
-    }
-    
-    // Add government contract bonus
-    try {
-      const contractBonus = calculateGovernmentContractBonus(state, company.id);
-      if (typeof contractBonus === 'number' && isFinite(contractBonus) && contractBonus > 0) {
-        weeklyIncome += contractBonus;
-      }
-    } catch (error) {
-      // Skip contract bonus if calculation fails
-    }
-    
-    // Brand & market share (Hustle overlay) now affect revenue: strong brand
-    // (>50) and market share lift income, weak brand drags it. Named-hire
-    // roster performance adds a bounded ±8% nudge (star hires lift income, a
-    // demoralized roster drags it) so hiring quality/retention finally matter.
-    // factor = 1 + (brand - 50)/200 + marketShare%/200 + hirePerf, clamped to
-    // [0.75, 1.6] — the COMBINED multiplier stays within the existing cap.
-    // Older saves without a hustleApp overlay get a neutral 1.0.
-    try {
-      // The arithmetic moved to `companyIncomeFactors` so the Hustle UI can
-      // show the SAME number the player is paid. It used to live here only,
-      // which is why brand / share / hires / acquisitions were all invisible on
-      // the company card and got reported as doing nothing.
-      const overlay = state.hustleApp?.companies?.[company.id];
-      if (overlay) {
-        const { multiplier } = companyIncomeFactors(overlay);
-        if (isFinite(multiplier) && multiplier > 0) {
-          weeklyIncome = Math.round(weeklyIncome * multiplier);
-        }
-      }
-    } catch {
-      // Neutral on any overlay read failure — never zero company income.
-    }
-
-    // CRITICAL: Validate efficiencyMultiplier before applying
-    const safeEfficiencyMultiplier = isFinite(efficiencyMultiplier) && efficiencyMultiplier > 0 ? efficiencyMultiplier : 1;
-    weeklyIncome = Math.round(weeklyIncome * safeEfficiencyMultiplier);
-
-    // PLAYER REPORT (BBQ, 2026-08-21): "the hard cap of 200k needs to go.
-    // Maybe have a cap per company. Not overall." — and he is right that a
-    // shared pool punishes exactly the play the game asks for (more companies,
-    // deeper expenses, real taxes). The cap is now PER COMPANY and scales with
-    // that company's own payroll: headcount is bought with money and paid
-    // every week, so it is an honest measure of how big the operation actually
-    // is. A starter business still tops out at the old $200k/week; a company
-    // employing hundreds clears it well past $1M/week — and pays its payroll
-    // and taxes on every dollar on the way.
-    weeklyIncome = Math.min(weeklyIncome, companyIncomeCap(company));
-
-    // Final validation before adding to total
-    if (isFinite(weeklyIncome) && weeklyIncome > 0) {
-      companyIncome += weeklyIncome;
-    }
-  });
-  // Final validation
-  if (!isFinite(companyIncome) || companyIncome < 0) companyIncome = 0;
+  // Company weekly income (base business income).
+  //
+  // The per-company payout chain and the portfolio-size efficiency penalty now
+  // live in `calcCompanyWeeklyIncome` below, so the Hustle dashboard, the bank
+  // apps and the company cards can show the SAME number this credits. They each
+  // used to sum `company.weeklyIncome` themselves and were wrong by every step
+  // of the chain — see the note on that function.
+  const companyIncome = calcCompanyWeeklyIncome(state).afterEfficiency;
 
   // Patent income from R&D
   // STABILITY FIX: Apply diminishing returns to patent income after PATENT_THRESHOLD_1 active patents
@@ -469,7 +402,7 @@ export function calcWeeklyPassiveIncome(
 
   // Political career salary (weekly income from political office)
   // (getPoliticalWeeklySalary already guarantees a finite, non-negative number.)
-  const politicalIncome = getPoliticalWeeklySalary(state);
+  const politicalIncome = getPoliticalWeeklySalary(state) + getPoliticalPensionWeekly(state);
 
   // Crypto mining income (Bitcoin mining from companies and warehouse)
   let cryptoMiningIncome = 0;
@@ -608,12 +541,15 @@ export function calcWeeklyPassiveIncome(
   // This prevents passive income from making the game trivial for ultra-rich players
   // while still allowing wealth growth, just at a slower rate
   let total = isFinite(rawTotal) && rawTotal >= 0 ? rawTotal : 0;
+  const grossTotal = total;
   // Life Skills: Wealth Mastery (+25% passive income) scales the combined total
   // BEFORE the ultra-rich net-worth soft cap below, so it never breaks the cap.
   const passiveIncomeMult = lifeSkillMods.passiveIncomeMult;
   if (typeof passiveIncomeMult === 'number' && isFinite(passiveIncomeMult) && passiveIncomeMult > 1 && total > 0) {
     total = Math.round(total * passiveIncomeMult);
   }
+  const preOverheadTotal = total;
+  let appliedEfficiency = 1;
   const currentNetWorth = netWorth(state);
   // CRITICAL: Validate netWorth before comparison
   const safeNetWorth = isFinite(currentNetWorth) && currentNetWorth >= 0 ? currentNetWorth : 0;
@@ -631,6 +567,7 @@ export function calcWeeklyPassiveIncome(
       const cappedTotal = Math.round(total * finalEfficiency);
       if (isFinite(cappedTotal) && cappedTotal >= 0) {
         total = cappedTotal;
+        appliedEfficiency = finalEfficiency;
       }
     }
   }
@@ -660,6 +597,10 @@ export function calcWeeklyPassiveIncome(
   
   return {
     total,
+    gross: grossTotal,
+    skillBonus: Math.max(0, preOverheadTotal - grossTotal),
+    efficiency: appliedEfficiency,
+    overhead: Math.max(0, preOverheadTotal - total),
     breakdown: safeBreakdown,
     reinvested: safeReinvestedAmount,
   };
@@ -668,6 +609,10 @@ export function calcWeeklyPassiveIncome(
     logger.error('[calcWeeklyPassiveIncome] Error calculating passive income:', error);
     return {
       total: 0,
+      gross: 0,
+      skillBonus: 0,
+      efficiency: 1,
+      overhead: 0,
       breakdown: {
         stocks: 0,
         realEstate: 0,
@@ -790,4 +735,251 @@ export function getOperatingOverhead(
     weeklyCost: Math.round(gross * (1 - efficiency)),
     active: efficiency < 1 && gross > 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Company weekly income — ONE definition, shared by the tick and every readout.
+// ---------------------------------------------------------------------------
+
+/*
+ * The GLOBAL `COMPANY_INCOME_CAP` that used to live here is gone. It was a
+ * $200k/week pool shared across the whole portfolio, and it was replaced on
+ * `main` by `companyIncomeCap(company)` — a PER-COMPANY ceiling that grows with
+ * that company's own headcount — in response to a player report ("the hard cap
+ * of 200k needs to go. Maybe have a cap per company. Not overall.").
+ *
+ * That change and this extraction landed on separate branches and are merged
+ * here rather than either one winning: the ceiling is applied per company
+ * inside `companyWeeklyIncomeFor` below, which is what every readout now calls,
+ * so the new economics and the one-definition rule hold at the same time.
+ */
+
+/**
+ * Management efficiency for a portfolio of `companyCount` companies.
+ *
+ * Managing multiple companies gets harder, not easier: 1-3 companies pay 100%,
+ * 4-6 pay 90%, 7-10 pay 80%, 11+ pay 70%.
+ */
+export function companyCountEfficiency(companyCount: number | undefined | null): number {
+  const count =
+    typeof companyCount === 'number' && Number.isFinite(companyCount) && companyCount > 0
+      ? companyCount
+      : 0;
+  if (count > 10) return 0.7;
+  if (count > 6) return 0.8;
+  if (count > 3) return 0.9;
+  return 1.0;
+}
+
+type CompanyLike = NonNullable<GameState['companies']>[number];
+
+/**
+ * What ONE company contributes to the weekly paycheck, before the portfolio-wide
+ * its own `companyIncomeCap` and the net-worth soft cap.
+ *
+ * The full chain, in the order the tick applies it: stored `weeklyIncome` →
+ * family brand → legacy generations → political business perk → government
+ * contracts → the Hustle overlay's brand/share/hire multiplier → the
+ * portfolio-size efficiency penalty.
+ *
+ * Pass `efficiencyMultiplier = 1` to get the company's own contribution with the
+ * portfolio penalty left off (what a single company card should show).
+ */
+export function companyWeeklyIncomeFor(
+  state: GameState,
+  company: CompanyLike | null | undefined,
+  efficiencyMultiplier: number = 1,
+): number {
+  if (!company) return 0;
+
+  // CRITICAL: Validate weeklyIncome before calculation
+  let weeklyIncome =
+    typeof company.weeklyIncome === 'number' && isFinite(company.weeklyIncome) && company.weeklyIncome >= 0
+      ? company.weeklyIncome
+      : 0;
+
+  /**
+   * C-2: a family business's Brand lifts its weekly income. Applied FIRST,
+   * before the political and contract bonuses below, so those keep compounding
+   * on top exactly as they did — brand scales the business, it does not reorder
+   * the existing stack.
+   *
+   * Neutral at brand 0, which is what `createFamilyBusiness` seeds, so no
+   * existing save's income moves until the player spends on marketing.
+   * Companies that are not family businesses are untouched.
+   */
+  const familyMeters = findFamilyBusiness(state.familyBusinesses, company.id);
+  if (familyMeters && weeklyIncome > 0) {
+    weeklyIncome = Math.round(weeklyIncome * familyBrandIncomeMultiplier(familyMeters.brandValue));
+
+    /*
+     * The `legacy_business` prestige bonus, applied on top of brand rather than
+     * instead of it. Scales with `generationsHeld`, which the heir flow already
+     * increments and which nothing else consumed.
+     *
+     * Neutral (1.0) for every player who does not own the bonus, and neutral at
+     * generation 0 even for those who do, so no existing save's income moves on
+     * upgrade. See lib/business/familyBusinessEffects.ts.
+     */
+    const held = (state.familyBusinesses || [])
+      .find((fb) => fb && fb.companyId === company.id)?.generationsHeld;
+    const legacyMult = legacyGenerationIncomeMultiplier(held, state.prestige?.unlockedBonuses);
+    if (legacyMult !== 1) {
+      weeklyIncome = Math.round(weeklyIncome * legacyMult);
+    }
+  }
+
+  // Apply political perks (business income bonus)
+  if (state.politics && state.politics.careerLevel > 0) {
+    try {
+      const perkEffects = getCombinedPerkEffects(state.politics.careerLevel);
+      const businessIncomeBonus =
+        typeof perkEffects?.businessIncomeBonus === 'number'
+        && isFinite(perkEffects.businessIncomeBonus)
+        && perkEffects.businessIncomeBonus > 0
+          ? perkEffects.businessIncomeBonus
+          : 0;
+      if (businessIncomeBonus > 0 && weeklyIncome > 0) {
+        const bonus = Math.round(weeklyIncome * (businessIncomeBonus / 100));
+        if (isFinite(bonus) && bonus > 0) {
+          weeklyIncome += bonus;
+        }
+      }
+    } catch {
+      // Skip perk bonus if calculation fails
+    }
+  }
+
+  // Add government contract bonus
+  try {
+    const contractBonus = calculateGovernmentContractBonus(state, company.id);
+    if (typeof contractBonus === 'number' && isFinite(contractBonus) && contractBonus > 0) {
+      weeklyIncome += contractBonus;
+    }
+  } catch {
+    // Skip contract bonus if calculation fails
+  }
+
+  // Brand & market share (Hustle overlay) now affect revenue: strong brand
+  // (>50) and market share lift income, weak brand drags it. Named-hire roster
+  // performance adds a bounded ±8% nudge (star hires lift income, a demoralized
+  // roster drags it) so hiring quality/retention finally matter.
+  // factor = 1 + (brand - 50)/200 + marketShare%/200 + hirePerf, clamped to
+  // [0.75, 1.6] — the COMBINED multiplier stays within the existing cap.
+  // Older saves without a hustleApp overlay get a neutral 1.0.
+  try {
+    // The arithmetic lives in `companyIncomeFactors` so the Hustle UI can show
+    // the SAME number the player is paid.
+    const overlay = state.hustleApp?.companies?.[company.id];
+    if (overlay) {
+      const { multiplier } = companyIncomeFactors(overlay);
+      if (isFinite(multiplier) && multiplier > 0) {
+        weeklyIncome = Math.round(weeklyIncome * multiplier);
+      }
+    }
+  } catch {
+    // Neutral on any overlay read failure — never zero company income.
+  }
+
+  // CRITICAL: Validate efficiencyMultiplier before applying
+  const safeEfficiencyMultiplier =
+    isFinite(efficiencyMultiplier) && efficiencyMultiplier > 0 ? efficiencyMultiplier : 1;
+  weeklyIncome = Math.round(weeklyIncome * safeEfficiencyMultiplier);
+
+  // The ceiling, per company and scaled by its own payroll. A shared pool
+  // punished exactly the play the game asks for (more companies, deeper
+  // expenses, real taxes); headcount is bought with money and paid every week,
+  // so it is an honest measure of how big the operation actually is. A starter
+  // business still tops out at the old $200k/week.
+  weeklyIncome = Math.min(weeklyIncome, companyIncomeCap(company));
+
+  // Final validation
+  return isFinite(weeklyIncome) && weeklyIncome > 0 ? weeklyIncome : 0;
+}
+
+export interface CompanyIncomeSummary {
+  /** Sum of the raw stored `company.weeklyIncome` values. */
+  stored: number;
+  /** After every per-company bonus and ceiling, before the portfolio penalty. */
+  afterBonuses: number;
+  /** The portfolio-size management efficiency (0.7 – 1.0). */
+  efficiency: number;
+  /** What actually enters the weekly passive-income total. */
+  afterEfficiency: number;
+  /**
+   * Combined per-company ceiling — the sum of `companyIncomeCap(c)` across the
+   * portfolio. Not a cap that is applied here (each company was already capped
+   * individually); reported so a readout can say how much room is left.
+   */
+  cap: number;
+  /**
+   * What the paycheck credits for companies BEFORE the net-worth soft cap
+   * (`passiveIncomeEfficiency`) applies to the combined passive total.
+   */
+  paid: number;
+  /** Weekly dollars lost to the portfolio-size penalty and the ceilings. */
+  lost: number;
+  /** True once any of that drag is doing something. */
+  capped: boolean;
+}
+
+/**
+ * The company slice of the weekly paycheck, with every step of the drag named.
+ *
+ * THE SINGLE SOURCE for that number. The Hustle dashboard, both bank apps and
+ * the real-estate/vehicle affordability checks each summed `company.weeklyIncome`
+ * themselves, which omitted the family-brand and legacy multipliers, the
+ * political business perk, government contracts, the Hustle overlay multiplier,
+ * the portfolio-size efficiency penalty AND the $200K/wk ceiling. A player whose
+ * companies stored $360K/wk was shown "$360,000/wk" and paid a fraction of it —
+ * the advertised-vs-actual gap that reached support.
+ */
+export function calcCompanyWeeklyIncome(state: GameState): CompanyIncomeSummary {
+  const companies = Array.isArray(state?.companies) ? state.companies : [];
+  const efficiency = companyCountEfficiency(companies.length);
+
+  let stored = 0;
+  let afterBonuses = 0;
+  let afterEfficiency = 0;
+  for (const company of companies) {
+    if (!company) continue;
+    const raw = company.weeklyIncome;
+    if (typeof raw === 'number' && isFinite(raw) && raw > 0) stored += raw;
+    afterBonuses += companyWeeklyIncomeFor(state, company, 1);
+    afterEfficiency += companyWeeklyIncomeFor(state, company, efficiency);
+  }
+
+  if (!isFinite(afterEfficiency) || afterEfficiency < 0) afterEfficiency = 0;
+  if (!isFinite(afterBonuses) || afterBonuses < 0) afterBonuses = 0;
+  if (!isFinite(stored) || stored < 0) stored = 0;
+
+  // No portfolio-wide ceiling any more: each company was capped by its own
+  // `companyIncomeCap` inside `companyWeeklyIncomeFor`, so what survives the
+  // management penalty IS what gets paid.
+  const paid = afterEfficiency;
+  const cap = companies.reduce((sum, c) => sum + (c ? companyIncomeCap(c) : 0), 0);
+  return {
+    stored,
+    afterBonuses,
+    efficiency,
+    afterEfficiency,
+    cap,
+    paid,
+    lost: Math.max(0, stored - paid),
+    capped: stored > paid,
+  };
+}
+
+/**
+ * Company income exactly as the weekly paycheck credits it.
+ *
+ * `calcCompanyWeeklyIncome(state).paid` stops at the portfolio ceiling; the
+ * combined passive total is then scaled again by the net-worth soft cap. This
+ * applies both, so a readout can print one number and be right.
+ */
+export function companyIncomePaidWeekly(state: GameState): number {
+  const summary = calcCompanyWeeklyIncome(state);
+  const efficiency = passiveIncomeEfficiency(netWorth(state), managementLevels(state?.companies));
+  const paid = Math.round(summary.paid * efficiency);
+  return isFinite(paid) && paid > 0 ? paid : 0;
 }

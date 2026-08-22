@@ -15,7 +15,7 @@ import { buySeatWing } from '@/lib/dynasty/seat';
 import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
-import { shouldAutoCollectRent, shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
+import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { useSetGameState, useGameStateGetter } from './useGameSelector';
 import { useGameUI } from './GameUIContext';
 import { useUIUX } from '@/contexts/UIUXContext';

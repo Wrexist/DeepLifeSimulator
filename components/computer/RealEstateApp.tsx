@@ -75,6 +75,7 @@ import { RentMode } from '@/lib/realEstate/tenancy';
 import { PROPERTY_CATALOG, isCommercialCatalogId } from '@/lib/realEstate/catalog';
 import { EVICTION_AFTER_WEEKS, getRentalTier } from '@/lib/realEstate/rentals';
 import { endRental, listRentalOptions, rentHome } from '@/contexts/game/actions/RentalActions';
+import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -310,7 +311,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
     // read them all as weekly, so an elected player's borrowing capacity was
     // inflated 52x at the DTI gate. One shared helper now encodes the rule.
     income += weeklyCareerSalary(gameState);
-    for (const co of (gameState.companies ?? []) as any[]) income += co.weeklyIncome ?? 0;
+    // Company income through the same helper the paycheck uses — the stored
+    // `weeklyIncome` is the base before the ceiling and the net-worth soft cap,
+    // so summing it inflated borrowing capacity for a large portfolio.
+    income += companyIncomePaidWeekly(gameState);
     income += weeklyRentEstimate;
     return income;
   }, [gameState.careers, gameState.currentJob, gameState.companies, weeklyRentEstimate]);

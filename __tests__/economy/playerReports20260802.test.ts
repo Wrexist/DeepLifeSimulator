@@ -99,14 +99,23 @@ describe('the payout and the UI read the SAME multiplier', () => {
   });
 
   it('the company tile shows effective income, not the stored base', () => {
+    // 2026-08-21: the tile now takes the tick's OWN per-company figure
+    // (`companyWeeklyIncomeFor`, passed down by the dashboard, which holds the
+    // GameState the full chain needs) and keeps the overlay-only expression as
+    // the fallback for a caller that has no state to hand. Either way it must
+    // never print the raw stored base.
     const src = code('components/mobile/Hustle/components/CompanyTile.tsx');
     expect(src).toMatch(/companyIncomeFactors\(overlay\)/);
-    expect(src).toMatch(/const weekly = Math\.round\(stored \* factors\.multiplier\)/);
+    expect(src).toMatch(/Math\.round\(stored \* factors\.multiplier\)/);
+    expect(src).toMatch(/weekly: weeklyProp/);
+    const dash = code('components/mobile/Hustle/screens/DashboardScreen.tsx');
+    expect(dash).toMatch(/weekly=\{companyWeeklyIncomeFor\(gameState, c, 1\)\}/);
   });
 
   it('and so does the detail screen, with the lift attributed', () => {
     const src = code('components/mobile/Hustle/screens/CompanyDetailScreen.tsx');
     expect(src).toMatch(/companyIncomeFactors\(overlay\)/);
+    expect(src).toMatch(/companyWeeklyIncomeFor\(gameState, company, 1\)/);
     // The breakdown is what turns "revenue went up" into "the acquisition did it".
     expect(src).toMatch(/factors\.brand/);
     expect(src).toMatch(/factors\.share/);
