@@ -104,6 +104,11 @@ const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: 
   vip_support: Headphones,
 };
 
+// The DeepLife+ crest — the illustrated gold crown on its dark gold-framed
+// plate. The same file backs the avatar badge in `DeepLifePlusUpsell`, so the
+// mark a player taps on the player card is the mark that greets them here.
+const CREST_ART: ImageSourcePropType = require('@/assets/images/deeplife-plus-crest.webp');
+
 const BENEFIT_ART: Record<string, ImageSourcePropType> = {
   no_ads: require('@/assets/images/iap/premium/remove_ads.webp'),
   income_boost: require('@/assets/images/iap/perks/work_pay_boost.webp'),
@@ -568,9 +573,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 <Animated.View style={[styles.sparkleB, sparkleBStyle]} pointerEvents="none">
                   <Sparkles size={scale(11)} color={GOLD_SOFT} fill={GOLD_SOFT} />
                 </Animated.View>
-                <View style={styles.crownChip}>
-                  <Crown size={scale(34)} color={GOLD} fill={GOLD} />
-                </View>
+                {/* The crest is illustrated art with its own gold frame and
+                    plate, so it is rendered bare — the chip that used to draw a
+                    tinted background and a 1.5pt gold border around a flat
+                    lucide glyph would now frame an already-framed badge. The
+                    glow and sparkles behind it are unchanged. */}
+                <Image source={CREST_ART} style={styles.crest} resizeMode="contain" />
               </View>
               <Text style={styles.brand}>
                 DeepLife<Text style={styles.brandPlus}>+</Text>
@@ -887,15 +895,9 @@ const styles = StyleSheet.create({
   },
   sparkleA: { position: 'absolute', top: scale(-2), right: scale(2) },
   sparkleB: { position: 'absolute', bottom: scale(4), left: scale(4) },
-  crownChip: {
-    width: scale(76),
-    height: scale(76),
-    borderRadius: scale(24),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: GOLD_TINT,
-    borderWidth: 1.5,
-    borderColor: GOLD_BORDER,
+  crest: {
+    width: scale(84),
+    height: scale(84),
   },
   brand: { fontSize: fontScale(30), fontWeight: '900', color: TEXT, letterSpacing: 0.3 },
   brandPlus: { color: GOLD },
