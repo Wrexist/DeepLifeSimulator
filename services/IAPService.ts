@@ -78,6 +78,15 @@ export interface PurchaseResult {
   productId?: string;
   transactionId?: string;
   receipt?: string;
+  /**
+   * The player backed out of the store sheet, as opposed to something going
+   * wrong. Both are `success: false`, but they mean opposite things to the
+   * funnel: a cancellation is a soft "no" that says the price or the offer did
+   * not land, while a failure is a defect to go and fix. Reporting them under
+   * one `purchase_failed` event made the paywall's biggest drop-off step
+   * unreadable — a spike could be either a pricing problem or an outage.
+   */
+  cancelled?: boolean;
 }
 
 /**
@@ -894,14 +903,24 @@ export class IAPService {
   }
 
   // Purchase a product — thin instrumentation wrapper around the purchase flow.
-  // Fires the monetisation funnel events (started → succeeded/failed) exactly once
-  // each, without touching the flow's many internal return points. `track()` is a
-  // hard no-op unless telemetry is enabled + consented.
+  // Fires the monetisation funnel events (started → succeeded / cancelled /
+  // failed) exactly once each, without touching the flow's many internal return
+  // points. `track()` is a hard no-op unless telemetry is enabled + consented.
+  //
+  // A user cancellation is reported as its OWN event rather than folded into
+  // `purchase_failed`: the two look identical in the data but mean opposite
+  // things, and CTA→purchase is normally the largest drop-off on the funnel, so
+  // it is the one step that must be readable.
   async purchaseProduct(productId: string): Promise<PurchaseResult> {
     track('purchase_started', { productId });
     try {
       const result = await this.runPurchaseFlow(productId);
-      track(result.success ? 'purchase_succeeded' : 'purchase_failed', { productId });
+      const outcome = result.success
+        ? 'purchase_succeeded'
+        : result.cancelled
+          ? 'purchase_cancelled'
+          : 'purchase_failed';
+      track(outcome, { productId });
       return result;
     } catch (error) {
       track('purchase_failed', { productId, error: 'exception' });
@@ -927,7 +946,7 @@ export class IAPService {
         const rc = await revenueCatService.purchaseProduct(productId);
         if (rc.cancelled) {
           this.setState({ isLoading: false });
-          return { success: false, message: 'Purchase was cancelled' };
+          return { success: false, cancelled: true, message: 'Purchase was cancelled' };
         }
         if (!rc.success) {
           this.setState({ isLoading: false });
@@ -1249,6 +1268,9 @@ export class IAPService {
 
       let errorMessage = 'Purchase failed';
       let userFriendlyMessage = '';
+      // Tracked separately from the message so the funnel can tell a player's
+      // "no thanks" apart from a real failure (see PurchaseResult.cancelled).
+      let cancelled = false;
 
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -1256,6 +1278,7 @@ export class IAPService {
         // Provide more user-friendly error messages
         if (errorMessage.includes('cancelled')) {
           userFriendlyMessage = 'Purchase was cancelled.';
+          cancelled = true;
           // Don't log cancelled purchases as errors - this is user choice
           logger.info('ℹ️ Purchase cancelled by user');
         } else if (errorMessage.includes('pending approval')) {
@@ -1340,6 +1363,7 @@ export class IAPService {
 
       return {
         success: false,
+        cancelled,
         message: userFriendlyMessage,
       };
     }

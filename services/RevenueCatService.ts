@@ -24,6 +24,7 @@ import { isFeatureEnabled } from '@/lib/config/featureFlags';
 import { logger } from '@/utils/logger';
 import { appToStoreProductId, storeToAppProductId } from '@/lib/subscription/revenueCatProductMap';
 import { isSubscriptionProduct } from '@/utils/iapConfig';
+import type { StoreProductLike } from '@/lib/subscription/planPricing';
 import type {
   RcAdEventPayload,
   RcAdFailedPayload,
@@ -245,6 +246,68 @@ class RevenueCatService {
       log.warn('getOfferings failed', { error });
       return null;
     }
+  }
+
+  /**
+   * The current offering's products, normalised to the structural shape
+   * `lib/subscription/planPricing.ts` reads — keyed by APP product id.
+   *
+   * WHY A SECOND PRICE SOURCE. The paywall's primary catalog is
+   * `iapService.getProducts()`, but that is populated by expo-iap and only when
+   * the `iap` feature flag is on. A build where RevenueCat drives billing and
+   * expo-iap is off would have an empty catalog, and the paywall now refuses to
+   * print a price it did not get from a store — so it would show no prices at
+   * all in exactly the configuration that CAN take a payment. RevenueCat's own
+   * offering carries the same localized `storeProduct`, so it closes that gap.
+   *
+   * Returns an empty map when RC is disabled or the call fails; the caller then
+   * falls back to the expo-iap catalog and, failing that, renders no price.
+   */
+  async getSubscriptionStoreProducts(): Promise<Record<string, StoreProductLike>> {
+    const offering = await this.getCurrentOffering();
+    const packages: any[] = offering?.availablePackages ?? [];
+    const out: Record<string, StoreProductLike> = {};
+    for (const pkg of packages) {
+      const sp = pkg?.storeProduct;
+      const storeId = sp?.identifier ?? sp?.productIdentifier;
+      if (!sp || typeof storeId !== 'string') continue;
+      // Map back to the app-internal id so callers key off the same ids the
+      // rest of the app uses (see lib/subscription/revenueCatProductMap.ts).
+      const appId = storeToAppProductId(storeId);
+      out[appId] = {
+        productId: appId,
+        // `priceString` is RC's localized display string; `price` is the numeric
+        // amount and `currencyCode` the ISO code. Kept separate on purpose — the
+        // pricing module refuses to parse a formatted string into a number.
+        displayPrice: typeof sp.priceString === 'string' ? sp.priceString : undefined,
+        priceAmount: typeof sp.price === 'number' ? sp.price : undefined,
+        currency: typeof sp.currencyCode === 'string' ? sp.currencyCode : undefined,
+        // Offer details, where the SDK surfaces them, so the trial copy can be
+        // driven by the store rather than by a hand-maintained constant.
+        // `introPrice.price === 0` is what makes an intro offer a FREE TRIAL as
+        // opposed to a discounted first period. Anything else is reported as a
+        // paid intro, which the pricing module reads as "no trial to advertise".
+        // A non-numeric price is left UNDECLARED (undefined) rather than guessed
+        // — unknown must stay distinguishable from "no offer".
+        subscriptionInfoIOS:
+          sp.introPrice && typeof sp.introPrice.price === 'number'
+            ? {
+                introductoryOffer: {
+                  paymentMode: sp.introPrice.price === 0 ? 'free-trial' : 'pay-up-front',
+                  periodCount: sp.introPrice.cycles ?? 1,
+                  period: {
+                    unit:
+                      typeof sp.introPrice.periodUnit === 'string'
+                        ? sp.introPrice.periodUnit.toLowerCase()
+                        : undefined,
+                    value: sp.introPrice.periodNumberOfUnits,
+                  },
+                },
+              }
+            : undefined,
+      };
+    }
+    return out;
   }
 
   /** Purchase a package from an offering (subscriptions / lifetime). */

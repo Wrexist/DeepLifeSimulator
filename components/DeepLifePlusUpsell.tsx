@@ -11,7 +11,7 @@
  * RevenueCat paywall isn't available), so you can drop it anywhere.
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ImageBackground, Platform, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Image, ImageBackground, StyleProp, ViewStyle } from 'react-native';
 import { Crown, ChevronRight, Sparkles } from 'lucide-react-native';
 import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import SubscriptionModal from '@/components/SubscriptionModal';
@@ -24,14 +24,20 @@ import { scale, fontScale } from '@/utils/scaling';
 // with a deliberately clean center so the DeepLife+ copy stays legible on top.
 const BANNER_ART = require('@/assets/images/deeplife-plus-banner.webp');
 
+// The DeepLife+ crest: the illustrated gold crown on its dark gold-framed plate.
+// Shared with the paywall hero (components/SubscriptionModal.tsx) so the badge a
+// player taps and the crest they land on are the same mark — the badge reads as
+// a door to the paywall rather than as a separate gold pip.
+const CREST_ART = require('@/assets/images/deeplife-plus-crest.webp');
+
+// Unique gradient id per badge instance so two badges on one screen cannot
+// collide on web, where SVG defs share a document-level namespace.
+let _glowGradSeq = 0;
+
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
-const GOLD_DEEP = '#B45309';
 const GOLD_HILITE = '#FFFDF0';
 const INK = '#1A1206';
-
-// Unique gradient id per badge instance so multiple crowns don't collide on web.
-let _coinGradSeq = 0;
 
 // QA/testing escape hatch: when this build-time env is 'true', the upsell renders
 // even for members (who normally never see it), so the banner/badge/pill can be
@@ -54,7 +60,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const pulse = useRef(new Animated.Value(0)).current;     // glow halo breathe
   const breathe = useRef(new Animated.Value(0)).current;   // coin scale breathe
   const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
-  const coinGradId = useRef(`dlpCoin${_coinGradSeq++}`).current;
+  const glowGradId = useRef(`dlpGlow${_glowGradSeq++}`).current;
 
   // A member normally hides every surface — unless the force flag is on (QA).
   const memberHidden = active && !FORCE_UPSELL;
@@ -111,12 +117,18 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const twinkleScale = twinkle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.05] });
   const modal = <SubscriptionModal visible={open} onClose={close} />;
 
-  // ── Avatar badge: a polished gold "coin" crown the parent positions absolutely.
-  // A real radial gradient (react-native-svg — the app's LinearGradient is the
-  // flat fallback since expo-linear-gradient crashes on New Arch), a crisp white
-  // rim, a pulsing glow halo, a gentle breathe, and a periodic sparkle glint. ──
+  // ── Avatar badge: the DeepLife+ crest, which the parent positions absolutely.
+  //
+  // This was a hand-built gold "coin": an SVG radial gradient, a white rim and a
+  // lucide crown glyph on top. At badge size the glyph sat under the pulsing
+  // halo and the whole thing read as a featureless gold pip rather than a crown.
+  // It is the illustrated crest now — the SAME art as the paywall hero, so the
+  // thing a player taps is visibly the thing they arrive at.
+  //
+  // The motion is unchanged and still carries the eye: a pulsing glow halo, a
+  // gentle breathe, and a periodic sparkle glint, all disabled under Reduce
+  // Motion. The art brings its own gold frame, so no border is drawn here.
   if (variant === 'badge') {
-    const coin = scale(26);
     return (
       <>
         <TouchableOpacity
@@ -127,24 +139,30 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
           accessibilityLabel={`Open DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''}`}
           style={[styles.badgeWrap, style]}
         >
+          {/* A flat `backgroundColor` circle was fine behind the old GOLD coin —
+              its hard edge was hidden under the coin and only peeked as a rim.
+              Behind the crest, whose plate is dark, that same disc read as a
+              solid yellow blob with a visible edge. This is a true radial
+              gradient (react-native-svg; the app's LinearGradient is a flat
+              fallback since expo-linear-gradient crashes on New Arch), so the
+              halo actually falls off to nothing. */}
           <Animated.View
             style={[styles.badgeGlow, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
             pointerEvents="none"
-          />
-          <Animated.View style={[styles.badgeCircle, { transform: [{ scale: breatheScale }] }]}>
-            <Svg width={coin} height={coin} viewBox="0 0 26 26" style={StyleSheet.absoluteFill}>
+          >
+            <Svg width="100%" height="100%" viewBox="0 0 100 100">
               <Defs>
-                <RadialGradient id={coinGradId} cx="34%" cy="28%" r="78%">
-                  <Stop offset="0%" stopColor={GOLD_HILITE} />
-                  <Stop offset="32%" stopColor={GOLD_SOFT} />
-                  <Stop offset="70%" stopColor={GOLD} />
-                  <Stop offset="100%" stopColor={GOLD_DEEP} />
+                <RadialGradient id={glowGradId} cx="50%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor={GOLD} stopOpacity="0.5" />
+                  <Stop offset="45%" stopColor={GOLD} stopOpacity="0.28" />
+                  <Stop offset="100%" stopColor={GOLD} stopOpacity="0" />
                 </RadialGradient>
               </Defs>
-              <Circle cx="13" cy="13" r="12.3" fill={`url(#${coinGradId})`} />
-              <Circle cx="13" cy="13" r="12.3" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.4" />
+              <Circle cx="50" cy="50" r="50" fill={`url(#${glowGradId})`} />
             </Svg>
-            <Crown size={scale(13)} color={INK} fill={INK} strokeWidth={2} />
+          </Animated.View>
+          <Animated.View style={[styles.badgeCrest, { transform: [{ scale: breatheScale }] }]}>
+            <Image source={CREST_ART} style={styles.badgeCrestArt} resizeMode="contain" />
           </Animated.View>
           <Animated.View
             style={[styles.badgeSparkle, { opacity: twinkle, transform: [{ scale: twinkleScale }] }]}
@@ -229,32 +247,39 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
 
 const styles = StyleSheet.create({
   // Avatar badge
-  badgeWrap: { width: scale(30), height: scale(30), alignItems: 'center', justifyContent: 'center' },
+  badgeWrap: { width: scale(46), height: scale(46), alignItems: 'center', justifyContent: 'center' },
   badgeGlow: {
+    // Comfortably larger than the crest: a radial falloff needs room to fade, so
+    // sizing it tight to the art would reintroduce the hard edge it exists to
+    // avoid.
     position: 'absolute',
-    width: scale(34),
-    height: scale(34),
-    borderRadius: scale(17),
-    backgroundColor: 'rgba(250, 204, 21, 0.5)',
+    width: scale(64),
+    height: scale(64),
   },
-  badgeCircle: {
-    width: scale(26),
-    height: scale(26),
-    borderRadius: scale(13),
+  badgeCrest: {
+    // Sized generously: the crest carries its own frame and inner margin, so the
+    // crown inside it renders a good deal smaller than a bare glyph would at the
+    // same box size.
+    width: scale(42),
+    height: scale(42),
     alignItems: 'center',
     justifyContent: 'center',
-    // Warm depth so the coin reads as raised, not a flat sticker.
-    ...Platform.select({
-      web: { boxShadow: '0px 1px 3px rgba(180, 83, 9, 0.55)' } as object,
-      default: {
-        shadowColor: GOLD_DEEP,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.55,
-        shadowRadius: 2,
-        elevation: 3,
-      },
-    }),
+    // NO SHADOW HERE — deliberately.
+    //
+    // The coin this replaced was a circle (`borderRadius: scale(13)` on a 26pt
+    // box), so its drop shadow was drawn round and read as soft depth. The crest
+    // is ALPHA ART inside a square box: a shadow follows the view's bounds, not
+    // the artwork's silhouette, so the same shadow rendered as a hard rectangle
+    // floating around the badge — visible as a stray box outline over the
+    // avatar. That is true on every platform, not just web: iOS derives the
+    // shadow from the layer bounds without an explicit shadowPath, and Android's
+    // elevation uses the bounds outline.
+    //
+    // Matching `borderRadius` to the art would only approximate its silhouette
+    // and still bleed at the corners. The art does not need the help — it ships
+    // with a luminous gold frame — and `badgeGlow` below supplies the depth.
   },
+  badgeCrestArt: { width: '100%', height: '100%' },
   badgeSparkle: {
     position: 'absolute',
     top: scale(-1),
