@@ -294,51 +294,28 @@ export function hasDeepLifePlusEntitlement(settings?: {
  */
 export const DEEP_LIFE_PLUS_FREE_TRIAL_DAYS = 7;
 
-/** Parse a localized price string ("$49.99", "€49,99") to a number; 0 if unknown. */
-function priceToNumber(p?: string): number {
-  if (!p) return 0;
-  // Keep digits + separators, then treat the LAST separator as the decimal.
-  const cleaned = p.replace(/[^0-9.,]/g, '');
-  const norm = cleaned.replace(/[.,](?=.*[.,])/g, '').replace(',', '.');
-  const n = Number(norm);
-  return Number.isFinite(n) ? n : 0;
-}
-
-/** The leading currency symbol of a price string ("$", "€", "£"); "$" fallback. */
-function currencySymbol(p?: string): string {
-  const m = p?.match(/^[^\d\s]+/);
-  return m ? m[0] : '$';
-}
-
-/** Format a number with the currency symbol of a reference price. */
-function formatLike(amount: number, ref?: string): string {
-  return `${currencySymbol(ref)}${amount.toFixed(2)}`;
-}
-
 /**
- * Effective per-week price of the yearly plan, e.g. "$0.96" — the strongest
- * value framing ("less than a coffee a week"). Empty string if it can't be
- * computed from the store price.
+ * ── WHERE THE PRICE-DERIVED COPY WENT ───────────────────────────────────────
+ * `yearlyPerWeek()` and `yearlySavingsPercent()` used to live here, along with
+ * the `priceToNumber` / `currencySymbol` / `formatLike` helpers they needed.
+ * They computed the paywall's "just $0.96/week" line and its "SAVE 17%" badge
+ * from the CONFIG price strings above — which are US dollars by definition.
+ *
+ * Every player outside the US therefore read a per-week figure in the wrong
+ * currency, and a savings percentage derived from tiers they were not on: Apple
+ * sets the monthly and yearly tiers independently per storefront, so the real
+ * ratio moves and a USD-derived percentage can be flatly wrong abroad.
+ *
+ * Both now live in `lib/subscription/planPricing.ts`, computed from the live
+ * store price for THIS player and returning nothing at all when the inputs
+ * cannot support the claim. They are deleted rather than deprecated on purpose:
+ * a helper that silently answers in the wrong currency is exactly the kind of
+ * thing that gets reached for again.
+ *
+ * The `price` fields on the plans above are NOT dead — they remain the labelled
+ * fallback shown only where no store exists (Expo Go, the web preview), with the
+ * purchase CTA disabled.
  */
-export function yearlyPerWeek(): string {
-  const yearly = DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'yearly');
-  const n = priceToNumber(yearly?.price);
-  if (n <= 0) return '';
-  return formatLike(n / 52, yearly?.price);
-}
-
-/**
- * Whole-percent savings of the yearly plan vs paying monthly for a year
- * (e.g. 17). 0 if it can't be computed.
- */
-export function yearlySavingsPercent(): number {
-  const monthly = priceToNumber(DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'monthly')?.price);
-  const yearly = priceToNumber(DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'yearly')?.price);
-  if (monthly <= 0 || yearly <= 0) return 0;
-  const twelveMonths = monthly * 12;
-  if (yearly >= twelveMonths) return 0;
-  return Math.round(((twelveMonths - yearly) / twelveMonths) * 100);
-}
 
 /** Look up a DeepLife+ plan by billing period; `undefined` if none matches. */
 export function getDeepLifePlusPlan(period: BillingPeriod): DeepLifePlusPlan | undefined {

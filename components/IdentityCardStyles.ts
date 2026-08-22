@@ -475,12 +475,18 @@ export const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     overflow: 'hidden',
   },
-  // DeepLife+ crown — mirrors the prestige badge on the opposite (top-left)
+  // DeepLife+ crest — mirrors the prestige badge on the opposite (top-left)
   // corner of the avatar so the two never overlap.
+  //
+  // Pulled further out than the prestige badge's matching inset on purpose. The
+  // crest is bigger than the coin it replaced, and it is a SQUARE mark sitting
+  // against a round avatar: at the old -xs inset its lower-right corner pushed
+  // into the character's hair and face. Hanging it off the avatar's edge lets it
+  // read as a badge pinned to the portrait rather than something covering it.
   premiumAvatarCrown: {
     position: 'absolute',
-    top: -responsiveSpacing.xs,
-    left: -responsiveSpacing.xs,
+    top: -responsiveSpacing.sm,
+    left: -scale(18),
     zIndex: 10,
   },
   prestigeBadgeGradient: {

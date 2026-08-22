@@ -25,6 +25,7 @@ import { useGameSelector, shallowEqual, useSetGameState } from '@/contexts/game/
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
+import { trackFirstPremiumValue } from '@/utils/premiumValueTracking';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { haptic } from '@/utils/haptics';
 import { scale, fontScale } from '@/utils/scaling';
@@ -228,7 +229,14 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
     setGameState((prev) => claimDailyGems(prev, key, Date.now()));
     void saveGame?.(false);
     setJustClaimedKey(key);
-  }, [setGameState, saveGame]);
+    // A member collecting the 250-gem drop (against a free player's 20) is the
+    // clearest deliberate USE of a paid perk in the game: the other headline
+    // benefits — ad-free, the +25% payday — are passive and arrive whether the
+    // player notices them or not. Recording it answers the question that decides
+    // renewal (see utils/premiumValueTracking.ts). Fire-and-forget: it must never
+    // be able to interfere with the claim itself.
+    if (entitled) void trackFirstPremiumValue('daily_gem_drop');
+  }, [setGameState, saveGame, entitled]);
 
   return (
     <View style={styles.wrap}>
