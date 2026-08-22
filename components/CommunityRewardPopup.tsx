@@ -29,7 +29,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, DollarSign, ExternalLink } from 'lucide-react-native';
+import { X, ExternalLink } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import DiscordLogo, { DISCORD_BLURPLE } from '@/components/ui/DiscordLogo';
 import { useTheme } from '@/hooks/useTheme';
@@ -44,8 +44,8 @@ const LinearGradient = Gradient;
 const DISCORD_GRADIENT = [DISCORD_BLURPLE, '#7B87FF'] as const;
 const MONEY_GREEN = '#10B981';
 
-/** Stable no-op so the sheet's tap-swallowing Pressable keeps one identity. */
-const noop = () => {};
+/** Stable identity for the sheet's tap-swallowing responder. */
+const returnTrue = () => true;
 
 interface CommunityRewardPopupProps {
   visible: boolean;
@@ -111,10 +111,12 @@ export default function CommunityRewardPopup({
         accessibilityRole="button"
         accessibilityLabel="Close"
       >
-        {/* Swallow taps inside the sheet so they never reach the backdrop. */}
-        <Pressable
-          onPress={noop}
-          accessible={false}
+        {/* Swallow taps inside the sheet so they never reach the backdrop.
+            A responder-claiming View rather than a Pressable: nesting a
+            pressable inside a pressable maps to a <button> inside a <button>
+            on react-native-web, which is invalid markup. */}
+        <View
+          onStartShouldSetResponder={returnTrue}
           style={[
             styles.sheet,
             {
@@ -156,9 +158,11 @@ export default function CommunityRewardPopup({
                 { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
               ]}
             >
+              <Text style={[styles.rewardKicker, { color: theme.textSecondary }]}>
+                WELCOME BONUS
+              </Text>
               <View style={styles.rewardRow}>
-                <DollarSign size={fontScale(20)} color={MONEY_GREEN} />
-                <Text style={[styles.rewardValue, { color: theme.text }]}>+{rewardLabel}</Text>
+                <Text style={[styles.rewardValue, { color: MONEY_GREEN }]}>+{rewardLabel}</Text>
                 <Text style={[styles.rewardUnit, { color: theme.textSecondary }]}>cash</Text>
               </View>
               <Text style={[styles.note, { color: theme.textSecondary }]}>
@@ -221,7 +225,7 @@ export default function CommunityRewardPopup({
           >
             <Text style={[styles.dismissText, { color: theme.textSecondary }]}>Maybe later</Text>
           </Pressable>
-        </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
@@ -276,6 +280,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: responsiveSpacing.md,
     gap: 4,
+  },
+  rewardKicker: {
+    fontSize: fontScale(10),
+    fontWeight: '800',
+    letterSpacing: 1.1,
   },
   rewardRow: {
     flexDirection: 'row',
