@@ -316,6 +316,12 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       return i;
     }),
     hasPhone: scenarioItems.includes('smartphone') || mappedItemIds.includes('smartphone'),
+    // "Driver License" is not an inventory item — no catalogue entry exists,
+    // so the ITEM_ID_MAP route was a no-op and the Real Estate Hustler
+    // scenario's advertised license was never granted. The game's actual
+    // license state is the `hasDriversLicense` flag (the same one the
+    // starting-vehicle prestige bonus sets), so grant THAT.
+    hasDriversLicense: scenarioItems.includes('driver_license'),
     family,
     relationships,
     version: stateVersion,

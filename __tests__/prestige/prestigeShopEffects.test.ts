@@ -19,7 +19,6 @@ import {
   applyLegacyBonuses,
   getIncomeMultiplier,
   getRawIncomeMultiplier,
-  INCOME_MULTIPLIER_CAP,
 } from '@/lib/prestige/applyBonuses';
 import { applyUnlockBonuses, hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
 import { incomeGainFromPurchase, isIncomeBonusWasted } from '@/lib/prestige/incomeHeadroom';
@@ -183,41 +182,46 @@ describe('early_career_access — "Unlock all careers from start"', () => {
   });
 });
 
-describe('income cap visibility — synergy_wealth_master', () => {
-  // Two levels of the epic put the player at the +50% ceiling.
-  const atCap = ['income_multiplier_3', 'income_multiplier_3', 'income_multiplier_2'];
+describe('income curve honesty — synergy_wealth_master and the soft cap', () => {
+  // Past the +50% soft-cap threshold: raw 1.75, effective ~1.5625.
+  const diminished = ['income_multiplier_3', 'income_multiplier_3', 'income_multiplier_2'];
 
-  it('the player really is capped', () => {
-    expect(getIncomeMultiplier(atCap)).toBe(INCOME_MULTIPLIER_CAP);
-    expect(getRawIncomeMultiplier(atCap)).toBeGreaterThan(INCOME_MULTIPLIER_CAP);
+  it('past the soft cap the synergy pays a REDUCED but nonzero amount', () => {
+    // Under the old hard clamp this purchase was consumed for literally
+    // nothing — the tester's "wealth master synergy does not apply to
+    // revenue". The soft cap (2026-08-23 rebalance) pays it at a quarter
+    // strength instead: +15% headline → +3.75% delivered, and the card's
+    // "Actually grants" note shows the real number.
+    expect(getRawIncomeMultiplier(diminished)).toBeGreaterThan(1.5);
+    expect(incomeGainFromPurchase(diminished, 'synergy_wealth_master')).toBeCloseTo(0.15 * 0.25, 10);
+    expect(isIncomeBonusWasted(diminished, 'synergy_wealth_master')).toBe(false);
   });
 
-  it('warns that the 18,000-point synergy would grant nothing at the cap', () => {
-    // This is the regression: the old probe asked `getIncomeMultiplier([id])`
-    // on an EMPTY list, where the synergy contributes 0 because its 2-bonus
-    // prerequisite is unmet — so it was classified "not an income bonus" and
-    // silently exempted from the cap warning.
-    expect(incomeGainFromPurchase(atCap, 'synergy_wealth_master')).toBe(0);
-    expect(isIncomeBonusWasted(atCap, 'synergy_wealth_master')).toBe(true);
+  it('classifies the synergy as an income bonus against what the player OWNS', () => {
+    // The regression the probe fix closed: asking `getIncomeMultiplier([id])`
+    // on an EMPTY list classified the synergy (2-bonus prerequisite) as "not
+    // an income bonus" and exempted it from every warning. Against an owned
+    // set that meets the prerequisite it must register as one — proven here by
+    // the wasted-flag firing at the HARD cap.
+    const hardCapped = Array(40).fill('income_multiplier_3');
+    expect(isIncomeBonusWasted(hardCapped, 'synergy_wealth_master')).toBe(true);
+    expect(isIncomeBonusWasted(hardCapped, 'wealth_magnet')).toBe(true);
   });
 
-  it('still warns on wealth_magnet at the cap', () => {
-    expect(isIncomeBonusWasted(atCap, 'wealth_magnet')).toBe(true);
-  });
-
-  it('does NOT warn when the synergy would actually pay', () => {
+  it('does NOT warn when the synergy pays in full', () => {
     const roomToSpare = ['income_multiplier_1', 'income_multiplier_2'];
     expect(incomeGainFromPurchase(roomToSpare, 'synergy_wealth_master')).toBeCloseTo(0.15, 5);
     expect(isIncomeBonusWasted(roomToSpare, 'synergy_wealth_master')).toBe(false);
   });
 
   it('never warns about a bonus the cap has nothing to do with', () => {
+    const hardCapped = Array(40).fill('income_multiplier_3');
     for (const id of ['genius', 'social_master', 'immortality', 'synergy_learning_master']) {
-      expect(isIncomeBonusWasted(atCap, id)).toBe(false);
+      expect(isIncomeBonusWasted(hardCapped, id)).toBe(false);
     }
   });
 
-  it('the cap is the only thing clamping — raw and capped agree below it', () => {
+  it('below the soft cap, raw and effective agree', () => {
     const low = ['income_multiplier_1'];
     expect(getIncomeMultiplier(low)).toBeCloseTo(getRawIncomeMultiplier(low), 10);
   });

@@ -143,8 +143,6 @@ export function applyEducationProgression(
   if (Number.isFinite(experienceMult) && experienceMult > 1) {
     educationSpeedMultiplier *= Math.min(experienceMult, MAX_EXPERIENCE_MULTIPLIER);
   }
-  const educationDecrement = Math.max(1, Math.ceil(educationSpeedMultiplier));
-
   let pendingCampusEvent: string | undefined;
 
   // Seeded per-week roll stream (keyed on weeksLived + educationId) so exam
@@ -152,6 +150,22 @@ export function applyEducationProgression(
   // and consistent under StrictMode double-invoke — instead of raw Math.random()
   // inside runExam / shouldTriggerCampusEvent.
   const weeklyRoll = makeWeeklyRoll(input.nextWeeksLived);
+
+  // Weeks of progress this tick. Previously `Math.max(1, Math.ceil(mult))`,
+  // which quantized the whole learning-speed economy to integers: 1.10x
+  // (Quick Learner, 1,500 pts), 1.25x (Fast Learner, 5,000 pts) and 1.50x all
+  // became a decrement of 2 — identical outcomes at 3x the price, a "+10%"
+  // bonus that delivered +100%, and the 16,000-point Learning Master synergy
+  // (+0.20) usually swallowed whole by the ceil. The fractional part is now
+  // paid as a DETERMINISTIC weekly roll (floor + 1 extra week with probability
+  // = fraction), so the expected speed equals the purchased multiplier exactly
+  // while `weeksRemaining` stays an integer for every display and save.
+  const speedFloor = Math.floor(educationSpeedMultiplier);
+  const speedFraction = educationSpeedMultiplier - speedFloor;
+  const educationDecrement = Math.max(
+    1,
+    speedFloor + (speedFraction > 0 && weeklyRoll('education-speed') < speedFraction ? 1 : 0),
+  );
 
   // Defensive `|| []` like every sibling weekly helper — a stale save could
   // omit `educations`, and an unguarded .map() throws inside the weekly tick.

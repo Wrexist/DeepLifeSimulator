@@ -1,7 +1,15 @@
 import { GameState } from '@/contexts/game/types';
 import { completeAllPrograms } from '@/lib/education/operations';
+import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { getStockInfo } from '@/lib/economy/stockMarket';
 import { getBonusLevel } from './prestigeBonuses';
+
+/**
+ * The property `starting_real_estate` grants: the cheapest residential tier
+ * (the Studio Apartment). Chosen from the catalogue, not from state — see the
+ * comment at the grant site.
+ */
+const STARTING_PROPERTY = RESIDENTIAL_CATALOG[0];
 
 /**
  * Apply starting bonuses to game state
@@ -119,15 +127,33 @@ export function applyStartingBonuses(
     // Deduct the portfolio cost from money (already included in starting money)
   }
 
-  // Starting real estate bonus
+  // Starting real estate bonus.
+  //
+  // DEAD until 2026-08-23, by the same empty-collection trap as the education
+  // bonuses: it filtered `newState.realEstate` for an unowned property under
+  // $150k, but state only ever holds properties the player already BOUGHT
+  // (`RealEstateActions` appends on purchase; `initialState` is `[]`), so on a
+  // freshly reset life the filter always returned nothing and the
+  // 12,000-point epic granted zero. The property now comes from the CATALOGUE
+  // — the cheapest residential tier, built the way a purchase builds it, so
+  // the weekly housing/tenancy tick treats it like any bought property.
   if (unlockedBonuses.includes('starting_real_estate')) {
-    // Find a basic rental property to give
-    const basicProperties = (newState.realEstate || []).filter(
-      prop => !prop.owned && (prop.price || 0) <= 150000
+    const alreadyOwned = (newState.realEstate || []).some(
+      p => p.id === STARTING_PROPERTY.id && p.owned,
     );
-    if (basicProperties.length > 0) {
-      const property = basicProperties[0];
-      property.owned = true;
+    if (!alreadyOwned) {
+      newState.realEstate = [
+        ...(newState.realEstate || []).filter(p => p.id !== STARTING_PROPERTY.id),
+        {
+          ...STARTING_PROPERTY,
+          owned: true,
+          purchasePrice: STARTING_PROPERTY.price,
+          currentValue: STARTING_PROPERTY.price,
+          purchasedWeek: newState.weeksLived ?? 0,
+          condition: 90,
+          currentResidence: false,
+        },
+      ];
     }
   }
 
@@ -195,10 +221,37 @@ export function applyStartingBonuses(
 }
 
 /**
- * Hard ceiling on the combined prestige income multiplier (1.5 = +50%).
+ * The prestige income curve — a SOFT cap, not a cliff (2026-08-23 rebalance).
+ *
+ * The original design was a hard clamp: `min(1.5, sum)`. The anti-snowball
+ * intent was right (uncapped, the full catalogue stacks to 3.35x and each
+ * prestige cycle gets faster than the last), but a cliff means every point
+ * spent past +50% buys literally nothing — a tester stacked income bonuses,
+ * hit the wall, and correctly called the purchases "moot and wasteful". The
+ * shop warning added earlier made the wall visible; the owner's call was to
+ * fix the wall itself.
+ *
+ * The curve now:
+ *   - full effect up to `INCOME_SOFT_CAP` (+50%),
+ *   - excess above it applies at `INCOME_SOFT_CAP_RATE` (25 cents on the
+ *     dollar),
+ *   - absolute ceiling `INCOME_MULTIPLIER_CAP` (2.0x), which nothing in the
+ *     current catalogue can reach (fully stacked lands at ~1.96x) but which
+ *     bounds whatever gets added later.
+ *
+ * Every income purchase now grants SOMETHING, in strictly diminishing amounts,
+ * and the total a maxed player can reach moved +50% → ~+96% — for ~139,000
+ * points, most of a full prestige career. The snowball stays tamed: 1.96x is
+ * a far cry from the 3.35x the clamp was built against.
+ */
+export const INCOME_SOFT_CAP = 1.5;
+export const INCOME_SOFT_CAP_RATE = 0.25;
+
+/**
+ * Absolute ceiling on the combined prestige income multiplier.
  * Exported so the prestige shop can state it rather than re-deriving it.
  */
-export const INCOME_MULTIPLIER_CAP = 1.5;
+export const INCOME_MULTIPLIER_CAP = 2.0;
 
 /**
  * The income multiplier BEFORE the cap is applied — what the bonuses add up to
@@ -248,13 +301,14 @@ export function getRawIncomeMultiplier(unlockedBonuses: string[]): number {
  * @returns Total income multiplier (1.0 = no bonus)
  */
 export function getIncomeMultiplier(unlockedBonuses: string[]): number {
-  // ANTI-EXPLOIT: Cap total income multiplier (50% bonus max)
-  // Without cap, stacking all bonuses gives 2.35x+ which makes each prestige cycle faster
-  // than the last, creating an exponential snowball.
-  // The cap is EXPORTED because the shop has to show it: every income bonus
-  // advertised its headline number regardless of headroom, so a legendary
-  // bought at the cap was consumed and granted nothing.
-  return Math.min(INCOME_MULTIPLIER_CAP, getRawIncomeMultiplier(unlockedBonuses));
+  // ANTI-EXPLOIT, soft form: full effect to the soft cap, diminishing returns
+  // beyond it, hard ceiling last. See the constants above for the reasoning.
+  const raw = getRawIncomeMultiplier(unlockedBonuses);
+  const softened =
+    raw <= INCOME_SOFT_CAP
+      ? raw
+      : INCOME_SOFT_CAP + (raw - INCOME_SOFT_CAP) * INCOME_SOFT_CAP_RATE;
+  return Math.min(INCOME_MULTIPLIER_CAP, softened);
 }
 
 /**

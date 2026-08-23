@@ -7,6 +7,7 @@ import { logger } from '@/utils/logger';
 import { updateMoney } from './MoneyActions';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { rejectIfBlocked } from './_guards';
 import { ITEM_SELL_RATE } from '@/lib/config/gameConstants';
@@ -37,7 +38,13 @@ export const buyItem = (
   const basePrice = typeof item.price === 'number' && isFinite(item.price) && item.price >= 0 ? item.price : 0;
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
   
-  const price = getInflatedPrice(basePrice, priceIndex);
+  // Inflation × the prestige Premium Access discount — the SAME helper the
+  // market screen displays, so the price shown is the price charged (§4.4).
+  const price = getItemPurchasePrice(
+    basePrice,
+    priceIndex,
+    gameState.prestige?.unlockedBonuses,
+  );
   
   // CRITICAL: Validate calculated price before comparison
   if (!isFinite(price) || price < 0) {

@@ -1,23 +1,15 @@
 /**
  * How much of a prestige income bonus the player would actually receive.
  *
- * `getIncomeMultiplier` clamps the combined income bonuses to
- * `INCOME_MULTIPLIER_CAP` (1.5 = +50%). The cap is deliberate — uncapped
- * stacking makes each prestige cycle faster than the last — but nothing
- * surfaced it. `PrestigeShopModal` renders `bonus.description` verbatim, so
- * every card promised its headline number no matter how little room was left:
+ * `getIncomeMultiplier` runs the combined income bonuses through a SOFT cap:
+ * full effect to +50%, 25% effectiveness beyond it, hard ceiling at
+ * `INCOME_MULTIPLIER_CAP` (2.0x). See the curve's rationale in
+ * `applyBonuses.ts` — it replaced a hard clamp at 1.5 that consumed every
+ * point spent past the wall for nothing.
  *
- *   fully stacked, the bonuses advertise  3.35x (+235%)
- *   the player actually receives          1.50x  (+50%)
- *
- * Headroom is +0.50, and three levels of Small (+0.15) plus three of Moderate
- * (+0.30) already reach +0.45. After that *Wealth Magnet* — 40,000 points,
- * "+100% passive income" — grants exactly zero while the shop still shows
- * "+100%". Same class as the MON findings in this PR: a purchase consumed for
- * nothing.
- *
- * Nothing here changes the cap. It makes the cap legible so the choice stays
- * the player's.
+ * This module is what keeps the shop honest about that curve: the card notes
+ * and the banner state what a purchase would ACTUALLY add, which past the soft
+ * cap is a quarter of the headline number.
  *
  * Both functions answer by ASKING `getIncomeMultiplier` rather than
  * reimplementing the sum. A second copy of that arithmetic is the recurring
@@ -26,6 +18,7 @@
  */
 import {
   INCOME_MULTIPLIER_CAP,
+  INCOME_SOFT_CAP,
   getIncomeMultiplier,
   getRawIncomeMultiplier,
 } from './applyBonuses';
@@ -36,24 +29,34 @@ const safeList = (unlockedBonuses: string[] | undefined | null): string[] =>
 export interface IncomeHeadroom {
   /** The multiplier in force right now (what the week loop applies). */
   current: number;
-  /** The ceiling. */
+  /** The absolute ceiling. */
   cap: number;
-  /** How much more multiplier can still be gained. 0 once capped. */
+  /** The full-effect threshold — bonuses past it apply at reduced rate. */
+  softCap: number;
+  /** How much more multiplier can still be gained before the hard cap. */
   remaining: number;
-  /** True when no further income bonus can do anything. */
+  /** True when no further income bonus can do anything (hard ceiling). */
   atCap: boolean;
+  /**
+   * True once the RAW sum has passed the soft cap — from here on, every
+   * further income bonus applies at the reduced rate.
+   */
+  diminished: boolean;
 }
 
 export function incomeMultiplierHeadroom(
   unlockedBonuses: string[] | undefined | null,
 ): IncomeHeadroom {
-  const current = getIncomeMultiplier(safeList(unlockedBonuses));
+  const owned = safeList(unlockedBonuses);
+  const current = getIncomeMultiplier(owned);
   const remaining = Math.max(0, INCOME_MULTIPLIER_CAP - current);
   return {
     current,
     cap: INCOME_MULTIPLIER_CAP,
+    softCap: INCOME_SOFT_CAP,
     remaining,
     atCap: remaining <= 0,
+    diminished: getRawIncomeMultiplier(owned) > INCOME_SOFT_CAP,
   };
 }
 

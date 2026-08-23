@@ -88,7 +88,12 @@ export const POLITICAL_APPOINTMENTS: readonly AppointmentDefinition[] = [
     title: 'Federal Judge',
     blurb: 'A lifetime appointment. You cannot hold it and run for office at the same time.',
     weeklySalary: 2_800,
-    requirements: { minReputation: 65, education: ['law_degree'], barsElectedOffice: true },
+    // `law_school` is the law programme's id in lib/education/programs.ts.
+    // This shipped as `law_degree` — an id in NO catalogue — so the one
+    // appointment paying $2,800/wk was permanently unobtainable: a player who
+    // completed Law School still saw "You need: Law Degree". The same
+    // law_degree-vs-law_school confusion as the jail Legal Appeal bug (R3-C4).
+    requirements: { minReputation: 65, education: ['law_school'], barsElectedOffice: true },
     reputationOnTake: 10,
     partySupportPerWeek: -1,
   },
@@ -164,9 +169,9 @@ export function appointmentBlocker(
     const missing = req.education.filter((id) => !has(id));
     if (missing.length > 0) {
       const NAMES: Record<string, string> = {
-        law_degree: 'Law Degree',
+        law_school: 'Law School',
         business_degree: 'Business Degree',
-        political_science: 'Political Science Degree',
+        mba: 'MBA',
       };
       return `You need: ${missing.map((id) => NAMES[id] ?? id).join(', ')}.`;
     }

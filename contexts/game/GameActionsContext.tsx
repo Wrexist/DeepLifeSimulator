@@ -71,6 +71,7 @@ import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
+import { calculateActivePolicyEffects } from './actions/PoliticalActions';
 
 import { getLifeSkillModifiers , applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
@@ -1164,6 +1165,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    makeWeeklyRoll(nextWeeksLived),
    weeklyCtx,
    prevState.realEstateActivity,
+   unlockedBonuses,
  ), {
    weeklyRent: 0,
    updatedRealEstate: prevState.realEstate || [],
@@ -4107,6 +4109,27 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  approvalRating: Math.max(0, Math.min(100, (prevState.politics.approvalRating ?? 50) + approvalDelta)),
  policyInfluence: Math.max(0, Math.min(100, (prevState.politics.policyInfluence ?? 0) + influenceDelta)),
  };
+ }
+
+ // `effects.policy` — the bill the player just voted through. This was the one
+ // politics effect the DROPPED-effects fix above missed: the `policy_voting`
+ // event promised "Vote Yes (Will Pass)", paid its approval bump, and never
+ // appended the bill to `policiesEnacted` — so `activePolicyEffects` never
+ // aggregated it and none of its ongoing effects (inflation, education cost,
+ // healthcare, transportation) ever applied. Enact it the way `enactPolicy`
+ // does: dedup into the list, then recompute the aggregate with the same
+ // helper, so a bill passed by vote and a bill enacted from the Politics app
+ // are indistinguishable downstream.
+ if (effects.policy && effectsAffordable) {
+ const politicsBase = updatedPolitics ?? prevState.politics;
+ if (politicsBase && !(politicsBase.policiesEnacted || []).includes(effects.policy)) {
+ const enacted = [...(politicsBase.policiesEnacted || []), effects.policy];
+ updatedPolitics = {
+...politicsBase,
+ policiesEnacted: enacted,
+ activePolicyEffects: calculateActivePolicyEffects(enacted),
+ };
+ }
  }
 
  // CRITICAL: Return complete state with all properties preserved

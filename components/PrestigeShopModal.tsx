@@ -291,20 +291,17 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
               </ScrollView>
             </View>
 
-            {/* Income headroom, stated ONCE and up front.
-                The per-card note below only fires on the card you are looking
-                at, so a player browsing the Multiplier tab could read three
-                "+10% to all income sources" headlines before learning that the
-                combined bonus is clamped at +50%. A tester spent to the ceiling
-                and reported the stack as "moot and wasteful"; the cap is
-                deliberate anti-snowball design, so the fix is to make the
-                ceiling visible BEFORE the points are spent, not to lift it.
+            {/* Income curve, stated ONCE and up front.
+                Income bonuses apply in full up to the soft cap (+50%), at a
+                quarter strength beyond it, and stop at the hard ceiling. The
+                per-card note below shows the real grant per purchase; this
+                banner is where a player learns the SHAPE before spending.
                 Hidden at 1.0x, where there is nothing yet to explain. */}
             {incomeHeadroom.current > 1 && (
               <View
                 style={[
                   styles.headroomBanner,
-                  incomeHeadroom.atCap
+                  incomeHeadroom.atCap || incomeHeadroom.diminished
                     ? { borderColor: 'rgba(245, 158, 11, 0.35)', backgroundColor: 'rgba(245, 158, 11, 0.10)' }
                     : { borderColor: 'rgba(16, 185, 129, 0.35)', backgroundColor: 'rgba(16, 185, 129, 0.10)' },
                 ]}
@@ -312,12 +309,14 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                 <Text
                   style={[
                     styles.capNote,
-                    { marginTop: 0, color: incomeHeadroom.atCap ? '#f59e0b' : '#10b981' },
+                    { marginTop: 0, color: incomeHeadroom.atCap || incomeHeadroom.diminished ? '#f59e0b' : '#10b981' },
                   ]}
                 >
                   {incomeHeadroom.atCap
-                    ? `Income bonus +${Math.round((incomeHeadroom.cap - 1) * 100)}% — at the cap. Further income bonuses will grant nothing.`
-                    : `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% of a +${Math.round((incomeHeadroom.cap - 1) * 100)}% cap · +${Math.round(incomeHeadroom.remaining * 100)}% still available`}
+                    ? `Income bonus +${Math.round((incomeHeadroom.cap - 1) * 100)}% — hard cap reached. Further income bonuses grant nothing.`
+                    : incomeHeadroom.diminished
+                    ? `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% — past the +${Math.round((incomeHeadroom.softCap - 1) * 100)}% threshold, further income bonuses apply at ¼ strength (hard cap +${Math.round((incomeHeadroom.cap - 1) * 100)}%).`
+                    : `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% · full effect up to +${Math.round((incomeHeadroom.softCap - 1) * 100)}%, ¼ strength beyond, capped at +${Math.round((incomeHeadroom.cap - 1) * 100)}%`}
                 </Text>
               </View>
             )}
@@ -565,7 +564,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                               </Text>
                             ) : incomeWasted ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>
-                                No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% cap
+                                No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% hard cap
                               </Text>
                             ) : realIncomeGain > 0 ? (
                               <Text style={[styles.capNote, { color: '#10b981' }]}>

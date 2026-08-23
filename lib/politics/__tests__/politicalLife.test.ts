@@ -168,7 +168,10 @@ describe('appointed positions', () => {
   it('names the reason it is refused instead of returning a bare false', () => {
     const judge = findAppointment('federal_judge');
     expect(appointmentBlocker(judge, { ...anyone, hasEducation: () => false }))
-      .toMatch(/Law Degree/);
+      // 2026-08-23: the gate now names the REAL programme (law_school) — the
+      // old 'law_degree' id existed in no catalogue, so the post was
+      // permanently unobtainable.
+      .toMatch(/Law School/);
     expect(appointmentBlocker(findAppointment('ambassador'), { ...anyone, highestOfficeHeld: 0 }))
       .toMatch(/served as/);
     expect(appointmentBlocker(findAppointment('cabinet_secretary'), { ...anyone, party: undefined }))

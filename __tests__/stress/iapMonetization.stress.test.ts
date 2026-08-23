@@ -11,7 +11,7 @@
  *   - everythingUnlocked also enables ads-removed + lifetimePremium
  *   - Unknown productId returns false
  *   - NaN-corrupted state pre-application doesn't crash applyProductToState
- *   - Hook surface: useGame().buyStarterPack etc. routes through correctly
+ *   - Hook surface: the deleted log-only purchase stubs stay deleted
  */
 
 import React from 'react';
@@ -302,21 +302,17 @@ describe('IAP / Monetization audit', () => {
   });
 
   // ── HOOK ROUTE ─────────────────────────────────────────────────────────
-  it('Hook: useMoneyActions.buyStarterPack does not throw + leaves state clean', () => {
+  // `buyStarterPack` / `buyGoldPack` / `buyRevival` were DELETED 2026-08-23:
+  // log-only stubs named after real SKUs, whose real grants flow through
+  // IAPService.applyProductBenefitsToState (exercised above). This pin keeps
+  // them deleted — a revived stub would be a paid no-op waiting for a caller.
+  it('the log-only purchase stubs stay deleted from the money actions surface', () => {
     mounted = mountGame();
-    act(() => { captured!.money.buyStarterPack(); });
-    // buyStarterPack may be a no-op in test env without registered IAP — must not crash.
-    const issues = deepCheck(captured!.state);
-    expect(issues).toEqual([]);
-    const v = validateGameState(captured!.state);
-    expect(v.valid).toBe(true);
-  });
-
-  it('Hook: useMoneyActions.buyRevival does not throw + leaves state clean', () => {
-    mounted = mountGame();
-    act(() => { captured!.money.buyRevival(); });
-    const issues = deepCheck(captured!.state);
-    expect(issues).toEqual([]);
+    const money = captured!.money as unknown as Record<string, unknown>;
+    expect(money.buyStarterPack).toBeUndefined();
+    expect(money.buyGoldPack).toBeUndefined();
+    expect(money.buyRevival).toBeUndefined();
+    expect(money.applyPerkEffects).toBeUndefined();
   });
 
   // ── SAVE PIPELINE COMPATIBILITY ────────────────────────────────────────

@@ -115,15 +115,14 @@ describe('the registry still behaves, for the next dead bonus', () => {
     }
   });
 
-  it('names the three bonuses verified dead on 2026-08-21', () => {
+  it('is EMPTY — every dead bonus found so far has been wired (2026-08-23)', () => {
     // A ratchet, not a snapshot: an id LEAVING this list must be a deliberate
     // wiring, and one arriving must be a deliberate finding. Both should fail
-    // here first. `legacy_business` is deliberately absent — it was wired.
-    expect([...INERT_BONUS_IDS].sort()).toEqual([
-      'auto_manage_properties',
-      'early_item_access',
-      'early_real_estate',
-    ]);
+    // here first. The three 2026-08-21 entries left when the owner resolved
+    // the open product question to RE-PURPOSE: all three now have real effects
+    // in lib/prestige/purchaseDiscounts.ts (items −15%, properties −10%,
+    // rent +15%), covered by __tests__/prestige/purchaseDiscounts.test.ts.
+    expect([...INERT_BONUS_IDS]).toEqual([]);
   });
 
   it('each one is dead for the reason recorded, not by assertion', () => {

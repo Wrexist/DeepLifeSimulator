@@ -281,8 +281,11 @@ export const PRODUCT_CONFIGS = {
   
   [IAP_PRODUCTS.SKILL_BOOST]: {
     name: 'Skill Boost',
-    description: 'All skills +50 levels instantly',
-    skillBoost: 50,
+    // Was "+50 levels" — copy from the deleted hobby system. Pursuits run
+    // 0-10, so +50 is unfulfillable; +3 to all 18 pursuits (~150 practice
+    // sessions' worth of XP) is what the system can actually deliver.
+    description: 'All 18 pursuits +3 levels instantly',
+    skillBoost: 3,
     price: '$12.99',
     popular: false,
     bestValue: false,
@@ -343,7 +346,10 @@ export const PRODUCT_CONFIGS = {
   
   [IAP_PRODUCTS.UNLOCK_ALL_PERKS]: {
     name: 'Unlock All Perks',
-    description: 'Includes all perks above',
+    // "All perks above" was ambiguous: the shop renders this bundle FIRST in a
+    // section that also lists Remove Ads / Revival Pack / Lifetime Premium,
+    // none of which it includes. Name the four it grants.
+    description: 'Work Boost + Mindset + Fast Learner + Good Credit in one bundle',
     allPerks: true,
     price: '$6.99',
     popular: true,

@@ -36,6 +36,7 @@
 import type { RealEstate, RealEstateActivityEntry } from '@/contexts/game/types';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import * as housingModule from '@/lib/realEstate/housing';
+import { rentalIncomeMultiplier } from '@/lib/prestige/purchaseDiscounts';
 import { runRealEstateWeeklyTick } from '@/lib/realEstate/weeklyTick';
 import type { WeekContext } from './weekContext';
 
@@ -75,6 +76,8 @@ export function applyRentAndHousing(
   rollFor: (key: string) => number,
   ctx: WeekContext,
   prevActivity?: RealEstateActivityEntry[] | null,
+  /** Prestige bonus ids — feeds the Property Manager rent multiplier. */
+  unlockedBonuses?: string[],
 ): RentAndHousingResult {
   // v22 Wave A: accumulate durable activity entries from this week's notifications.
   const newActivity: RealEstateActivityEntry[] = [];
@@ -123,6 +126,9 @@ export function applyRentAndHousing(
       legacyRentalIncome: housingRentalIncome,
       currentWeek: nextWeeksLived,
       rollFor,
+      // Prestige Property Manager (+15% tenant rent). Applied inside the tick,
+      // before its $150K/wk cap.
+      rentalIncomeMultiplier: rentalIncomeMultiplier(unlockedBonuses),
     });
     updatedRealEstate = reTick.properties;
     housingRentalIncome = reTick.rentalIncome;

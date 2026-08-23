@@ -3992,3 +3992,67 @@ and against the UNCAPPED quantity, so a clamp cannot be mistaken for an absence.
   on while fixing a different bug would newly LOCK two careers for existing
   players. `checkCareerRequirements` reports it without blocking, so the gap is
   visible instead of invisible.
+
+---
+
+## 2026-08-23 (second pass) — The parallel audit: what three agents found, and the shapes worth keeping
+
+Owner authorized the deferred balance calls and a repo-wide incomplete-feature
+audit (three parallel agents: prestige wiring, monetization, incomplete
+features). 20+ confirmed findings, all verified against source before fixing.
+The recurring shapes, beyond the ones already recorded:
+
+**1. A REAL-MONEY grant can die when its target system is deleted.** The
+$12.99 `SKILL_BOOST` IAP looped `gameState.hobbies` — deprecated, seeded `[]`,
+written by nothing — so it executed zero iterations for every real save, and
+being a consumable it wrote no ownership flag, so it could be bought
+repeatedly. The gold `skill_mastery` upgrade was re-pointed at pursuits when
+hobbies died; the IAP doing the same job was missed. **When a system is
+removed, grep every PURCHASE that grants into it — gems, IAP, prestige,
+perks — not just the gameplay readers.**
+
+**2. The clamp-vs-baseline no-op.** `starting_energy` (+20 energy) and most of
+`perfect_start` are no-ops on the prestige RESET path because a fresh life
+already starts at 100 in health/happiness/energy. `Math.min(100, 100 + x)` is
+the whole effect. A "starting bonus" is only real relative to a baseline below
+the cap — check what the baseline IS on every path the bonus runs.
+
+**3. The missing maxLevel repurchase sink.** `canPurchaseBonus` returns true
+unconditionally when `maxLevel` is undefined, and boolean `includes()`-style
+effects can't stack — so eleven bonuses were purchasable forever at flat cost
+for zero additional effect. A boolean effect and an unbounded purchase count
+cannot coexist; the catalogue now caps all of them at 1.
+
+**4. A hard cap that eats purchases is a design bug wearing an anti-exploit
+badge.** The income clamp at 1.5x was correct about the snowball and wrong
+about the cliff: every point past the wall bought nothing. Soft cap now (full
+to +50%, quarter-strength beyond, ceiling 2.0x) — every purchase pays
+something, the snowball stays dead, and the shop states the curve. When an
+anti-exploit ceiling exists, ask what a purchase AT the ceiling buys; if the
+answer is "nothing, silently", the ceiling needs either a curve or a refusal.
+
+**5. Quantization swallows paid tiers.** `Math.ceil(speedMultiplier)` made
+1.10x, 1.25x and 1.50x identical — three price points, one behavior, and a
+"+10%" bonus delivering +100%. Fractional effects paid through a
+deterministic weekly roll keep integer state AND honest expected value. Any
+`ceil`/`floor` on a purchased multiplier is a place tiers go to die.
+
+**6. Two prestige paths must be diffed field-by-field.** `familyBusinesses`
+was carried by the heir path (under a "BUG FIX: preserve" comment) and
+silently dropped by the reset path — so the 30,000-point `legacy_business`
+bonus worked or died depending on which button you pressed at death. When a
+lifecycle has parallel paths, the carry-list is a contract; a field on one
+path and not the other is a bug until proven a decision.
+
+**7. The describer-file trap, again, in the info modal.** `PrestigeInfoModal`
+hand-copies effect strings per bonus id, so every re-purposed or re-tuned
+bonus needed ITS copy edited too — and the audit found it still advertising
+"-30% negative events" and "+100% passive income". A hand-maintained
+id→effect map in a display component is guaranteed drift; strings that exist
+in the catalogue should flow from the catalogue.
+
+**8. Writers, not just readers.** The legacy buffs (`mentor`/`luckyCharm`)
+had three wired consumers, a UI strip, and NO writer — the inverse of the
+usual dead-reader finding, invisible to reader-existence guards. For any
+optional state field, the audit question is symmetric: who reads it, AND who
+can ever set it?

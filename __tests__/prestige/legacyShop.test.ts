@@ -128,10 +128,18 @@ describe('C-11 — buying is a pure, idempotent reducer', () => {
 });
 
 describe('C-11 — the upgrades are head starts, not multipliers', () => {
-  it('every upgrade grants money, a stat, or reputation — nothing compounding', () => {
+  it('every upgrade grants money, a stat, reputation, or a TIMED buff — nothing compounding', () => {
+    // A timed buff is a head start, not a permanent multiplier: it expires on
+    // a weeksLived deadline, so generation N+1 is not strictly stronger than
+    // generation N forever. The anti-compounding rule stays for anything that
+    // does not expire.
     for (const u of LEGACY_UPGRADES) {
       expect(`${u.id}: ${u.effect.kind}`)
-        .toMatch(/: (money|stat|reputation)$/);
+        .toMatch(/: (money|stat|reputation|buff)$/);
+      if (u.effect.kind === 'buff') {
+        expect(u.effect.weeks).toBeGreaterThan(0);
+        expect(u.effect.weeks).toBeLessThanOrEqual(260); // ≤5 years — a head start, not a life
+      }
     }
   });
 

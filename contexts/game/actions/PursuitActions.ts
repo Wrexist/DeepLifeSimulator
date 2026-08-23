@@ -20,6 +20,7 @@ import {
   MAX_PURSUIT_LEVEL,
   type PursuitReward,
 } from '@/lib/pursuits/pursuitMastery';
+import { getSkillGainMultiplier } from '@/lib/prestige/applyBonuses';
 import { getCommitmentModifiers, updateCommitmentLevel } from '@/lib/commitments/commitmentSystem';
 
 const log = logger.scope('PursuitActions');
@@ -90,6 +91,19 @@ export const practicePursuit = (
   // precompute below so the projected level and the committed XP agree.
   if (gameState.goldUpgrades?.skill_mastery) {
     xpGain = Math.round(xpGain * 1.5);
+  }
+
+  // Prestige "Skill Mastery" bonus (skill_gain_multiplier, +20% skill gain).
+  // DEAD until 2026-08-23: getSkillGainMultiplier existed, was imported, was
+  // rendered in the info modal — and was called by no skill-gain path, so the
+  // 3,000-point purchase was consumed for nothing. Pursuits are the game's
+  // skill system, so this is the same seam the gold upgrade above wires into.
+  // Stacks multiplicatively with it, as two separately-bought boosts should.
+  const prestigeSkillMult = getSkillGainMultiplier(
+    gameState.prestige?.unlockedBonuses || [],
+  );
+  if (prestigeSkillMult > 1) {
+    xpGain = Math.round(xpGain * prestigeSkillMult);
   }
 
   const prevPursuit = gameState.pursuits?.[pursuitId] ?? { xp: 0, level: 0 };

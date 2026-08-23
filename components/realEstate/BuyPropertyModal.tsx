@@ -80,7 +80,7 @@ export default function BuyPropertyModal({ visible, property, gameState, weeklyI
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: theme.text }]}>Buy {property?.name}</Text>
               <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-                {formatMoney(property?.price ?? 0)} · Cash on hand {formatMoney(cash)}
+                {formatMoney(quote?.effectivePrice ?? property?.price ?? 0)} · Cash on hand {formatMoney(cash)}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(20))} style={minTouchTargetStyle} accessibilityRole="button" accessibilityLabel="Close">

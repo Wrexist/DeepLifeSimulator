@@ -30,7 +30,12 @@ const perkList: Perk[] = [
   {
     id: 'astute_planner',
     title: 'Astute Planner',
-    description: '+5% salary, -10% energy cost for work actions.',
+    // Was "+5% salary, -10% energy cost for work actions" — the energy-cost
+    // half had NO consumer anywhere (the only perk-effect readers are the
+    // stat-boost fold at character build and the income product in
+    // applyIncome), so half the card was unimplemented copy. Now says what
+    // the effects deliver.
+    description: '+5% income, +10 starting energy.',
     requirement: 'Reach the top rung of a six-level career ladder.',
     effects: { incomeMultiplier: 1.05, statBoosts: { energy: 10 } },
     unlock: { type: 'achievement', achievementId: 'career_summit' },
@@ -145,7 +150,11 @@ const perkList: Perk[] = [
   {
     id: 'crime_boss',
     title: 'Crime Boss',
-    description: '+10% earnings from street jobs.',
+    // Was "+10% earnings from street jobs" — perk income multipliers are a
+    // single unscoped product over TOTAL income (applyIncome.ts); no per-source
+    // filter exists, so the card promised a distinction the engine does not
+    // make. The player was getting MORE than advertised; the copy now matches.
+    description: '+10% all income.',
     requirement: 'Complete 100 street jobs.',
     effects: { incomeMultiplier: 1.1, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'street_grinder' },
@@ -185,7 +194,9 @@ const perkList: Perk[] = [
   {
     id: 'landlord',
     title: 'Landlord',
-    description: '+7% passive income from properties.',
+    // Was "+7% passive income from properties" — same unscoped-product
+    // reality as crime_boss above.
+    description: '+7% all income.',
     requirement: 'Own 10 properties.',
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'real_estate_tycoon' },
