@@ -78,7 +78,15 @@ export interface LegacyUpgrade {
   effect:
     | { kind: 'money'; amount: number }
     | { kind: 'stat'; stat: 'health' | 'happiness' | 'intelligence' | 'fitness'; amount: number }
-    | { kind: 'reputation'; amount: number };
+    | { kind: 'reputation'; amount: number }
+    /**
+     * A timed buff stamped onto the heir's `legacyBuffs` at birth, expiring
+     * `weeks` after their life starts. This is the WRITER the buff system was
+     * missing: `legacyBuffs.mentor` (+50% career progress) and `.luckyCharm`
+     * (+10% lucky-break chance) shipped with three wired consumers and a UI
+     * strip in work.tsx — and no code path that could ever set them.
+     */
+    | { kind: 'buff'; buff: 'mentor' | 'luckyCharm'; weeks: number };
 }
 
 export const LEGACY_UPGRADES: LegacyUpgrade[] = [
@@ -179,16 +187,28 @@ export const LEGACY_UPGRADES: LegacyUpgrade[] = [
   {
     id: 'legacy_influence',
     name: 'Quiet Influence',
-    description: 'Your heir starts with a further +25 reputation.',
+    // The clamp note is part of the card: prestigeExecution caps reputation
+    // at 100, and the Name branch's 20+25+30 can overflow it on a high-rep
+    // scenario. Say so BEFORE the points are spent.
+    description: 'Your heir starts with a further +25 reputation (reputation caps at 100).',
     cost: 300,
     branch: 'name',
     requires: 'legacy_name',
     effect: { kind: 'reputation', amount: 25 },
   },
   {
+    id: 'legacy_heirloom_charm',
+    name: 'The Heirloom Charm',
+    description: "A lucky keepsake, handed down: +10% lucky-break chance for your heir's first 2 years.",
+    cost: 220,
+    branch: 'name',
+    requires: 'legacy_name',
+    effect: { kind: 'buff', buff: 'luckyCharm', weeks: 104 },
+  },
+  {
     id: 'legacy_institution',
     name: 'A Family Institution',
-    description: 'The name is on a building. Your heir starts with a further +30 reputation.',
+    description: 'The name is on a building. Your heir starts with a further +30 reputation (reputation caps at 100).',
     cost: 900,
     branch: 'name',
     requires: 'legacy_influence',
@@ -221,6 +241,15 @@ export const LEGACY_UPGRADES: LegacyUpgrade[] = [
     branch: 'craft',
     requires: 'legacy_tutors',
     effect: { kind: 'stat', stat: 'intelligence', amount: 25 },
+  },
+  {
+    id: 'legacy_mentor',
+    name: 'A Family Mentor',
+    description: "An elder guides your heir: +50% career progress for their first 2 years.",
+    cost: 250,
+    branch: 'craft',
+    requires: 'legacy_tutors',
+    effect: { kind: 'buff', buff: 'mentor', weeks: 104 },
   },
   {
     id: 'legacy_contentment',
@@ -355,10 +384,12 @@ export interface HeirStartingBonuses {
   money: number;
   reputation: number;
   stats: Partial<Record<'health' | 'happiness' | 'intelligence' | 'fitness', number>>;
+  /** Timed buffs, as duration in weeks from the heir's life start. */
+  buffs: Partial<Record<'mentor' | 'luckyCharm', number>>;
 }
 
 export function heirStartingBonuses(owned: readonly string[] | undefined): HeirStartingBonuses {
-  const out: HeirStartingBonuses = { money: 0, reputation: 0, stats: {} };
+  const out: HeirStartingBonuses = { money: 0, reputation: 0, stats: {}, buffs: {} };
   if (!Array.isArray(owned)) return out;
 
   for (const id of new Set(owned)) {
@@ -367,6 +398,7 @@ export function heirStartingBonuses(owned: readonly string[] | undefined): HeirS
     const e = upgrade.effect;
     if (e.kind === 'money') out.money += e.amount;
     else if (e.kind === 'reputation') out.reputation += e.amount;
+    else if (e.kind === 'buff') out.buffs[e.buff] = Math.max(out.buffs[e.buff] ?? 0, e.weeks);
     else out.stats[e.stat] = (out.stats[e.stat] ?? 0) + e.amount;
   }
   return out;

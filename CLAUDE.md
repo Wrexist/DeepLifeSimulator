@@ -178,8 +178,9 @@ Pipeline lives in `utils/`: `saveValidation.ts` (validate + `repairGameState`),
   `EXPO_PUBLIC_*` env vars. `BORING_BUILD_MODE` (default **on in `__DEV__`**)
   disables AdMob, IAP, analytics, notifications and ATT for a stable baseline.
 - Native-SDK flags are **opt-in** (`=== 'true'`): `adMob`, `firebaseAnalytics`,
-  `revenueCat`, `iap`, `att`. Sentry `analytics` is hard-disabled (iOS 26
-  TurboModule crash). Production values are set per-profile in `eas.json`.
+  `revenueCat`, `iap`, `att`. There is no Sentry `analytics` flag any more —
+  Sentry was removed after the iOS 26 TurboModule crash and the flag had zero
+  readers, so it was deleted (2026-08-23) like the `notifications` flag below. Production values are set per-profile in `eas.json`.
   `iap` and `att` were the two exceptions until 2026-08-16 — they read
   `!== 'false'`, so they were ON in any profile that simply did not mention the
   variable, which is exactly what `preview` and `development` do. An internal

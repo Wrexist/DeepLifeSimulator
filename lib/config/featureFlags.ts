@@ -30,8 +30,13 @@ export const FEATURE_FLAGS = {
   // eas.json, as do all four local/cloud build workflows.
   iap: !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_IAP === 'true',
 
-  // Analytics (Sentry, etc.) - DISABLED for iOS 26 compatibility (native TurboModule crash)
-  analytics: false, // !BORING_BUILD_MODE && process.env.EXPO_PUBLIC_ENABLE_ANALYTICS !== 'false',
+  // NOTE: there is no `analytics` flag any more. It was Sentry's kill switch,
+  // hard-set to `false` after the iOS 26 TurboModule crash — and once Sentry
+  // was out, the flag had ZERO readers (AnalyticsService consults `telemetry`
+  // and `firebaseAnalytics` only), so it sat here reading as a working kill
+  // switch that switched nothing. Same reasoning as the removed
+  // `notifications` flag below. If a crash-reporting SDK returns, add a flag
+  // WITH its reader in the same change.
 
   // Telemetry (Wave 0.1): pure-JS, fetch-based event pipeline — NO native SDK,
   // so it is safe to enable independently of the disabled Sentry `analytics`
@@ -96,17 +101,14 @@ export const FEATURE_FLAGS = {
   // flag had zero readers — a flag nobody consults is worse than none, because
   // it reads as a working kill switch.
 
-  // Boot breadcrumbs (always enabled for crash diagnosis)
-  bootBreadcrumbs: true,
-
-  // Weekly event "Heads Up" pop-ups — DISABLED by default. Players reported they
-  // interrupted the Next Week flow on nearly every tick. Disabling stops the
-  // WeeklyEventModal from ever appearing (random events, story chains, seasonal,
-  // and economic-event notifications) and clears any backlog from old saves.
-  // Note: the underlying economy simulation (recession/boom effects) is unaffected
-  // — only the interrupting notification pop-up is suppressed.
-  // Opt back in with EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS=true.
-  weeklyEvents: process.env.EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS === 'true',
+  // NOTE: `bootBreadcrumbs` and `weeklyEvents` are gone too (2026-08-23) —
+  // both had zero readers. Boot breadcrumbs are imported directly from
+  // `lib/utils/bootBreadcrumbs` with no gate, and the weekly-event gate was
+  // removed when events moved to the non-blocking inbox (WeeklyEventModal
+  // renders from `showEventInbox`; `applyWeeklyEvents` runs unconditionally).
+  // `weeklyEvents` was the worst of the three: its comment promised that
+  // EXPO_PUBLIC_ENABLE_WEEKLY_EVENTS toggles the popups, and the variable did
+  // nothing at all.
 } as const;
 
 /**

@@ -12,7 +12,6 @@ import { storeInVault, removeFromVault } from '@/lib/dynasty/vault';
 import { claimEndowment } from '@/lib/dynasty/endowment';
 import { addPendingTrial, removePendingTrial } from '@/lib/dynasty/trials';
 import { buySeatWing } from '@/lib/dynasty/seat';
-import { applyStartingBonuses , getIncomeMultiplier, getExperienceMultiplier, getEnergyRegenMultiplier, getStatDecayMultiplier, getSkillGainMultiplier, getRelationshipGainMultiplier, hasImmortality } from '@/lib/prestige/applyBonuses';
 import { validateMoneyInvariants } from '@/utils/stateInvariants';
 import { applyUnlockBonuses, hasEarlyCareerAccess } from '@/lib/prestige/applyUnlocks';
 import { shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
@@ -31,14 +30,10 @@ interface MoneyActionsContextType {
   // Money & Economy
   updateMoney: (amount: number, reason: string, updateDailySummary?: boolean) => void;
   batchUpdateMoney: (transactions: {amount: number, reason: string}[]) => void;
-  applyPerkEffects: (baseValue: number, perkType: string) => number;
 
   // IAP & Perks
-  buyStarterPack: () => void;
-  buyGoldPack: () => void;
   /** Returns true only when the purchase was actually applied (M8). */
   buyGoldUpgrade: (upgradeId: string) => boolean;
-  buyRevival: () => void;
 
   // Crypto
   buyCrypto: (cryptoId: string, amount: number) => void;
@@ -209,43 +204,19 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     for (const leg of legs) updateMoney(leg.amount, leg.reason);
   }, [updateMoney]);
 
-  const applyPerkEffects = useCallback((baseValue: number, perkType: string): number => {
-    const state = getGameState();
-    if (!state) return baseValue;
-
-    let multiplier = 1;
-
-    switch (perkType) {
-      case 'income':
-        if (state.goldUpgrades?.work_boost) multiplier *= 1.5;
-        if (state.perks?.workBoost) multiplier *= 1.5;
-        break;
-      case 'experience':
-        if (state.goldUpgrades?.fast_learner) multiplier *= 1.5;
-        if (state.perks?.fastLearner) multiplier *= 1.5;
-        break;
-      case 'energy':
-        if (state.goldUpgrades?.mindset) multiplier *= 1.5;
-        if (state.perks?.mindset) multiplier *= 1.5;
-        break;
-      case 'relationship':
-        // No current perk affects relationships
-        break;
-    }
-
-    return Math.round(baseValue * multiplier);
-  }, []);
-
-  // IAP & Perks Actions
-  const buyStarterPack = useCallback(() => {
-    // Implementation for starter pack purchase
-    logger.info('Starter pack purchase initiated');
-  }, []);
-
-  const buyGoldPack = useCallback(() => {
-    // Implementation for gold pack purchase
-    logger.info('Gold pack purchase initiated');
-  }, []);
+  /*
+   * DELETED 2026-08-23: `applyPerkEffects`. It branched on
+   * `goldUpgrades.work_boost` / `.fast_learner` / `.mindset` — three ids that
+   * exist in no catalogue and that nothing ever writes — and it had ZERO call
+   * sites: the perks it appeared to wire are actually consumed in
+   * `weeklySalary.ts`, `applyCareerProgress`, `applyEducationProgression` and
+   * `applyIncome`. A plausible-looking second wiring for effects the first
+   * wiring already applies is exactly how double-application bugs start.
+   * `buyStarterPack` / `buyGoldPack` / `buyRevival` went with it: log-only
+   * stubs named after three real SKUs (the real grants flow through
+   * `IAPService.applyProductBenefitsToState`), so a future caller wiring a
+   * purchase button to one would ship a paid no-op.
+   */
 
   /**
    * Buy a gem upgrade. Returns TRUE only when the purchase was actually applied.
@@ -321,11 +292,6 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     logger.info('Gold upgrade purchased:', { upgradeId, name: preview.upgrade.name, cost: preview.cost });
     return true;
   }, [setGameState, showError, getGameState]);
-
-  const buyRevival = useCallback(() => {
-    // Implementation for revival purchase
-    logger.info('Revival purchase initiated');
-  }, []);
 
   // Crypto Actions
   const buyCrypto = useCallback((cryptoId: string, amount: number) => {
@@ -835,11 +801,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   const value = useMemo<MoneyActionsContextType>(() => ({
     updateMoney,
     batchUpdateMoney,
-    applyPerkEffects,
-    buyStarterPack,
-    buyGoldPack,
     buyGoldUpgrade,
-    buyRevival,
     buyCrypto,
     sellCrypto,
     swapCrypto,
@@ -852,7 +814,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     swearDynastyTrial: swearDynastyTrialAction,
     withdrawDynastyTrial: withdrawDynastyTrialAction,
     buyDynastySeatWing: buyDynastySeatWingAction,
-  }), [updateMoney, batchUpdateMoney, applyPerkEffects, buyStarterPack, buyGoldPack, buyGoldUpgrade, buyRevival, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction, claimLegacyContractAction, storeInDynastyVaultAction, removeFromDynastyVaultAction, claimDynastyEndowmentAction, swearDynastyTrialAction, withdrawDynastyTrialAction, buyDynastySeatWingAction]);
+  }), [updateMoney, batchUpdateMoney, buyGoldUpgrade, buyCrypto, sellCrypto, swapCrypto, purchasePrestigeBonus, purchaseLegacyUpgradeAction, claimLegacyContractAction, storeInDynastyVaultAction, removeFromDynastyVaultAction, claimDynastyEndowmentAction, swearDynastyTrialAction, withdrawDynastyTrialAction, buyDynastySeatWingAction]);
 
   return (
     <MoneyActionsContext.Provider value={value}>

@@ -116,6 +116,26 @@ export interface IncomeTickResult {
   totalIncome: number;
 }
 
+/**
+ * Perks whose cards promise a SPECIFIC income source. Until 2026-08-23 all
+ * perk `incomeMultiplier`s landed in one unscoped product over TOTAL income —
+ * a `landlord` picked for a property build and a `crime_boss` picked for a
+ * crime build were the same perk with different numbers, and both quietly
+ * boosted salary, dividends and everything else. Each is now applied AT its
+ * promised source (crime_boss: street-job payouts in JobActions; landlord:
+ * rental income in applyRentAndHousing; financial_guru: the career-salary
+ * term below) and EXCLUDED from the global product here, so nothing applies
+ * twice. `astute_planner` stays global — its card says "+5% income".
+ */
+export const SOURCE_SCOPED_PERK_IDS: ReadonlySet<string> = new Set([
+  'crime_boss',
+  'landlord',
+  'financial_guru',
+]);
+
+/** financial_guru: +7% career salary (its card's actual promise). */
+export const FINANCIAL_GURU_SALARY_MULT = 1.07;
+
 export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
   // 1. Partner/spouse income (25% of the HIGHEST-earning qualifying partner).
   // EXPLOIT FIX: previously this summed 25% of EVERY partner/spouse with score
@@ -136,7 +156,10 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
     : 1.0;
 
   // 3. Base total income (pre-multipliers, pre-beginner-luck).
-  let baseTotalIncome = input.careerSalary + input.passiveIncome + partnerIncome + input.pulseEarnings;
+  // financial_guru is a SOURCE-SCOPED perk: +7% on the salary term only.
+  const guruSalaryMult = input.prevState.perks?.financial_guru ? FINANCIAL_GURU_SALARY_MULT : 1;
+  let baseTotalIncome = Math.round(input.careerSalary * guruSalaryMult)
+    + input.passiveIncome + partnerIncome + input.pulseEarnings;
 
   // 4. Beginner luck bonus (weeks 0-19). DETERMINISM FIX: was seeded off
   // `Math.sin(weeksLivedNow*777+42)*10000` fractional parts. ECMAScript doesn't
@@ -180,6 +203,10 @@ export function computeWeeklyIncome(input: IncomeTickInput): IncomeTickResult {
   if (input.prevState.perks) {
     for (const [perkId, isActive] of Object.entries(input.prevState.perks)) {
       if (!isActive) continue;
+      // Source-scoped perks are paid at their source, never here (see
+      // SOURCE_SCOPED_PERK_IDS above) — including one in both places would
+      // double-apply it.
+      if (SOURCE_SCOPED_PERK_IDS.has(perkId)) continue;
       const perk = perksCatalog.find((p) => p.id === perkId);
       const mult = perk?.effects?.incomeMultiplier;
       if (typeof mult === 'number' && mult > 0 && mult !== 1) {

@@ -83,14 +83,21 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     description: '+10 starting reputation',
     category: 'starting',
     cost: 1500,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'uncommon',
   },
   {
     id: 'starting_energy',
     name: 'Vigorous Start',
-    description: '+20 starting energy',
+    // The +20 grant is real only for heirs (a fresh reset life already starts
+    // at 100 energy); the first-year regen boost is the half that works on
+    // every path — see getStartingEnergyRegenMultiplier.
+    description: '+20 starting energy and +25% energy regen for your first year',
     category: 'starting',
     cost: 2000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'uncommon',
   },
 
@@ -155,6 +162,8 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     description: '+20% skill gain rate',
     category: 'multiplier',
     cost: 3000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'rare',
   },
   {
@@ -163,6 +172,8 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     description: '-25% stat decay rate',
     category: 'multiplier',
     cost: 4000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'rare',
   },
 
@@ -188,7 +199,9 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'early_item_access',
     name: 'Premium Access',
-    description: 'Unlock premium items early',
+    // Re-purposed 2026-08-23 (was "Unlock premium items early" — no premium
+    // tier ever existed; see lib/prestige/purchaseDiscounts.ts).
+    description: 'Item shop prices reduced by 15%',
     category: 'unlock',
     cost: 4000,
     rarity: 'rare',
@@ -197,7 +210,9 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'early_real_estate',
     name: 'Real Estate Mogul',
-    description: 'Access real estate at age 18',
+    // Re-purposed 2026-08-23 (was "Access real estate at age 18" — there was
+    // never an age gate; see lib/prestige/purchaseDiscounts.ts).
+    description: 'Property purchase prices reduced by 10%',
     category: 'unlock',
     cost: 6000,
     rarity: 'epic',
@@ -220,14 +235,20 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     description: 'Automatically rest when energy < 20%',
     category: 'qol',
     cost: 3000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'uncommon',
   },
   {
     id: 'auto_manage_properties',
     name: 'Property Manager',
-    description: 'Automatically collect rent from properties',
+    // Re-purposed 2026-08-23 (was "Automatically collect rent" — rent was
+    // already collected for everyone; see lib/prestige/purchaseDiscounts.ts).
+    description: '+15% rental income from tenants',
     category: 'qol',
     cost: 5000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'rare',
   },
   {
@@ -236,6 +257,8 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     description: 'Automatically reinvest stock dividends',
     category: 'qol',
     cost: 4000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'rare',
   },
   {
@@ -244,14 +267,21 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
     description: '+50% energy regeneration rate',
     category: 'qol',
     cost: 6000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'epic',
   },
   {
     id: 'reduced_event_frequency',
     name: 'Stable Life',
-    description: '-30% negative event frequency',
+    // Same correction as event_frequency_boost below: events carry no
+    // positive/negative tag, so this suppresses windfalls and promotions along
+    // with the disasters. Say so.
+    description: '-30% life event frequency (good and bad)',
     category: 'qol',
     cost: 7000,
+    // Boolean effect — a second copy adds nothing, so cap the purchase.
+    maxLevel: 1,
     rarity: 'epic',
   },
 
@@ -344,7 +374,10 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'event_frequency_boost',
     name: 'Eventful Life',
-    description: '+25% positive event frequency',
+    // Events carry no positive/negative tag anywhere in lib/events/engine.ts,
+    // so the old "+25% POSITIVE event frequency" copy promised a filter that
+    // does not exist — the multiplier raises ALL event rolls. Say so.
+    description: '+25% life event frequency (good and bad)',
     category: 'multiplier',
     cost: 5000,
     rarity: 'rare',
@@ -353,7 +386,12 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'achievement_progress_multiplier',
     name: 'Achievement Hunter',
-    description: '+20% achievement progress rate',
+    // Re-wired 2026-08-23. "+20% achievement progress rate" had NO consumer —
+    // achievements complete on thresholds, so a progress rate was never a
+    // thing this game computes. The effect is now +20%/level on the prestige
+    // points achievements pay at prestige (lib/prestige/prestigePoints.ts),
+    // which is what an achievement hunter actually wants from this shop.
+    description: '+20% prestige points from achievements',
     category: 'multiplier',
     cost: 4000,
     rarity: 'rare',
@@ -362,7 +400,12 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'reputation_gain_multiplier',
     name: 'Reputation Builder',
-    description: '+30% reputation gain',
+    // What this has ALWAYS been plumbed as: it feeds
+    // getRelationshipGainMultiplier, which scales relationship-score gains.
+    // stats.reputation gains are scattered across dozens of call sites with no
+    // central choke point, so the old "+30% reputation gain" copy described a
+    // wiring that never existed. The copy now matches the machine.
+    description: '+30% relationship gains from social interactions',
     category: 'multiplier',
     cost: 3500,
     rarity: 'uncommon',

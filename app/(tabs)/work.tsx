@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
 import { paidCareerCeiling, paidWeeklyCareerSalary, paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -580,24 +581,14 @@ function WorkScreenContent() {
 
 
     const canApplyForCareer = (career: Career) => {
-        const meetsFitness =
-            !('fitness' in career.requirements && career.requirements.fitness) ||
-            (gameState?.stats?.fitness ?? 0) >= career.requirements.fitness;
-        const hasItems =
-            !('items' in career.requirements && career.requirements.items) ||
-            career.requirements.items.every((itemId: string) =>
-                (gameState.items || []).find(item => item.id === itemId)?.owned
-            );
-        // Check for early career access bonus
-        const { hasEarlyCareerAccess } = require('@/lib/prestige/applyUnlocks');
-        const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
-        const hasEarlyAccess = hasEarlyCareerAccess(unlockedBonuses);
-        const hasEducation =
-            hasEarlyAccess ||
-            !('education' in career.requirements && career.requirements.education) ||
-            (career.requirements.education && career.requirements.education.every((educationId: string) =>
-                (gameState.educations || []).find(e => e.id === educationId)?.completed
-            ));
+        // Education + fitness + items, evaluated by the SAME helper
+        // `applyForJob` uses, so the button and the action can no longer
+        // disagree. The `early_career_access` prestige bonus waives the whole
+        // block there — it used to waive education only, which is why a player
+        // who bought "Unlock all careers from start" still could not apply to
+        // the 8 education-gated careers that also want a suit, a computer or a
+        // fitness score.
+        const requirementCheck = checkCareerRequirements(career.requirements, gameState);
         const pendingApplication = gameState.careers.some(
             (c: Career) => c.applied && !c.accepted
         );
@@ -606,9 +597,7 @@ function WorkScreenContent() {
         // not just in the card, so the bar is a real gate rather than a label.
         const meetsHiringBar = evaluateHiring(getEntryJobProfile(career.id), gameState).eligible;
         return (
-            meetsFitness &&
-            hasItems &&
-            hasEducation &&
+            requirementCheck.met &&
             meetsHiringBar &&
             !career.applied &&
             !gameState.currentJob &&
@@ -623,14 +612,16 @@ function WorkScreenContent() {
     const renderCareerCard = (career: Career): React.ReactElement => {
         // CareerRequirements types `fitness`/`items` directly, so no `as any`
         // needed (was a rule-2 violation that bypassed the narrowed type).
+        // Chip TONES come from the same shared check the Apply button and
+        // applyForJob use, so a requirement the prestige bonus waives shows
+        // met on the card instead of red next to an enabled button.
+        const cardReqCheck = checkCareerRequirements(career.requirements, gameState);
         const requiresFitness = !!career.requirements.fitness;
-        const meetsFitness = !requiresFitness || (gameState?.stats?.fitness ?? 0) >= (career.requirements.fitness ?? 0);
+        const meetsFitness = !cardReqCheck.fitnessShortfall;
         const requiresEdu = !!('education' in career.requirements && career.requirements.education && career.requirements.education.length > 0);
-        const hasEdu =
-            !requiresEdu ||
-            ('education' in career.requirements && (career.requirements.education ?? []).every((eid: string) =>
-                !!(gameState.educations || []).find(e => e.id === eid)?.completed
-            ));
+        const hasEdu = cardReqCheck.missingEducation.length === 0;
+        const requiresReputation = !!career.requirements.reputation;
+        const meetsReputation = !cardReqCheck.reputationShortfall;
         const requiresItems = !!('items' in career.requirements && career.requirements.items && career.requirements.items.length > 0);
         const missingItemNames: string[] = requiresItems
             ? (career.requirements.items ?? [])
@@ -682,6 +673,16 @@ function WorkScreenContent() {
                 icon: <Briefcase size={scale(13)} color={hasEdu ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
                 value: hasEdu ? 'Education met' : 'Education needed',
                 tone: hasEdu ? 'default' : 'bad',
+            });
+        }
+        // Reputation gate (Politician 20+, Celebrity 30+) — enforced as of
+        // 2026-08-23, so the card must say so rather than leaving a disabled
+        // Apply button unexplained.
+        if (requiresReputation) {
+            metadata.push({
+                icon: <Star size={scale(13)} color={meetsReputation ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
+                value: `Reputation ${career.requirements.reputation}+`,
+                tone: meetsReputation ? 'default' : 'bad',
             });
         }
         metadata.push({

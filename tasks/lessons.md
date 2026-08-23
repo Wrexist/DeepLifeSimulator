@@ -3962,3 +3962,179 @@ answers that, ignoring imports, comments and the declaration itself.
 **Corollary for dead code.** The five uncalled helpers were deleted rather than
 left in place. Leaving them is what made the bonuses look wired for years — and
 it is why removing them dropped the lint ceiling 842 → 797 as a side effect.
+
+---
+
+## 2026-08-23 — A bonus can read the RIGHT field and still grant nothing: the empty-collection trap
+
+A tester (BBQ) reported the prestige shop as broken and named five things. Four
+reproduced. Two of them are the same new failure mode, and it is one the
+`prestigeBonusReaders` guard from 2026-08-21 is structurally blind to.
+
+| Bonus | Points | Advertised | What it did |
+|---|---|---|---|
+| `early_education_access` | 3,000 | "Start with all educations completed" | nothing |
+| `legacy_education` | 15,000 | "Future generations start with all educations" | nothing |
+
+Both had a real, non-hollow reader. Both wrote to the right field with the right
+value:
+
+```ts
+newState.educations = (newState.educations || []).map(edu => ({
+  ...edu, completed: true, weeksRemaining: undefined,
+}));
+```
+
+`gameState.educations` is the player's **enrolment record**, not a catalogue. It
+is `[]` at the start of every life and only grows when they enrol
+(`lib/education/operations.ts`). `[].map(...)` is `[]`. The bonus fires, mutates
+the correct field, and completes zero courses — for the entire life of the
+feature, on the one path ("start with…") where the list is guaranteed empty.
+
+**The rule.** A reader-existence check answers "is this id read?". It cannot
+answer "does the read produce anything?". When an effect is expressed as a
+transform over a collection, ask **where that collection comes from and what it
+holds at the moment the effect runs.** A `.map`/`.filter`/`.forEach` over a
+player-progress list, executed on a freshly-reset state, is the shape to
+distrust: it is indistinguishable from working code at every level short of
+running it. The fix is always the same — source the set from the CATALOGUE, the
+only place the full set exists.
+
+**Why nobody could write that fix before.** The catalogue lived in
+`components/mobile/EducationApp.tsx` as a module-local `const CATALOG`, and
+`lib/` may not import values from `components/` (CLAUDE.md §5). The correct
+implementation was not reachable from where the bonus lives, so the reachable
+approximation shipped instead. **A lint boundary that makes the right answer
+unreachable will get a wrong one written against it.** When data a `lib/` module
+needs sits in a component, move the data — do not code around the wall. It is
+now `lib/education/programs.ts`.
+
+### Two more from the same report
+
+**`early_career_access` (5,000, "Unlock all careers from start") lifted the
+`education` requirement only** — `fitness` and `items` still gated, and 8 of the
+15 education-gated careers carry one. The gate was ALSO evaluated twice, in
+`work.tsx` (button) and `JobActions` (action), and the two disagreed about
+fitness. Same lesson as `weeklyCareerSalary`: a rule enforced in two places is a
+rule with two answers. There is one `checkCareerRequirements` now.
+
+**`isIncomeBonusWasted` exempted the one bonus most likely to be wasted.** It
+decided "is this an income bonus?" by probing `getIncomeMultiplier([bonusId])`
+on an EMPTY list. `synergy_wealth_master` (18,000, epic) pays +15% only once two
+income bonuses are owned, so on an empty list it contributes 0, was classified
+"not an income bonus", and was the only income card that never showed the +50%
+cap warning — while the cap ate all of it.
+
+**The rule.** A capability probe run on a clean slate answers a question about
+the clean slate, not about the player. Probe against **what they actually own**,
+and against the UNCAPPED quantity, so a clamp cannot be mistaken for an absence.
+`getRawIncomeMultiplier` exists for exactly that split.
+
+### What was deliberately NOT changed
+
+- `INCOME_MULTIPLIER_CAP = 1.5`. The tester is right that stacked income buffs
+  are wasteful at the ceiling; the cap is documented anti-snowball design and
+  changing it is the owner's call. The bug was the shop's silence, so the
+  ceiling is now stated up front in the shop header, not only per-card.
+- Refusing a zero-effect purchase. Tempting, and wrong: `prestige_bonuses_all`
+  measures completion against `PURCHASABLE_PRESTIGE_BONUSES`, so blocking the
+  sale would trade a wasted purchase for a 25,000-point achievement that can
+  never complete — the trap `prestigeBonuses.ts` already warns about.
+- `career.requirements.reputation`, which no build has ever enforced. Turning it
+  on while fixing a different bug would newly LOCK two careers for existing
+  players. `checkCareerRequirements` reports it without blocking, so the gap is
+  visible instead of invisible.
+
+---
+
+## 2026-08-23 (second pass) — The parallel audit: what three agents found, and the shapes worth keeping
+
+Owner authorized the deferred balance calls and a repo-wide incomplete-feature
+audit (three parallel agents: prestige wiring, monetization, incomplete
+features). 20+ confirmed findings, all verified against source before fixing.
+The recurring shapes, beyond the ones already recorded:
+
+**1. A REAL-MONEY grant can die when its target system is deleted.** The
+$12.99 `SKILL_BOOST` IAP looped `gameState.hobbies` — deprecated, seeded `[]`,
+written by nothing — so it executed zero iterations for every real save, and
+being a consumable it wrote no ownership flag, so it could be bought
+repeatedly. The gold `skill_mastery` upgrade was re-pointed at pursuits when
+hobbies died; the IAP doing the same job was missed. **When a system is
+removed, grep every PURCHASE that grants into it — gems, IAP, prestige,
+perks — not just the gameplay readers.**
+
+**2. The clamp-vs-baseline no-op.** `starting_energy` (+20 energy) and most of
+`perfect_start` are no-ops on the prestige RESET path because a fresh life
+already starts at 100 in health/happiness/energy. `Math.min(100, 100 + x)` is
+the whole effect. A "starting bonus" is only real relative to a baseline below
+the cap — check what the baseline IS on every path the bonus runs.
+
+**3. The missing maxLevel repurchase sink.** `canPurchaseBonus` returns true
+unconditionally when `maxLevel` is undefined, and boolean `includes()`-style
+effects can't stack — so eleven bonuses were purchasable forever at flat cost
+for zero additional effect. A boolean effect and an unbounded purchase count
+cannot coexist; the catalogue now caps all of them at 1.
+
+**4. A hard cap that eats purchases is a design bug wearing an anti-exploit
+badge.** The income clamp at 1.5x was correct about the snowball and wrong
+about the cliff: every point past the wall bought nothing. Soft cap now (full
+to +50%, quarter-strength beyond, ceiling 2.0x) — every purchase pays
+something, the snowball stays dead, and the shop states the curve. When an
+anti-exploit ceiling exists, ask what a purchase AT the ceiling buys; if the
+answer is "nothing, silently", the ceiling needs either a curve or a refusal.
+
+**5. Quantization swallows paid tiers.** `Math.ceil(speedMultiplier)` made
+1.10x, 1.25x and 1.50x identical — three price points, one behavior, and a
+"+10%" bonus delivering +100%. Fractional effects paid through a
+deterministic weekly roll keep integer state AND honest expected value. Any
+`ceil`/`floor` on a purchased multiplier is a place tiers go to die.
+
+**6. Two prestige paths must be diffed field-by-field.** `familyBusinesses`
+was carried by the heir path (under a "BUG FIX: preserve" comment) and
+silently dropped by the reset path — so the 30,000-point `legacy_business`
+bonus worked or died depending on which button you pressed at death. When a
+lifecycle has parallel paths, the carry-list is a contract; a field on one
+path and not the other is a bug until proven a decision.
+
+**7. The describer-file trap, again, in the info modal.** `PrestigeInfoModal`
+hand-copies effect strings per bonus id, so every re-purposed or re-tuned
+bonus needed ITS copy edited too — and the audit found it still advertising
+"-30% negative events" and "+100% passive income". A hand-maintained
+id→effect map in a display component is guaranteed drift; strings that exist
+in the catalogue should flow from the catalogue.
+
+**8. Writers, not just readers.** The legacy buffs (`mentor`/`luckyCharm`)
+had three wired consumers, a UI strip, and NO writer — the inverse of the
+usual dead-reader finding, invisible to reader-existence guards. For any
+optional state field, the audit question is symmetric: who reads it, AND who
+can ever set it?
+
+---
+
+## 2026-08-23 (third pass) — Closing the "left to the owner" list
+
+Owner: "do all that's left." Every deferred item from the second pass, resolved:
+
+- **Vigorous Start**: the +20-energy grant is unclampable only for heirs, so
+  the bonus gained a second half that no 100-energy start can absorb — +25%
+  regen for the first 52 weeks OF THIS LIFE (`weeksSinceLifeStart`, §4.3).
+  The pattern: when a "starting X" bonus is clamped by the starting value,
+  convert the clamped share into a time-windowed rate the clamp can't touch.
+- **Scenario rewards.achievement/title**: deleted, not wired. 23 badge ids in
+  no catalogue and titles with no consumer — and the cards never advertised
+  them, so deleting closed the trap with zero player-visible change. A schema
+  field with no consumer is a promise the NEXT feature will accidentally make.
+- **Three zero-reader feature flags deleted** (`analytics`, `bootBreadcrumbs`,
+  `weeklyEvents`), each replaced with the NOTE pattern the `notifications`
+  flag established. `weeklyEvents` was the sharpest case: its comment
+  documented an env var that did nothing at all.
+- **Perk income scoping**: crime_boss/landlord/financial_guru now pay at the
+  source their card names (street payout, rental tick, salary term) and are
+  excluded from the global product via SOURCE_SCOPED_PERK_IDS. The lesson for
+  scoped effects: the exclusion set and the source sites must ship in the
+  same change, or the perk double-applies.
+- **Reputation requirement enforced** (Politician 20+, Celebrity 30+), waived
+  by early_career_access like the rest of the block, with a card chip so a
+  disabled Apply button is never unexplained. Enforcing a never-enforced gate
+  is safe exactly when: the bar is low, the theme demands it, the UI says so,
+  and the existing waiver covers whoever paid to skip gates.

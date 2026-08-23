@@ -18,7 +18,7 @@ import { track } from '@/lib/analytics';
 // cycle: RevenueCatService depends only on featureFlags/logger.
 import { revenueCatService } from '@/services/RevenueCatService';
 import { safeSetItem, safeGetItem, safeRemoveItem } from '@/utils/safeStorage';
-import { clampHobbySkillLevel } from '@/utils/stateValidation';
+import { PURSUITS, XP_PER_LEVEL, MAX_PURSUIT_LEVEL, levelFromXp } from '@/lib/pursuits/pursuitMastery';
 import { MS_PER_DAY } from '@/lib/config/gameConstants';
 
 // CRITICAL: Do NOT create logger scope here - logger may not be initialized yet
@@ -139,12 +139,25 @@ export function applyProductBenefitsToState(
   }
 
   if (config.skillBoost && !entitlementsOnly) {
-    // Bump every hobby's skillLevel (hobbies are the game's skill system).
-    if (gameState.hobbies) {
-      for (const hobby of gameState.hobbies) {
-        hobby.skillLevel = clampHobbySkillLevel(hobby.skillLevel + config.skillBoost);
-      }
+    // PAID no-op until 2026-08-23. This looped `gameState.hobbies`, but
+    // hobbies are the REMOVED skill system (types.ts marks the field
+    // deprecated; initialState seeds it [] and nothing in production ever
+    // writes it), so the $12.99 purchase executed zero loop iterations for
+    // every real save — repeatedly, since a consumable writes no ownership
+    // flag. The gold `skill_mastery` upgrade was re-pointed at pursuits when
+    // this class was fixed there; this IAP was missed.
+    //
+    // The live skill system is `state.pursuits` (18 pursuits, 0-10 levels at
+    // XP_PER_LEVEL each). `config.skillBoost` is LEVELS granted per pursuit,
+    // paid as XP so partial progress and the level-10 cap both behave.
+    const levelCap = MAX_PURSUIT_LEVEL * XP_PER_LEVEL;
+    const pursuits = { ...(gameState.pursuits || {}) };
+    for (const def of PURSUITS) {
+      const prev = pursuits[def.id] ?? { xp: 0, level: 0 };
+      const newXp = Math.min(levelCap, (prev.xp || 0) + config.skillBoost * XP_PER_LEVEL);
+      pursuits[def.id] = { ...prev, xp: newXp, level: levelFromXp(newXp) };
     }
+    gameState.pursuits = pursuits;
   }
 
   // Initialize perks if it doesn't exist

@@ -147,7 +147,9 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
               const decayMultiplier = getStatDecayMultiplier(unlockedBonuses);
               effect = `-${Math.round((1 - decayMultiplier) * 100)}% stat decay rate`;
             } else if (bonus.id === 'wealth_magnet') {
-              effect = '+100% passive income';
+              // Soft-capped: full effect to +50%, quarter strength beyond
+              // (lib/prestige/applyBonuses.ts). Don't restate the raw headline.
+              effect = '+100% income (soft-capped past +50%)';
             } else if (bonus.id === 'genius') {
               effect = '+100% learning speed';
             }
@@ -158,18 +160,18 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
             } else if (bonus.id === 'early_education_access') {
               effect = 'All educations completed at start';
             } else if (bonus.id === 'early_real_estate') {
-              effect = 'Real estate available at age 18';
+              effect = 'Property purchases 10% cheaper';
             } else if (bonus.id === 'early_company_access') {
               effect = 'Start companies without education';
             } else if (bonus.id === 'early_item_access') {
-              effect = 'Premium items unlocked early';
+              effect = 'Item shop prices 15% cheaper';
             }
             break;
           case 'qol':
             if (bonus.id === 'auto_save_energy') {
               effect = 'Auto-rest when energy < 20%';
             } else if (bonus.id === 'auto_manage_properties') {
-              effect = 'Auto-collect rent from properties';
+              effect = '+15% rental income from tenants';
             } else if (bonus.id === 'auto_invest_dividends') {
               effect = 'Auto-reinvest stock dividends';
             } else if (bonus.id === 'increased_energy_regen') {
@@ -177,7 +179,8 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
               effect = `+${Math.round((regenMultiplier - 1) * 100)}% energy regeneration`;
             } else if (bonus.id === 'reduced_event_frequency') {
               const eventModifier = getEventFrequencyModifier(unlockedBonuses);
-              effect = `-${Math.round((1 - eventModifier) * 100)}% negative events`;
+              // Events carry no positive/negative tag — the modifier scales ALL rolls.
+              effect = `-${Math.round((1 - eventModifier) * 100)}% life events (good and bad)`;
             }
             break;
           case 'special':

@@ -42,6 +42,13 @@ export interface RealEstateWeeklyTickInput {
   legacyRentalIncome: number;
   currentWeek: number;
   rollFor: (key: string) => number;
+  /**
+   * Prestige "Property Manager" (+15% tenant rent) — see
+   * lib/prestige/purchaseDiscounts.ts. Applied to the aggregate realized rent
+   * BEFORE the $150K/wk per-source cap, so the bonus can never push a
+   * portfolio past the anti-exploit ceiling. Optional; default 1 (no bonus).
+   */
+  rentalIncomeMultiplier?: number;
 }
 
 export interface RealEstateWeeklyTickResult {
@@ -98,6 +105,14 @@ export function runRealEstateWeeklyTick(input: RealEstateWeeklyTickInput): RealE
         : 0;
     rentalIncome += tick.rentReceived + upgradeRentBonus - carryingCost;
     notifications.push(...tick.notifications);
+  }
+
+  // Prestige Property Manager: scale POSITIVE realized rent only — a
+  // net-negative week (carrying costs exceeding rent) is a real expense and
+  // must not be amplified by an income bonus.
+  const rentMult = safe(input.rentalIncomeMultiplier, 1);
+  if (rentMult > 1 && rentalIncome > 0) {
+    rentalIncome = Math.round(rentalIncome * rentMult);
   }
 
   // Clamp the aggregate realized rent to the design's $150K/wk real-estate

@@ -16,6 +16,7 @@ import { updateStats } from './StatsActions';
 import { rejectIfBlocked, isPlayerJailed } from './_guards';
 import { getGiftMultiplier, updateOpinion, addMemory, createInitialOpinion, applyWantProgress } from '@/lib/social/npcDepth';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
+import { getRelationshipGainMultiplier } from '@/lib/prestige/applyBonuses';
 import { clampRelationshipScore } from '@/utils/stateValidation';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import {
@@ -235,11 +236,19 @@ export const goOnDate = (
       // relationships was promised up to +50% here and received none of it;
       // one who had deprioritised relationships took no penalty either.
       const relCommitment = getCommitmentModifiers(prev, 'relationships');
+      // Prestige social_master / reputation_gain_multiplier. The
+      // applyRelationshipGain funnel folds these in for the Contacts-app path,
+      // but dating gains never went through it — so the two HIGHEST-volume
+      // relationship-gain paths (dates and gifts) paid none of the 23,500
+      // points' worth of purchased multiplier. Same guard shape as the funnel:
+      // gains only, and a corrupt bonus list degrades to 1.
+      const datePrestigeMult = getRelationshipGainMultiplier(prev.prestige?.unlockedBonuses || []);
       const datedBoost = Math.round(
         config.relationshipBoost
         * dateMods.relationshipGainMult
         * dateMods.datingSuccessMult
-        * relCommitment.progressMultiplier,
+        * relCommitment.progressMultiplier
+        * (Number.isFinite(datePrestigeMult) && datePrestigeMult > 1 ? datePrestigeMult : 1),
       );
       return {
             ...r,
@@ -364,9 +373,15 @@ export const giveGift = (
         // type (personality-driven), move their opinion, and record a memory so
         // they actually remember it. Previously every gift was identical.
         const mult = getGiftMultiplier(r, giftType);
-        // Life Skills: Charisma / Social Master boost positive relationship gains.
+        // Life Skills: Charisma / Social Master boost positive relationship gains
+        // — and the prestige relationship bonuses, which the gift path skipped
+        // (see the date-boost comment above).
         const giftGainMult = getLifeSkillModifiers(prev).relationshipGainMult;
-        const scaledBoost = Math.max(1, Math.round(config.relationshipBoost * mult * giftGainMult));
+        const giftPrestigeMult = getRelationshipGainMultiplier(prev.prestige?.unlockedBonuses || []);
+        const scaledBoost = Math.max(1, Math.round(
+          config.relationshipBoost * mult * giftGainMult
+          * (Number.isFinite(giftPrestigeMult) && giftPrestigeMult > 1 ? giftPrestigeMult : 1),
+        ));
         const disliked = mult < 1.0;
         // If they'd been WANTING a gift, satisfying that want adds a diminishing
         // bonus on top (additive — only fires when a matching want is present).

@@ -323,6 +323,26 @@ function createResetGameState(
   newState.legacyPoints = oldState.legacyPoints || 0;
   newState.legacyUpgrades = [...(oldState.legacyUpgrades || [])];
 
+  // Family businesses are LINEAGE assets and must survive the reset path too.
+  // The heir path has carried them (with a generationsHeld increment) since the
+  // "Preserve family businesses on prestige" fix, but this path silently
+  // dropped them — so the same player lost their family business, and with it
+  // the entire legacy_business income bonus (which pays per generationsHeld),
+  // simply by choosing "start fresh" instead of "continue as heir".
+  // generationsHeld is NOT incremented here: a reset is the same character
+  // starting over, not a new generation (matching generationNumber above).
+  if (oldState.familyBusinesses && oldState.familyBusinesses.length > 0) {
+    newState.familyBusinesses = oldState.familyBusinesses.map(fb => ({ ...fb }));
+    const carriedIds = oldState.familyBusinesses.map(fb => fb.companyId);
+    const carriedCompanies = (oldState.companies || []).filter(c => carriedIds.includes(c.id));
+    if (carriedCompanies.length > 0) {
+      newState.companies = [
+        ...(newState.companies || []),
+        ...carriedCompanies.map(c => ({ ...c })),
+      ];
+    }
+  }
+
   // Legacy Pass is SEASONAL (account-level), not per-life — preserve it across
   // prestige so a reset doesn't wipe the player's battle-pass progress.
   if (oldState.legacyPass) {
@@ -582,6 +602,7 @@ function createChildGameState(
     }
   }
 
+
   // Legacy Pass is SEASONAL (account-level) — carry it to the heir too.
   if (oldState.legacyPass) {
     newState.legacyPass = {
@@ -755,6 +776,23 @@ function createChildGameState(
   // starts at 0 for the heir, exactly as it does for a new character (v43).
   newState.weeksLived = computeWeeksLived(childAge);
   newState.lifeStartWeek = newState.weeksLived;
+
+  // Timed legacy buffs (A Family Mentor / The Heirloom Charm). Stamped HERE,
+  // after `weeksLived` is seeded from the heir's actual starting age — expiry
+  // is `weeksLived`-based (CLAUDE.md §4.2), and stamping before the seed would
+  // date a two-year buff from the wrong baseline and expire it at birth for
+  // any heir who does not start at 18.
+  const buffEntries = Object.entries(heirBonuses.buffs) as ['mentor' | 'luckyCharm', number][];
+  if (buffEntries.length > 0) {
+    newState.legacyBuffs = { ...(newState.legacyBuffs || {}) };
+    for (const [buff, weeks] of buffEntries) {
+      if (weeks > 0) {
+        newState.legacyBuffs[buff] = {
+          expiresWeeksLived: newState.weeksLived + weeks,
+        };
+      }
+    }
+  }
 
   // Calculate inheritance using computeInheritance for proper calculation
   // This includes heirloom bonuses and proper net worth calculation

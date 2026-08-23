@@ -1,32 +1,28 @@
 /**
- * Prestige income bonuses could be bought for nothing, at full price.
+ * The prestige income curve — soft cap, not a cliff (2026-08-23 rebalance).
  *
- * `getIncomeMultiplier` sums the income bonuses and then clamps:
+ * History, because the shape of this suite matters: the original design was a
+ * hard clamp — `min(1.5, sum)` — and this suite existed to make the WALL
+ * visible in the shop, because every income card advertised its headline
+ * number while a purchase at the wall granted zero. A tester then stacked
+ * income bonuses, hit the wall, and correctly called the purchases "moot and
+ * wasteful"; the owner's call was to fix the wall itself, not just the label.
  *
- *     // ANTI-EXPLOIT: Cap total income multiplier at 1.5x (50% bonus max)
- *     return Math.min(1.5, multiplier);
+ * The curve now:
+ *   full effect to INCOME_SOFT_CAP (+50%)
+ *   excess at INCOME_SOFT_CAP_RATE (25 cents on the dollar)
+ *   absolute ceiling INCOME_MULTIPLIER_CAP (2.0x)
  *
- * The cap is deliberate and correct — the comment explains that uncapped
- * stacking makes each prestige cycle faster than the last. The defect is that
- * NOTHING said so. `PrestigeShopModal` renders `bonus.description` verbatim,
- * so every card promised its headline number regardless of headroom:
- *
- *   fully stacked, the bonuses advertise  3.35x (+235%)
- *   the player actually receives          1.50x  (+50%)
- *   cost of all income bonuses            121,000 points
- *
- * Headroom is +0.50. Three levels of Small (+0.15) plus three of Moderate
- * (+0.30) reach +0.45, so the very next purchase overflows. After that,
- * *Wealth Magnet* — 40,000 points, "+100% passive income" — grants exactly
- * zero, and the shop still shows "+100%".
- *
- * That is the same class as the MON findings already in this PR: a purchase
- * that is consumed and grants nothing. This does NOT change the cap; it makes
- * the cap visible, so the choice stays the player's.
+ * Fully stacked, the catalogue's 3.35x raw lands at ~1.96x — every purchase
+ * grants SOMETHING, in strictly diminishing amounts, and the snowball the old
+ * clamp guarded against (3.35x compounding per cycle) stays dead.
  */
 import {
   INCOME_MULTIPLIER_CAP,
+  INCOME_SOFT_CAP,
+  INCOME_SOFT_CAP_RATE,
   getIncomeMultiplier,
+  getRawIncomeMultiplier,
 } from '@/lib/prestige/applyBonuses';
 import {
   incomeGainFromPurchase,
@@ -43,101 +39,146 @@ const code = (rel: string) =>
 /** Three levels of a bonus are three copies of its id. */
 const lv = (id: string, n: number) => Array(n).fill(id);
 
-describe('the headroom shown is the headroom that exists', () => {
-  it('reads the cap from the payout, not a second copy', () => {
-    expect(INCOME_MULTIPLIER_CAP).toBe(1.5);
-    expect(incomeMultiplierHeadroom([]).cap).toBe(INCOME_MULTIPLIER_CAP);
-  });
+/** Every income bonus at max level, plus the synergy — the full catalogue stack. */
+const FULL_STACK = [
+  ...lv('income_multiplier_1', 3),
+  ...lv('income_multiplier_2', 3),
+  ...lv('income_multiplier_3', 3),
+  'wealth_magnet',
+  'synergy_wealth_master',
+];
 
-  it('a fresh player has the full +0.50 available', () => {
-    const h = incomeMultiplierHeadroom([]);
-
-    expect(h.current).toBe(1);
-    expect(h.remaining).toBeCloseTo(0.5, 10);
-    expect(h.atCap).toBe(false);
-  });
-
-  it('tracks the real total as bonuses are bought', () => {
+describe('the curve itself', () => {
+  it('passes raw sums through untouched below the soft cap', () => {
     const owned = [...lv('income_multiplier_1', 3), ...lv('income_multiplier_2', 3)];
-    const h = incomeMultiplierHeadroom(owned);
-
-    // +0.15 and +0.30 — still under the cap, so nothing is wasted yet.
-    expect(h.current).toBeCloseTo(1.45, 10);
-    expect(h.remaining).toBeCloseTo(0.05, 10);
-    expect(h.atCap).toBe(false);
-    // and it agrees with what the week loop will actually apply
-    expect(h.current).toBeCloseTo(getIncomeMultiplier(owned), 10);
+    expect(getRawIncomeMultiplier(owned)).toBeCloseTo(1.45, 10);
+    expect(getIncomeMultiplier(owned)).toBeCloseTo(1.45, 10);
   });
 
-  it('reports being AT the cap once the sum passes it', () => {
-    const owned = [...lv('income_multiplier_3', 3)]; // +0.75, clamped to +0.50
-    const h = incomeMultiplierHeadroom(owned);
+  it('pays excess above the soft cap at the reduced rate', () => {
+    const owned = lv('income_multiplier_3', 3); // raw 1.75
+    expect(getRawIncomeMultiplier(owned)).toBeCloseTo(1.75, 10);
+    expect(getIncomeMultiplier(owned)).toBeCloseTo(
+      INCOME_SOFT_CAP + 0.25 * INCOME_SOFT_CAP_RATE, 10,
+    );
+  });
 
-    expect(h.current).toBe(INCOME_MULTIPLIER_CAP);
-    expect(h.remaining).toBe(0);
-    expect(h.atCap).toBe(true);
+  it('lands the FULL catalogue stack under the hard cap — nothing is ever a zero', () => {
+    // raw 3.35 → 1.5 + 1.85×0.25 = 1.9625
+    expect(getRawIncomeMultiplier(FULL_STACK)).toBeCloseTo(3.35, 10);
+    expect(getIncomeMultiplier(FULL_STACK)).toBeCloseTo(1.9625, 10);
+    expect(getIncomeMultiplier(FULL_STACK)).toBeLessThan(INCOME_MULTIPLIER_CAP);
+  });
+
+  it('every single purchase in the catalogue stack grants a POSITIVE amount', () => {
+    // The tester complaint this rebalance answers: no purchase order exists in
+    // which an income bonus is consumed for zero.
+    let owned: string[] = [];
+    for (const id of FULL_STACK) {
+      expect(incomeGainFromPurchase(owned, id)).toBeGreaterThan(0);
+      owned = [...owned, id];
+    }
+  });
+
+  it('still clamps at the hard ceiling for absurd future stacks', () => {
+    expect(getIncomeMultiplier(lv('income_multiplier_3', 40))).toBe(INCOME_MULTIPLIER_CAP);
+  });
+
+  it('is monotonic: more bonuses never pay less', () => {
+    let prev = getIncomeMultiplier([]);
+    let owned: string[] = [];
+    for (const id of FULL_STACK) {
+      owned = [...owned, id];
+      const next = getIncomeMultiplier(owned);
+      expect(next).toBeGreaterThanOrEqual(prev);
+      prev = next;
+    }
+  });
+});
+
+describe('the headroom shown is the headroom that exists', () => {
+  it('reads the caps from the payout, not a second copy', () => {
+    expect(incomeMultiplierHeadroom([]).cap).toBe(INCOME_MULTIPLIER_CAP);
+    expect(incomeMultiplierHeadroom([]).softCap).toBe(INCOME_SOFT_CAP);
+  });
+
+  it('a fresh player has the full range available and is not diminished', () => {
+    const h = incomeMultiplierHeadroom([]);
+    expect(h.current).toBe(1);
+    expect(h.remaining).toBeCloseTo(INCOME_MULTIPLIER_CAP - 1, 10);
+    expect(h.atCap).toBe(false);
+    expect(h.diminished).toBe(false);
+  });
+
+  it('flips diminished once the RAW sum passes the soft cap', () => {
+    const under = [...lv('income_multiplier_1', 3), ...lv('income_multiplier_2', 3)]; // raw 1.45
+    const over = lv('income_multiplier_3', 3); // raw 1.75
+    expect(incomeMultiplierHeadroom(under).diminished).toBe(false);
+    expect(incomeMultiplierHeadroom(over).diminished).toBe(true);
+    expect(incomeMultiplierHeadroom(over).atCap).toBe(false);
+  });
+
+  it('agrees with what the week loop will actually apply', () => {
+    for (const owned of [[], lv('income_multiplier_2', 2), FULL_STACK]) {
+      expect(incomeMultiplierHeadroom(owned).current).toBeCloseTo(getIncomeMultiplier(owned), 10);
+    }
+  });
+
+  it('reports atCap only at the hard ceiling', () => {
+    expect(incomeMultiplierHeadroom(FULL_STACK).atCap).toBe(false);
+    expect(incomeMultiplierHeadroom(lv('income_multiplier_3', 40)).atCap).toBe(true);
   });
 });
 
 describe('what a purchase would ACTUALLY grant', () => {
-  it('is the full amount while there is room', () => {
+  it('is the full amount while under the soft cap', () => {
     expect(incomeGainFromPurchase([], 'income_multiplier_1')).toBeCloseTo(0.05, 10);
     expect(incomeGainFromPurchase([], 'income_multiplier_3')).toBeCloseTo(0.25, 10);
   });
 
-  it('is only the remaining headroom when the purchase overflows', () => {
-    // +0.45 owned, +0.25 offered, +0.05 of room. The player pays 20,000 for
-    // a twentieth of the advertised effect.
-    const owned = [...lv('income_multiplier_1', 3), ...lv('income_multiplier_2', 3)];
-    expect(incomeGainFromPurchase(owned, 'income_multiplier_3')).toBeCloseTo(0.05, 10);
+  it('is the reduced amount past the soft cap — a quarter of the headline', () => {
+    const owned = lv('income_multiplier_3', 3); // raw 1.75, already diminished
+    expect(incomeGainFromPurchase(owned, 'income_multiplier_2'))
+      .toBeCloseTo(0.10 * INCOME_SOFT_CAP_RATE, 10);
   });
 
-  it('is ZERO for a legendary bought at the cap — the headline case', () => {
-    // Wealth Magnet: 40,000 points, description "+100% passive income".
-    const capped = [...lv('income_multiplier_3', 3)];
-    expect(incomeMultiplierHeadroom(capped).atCap).toBe(true);
-    expect(incomeGainFromPurchase(capped, 'wealth_magnet')).toBe(0);
+  it('splits a purchase that straddles the soft cap correctly', () => {
+    // raw 1.45 + 0.25 → 0.05 at full rate, 0.20 at the reduced rate.
+    const owned = [...lv('income_multiplier_1', 3), ...lv('income_multiplier_2', 3)];
+    expect(incomeGainFromPurchase(owned, 'income_multiplier_3'))
+      .toBeCloseTo(0.05 + 0.20 * INCOME_SOFT_CAP_RATE, 10);
   });
 
   it('is zero for a non-income bonus, which this must not misreport', () => {
-    // `genius` is a learning-speed bonus. It contributes nothing to income and
-    // must not be flagged as capped-out — that would be a false warning, and a
-    // false warning is how a real one stops being read.
     expect(incomeGainFromPurchase([], 'genius')).toBe(0);
     expect(incomeGainFromPurchase([], 'unknown_bonus_id')).toBe(0);
   });
 
   it('never reports a gain the payout would not deliver (the control)', () => {
-    // Property: for any owned set and any income bonus, the reported gain must
-    // equal the real delta in getIncomeMultiplier. Two functions computing this
-    // independently is the exact defect being closed.
     const sets = [
       [],
       lv('income_multiplier_1', 2),
       [...lv('income_multiplier_1', 3), ...lv('income_multiplier_2', 2)],
       [...lv('income_multiplier_3', 3), 'wealth_magnet'],
+      FULL_STACK,
     ];
     for (const owned of sets) {
-      for (const id of ['income_multiplier_1', 'income_multiplier_2', 'income_multiplier_3', 'wealth_magnet']) {
+      for (const id of ['income_multiplier_1', 'income_multiplier_2', 'income_multiplier_3', 'wealth_magnet', 'synergy_wealth_master']) {
         const real = getIncomeMultiplier([...owned, id]) - getIncomeMultiplier(owned);
         expect(incomeGainFromPurchase(owned, id)).toBeCloseTo(real, 10);
       }
     }
   });
 
-  it('Wealth Magnet can NEVER deliver its advertised +100%', () => {
-    // Sharper than the capped-out case, and found by this suite rather than by
-    // reading the shop: 1 + 1.0 = 2.0 clamps to 1.5, so even bought first on a
-    // clean slate the 40,000-point legendary delivers +50%, not the +100% its
-    // description promises. There is no game state in which that card is
-    // honest, so the shop must show the real number every time — not only once
-    // the player is capped.
-    expect(incomeGainFromPurchase([], 'wealth_magnet')).toBeCloseTo(0.5, 10);
-    expect(getIncomeMultiplier(['wealth_magnet'])).toBe(INCOME_MULTIPLIER_CAP);
+  it('Wealth Magnet bought first delivers +62.5%, not its advertised +100% — the shop must say so', () => {
+    // 1 + 1.0 raw = 2.0 → 1.5 + 0.5×0.25 = 1.625. Better than the old clamp's
+    // +50%, still short of the headline — which is why the per-card
+    // "Actually grants" note exists and must keep rendering.
+    expect(incomeGainFromPurchase([], 'wealth_magnet')).toBeCloseTo(0.625, 10);
   });
 
   it('handles a missing/garbage unlocked list without throwing', () => {
-    expect(incomeGainFromPurchase(undefined as unknown as string[], 'wealth_magnet')).toBeCloseTo(0.5, 10);
+    expect(incomeGainFromPurchase(undefined as unknown as string[], 'wealth_magnet')).toBeCloseTo(0.625, 10);
     expect(incomeMultiplierHeadroom(undefined as unknown as string[]).current).toBe(1);
   });
 });
@@ -153,8 +194,11 @@ describe('the shop says so', () => {
     expect(src).toMatch(/No effect/i);
   });
 
-  it('does not hardcode the cap (the control)', () => {
-    // A literal 1.5 here would silently disagree the day the cap is retuned.
-    expect(src).not.toMatch(/Math\.min\(1\.5/);
+  it('states the diminishing-returns threshold', () => {
+    expect(src).toMatch(/diminished/);
+  });
+
+  it('does not hardcode either cap (the control)', () => {
+    expect(src).not.toMatch(/Math\.min\(1\.5|Math\.min\(2(\.0)?[,)]/);
   });
 });

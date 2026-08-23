@@ -33,9 +33,10 @@
  * roll source for stable snapshots.
  */
 
-import type { RealEstate, RealEstateActivityEntry } from '@/contexts/game/types';
+import type { RealEstate, RealEstateActivityEntry, GameState } from '@/contexts/game/types';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import * as housingModule from '@/lib/realEstate/housing';
+import { rentalIncomeMultiplier } from '@/lib/prestige/purchaseDiscounts';
 import { runRealEstateWeeklyTick } from '@/lib/realEstate/weeklyTick';
 import type { WeekContext } from './weekContext';
 
@@ -75,6 +76,10 @@ export function applyRentAndHousing(
   rollFor: (key: string) => number,
   ctx: WeekContext,
   prevActivity?: RealEstateActivityEntry[] | null,
+  /** Prestige bonus ids — feeds the Property Manager rent multiplier. */
+  unlockedBonuses?: string[],
+  /** Onboarding perks — feeds the Landlord rental bonus. */
+  perks?: GameState['perks'],
 ): RentAndHousingResult {
   // v22 Wave A: accumulate durable activity entries from this week's notifications.
   const newActivity: RealEstateActivityEntry[] = [];
@@ -123,6 +128,12 @@ export function applyRentAndHousing(
       legacyRentalIncome: housingRentalIncome,
       currentWeek: nextWeeksLived,
       rollFor,
+      // Prestige Property Manager (+15% tenant rent) × the Landlord onboarding
+      // perk (+7% — its card's promise, paid at the source it names; excluded
+      // from the weekly tick's global perk product so it cannot apply twice).
+      // Both applied inside the tick, before its $150K/wk cap.
+      rentalIncomeMultiplier:
+        rentalIncomeMultiplier(unlockedBonuses) * (perks?.landlord ? 1.07 : 1),
     });
     updatedRealEstate = reTick.properties;
     housingRentalIncome = reTick.rentalIncome;

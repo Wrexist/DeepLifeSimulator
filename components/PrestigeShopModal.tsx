@@ -291,6 +291,36 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
               </ScrollView>
             </View>
 
+            {/* Income curve, stated ONCE and up front.
+                Income bonuses apply in full up to the soft cap (+50%), at a
+                quarter strength beyond it, and stop at the hard ceiling. The
+                per-card note below shows the real grant per purchase; this
+                banner is where a player learns the SHAPE before spending.
+                Hidden at 1.0x, where there is nothing yet to explain. */}
+            {incomeHeadroom.current > 1 && (
+              <View
+                style={[
+                  styles.headroomBanner,
+                  incomeHeadroom.atCap || incomeHeadroom.diminished
+                    ? { borderColor: 'rgba(245, 158, 11, 0.35)', backgroundColor: 'rgba(245, 158, 11, 0.10)' }
+                    : { borderColor: 'rgba(16, 185, 129, 0.35)', backgroundColor: 'rgba(16, 185, 129, 0.10)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.capNote,
+                    { marginTop: 0, color: incomeHeadroom.atCap || incomeHeadroom.diminished ? '#f59e0b' : '#10b981' },
+                  ]}
+                >
+                  {incomeHeadroom.atCap
+                    ? `Income bonus +${Math.round((incomeHeadroom.cap - 1) * 100)}% — hard cap reached. Further income bonuses grant nothing.`
+                    : incomeHeadroom.diminished
+                    ? `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% — past the +${Math.round((incomeHeadroom.softCap - 1) * 100)}% threshold, further income bonuses apply at ¼ strength (hard cap +${Math.round((incomeHeadroom.cap - 1) * 100)}%).`
+                    : `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% · full effect up to +${Math.round((incomeHeadroom.softCap - 1) * 100)}%, ¼ strength beyond, capped at +${Math.round((incomeHeadroom.cap - 1) * 100)}%`}
+                </Text>
+              </View>
+            )}
+
             {/* Bonuses List */}
             <ScrollView 
               style={styles.bonusesList} 
@@ -534,7 +564,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                               </Text>
                             ) : incomeWasted ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>
-                                No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% cap
+                                No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% hard cap
                               </Text>
                             ) : realIncomeGain > 0 ? (
                               <Text style={[styles.capNote, { color: '#10b981' }]}>
@@ -843,6 +873,17 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   capNote: { fontSize: 11, marginTop: 4, fontWeight: '600' },
+  headroomBanner: {
+    marginHorizontal: scale(16),
+    marginBottom: scale(6),
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(8),
+    // Full four-sided hairline, never a one-sided accent stripe (Hard Rule #7).
+    // Colour carries meaning and is applied at the call site: amber = at the
+    // cap, green = headroom left.
+    borderWidth: 1,
+  },
   bonusDescriptionDark: {
     color: '#CBD5E1',
   },

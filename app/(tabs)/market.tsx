@@ -6,6 +6,7 @@ import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -125,7 +126,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     try {
       // Check if player can still afford it (in case something changed)
       const item = gameState.items.find(i => i.id === itemId);
-      const itemPrice = item ? getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1) : 0;
+      const itemPrice = item ? getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses) : 0;
       if (!item || gameState.stats.money < itemPrice) {
         // Not an error — just a normal "you need more money" state. Use the
         // calmer info toast instead of the alarming red error toast.
@@ -207,7 +208,14 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   );
 
   // Memoize canAfford function
+  // FOOD affordability: plain inflated price — `buyFood` charges exactly this
+  // (ItemActionsContext), and the Premium Access discount is an ITEM-shop
+  // effect, so gating food on the discounted figure would let the gate pass a
+  // price the charge then rejects.
   const canAfford = useCallback((price: number) => gameState.stats.money >= getInflatedPrice(price, gameState.economy?.priceIndex ?? 1), [gameState.stats.money, gameState.economy?.priceIndex]);
+  // ITEM affordability: inflation × the prestige Premium Access discount — the
+  // same helper buyItem charges with, so the card and the charge agree (§4.4).
+  const canAffordItem = useCallback((price: number) => gameState.stats.money >= getItemPurchasePrice(price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses), [gameState.stats.money, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses]);
   const hasMembership = useMemo(() => {
     return gameState.items.find(item => item.id === 'gym_membership')?.owned || false;
   }, [gameState.items]);
@@ -267,7 +275,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // Memoized render functions with proper dependencies
   const renderItem = useCallback(({ item }: { item: typeof gameState.items[0] }) => {
     const isHighlighted = highlightedItem === item.id;
-    const inflatedPrice = getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1);
+    const inflatedPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses);
 
     // Get badges for this item
     const badges = getItemBadges(
@@ -349,7 +357,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         ) : (
           <LoadingButton
             onPress={() => {
-              const itemPrice = getInflatedPrice(item.price, gameState.economy?.priceIndex ?? 1);
+              const itemPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses);
 
               // Check if can afford before doing anything
               if (gameState.stats.money < itemPrice) {
@@ -366,7 +374,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             }}
             title={t('market.buy')}
             loading={loadingStates[item.id] || false}
-            disabled={!canAfford(item.price)}
+            disabled={!canAffordItem(item.price)}
             variant="success"
             size="small"
             style={styles.buyButton}
@@ -375,7 +383,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         )}
       </View>
     );
-  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.items, highlightedItem, loadingStates, canAfford, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
+  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, gameState.items, highlightedItem, loadingStates, canAffordItem, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
 
   const renderFood = useCallback(({ item: food }: { item: typeof gameState.foods[0] }) => {
     // Calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)

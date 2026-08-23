@@ -35,6 +35,7 @@ import {
 } from '@/lib/realEstate/housing';
 import { RentMode } from '@/lib/realEstate/tenancy';
 import { quoteLoan, trackBudgetSpend } from '@/lib/banking/operations';
+import { propertyPriceMultiplier } from '@/lib/prestige/purchaseDiscounts';
 import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 
@@ -56,6 +57,8 @@ export function quotePropertyPurchase(
 ): {
   rejected: boolean;
   reason?: string;
+  /** The price after the prestige Real Estate Mogul discount (= list price without it). */
+  effectivePrice?: number;
   downPaymentUSD?: number;
   loanPrincipal?: number;
   offeredAPR?: number;
@@ -63,14 +66,23 @@ export function quotePropertyPurchase(
   totalCost?: number;
 } {
   const cash = state.stats?.money ?? 0;
+  // Prestige "Real Estate Mogul": 10% off the purchase price. Applied HERE, in
+  // the one function both the modal (display) and the buy action (charge) call,
+  // so the quoted figures and the charged figures cannot disagree (§4.4). The
+  // owned entry's purchasePrice/currentValue basis is set to this same
+  // discounted figure in resolveBuyProperty, so buy-then-sell cannot mint the
+  // 10% back — the property appreciates from what was paid.
+  const effectivePrice = Math.round(
+    (property.price ?? 0) * propertyPriceMultiplier(state.prestige?.unlockedBonuses),
+  );
   const orig = originateMortgage({
-    purchasePrice: property.price,
+    purchasePrice: effectivePrice,
     tier,
     term,
     availableCash: cash,
   });
   const preflightErr = mortgagePreflight({
-    purchasePrice: property.price,
+    purchasePrice: effectivePrice,
     tier,
     term,
     availableCash: cash,
@@ -81,6 +93,7 @@ export function quotePropertyPurchase(
   if (tier === 'cash') {
     return {
       rejected: false,
+      effectivePrice,
       downPaymentUSD: orig.downPaymentUSD,
       loanPrincipal: 0,
       offeredAPR: 0,
@@ -109,6 +122,7 @@ export function quotePropertyPurchase(
 
   return {
     rejected: false,
+    effectivePrice,
     downPaymentUSD: orig.downPaymentUSD,
     loanPrincipal: orig.loanPrincipal,
     offeredAPR: adjustedAPR,
@@ -232,9 +246,11 @@ function resolveBuyProperty(
       ...(existing ?? catalog),
       owned: true,
       status: spec.asResidence ? 'owner' : 'owner',
-      purchasePrice: catalog.price,
+      // Basis at the DISCOUNTED price when Real Estate Mogul applies — see the
+      // anti-arbitrage note in quotePropertyPurchase.
+      purchasePrice: quote.effectivePrice ?? catalog.price,
       purchasedWeek: state.weeksLived,
-      currentValue: catalog.price,
+      currentValue: quote.effectivePrice ?? catalog.price,
       condition: 90,
       currentResidence: spec.asResidence ?? false,
       mortgageId,

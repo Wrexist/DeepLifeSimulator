@@ -1,3 +1,181 @@
+# Deferred items — "do all that's left" (owner, 2026-08-23)
+
+- [x] L1. `starting_energy`: keep the +20 heir grant, ADD +25% energy regen for
+      the first year of every life — real on the reset path at last.
+- [x] L2. Scenario `rewards.achievement`/`title`: delete the dead fields (no
+      consumer, ids in no catalogue) so the schema stops implying a reward path.
+- [x] L3. FEATURE_FLAGS: delete the three zero-reader flags (`analytics`,
+      `bootBreadcrumbs`, `weeklyEvents`) with NOTE comments; drop the unused
+      import in GameActionsContext; sync CLAUDE.md's Sentry sentence.
+- [x] L4. Legacy Name branch: deep nodes state the 100 reputation cap.
+- [x] L5. Perk income scoping: crime_boss → street-job payouts, landlord →
+      rental income, financial_guru → career salary; excluded from the global
+      product so nothing double-applies; copy restored to the scoped promises.
+- [x] L6. Enforce `career.requirements.reputation` (2 careers), waived by
+      early_career_access like the rest of the block.
+- [ ] L7. Tests, full suite, push (updates PR #157).
+
+---
+
+<!-- `tasks/todo.md` is a single active-plan file that each branch rewrites. The
+     ACTIVE plan is first; finished plans are kept below it rather than dropped,
+     so a merge finds complete records instead of a diff. -->
+
+# Prestige balance pass + incomplete-feature audit (owner request, 2026-08-23)
+
+Owner: "fix this the best way and balanced... also audit for more bugs and
+features that incomplete or not working."
+
+## A. Income cap — from silent hard clamp to a soft cap (balanced)
+
+- [x] A1. Replace the hard `min(1.5, sum)` with: full effect to +50%, excess at
+      25% effectiveness, absolute ceiling 2.0x. Fully stacked catalogue
+      (3.35x raw) lands at ~1.96x — every purchase now grants SOMETHING, the
+      snowball stays tamed (was heading to 3.35x uncapped).
+- [x] A2. Shop banner + card notes read the new shape automatically via
+      `incomeGainFromPurchase`; update copy to explain diminishing returns.
+- [x] A3. Update the pinned tests (`incomeCapVisible`, `prestigeShopEffects`).
+
+## B. The three inert bonuses — wire real, cost-proportionate effects
+
+- [x] B1. `early_item_access` (4,000, rare) → item shop prices −15%. Charge and
+      display through ONE helper (§4.4 advertised-vs-actual).
+- [x] B2. `early_real_estate` (6,000, epic) → property purchase prices −10%.
+- [x] B3. `auto_manage_properties` (5,000, rare) → rental income +15%.
+- [x] B4. Update catalogue descriptions, empty the inert registry (leave the
+      mechanism), re-enable purchase, update tests.
+
+## C. Parallel audit (agents)
+
+- [x] C1. Every remaining prestige bonus id: verified wired with a real call
+      chain, or flagged.
+- [x] C2. Gold upgrades + onboarding perks: advertised vs actual.
+- [x] C3. Incomplete features repo-wide: empty branches, uncalled predicates,
+      TODO/stub systems.
+- [x] C4. Verify agent findings myself before fixing (lessons.md rule).
+
+## C-results — what the three agents found and what was done
+
+Fixed this pass (each verified against source before touching):
+- `starting_real_estate` (12,000 pts) DEAD — filtered an always-empty state
+  array; now grants the cheapest catalogue property, built like a purchase.
+- `achievement_progress_multiplier` (4,000×2) DEAD, zero callers — re-wired as
+  +20%/level on the prestige points achievements pay.
+- `skill_gain_multiplier` (3,000) DEAD — wired into pursuit XP beside the gold
+  skill_mastery upgrade.
+- `social_master` + `reputation_gain_multiplier` bypassed by the two
+  highest-volume relationship paths — now applied on dates and gifts;
+  reputation_gain_multiplier's copy corrected to the relationship wiring it
+  has always had.
+- Education speed quantization (ceil) — fractional deterministic roll; the
+  paid tiers are distinguishable again.
+- `familyBusinesses` dropped by the prestige RESET path (killing
+  legacy_business income) — carried now, without a generation increment.
+- Repurchase sink: 11 boolean bonuses purchasable forever at flat cost for
+  zero effect → maxLevel: 1.
+- `SKILL_BOOST` IAP ($12.99) — REAL-MONEY no-op (looped the deleted hobbies
+  system) → re-pointed at pursuits, +3 levels each, honest copy.
+- `applyPerkEffects` + `buyStarterPack`/`buyGoldPack`/`buyRevival` — dead code
+  shaped like wiring for real SKUs → deleted, pinned deleted.
+- Policy votes (`effects.policy`) never enacted the bill → wired into
+  resolveEvent via calculateActivePolicyEffects.
+- Federal Judge required `law_degree` (an id in no catalogue) → `law_school`.
+- Real Estate Hustler's advertised driver license never granted →
+  `hasDriversLicense` flag set from the scenario item.
+- `requiresItem` discovery gate silently passed unknown ids → blocks now.
+- Legacy buffs (mentor/luckyCharm): three consumers, zero writers → two new
+  legacy-shop nodes (A Family Mentor 250, The Heirloom Charm 220) stamp timed
+  buffs on the heir.
+- Copy honesty: Stable Life, Eventful Life, astute_planner, crime_boss,
+  landlord, UNLOCK_ALL_PERKS, PrestigeInfoModal's hand-copied effect strings.
+
+Left to the owner (deliberately not done):
+- `starting_energy` / the health/happiness/energy halves of `perfect_start`
+  and `starting_stats_*` are no-ops on the RESET path because a fresh life
+  already starts at 100 — they bite on the heir path and via fitness. Fixing
+  would mean lowering baseline start stats (a big balance change) or
+  re-designing the bonuses.
+- Scenario `rewards.achievement`/`rewards.title` — data with no code behind
+  it, invisible to players (cards advertise gems only). Wiring it is content
+  design.
+- `FEATURE_FLAGS.weeklyEvents`/`analytics`/`bootBreadcrumbs` have zero
+  readers; `analytics` is documented in CLAUDE.md as a deliberate hard-disable
+  so left alone.
+- Legacy shop Name-branch reputation totals can overflow the 100 clamp
+  (documented in the file header as accepted).
+- Perk income multipliers remain unscoped by source (cards now say so).
+
+## D. Verify + ship
+
+- [x] D1. Full suite, type-check both trees, lint, routes.
+- [ ] D2. Commit + push to claude/new-session-17ah17.
+
+---
+
+# Prestige shop — tester bug report (BBQ, 2026-08-23)
+
+Reported: "Prestige shop does not work. The unlock all careers from start, start
+with all educations completed, start companies without education needed, wealth
+master synergy does not apply to revenue, multiplier income benefits cap at 50%
+making multiple income buffs moot and wasteful which applies to bonuses not yet."
+
+## Verified findings (repro'd in a scratch test before writing any fix)
+
+- [x] F1 `early_education_access` (3,000 pts, "Start with all educations completed")
+      grants NOTHING. `applyUnlockBonuses` maps over `gameState.educations`, which
+      is `[]` for every new life — the list only grows when the player ENROLLS
+      (`lib/education/operations.ts`). Mapping an empty array completes nothing.
+- [x] F2 `legacy_education` (15,000 pts, "Future generations start with all
+      educations") is the same code shape in `applyLegacyBonuses` — same result.
+- [x] F3 `early_career_access` (5,000 pts, "Unlock all careers from start") lifts
+      ONLY the `education` requirement. `fitness` and `items` still gate, so the
+      advertised "all careers" is false for 8 of the 15 education-gated careers.
+- [x] F4 `synergy_wealth_master` (18,000 pts) never shows the income-cap warning.
+      `isIncomeBonusWasted` probes `getIncomeMultiplier([bonusId])` on an EMPTY
+      list to decide "is this an income bonus"; the synergy needs 2+ income
+      bonuses to do anything, so the probe returns 1.0 → "not an income bonus" →
+      no warning, while the cap eats it whole. This is the tester's "wealth master
+      synergy does not apply to revenue" AND "which applies to bonuses not yet".
+- [x] F5 `early_company_access` — NOT reproduced. Wired correctly in all three
+      gates (`company.ts`, `CompanyActions.createCompany`, `CreateCompanyScreen`).
+      Covered by a regression test rather than a fix.
+
+## Plan
+
+- [x] 1. Extract the education programme catalogue out of
+      `components/mobile/EducationApp.tsx` into `lib/education/programs.ts`
+      (`lib/` may not import values from `components/`, CLAUDE.md §5).
+- [x] 2. F1/F2: complete every catalogue programme from the catalogue, not from
+      the player's empty enrolment list. One shared helper for both bonuses.
+- [x] 3. F3: one `meetsCareerRequirements` helper in `lib/careers/`, used by both
+      `work.tsx` and `JobActions.applyForJob`, where `early_career_access` lifts
+      the whole `CareerRequirements` gate. Kills the UI/action drift too.
+- [x] 4. F4: `isIncomeBonusWasted` must ask "does this bonus enter the income sum
+      AT ALL" against the UNCAPPED multiplier, so a prerequisite-gated bonus is
+      classified correctly. No hardcoded id list.
+- [x] 5. Tests for each, plus the F5 regression test.
+- [x] 6. type-check + full prestige/career/education suites.
+
+## Deliberately NOT changed (owner's call — flagged in the report)
+
+- The `INCOME_MULTIPLIER_CAP = 1.5` itself. CLAUDE.md documents it as deliberate
+  anti-snowball design. The bug was the shop being silent about it, not the cap.
+- Blocking a zero-effect purchase. `prestige_bonuses_all` measures completion
+  against `PURCHASABLE_PRESTIGE_BONUSES`; refusing the sale would make a
+  25,000-point achievement uncompletable — the exact trap the existing comment
+  in `prestigeBonuses.ts` warns about.
+- `career.requirements.reputation` is enforced NOWHERE (2 careers carry it).
+  Adding the gate would newly BLOCK existing players, so it stays as-is.
+
+
+---
+---
+
+# Previously completed plans (kept for the record)
+
+---
+---
+
 # Plan — Discord-as-code: `discord/` — 2026-08-23 — DONE
 
 ## The ask

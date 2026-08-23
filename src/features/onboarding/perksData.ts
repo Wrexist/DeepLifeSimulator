@@ -30,7 +30,12 @@ const perkList: Perk[] = [
   {
     id: 'astute_planner',
     title: 'Astute Planner',
-    description: '+5% salary, -10% energy cost for work actions.',
+    // Was "+5% salary, -10% energy cost for work actions" — the energy-cost
+    // half had NO consumer anywhere (the only perk-effect readers are the
+    // stat-boost fold at character build and the income product in
+    // applyIncome), so half the card was unimplemented copy. Now says what
+    // the effects deliver.
+    description: '+5% income, +10 starting energy.',
     requirement: 'Reach the top rung of a six-level career ladder.',
     effects: { incomeMultiplier: 1.05, statBoosts: { energy: 10 } },
     unlock: { type: 'achievement', achievementId: 'career_summit' },
@@ -83,6 +88,9 @@ const perkList: Perk[] = [
   {
     id: 'financial_guru',
     title: 'Financial Guru',
+    // Scoped for real as of 2026-08-23: applied to the career-salary term in
+    // computeWeeklyIncome (it used to multiply TOTAL income — dividends, rent,
+    // everything — which is more than the card sold).
     description: '+7% salary from all jobs.',
     requirement: 'Accumulate $1,000,000 in cash.',
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
@@ -145,6 +153,9 @@ const perkList: Perk[] = [
   {
     id: 'crime_boss',
     title: 'Crime Boss',
+    // Scoped for real as of 2026-08-23: paid at the street-job payout in
+    // JobActions and excluded from the weekly tick's global perk product
+    // (SOURCE_SCOPED_PERK_IDS). The card's original promise, finally true.
     description: '+10% earnings from street jobs.',
     requirement: 'Complete 100 street jobs.',
     effects: { incomeMultiplier: 1.1, statBoosts: {} },
@@ -185,7 +196,10 @@ const perkList: Perk[] = [
   {
     id: 'landlord',
     title: 'Landlord',
-    description: '+7% passive income from properties.',
+    // Scoped for real as of 2026-08-23: paid on tenant rental income in
+    // applyRentAndHousing (before the weekly cap) and excluded from the global
+    // perk product, mirroring crime_boss above.
+    description: '+7% rental income from your properties.',
     requirement: 'Own 10 properties.',
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'real_estate_tycoon' },

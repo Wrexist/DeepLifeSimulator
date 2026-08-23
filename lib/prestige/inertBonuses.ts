@@ -1,7 +1,8 @@
 /**
  * Prestige bonuses that are purchasable but currently do nothing.
  *
- * FOUR have been found this way now, worth 45,000 points between them. The
+ * EMPTY at the moment — every bonus found this way has since been given a
+ * real effect. Four were found in total, worth 45,000 points between them. The
  * product question each one raises — wire it, remove it, or re-purpose it — is
  * the owner's, and stays open. What this registry does is stop the shop taking
  * the points silently in the meantime.
@@ -34,11 +35,7 @@
  */
 
 /** Bonus ids verified to have no effect in game logic. */
-export const INERT_BONUS_IDS: readonly string[] = [
-  'early_item_access',
-  'early_real_estate',
-  'auto_manage_properties',
-];
+export const INERT_BONUS_IDS: readonly string[] = [];
 
 const REASONS: Record<string, string> = {
   // `legacy_business` lived here until it was given a real effect: it now pays
@@ -46,6 +43,14 @@ const REASONS: Record<string, string> = {
   // (lib/business/familyBusinessEffects.ts). The registry was deliberately left
   // EMPTY rather than deleted — "a future dead bonus has a documented home
   // instead of needing this mechanism invented again under pressure."
+  //
+  // ── 2026-08-23: emptied again. The three unlock bonuses below followed the
+  // same road out: the owner resolved the open product question to RE-PURPOSE,
+  // and each now has a real effect in lib/prestige/purchaseDiscounts.ts —
+  // early_item_access sells items 15% cheaper, early_real_estate cuts property
+  // prices 10%, auto_manage_properties pays +15% tenant rent. Their old
+  // entries are kept below as commented history because the reasons explain
+  // WHY those were the effects chosen.
   //
   // ── 2026-08-21: three more, found the same way and missed the same way ────
   //
@@ -63,17 +68,12 @@ const REASONS: Record<string, string> = {
   // wiring is not the wiring. `prestigeBonusReaders` now checks that a
   // predicate reading a bonus id has a real, non-import caller.
 
-  early_item_access:
-    'Nothing in the game has a "premium" item tier — there is no gate for this '
-    + 'to lift. The catalogue has one flat item list.',
-
-  early_real_estate:
-    'Real estate has no age requirement to lift, and every character starts at '
-    + '18 or older, so "available at age 18" is already true for everyone.',
-
-  auto_manage_properties:
-    'Rent is already collected automatically for every player by the weekly '
-    + 'tick. The bonus sells something you have for free.',
+  // early_item_access — "Nothing in the game has a premium item tier — there
+  //   is no gate for this to lift." → now a 15% item-shop discount.
+  // early_real_estate — "Real estate has no age requirement to lift." → now a
+  //   10% property-price discount.
+  // auto_manage_properties — "Rent is already collected automatically for
+  //   every player." → now +15% tenant rent.
 };
 
 /**

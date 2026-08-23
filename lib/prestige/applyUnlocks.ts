@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/game/types';
+import { completeAllPrograms } from '@/lib/education/operations';
 
 /**
  * Apply unlock bonuses to game state
@@ -19,13 +20,17 @@ export function applyUnlockBonuses(
     newState.hasSeenJobTutorial = true;
   }
 
-  // Early education access - complete all educations
+  // Early education access - complete all educations.
+  //
+  // This used to map over `newState.educations`, which is the player's
+  // ENROLMENT list — `[]` at the start of every life, because entries are only
+  // appended when they enrol. Mapping an empty array completed nothing, so the
+  // 3,000-point bonus advertised "Start with all educations completed" and
+  // granted precisely zero for its entire life. `completeAllPrograms` sources
+  // the programmes from the CATALOGUE instead, which is the only place the full
+  // set exists. Reported by a tester 2026-08-23.
   if (unlockedBonuses.includes('early_education_access')) {
-    newState.educations = (newState.educations || []).map(edu => ({
-      ...edu,
-      completed: true,
-      weeksRemaining: undefined,
-    }));
+    newState.educations = completeAllPrograms(newState.educations);
   }
 
 

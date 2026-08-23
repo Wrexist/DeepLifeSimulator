@@ -2,6 +2,7 @@ import { GameState } from '@/contexts/game/types';
 import { PrestigeData } from './prestigeTypes';
 import { MAX_MULTIPLIER_LEVEL } from './prestigeConstants';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { getAchievementProgressMultiplier } from './applyBonuses';
 import { getEarnedAchievementCount } from '@/lib/progress/earnedAchievements';
 import { netWorth } from '@/lib/progress/achievements';
 
@@ -48,7 +49,17 @@ export function calculatePrestigePoints(
   const completedCount = getEarnedAchievementCount(gameState);
   const alreadyCredited = prestigeData.achievementsCreditedForPoints ?? 0;
   const newlyCreditedAchievements = Math.max(0, completedCount - alreadyCredited);
-  const achievementBonus = newlyCreditedAchievements * 10;
+  // Achievement Hunter (achievement_progress_multiplier): +20% per level on
+  // the points achievements pay here. This is the bonus's REAL wiring as of
+  // 2026-08-23 — its original "+20% achievement progress rate" had no
+  // consumer anywhere (achievements complete on thresholds; nothing computes
+  // a progress rate), so a 4,000-point purchase was consumed for nothing.
+  // Multiplying the payout keeps the anti-farm ledger intact: the count of
+  // credited achievements is unchanged, only the points per new credit move.
+  const hunterMultiplier = getAchievementProgressMultiplier(
+    prestigeData.unlockedBonuses || [],
+  );
+  const achievementBonus = Math.round(newlyCreditedAchievements * 10 * hunterMultiplier);
 
   // Generation bonus: +50 points per *completed* generation.
   // R2-G: previously written as `(gameState.generationNumber || 1 - 1) * 50`,

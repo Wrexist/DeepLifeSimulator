@@ -1,6 +1,15 @@
 import { GameState } from '@/contexts/game/types';
+import { completeAllPrograms } from '@/lib/education/operations';
+import { RESIDENTIAL_CATALOG } from '@/lib/realEstate/catalog';
 import { getStockInfo } from '@/lib/economy/stockMarket';
 import { getBonusLevel } from './prestigeBonuses';
+
+/**
+ * The property `starting_real_estate` grants: the cheapest residential tier
+ * (the Studio Apartment). Chosen from the catalogue, not from state — see the
+ * comment at the grant site.
+ */
+const STARTING_PROPERTY = RESIDENTIAL_CATALOG[0];
 
 /**
  * Apply starting bonuses to game state
@@ -118,15 +127,33 @@ export function applyStartingBonuses(
     // Deduct the portfolio cost from money (already included in starting money)
   }
 
-  // Starting real estate bonus
+  // Starting real estate bonus.
+  //
+  // DEAD until 2026-08-23, by the same empty-collection trap as the education
+  // bonuses: it filtered `newState.realEstate` for an unowned property under
+  // $150k, but state only ever holds properties the player already BOUGHT
+  // (`RealEstateActions` appends on purchase; `initialState` is `[]`), so on a
+  // freshly reset life the filter always returned nothing and the
+  // 12,000-point epic granted zero. The property now comes from the CATALOGUE
+  // — the cheapest residential tier, built the way a purchase builds it, so
+  // the weekly housing/tenancy tick treats it like any bought property.
   if (unlockedBonuses.includes('starting_real_estate')) {
-    // Find a basic rental property to give
-    const basicProperties = (newState.realEstate || []).filter(
-      prop => !prop.owned && (prop.price || 0) <= 150000
+    const alreadyOwned = (newState.realEstate || []).some(
+      p => p.id === STARTING_PROPERTY.id && p.owned,
     );
-    if (basicProperties.length > 0) {
-      const property = basicProperties[0];
-      property.owned = true;
+    if (!alreadyOwned) {
+      newState.realEstate = [
+        ...(newState.realEstate || []).filter(p => p.id !== STARTING_PROPERTY.id),
+        {
+          ...STARTING_PROPERTY,
+          owned: true,
+          purchasePrice: STARTING_PROPERTY.price,
+          currentValue: STARTING_PROPERTY.price,
+          purchasedWeek: newState.weeksLived ?? 0,
+          condition: 90,
+          currentResidence: false,
+        },
+      ];
     }
   }
 
@@ -194,17 +221,56 @@ export function applyStartingBonuses(
 }
 
 /**
- * Hard ceiling on the combined prestige income multiplier (1.5 = +50%).
- * Exported so the prestige shop can state it rather than re-deriving it.
+ * The prestige income curve — a SOFT cap, not a cliff (2026-08-23 rebalance).
+ *
+ * The original design was a hard clamp: `min(1.5, sum)`. The anti-snowball
+ * intent was right (uncapped, the full catalogue stacks to 3.35x and each
+ * prestige cycle gets faster than the last), but a cliff means every point
+ * spent past +50% buys literally nothing — a tester stacked income bonuses,
+ * hit the wall, and correctly called the purchases "moot and wasteful". The
+ * shop warning added earlier made the wall visible; the owner's call was to
+ * fix the wall itself.
+ *
+ * The curve now:
+ *   - full effect up to `INCOME_SOFT_CAP` (+50%),
+ *   - excess above it applies at `INCOME_SOFT_CAP_RATE` (25 cents on the
+ *     dollar),
+ *   - absolute ceiling `INCOME_MULTIPLIER_CAP` (2.0x), which nothing in the
+ *     current catalogue can reach (fully stacked lands at ~1.96x) but which
+ *     bounds whatever gets added later.
+ *
+ * Every income purchase now grants SOMETHING, in strictly diminishing amounts,
+ * and the total a maxed player can reach moved +50% → ~+96% — for ~139,000
+ * points, most of a full prestige career. The snowball stays tamed: 1.96x is
+ * a far cry from the 3.35x the clamp was built against.
  */
-export const INCOME_MULTIPLIER_CAP = 1.5;
+export const INCOME_SOFT_CAP = 1.5;
+export const INCOME_SOFT_CAP_RATE = 0.25;
 
 /**
- * Get income multiplier from prestige bonuses
- * @param unlockedBonuses Array of unlocked bonus IDs
- * @returns Total income multiplier (1.0 = no bonus)
+ * Absolute ceiling on the combined prestige income multiplier.
+ * Exported so the prestige shop can state it rather than re-deriving it.
  */
-export function getIncomeMultiplier(unlockedBonuses: string[]): number {
+export const INCOME_MULTIPLIER_CAP = 2.0;
+
+/**
+ * The income multiplier BEFORE the cap is applied — what the bonuses add up to
+ * on paper, which is also what the shop cards advertise.
+ *
+ * Split out of `getIncomeMultiplier` so the shop can tell two different
+ * questions apart: "does this bonus feed the income sum at all?" and "would
+ * buying it move the number the week loop actually applies?". Answering the
+ * first with the CAPPED value misclassifies every bonus whose contribution has
+ * a prerequisite — `synergy_wealth_master` pays +15% only once two income
+ * bonuses are owned, so probing it on its own returned 1.0 and the shop
+ * concluded it was not an income bonus. The result was that the one card most
+ * likely to be eaten whole by the cap (18,000 points, epic) was the only income
+ * card that never showed the cap warning. Reported by a tester 2026-08-23.
+ *
+ * Nothing in the game reads this directly — the paycheck goes through
+ * `getIncomeMultiplier` below, cap included.
+ */
+export function getRawIncomeMultiplier(unlockedBonuses: string[]): number {
   let multiplier = 1.0;
 
   const income1Level = getBonusLevel('income_multiplier_1', unlockedBonuses);
@@ -226,13 +292,23 @@ export function getIncomeMultiplier(unlockedBonuses: string[]): number {
     multiplier += 0.15; // +15% bonus
   }
 
-  // ANTI-EXPLOIT: Cap total income multiplier (50% bonus max)
-  // Without cap, stacking all bonuses gives 2.35x+ which makes each prestige cycle faster
-  // than the last, creating an exponential snowball.
-  // The cap is EXPORTED because the shop has to show it: every income bonus
-  // advertised its headline number regardless of headroom, so a legendary
-  // bought at the cap was consumed and granted nothing.
-  return Math.min(INCOME_MULTIPLIER_CAP, multiplier);
+  return multiplier;
+}
+
+/**
+ * Get income multiplier from prestige bonuses
+ * @param unlockedBonuses Array of unlocked bonus IDs
+ * @returns Total income multiplier (1.0 = no bonus)
+ */
+export function getIncomeMultiplier(unlockedBonuses: string[]): number {
+  // ANTI-EXPLOIT, soft form: full effect to the soft cap, diminishing returns
+  // beyond it, hard ceiling last. See the constants above for the reasoning.
+  const raw = getRawIncomeMultiplier(unlockedBonuses);
+  const softened =
+    raw <= INCOME_SOFT_CAP
+      ? raw
+      : INCOME_SOFT_CAP + (raw - INCOME_SOFT_CAP) * INCOME_SOFT_CAP_RATE;
+  return Math.min(INCOME_MULTIPLIER_CAP, softened);
 }
 
 /**
@@ -299,6 +375,33 @@ export function getEnergyRegenMultiplier(unlockedBonuses: string[]): number {
     return 1.5; // +50% energy regeneration
   }
   return 1.0;
+}
+
+/** How long Vigorous Start's regen boost lasts, in weeks of the new life. */
+export const VIGOROUS_START_WEEKS = 52;
+/** The regen multiplier Vigorous Start applies during that window. */
+export const VIGOROUS_START_REGEN_MULT = 1.25;
+
+/**
+ * Vigorous Start (`starting_energy`), the half that works on EVERY path.
+ *
+ * The original effect — +20 starting energy — is real for heirs (who start
+ * tired) and a no-op on the prestige RESET path, because a fresh life already
+ * starts at 100 energy and `Math.min(100, 100 + 20)` is the whole effect. The
+ * 2,000-point purchase therefore did nothing for anyone who prestiged with
+ * "start fresh". The +20 grant stays (heirs keep it); THIS adds +25% energy
+ * regeneration for the first year of each life, which no starting value can
+ * clamp away. Gated on weeks INTO THIS LIFE (CLAUDE.md §4.3) — the raw
+ * `weeksLived` counter is seeded from starting age and would end the window
+ * before the first frame for every non-18 start.
+ */
+export function getStartingEnergyRegenMultiplier(
+  unlockedBonuses: string[],
+  weeksThisLife: number,
+): number {
+  if (!unlockedBonuses.includes('starting_energy')) return 1.0;
+  if (!(typeof weeksThisLife === 'number' && isFinite(weeksThisLife))) return 1.0;
+  return weeksThisLife < VIGOROUS_START_WEEKS ? VIGOROUS_START_REGEN_MULT : 1.0;
 }
 
 /**
@@ -378,14 +481,16 @@ export function applyLegacyBonuses(
     newState.stats.money = (newState.stats.money || 0) + inheritance;
   }
 
-  // Educational legacy bonus
+  // Educational legacy bonus.
+  //
+  // Same defect as `early_education_access`, and dead for the same reason: it
+  // mapped `completed: true` over the heir's enrolment list, which is empty at
+  // the start of every life, so the 15,000-point legendary granted nothing. The
+  // programmes come from the catalogue now. The `previousState` guard is kept —
+  // this is a LEGACY bonus, so it only pays on a path that actually has a prior
+  // life behind it.
   if (unlockedBonuses.includes('legacy_education') && previousState) {
-    // Mark all educations as completed
-    newState.educations = (newState.educations || []).map(edu => ({
-      ...edu,
-      completed: true,
-      weeksRemaining: undefined,
-    }));
+    newState.educations = completeAllPrograms(newState.educations);
   }
 
   // Family reputation bonus

@@ -130,7 +130,7 @@ export const DISCOVERABLE_SYSTEMS: Record<string, {
     name: 'Social Media',
     category: 'advanced',
     unlockRequirements: {
-      requiresItem: 'phone',
+      requiresItem: 'smartphone', // catalogue id (was 'phone', which matched no item and worked only via the hasPhone fallback)
       minAge: 13,
     },
   },
@@ -424,11 +424,15 @@ export function checkSystemUnlocked(systemId: string, gameState: GameState): boo
   if ('requiresItem' in unlockReq && unlockReq.requiresItem) {
     const hasItem = gameState.items?.find(i => i.id === unlockReq.requiresItem && i.owned);
     if (!hasItem) {
-      // Special case for phone/computer
-      if (unlockReq.requiresItem === 'phone' && !gameState.hasPhone) {
-        return false;
-      }
-      if (unlockReq.requiresItem === 'computer' && !gameState.computerPreviouslyOwned) {
+      // Fallback flags for the two items that also live as booleans on state.
+      const flagSatisfied =
+        (unlockReq.requiresItem === 'smartphone' && gameState.hasPhone) ||
+        (unlockReq.requiresItem === 'computer' && gameState.computerPreviouslyOwned);
+      // No silent pass-through: this used to special-case 'phone'/'computer'
+      // and FALL THROUGH for every other id, so the next system added with
+      // requiresItem: 'passport' would have shipped ungated while its UI
+      // claimed a gate. An unowned, unflagged requirement now blocks.
+      if (!flagSatisfied) {
         return false;
       }
     }
