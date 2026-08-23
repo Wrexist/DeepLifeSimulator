@@ -1,3 +1,22 @@
+# Deferred items — "do all that's left" (owner, 2026-08-23)
+
+- [x] L1. `starting_energy`: keep the +20 heir grant, ADD +25% energy regen for
+      the first year of every life — real on the reset path at last.
+- [x] L2. Scenario `rewards.achievement`/`title`: delete the dead fields (no
+      consumer, ids in no catalogue) so the schema stops implying a reward path.
+- [x] L3. FEATURE_FLAGS: delete the three zero-reader flags (`analytics`,
+      `bootBreadcrumbs`, `weeklyEvents`) with NOTE comments; drop the unused
+      import in GameActionsContext; sync CLAUDE.md's Sentry sentence.
+- [x] L4. Legacy Name branch: deep nodes state the 100 reputation cap.
+- [x] L5. Perk income scoping: crime_boss → street-job payouts, landlord →
+      rental income, financial_guru → career salary; excluded from the global
+      product so nothing double-applies; copy restored to the scoped promises.
+- [x] L6. Enforce `career.requirements.reputation` (2 careers), waived by
+      early_career_access like the rest of the block.
+- [ ] L7. Tests, full suite, push (updates PR #157).
+
+---
+
 <!-- `tasks/todo.md` is a single active-plan file that each branch rewrites. The
      ACTIVE plan is first; finished plans are kept below it rather than dropped,
      so a merge finds complete records instead of a diff. -->

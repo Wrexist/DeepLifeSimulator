@@ -4,7 +4,9 @@
  */
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
-import { applyStartingBonuses, getSkillGainMultiplier, getAchievementProgressMultiplier } from '@/lib/prestige/applyBonuses';
+import { applyStartingBonuses, getSkillGainMultiplier, getAchievementProgressMultiplier, getStartingEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
+import { SCENARIOS } from '@/lib/scenarios/scenarioDefinitions';
+import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { PRESTIGE_BONUSES, canPurchaseBonus } from '@/lib/prestige/prestigeBonuses';
 import { heirStartingBonuses, LEGACY_UPGRADES } from '@/lib/legacy/legacyShop';
@@ -170,5 +172,41 @@ describe('every education id referenced by a gate exists in the catalogue', () =
           .toBe(`${post.id} requires ${eduId}: true`);
       }
     }
+  });
+});
+
+describe('Vigorous Start — the half that works on every path (2026-08-23)', () => {
+  it('boosts regen +25% during the first year of a life', () => {
+    expect(getStartingEnergyRegenMultiplier(['starting_energy'], 0)).toBeCloseTo(1.25, 10);
+    expect(getStartingEnergyRegenMultiplier(['starting_energy'], 51)).toBeCloseTo(1.25, 10);
+  });
+
+  it('expires after the first year, and needs the bonus', () => {
+    expect(getStartingEnergyRegenMultiplier(['starting_energy'], 52)).toBe(1.0);
+    expect(getStartingEnergyRegenMultiplier([], 0)).toBe(1.0);
+  });
+
+  it('windowed on weeks into THIS life, wired into the regen line (source pin)', () => {
+    const src = code('contexts/game/GameActionsContext.tsx');
+    expect(src).toMatch(/getStartingEnergyRegenMultiplier\(/);
+    expect(src).toMatch(/weeksSinceLifeStart\(prevState\.weeksLived \|\| 0, prevState\.lifeStartWeek\)/);
+  });
+});
+
+describe('scenario rewards carry no dead fields (2026-08-23)', () => {
+  it('every rewards object holds gems only', () => {
+    for (const scenario of SCENARIOS) {
+      const keys = Object.keys(scenario.rewards ?? {});
+      expect(`${scenario.id}: ${keys.sort().join(',')}`).toBe(`${scenario.id}: ${keys.length ? 'gems' : ''}`);
+    }
+  });
+});
+
+describe('the zero-reader feature flags stay deleted (2026-08-23)', () => {
+  it('analytics / bootBreadcrumbs / weeklyEvents are gone from FEATURE_FLAGS', () => {
+    const flags = FEATURE_FLAGS as Record<string, unknown>;
+    expect(flags.analytics).toBeUndefined();
+    expect(flags.bootBreadcrumbs).toBeUndefined();
+    expect(flags.weeklyEvents).toBeUndefined();
   });
 });

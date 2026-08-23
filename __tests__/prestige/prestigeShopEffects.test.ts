@@ -168,12 +168,17 @@ describe('early_career_access — "Unlock all careers from start"', () => {
     expect(check.waivedByPrestige).toBe(true);
   });
 
-  it('reports the unenforced reputation bar without blocking on it', () => {
-    // Deliberate: no build has ever gated on reputation, so enforcing it here
-    // would newly lock a career for existing players.
-    const check = checkCareerRequirements({ reputation: 30 }, brokeAndUnqualified([]));
-    expect(check.met).toBe(true);
-    expect(check.reputationShortfall).toEqual({ required: 30, actual: 0 });
+  it('enforces the reputation bar, and the bonus waives it like the rest', () => {
+    // Enforced 2026-08-23 (owner's call): the two careers carrying a bar —
+    // Politician (20) and Celebrity (30) — are exactly the ones it is
+    // thematic for, and were joinable with zero standing.
+    const blocked = checkCareerRequirements({ reputation: 30 }, brokeAndUnqualified([]));
+    expect(blocked.met).toBe(false);
+    expect(blocked.reputationShortfall).toEqual({ required: 30, actual: 0 });
+
+    const waived = checkCareerRequirements({ reputation: 30 }, brokeAndUnqualified(['early_career_access']));
+    expect(waived.met).toBe(true);
+    expect(waived.reputationShortfall).toBeUndefined();
   });
 
   it('passes a career with no requirements at all', () => {

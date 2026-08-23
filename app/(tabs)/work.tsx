@@ -612,14 +612,16 @@ function WorkScreenContent() {
     const renderCareerCard = (career: Career): React.ReactElement => {
         // CareerRequirements types `fitness`/`items` directly, so no `as any`
         // needed (was a rule-2 violation that bypassed the narrowed type).
+        // Chip TONES come from the same shared check the Apply button and
+        // applyForJob use, so a requirement the prestige bonus waives shows
+        // met on the card instead of red next to an enabled button.
+        const cardReqCheck = checkCareerRequirements(career.requirements, gameState);
         const requiresFitness = !!career.requirements.fitness;
-        const meetsFitness = !requiresFitness || (gameState?.stats?.fitness ?? 0) >= (career.requirements.fitness ?? 0);
+        const meetsFitness = !cardReqCheck.fitnessShortfall;
         const requiresEdu = !!('education' in career.requirements && career.requirements.education && career.requirements.education.length > 0);
-        const hasEdu =
-            !requiresEdu ||
-            ('education' in career.requirements && (career.requirements.education ?? []).every((eid: string) =>
-                !!(gameState.educations || []).find(e => e.id === eid)?.completed
-            ));
+        const hasEdu = cardReqCheck.missingEducation.length === 0;
+        const requiresReputation = !!career.requirements.reputation;
+        const meetsReputation = !cardReqCheck.reputationShortfall;
         const requiresItems = !!('items' in career.requirements && career.requirements.items && career.requirements.items.length > 0);
         const missingItemNames: string[] = requiresItems
             ? (career.requirements.items ?? [])
@@ -671,6 +673,16 @@ function WorkScreenContent() {
                 icon: <Briefcase size={scale(13)} color={hasEdu ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
                 value: hasEdu ? 'Education met' : 'Education needed',
                 tone: hasEdu ? 'default' : 'bad',
+            });
+        }
+        // Reputation gate (Politician 20+, Celebrity 30+) — enforced as of
+        // 2026-08-23, so the card must say so rather than leaving a disabled
+        // Apply button unexplained.
+        if (requiresReputation) {
+            metadata.push({
+                icon: <Star size={scale(13)} color={meetsReputation ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
+                value: `Reputation ${career.requirements.reputation}+`,
+                tone: meetsReputation ? 'default' : 'bad',
             });
         }
         metadata.push({

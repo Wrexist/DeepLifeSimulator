@@ -350,8 +350,15 @@ export const performStreetJob = (
     TALENT_PAY_MULTIPLIER_MAX,
     1 + unlockedTalents * TALENT_PAY_BONUS_PCT,
   );
+  // Crime Boss onboarding perk: "+10% earnings from street jobs" — paid HERE,
+  // at the source the card names. It used to sit in the weekly tick's global
+  // income product (boosting salary and dividends, and touching street pay
+  // not at all, since street jobs pay at action time and never enter that
+  // aggregate). SOURCE_SCOPED_PERK_IDS in applyIncome.ts excludes it there,
+  // so it cannot apply twice.
+  const crimeBossMult = gameState.perks?.crime_boss ? 1.1 : 1;
   const moneyGained = success
-    ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier)
+    ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier * crimeBossMult)
     : 0;
 
   // Risk calculation — wanted level increases arrest chance
@@ -790,6 +797,14 @@ export const applyForJob = (
     return {
       success: false,
       message: `Requires Fitness ${required}+ (you have ${Math.floor(actual)})`,
+    };
+  }
+
+  if (requirementCheck.reputationShortfall) {
+    const { required, actual } = requirementCheck.reputationShortfall;
+    return {
+      success: false,
+      message: `This role needs a reputation of ${required}+ — yours is ${Math.floor(actual)}. Get known first.`,
     };
   }
 

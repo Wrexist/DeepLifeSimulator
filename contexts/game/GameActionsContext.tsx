@@ -70,6 +70,7 @@ import { getStockInfo, restoreStockPrices, resetStockPrices, getAllStockSymbols,
 import { accumulateDividendsThisYear } from '@/lib/stocks/dividends';
 import { initializeConsequenceState, applyChoiceConsequences } from '@/lib/lifeMoments/consequenceTracker';
 import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/applyQOLBonuses';
+import { getStartingEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 import { calculateActivePolicyEffects } from './actions/PoliticalActions';
 
@@ -131,7 +132,7 @@ import { computeSavingsInterest } from './actions/weekly/applySavingsInterest';
 import { applyLoanAutopay } from './actions/weekly/applyLoanAutopay';
 import { applyArrears } from './actions/weekly/applyArrears';
 import { applyWeeklyInflation } from '@/lib/economy/inflation';
-import { resolveCalendar } from '@/utils/weekCounters';
+import { resolveCalendar, weeksSinceLifeStart } from '@/utils/weekCounters';
 import { guardTick } from './actions/weekly/guardTick';
 import { applyHousingWellbeing } from './actions/weekly/applyHousingWellbeing';
 import { resolveTenancyStep } from '@/lib/realEstate/rentals';
@@ -172,7 +173,6 @@ import { applyEconomicEvent } from './actions/weekly/applyEconomicEvent';
 import { applyWeeklyEvents } from './actions/weekly/applyWeeklyEvents';
 import { resolveFamilySpouse } from './actions/weekly/resolveFamilySpouse';
 import { applyCliffhangerResolution } from './actions/weekly/applyCliffhangerResolution';
-import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
 import { applyLifeMoment } from './actions/weekly/applyLifeMoment';
 import { applyConsequenceProgression } from './actions/weekly/applyConsequenceProgression';
 import { applyDeathRibbon } from './actions/weekly/applyDeathRibbon';
@@ -803,7 +803,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // Life Skills: Stamina (+15% energy regen — reinterpreted from "+10 max energy"
  // since the energy ceiling is a hard 100). Bounded mult from the accessor.
  const staminaRegenMult = lifeSkillMods.energyRegenMult;
- const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult); // Full regen amount (don't cap here)
+ // Vigorous Start (starting_energy): +25% regen for the first year of this
+ // life — the half of the bonus that a 100-energy fresh start cannot clamp
+ // away (the +20 starting grant only ever helped heirs). Windowed on weeks
+ // into THIS life, not the absolute counter (§4.3).
+ const vigorousStartMult = getStartingEnergyRegenMultiplier(
+ unlockedBonuses,
+ weeksSinceLifeStart(prevState.weeksLived || 0, prevState.lifeStartWeek),
+ );
+ const energyRegen = Math.round(baseEnergyRegen * safeEnergyRegenMultiplier * energyBoostBonus * staminaRegenMult * vigorousStartMult); // Full regen amount (don't cap here)
  // GL-7: Auto-Rest ("Automatically rest when energy < 20%", 3,000 prestige
  // points). `shouldAutoRest` had exactly one occurrence in the whole repo —
  // its own definition — so the bonus was bought and never fired.
@@ -1166,6 +1174,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    weeklyCtx,
    prevState.realEstateActivity,
    unlockedBonuses,
+   prevState.perks,
  ), {
    weeklyRent: 0,
    updatedRealEstate: prevState.realEstate || [],

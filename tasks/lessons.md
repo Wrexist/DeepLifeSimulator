@@ -4056,3 +4056,33 @@ had three wired consumers, a UI strip, and NO writer — the inverse of the
 usual dead-reader finding, invisible to reader-existence guards. For any
 optional state field, the audit question is symmetric: who reads it, AND who
 can ever set it?
+
+---
+
+## 2026-08-23 (third pass) — Closing the "left to the owner" list
+
+Owner: "do all that's left." Every deferred item from the second pass, resolved:
+
+- **Vigorous Start**: the +20-energy grant is unclampable only for heirs, so
+  the bonus gained a second half that no 100-energy start can absorb — +25%
+  regen for the first 52 weeks OF THIS LIFE (`weeksSinceLifeStart`, §4.3).
+  The pattern: when a "starting X" bonus is clamped by the starting value,
+  convert the clamped share into a time-windowed rate the clamp can't touch.
+- **Scenario rewards.achievement/title**: deleted, not wired. 23 badge ids in
+  no catalogue and titles with no consumer — and the cards never advertised
+  them, so deleting closed the trap with zero player-visible change. A schema
+  field with no consumer is a promise the NEXT feature will accidentally make.
+- **Three zero-reader feature flags deleted** (`analytics`, `bootBreadcrumbs`,
+  `weeklyEvents`), each replaced with the NOTE pattern the `notifications`
+  flag established. `weeklyEvents` was the sharpest case: its comment
+  documented an env var that did nothing at all.
+- **Perk income scoping**: crime_boss/landlord/financial_guru now pay at the
+  source their card names (street payout, rental tick, salary term) and are
+  excluded from the global product via SOURCE_SCOPED_PERK_IDS. The lesson for
+  scoped effects: the exclusion set and the source sites must ship in the
+  same change, or the perk double-applies.
+- **Reputation requirement enforced** (Politician 20+, Celebrity 30+), waived
+  by early_career_access like the rest of the block, with a card chip so a
+  disabled Apply button is never unexplained. Enforcing a never-enforced gate
+  is safe exactly when: the bar is low, the theme demands it, the UI says so,
+  and the existing waiver covers whoever paid to skip gates.

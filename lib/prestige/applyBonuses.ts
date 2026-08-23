@@ -377,6 +377,33 @@ export function getEnergyRegenMultiplier(unlockedBonuses: string[]): number {
   return 1.0;
 }
 
+/** How long Vigorous Start's regen boost lasts, in weeks of the new life. */
+export const VIGOROUS_START_WEEKS = 52;
+/** The regen multiplier Vigorous Start applies during that window. */
+export const VIGOROUS_START_REGEN_MULT = 1.25;
+
+/**
+ * Vigorous Start (`starting_energy`), the half that works on EVERY path.
+ *
+ * The original effect — +20 starting energy — is real for heirs (who start
+ * tired) and a no-op on the prestige RESET path, because a fresh life already
+ * starts at 100 energy and `Math.min(100, 100 + 20)` is the whole effect. The
+ * 2,000-point purchase therefore did nothing for anyone who prestiged with
+ * "start fresh". The +20 grant stays (heirs keep it); THIS adds +25% energy
+ * regeneration for the first year of each life, which no starting value can
+ * clamp away. Gated on weeks INTO THIS LIFE (CLAUDE.md §4.3) — the raw
+ * `weeksLived` counter is seeded from starting age and would end the window
+ * before the first frame for every non-18 start.
+ */
+export function getStartingEnergyRegenMultiplier(
+  unlockedBonuses: string[],
+  weeksThisLife: number,
+): number {
+  if (!unlockedBonuses.includes('starting_energy')) return 1.0;
+  if (!(typeof weeksThisLife === 'number' && isFinite(weeksThisLife))) return 1.0;
+  return weeksThisLife < VIGOROUS_START_WEEKS ? VIGOROUS_START_REGEN_MULT : 1.0;
+}
+
 /**
  * Get relationship gain multiplier from prestige bonuses
  * @param unlockedBonuses Array of unlocked bonus IDs

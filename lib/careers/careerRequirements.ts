@@ -15,12 +15,13 @@
  * tester report of 2026-08-23. The bonus now lifts the whole requirements
  * block, which is what the shop has always promised.
  *
- * `reputation` is deliberately still not enforced. Two careers carry one
- * (ids at `lib/careers/careerData.ts`), and no build has ever gated on it, so
- * turning it on here would newly LOCK a career for existing players in the name
- * of fixing a different bug. It is reported by `unmetCareerRequirements` as a
- * separate, non-blocking concern so the gap is visible rather than silently
- * absent; whether to enforce it is a balance decision, not a bug fix.
+ * `reputation` is ENFORCED as of 2026-08-23 (owner's call — it had never been
+ * gated by any build, so the two careers carrying it were reachable with zero
+ * standing). The two are exactly the ones the bar is thematic for: Politician
+ * (20) and Celebrity (30) — careers about being known, joinable by nobodies.
+ * Both bars are easily reachable in normal play, and `early_career_access`
+ * waives this like every other requirement, so nobody who paid for "all
+ * careers from start" is newly locked out.
  *
  * Requirement access uses the `'x' in obj && obj.x` guard form (Hard Rule #2);
  * `CareerRequirements` has every field optional and `careerData` omits rather
@@ -40,11 +41,7 @@ export interface CareerRequirementCheck {
   missingItems: string[];
   /** The fitness bar, when it is not met. Undefined when it is (or is lifted). */
   fitnessShortfall?: { required: number; actual: number };
-  /**
-   * The reputation bar, when it is not met. Recorded but NOT part of `met` —
-   * see the file header. Present so a caller can surface it without this module
-   * quietly changing who can be hired.
-   */
+  /** The reputation bar, when it is not met (blocking, waived by prestige). */
   reputationShortfall?: { required: number; actual: number };
   /** True when `early_career_access` waived the block. */
   waivedByPrestige: boolean;
@@ -88,20 +85,19 @@ export function checkCareerRequirements(
       const actual = gameState?.stats?.fitness ?? 0;
       if (actual < req.fitness) fitnessShortfall = { required: req.fitness, actual };
     }
-  }
 
-  // Recorded whether or not the bonus is held, because it is not enforced
-  // either way — a caller that reads it should see the true picture.
-  if ('reputation' in req && typeof req.reputation === 'number' && req.reputation > 0) {
-    const actual = gameState?.stats?.reputation ?? 0;
-    if (actual < req.reputation) reputationShortfall = { required: req.reputation, actual };
+    if ('reputation' in req && typeof req.reputation === 'number' && req.reputation > 0) {
+      const actual = gameState?.stats?.reputation ?? 0;
+      if (actual < req.reputation) reputationShortfall = { required: req.reputation, actual };
+    }
   }
 
   return {
     met:
       missingEducation.length === 0 &&
       missingItems.length === 0 &&
-      fitnessShortfall === undefined,
+      fitnessShortfall === undefined &&
+      reputationShortfall === undefined,
     missingEducation,
     missingItems,
     fitnessShortfall,

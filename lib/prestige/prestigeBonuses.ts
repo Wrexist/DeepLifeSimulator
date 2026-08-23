@@ -90,7 +90,10 @@ export const PRESTIGE_BONUSES: PrestigeBonus[] = [
   {
     id: 'starting_energy',
     name: 'Vigorous Start',
-    description: '+20 starting energy',
+    // The +20 grant is real only for heirs (a fresh reset life already starts
+    // at 100 energy); the first-year regen boost is the half that works on
+    // every path — see getStartingEnergyRegenMultiplier.
+    description: '+20 starting energy and +25% energy regen for your first year',
     category: 'starting',
     cost: 2000,
     // Boolean effect — a second copy adds nothing, so cap the purchase.

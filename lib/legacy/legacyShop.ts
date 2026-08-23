@@ -187,7 +187,10 @@ export const LEGACY_UPGRADES: LegacyUpgrade[] = [
   {
     id: 'legacy_influence',
     name: 'Quiet Influence',
-    description: 'Your heir starts with a further +25 reputation.',
+    // The clamp note is part of the card: prestigeExecution caps reputation
+    // at 100, and the Name branch's 20+25+30 can overflow it on a high-rep
+    // scenario. Say so BEFORE the points are spent.
+    description: 'Your heir starts with a further +25 reputation (reputation caps at 100).',
     cost: 300,
     branch: 'name',
     requires: 'legacy_name',
@@ -205,7 +208,7 @@ export const LEGACY_UPGRADES: LegacyUpgrade[] = [
   {
     id: 'legacy_institution',
     name: 'A Family Institution',
-    description: 'The name is on a building. Your heir starts with a further +30 reputation.',
+    description: 'The name is on a building. Your heir starts with a further +30 reputation (reputation caps at 100).',
     cost: 900,
     branch: 'name',
     requires: 'legacy_influence',

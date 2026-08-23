@@ -49,10 +49,18 @@ export interface Scenario {
   };
   winConditions: ScenarioCondition[];
   timeLimit?: number; // Weeks to complete (optional)
+  /**
+   * Completion pays GEMS only. `achievement` and `title` fields used to sit
+   * here too — 23 populated entries whose ids existed in no achievement
+   * catalogue and whose titles had no consumer anywhere, so the schema
+   * implied a reward path no code could deliver (2026-08-23 audit). They were
+   * deleted rather than wired: the onboarding cards only ever advertised
+   * gems, so nothing player-visible was promised — but a future rewards
+   * screen built off this schema would have shipped 23 dead badges. If titles
+   * become a feature, design the catalogue first and re-add the field then.
+   */
   rewards?: {
     gems?: number;
-    achievement?: string;
-    title?: string;
   };
 }
 
@@ -84,8 +92,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 50,
-      achievement: 'rags_to_riches',
-      title: 'Self-Made Millionaire',
     },
   },
   {
@@ -123,8 +129,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 75,
-      achievement: 'academic_excellence',
-      title: 'Doctor of Philosophy',
     },
   },
   {
@@ -161,8 +165,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 40,
-      achievement: 'social_butterfly',
-      title: 'People Person',
     },
   },
   {
@@ -199,8 +201,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 100,
-      achievement: 'entrepreneur',
-      title: 'Business Magnate',
     },
   },
   {
@@ -243,8 +243,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 60,
-      achievement: 'family_focused',
-      title: 'Family Man',
     },
   },
   {
@@ -291,8 +289,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 80,
-      achievement: 'single_parent_success',
-      title: 'Super Parent',
     },
   },
 
@@ -332,8 +328,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 12 * WEEKS_PER_YEAR, // 12 years
     rewards: {
       gems: 150,
-      achievement: 'criminal_empire',
-      title: 'Kingpin',
     },
   },
   {
@@ -372,8 +366,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 15 * WEEKS_PER_YEAR, // 15 years
     rewards: {
       gems: 200,
-      achievement: 'political_dynasty',
-      title: 'Mr. President',
     },
   },
   {
@@ -411,8 +403,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 120,
-      achievement: 'tech_mogul',
-      title: 'Silicon Valley Legend',
     },
   },
   {
@@ -444,8 +434,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 100,
-      achievement: 'real_estate_tycoon',
-      title: 'Property Baron',
     },
   },
   {
@@ -477,8 +465,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 2 * WEEKS_PER_YEAR, // 2 years — very tight!
     rewards: {
       gems: 125,
-      achievement: 'speedrun_champion',
-      title: 'Speed Demon',
     },
   },
   {
@@ -522,8 +508,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 90,
-      achievement: 'balanced_life',
-      title: 'Renaissance Person',
     },
   },
   {
@@ -561,8 +545,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 85,
-      achievement: 'debt_escape',
-      title: 'Debt Destroyer',
     },
   },
   {
@@ -594,8 +576,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 70,
-      achievement: 'fame_seeker',
-      title: 'Living Legend',
     },
   },
   {
@@ -633,8 +613,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 65,
-      achievement: 'minimalist',
-      title: 'Zen Master',
     },
   },
   // ─── Phase 3 additions ──────────────────────────────────────────
@@ -672,8 +650,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 55,
-      achievement: 'athletes_journey',
-      title: 'Champion',
     },
   },
   {
@@ -711,8 +687,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 60,
-      achievement: 'creative_legend',
-      title: 'Creative Genius',
     },
   },
   {
@@ -749,8 +723,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 80,
-      achievement: 'late_bloomer',
-      title: 'Late Bloomer',
     },
   },
   {
@@ -781,8 +753,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 40,
-      achievement: 'lottery_winner',
-      title: 'Smart Money',
     },
   },
   {
@@ -819,8 +789,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 70,
-      achievement: 'redemption_arc',
-      title: 'Redeemed',
     },
   },
   {
@@ -851,8 +819,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 45,
-      achievement: 'health_recovery',
-      title: 'Comeback Kid',
     },
   },
   {
@@ -890,8 +856,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 50,
-      achievement: 'world_traveler',
-      title: 'Globe Trotter',
     },
   },
   {
@@ -928,8 +892,6 @@ export const SCENARIOS: Scenario[] = [
     timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 75,
-      achievement: 'survival_expert',
-      title: 'Survivor',
     },
   },
 ];

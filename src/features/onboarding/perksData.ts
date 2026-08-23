@@ -88,6 +88,9 @@ const perkList: Perk[] = [
   {
     id: 'financial_guru',
     title: 'Financial Guru',
+    // Scoped for real as of 2026-08-23: applied to the career-salary term in
+    // computeWeeklyIncome (it used to multiply TOTAL income — dividends, rent,
+    // everything — which is more than the card sold).
     description: '+7% salary from all jobs.',
     requirement: 'Accumulate $1,000,000 in cash.',
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
@@ -150,11 +153,10 @@ const perkList: Perk[] = [
   {
     id: 'crime_boss',
     title: 'Crime Boss',
-    // Was "+10% earnings from street jobs" — perk income multipliers are a
-    // single unscoped product over TOTAL income (applyIncome.ts); no per-source
-    // filter exists, so the card promised a distinction the engine does not
-    // make. The player was getting MORE than advertised; the copy now matches.
-    description: '+10% all income.',
+    // Scoped for real as of 2026-08-23: paid at the street-job payout in
+    // JobActions and excluded from the weekly tick's global perk product
+    // (SOURCE_SCOPED_PERK_IDS). The card's original promise, finally true.
+    description: '+10% earnings from street jobs.',
     requirement: 'Complete 100 street jobs.',
     effects: { incomeMultiplier: 1.1, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'street_grinder' },
@@ -194,9 +196,10 @@ const perkList: Perk[] = [
   {
     id: 'landlord',
     title: 'Landlord',
-    // Was "+7% passive income from properties" — same unscoped-product
-    // reality as crime_boss above.
-    description: '+7% all income.',
+    // Scoped for real as of 2026-08-23: paid on tenant rental income in
+    // applyRentAndHousing (before the weekly cap) and excluded from the global
+    // perk product, mirroring crime_boss above.
+    description: '+7% rental income from your properties.',
     requirement: 'Own 10 properties.',
     effects: { incomeMultiplier: 1.07, statBoosts: {} },
     unlock: { type: 'achievement', achievementId: 'real_estate_tycoon' },
