@@ -1,0 +1,139 @@
+name: Discord
+
+# The Discord server is config in this repo (`discord/`), so it gets the same
+# two things any other config gets: a check that it is valid before it merges,
+# and a way to act on it that does not depend on whose laptop is open.
+#
+# The release job is the loop the server exists for — ship, tell the community,
+# hear back — closed without anyone retyping the notes into Discord.
+
+on:
+  # Announce a release the moment it is published on GitHub.
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'What to do'
+        required: true
+        type: choice
+        default: release
+        options: [release, plan, sync, backup]
+      publish:
+        description: 'Also push the post to servers following this one'
+        required: false
+        type: boolean
+        default: true
+  # Config-only. Needs no token, so it runs on every PR that touches it.
+  pull_request:
+    paths:
+      - 'discord/**'
+      - 'marketing/aso/metadata.mjs'
+      - '.github/workflows/discord.yml'
+
+concurrency:
+  group: discord-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+
+      # No token and no network: duplicate names, unknown role references,
+      # Discord's structural limits, and whether the current release copy still
+      # fits in an embed. Cheap enough to run on every PR.
+      - name: Validate
+        run: npm run discord:validate
+
+      - name: Test
+        run: npx jest __tests__/tooling/discordSync.test.ts
+
+  discord:
+    # A STATIC name. An expression here does not evaluate on a `pull_request`
+    # event — `github.event.inputs` does not exist — so the checks list showed
+    # the literal string "github.event.inputs.command || 'release'" next to a
+    # skipped job. Which command ran is reported in the step summary instead.
+    name: Post to Discord
+    needs: validate
+    # Never on a pull request: a fork's PR must not be able to post to the
+    # community server, and `pull_request` cannot read secrets anyway.
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Least privilege, the `eas-update.yml` pattern: the job sees only a
+    # boolean, and the token itself is added per-step on the step that needs it.
+    # `secrets` is allowed in `env:` but not in `if:`, so gate on this flag.
+    env:
+      HAS_DISCORD: ${{ secrets.DISCORD_BOT_TOKEN != '' && secrets.DISCORD_GUILD_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Missing credentials
+        if: ${{ env.HAS_DISCORD != 'true' }}
+        run: |
+          {
+            echo "## Discord"
+            echo
+            echo "⚠️ Skipped — \`DISCORD_BOT_TOKEN\` and \`DISCORD_GUILD_ID\` are not set."
+            echo "Add them under Settings → Secrets and variables → Actions."
+            echo "See \`discord/README.md\` for how to create the bot."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run
+        id: run
+        if: ${{ env.HAS_DISCORD == 'true' }}
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          COMMAND: ${{ github.event.inputs.command || 'release' }}
+          # A published release posts and publishes. A manual run says so itself.
+          PUBLISH: ${{ github.event_name == 'release' && 'true' || github.event.inputs.publish }}
+        run: |
+          set -o pipefail
+          case "$COMMAND" in
+            release)
+              ARGS="release --apply"
+              if [ "$PUBLISH" = "true" ]; then ARGS="$ARGS --publish"; fi
+              ;;
+            # `plan` is the dry run — no --apply, so it prints and sends nothing.
+            plan)   ARGS="sync" ;;
+            sync)   ARGS="sync --apply" ;;
+            backup) ARGS="backup" ;;
+            *) echo "Unknown command: $COMMAND" >&2; exit 1 ;;
+          esac
+          node discord/cli.mjs $ARGS 2>&1 | tee /tmp/discord.txt
+
+      - name: Report
+        if: ${{ always() && env.HAS_DISCORD == 'true' }}
+        env:
+          COMMAND: ${{ github.event.inputs.command || 'release' }}
+        run: |
+          {
+            echo "## Discord — $COMMAND"
+            echo
+            if [ "${{ steps.run.outcome }}" = "success" ]; then
+              echo "✅ Done."
+            else
+              echo "❌ Failed. The server was not fully updated — re-running is safe, it picks up where it stopped."
+            fi
+            echo
+            echo '```'
+            tail -c 60000 /tmp/discord.txt 2>/dev/null || echo '(no output)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

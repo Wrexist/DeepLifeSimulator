@@ -48,7 +48,15 @@
     "asc:release": "node scripts/asc-release.mjs",
     "asc:release:apply": "node scripts/asc-release.mjs --apply",
     "submit:watch": "node scripts/wait-for-eas-submission.mjs",
-    "check:store-contrast": "node scripts/check-store-contrast.mjs"
+    "check:store-contrast": "node scripts/check-store-contrast.mjs",
+    "discord:validate": "node discord/cli.mjs validate",
+    "discord:plan": "node discord/cli.mjs sync",
+    "discord:sync": "node discord/cli.mjs sync --apply",
+    "discord:sync:growth": "node discord/cli.mjs sync --apply --phase growth",
+    "discord:sync:prune": "node discord/cli.mjs sync --apply --prune",
+    "discord:onboarding": "node discord/cli.mjs sync --apply --onboarding",
+    "discord:backup": "node discord/cli.mjs backup",
+    "discord:release": "node discord/cli.mjs release"
   },
   "dependencies": {
     "@dicebear/avataaars": "^9.2.2",

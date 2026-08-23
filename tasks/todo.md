@@ -1,3 +1,102 @@
+# Plan — Discord-as-code: `discord/` — 2026-08-23 — DONE
+
+## The ask
+
+Stop hand-building the Discord server. Keep the structure (roles, categories,
+channels, permissions, onboarding, pinned copy) as data in this repo, and have
+one idempotent command reconcile a live guild against it. Later: change one
+line, re-run, done. Plus release posting wired to the same release copy Apple
+gets.
+
+## Shape
+
+`.mjs`, zero new dependencies, run by `node` directly — the same pattern as
+`marketing/aso/metadata.mjs` + `scripts/check-aso.mjs` (data file + validator)
+and `scripts/lib/ascClient.mjs` (a REST client with a `dryRun` guard on the
+CLIENT, not on each call site). Node 22 has global `fetch`.
+
+- `discord/server.mjs` — the desired state. Roles, categories, channels,
+  onboarding prompts, progression roles.
+- `discord/copy.mjs` — the pinned document bodies (welcome, rules, links,
+  this-week, bug-report template) and the release-post renderer.
+- `discord/api.mjs` — `DiscordClient`: REST, bot auth, 429/rate-limit handling,
+  `dryRun` recording every write.
+- `discord/plan.mjs` — PURE. desired + live → an ordered operation list.
+  Name normalization, permission-overwrite derivation, orphan detection.
+- `discord/cli.mjs` — `validate | sync | backup | restore | announce | release`.
+- `__tests__/tooling/discordPlan.test.ts` — the pure half, offline.
+
+## Decisions worth writing down
+
+1. **Permission bits are BigInt.** `1 << 35` is `8` in JavaScript — bitwise ops
+   are 32-bit. Half of Discord's permission flags live above bit 31
+   (`SEND_MESSAGES_IN_THREADS` is 1<<38, `MODERATE_MEMBERS` 1<<40), so a
+   `Number` implementation silently grants/denies the wrong thing. Pinned in a
+   test.
+2. **Match channels GLOBALLY by normalized name, not per-category.** Matching
+   inside the parent means reorganizing a category *creates a duplicate*
+   instead of moving the channel. Normalization is type-aware: Discord
+   lowercases text/forum/announcement names and turns spaces into dashes, but
+   leaves voice and category names alone.
+3. **`previousNames`** on a channel/role, so a rename in the config is a rename
+   on the server rather than a new channel plus an orphan.
+4. **Sync never deletes.** `--prune` moves orphans into a hidden archive
+   category. A channel's history is unrecoverable and a config file is not a
+   good enough reason to lose it.
+5. **Nothing writes without `--apply`** (the `asc-release.mjs` convention).
+6. **Phases.** Every channel carries `phase: 'launch' | 'growth'`. Default sync
+   builds `launch` only (~22 visible channels); `--phase growth` unlocks the
+   rest. Empty channels make a server look dead.
+7. **Documents are embeds keyed by `footer.text`.** That is the stable marker
+   that lets a re-run EDIT the welcome post instead of posting a second one.
+8. **The release post uses `APPLE.storeVersion`, not `package.json` version.**
+   Players see the App Store version record (1.5.x); `package.json` is the
+   binary (2.10.x) and the two deliberately differ (CLAUDE.md §9). Announcing
+   the binary version to players would be wrong, so a test pins it.
+
+## Steps
+
+- [x] `discord/server.mjs` — desired state. 26 roles, 9 categories, 46 channels
+- [x] `discord/copy.mjs` — 8 documents + the release renderer
+- [x] `discord/plan.mjs` — pure diff engine
+- [x] `discord/api.mjs` — REST client
+- [x] `discord/cli.mjs` — validate / sync / backup / restore / announce / release
+- [x] `discord/README.md`
+- [x] `__tests__/tooling/discordSync.test.ts` — 42 tests
+- [x] npm scripts (`discord:*`), `.github/workflows/discord.yml`, `.gitignore`
+
+## Verified
+
+Against an in-memory Discord (a fake `fetch` that mimics the API, including
+Discord's own lowercasing of text-channel names):
+
+- Build from empty → **76 writes**, 34 channels, 26 roles.
+- Run it again → **0 writes.** Same at growth phase (26 writes, then 0).
+- Dry run → 0 writes, full plan printed.
+- `--prune` → the hand-made channel is moved under a hidden `🗄️ ARCHIVE`,
+  still exists, and **no DELETE is ever sent**.
+
+Repo gates, all green: `type-check` · `type-check:tests:ratchet` (0, held) ·
+`lint:errors` · `lint:ratchet` (0 errors / 798 warnings, ceiling held) ·
+`check:routes` · `__tests__/tooling/` (17 suites, 259 tests).
+
+## What changed from the plan
+
+Two unconditional writes had to be removed before the second run was actually
+free: the bulk position PATCH and the onboarding PUT were both re-sent every
+time. The onboarding one mattered — re-sending it re-runs the join flow for
+members who already finished it — so `planOnboarding` now compares only the
+fields we send and reports `changed: false`.
+
+`renderReleasePost` REFUSES copy that would not fit rather than slicing it to
+4096. Silent truncation is the failure `scripts/check-aso.mjs` exists to prevent
+on Apple's side, and a release post that stops mid-sentence in front of the
+whole community is worse than a command that will not send.
+
+One trap found while typing the config — see `tasks/lessons.md` 2026-08-23.
+
+---
+
 <!-- Two plans, both finished, both landed on 2026-08-22. `tasks/todo.md` is a
      single active-plan file that each branch rewrites, so a merge finds two
      complete records rather than a diff. Neither is dropped: the income work

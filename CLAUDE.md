@@ -43,6 +43,7 @@ Codebase size: ~400 files in `lib/`, ~240 components, ~535 test files.
 | `npm run preflight` | `check:routes` + the full preflight script (`--platform ios`, 11 sections) + `lint:errors` + `lint:ratchet` + `check:content` — **required before any release build** |
 | `npm run audit:weekly` | Static five-domain audit → `tasks/weekly-audit-<date>.md` |
 | `npm run audit:economy` \| `:stability` \| `:save` \| `:logic` \| `:perf` | Individual audit modules |
+| `npm run discord:validate` / `discord:plan` / `discord:sync` | The Discord server as code (`discord/`). `validate` needs no token or network; `plan` is the dry run; only `sync` writes. See `discord/README.md` |
 
 `npm install` runs `scripts/fix-podspec.js` as a postinstall step.
 
@@ -79,6 +80,9 @@ services/            IAP, RevenueCat, AdMob, Firebase/analytics, cloud sync
 hooks/               useTheme, useAchievements, useTimerManager, …
 scripts/             preflight, audits, route guard, asset/screenshot generators
 scripts/audit/       the five weekly audit analyzers (.cjs)
+discord/             the Discord server AS CODE — roles, categories, channels,
+                     permissions, onboarding and the pinned copy, reconciled by
+                     `npm run discord:sync`. Zero deps, plain `.mjs`
 support-site/        GitHub Pages site — hand-written HTML/CSS/JS, no build step
   android/           the Beta Hub: recruitment → onboarding → feedback → admin
 server/beta-hub/     Beta Hub API — Supabase edge function `betahub` + schema
@@ -906,6 +910,7 @@ replaced with review checklists.
 | `docs/IAP-SETUP.md`, `docs/REVENUECAT-SETUP.md`, `docs/FIREBASE_ADMOB_SETUP.md` | Monetization setup |
 | **`docs/RELEASE_RUNBOOK.md`** | **The step-by-step release procedure — follow it top to bottom** |
 | `docs/LAUNCH_CHECKLIST.md`, `docs/LAUNCH_PLAN.md`, `docs/STORE_LISTING.md`, `docs/DATA_SAFETY.md` | Store/release reference |
+| **`discord/README.md`** | **The Discord server as code. `npm run discord:validate` / `:plan` / `:sync`. Read before editing `discord/server.mjs` — channels are matched by NAME, so a rename needs `previousNames` or it reads as delete-and-recreate. Nothing writes without `--apply`, and nothing is ever deleted (`--prune` archives)** |
 | **`docs/BETA-HUB.md`** | **The Android Beta Hub — tester recruitment, onboarding, feedback, bugs, ideas, marketing centre, admin dashboard. Read before touching `support-site/android/`** |
 | `server/beta-hub/README.md` | The Beta Hub API — endpoints, the three auth tiers, and how to rotate the admin token |
 | `marketing/aso/` | Store metadata as data + `npm run check:aso`. `docs/store-screenshot-design.md` covers the screenshot system |
