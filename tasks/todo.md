@@ -1,3 +1,68 @@
+<!-- `tasks/todo.md` is a single active-plan file that each branch rewrites. The
+     ACTIVE plan is first; finished plans are kept below it rather than dropped,
+     so a merge finds complete records instead of a diff. -->
+
+# Prestige shop — tester bug report (BBQ, 2026-08-23)
+
+Reported: "Prestige shop does not work. The unlock all careers from start, start
+with all educations completed, start companies without education needed, wealth
+master synergy does not apply to revenue, multiplier income benefits cap at 50%
+making multiple income buffs moot and wasteful which applies to bonuses not yet."
+
+## Verified findings (repro'd in a scratch test before writing any fix)
+
+- [x] F1 `early_education_access` (3,000 pts, "Start with all educations completed")
+      grants NOTHING. `applyUnlockBonuses` maps over `gameState.educations`, which
+      is `[]` for every new life — the list only grows when the player ENROLLS
+      (`lib/education/operations.ts`). Mapping an empty array completes nothing.
+- [x] F2 `legacy_education` (15,000 pts, "Future generations start with all
+      educations") is the same code shape in `applyLegacyBonuses` — same result.
+- [x] F3 `early_career_access` (5,000 pts, "Unlock all careers from start") lifts
+      ONLY the `education` requirement. `fitness` and `items` still gate, so the
+      advertised "all careers" is false for 8 of the 15 education-gated careers.
+- [x] F4 `synergy_wealth_master` (18,000 pts) never shows the income-cap warning.
+      `isIncomeBonusWasted` probes `getIncomeMultiplier([bonusId])` on an EMPTY
+      list to decide "is this an income bonus"; the synergy needs 2+ income
+      bonuses to do anything, so the probe returns 1.0 → "not an income bonus" →
+      no warning, while the cap eats it whole. This is the tester's "wealth master
+      synergy does not apply to revenue" AND "which applies to bonuses not yet".
+- [x] F5 `early_company_access` — NOT reproduced. Wired correctly in all three
+      gates (`company.ts`, `CompanyActions.createCompany`, `CreateCompanyScreen`).
+      Covered by a regression test rather than a fix.
+
+## Plan
+
+- [x] 1. Extract the education programme catalogue out of
+      `components/mobile/EducationApp.tsx` into `lib/education/programs.ts`
+      (`lib/` may not import values from `components/`, CLAUDE.md §5).
+- [x] 2. F1/F2: complete every catalogue programme from the catalogue, not from
+      the player's empty enrolment list. One shared helper for both bonuses.
+- [x] 3. F3: one `meetsCareerRequirements` helper in `lib/careers/`, used by both
+      `work.tsx` and `JobActions.applyForJob`, where `early_career_access` lifts
+      the whole `CareerRequirements` gate. Kills the UI/action drift too.
+- [x] 4. F4: `isIncomeBonusWasted` must ask "does this bonus enter the income sum
+      AT ALL" against the UNCAPPED multiplier, so a prerequisite-gated bonus is
+      classified correctly. No hardcoded id list.
+- [x] 5. Tests for each, plus the F5 regression test.
+- [x] 6. type-check + full prestige/career/education suites.
+
+## Deliberately NOT changed (owner's call — flagged in the report)
+
+- The `INCOME_MULTIPLIER_CAP = 1.5` itself. CLAUDE.md documents it as deliberate
+  anti-snowball design. The bug was the shop being silent about it, not the cap.
+- Blocking a zero-effect purchase. `prestige_bonuses_all` measures completion
+  against `PURCHASABLE_PRESTIGE_BONUSES`; refusing the sale would make a
+  25,000-point achievement uncompletable — the exact trap the existing comment
+  in `prestigeBonuses.ts` warns about.
+- `career.requirements.reputation` is enforced NOWHERE (2 careers carry it).
+  Adding the gate would newly BLOCK existing players, so it stays as-is.
+
+
+---
+---
+
+# Previously completed plans (kept for the record)
+
 <!-- Two plans, both finished, both landed on 2026-08-22. `tasks/todo.md` is a
      single active-plan file that each branch rewrites, so a merge finds two
      complete records rather than a diff. Neither is dropped: the income work

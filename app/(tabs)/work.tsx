@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
 import { raisePremiumPct } from '@/lib/careers/raisePremium';
 import { paidCareerCeiling, paidWeeklyCareerSalary, paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -580,24 +581,14 @@ function WorkScreenContent() {
 
 
     const canApplyForCareer = (career: Career) => {
-        const meetsFitness =
-            !('fitness' in career.requirements && career.requirements.fitness) ||
-            (gameState?.stats?.fitness ?? 0) >= career.requirements.fitness;
-        const hasItems =
-            !('items' in career.requirements && career.requirements.items) ||
-            career.requirements.items.every((itemId: string) =>
-                (gameState.items || []).find(item => item.id === itemId)?.owned
-            );
-        // Check for early career access bonus
-        const { hasEarlyCareerAccess } = require('@/lib/prestige/applyUnlocks');
-        const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
-        const hasEarlyAccess = hasEarlyCareerAccess(unlockedBonuses);
-        const hasEducation =
-            hasEarlyAccess ||
-            !('education' in career.requirements && career.requirements.education) ||
-            (career.requirements.education && career.requirements.education.every((educationId: string) =>
-                (gameState.educations || []).find(e => e.id === educationId)?.completed
-            ));
+        // Education + fitness + items, evaluated by the SAME helper
+        // `applyForJob` uses, so the button and the action can no longer
+        // disagree. The `early_career_access` prestige bonus waives the whole
+        // block there — it used to waive education only, which is why a player
+        // who bought "Unlock all careers from start" still could not apply to
+        // the 8 education-gated careers that also want a suit, a computer or a
+        // fitness score.
+        const requirementCheck = checkCareerRequirements(career.requirements, gameState);
         const pendingApplication = gameState.careers.some(
             (c: Career) => c.applied && !c.accepted
         );
@@ -606,9 +597,7 @@ function WorkScreenContent() {
         // not just in the card, so the bar is a real gate rather than a label.
         const meetsHiringBar = evaluateHiring(getEntryJobProfile(career.id), gameState).eligible;
         return (
-            meetsFitness &&
-            hasItems &&
-            hasEducation &&
+            requirementCheck.met &&
             meetsHiringBar &&
             !career.applied &&
             !gameState.currentJob &&

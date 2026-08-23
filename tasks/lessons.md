@@ -3910,3 +3910,85 @@ answers that, ignoring imports, comments and the declaration itself.
 **Corollary for dead code.** The five uncalled helpers were deleted rather than
 left in place. Leaving them is what made the bonuses look wired for years — and
 it is why removing them dropped the lint ceiling 842 → 797 as a side effect.
+
+---
+
+## 2026-08-23 — A bonus can read the RIGHT field and still grant nothing: the empty-collection trap
+
+A tester (BBQ) reported the prestige shop as broken and named five things. Four
+reproduced. Two of them are the same new failure mode, and it is one the
+`prestigeBonusReaders` guard from 2026-08-21 is structurally blind to.
+
+| Bonus | Points | Advertised | What it did |
+|---|---|---|---|
+| `early_education_access` | 3,000 | "Start with all educations completed" | nothing |
+| `legacy_education` | 15,000 | "Future generations start with all educations" | nothing |
+
+Both had a real, non-hollow reader. Both wrote to the right field with the right
+value:
+
+```ts
+newState.educations = (newState.educations || []).map(edu => ({
+  ...edu, completed: true, weeksRemaining: undefined,
+}));
+```
+
+`gameState.educations` is the player's **enrolment record**, not a catalogue. It
+is `[]` at the start of every life and only grows when they enrol
+(`lib/education/operations.ts`). `[].map(...)` is `[]`. The bonus fires, mutates
+the correct field, and completes zero courses — for the entire life of the
+feature, on the one path ("start with…") where the list is guaranteed empty.
+
+**The rule.** A reader-existence check answers "is this id read?". It cannot
+answer "does the read produce anything?". When an effect is expressed as a
+transform over a collection, ask **where that collection comes from and what it
+holds at the moment the effect runs.** A `.map`/`.filter`/`.forEach` over a
+player-progress list, executed on a freshly-reset state, is the shape to
+distrust: it is indistinguishable from working code at every level short of
+running it. The fix is always the same — source the set from the CATALOGUE, the
+only place the full set exists.
+
+**Why nobody could write that fix before.** The catalogue lived in
+`components/mobile/EducationApp.tsx` as a module-local `const CATALOG`, and
+`lib/` may not import values from `components/` (CLAUDE.md §5). The correct
+implementation was not reachable from where the bonus lives, so the reachable
+approximation shipped instead. **A lint boundary that makes the right answer
+unreachable will get a wrong one written against it.** When data a `lib/` module
+needs sits in a component, move the data — do not code around the wall. It is
+now `lib/education/programs.ts`.
+
+### Two more from the same report
+
+**`early_career_access` (5,000, "Unlock all careers from start") lifted the
+`education` requirement only** — `fitness` and `items` still gated, and 8 of the
+15 education-gated careers carry one. The gate was ALSO evaluated twice, in
+`work.tsx` (button) and `JobActions` (action), and the two disagreed about
+fitness. Same lesson as `weeklyCareerSalary`: a rule enforced in two places is a
+rule with two answers. There is one `checkCareerRequirements` now.
+
+**`isIncomeBonusWasted` exempted the one bonus most likely to be wasted.** It
+decided "is this an income bonus?" by probing `getIncomeMultiplier([bonusId])`
+on an EMPTY list. `synergy_wealth_master` (18,000, epic) pays +15% only once two
+income bonuses are owned, so on an empty list it contributes 0, was classified
+"not an income bonus", and was the only income card that never showed the +50%
+cap warning — while the cap ate all of it.
+
+**The rule.** A capability probe run on a clean slate answers a question about
+the clean slate, not about the player. Probe against **what they actually own**,
+and against the UNCAPPED quantity, so a clamp cannot be mistaken for an absence.
+`getRawIncomeMultiplier` exists for exactly that split.
+
+### What was deliberately NOT changed
+
+- `INCOME_MULTIPLIER_CAP = 1.5`. The tester is right that stacked income buffs
+  are wasteful at the ceiling; the cap is documented anti-snowball design and
+  changing it is the owner's call. The bug was the shop's silence, so the
+  ceiling is now stated up front in the shop header, not only per-card.
+- Refusing a zero-effect purchase. Tempting, and wrong: `prestige_bonuses_all`
+  measures completion against `PURCHASABLE_PRESTIGE_BONUSES`, so blocking the
+  sale would trade a wasted purchase for a 25,000-point achievement that can
+  never complete — the trap `prestigeBonuses.ts` already warns about.
+- `career.requirements.reputation`, which no build has ever enforced. Turning it
+  on while fixing a different bug would newly LOCK two careers for existing
+  players. `checkCareerRequirements` reports it without blocking, so the gap is
+  visible instead of invisible.

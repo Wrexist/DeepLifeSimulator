@@ -9,6 +9,7 @@
 import { Education, EducationClass } from '@/contexts/game/types';
 import { clampGpa, highestGpa } from './gpa';
 import { MAX_CLASSES_PER_SEMESTER } from './educationSystem';
+import { EDUCATION_PROGRAMS } from './programs';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -139,3 +140,64 @@ export function applyStudySession(
 
 // Re-export newId for action layer's loan creation.
 export { newId };
+
+// ---------------------------------------------------------------------------
+// Bulk completion (prestige "start with all educations" bonuses)
+// ---------------------------------------------------------------------------
+
+/**
+ * Every catalogue programme, completed.
+ *
+ * Written for the two prestige bonuses that promise a fully-educated start —
+ * `early_education_access` ("Start with all educations completed", 3,000 pts)
+ * and `legacy_education` ("Future generations start with all educations",
+ * 15,000 pts). Both used to do this by mapping `completed: true` over the
+ * educations list they were handed, which is the player's ENROLMENT record:
+ * `[]` at the start of every life, because entries are only appended by
+ * `enroll` above. Mapping an empty array completes nothing, so both bonuses
+ * were consumed for zero effect — 18,000 points between them.
+ *
+ * The fix is to source the programmes from the CATALOGUE rather than from the
+ * player's list, which is the only place the full set exists.
+ *
+ * Existing entries are preserved and flipped to completed rather than replaced,
+ * so a programme the player was part-way through keeps its GPA, exam record and
+ * enrolled classes instead of having them reset by the reward. `weeksRemaining`
+ * is cleared to `undefined` — the shape `needsEducationProgressionTick` already
+ * treats as not-tickable, matching what the old code wrote.
+ *
+ * A programme that has left the catalogue but still sits in the player's list
+ * is kept (and completed), so a save carrying a retired id is never truncated.
+ */
+export function completeAllPrograms(educations: Education[] | undefined | null): Education[] {
+  const existing = Array.isArray(educations) ? educations : [];
+  const byId = new Map<string, Education>();
+
+  for (const edu of existing) {
+    if (edu && typeof edu.id === 'string') {
+      byId.set(edu.id, { ...edu, completed: true, weeksRemaining: undefined, paused: false });
+    }
+  }
+
+  for (const program of EDUCATION_PROGRAMS) {
+    if (byId.has(program.id)) continue;
+    byId.set(program.id, {
+      id: program.id,
+      name: program.name,
+      description: program.description,
+      cost: program.cost,
+      duration: program.duration,
+      completed: true,
+      weeksRemaining: undefined,
+      paused: false,
+      enrolledClasses: [],
+      examsPassed: 0,
+      examsFailed: 0,
+      gpa: 3.0,
+      studyGroupActive: false,
+      semesterNumber: 1,
+    });
+  }
+
+  return Array.from(byId.values());
+}

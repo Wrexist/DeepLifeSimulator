@@ -41,6 +41,12 @@ import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
 import EnrollModal, { EnrollTemplate } from '@/components/education/EnrollModal';
 import {
+  EDUCATION_PROGRAMS,
+  EDUCATION_TIER_LABEL,
+  EDUCATION_TIER_ORDER,
+  type EducationTierId,
+} from '@/lib/education/programs';
+import {
   enrollInProgram,
   resolveCampusEventChoice,
   studyExtra,
@@ -82,34 +88,18 @@ const TABS: { id: Tab; label: string; icon: IconType }[] = [
 ];
 
 // --- Academic directory tiers (presentational grouping of the catalog) -------
-type TierId = 'foundation' | 'certificate' | 'undergrad' | 'graduate' | 'professional';
-const TIER_ORDER: TierId[] = ['foundation', 'certificate', 'undergrad', 'graduate', 'professional'];
-const TIER_LABEL: Record<TierId, string> = {
-  foundation: 'Foundational',
-  certificate: 'Certificates & Academies',
-  undergrad: 'Undergraduate',
-  graduate: 'Graduate',
-  professional: 'Professional & Doctoral',
-};
+// The catalogue itself now lives in `lib/education/programs.ts`. It was moved
+// there because `lib/` may not import values from `components/` (CLAUDE.md §5),
+// which is what kept the two "start with all educations" prestige bonuses dead:
+// with no catalogue in scope they completed the player's ENROLMENT list, which
+// is empty at the start of every life.
+type TierId = EducationTierId;
+const TIER_ORDER: TierId[] = EDUCATION_TIER_ORDER;
+const TIER_LABEL: Record<TierId, string> = EDUCATION_TIER_LABEL;
 
-interface CatalogEntry extends EnrollTemplate {
-  tier: TierId;
-}
+type CatalogEntry = EnrollTemplate & { tier: TierId };
 
-/** Course catalog. Trimmed from the legacy 11 entries; tier is display-only. */
-const CATALOG: CatalogEntry[] = [
-  { id: 'high_school',       name: 'High School Diploma',  description: 'Required for most jobs.',                    cost: 0,       duration: 104, tier: 'foundation' },
-  { id: 'police_academy',    name: 'Police Academy',       description: 'Law enforcement training.',                  cost: 12_000,  duration: 30,  tier: 'certificate' },
-  { id: 'legal_studies',     name: 'Legal Studies',        description: 'Paralegal track.',                           cost: 18_000,  duration: 46,  tier: 'certificate' },
-  { id: 'entrepreneurship',  name: 'Entrepreneurship',     description: 'Start and run companies.',                   cost: 30_000,  duration: 72,  tier: 'undergrad' },
-  { id: 'business_degree',   name: 'Business Degree',      description: 'Teacher / nurse track.',                     cost: 48_000,  duration: 90,  tier: 'undergrad' },
-  { id: 'computer_science',  name: 'Computer Science',     description: 'Software engineering track.',                cost: 72_000,  duration: 104, tier: 'undergrad' },
-  { id: 'masters_degree',    name: "Master's Degree",      description: 'Specialized — opens senior roles.',          cost: 90_000,  duration: 120, tier: 'graduate' },
-  { id: 'mba',               name: 'MBA',                  description: 'Required for corporate executive careers.',  cost: 120_000, duration: 150, tier: 'graduate' },
-  { id: 'medical_school',    name: 'Medical School',       description: 'Doctor track.',                              cost: 150_000, duration: 180, tier: 'professional' },
-  { id: 'law_school',        name: 'Law School',           description: 'Lawyer track.',                              cost: 132_000, duration: 156, tier: 'professional' },
-  { id: 'phd',               name: 'PhD',                  description: 'Research doctorate.',                        cost: 180_000, duration: 208, tier: 'professional' },
-];
+const CATALOG: CatalogEntry[] = EDUCATION_PROGRAMS;
 
 // --- Subject identity — a glyph + tint per program, so each course reads as a
 // distinct "subject" (directory silhouette), not a uniform row. Tints are only

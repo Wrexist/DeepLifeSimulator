@@ -10,6 +10,7 @@ import { updateStats } from './StatsActions';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
 import { applyKarmaChange, KARMA_ACTIONS, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { rejectIfBlocked } from './_guards';
+import { checkCareerRequirements } from '@/lib/careers/careerRequirements';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
 import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
 import {
@@ -774,59 +775,38 @@ export const applyForJob = (
     return { success: false, message: 'You have a pending application. Wait for a response first.' };
   }
 
-  // Check requirements
+  // Requirements — fitness, items and education, all through the SAME helper
+  // the Apply button in `work.tsx` uses, so an enabled button can no longer
+  // lead to a rejection here (and vice versa: the button checked fitness, this
+  // action checked it in a separate block that did NOT consult the prestige
+  // bonus). `early_career_access` waives the whole block, not just education,
+  // which is what "Unlock all careers from start" has always advertised —
+  // see `lib/careers/careerRequirements.ts`.
   const requirements = career.requirements;
+  const requirementCheck = checkCareerRequirements(requirements, gameState);
 
-  // Check fitness requirement
-  if ('fitness' in requirements && requirements.fitness) {
-    if ((gameState.stats.fitness || 0) < requirements.fitness) {
-      return {
-        success: false,
-        message: `Requires Fitness ${requirements.fitness}+ (you have ${gameState.stats.fitness || 0})`
-      };
-    }
+  if (requirementCheck.fitnessShortfall) {
+    const { required, actual } = requirementCheck.fitnessShortfall;
+    return {
+      success: false,
+      message: `Requires Fitness ${required}+ (you have ${Math.floor(actual)})`,
+    };
   }
 
-  // Check item requirements
-  if ('items' in requirements && requirements.items && requirements.items.length > 0) {
-    const missingItems = requirements.items.filter(itemId => {
-      const item = gameState.items.find(i => i.id === itemId);
-      return !item?.owned;
-    });
-    if (missingItems.length > 0) {
-      const itemNames = missingItems.map(id => {
-        const item = gameState.items.find(i => i.id === id);
-        return item ? item.name : id;
-      }).join(', ');
-      return { success: false, message: `Missing required items: ${itemNames}` };
-    }
+  if (requirementCheck.missingItems.length > 0) {
+    const itemNames = requirementCheck.missingItems.map(id => {
+      const item = gameState.items.find(i => i.id === id);
+      return item ? item.name : id;
+    }).join(', ');
+    return { success: false, message: `Missing required items: ${itemNames}` };
   }
 
-  // Check education requirements
-  if ('education' in requirements && requirements.education && requirements.education.length > 0) {
-    // Check for early career access bonus
-    let hasEarlyAccess = false;
-    try {
-      const { hasEarlyCareerAccess } = require('@/lib/prestige/applyUnlocks');
-      const unlockedBonuses = gameState.prestige?.unlockedBonuses || [];
-      hasEarlyAccess = hasEarlyCareerAccess(unlockedBonuses);
-    } catch {
-      // Ignore if module not found
-    }
-
-    if (!hasEarlyAccess) {
-      const missingEducation = requirements.education.filter(eduId => {
-        const education = gameState.educations.find(e => e.id === eduId);
-        return !education?.completed;
-      });
-      if (missingEducation.length > 0) {
-        const eduNames = missingEducation.map(id => {
-          const edu = gameState.educations.find(e => e.id === id);
-          return edu ? edu.name : id;
-        }).join(', ');
-        return { success: false, message: `Missing required education: ${eduNames}` };
-      }
-    }
+  if (requirementCheck.missingEducation.length > 0) {
+    const eduNames = requirementCheck.missingEducation.map(id => {
+      const edu = gameState.educations.find(e => e.id === id);
+      return edu ? edu.name : id;
+    }).join(', ');
+    return { success: false, message: `Missing required education: ${eduNames}` };
   }
 
   // All requirements met - apply for the job

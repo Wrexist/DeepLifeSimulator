@@ -24,7 +24,11 @@
  * defect in this codebase, and it would be especially bad here: the display
  * would drift the moment a bonus is retuned.
  */
-import { INCOME_MULTIPLIER_CAP, getIncomeMultiplier } from './applyBonuses';
+import {
+  INCOME_MULTIPLIER_CAP,
+  getIncomeMultiplier,
+  getRawIncomeMultiplier,
+} from './applyBonuses';
 
 const safeList = (unlockedBonuses: string[] | undefined | null): string[] =>
   Array.isArray(unlockedBonuses) ? unlockedBonuses : [];
@@ -80,8 +84,26 @@ export function isIncomeBonusWasted(
   unlockedBonuses: string[] | undefined | null,
   bonusId: string,
 ): boolean {
-  // "Would it do anything on a clean slate?" separates an income bonus from a
-  // learning-speed one without hardcoding a list of ids that could go stale.
-  const affectsIncome = getIncomeMultiplier([bonusId]) > getIncomeMultiplier([]);
-  return affectsIncome && incomeGainFromPurchase(unlockedBonuses, bonusId) <= 0;
+  const owned = safeList(unlockedBonuses);
+  // Two separate questions, and they need two different multipliers.
+  //
+  // "Is this an income bonus at all?" must be asked of the UNCAPPED sum, and
+  // against what the player already owns. The previous version asked it of the
+  // CAPPED sum on a CLEAN SLATE — `getIncomeMultiplier([bonusId]) >
+  // getIncomeMultiplier([])` — which is false for any bonus whose contribution
+  // has a prerequisite. `synergy_wealth_master` pays +15% only once two income
+  // bonuses are owned, so on an empty list it looked like a non-income bonus and
+  // was exempted from the cap warning entirely: an 18,000-point epic, sold with
+  // no warning in exactly the situation where the cap eats all of it. Asking
+  // against `owned` rather than a clean slate is what makes the probe track the
+  // prerequisite: a player who does not yet own two income bonuses gets no cap
+  // note at all (correct — the cap is not what is stopping them; the card's own
+  // description already states the requirement), and the moment they do, the
+  // synergy is classified as the income bonus it is.
+  //
+  // "Would buying it move the paycheck?" is then asked of the CAPPED sum, which
+  // is what the week loop applies.
+  const affectsIncome =
+    getRawIncomeMultiplier([...owned, bonusId]) > getRawIncomeMultiplier(owned);
+  return affectsIncome && incomeGainFromPurchase(owned, bonusId) <= 0;
 }

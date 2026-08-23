@@ -291,6 +291,37 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
               </ScrollView>
             </View>
 
+            {/* Income headroom, stated ONCE and up front.
+                The per-card note below only fires on the card you are looking
+                at, so a player browsing the Multiplier tab could read three
+                "+10% to all income sources" headlines before learning that the
+                combined bonus is clamped at +50%. A tester spent to the ceiling
+                and reported the stack as "moot and wasteful"; the cap is
+                deliberate anti-snowball design, so the fix is to make the
+                ceiling visible BEFORE the points are spent, not to lift it.
+                Hidden at 1.0x, where there is nothing yet to explain. */}
+            {incomeHeadroom.current > 1 && (
+              <View
+                style={[
+                  styles.headroomBanner,
+                  incomeHeadroom.atCap
+                    ? { borderColor: 'rgba(245, 158, 11, 0.35)', backgroundColor: 'rgba(245, 158, 11, 0.10)' }
+                    : { borderColor: 'rgba(16, 185, 129, 0.35)', backgroundColor: 'rgba(16, 185, 129, 0.10)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.capNote,
+                    { marginTop: 0, color: incomeHeadroom.atCap ? '#f59e0b' : '#10b981' },
+                  ]}
+                >
+                  {incomeHeadroom.atCap
+                    ? `Income bonus +${Math.round((incomeHeadroom.cap - 1) * 100)}% — at the cap. Further income bonuses will grant nothing.`
+                    : `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% of a +${Math.round((incomeHeadroom.cap - 1) * 100)}% cap · +${Math.round(incomeHeadroom.remaining * 100)}% still available`}
+                </Text>
+              </View>
+            )}
+
             {/* Bonuses List */}
             <ScrollView 
               style={styles.bonusesList} 
@@ -843,6 +874,17 @@ const styles = StyleSheet.create({
     marginTop: scale(4),
   },
   capNote: { fontSize: 11, marginTop: 4, fontWeight: '600' },
+  headroomBanner: {
+    marginHorizontal: scale(16),
+    marginBottom: scale(6),
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(8),
+    // Full four-sided hairline, never a one-sided accent stripe (Hard Rule #7).
+    // Colour carries meaning and is applied at the call site: amber = at the
+    // cap, green = headroom left.
+    borderWidth: 1,
+  },
   bonusDescriptionDark: {
     color: '#CBD5E1',
   },

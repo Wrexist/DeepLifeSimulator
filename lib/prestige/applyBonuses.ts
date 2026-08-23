@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/game/types';
+import { completeAllPrograms } from '@/lib/education/operations';
 import { getStockInfo } from '@/lib/economy/stockMarket';
 import { getBonusLevel } from './prestigeBonuses';
 
@@ -200,11 +201,23 @@ export function applyStartingBonuses(
 export const INCOME_MULTIPLIER_CAP = 1.5;
 
 /**
- * Get income multiplier from prestige bonuses
- * @param unlockedBonuses Array of unlocked bonus IDs
- * @returns Total income multiplier (1.0 = no bonus)
+ * The income multiplier BEFORE the cap is applied — what the bonuses add up to
+ * on paper, which is also what the shop cards advertise.
+ *
+ * Split out of `getIncomeMultiplier` so the shop can tell two different
+ * questions apart: "does this bonus feed the income sum at all?" and "would
+ * buying it move the number the week loop actually applies?". Answering the
+ * first with the CAPPED value misclassifies every bonus whose contribution has
+ * a prerequisite — `synergy_wealth_master` pays +15% only once two income
+ * bonuses are owned, so probing it on its own returned 1.0 and the shop
+ * concluded it was not an income bonus. The result was that the one card most
+ * likely to be eaten whole by the cap (18,000 points, epic) was the only income
+ * card that never showed the cap warning. Reported by a tester 2026-08-23.
+ *
+ * Nothing in the game reads this directly — the paycheck goes through
+ * `getIncomeMultiplier` below, cap included.
  */
-export function getIncomeMultiplier(unlockedBonuses: string[]): number {
+export function getRawIncomeMultiplier(unlockedBonuses: string[]): number {
   let multiplier = 1.0;
 
   const income1Level = getBonusLevel('income_multiplier_1', unlockedBonuses);
@@ -226,13 +239,22 @@ export function getIncomeMultiplier(unlockedBonuses: string[]): number {
     multiplier += 0.15; // +15% bonus
   }
 
+  return multiplier;
+}
+
+/**
+ * Get income multiplier from prestige bonuses
+ * @param unlockedBonuses Array of unlocked bonus IDs
+ * @returns Total income multiplier (1.0 = no bonus)
+ */
+export function getIncomeMultiplier(unlockedBonuses: string[]): number {
   // ANTI-EXPLOIT: Cap total income multiplier (50% bonus max)
   // Without cap, stacking all bonuses gives 2.35x+ which makes each prestige cycle faster
   // than the last, creating an exponential snowball.
   // The cap is EXPORTED because the shop has to show it: every income bonus
   // advertised its headline number regardless of headroom, so a legendary
   // bought at the cap was consumed and granted nothing.
-  return Math.min(INCOME_MULTIPLIER_CAP, multiplier);
+  return Math.min(INCOME_MULTIPLIER_CAP, getRawIncomeMultiplier(unlockedBonuses));
 }
 
 /**
@@ -378,14 +400,16 @@ export function applyLegacyBonuses(
     newState.stats.money = (newState.stats.money || 0) + inheritance;
   }
 
-  // Educational legacy bonus
+  // Educational legacy bonus.
+  //
+  // Same defect as `early_education_access`, and dead for the same reason: it
+  // mapped `completed: true` over the heir's enrolment list, which is empty at
+  // the start of every life, so the 15,000-point legendary granted nothing. The
+  // programmes come from the catalogue now. The `previousState` guard is kept —
+  // this is a LEGACY bonus, so it only pays on a path that actually has a prior
+  // life behind it.
   if (unlockedBonuses.includes('legacy_education') && previousState) {
-    // Mark all educations as completed
-    newState.educations = (newState.educations || []).map(edu => ({
-      ...edu,
-      completed: true,
-      weeksRemaining: undefined,
-    }));
+    newState.educations = completeAllPrograms(newState.educations);
   }
 
   // Family reputation bonus
