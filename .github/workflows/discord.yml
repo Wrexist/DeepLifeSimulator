@@ -59,7 +59,11 @@ jobs:
         run: npx jest __tests__/tooling/discordSync.test.ts
 
   discord:
-    name: ${{ github.event.inputs.command || 'release' }}
+    # A STATIC name. An expression here does not evaluate on a `pull_request`
+    # event — `github.event.inputs` does not exist — so the checks list showed
+    # the literal string "github.event.inputs.command || 'release'" next to a
+    # skipped job. Which command ran is reported in the step summary instead.
+    name: Post to Discord
     needs: validate
     # Never on a pull request: a fork's PR must not be able to post to the
     # community server, and `pull_request` cannot read secrets anyway.
@@ -117,9 +121,11 @@ jobs:
 
       - name: Report
         if: ${{ always() && env.HAS_DISCORD == 'true' }}
+        env:
+          COMMAND: ${{ github.event.inputs.command || 'release' }}
         run: |
           {
-            echo "## Discord — ${{ github.event.inputs.command || 'release' }}"
+            echo "## Discord — $COMMAND"
             echo
             if [ "${{ steps.run.outcome }}" = "success" ]; then
               echo "✅ Done."
