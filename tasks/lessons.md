@@ -4,6 +4,58 @@
 
 ## Patterns to Watch For
 
+### 2026-08-23 - A bare `@everyone` in a JSDoc description silently deletes half a typedef
+
+Writing the Discord server config as JSDoc-typed `.mjs`, `ChannelSpec` carried:
+
+```js
+ * @property {boolean} [readOnly]        @everyone cannot post
+ * @property {boolean} [hidden]          @everyone cannot see it
+ * @property {string}  [doc]             key into copy.mjs DOCUMENTS
+```
+
+TypeScript reads `@everyone` as the start of a new tag, so **every `@property`
+after that line was discarded**. `ChannelSpec` lost six of its thirteen fields.
+The symptom appeared in a different file — `Property 'doc' does not exist on type
+'ChannelSpec'` in a test — with nothing wrong at the point of the error and the
+`@property {string} [doc]` line sitting right there in the source.
+
+- **The failure is invisible in the direction you look.** The typedef reads
+  correctly, the truncated half is simply gone, and the error names the file
+  that *used* the type. Two of the three errors it produced were "possibly
+  undefined" noise; only one pointed anywhere near the cause.
+- **It fails open, not closed.** A shorter type does not error — it accepts
+  MORE. Any field parsed away stops being checked at all, and a config typo in
+  one of those six fields would have compiled clean.
+- **The rule:** never write a bare `@word` inside a JSDoc description. Not
+  `@everyone`, not `@here`, not an email. Reword it ("ordinary members") or the
+  parser will take it as a tag. A comment saying so now sits above the typedefs
+  in `discord/server.mjs`.
+- **Wider point:** this only surfaced because the test tree is type-checked at a
+  baseline of 0 (`type-check:tests:ratchet`). With the old non-zero baseline the
+  three errors would have fitted under it and the config would have been
+  half-typed for as long as anyone cared to look.
+
+### 2026-08-23 - "Idempotent" is a claim about the SECOND run, and it is worth measuring
+
+The Discord sync looked idempotent — every operation compared desired against
+live and emitted nothing when they matched. Run twice against a fake guild, the
+second run still made two writes: the bulk channel-position PATCH and the
+onboarding PUT, both sent unconditionally because neither had anything to
+compare against.
+
+- The position write was harmless and still bad: it burns a rate-limit token on
+  a no-op run, and it means "0 changes" never actually prints 0.
+- The onboarding write was **not** harmless. Re-sending onboarding re-runs the
+  join flow for members who already completed it. A tool run weekly would have
+  re-asked the whole server its questions every week.
+- Neither would have been found by reading the code, because both are correct in
+  isolation. They were found by running the thing twice and asserting the second
+  run wrote nothing — which is now a test.
+- **Pattern:** for anything that reconciles state, the test is not "does it
+  produce the right result" but "does it do nothing the second time". The first
+  run is the easy half.
+
 ### 2026-08-22 - A price is data the app must be GIVEN, not a string it can keep; and "not proven false" is not "true"
 
 The DeepLife+ paywall rendered every figure — plan cards, CTA, legal disclosure,
