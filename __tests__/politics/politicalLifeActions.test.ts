@@ -243,6 +243,49 @@ describe('appointed positions', () => {
     expect(takeAppointment(prev, cap.setGameState, 'chancellor').success).toBe(false);
     expect(cap.count()).toBe(0);
   });
+
+  it('cannot be farmed for reputation by alternating two posts', () => {
+    // Reputation from a post lasts only while it is held: swapping gives the
+    // old bump back before granting the new one. Before this rule, alternating
+    // ambassador (+5) and cabinet secretary (+8) with no cooldown took a
+    // Governor from 70 to the 100 clamp in six taps — and reputation feeds the
+    // election roll and its up-to-$5M rewards.
+    let state = politician({ party: 'democratic', partySupport: 60 });
+    const rep0 = state.stats.reputation;
+
+    for (let i = 0; i < 6; i++) {
+      const target = i % 2 === 0 ? 'ambassador' : 'cabinet_secretary';
+      const cap = captureUpdaters();
+      expect(takeAppointment(state, cap.setGameState, target).success).toBe(true);
+      state = cap.commit(state);
+      // Invariant after every swap: baseline + the CURRENT post's bump, never
+      // an accumulating sum.
+      expect(state.stats.reputation).toBe(
+        rep0 + findAppointment(target)!.reputationOnTake,
+      );
+    }
+  });
+
+  it('resign-and-retake nets zero reputation', () => {
+    const prev = politician({ careerLevel: 0 });
+    const outOfOffice: GameState = {
+      ...prev,
+      careers: prev.careers.map(c => ({ ...c, accepted: false, level: 4 })),
+      politics: { ...prev.politics!, careerLevel: 0 },
+    };
+    const rep0 = outOfOffice.stats.reputation;
+
+    let state = outOfOffice;
+    for (let i = 0; i < 3; i++) {
+      const take = captureUpdaters();
+      expect(takeAppointment(state, take.setGameState, 'ambassador').success).toBe(true);
+      state = take.commit(state);
+      const resign = captureUpdaters();
+      expect(resignAppointment(state, resign.setGameState).success).toBe(true);
+      state = resign.commit(state);
+    }
+    expect(state.stats.reputation).toBe(rep0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -309,6 +352,33 @@ describe('retiring from office', () => {
     retireFromPolitics(prev, cap.setGameState);
     const retired = cap.commit(prev);
     expect(getPoliticalWeeklySalary(retired)).toBe(0);
+  });
+
+  it('winning office again SUSPENDS the pension — no double draw', () => {
+    // A retired President who takes a council seat must not draw the $6,000/wk
+    // maximum pension ON TOP of the new salary, indefinitely, from a seat they
+    // can defend forever. The record survives; the payment pauses.
+    const prev = politician();
+    const cap = captureUpdaters();
+    retireFromPolitics(prev, cap.setGameState);
+    const retired = cap.commit(prev);
+    expect(getPoliticalPensionWeekly(retired)).toBeGreaterThan(0);
+
+    const backInOffice: GameState = {
+      ...retired,
+      careers: retired.careers.map(c =>
+        c.id === 'political' ? { ...c, accepted: true, level: 0 } : c),
+      politics: { ...retired.politics!, careerLevel: 1 },
+    };
+    expect(getPoliticalPensionWeekly(backInOffice)).toBe(0);
+    expect(getPoliticalWeeklySalary(backInOffice)).toBeGreaterThan(0);
+
+    // …and resumes when they leave office again.
+    const outAgain: GameState = {
+      ...backInOffice,
+      politics: { ...backInOffice.politics!, careerLevel: 0 },
+    };
+    expect(getPoliticalPensionWeekly(outAgain)).toBe(retired.politics!.retirement!.weeklyPension);
   });
 });
 

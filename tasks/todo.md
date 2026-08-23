@@ -1,3 +1,81 @@
+# Full audit + production hardening pass (owner request, 2026-08-23) — DONE
+
+Owner asked for the full bug-hunt / incomplete-feature / hardening sweep.
+Approach: all automated gates first (everything green at the start — 641
+suites / 8438 tests, both type-check trees, lint ratchets, routes, weekly
+audit), then three parallel deep audits over the code newest on main
+(politics v47, Spark v45, the prestige rewiring), each finding re-verified
+against source before any fix (lessons.md rule).
+
+## Fixed this pass (each verified, each with a regression test)
+
+- [x] A1 **P1 — prestige builders aliased `initialGameState`.** The reset and
+      child builders spread the singleton and hand-cloned only
+      stats/date/settings, while `applyStartingBonuses` writes THROUGH
+      `newState.stocks/companies/vehicles` — so `starting_investment_portfolio`
+      compounded per prestige within a session and `starting_company`/
+      `starting_vehicle` leaked into brand-new games. Now `freshInitialState()`
+      (guarded structuredClone, the repairGameState pattern). Test proven red
+      on the old code: `__tests__/prestige/prestigeStateAliasing.test.ts`.
+- [x] A2 **P1 — party standing was capped at 50 by construction.**
+      `policySupportDelta` had zero callers AND the platform arrays used a
+      vocabulary PolicyType doesn't contain (`environment`, `business`,
+      `realEstate`, `defense`) — so endorsement (60), party funding, Party
+      Chair (70) and Cabinet Secretary (55) were unreachable, and the Career
+      tab counted down to a number the code could not produce. Wired the delta
+      into `enactPolicy`'s updater AND the policy-vote event path
+      (indistinguishable-downstream rule); platform arrays now typed
+      `PolicyType[]` and corrected. `partyStandingWiring.test.ts` pins that
+      every platform category is carried by ≥1 real policy and that
+      endorsement is reachable from baseline in two favored enactments.
+- [x] A3 **HIGH — pre-v47 party members loaded at 0 standing.**
+      `readPartySupport` read an ABSENT key as 0 — under the primary-challenge
+      floor, maximum election penalty, then PERSISTED by the weekly drift.
+      Three doc sites promised a fresh-member baseline the code didn't have.
+      Absent now reads `startingSupport`; a stored 0 stays 0.
+- [x] A4 **P2 — appointment reputation farm.** Alternating two posts (+5/+8,
+      no cooldown) reached the 100 clamp in six taps; reputation feeds the
+      election roll and its up-to-$5M rewards. Reputation from a post now
+      lasts only while it is held: swap nets the difference, resign gives the
+      bump back. No save-format change needed.
+- [x] A5 **P3 — pension + salary double-draw.** A retired President could win
+      a council seat and draw the $6,000/wk max pension on top of the new
+      salary forever. `getPoliticalPensionWeekly` now pays only out of office;
+      the record (and title) survives and payment resumes on leaving.
+- [x] A6 **P3 — `formAlliance` gate→grant non-atomicity** (+ same-id
+      `Date.now()` double-append). Rewritten as preview/commit over a new pure
+      `resolveFormAlliance` (the C-9 sound fix; ratchet stays at 101).
+- [x] A7 **P3 — `runForOffice` career append unguarded** — two same-batch
+      calls appended two `political` career entries that desync. Inner
+      `prev`-recheck added.
+- [x] A8 Weekly-audit warnings cleared: the 10 `as GameState` casts and the
+      hand-built WeekContext stub in tests replaced with typed factory shapes
+      (`zeroPreRolls`, complete `PulseVerifiedPro`).
+- [x] A9 Stale comments that misled about shipped features (bill-pay "until
+      the UI ships" pair; "buyCrypto is a stub" ×4); startup perf report now
+      goes through `logger` like the rest of the file.
+- [x] A10 Dark-web vendor seed residue (value-only change reaches new games
+      only): documented as accepted at the seed site — no exact migration
+      exists (no purchase record; old- and new-seed saves share v47).
+
+## Flagged to the owner (deliberately not changed)
+
+- Campaign↔embezzlement loop: `campaign()` has no weekly cap, so approval can
+  be bought and ~recovered via the 25%/wk skim over time. Bounded by scandal
+  heat (+6%/wk cap) so the expected cost is real; a per-week campaign cap
+  would close it cleanly if wanted.
+- `playConversationOption` returns `success:true` (+`relationshipId`) on a
+  same-batch rejected double tap — state is safe; reporting only. Same class
+  as the 101 ratcheted C-9 instances.
+- `politics.activePolicies[]` is write-only (no policy sets `duration`);
+  dead weight, and a trap if expiry is ever assumed to work.
+- Dead-but-harmless: `retiredTitle()`, `appointmentBarsOffice()` (decoy
+  helpers), `HeirGenerator`, `LeaderboardModal` (no production render site).
+- Console clusters in boot-path files (`_layout.tsx`, native wrappers) left
+  as-is: logger may be suppressed where those diagnostics matter most.
+
+---
+
 # Deferred items — "do all that's left" (owner, 2026-08-23)
 
 - [x] L1. `starting_energy`: keep the +20 heir grant, ADD +25% energy regen for
@@ -13,7 +91,8 @@
       product so nothing double-applies; copy restored to the scoped promises.
 - [x] L6. Enforce `career.requirements.reputation` (2 careers), waived by
       early_career_access like the rest of the block.
-- [ ] L7. Tests, full suite, push (updates PR #157).
+- [x] L7. Tests, full suite, push (updates PR #157). (Landed as the PR #157
+      merge; box left unticked at the time.)
 
 ---
 

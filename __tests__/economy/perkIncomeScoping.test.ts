@@ -27,7 +27,7 @@ const stateWithPerks = (perks: Record<string, boolean>): GameState => ({
   weeksLived: 500,
   lifeStartWeek: 400,
   perks,
-} as GameState);
+});
 
 const income = (perks: Record<string, boolean>, careerSalary = 1000) =>
   computeWeeklyIncome({

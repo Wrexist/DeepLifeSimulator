@@ -125,6 +125,49 @@ export function resolveJoinParty(state: GameState, target: PartyId): PoliticalOu
 }
 
 // ---------------------------------------------------------------------------
+// Alliances
+// ---------------------------------------------------------------------------
+
+/**
+ * Form a political alliance with a character. One alliance per character —
+ * resolving against an already-allied state refuses, which is what makes the
+ * commit safe on a same-batch double tap. The id is deterministic
+ * (characterId + week) rather than `Date.now()`: uniqueness is guaranteed by
+ * the one-per-character rule, and a wall-clock id minted OUTSIDE an updater
+ * once stamped the same id onto both entries of a double tap.
+ */
+export function resolveFormAlliance(
+  state: GameState,
+  characterId: string,
+  characterName: string,
+): PoliticalOutcome {
+  const politics = state.politics ?? emptyPolitics();
+  if ((politics.alliances || []).some((a) => a && a.characterId === characterId)) {
+    return refuse(state, 'You already have an alliance with this character');
+  }
+
+  const next: GameState = {
+    ...state,
+    politics: {
+      ...politics,
+      alliances: [
+        ...(politics.alliances || []),
+        {
+          id: `alliance_${characterId}_${state.weeksLived ?? 0}`,
+          characterId,
+          name: characterName,
+          influence: 10,
+          formedWeek: state.weeksLived || 0,
+        },
+      ],
+      approvalRating: Math.min(100, (politics.approvalRating ?? 50) + 3),
+    },
+  };
+
+  return { ok: true, message: `Formed political alliance with ${characterName}!`, next };
+}
+
+// ---------------------------------------------------------------------------
 // Appointments
 // ---------------------------------------------------------------------------
 
@@ -148,11 +191,18 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
   if (blocker) return refuse(state, blocker);
 
   const previous = findAppointment(politics.appointment?.id);
+  // Reputation from a post lasts only while you hold it: swapping posts gives
+  // the old one's bump back before granting the new one's, and resigning
+  // (below) gives it back too. Without the give-back, alternating two posts
+  // was a free +5/+8 reputation per tap with no cooldown — six taps took a
+  // Governor from 70 to the 100 clamp, and reputation feeds the election roll
+  // and its up-to-$5M rewards.
+  const repDelta = def.reputationOnTake - (previous?.reputationOnTake ?? 0);
   const next: GameState = {
     ...state,
     stats: {
       ...state.stats,
-      reputation: Math.max(0, Math.min(100, (state.stats?.reputation ?? 0) + def.reputationOnTake)),
+      reputation: Math.max(0, Math.min(100, (state.stats?.reputation ?? 0) + repDelta)),
     },
     politics: {
       ...politics,
@@ -160,9 +210,9 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
     },
   };
 
-  const repNote = def.reputationOnTake >= 0
-    ? `Reputation +${def.reputationOnTake}.`
-    : `Reputation ${def.reputationOnTake} — people notice.`;
+  const repNote = repDelta >= 0
+    ? `Reputation +${repDelta}.`
+    : `Reputation ${repDelta} — people notice.`;
   const replaced = previous ? ` You stepped down as ${previous.title} to take it.` : '';
 
   return {
@@ -177,10 +227,23 @@ export function resolveResignAppointment(state: GameState): PoliticalOutcome {
   const def = findAppointment(politics?.appointment?.id);
   if (!politics || !def) return refuse(state, 'You do not hold an appointed position.');
 
+  // The post's reputation goes with the post (see resolveTakeAppointment) —
+  // otherwise resign-and-retake mints the take bonus forever.
+  const repDelta = -def.reputationOnTake;
+  const repNote = repDelta === 0 ? '' : repDelta > 0
+    ? ` Reputation +${repDelta}.`
+    : ` Reputation ${repDelta}.`;
   return {
     ok: true,
-    message: `You stepped down as ${def.title}.`,
-    next: { ...state, politics: { ...politics, appointment: undefined } },
+    message: `You stepped down as ${def.title}.${repNote}`,
+    next: {
+      ...state,
+      stats: {
+        ...state.stats,
+        reputation: Math.max(0, Math.min(100, (state.stats?.reputation ?? 0) + repDelta)),
+      },
+      politics: { ...politics, appointment: undefined },
+    },
   };
 }
 

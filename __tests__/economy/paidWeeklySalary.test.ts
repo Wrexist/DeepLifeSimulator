@@ -29,6 +29,8 @@ import {
   paidWeeklySalaryForLevel,
 } from '@/lib/careers/weeklySalary';
 import { applyCareerSalaryAndPenalty } from '@/contexts/game/actions/weekly/applyCareerSalaryAndPenalty';
+import type { WeekContext } from '@/contexts/game/actions/weekly/weekContext';
+import { zeroPreRolls } from '@/__tests__/helpers/zeroPreRolls';
 import { promoteCareer } from '@/contexts/game/actions/JobActions';
 import { POLITICAL_CAREER } from '@/lib/careers/political';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
@@ -60,17 +62,17 @@ function surgeon(overrides: TestGameStateOverrides = {}, raiseMultiplier = 1): G
         requirements: {},
       },
     ],
-  } as GameState;
+  };
 }
 
 /** What the week loop actually credits, straight from the subsystem. */
 function payrollCredits(state: GameState): number {
-  const ctx = {
+  const ctx: WeekContext = {
     newStats: { ...state.stats },
     notifications: [],
-    preRolls: {},
+    preRolls: zeroPreRolls(),
     nextWeeksLived: (state.weeksLived ?? 0) + 1,
-  } as unknown as Parameters<typeof applyCareerSalaryAndPenalty>[1];
+  };
   return applyCareerSalaryAndPenalty(state, ctx).careerSalary;
 }
 
@@ -156,7 +158,7 @@ describe('political money is counted once, and as a weekly figure', () => {
       careers: [
         { ...POLITICAL_CAREER, level: president, applied: true, accepted: true, progress: 0 },
       ],
-    } as GameState;
+    };
   }
 
   it('divides the annual ladder down rather than paying it weekly', () => {
@@ -287,12 +289,12 @@ describe('no screen quotes the annual political ladder as a weekly figure', () =
     // `getPoliticalWeeklySalary` (lib/economy/passiveIncome.ts) OWNS paying it.
     // A display that disagrees with the payer is the whole bug class.
     const base = createTestGameState();
-    const state = {
+    const state: GameState = {
       ...base,
       currentJob: 'political',
       politics: { ...base.politics!, careerLevel: president + 1 },
       careers: [{ ...POLITICAL_CAREER, level: president, applied: true, accepted: true, progress: 0 }],
-    } as GameState;
+    };
     expect(paidWeeklySalaryForLevel(state, POLITICAL_CAREER, president))
       .toBe(paidWeeklyCareerSalary(state).fromOffice);
   });

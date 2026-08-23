@@ -53,7 +53,7 @@ describe('achievement_progress_multiplier — now pays prestige points', () => {
   const stateWithAchievements = (n: number): GameState => ({
     ...createTestGameState(),
     claimedProgressAchievements: Array.from({ length: n }, (_, i) => `ach_${i}`),
-  } as GameState);
+  });
 
   it('the getter finally has a real consumer, and it pays +20%/level', () => {
     const base = calculatePrestigePoints(

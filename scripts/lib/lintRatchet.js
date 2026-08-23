@@ -153,7 +153,13 @@ const MAX_ERRORS = 0;
  * reality, still 44 below the ceiling that shipped it, not headroom bought to
  * get a build green.
  */
-const MAX_WARNINGS = 798;
+/*
+ * 798 → 786 on the 2026-08-23 audit pass: measured after the PR #157 merge
+ * plus this pass's fixes (redundant `as GameState` casts removed from tests,
+ * the formAlliance rewrite, comment cleanups). Lowered in the commit that
+ * measured it, per the ratchet rule.
+ */
+const MAX_WARNINGS = 786;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

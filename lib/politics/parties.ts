@@ -14,6 +14,8 @@
  * Pure functions. No game state, no React.
  */
 
+import type { PolicyType } from './policies';
+
 const safe = (n: number | undefined | null, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
 
@@ -31,10 +33,16 @@ export interface PartyDefinition {
    * in, so they start (and stay) at 0 — see `MACHINE_PARTIES`.
    */
   startingSupport: number;
-  /** Policy categories the party rewards you for enacting. */
-  favors: string[];
+  /**
+   * Policy categories the party rewards you for enacting. Typed as
+   * `PolicyType[]` so an entry that no policy can ever carry is a compile
+   * error — the first cut of this file wrote 'environment', 'business',
+   * 'realEstate' and 'defense', none of which exist in the policy catalogue,
+   * so the platform machinery could never have matched anything.
+   */
+  favors: PolicyType[];
   /** Policy categories the party punishes you for enacting. */
-  opposes: string[];
+  opposes: PolicyType[];
 }
 
 /** The parties with an actual organisation behind them. */
@@ -46,16 +54,16 @@ export const POLITICAL_PARTIES: readonly PartyDefinition[] = [
     name: 'Democratic',
     pitch: 'Machine backing and a war chest, in exchange for voting the platform.',
     startingSupport: 50,
-    favors: ['healthcare', 'education', 'environment', 'social'],
-    opposes: ['crypto', 'business'],
+    favors: ['healthcare', 'education', 'environmental', 'social'],
+    opposes: ['crypto', 'stock'],
   },
   {
     id: 'republican',
     name: 'Republican',
     pitch: 'Machine backing and a war chest, in exchange for voting the platform.',
     startingSupport: 50,
-    favors: ['business', 'crypto', 'realEstate', 'defense'],
-    opposes: ['healthcare', 'environment'],
+    favors: ['economic', 'crypto', 'realestate', 'stock'],
+    opposes: ['healthcare', 'environmental'],
   },
   {
     id: 'independent',
@@ -100,6 +108,13 @@ export function readPartySupport(
   stored: number | undefined | null,
 ): number {
   if (!hasPartyMachine(party)) return 0;
+  // Absent is NOT zero. `politics.party` predates v47, so a pre-v47 save can
+  // carry a party with no `partySupport` key — that member is in good
+  // standing, and reading 0 would load them under a primary challenge at the
+  // maximum election penalty (the exact harm the v47 carve-out's "no
+  // backfill" reasoning promises this reader prevents). A STORED 0 is an
+  // earned 0 and stays 0; only a missing key gets the fresh-member baseline.
+  if (stored == null) return findParty(party)?.startingSupport ?? 0;
   return clamp(Math.round(safe(stored, 0)), 0, 100);
 }
 
@@ -163,8 +178,8 @@ export function weeklyPartyFunding(input: {
 export function policySupportDelta(party: string | undefined | null, category: string | undefined): number {
   const def = findParty(party);
   if (!def || !hasPartyMachine(party) || !category) return 0;
-  if (def.favors.includes(category)) return 6;
-  if (def.opposes.includes(category)) return -8;
+  if ((def.favors as readonly string[]).includes(category)) return 6;
+  if ((def.opposes as readonly string[]).includes(category)) return -8;
   return 0;
 }
 

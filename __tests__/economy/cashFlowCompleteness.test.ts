@@ -30,10 +30,23 @@ import {
   totalSubscriptionWeeklyCharge,
 } from '@/lib/subscription/billing';
 import { LUXURY_CATALOG } from '@/lib/luxury/catalog';
-import type { GameState, Pet } from '@/contexts/game/types';
+import type { GameState, Pet, PulseVerifiedPro } from '@/contexts/game/types';
 
 const pet = (id: string, isDead = false): Pet =>
   ({ id, name: id, type: 'dog', age: 1, hunger: 50, happiness: 50, health: 80, isDead }) as Pet;
+
+/** A complete PulseVerifiedPro, so the states below need no `as GameState`. */
+const verifiedPro = (overrides: Partial<PulseVerifiedPro>): PulseVerifiedPro => ({
+  active: true,
+  perksUnlocked: {
+    blueCheckmark: true,
+    postBoostMultiplier: 1.25,
+    analyticsUnlocked: true,
+    noAdsInFeed: true,
+    longerPosts: true,
+  },
+  ...overrides,
+});
 
 /** A couple of real catalogue items, so the numbers are the game's own. */
 const someLuxuryIds = LUXURY_CATALOG.slice(0, 3).map((i) => i.id);
@@ -60,10 +73,10 @@ describe('every cost the tick charges reaches the expense breakdown', () => {
 
   it('counts an active in-game subscription', () => {
     const base = createTestGameState();
-    const state = {
+    const state: GameState = {
       ...base,
-      socialMedia: { ...base.socialMedia, verifiedPro: { active: true, weeklyPrice: 250 } },
-    } as GameState;
+      socialMedia: { ...base.socialMedia!, verifiedPro: verifiedPro({ weeklyPrice: 250 }) },
+    };
     expect(calcWeeklyExpenses(state).breakdown.subscriptions).toBe(250);
   });
 
@@ -71,13 +84,13 @@ describe('every cost the tick charges reaches the expense breakdown', () => {
     // The tick skips it, so the panel must too — otherwise it reports a bill
     // that is not coming.
     const base = createTestGameState({ weeksLived: 100 });
-    const state = {
+    const state: GameState = {
       ...base,
       socialMedia: {
-        ...base.socialMedia,
-        verifiedPro: { active: true, weeklyPrice: 250, plan: 'annual', paidThroughWeek: 200 },
+        ...base.socialMedia!,
+        verifiedPro: verifiedPro({ weeklyPrice: 250, plan: 'annual', paidThroughWeek: 200 }),
       },
-    } as GameState;
+    };
     expect(calcWeeklyExpenses(state).breakdown.subscriptions).toBe(0);
   });
 
@@ -85,13 +98,13 @@ describe('every cost the tick charges reaches the expense breakdown', () => {
     // `applySubscriptions` charges on `nextWeeksLived`. A prepay expiring at the
     // very next tick is due; reading `weeksLived` raw would call it free.
     const base = createTestGameState({ weeksLived: 199 });
-    const state = {
+    const state: GameState = {
       ...base,
       socialMedia: {
-        ...base.socialMedia,
-        verifiedPro: { active: true, weeklyPrice: 250, plan: 'annual', paidThroughWeek: 200 },
+        ...base.socialMedia!,
+        verifiedPro: verifiedPro({ weeklyPrice: 250, plan: 'annual', paidThroughWeek: 200 }),
       },
-    } as GameState;
+    };
     expect(calcWeeklyExpenses(state).breakdown.subscriptions).toBe(250);
   });
 
