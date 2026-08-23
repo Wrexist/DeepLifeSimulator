@@ -130,3 +130,8 @@ screenshots/appstore-2026/*
 *.tmp.js
 
 # Playwright MCP session artifacts (console logs, page snapshots).playwright-mcp/
+
+# Discord structure snapshots (discord/cli.mjs backup).
+# Carry live role and channel ids, plus any per-member permission overwrites,
+# so they are operational state rather than something to review in a diff.
+discord/backups/
