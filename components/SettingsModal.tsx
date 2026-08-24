@@ -9,7 +9,7 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone } from 'lucide-react-native';
+import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -190,9 +190,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   }, [discordRewardClaimed]);
 
   // Only toggles whose state is actually consumed somewhere remain here.
-  // The previous list also included notificationsEnabled, showDecimalsInStats,
-  // autoProgression, showStatArrows, and a language picker - all of those
-  // saved to state but had no consumers, so the UI was misleading.
+  // The previous list also included showDecimalsInStats, autoProgression,
+  // showStatArrows, and a language picker - all of those saved to state but
+  // had no consumers, so the UI was misleading. `notificationsEnabled` was in
+  // that group and is BACK, because it now has a real consumer:
+  // `utils/toastPolicy.ts`, read by ToastContext on every toast.
   // Dark Mode toggle removed: light mode was never fully implemented (the game
   // is dark-first and immersive) and produced a broken half-themed look. Saves
   // are coerced back to dark on load (utils/saveValidation.ts).
@@ -228,6 +230,16 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       icon: Calendar,
       type: 'toggle' as const,
       value: settings.weeklySummaryEnabled,
+    },
+    {
+      id: 'notificationsEnabled',
+      title: 'Pop-up Notifications',
+      // States the exemption plainly: a player who turns this off and still
+      // sees a "not enough money" toast should have been told it would stay.
+      description: 'Show the small banners that confirm what you just did. Warnings and errors always show.',
+      icon: settings.notificationsEnabled ? Bell : BellOff,
+      type: 'toggle' as const,
+      value: settings.notificationsEnabled,
     },
   ];
 

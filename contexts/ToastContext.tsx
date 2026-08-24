@@ -5,6 +5,8 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport } from '@/utils/diagnosticReport';
 import { setToastHandler } from '@/utils/toastBridge';
 import { toastText } from '@/utils/notificationText';
+import { shouldShowToast } from '@/utils/toastPolicy';
+import { GameStoreContext } from '@/contexts/game/useGameSelector';
 import { logger } from '@/utils/logger';
 
 /**
@@ -59,6 +61,26 @@ interface ToastProviderProps {
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  /**
+   * The player's pop-up preference, read WITHOUT subscribing.
+   *
+   * `useGameStateGetter` would throw outside a GameProvider; this layer wraps
+   * most of the app and must never be the thing that crashes it, so the store
+   * context is read directly and a missing store degrades to "show
+   * everything" (the setting's own default). Reading through the getter at
+   * FIRE time rather than via a selector keeps `showToast` identity-stable
+   * with `[]` deps - it has ~200 call sites and sits in a memoised context
+   * value, so re-creating it on every settings read would re-render the tree.
+   */
+  const gameStore = useContext(GameStoreContext);
+  const notificationsEnabled = useCallback((): boolean | undefined => {
+    try {
+      return gameStore?.getSnapshot()?.settings?.notificationsEnabled;
+    } catch {
+      return undefined; // never let a preference read break a toast
+    }
+  }, [gameStore]);
+
   const showToast = useCallback(
     (
       message: string,
@@ -97,6 +119,14 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return;
       }
 
+      // Player preference (Settings > Pop-up Notifications). Warnings and
+      // errors are deliberately exempt - see utils/toastPolicy.ts for why
+      // muting the rejection channel would re-ship a documented bug.
+      if (!shouldShowToast(type, notificationsEnabled())) {
+        if (__DEV__) logger.info('[toast suppressed: notifications off]', { type });
+        return;
+      }
+
       const id = `toast-${Date.now()}-${Math.random()}`;
       const newToast: Toast = {
         id,
@@ -119,7 +149,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return updatedToasts;
       });
     },
-    []
+    [notificationsEnabled]
   );
 
   const showSuccess = useCallback(
