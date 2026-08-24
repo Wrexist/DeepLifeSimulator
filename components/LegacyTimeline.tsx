@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
+import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import {
   scale,
   fontScale,
@@ -65,12 +66,27 @@ interface PreviousLife {
   totalWeeksWorked?: number;
   spouseName?: string;
   memorableEvents?: string[];
+  // Stamped at the transition since 2026-08-24 (lib/legacy/lifeRecord.ts) —
+  // the score and ribbon the death screen used to compute and throw away.
+  lifeQualityScore?: number;
+  lifeQualityVerdict?: string;
+  ribbonName?: string;
 }
 
 export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: LegacyTimelineProps) {
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
   const previousLives = useGameSelector((s) => (s.previousLives || []) as PreviousLife[], shallowEqual);
   const currentGeneration = useGameSelector((s) => s.generationNumber || 1);
+  // The current life's standing, for the personal-best comparison below. A
+  // number selector, so re-renders only when the figure itself moves; guarded
+  // because this runs on a modal that must not crash on a partial state.
+  const currentNetWorth = useGameSelector((s) => {
+    try {
+      return Math.round(canonicalNetWorth(s));
+    } catch {
+      return 0;
+    }
+  });
 
   const [expandedLife, setExpandedLife] = useState<number | null>(null);
 
@@ -183,6 +199,19 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                   </Text>
                 </View>
               </View>
+
+              {/* Personal best — the question a returning player actually asks:
+                  "is this life beating my last one?" bestLife was computed here
+                  since the screen was built and never rendered (2026-08-24). */}
+              {legacyStats.bestLife && (
+                <View style={[styles.bestBand, settings.darkMode && styles.bestBandDark]}>
+                  <Text style={[styles.bestText, settings.darkMode && styles.bestTextDark]}>
+                    {currentNetWorth > (legacyStats.bestLife.netWorth || 0)
+                      ? `This life has already passed your best — Gen ${legacyStats.bestLife.generation || '?'}'s ${formatMoney(legacyStats.bestLife.netWorth || 0)}.`
+                      : `Best life so far: Gen ${legacyStats.bestLife.generation || '?'} at ${formatMoney(legacyStats.bestLife.netWorth || 0)}. This life: ${formatMoney(currentNetWorth)}.`}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -233,6 +262,11 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                 <Crown size={scale(16)} color="#F59E0B" />
                                 <Text style={styles.genNumber}>Gen {life.generation || '?'}</Text>
                               </View>
+                              {!!life.ribbonName && (
+                                <View style={styles.ribbonBadge}>
+                                  <Text style={styles.ribbonText}>{life.ribbonName}</Text>
+                                </View>
+                              )}
                               {life.timestamp && (
                                 <View style={styles.dateBadge}>
                                   <Calendar size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
@@ -272,6 +306,18 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                 {life.ageAtDeath || '?'} years
                               </Text>
                             </View>
+
+                            {typeof life.lifeQualityScore === 'number' && (
+                              <View style={[styles.statCard, settings.darkMode && styles.statCardDark]}>
+                                <Star size={scale(16)} color="#F59E0B" />
+                                <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
+                                  Life Quality
+                                </Text>
+                                <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
+                                  {life.lifeQualityScore}%{life.lifeQualityVerdict ? ` · ${life.lifeQualityVerdict}` : ''}
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
                           {/* Expanded Details */}
@@ -595,6 +641,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(12),
     paddingVertical: scale(6),
     borderRadius: scale(20),
+  },
+  ribbonBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(3),
+    borderRadius: scale(12),
+  },
+  ribbonText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
+  bestBand: {
+    marginTop: scale(8),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    borderRadius: scale(12),
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  bestBandDark: {
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+  },
+  bestText: {
+    fontSize: fontScale(11.5),
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  bestTextDark: {
+    color: '#FCD34D',
   },
   genNumber: {
     fontSize: fontScale(14),

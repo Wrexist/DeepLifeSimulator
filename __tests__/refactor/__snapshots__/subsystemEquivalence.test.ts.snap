@@ -861,6 +861,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty both gold + perk: 
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -2,
     "careerHealthPenalty": -1,
     "careerSalary": 450,
@@ -880,6 +881,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty career found but I
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": 0,
     "careerHealthPenalty": 0,
     "careerSalary": 0,
@@ -899,6 +901,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job accept
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -3,
     "careerHealthPenalty": -2,
     "careerSalary": 100,
@@ -918,6 +921,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job accept
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": 0,
     "careerHealthPenalty": 0,
     "careerSalary": 0,
@@ -937,6 +941,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job at neg
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -3,
     "careerHealthPenalty": -2,
     "careerSalary": 100,
@@ -956,6 +961,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job at out
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -1,
     "careerHealthPenalty": -1,
     "careerSalary": 400,
@@ -975,6 +981,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job set bu
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": 0,
     "careerHealthPenalty": 0,
     "careerSalary": 0,
@@ -994,6 +1001,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job set bu
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": 0,
     "careerHealthPenalty": 0,
     "careerSalary": 0,
@@ -1013,6 +1021,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty gold upgrade work_
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -2,
     "careerHealthPenalty": -1,
     "careerSalary": 300,
@@ -1032,6 +1041,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty level data has sal
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -3,
     "careerHealthPenalty": -2,
     "careerSalary": 0,
@@ -1051,6 +1061,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty no current job: re
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": 0,
     "careerHealthPenalty": 0,
     "careerSalary": 0,
@@ -1070,6 +1081,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty penalty floor at 0
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -3,
     "careerHealthPenalty": -2,
     "careerSalary": 100,
@@ -1089,6 +1101,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty perk workBoost onl
     "reputation": 50,
   },
   "result": {
+    "careerEnergyPenalty": 0,
     "careerHappinessPenalty": -2,
     "careerHealthPenalty": -1,
     "careerSalary": 300,

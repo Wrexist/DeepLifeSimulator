@@ -2682,6 +2682,28 @@ export interface GameState {
     /** Weeks lived when this life ended (feeds the prestige-speed achievements).
      *  Optional: entries recorded before this field existed simply lack it. */
     weeksLivedAtEnd?: number;
+    /**
+     * The rich half of the record (2026-08-24) — written by
+     * `lib/legacy/lifeRecord.ts` (`buildLifeRecord`, both prestige paths).
+     * LegacyTimeline had rendered most of these since it was built while
+     * nothing wrote them, and the death screen computed the quality score and
+     * ribbon and then discarded both. All optional: entries recorded earlier
+     * simply lack them, and every reader guards absence. Appended data, not a
+     * schema default — no migration, no repair mirror (CLAUDE.md §7).
+     */
+    careerHistory?: string[];
+    totalChildren?: number;
+    propertiesOwned?: number;
+    companiesOwned?: number;
+    happiness?: number;
+    health?: number;
+    totalWeeksWorked?: number;
+    spouseName?: string;
+    memorableEvents?: string[];
+    lifeQualityScore?: number;
+    lifeQualityVerdict?: string;
+    ribbonId?: string;
+    ribbonName?: string;
     [key: string]: any;
   }[];
   lifeStage: LifeStage;

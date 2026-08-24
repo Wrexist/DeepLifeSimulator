@@ -14,6 +14,7 @@
 import type { WeeklyEvent } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 
 export interface CliffhangerDefinition {
   id: string;
@@ -438,7 +439,15 @@ export function rollCliffhanger(
   // age 18 — `weeksLived` is absolute and seeded from the starting age, so the
   // new-player bump never applied to any scenario that does not start at 18.
   const threshold = weeksInThisLife(state) <= 12 ? 0.10 : 0.07;
-  const roll = ((seed * 997 + 31) % 100) / 100;
+  // Deterministic per week, but genuinely varied. The old fire roll was
+  // `(seed*997+31)%100` — 997 ≡ 97 (mod 100), gcd(97,100)=1, so cliffhanger
+  // weeks were a FIXED permutation repeating every 100 weeks, identical for
+  // every player and every life (2026-08-24 audit; same class as the lucky
+  // bonus). Routed through the audited seeded RNG, salted per-life so two
+  // lives don't share a timeline. Same fix for the weight pick below.
+  const rollFor = makeWeeklyRoll(seed);
+  const lifeSalt = `${state.lineageId || ''}:${state.generationNumber || 1}`;
+  const roll = rollFor(`cliffhanger-fire:${lifeSalt}`);
   if (roll > threshold) return null;
 
   // Filter eligible cliffhangers
@@ -449,7 +458,7 @@ export function rollCliffhanger(
 
   // Pick one based on weights
   const totalWeight = eligible.reduce((sum, ch) => sum + ch.weight, 0);
-  let weightRoll = ((seed * 443 + 17) % 1000) / 1000 * totalWeight;
+  let weightRoll = rollFor(`cliffhanger-pick:${lifeSalt}`) * totalWeight;
 
   for (const ch of eligible) {
     weightRoll -= ch.weight;

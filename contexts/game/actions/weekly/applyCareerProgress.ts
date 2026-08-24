@@ -22,6 +22,9 @@
  *   5. `mindsetMultiplier` — Mindset perk + gold upgrade each ×1.5
  *      (multiplicative, so both → 2.25×). Previously dead-wired in
  *      `applyPerkEffects 'energy' case` which never ran.
+ *   6. `growthMult` — the career's authored growth pace from its entry-job
+ *      profile (fast 1.3× / steady 1.0× / slow 0.7×; unprofiled careers 1.0×).
+ *      The job card has always advertised this pace; wired 2026-08-24.
  *
  * Side effects: NONE. Pure transformation of the careers array.
  *
@@ -36,6 +39,7 @@
 
 import type { Career, GameStats, GameState } from '@/contexts/game/types';
 import { calculatePerformance as calcPerf } from '@/lib/events/careerEvents';
+import { growthProgressMultiplier } from '@/lib/careers/jobMarket';
 
 export interface CareerProgressInput {
   /** Careers AFTER step 2.5b-ii's application processing. */
@@ -138,7 +142,11 @@ export function applyCareerProgress(input: CareerProgressInput): CareerProgressR
         && isFinite(input.commitmentProgressMult) && input.commitmentProgressMult > 0
         ? input.commitmentProgressMult
         : 1;
-      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * lifeSkillMult * commitmentMult);
+      // The career's authored growth pace ("Climbs fast" on the job card —
+      // advertised since jobMarket.ts shipped, simulated only since the
+      // 2026-08-24 audit). 1.0 for every career without a profile.
+      const growthMult = growthProgressMultiplier(c.id);
+      const progressRate = Math.round(baseProgressRate * earlyBoost * mentorBuff * perfModifier * mindsetMultiplier * lifeSkillMult * commitmentMult * growthMult);
       const newProgress = Math.min(100, (c.progress || 0) + progressRate);
       return {
         ...c,

@@ -86,8 +86,26 @@ export interface EventChoice {
   text: string;
   effects: EventChoiceEffects;
   special?: EventSpecial; // STABILITY FIX: Special effects (e.g., 'grant_free_education', 'add_disease')
-  followUpEventId?: string; // ID of follow-up event to trigger after this choice
-  chainId?: string; // ID of event chain this choice continues
+  /**
+   * Declarative sequel: picking this choice schedules the named event to
+   * arrive `followUpDelayWeeks` (default 3) game-weeks later, through the
+   * existing `pendingChainedEvents` pipeline. The id may name a
+   * `FOLLOW_UP_EVENTS` entry or any registered pool template — sequel-only
+   * templates register with `weight: 0` so they can never fire at random.
+   *
+   * HISTORY: this field shipped with the engine and had ZERO producers and
+   * consumers until 2026-08-24 — authoring a sequel required hand-writing a
+   * `stages[]` chain in this file, which is why only three chains existed
+   * across ~400 templates. `resolveEvent` consumes it now
+   * (`followUpFromChoice`, lib/events/lifeEvents.ts).
+   */
+  followUpEventId?: string;
+  /** Weeks until the follow-up lands. Only read when `followUpEventId` is set. */
+  followUpDelayWeeks?: number;
+  // NOTE: an `EventChoice.chainId` field used to sit here — a per-choice chain
+  // API that was never built (zero producers, zero consumers). Deleted
+  // 2026-08-24 rather than left as a silent no-op contract; chains key off the
+  // EVENT-level `chainId`/`chainStage` pair.
   diseaseId?: string; // Disease ID to add when special === 'add_disease'
 }
 
@@ -117,7 +135,10 @@ export interface WeeklyEvent {
   relationId?: string;
   chainId?: string; // ID of event chain this belongs to
   chainStage?: number; // Stage number in the chain (0-based)
-  followUpEventId?: string; // ID of follow-up event to trigger after choice
+  // NOTE: an event-level `followUpEventId` used to sit here — never produced,
+  // never consumed. Deleted 2026-08-24; sequels are declared PER CHOICE
+  // (EventChoice.followUpEventId), because which future arrives is exactly
+  // what the choice decides.
   generatedAtWeeksLived?: number; // Absolute week generated; used for persistence hygiene
   /**
    * Which surface delivered this event. Absent means the blocking modal, which
@@ -160,6 +181,14 @@ export interface EventTemplate {
    * they match the player's current chapter.
    */
   lifeStageTag?: LifeStagePack;
+  /**
+   * A narrative one-shot: once this event appears in the life's `eventLog`, the
+   * selector never picks it again in that life. For first-meeting / revelation
+   * templates whose refiring breaks the fiction ("an old friend returns" — for
+   * the first time, every time). Not for the transactional pool, where
+   * repetition is fine and conditions already pace things.
+   */
+  oncePerLife?: boolean;
   // v13+ Pulse: when present, the event should also surface inside the in-game
   // social platform (notification + trending hashtag injection). Decoupled
   // from `category` so non-economy fame events can still surface to Pulse.
@@ -299,8 +328,41 @@ const friendNeedsHelp: EventTemplate = {
       description: `${friend.name} asks to borrow $50.`,
       relationId: friend.id,
       choices: [
-        { id: 'lend', text: 'Lend the money', effects: { money: -50, relationship: 10, stats: { happiness: 5 }, karma: { dimension: 'generosity', amount: 4, reason: 'Helped a friend in need' } } },
+        // Lending is a story with a second half — the loan comes back around
+        // in ~6 weeks (friend_repays, a sequel-only template below). First
+        // production use of the declarative `followUpEventId` API.
+        { id: 'lend', text: 'Lend the money', effects: { money: -50, relationship: 10, stats: { happiness: 5 }, karma: { dimension: 'generosity', amount: 4, reason: 'Helped a friend in need' } }, followUpEventId: 'friend_repays', followUpDelayWeeks: 6 },
         { id: 'refuse', text: 'Refuse', effects: { relationship: -10, stats: { happiness: -5 }, karma: { dimension: 'generosity', amount: -3, reason: 'Refused to help a friend' } } },
+      ],
+    };
+  },
+};
+
+// Sequel to friend_help's "lend" (weight 0 = never fires at random; arrives
+// only through the choice's `followUpEventId`). The outcome is a seeded roll —
+// the sequel is guaranteed, the RESULT is not, which is where the story lives.
+const friendRepays: EventTemplate = {
+  id: 'friend_repays',
+  category: 'relationship',
+  weight: 0,
+  generate: state => {
+    const roll = payloadRoll(state, 'friend_repays');
+    if (roll('repay-outcome') < 0.65) {
+      return {
+        id: 'friend_repays',
+        description: 'The friend you lent $50 turns up with an envelope — $75, "for the wait", and dinner is on them.',
+        choices: [
+          { id: 'accept', text: 'Take it and catch up over dinner', effects: { money: 75, relationship: 8, stats: { happiness: 8 } } },
+          { id: 'wave_off', text: 'Take back just the $50 — friends don\'t profit', effects: { money: 50, relationship: 12, stats: { happiness: 6 }, karma: { dimension: 'generosity', amount: 3, reason: 'Refused interest from a friend' } } },
+        ],
+      };
+    }
+    return {
+      id: 'friend_repays',
+      description: 'The friend you lent $50 has been avoiding your calls. When you finally meet, they can\'t pay it back — things have gotten worse for them.',
+      choices: [
+        { id: 'forgive', text: 'Tell them to forget the debt', effects: { relationship: 10, stats: { happiness: 3 }, karma: { dimension: 'generosity', amount: 5, reason: 'Forgave a friend\'s debt' } } },
+        { id: 'insist', text: 'Insist on a repayment plan', effects: { money: 25, relationship: -12, stats: { happiness: -4 } } },
       ],
     };
   },
@@ -321,8 +383,33 @@ const weddingEvent: EventTemplate = {
       description: `You consider marrying ${partner.name}.`,
       relationId: partner.id,
       choices: [
-        { id: 'marry', text: 'Plan wedding ($2000)', effects: { money: -2000, relationship: 20, stats: { happiness: 15 } } },
+        // Marrying earns its afterglow — a honeymoon callback two weeks on
+        // (sequel-only template below, via the declarative followUpEventId API).
+        { id: 'marry', text: 'Plan wedding ($2000)', effects: { money: -2000, relationship: 20, stats: { happiness: 15 } }, followUpEventId: 'honeymoon_glow', followUpDelayWeeks: 2 },
         { id: 'wait', text: 'Wait for now', effects: { relationship: -10, stats: { happiness: -5 } } },
+      ],
+    };
+  },
+};
+
+// Sequel to wedding's "marry" (weight 0 — arrives only as a follow-up). The
+// warm-callback half of the pattern: not every sequel is a bill.
+const honeymoonGlow: EventTemplate = {
+  id: 'honeymoon_glow',
+  category: 'relationship',
+  weight: 0,
+  generate: state => {
+    const spouse = state.family?.spouse
+      ?? state.relationships?.find(r => r.type === 'spouse' || r.type === 'partner');
+    const name = spouse?.name ?? 'your partner';
+    return {
+      id: 'honeymoon_glow',
+      relationId: spouse?.id,
+      description: `The wedding photos arrive, and ${name} keeps catching your eye across the room. The two of you have been floating for weeks.`,
+      choices: [
+        { id: 'getaway', text: 'Book a weekend getaway ($400)', effects: { money: -400, relationship: 12, stats: { happiness: 14, energy: 5 } } },
+        { id: 'frame', text: 'Frame the best photo for the wall', effects: { money: -40, relationship: 6, stats: { happiness: 8 } } },
+        { id: 'savor', text: 'Just savor it', effects: { relationship: 4, stats: { happiness: 6 } } },
       ],
     };
   },
@@ -993,8 +1080,15 @@ const policyVotingEvent: EventTemplate = {
           effects: {
             policy: policy.id,
             approvalRating: willPass ? approvalChange : approvalChange - 10,
+            // The policy's money effect is a CURRENCY and must ride the money
+            // path. It used to sit inside `stats`, where the 0-100 stat clamp
+            // turned "add the policy's money" into "overwrite cash with at
+            // most $100" — voting yes on any passing bill destroyed the
+            // player's balance (even `money: 0` did, since
+            // clamp(0,100,cash+0) is 100 for anyone holding more). See
+            // lib/events/statEffects.ts.
+            ...(willPass && policyEffects.money ? { money: policyEffects.money } : {}),
             stats: willPass ? {
-              money: policyEffects.money || 0,
               happiness: policyEffects.happiness || 0,
               health: policyEffects.health || 0,
               reputation: (policyEffects.reputation || 0) + (willPass ? 5 : -5),
@@ -1414,7 +1508,10 @@ const techStartupSuccess: EventTemplate = {
     id: 'tech_startup_success',
     description: 'Tech startups are flourishing thanks to your support policies. Several companies are going public.',
     choices: [
-      { id: 'invest', text: 'Invest in the ecosystem', effects: { money: -50000, stats: { reputation: 15, money: 200 } } },
+      // The +200 used to sit inside `stats`, where the 0-100 clamp overwrote
+      // the player's whole balance with $100 — see lib/events/statEffects.ts.
+      // Folded into the flat charge instead.
+      { id: 'invest', text: 'Invest in the ecosystem', effects: { money: -49800, stats: { reputation: 15 } } },
       { id: 'celebrate', text: 'Celebrate the success', effects: { stats: { reputation: 10 } } },
     ],
   }),
@@ -1473,6 +1570,9 @@ const milestoneBirthday30: EventTemplate = {
   id: 'milestone_birthday_30',
   category: 'general',
   weight: 0.9,
+  // `age === 30` stays true for 52 straight weeks — without oncePerLife the
+  // player could "turn 30" several times in one year (2026-08-24).
+  oncePerLife: true,
   condition: state => state.date?.age === 30,
   generate: () => ({
     id: 'milestone_birthday_30',
@@ -1489,6 +1589,7 @@ const milestoneBirthday50: EventTemplate = {
   id: 'milestone_birthday_50',
   category: 'general',
   weight: 0.9,
+  oncePerLife: true, // same 52-week window as the 30th birthday above
   condition: state => state.date?.age === 50,
   generate: () => ({
     id: 'milestone_birthday_50',
@@ -1524,6 +1625,9 @@ const oldFriendReturns: EventTemplate = {
   id: 'old_friend_returns',
   category: 'relationship',
   weight: 0.4,
+  // A first reunion can only happen once — the same friend "just moved back"
+  // arbitrarily many times was the audit's example of fiction-breaking repeats.
+  oncePerLife: true,
   generate: state => {
     const names = ['Alex', 'Jamie', 'Morgan', 'Taylor', 'Jordan', 'Casey', 'Riley', 'Quinn'];
     const name = pickSeeded(names, payloadRoll(state, 'old_friend_returns'), 'name');
@@ -1645,6 +1749,7 @@ const distantRelativeInheritance: EventTemplate = {
   id: 'distant_relative_inheritance',
   category: 'economy',
   weight: 0.15,
+  oncePerLife: true, // one surprise inheritance per life — also caps the faucet
   generate: (state) => {
     // ECONOMY FIX: Scale inheritance with net worth to prevent exploit
     // At low net worth: Floor ensures minimum $5K (same as before)
@@ -2713,6 +2818,31 @@ const examSuccess: EventTemplate = {
   }),
 };
 
+// Payoff to: taking the coffee break with a coworker (unlock_event, +3 weeks,
+// lib/lifeMoments/lifeMomentGenerator.ts). The hidden effect promised "future
+// networking opportunities may arise" and the consequence description promised
+// an introduction — but the unlock flag named an id that existed ONLY as a
+// FOLLOW_UP_EVENTS entry (reachable solely through the networking_event chain),
+// so the flag was written and never consumed and the promised introduction
+// never arrived. Same orphaned-unlock class as the R4-X6 fixes below; the
+// choiceHistory self-gate also retires the flag for a save where the chain
+// path already delivered an event under this id.
+const networkingIntroduction: EventTemplate = {
+  id: 'networking_opportunity',
+  category: 'relationship',
+  weight: 1.2, // gated by condition; high so the unlocked payoff surfaces promptly
+  condition: state => payoffReady(state, 'networking_opportunity'),
+  generate: () => ({
+    id: 'networking_opportunity',
+    description:
+      'Your coworker from that coffee break waves you over. "There\'s someone you should meet," they say — a well-connected manager who has heard good things about you already.',
+    choices: [
+      { id: 'meet', text: 'Take the introduction', effects: { stats: { reputation: 10, happiness: 6, energy: -4 } } },
+      { id: 'card_only', text: 'Swap contacts and keep it brief', effects: { stats: { reputation: 4, happiness: 2 } } },
+    ],
+  }),
+};
+
 // Payoff to: telling your friend honestly that you needed to study
 // (unlock_event, +3 weeks). The mature branch — respected rather than resented.
 const friendRespectsBalance: EventTemplate = {
@@ -2753,6 +2883,7 @@ export const eventTemplates: EventTemplate[] = [
   startupPayout,
   hotTipOutcome,
   auditScandal,
+  networkingIntroduction,
   // R4-X6 payoffs for the enhanced friend/exam event
   friendHelpsStudy,
   examSuccess,
@@ -2771,7 +2902,9 @@ export const eventTemplates: EventTemplate[] = [
   policeRaid,
   courtTrial,
   friendNeedsHelp,
+  friendRepays, // weight 0 — sequel-only (friend_help "lend")
   weddingEvent,
+  honeymoonGlow, // weight 0 — sequel-only (wedding "marry")
   schoolFees,
   carBreakdown,
   foundWallet,
@@ -2950,6 +3083,53 @@ export const eventTemplates: EventTemplate[] = [
   // sees one. See lib/events/wealthEvents.ts for the calibration.
   ...wealthEventTemplates,
 ];
+
+/**
+ * Generate a registered pool template by id, for sequel delivery.
+ *
+ * The `pendingChainedEvents` consumer in the week loop used to resolve a due
+ * follow-up ONLY against the 8-entry `FOLLOW_UP_EVENTS` registry, which is
+ * what made `EventChoice.followUpEventId` unusable for the other ~390
+ * templates. This is the lookup that opens the whole pool to it. Returns null
+ * (never throws) for an unknown id or a generator that dies — the caller
+ * dequeues in both cases, exactly as it always did for unknown follow-ups.
+ *
+ * The template's `condition` is deliberately NOT consulted: a sequel was
+ * scheduled by a choice the player already made, and the generator itself is
+ * responsible for degrading gracefully if the world has moved on (every
+ * generator already must, because conditions are not re-checked between
+ * generation and display).
+ */
+/**
+ * Has a `oncePerLife` template already been lived this life?
+ *
+ * `eventLog` is per-life (a fresh life starts it empty; prestige does not
+ * carry it), so "once per life" is exactly a membership check. The log is
+ * capped at 500 — a template that scrolls off a very long life could in
+ * principle refire, which is an accepted degradation, not a reason to grow
+ * new state. (2026-08-24: the same "old friend" was returning for the first
+ * time arbitrarily many times, and a birthday could fire repeatedly across
+ * its 52-week age window.)
+ */
+export function oncePerLifeSpent(
+  template: Pick<EventTemplate, 'id' | 'oncePerLife'>,
+  eventLog: GameState['eventLog'] | undefined | null
+): boolean {
+  if (!template.oncePerLife) return false;
+  if (!Array.isArray(eventLog)) return false;
+  return eventLog.some(e => e && e.id === template.id);
+}
+
+export function generateEventById(id: string, state: GameState): WeeklyEvent | null {
+  const template = eventTemplates.find((t) => t.id === id);
+  if (!template) return null;
+  try {
+    return template.generate(state);
+  } catch (err) {
+    logger.warn(`[events] sequel template '${id}' failed to generate`, { error: err });
+    return null;
+  }
+}
 
 // ── ENGAGEMENT: Multi-week event chain definitions ──
 // Each chain is a sequence of events that create "one more turn" cliffhangers.
@@ -3675,6 +3855,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const baseEventTemplates = eventTemplates.filter(template => {
     // Skip locked events
     if (consequenceState.lockedEvents.includes(template.id)) {
+      return false;
+    }
+
+    // A narrative one-shot the player has already lived cannot repeat.
+    if (oncePerLifeSpent(template, state.eventLog)) {
       return false;
     }
 

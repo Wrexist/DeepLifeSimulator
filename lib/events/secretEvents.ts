@@ -41,6 +41,7 @@ const luckyNumber: EventTemplate = {
  id: 'secret_lucky_777',
  category: 'economy',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => Math.floor(s.stats?.money ?? 0) === 777777,
  generate: () => ({
  id: 'secret_lucky_777',
@@ -65,6 +66,7 @@ const rockBottom: EventTemplate = {
  id: 'secret_rock_bottom',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) =>
  (s.stats?.health ?? 100) <= 5 &&
  (s.stats?.happiness ?? 100) <= 5 &&
@@ -91,6 +93,7 @@ const centuryClub: EventTemplate = {
  id: 'secret_century_club',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => getAge(s) === 100,
  generate: () => ({
  id: 'secret_century_club',
@@ -118,6 +121,7 @@ const cleanSlate: EventTemplate = {
  id: 'secret_clean_slate',
  category: 'economy',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const nw = getNetWorth(s);
  return nw === 0 && weeksInThisLife(s) > 50;
@@ -145,6 +149,7 @@ const perfectStats: EventTemplate = {
  id: 'secret_perfect_balance',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) =>
  (s.stats?.health ?? 0) >= 95 &&
  (s.stats?.happiness ?? 0) >= 95 &&
@@ -173,6 +178,7 @@ const millionaireBirthday: EventTemplate = {
  id: 'secret_millionaire_at_21',
  category: 'economy',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => getAge(s) === 21 && getNetWorth(s) >= 1_000_000,
  generate: () => ({
  id: 'secret_millionaire_at_21',
@@ -197,6 +203,7 @@ const unluckyThirteen: EventTemplate = {
  id: 'secret_unlucky_13',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const age = getAge(s);
  const week = s.week ?? 1;
@@ -235,6 +242,7 @@ const exactlyBroke: EventTemplate = {
  id: 'secret_exactly_broke',
  category: 'economy',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const money = Math.floor(s.stats?.money ?? 1);
  return money === 1;
@@ -265,6 +273,7 @@ const achievementHunter: EventTemplate = {
  id: 'secret_achievement_hunter',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => getAchievementCount(s) >= 25,
  generate: (state) => {
  const count = getAchievementCount(state);
@@ -294,6 +303,7 @@ const palindromeAge: EventTemplate = {
  id: 'secret_palindrome',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const wl = s.weeksLived ?? 0;
  const str = String(wl);
@@ -321,6 +331,7 @@ const niceNumber: EventTemplate = {
  id: 'secret_nice',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const age = getAge(s);
  // Age 69 triggers the meme event (like BitLife)
@@ -349,6 +360,7 @@ const fullCircle: EventTemplate = {
  id: 'secret_full_circle',
  category: 'general',
  weight: 100,
+ oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const prestigeLevel = s.prestige?.prestigeLevel ?? 0;
  const age = getAge(s);

@@ -1,3 +1,143 @@
+# Gameplay depth pass — core loop, memory, honesty (owner program, 2026-08-24)
+
+Owner brief: the "ULTIMATE CORE GAMEPLAY" program — audit the game as a designer,
+find where the core loop fails to deliver, implement the highest-leverage fixes
+(Impact x Depth / Complexity, brief S70), and report. Approach: four parallel
+deep audits (weekly loop, events, progression/identity, economy tradeoffs), every
+load-bearing claim re-verified against source before any change (lessons.md rule).
+
+## What the audit established (verified, file:line in the final report)
+
+- The simulation is deep (65 tick subsystems) but ~90% of weeks produce no
+  authored moment and no decision; every feedback channel was individually
+  quieted after popup-fatigue reports. Depth must come from anticipation,
+  memory and honesty - NOT more popups.
+- Event memory is written 3x (eventLog, choiceHistory, memories) and read in
+  only ~10 places. The declarative chain API (`EventChoice.followUpEventId`)
+  has ZERO producers and consumers - authoring a sequel requires hand-writing
+  a stages[] array in engine.ts, which is why only 3 chains exist in ~398 events.
+- previousLives entries carry 7 fields; LegacyTimeline already renders 9 more
+  that nothing writes; lifeQuality() and classifyLife() are computed at death
+  and DISCARDED. No cross-life self-comparison exists anywhere.
+- The lucky-bonus roll is `(weeksLived*777+42)%100` - a fixed 100-week schedule
+  identical for every player and life. Cliffhanger timing is the same class.
+- Two live P1 bugs: `stats.money` inside event effects goes through the 0-100
+  stat clamp (policy_voting vote_yes sets a politician's CASH to ~$100;
+  tech_startup_success same), and lifeMomentGenerator's coffee-break unlock
+  targets `networking_opportunity`, which has no payoff template - the promised
+  introduction never arrives.
+
+## Plan
+
+### A. Correctness first (priority order S11)
+
+- [x] A1. Stat-clamp cash destruction. Consumer: the stats loop in
+      `resolveEvent` must skip `money`/`gems` (currencies, not 0-100 stats).
+      Producers: `policy_voting` moves the policy money effect to top-level
+      `effects.money`; `tech_startup_success` folds its +200 into the flat
+      charge. Regression test proven red on the old code.
+- [x] A2. Orphaned payoff: add a `networking_opportunity` payoff template using
+      the established `payoffReady` pattern (engine.ts ~2560), honoring the
+      unlock flag already written into existing saves.
+- [x] A3. Stale C-11 comment in GameActionsContext (legacy points HAVE a sink
+      since v29) - correct it so the next audit doesn't inherit the lie.
+
+### B. Anticipation (brief S44) - the loop's forward edge
+
+- [x] B1. New collectors in `lib/anticipation/engine.ts`: elections
+      (`politics.nextElectionWeek`, in office or campaigning) and unanswered
+      letters (`expiresAtWeek` on mail-routed events, via lib/events/routing
+      selectors). Both are real tick-enforced dates that today land as
+      surprises. Tests per collector.
+- [x] B2. Surface the cliffhanger teaser in `LastWeekRecap` (home strip) - today
+      it only shows in the triple-gated WeeklyResultSheet, so the game's one
+      "tune in next week" beat is usually invisible.
+
+### C. Variance that is actually variance
+
+- [x] C1. Luck roll -> `makeWeeklyRoll(weeksLived)` salted with
+      `lineageId:generationNumber`: still deterministic per week (StrictMode/
+      save-scum safe), no longer a public 100-week schedule shared by every
+      player. Same fix for the cliffhanger timing roll (`(seed*997+31)%100`).
+      Distribution + determinism tests.
+
+### D. Event memory people can feel (S15-S16)
+
+- [x] D1. Implement `EventChoice.followUpEventId` (+ `followUpDelayWeeks`) -
+      the dead declarative API. `resolveEvent` queues it into the EXISTING
+      `pendingChainedEvents` pipeline; the delivery path learns to generate a
+      follow-up from the main template pool when the id is not in
+      FOLLOW_UP_EVENTS. One line to give any of ~398 templates a sequel.
+- [x] D2. Prove it with content: 2 follow-up arcs on existing high-frequency
+      events (friend_help "lend" -> the friend repays with interest or asks
+      again; wedding "marry" -> the honeymoon bill / a warm callback).
+- [x] D3. `oncePerLife` template flag checked against eventLog in the selector,
+      applied to the narrative one-shots (secret events, old-friend returns)
+      so the same "first meeting" cannot repeat and break fiction.
+
+### E. A life you can look back on, and beat (S9-S11, S52-S53)
+
+- [x] E1. `buildLifeRecord(oldState)` in `lib/legacy/` - ONE builder used by
+      both prestige paths, stamping what death already computes: lifeQuality
+      score+verdict, ribbon, careerHistory titles, spouseName, children/
+      properties/companies counts, totalWeeksWorked. Fills the 9 fields
+      LegacyTimeline has always rendered but never received. No migration:
+      entries are appended data, old entries simply lack the keys and the
+      renderer already guards absence.
+- [x] E2. Personal-best comparison in LegacyTimeline: best life called out, and
+      the CURRENT life's standing against it ("You've already passed Gen 2's
+      $4.2M"). The question a returning player actually asks.
+
+### F. Honest choices (S55, S67)
+
+- [x] F1. WeeklyEventModal choice preview: show relationship deltas, karma
+      direction and the four `special` effects (fired / disease / free
+      education / warning) - today the preview spoils trivial numbers while
+      hiding the consequential effects entirely.
+
+### H. Career tradeoffs made real (S6, S8, S22 - advertised vs actual)
+
+- [x] H1. `lib/careers/jobMarket.ts` authors per-career `weeklyToll` (energy /
+      health / happiness) and `growth` pace, and the work tab RENDERS both on
+      the job card - but the tick applies a uniform -3 happiness / -2 health to
+      every career and a flat progress rate of 5. Wire the authored profiles
+      into `applyCareerSalaryAndPenalty` (toll, scaled by the existing
+      seniority factor so the top of the ladder stays lighter) and
+      `applyCareerProgress` (growth pace multiplier). Careers without a
+      profile keep exactly today's numbers. This is the same
+      advertised-vs-actual class the prestige shop fixes were - the design
+      data exists, correct and differentiated; it needs its consumer.
+- [x] H2. Tests: profiled careers differ from each other and from the uniform
+      fallback; unprofiled careers unchanged; card copy matches what the tick
+      now charges.
+
+### G. Verify + ship
+
+- [ ] G1. Tests for every change; type-check both trees; lint:errors; routes.
+- [ ] G2. Full Jest suite.
+- [ ] G3. Commit + push to `claude/deep-life-gameplay-redesign-1lcoa4`.
+- [ ] G4. Final report per brief S77 (core fantasy, loop, scores, top-10).
+
+## Deliberately NOT doing (S70 - and flagged in the final report)
+
+- Company upgrade ROI retune. Upgrades pay back in ~20 weeks (~260%/yr) vs
+  stocks at 7-11%/yr - the dominant strategy in the game. Retuning it moves
+  every business player's income; owner's balance call. FLAGGED.
+- `buyFood` as an uncapped energy printer (~$1.60/point, no weekly cap) -
+  capping it is a nerf to every player; owner's call. FLAGGED.
+- Health/happiness not affecting lifespan (old-age death is age-only while
+  `calculateLifeExpectancy` is display-only) - wiring it changes every death;
+  owner's call. FLAGGED.
+- A global weekly action/time budget - a structural redesign of the whole
+  action layer, not a drive-by.
+- New chapters 6+ / more DREAM goals - content design; Legacy Contracts
+  already own the late game.
+- More event popups or higher event frequency - playtested decision, stays.
+- Story mode / batched ticks - removed after playtesting (v38), stays removed.
+
+---
+---
+
 # Full audit + production hardening pass (owner request, 2026-08-23) — DONE
 
 Owner asked for the full bug-hunt / incomplete-feature / hardening sweep.

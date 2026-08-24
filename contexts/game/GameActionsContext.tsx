@@ -28,6 +28,8 @@ import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
+import { applyEventStatDeltas } from '@/lib/events/statEffects';
+import { rollWeeklyLuckSeed } from '@/lib/economy/luckyBonus';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
@@ -84,8 +86,8 @@ import { generateRandomDisease, generateSpecificDisease } from '@/lib/diseases/d
 import { getOrRotateWeeklyChallenge, evaluateChallengeProgress, getWeeklyChallengeDefinition } from '@/lib/challenges/weeklyChallenges';
 import { reconcileDiscoveredSystems } from '@/lib/depth/discoverySystem';
 import { createMemoryFromChoice } from '@/lib/lifeMoments/memoryIntegration';
-import { checkForChainedEvent, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
-import { advanceEventChain, healLatchedEventChain } from '@/lib/events/engine';
+import { checkForChainedEvent, followUpFromChoice, FOLLOW_UP_EVENTS } from '@/lib/events/lifeEvents';
+import { advanceEventChain, generateEventById, healLatchedEventChain } from '@/lib/events/engine';
 import type { WeeklyEvent } from '@/lib/events/engine';
 import { applyKarmaChange, getKarmaModifiers, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import {
@@ -903,7 +905,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // ctx.newStats.{happiness, health}; returns the three scalars
  // (salary, happiness penalty, health penalty) used downstream.
  const careerResult = guardTick('careerSalary', () => applyCareerSalaryAndPenalty(prevState, weeklyCtx),
-   { careerSalary: 0, careerHappinessPenalty: 0, careerHealthPenalty: 0 });
+   { careerSalary: 0, careerHappinessPenalty: 0, careerHealthPenalty: 0, careerEnergyPenalty: 0 });
  const careerSalary = careerResult.careerSalary;
  const careerHappinessPenalty = careerResult.careerHappinessPenalty;
  const careerHealthPenalty = careerResult.careerHealthPenalty;
@@ -1824,10 +1826,20 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  if (followUp) {
  // FOLLOW_UP_EVENTS entries are WeeklyEvent-shaped (id/description/choices).
  dueFollowUps.push({...(followUp as WeeklyEvent), generatedAtWeeksLived: nextWeeksLived });
+ } else if (pending && pending.triggerWeek <= nextWeeksLived) {
+ // Not in the 8-entry FOLLOW_UP_EVENTS registry — resolve against the
+ // whole template pool instead. This is what lets any choice declare a
+ // sequel (`EventChoice.followUpEventId`, 2026-08-24) without a registry
+ // entry; sequel-only templates register with weight 0. Unknown ids and
+ // dying generators return null and are dequeued exactly as before.
+ const sequel = generateEventById(pending.eventId, prevState);
+ if (sequel) {
+ dueFollowUps.push({ ...sequel, generatedAtWeeksLived: nextWeeksLived });
+ }
  } else if (pending && pending.triggerWeek > nextWeeksLived) {
  stillPending.push(pending);
  }
- // (a due entry with no matching FOLLOW_UP_EVENTS def is dropped — dequeued.)
+ // (a due entry with no matching definition anywhere is dropped — dequeued.)
  }
  if (dueFollowUps.length > 0) {
  // Reuse the same MAX_PENDING_EVENTS=100 anti-bloat cap applyWeeklyEvents uses.
@@ -2056,8 +2068,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let luckyTier: 'small' | 'medium' | 'rare' | undefined;
  const weeklyIncome = careerSalary + passiveIncome;
  if (weeklyIncome > 0) {
- // Use deterministic seed so luck is consistent per week (no save-scumming)
- const luckSeed = ((nextWeeksLived || 0) * 777 + 42) % 100;
+ // Deterministic per week (no save-scumming, StrictMode-safe) — but ACTUALLY
+ // varied. The old inline seed was a fixed period-100 permutation shared by
+ // every player and every life; see lib/economy/luckyBonus.ts for the
+ // arithmetic and the reasoning.
+ const luckSeed = rollWeeklyLuckSeed(
+ nextWeeksLived || 0,
+ prevState.lineageId,
+ prevState.generationNumber
+ );
  const luckyCharmActive = prevState.legacyBuffs?.luckyCharm &&
  prevState.legacyBuffs.luckyCharm.expiresWeeksLived > (nextWeeksLived || 0);
  const luckyCharmBoost = luckyCharmActive ? 10: 0; // +10% chance with lucky charm
@@ -2102,20 +2121,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  // ── ENGAGEMENT: Legacy Points (mini-prestige every 10 weeks) ──
  //
- // C-11. NOTHING READS THIS. Legacy Points are earned here every 10 weeks and
- // again from four elder activities (`lib/retirement/elderActivities.ts`),
- // persisted, migrated (v11) and repaired — and then never spent, displayed,
- // or checked by any mechanic. It is a currency with no sink and no readout.
- //
- // Deliberately left accruing rather than removed or surfaced. Removing a
- // persisted field costs a migration for no player-visible gain, and showing a
- // number that buys nothing is worse than showing none. What it SHOULD buy is
- // a product decision, not one to invent here — flagged for the owner
- // alongside the Commitment and family-business-brand systems, which have the
- // same shape.
- //
- // The saved balances are correct and keep accruing, so whatever sink is
- // chosen later will find a meaningful number waiting rather than a zero.
+ // C-11 — RESOLVED in v29. Legacy Points accrue here every 10 weeks and from
+ // four elder activities (`lib/retirement/elderActivities.ts`); the sink is
+ // the Legacy Shop (`lib/legacy/legacyShop.ts`), which spends them on the
+ // heir's starting position. The stored value is the LIFETIME total earned —
+ // the spendable balance is derived (earned − spent via `legacyUpgrades`),
+ // so this accrual must only ever ADD. An earlier revision of this comment
+ // said "nothing reads this"; that was true before v29 and cost a later
+ // audit a false finding — hence the correction.
  let newLegacyPoints = prevState.legacyPoints || 0;
  if ((nextWeeksLived || 0) > 0 && (nextWeeksLived || 0) % 10 === 0) {
  const pointsEarned = Math.floor((nextWeeksLived || 0) / 10) +
@@ -3769,17 +3782,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  updatedStats.money = Math.max(0, currentMoney + resolvedMoney);
  }
 
- // Apply stat changes
+ // Apply stat changes. Extracted to `lib/events/statEffects.ts`, which also
+ // fences the currency keys: `stats.money`/`stats.gems` used to run through
+ // this 0-100 clamp, which OVERWROTE a balance instead of adding to it —
+ // `policy_voting`'s Vote Yes set a politician's cash to ~$100. Money moves
+ // only via `effects.money` above; the fence keeps the next mis-filed
+ // template from destroying a balance.
  if (effects.stats && effectsAffordable) {
- Object.entries(effects.stats).forEach(([key, value]) => {
- if (typeof value === 'number' && key in updatedStats) {
- const statKey = key as keyof typeof updatedStats;
- const currentVal = (updatedStats[statKey] as number) || 0;
- // Clamp stats to 0-100 range
- const newVal = Math.max(0, Math.min(100, currentVal + value));
- (updatedStats as Record<string, number>)[statKey] = newVal;
- }
- });
+ applyEventStatDeltas(updatedStats, effects.stats);
  }
 
  // Apply relationship change
@@ -4076,6 +4086,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const pendingChains = prevState.pendingChainedEvents || [];
  updatedPendingChainedEvents = [...pendingChains, chainedEvent];
  logger.info('Chained event queued:', { eventId: chainedEvent.eventId, triggerWeek: chainedEvent.triggerWeek });
+ }
+ // The declarative sequel API: a choice may name its own follow-up
+ // (`EventChoice.followUpEventId`), which rides the same
+ // pendingChainedEvents pipeline. Dead since it shipped — zero producers,
+ // zero consumers — until the 2026-08-24 gameplay pass; this is the
+ // producer half, and the weekly delivery block now resolves ids against
+ // the whole template pool, not just FOLLOW_UP_EVENTS.
+ const declaredSequel = followUpFromChoice(eventId, choice, prevState.weeksLived || 0);
+ if (declaredSequel) {
+ updatedPendingChainedEvents = [...(updatedPendingChainedEvents || []), declaredSequel];
+ logger.info('Declared sequel queued:', { eventId: declaredSequel.eventId, triggerWeek: declaredSequel.triggerWeek });
  }
  } catch (e) {
  logger.warn('Failed to check for chained events:', { error: e });

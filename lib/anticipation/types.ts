@@ -17,7 +17,9 @@ export type UpcomingKind =
   | 'debt'
   | 'health'
   | 'savings'
-  | 'career';
+  | 'career'
+  | 'election'
+  | 'letter';
 
 export interface UpcomingEvent {
   /**

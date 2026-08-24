@@ -61,6 +61,47 @@ describe('render — WeeklyEventModal (Liquid Glass)', () => {
     });
   });
 
+  it('previews the consequential effects, not just money and stats (2026-08-24)', () => {
+    // relationship, karma and the four `special` effects were invisible in the
+    // Choice Effects panel — a choice that FIRES the player previewed as a
+    // bare stat change.
+    mockGameState = {
+      weeksLived: 20,
+      pets: [],
+      stats: { money: 500 },
+      pendingEvents: [
+        {
+          id: 'hard_choice',
+          description: 'A hard week at work comes to a head.',
+          choices: [
+            {
+              id: 'walk_out',
+              text: 'Walk out',
+              special: 'fire_from_job',
+              effects: {
+                relationship: -8,
+                karma: { dimension: 'loyalty', amount: -5, reason: 'Walked out' },
+                stats: { happiness: 5 },
+              },
+            },
+            { id: 'stay', text: 'Stay and endure', effects: { stats: { happiness: -5 } } },
+          ],
+        },
+      ],
+    };
+    let renderer: TestRenderer.ReactTestRenderer | undefined;
+    act(() => {
+      renderer = TestRenderer.create(<WeeklyEventModal />);
+    });
+    const json = JSON.stringify(renderer!.toJSON());
+    expect(json).toContain('You lose your job');
+    expect(json).toContain('Relationship -8');
+    expect(json).toContain('Karma (loyalty) -5');
+    act(() => {
+      renderer!.unmount();
+    });
+  });
+
   it('renders nothing when there are no pending events', () => {
     mockGameState = { weeksLived: 5, pets: [], pendingEvents: [] };
     let renderer: TestRenderer.ReactTestRenderer | undefined;

@@ -361,10 +361,17 @@ function WorkScreenContent() {
         return { happinessPenalty, healthPenalty };
     };
 
-    const getCareerPenalties = () => {
-        // Career jobs have lighter penalties than street jobs
-        // Careers: -3 happiness, -2 health
-        return { happinessPenalty: -3, healthPenalty: -2 };
+    const getCareerPenalties = (careerId: string) => {
+        // The same numbers the tick charges at entry level
+        // (applyCareerSalaryAndPenalty): the career's authored profile where
+        // one exists, the uniform -3 happiness / -2 health where none does.
+        // This was a hardcoded -3/-2 for every career, which became a lie the
+        // moment the profiles went live (2026-08-24).
+        const profile = getEntryJobProfile(careerId);
+        return {
+            happinessPenalty: profile ? (profile.weeklyToll.happiness ?? -3) : -3,
+            healthPenalty: profile ? (profile.weeklyToll.health ?? -2) : -2,
+        };
     };
 
 
@@ -644,7 +651,7 @@ function WorkScreenContent() {
         // footer with the reason, while "Manage Job" stays available.
         const promotionGated = promotionReady && !promotionEligibility?.eligible;
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
-        const { happinessPenalty, healthPenalty } = getCareerPenalties();
+        const { happinessPenalty, healthPenalty } = getCareerPenalties(career.id);
 
         // What payroll will ACTUALLY pay for this rung, not the listed base.
         // This card showed `levels[level].salary` raw while the promotion modal
@@ -718,12 +725,24 @@ function WorkScreenContent() {
                 value: `${happinessPenalty}`,
                 tone: 'bad',
             });
+        } else if (happinessPenalty > 0) {
+            // A happiness-POSITIVE trade (the musician's +4) is exactly the
+            // tradeoff worth advertising against a higher wage elsewhere.
+            metadata.push({
+                icon: <Smile size={scale(13)} color="rgba(52, 211, 153, 0.95)" />,
+                value: `+${happinessPenalty}`,
+            });
         }
         if (healthPenalty < 0) {
             metadata.push({
                 icon: <Heart size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
                 value: `${healthPenalty}`,
                 tone: 'bad',
+            });
+        } else if (healthPenalty > 0) {
+            metadata.push({
+                icon: <Heart size={scale(13)} color="rgba(52, 211, 153, 0.95)" />,
+                value: `+${healthPenalty}`,
             });
         }
 

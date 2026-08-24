@@ -20,6 +20,7 @@
  * here would be both wrong across a restore and farmable.
  */
 import { PREGNANCY_DURATION_WEEKS } from '@/lib/config/gameConstants';
+import { mailEvents } from '@/lib/events/routing';
 import type { GameState, Relationship } from '@/contexts/game/types';
 
 import type { UpcomingEvent } from './types';
@@ -240,6 +241,72 @@ function careerEvents(state: GameState, now: number): UpcomingEvent[] {
 }
 
 /**
+ * The next election, for a player whose seat (or campaign) is on the ballot.
+ *
+ * `politics.nextElectionWeek` is a real date the politics tick enforces, with
+ * up to $5M of office rewards riding on it — and it landed as a surprise. The
+ * campaign verbs exist precisely to be used in the weeks BEFORE this.
+ */
+function electionEvents(state: GameState, now: number): UpcomingEvent[] {
+  const politics = state.politics;
+  const next = politics?.nextElectionWeek;
+  if (!politics || (politics.careerLevel ?? 0) <= 0) return [];
+  if (typeof next !== 'number' || !Number.isFinite(next)) return [];
+  const weeksAway = next - now;
+  if (weeksAway < 0) return [];
+  const approval =
+    typeof politics.approvalRating === 'number' && Number.isFinite(politics.approvalRating)
+      ? Math.round(politics.approvalRating)
+      : null;
+  return [
+    {
+      id: 'election:next',
+      kind: 'election',
+      // Below ~45% approval the incumbent is genuinely in trouble — that is
+      // worth a caution; otherwise it is a date to plan around, not a threat.
+      tone: approval !== null && approval < 45 ? 'caution' : 'neutral',
+      title: 'Election day',
+      detail:
+        approval !== null
+          ? weeksAway <= 1
+            ? `Voters decide next week — approval sits at ${approval}%.`
+            : `Approval sits at ${approval}%. Campaigning still moves it.`
+          : 'Your seat is on the ballot.',
+      weeksAway: Math.max(0, weeksAway),
+      dueWeeksLived: next,
+    },
+  ];
+}
+
+/**
+ * Unanswered letters, reported as the deadlines they actually are.
+ *
+ * A mail-routed event lapses to its default choice when its `expiresAtWeek`
+ * passes (`applyMailLapse`) — a real tick-enforced deadline that could take
+ * money without the player ever knowing a clock was running.
+ */
+function letterEvents(state: GameState, now: number): UpcomingEvent[] {
+  return mailEvents(state)
+    .filter((e) => typeof e.expiresAtWeek === 'number' && (e.expiresAtWeek as number) >= now)
+    .map((e) => {
+      const dueWeek = e.expiresAtWeek as number;
+      const weeksAway = Math.max(0, dueWeek - now);
+      return {
+        id: `letter:${e.id}`,
+        kind: 'letter' as const,
+        tone: 'caution' as const,
+        title: 'A letter needs an answer',
+        detail:
+          weeksAway <= 1
+            ? 'Last week to reply — it answers itself if you do not.'
+            : `Unanswered mail lapses to its default in ${weeksAway} weeks.`,
+        weeksAway,
+        dueWeeksLived: dueWeek,
+      };
+    });
+}
+
+/**
  * Everything the player can see coming, soonest first.
  *
  * Sorted by `weeksAway`, then by tone so a caution outranks a nicety landing
@@ -267,6 +334,8 @@ export function upcomingEvents(
     healthEvents,
     savingsEvents,
     careerEvents,
+    electionEvents,
+    letterEvents,
   ];
   for (const collect of collectors) {
     try {

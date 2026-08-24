@@ -1,17 +1,43 @@
 import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
 import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
-import type { EnhancedEventChoice } from '@/lib/events/engine';
+import type { EnhancedEventChoice, EventSpecial } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
 import { modalEvents } from '@/lib/events/routing';
 import { getCurrentEconomicState } from '@/lib/events/economyEvents';
+import { resolveEventMoney } from '@/lib/events/moneyScaling';
+import { netWorth } from '@/lib/progress/achievements';
+import type { GameState } from '@/contexts/game/types';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
+
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import Gradient from '@/components/ui/Gradient';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+
+/**
+ * What each `special` effect actually does to the player, in one badge. These
+ * were completely invisible in the preview — a choice that fires the player
+ * from their job read as a bare stat change (2026-08-24 audit).
+ */
+const SPECIAL_EFFECT_LABELS: Record<EventSpecial | '', { text: string; positive: boolean } | undefined> = {
+ '': undefined,
+ grant_free_education: { text: 'Free education', positive: true },
+ add_disease: { text: 'You fall ill', positive: false },
+ fire_from_job: { text: 'You lose your job', positive: false },
+ add_career_warning: { text: 'Formal warning at work', positive: false },
+};
+
+/** Net worth for the money-preview scaling; a throw must not blank the modal. */
+function safeNetWorth(state: GameState): number {
+ try {
+ return netWorth(state);
+ } catch {
+ return 0;
+ }
+}
 
 const LinearGradient = Gradient;
 const { height: screenHeight } = Dimensions.get('window');
@@ -324,16 +350,30 @@ export default function WeeklyEventModal() {
  </View>
  )}
 
- {/* Show choice effects preview */}
+ {/* Show choice effects preview.
+     HONESTY (2026-08-24 audit): this panel used to spoil every money and
+     stat delta while HIDING the effects that actually carry weight —
+     relationship swings, karma, and the four `special` effects (a choice
+     that ends the player's career previewed as a bare stat change). The
+     consequential effects now show; the money figure also runs through
+     the same wealth-scaling resolver the charge does, so a `moneyPct`
+     event previews what it will really move. */}
  <View style={styles.infoPanel}>
  <Text style={styles.choiceEffectsTitle}>
  Choice Effects
  </Text>
  {event.choices.map((choice) => {
  const effects = choice.effects || {};
- const moneyChange = effects.money || 0;
+ const moneyChange = resolveEventMoney(effects, safeNetWorth(gameState));
  const statChanges = effects.stats || {};
- const hasEffects = moneyChange!== 0 || Object.keys(statChanges).length > 0;
+ const relationshipChange = effects.relationship || 0;
+ const specialLabel = SPECIAL_EFFECT_LABELS[choice.special ?? ''];
+ const hasEffects =
+ moneyChange!== 0 ||
+ Object.keys(statChanges).length > 0 ||
+ relationshipChange!== 0 ||
+ !!effects.karma ||
+ !!specialLabel;
 
  if (!hasEffects) return null;
 
@@ -357,6 +397,27 @@ export default function WeeklyEventModal() {
  </Text>
  </View>
  ))}
+ {relationshipChange!== 0 && (
+ <View style={[styles.effectBadge, relationshipChange > 0 ? styles.positiveBadge: styles.negativeBadge]}>
+ <Text style={styles.effectBadgeText}>
+ {`Relationship ${relationshipChange > 0 ? '+': ''}${relationshipChange}`}
+ </Text>
+ </View>
+ )}
+ {!!effects.karma && effects.karma.amount!== 0 && (
+ <View style={[styles.effectBadge, effects.karma.amount > 0 ? styles.positiveBadge: styles.negativeBadge]}>
+ <Text style={styles.effectBadgeText}>
+ {`Karma (${effects.karma.dimension}) ${effects.karma.amount > 0 ? '+': ''}${effects.karma.amount}`}
+ </Text>
+ </View>
+ )}
+ {!!specialLabel && (
+ <View style={[styles.effectBadge, specialLabel.positive ? styles.positiveBadge: styles.negativeBadge]}>
+ <Text style={styles.effectBadgeText}>
+ {specialLabel.text}
+ </Text>
+ </View>
+ )}
  </View>
  </View>
  );

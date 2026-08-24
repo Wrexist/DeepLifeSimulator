@@ -20,8 +20,10 @@ import {
   GraduationCap,
   Heart,
   Landmark,
+  Mail,
   PiggyBank,
   TrendingUp,
+  Vote,
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { track } from '@/lib/analytics';
@@ -42,6 +44,8 @@ const KIND_ICON: Record<UpcomingKind, typeof CalendarClock> = {
   health: AlertTriangle,
   savings: PiggyBank,
   career: TrendingUp,
+  election: Vote,
+  letter: Mail,
 };
 
 const TONE_COLOR: Record<UpcomingTone, string> = {

@@ -31,6 +31,7 @@ import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBo
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
 import { computeInheritance } from '@/lib/legacy/inheritance';
+import { buildLifeRecord } from '@/lib/legacy/lifeRecord';
 
 
 /**
@@ -388,19 +389,14 @@ function createResetGameState(
   // Preserve previous lives AND append the life that just ended. This was
   // copy-only before, so previousLives stayed permanently empty and the whole
   // Legacy Timeline UI, the IdentityCard generations counter, and the
-  // secret_full_circle event never populated.
+  // secret_full_circle event never populated. The record itself is built by
+  // the ONE shared builder (lib/legacy/lifeRecord.ts) so this path and the
+  // heir path below cannot drift — and so the life-quality score, ribbon,
+  // career history and family facts the death screen computes stop being
+  // discarded at the only moment they can still be captured.
   newState.previousLives = [
     ...(oldState.previousLives || []),
-    {
-      generation: oldState.generationNumber || 1,
-      netWorth: Math.round(netWorth(oldState)),
-      ageAtDeath: Math.floor(oldState.date?.age || 0),
-      deathReason: oldState.deathReason,
-      timestamp: Date.now(),
-      summaryAchievements: getEarnedAchievementNames(oldState),
-      // Weeks lived when this life ended — feeds the prestige-speed achievements.
-      weeksLivedAtEnd: oldState.weeksLived || 0,
-    },
+    buildLifeRecord(oldState),
   ];
 
   // Preserve ribbon collection across prestiges
@@ -729,18 +725,10 @@ function createChildGameState(
 
   // Preserve previous lives AND append the life that just ended (heir path),
   // so the Legacy Timeline and generations counter populate across generations.
+  // Same shared builder as the reset path — see lib/legacy/lifeRecord.ts.
   newState.previousLives = [
     ...(oldState.previousLives || []),
-    {
-      generation: oldState.generationNumber || 1,
-      netWorth: Math.round(netWorth(oldState)),
-      ageAtDeath: Math.floor(oldState.date?.age || 0),
-      deathReason: oldState.deathReason,
-      timestamp: Date.now(),
-      summaryAchievements: getEarnedAchievementNames(oldState),
-      // Weeks lived when this life ended — feeds the prestige-speed achievements.
-      weeksLivedAtEnd: oldState.weeksLived || 0,
-    },
+    buildLifeRecord(oldState),
   ];
 
   // Preserve ribbon collection and discovered secrets across legacy transitions

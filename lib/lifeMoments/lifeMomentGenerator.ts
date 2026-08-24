@@ -24,7 +24,12 @@ const karmaScore = (s: GameState) => s.karma?.score ?? 0;
  * Life moment templates
  * Quick 30-60 second decisions that add constant engagement
  */
-const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
+// Exported for the payoff-completeness ratchet in
+// lib/events/__tests__/lifeMomentPayoffs.test.ts: every `unlock_event` target
+// authored here must have a registered payoff template, or the promised
+// callback silently never arrives (the networking_opportunity orphan,
+// 2026-08-24).
+export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
   {
     situation: 'A coworker invites you for a coffee break. You\'re swamped with work.',
     choices: [

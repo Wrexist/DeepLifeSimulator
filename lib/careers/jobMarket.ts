@@ -286,3 +286,18 @@ export function careerCeiling(career: { levels?: { salary: number }[] } | undefi
 export function growthLabel(growth: GrowthPace): string {
   return growth === 'fast' ? 'Climbs fast' : growth === 'slow' ? 'Climbs slow' : 'Steady climb';
 }
+
+/**
+ * Promotion-progress multiplier for a career's authored growth pace.
+ *
+ * ADVERTISED VS ACTUAL (2026-08-24 audit): the job card has always printed
+ * `growthLabel` — "Climbs fast" on the musician, "Climbs slow" on the farmer —
+ * while `applyCareerProgress` used one flat base rate for every ladder, so the
+ * label described nothing. This is the consumer that makes it true. Careers
+ * without a profile (advanced tier, political) are 'steady' = 1.0, i.e.
+ * exactly the historical rate.
+ */
+export function growthProgressMultiplier(careerId: string | undefined): number {
+  const growth = careerId ? PROFILE_BY_ID.get(careerId)?.growth : undefined;
+  return growth === 'fast' ? 1.3 : growth === 'slow' ? 0.7 : 1.0;
+}
