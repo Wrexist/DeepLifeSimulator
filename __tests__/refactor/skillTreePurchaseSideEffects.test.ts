@@ -47,7 +47,7 @@ function rich(money = 50_000): GameState {
 }
 
 describe('the updater is pure', () => {
-  it('the updater body is a single expression — no Alert, no haptic inside it', () => {
+  it('the updater body is a single expression - no Alert, no haptic inside it', () => {
     const updater = COMMIT.slice(COMMIT.indexOf('setGameState('));
     const updaterEnd = updater.indexOf('\n    if (preview.purchased)');
     const inside = updater.slice(0, updaterEnd > 0 ? updaterEnd : undefined);

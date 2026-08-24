@@ -1,5 +1,5 @@
 /**
- * ScandalRecoveryModal — three response options for an active scandal.
+ * ScandalRecoveryModal - three response options for an active scandal.
  *
  * Dismiss-disabled until a choice is made. Severity meter color-shifts
  * green / amber / red. Three cards: Apologize / Stay silent / Clean slate (gems).
@@ -92,7 +92,7 @@ export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: Sc
 
   return (
     // No-op onRequestClose so the Android hardware back button doesn't dismiss
-    // an active scandal — player must pick a response (per plan §2.3 dismiss-disabled).
+    // an active scandal - player must pick a response (per plan §2.3 dismiss-disabled).
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { /* no-op */ }}>
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
   // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // button lands off the bottom of the SCREEN - and the sheet itself does not
   // scroll, so nothing can reach it. Bounding the sheet is what gives the list
   // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {

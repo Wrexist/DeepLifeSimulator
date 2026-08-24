@@ -1,5 +1,5 @@
 /**
- * BugReportSheet — Modal for composing and sending bug reports via email.
+ * BugReportSheet - Modal for composing and sending bug reports via email.
  * Extracted from SettingsModal to reduce its size.
  */
 
@@ -37,7 +37,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
 
   // Every path here attaches a comprehensive diagnostic report (build marker,
   // game position, state validation, recent error logs) built from the LIVE
-  // game state — so whatever reaches us is rich enough to debug right away.
+  // game state - so whatever reaches us is rich enough to debug right away.
   const reportOptions = () => ({
     gameState,
     userNote: bugReportText,
@@ -54,7 +54,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
     emailDiagnosticReport(reportOptions())
       .then((opened) => {
         if (opened) {
-          finishWith('Your report (with diagnostic details) is ready in your email app — just hit send.');
+          finishWith('Your report (with diagnostic details) is ready in your email app - just hit send.');
         } else {
           Alert.alert(
             'Could not open email',
@@ -71,7 +71,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
     shareDiagnosticReport(reportOptions())
       .then((shared) => {
         if (shared) {
-          finishWith('Thanks for sending the report — it helps us fix issues faster!');
+          finishWith('Thanks for sending the report - it helps us fix issues faster!');
         }
       })
       .catch(() => { /* share failures are non-fatal */ });
@@ -104,7 +104,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
           >
             <Text style={styles.description}>
               Tell us what happened (steps to reproduce help a lot!). We'll attach
-              diagnostic details automatically so we can fix it fast — no personal data.
+              diagnostic details automatically so we can fix it fast - no personal data.
             </Text>
 
             <TextInput

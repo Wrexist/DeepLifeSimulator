@@ -1,8 +1,8 @@
 /**
- * KPICard — reusable metric card with icon, label, value, optional trend arrow.
+ * KPICard - reusable metric card with icon, label, value, optional trend arrow.
  *
  * Business-dashboard DNA: a KPI tile can now carry a mini SVG bar/line chart
- * (drawn from REAL per-company / earnings data — never fabricated history) so
+ * (drawn from REAL per-company / earnings data - never fabricated history) so
  * the dashboard reads as an analytics strip, not a row of bare numbers.
  *
  * Used on the dashboard for at-a-glance company stats: weekly revenue,
@@ -38,7 +38,7 @@ interface KPICardProps {
   caption?: string;
 }
 
-/** Mini bar chart — normalises to the series max; taller bar = brighter. */
+/** Mini bar chart - normalises to the series max; taller bar = brighter. */
 function MiniBars({ data, color }: { data: number[]; color: string }) {
   const vals = data.filter((v) => Number.isFinite(v) && v >= 0);
   if (vals.length === 0) return null;
@@ -68,7 +68,7 @@ function MiniBars({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-/** Mini line chart — needs ≥2 real points (a 2-point trend segment is fine). */
+/** Mini line chart - needs ≥2 real points (a 2-point trend segment is fine). */
 function MiniLine({ data, color }: { data: number[]; color: string }) {
   const vals = data.filter((v) => Number.isFinite(v));
   if (vals.length < 2) return null;

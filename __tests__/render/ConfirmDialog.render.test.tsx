@@ -18,7 +18,7 @@ jest.mock('@/hooks/useReducedMotion', () => ({
  * both actions, that the destructive/danger variant still renders, and that a
  * hidden dialog mounts without throwing.
  */
-describe('render — ConfirmDialog', () => {
+describe('render - ConfirmDialog', () => {
   it('mounts (visible) and shows the title, message, and both actions', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <ConfirmDialog

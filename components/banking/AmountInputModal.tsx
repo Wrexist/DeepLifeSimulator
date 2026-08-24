@@ -25,7 +25,7 @@ interface Props {
   allowZero?: boolean;
   /**
    * Unit the amount is denominated in. 'usd' (default) renders $-prefixed
-   * presets and a floored Max; 'btc' renders ₿ amounts with decimals kept —
+   * presets and a floored Max; 'btc' renders ₿ amounts with decimals kept -
    * flooring a sub-1 BTC Max to 0 made the chip a no-op.
    */
   currency?: 'usd' | 'btc';
@@ -93,7 +93,7 @@ export default function AmountInputModal({
               style={[styles.input, { color: theme.text }]}
               autoFocus
               returnKeyType="done"
-              // R3-F: disable autocorrect / autocapitalize on money inputs —
+              // R3-F: disable autocorrect / autocapitalize on money inputs -
               // Samsung One UI shows the autocorrect bar above the keyboard
               // even for decimal-pad, pushing the Confirm button off-screen
               // on small devices.

@@ -48,20 +48,20 @@ const FRAMES: Record<string, LetterFrame> = {
   wealth_tax_audit: {
     senderName: 'Revenue Service',
     senderEmail: 'notices@revenue.gov',
-    subject: 'Notice of examination — six-year review',
+    subject: 'Notice of examination - six-year review',
     category: 'finance',
     verified: true,
   },
   wealth_hit_piece: {
-    senderName: 'The Ledger — Investigations',
+    senderName: 'The Ledger - Investigations',
     senderEmail: 'factcheck@theledger.com',
-    subject: 'Right of reply — nineteen questions',
+    subject: 'Right of reply - nineteen questions',
     category: 'social',
   },
   wealth_land_bank_play: {
     senderName: 'Holt & Marsh Conveyancers',
     senderEmail: 'acquisitions@holtmarsh.com',
-    subject: 'The fifth parcel — the owner has worked it out',
+    subject: 'The fifth parcel - the owner has worked it out',
     category: 'finance',
   },
   wealth_trust_fund_dispute: {
@@ -94,7 +94,7 @@ const FRAMES: Record<string, LetterFrame> = {
   legal_settlement_offer: {
     senderName: 'Ackerman & Doyle LLP',
     senderEmail: 'settlements@ackermandoyle.com',
-    subject: 'Offer to settle — open for four weeks',
+    subject: 'Offer to settle - open for four weeks',
     category: 'primary',
   },
 
@@ -111,7 +111,7 @@ const FRAMES: Record<string, LetterFrame> = {
   inbox_reunion_invite: {
     senderName: 'Reunion Committee',
     senderEmail: 'committee@classof-reunion.org',
-    subject: 'You are invited — the reunion',
+    subject: 'You are invited - the reunion',
     category: 'social',
   },
   inbox_mystery_parcel: {
@@ -140,7 +140,7 @@ const FRAMES: Record<string, LetterFrame> = {
     category: 'primary',
   },
   inbox_game_show_casting: {
-    senderName: 'Casting — Quiz Format',
+    senderName: 'Casting - Quiz Format',
     senderEmail: 'casting@brightlineproductions.tv',
     subject: 'We would like to put you on television',
     category: 'social',
@@ -171,7 +171,7 @@ function snippet(description: string): string {
 /**
  * Build the mail message for a routed event.
  *
- * The choice LABELS are the event's own `text` — deliberately, so the two
+ * The choice LABELS are the event's own `text` - deliberately, so the two
  * channels never disagree about what the player is being offered. Only the
  * envelope is new.
  */

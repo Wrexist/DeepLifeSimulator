@@ -253,7 +253,7 @@ describe('cooldowns', () => {
     expect(cooldownRemaining(compliment, undefined, 3_000)).toBe(0);
   });
 
-  it('every option carries one — this is also the double-tap guard', () => {
+  it('every option carries one - this is also the double-tap guard', () => {
     for (const option of SPARK_CONVERSATION_OPTIONS) {
       expect(option.cooldownWeeks).toBeGreaterThanOrEqual(1);
     }
@@ -407,7 +407,7 @@ describe('dates', () => {
     expect(threadIn(getState())).toHaveLength(0);
   });
 
-  it('the venue changes who says yes — the sub-choice is not cosmetic', () => {
+  it('the venue changes who says yes - the sub-choice is not cosmetic', () => {
     const askDate = findConversationOption('ask_date')!;
     const adventure = SPARK_DATE_VENUES.find((v) => v.id === 'adventure')!;
     const coffee = SPARK_DATE_VENUES.find((v) => v.id === 'coffee')!;
@@ -644,7 +644,7 @@ describe('the thread', () => {
     expect(new Set(thread.map((m) => m.id)).size).toBe(2);
   });
 
-  it('clears both unread counters — the player is looking at the chat', () => {
+  it('clears both unread counters - the player is looking at the chat', () => {
     const s = stateWith({ rapport: 30, unreadByPlayer: 3, unreadByNpc: 2 });
     const { setGameState, getState } = makeHarness(s);
     playConversationOption(setGameState, s, MATCH_ID, 'ask_interests', undefined, ALWAYS);

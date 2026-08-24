@@ -253,7 +253,7 @@ export async function validateSaveSlot(slot: number): Promise<{
 
     if (!savedData) {
       // `exists` used to be hardcoded false here, so the corruption branches
-      // below — the ones that report `exists: true` with a verification error —
+      // below - the ones that report `exists: true` with a verification error -
       // were unreachable for the case that actually produces them: a slot whose
       // stored save no longer verifies. It read out as "empty", which is the
       // one answer that invites an overwrite. 2026-07-29 audit PIPE-8.

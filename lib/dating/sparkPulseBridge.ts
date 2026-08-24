@@ -36,7 +36,7 @@ export function milestoneToPulsePost(m: SparkMilestone): {
   switch (m.kind) {
     case 'engagement':
       return {
-        content: `She said yes! 💍 ${m.partnerName} and I are engaged${m.ringTier ? ` — ${m.ringTier} ring` : ''}.`,
+        content: `She said yes! 💍 ${m.partnerName} and I are engaged${m.ringTier ? ` - ${m.ringTier} ring` : ''}.`,
         contentType: 'photo',
         hashtags: ['#engaged', '#sheSaidYes'],
         category: 'lifestyle',

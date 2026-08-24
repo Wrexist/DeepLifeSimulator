@@ -149,7 +149,7 @@ export function projectCampaignROI(
 ): number {
   const e = CAMPAIGN_EFFICIENCY[kind];
   if (spendPerWeek < e.costFloor) return 0;
-  // ROI scales with company size — bigger companies get less marginal lift
+  // ROI scales with company size - bigger companies get less marginal lift
   const sizeDamp = Math.max(0.4, 1 - companyWeeklyIncome / 1_000_000);
   return Number((e.roi * sizeDamp).toFixed(2));
 }
@@ -194,7 +194,7 @@ function mixedRoll01(seed: string): number {
 }
 
 /**
- * The ROI a campaign actually realizes for a given week. Deterministic — seeded
+ * The ROI a campaign actually realizes for a given week. Deterministic - seeded
  * by campaign id + week (no Math.random / wall clock) so the weekly tick stays
  * reproducible. Applies a uniform variance multiplier in
  * [CAMPAIGN_ROI_VARIANCE_MIN, CAMPAIGN_ROI_VARIANCE_MAX] to the projected ROI.
@@ -266,7 +266,7 @@ export const SCANDAL_BASE_SEVERITY: Record<HustleScandalKind, number> = {
 };
 
 export function scandalRevenueDrag(severity: number): number {
-  // % weekly drag — severity 100 → 30%, severity 30 → 5%
+  // % weekly drag - severity 100 → 30%, severity 30 → 5%
   return Math.min(0.3, Math.max(0, (severity - 20) / 270));
 }
 
@@ -313,7 +313,7 @@ export function scandalSpawnChance(brandScore: number, weeklyIncome: number): nu
 
 /**
  * Roll a single organic scandal for a company in a given week. Deterministic
- * (seeded by company id + week — no wall clock). Returns null when no scandal
+ * (seeded by company id + week - no wall clock). Returns null when no scandal
  * fires. Guards: never spawns a 2nd concurrent scandal, size-gated, and honors
  * a post-resolution cooldown off the most-recent scandalHistory entry.
  */
@@ -326,10 +326,10 @@ export function rollScandalForWeek(
 ): HustleActiveScandal | null {
   // One scandal at a time.
   if (overlay.activeScandal) return null;
-  // Size gate — small companies don't draw scrutiny.
+  // Size gate - small companies don't draw scrutiny.
   const income = company.weeklyIncome ?? 0;
   if (income < SCANDAL_MIN_WEEKLY_INCOME) return null;
-  // Post-resolution cooldown — no back-to-back scandals.
+  // Post-resolution cooldown - no back-to-back scandals.
   const history = overlay.scandalHistory ?? [];
   if (history.length > 0) {
     const lastSurvived = history[history.length - 1].survivedAtWeek ?? -Infinity;
@@ -342,7 +342,7 @@ export function rollScandalForWeek(
    * MULTIPLIES the chance already computed from brand and size rather than
    * replacing it, so the size gate and post-scandal cooldown above still do
    * their work. Neutral at the seeded reputation of 50, and bounded well away
-   * from zero — reputation must not buy immunity, or the scandal system and
+   * from zero - reputation must not buy immunity, or the scandal system and
    * the resolution UI built for it stop existing for anyone who invests.
    * Companies that are not family businesses pass `undefined` and get 1.0.
    */
@@ -425,7 +425,7 @@ export function namedHirePerformanceFactor(namedHires: HustleHire[] | undefined)
 /**
  * Build a fresh Hustle overlay for a newly-founded company. Single source of
  * truth for the default shape (mirrors the v17 save migration + ensureOverlay)
- * so `createCompany` can seed the overlay immediately — otherwise the weekly
+ * so `createCompany` can seed the overlay immediately - otherwise the weekly
  * tick skips overlay-less companies (`if (!prevOverlay) continue`).
  */
 export function createDefaultCompanyOverlay(
@@ -459,7 +459,7 @@ const BOARD_ALIGNMENTS: HustleBoardMember['alignment'][] = [
 
 /**
  * Deterministic board roster for a public company, seeded by (companyId,
- * seedWeek) — no Math.random, so re-renders and reloads reproduce the same 3-5
+ * seedWeek) - no Math.random, so re-renders and reloads reproduce the same 3-5
  * directors. Roles are drawn distinctly from BOARD_ROLE_ORDER (chair first), and
  * every display field (name/role/votingShare/alignment/satisfaction) is filled.
  * Used to seed on IPO, or to lazily derive when a public company carries no
@@ -502,7 +502,7 @@ const SUPPLIER_NAMES: Record<HustleIndustry, string[]> = {
 
 /**
  * Deterministic supplier roster for a company, seeded by companyId (stable
- * across weeks — no Math.random) so a founded company always shows the same 2-4
+ * across weeks - no Math.random) so a founded company always shows the same 2-4
  * vendors. costPerWeek scales gently with the company's weekly income (falling
  * back to a flat band when income is unknown); reliability is 60-95. Derived
  * suppliers are month-to-month (contractEndWeek undefined) so the "Xw contract"
@@ -571,7 +571,7 @@ export function computeIPOSharePrice(
 }
 
 /**
- * Quarterly earnings volatility — a small random-walk per share price tick
+ * Quarterly earnings volatility - a small random-walk per share price tick
  * scaled by brand health. Used by hustleTick on the 12-week earnings cadence.
  */
 export function computeQuarterlyEarningsMovement(
@@ -656,7 +656,7 @@ export function computeBrandTrend(
   return 'flat';
 }
 
-// ── The company income multiplier — ONE definition ────────────────────────
+// ── The company income multiplier - ONE definition ────────────────────────
 
 /**
  * How much a company's overlay lifts (or drags) its base weekly income.
@@ -671,7 +671,7 @@ export function computeBrandTrend(
  *
  * So all four features worked, and none of them were visible anywhere. The
  * player's own evidence was two restaurants at 10.8% and 32.9% market share
- * showing byte-identical revenue — exactly what a base-only display looks like.
+ * showing byte-identical revenue - exactly what a base-only display looks like.
  *
  * Exporting it means the card can show the number the player is actually paid,
  * broken down, from the SAME source the payment uses. A UI that recomputed this
@@ -723,7 +723,7 @@ export function companyIncomeFactors(
   return { brand, share, hires, multiplier, clamped: multiplier !== raw };
 }
 
-/** Base weekly income after the overlay multiplier — what the player is paid. */
+/** Base weekly income after the overlay multiplier - what the player is paid. */
 export function effectiveWeeklyIncome(
   baseWeeklyIncome: number | undefined,
   overlay: Parameters<typeof companyIncomeFactors>[0],

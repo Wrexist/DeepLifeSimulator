@@ -137,11 +137,11 @@ export function luxuryPropertyId(itemId: string): string {
 /**
  * Build the `RealEstate` a developable purchase mints.
  *
- * Deliberately starts UNDEVELOPED — `upgradeLevel: 0`, no rooms, no interior.
+ * Deliberately starts UNDEVELOPED - `upgradeLevel: 0`, no rooms, no interior.
  * The island you buy is empty land and a dock; everything on it is something
  * the player then chooses to build, which is where the depth lives.
  *
- * `status: 'owner'` (not `'rented'`) and `currentResidence: false` — owning an
+ * `status: 'owner'` (not `'rented'`) and `currentResidence: false` - owning an
  * island must not silently relocate the player out of their actual home.
  */
 export function createLuxuryProperty(
@@ -153,7 +153,7 @@ export function createLuxuryProperty(
   return {
     id: luxuryPropertyId(item.id),
     name: item.developable.propertyName,
-    // Market value starts at ZERO — see the note in catalog.ts. The land's worth
+    // Market value starts at ZERO - see the note in catalog.ts. The land's worth
     // is already counted through the luxury item's resale contribution to net
     // worth; valuing the property too would count one island twice and turn a
     // purchase into a free net-worth gain. What the compound is worth is what
@@ -195,7 +195,7 @@ export function findLuxuryProperty(
 }
 
 // ---------------------------------------------------------------------------
-// Yield + appreciation — the collection stops being dead capital
+// Yield + appreciation - the collection stops being dead capital
 // ---------------------------------------------------------------------------
 //
 // Before this, every luxury item was pure negative yield: pay sticker, lose 40%
@@ -203,10 +203,10 @@ export function findLuxuryProperty(
 // that is not a decision, it is a formality.
 //
 // Two additions fix it without turning trophies into investments:
-//   YIELD        — weekly cash from charter fees, vintages, dividends. Set below
+//   YIELD        - weekly cash from charter fees, vintages, dividends. Set below
 //                  each item's own upkeep, so a fully owned collection still
 //                  costs money to hold; it just stops being a pure drain.
-//   APPRECIATION — value drift on the holding. Some things gain (art, watches),
+//   APPRECIATION - value drift on the holding. Some things gain (art, watches),
 //                  some lose (yachts, jets), which is both truthful and makes
 //                  WHICH trophies you buy an actual decision.
 
@@ -227,8 +227,8 @@ export function getLuxuryYieldBreakdown(
 /**
  * The current market value of a single holding.
  *
- * Falls back to the catalog price whenever the holding has no tracked value —
- * an item bought before appreciation existed, or one that never appreciates —
+ * Falls back to the catalog price whenever the holding has no tracked value -
+ * an item bought before appreciation existed, or one that never appreciates -
  * so this is always safe to call and always returns something sane.
  */
 export function getHoldingValue(item: LuxuryItem, holding: LuxuryHolding | undefined): number {
@@ -254,13 +254,13 @@ export function getTotalLuxuryMarketValue(
 }
 
 /**
- * What ONE holding is worth — appreciation and condition included.
+ * What ONE holding is worth - appreciation and condition included.
  *
  * This is the single answer to "what is this item worth", and the sell path and
  * net worth must both use it. They used to disagree: `sellLuxuryItem` paid a
  * flat 60% of the CATALOG price while net worth counted the same item at
  * condition-adjusted `currentValue`, so selling a damaged or depreciated trophy
- * RAISED net worth — one tap, and prestige points with it (100 per $1M). The
+ * RAISED net worth - one tap, and prestige points with it (100 per $1M). The
  * total above is now a reduce over this function, so the two definitions
  * physically cannot drift apart again. 2026-07-28 audit econ-1.
  */
@@ -268,7 +268,7 @@ export function getLuxuryHoldingValue(
   item: LuxuryItem,
   holding: LuxuryHolding | undefined,
 ): number {
-  // Condition discounts the value — a damaged painting is worth less than an
+  // Condition discounts the value - a damaged painting is worth less than an
   // undamaged one. Imported lazily to keep the module graph acyclic (risk.ts
   // reads getHoldingValue from here).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -291,7 +291,7 @@ export interface AppreciationResult {
  * owned item appreciates, so the weekly tick does not churn state for the
  * overwhelmingly common case of a player who owns nothing that drifts.
  *
- * Developable items are skipped — their minted property appreciates through the
+ * Developable items are skipped - their minted property appreciates through the
  * real-estate system, and drifting both would count one island twice.
  */
 export function appreciateLuxuryHoldings(

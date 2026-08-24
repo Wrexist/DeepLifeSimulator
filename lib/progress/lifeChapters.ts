@@ -445,6 +445,99 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
     completionReward: { money: 25000, gems: 200 },
     perGoalReward: { money: 2500, gems: 30 },
   },
+  // ── Chapters 6-7 (2026-08-24) ─────────────────────────────────────────────
+  // The ladder used to end at chapter 5, and lib/legacy/contracts.ts records
+  // the consequence: "the Life Chapter ladder is exhausted by week ~100".
+  // These two carry goal-driven direction through the long middle and late
+  // life. Goal sources follow the file's own rules: money through the
+  // ratcheted `wealthMark`, counters that only grow (`claimedProgressAchievements`,
+  // age), and one held-count goal (companies) on the ch3_invest precedent —
+  // holdings CAN be sold back below target, which reads as "keep the empire
+  // together", not a deadlock.
+  {
+    id: 'ch6_established',
+    title: 'Chapter 6',
+    subtitle: 'Established',
+    weekRange: [100, 9999],
+    goals: [
+      {
+        id: 'ch6_net_1m',
+        title: 'Net Worth $1M',
+        description: 'Reach $1,000,000 net worth',
+        checkComplete: (s) => wealthMark(s) >= 1_000_000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 1_000_000),
+      },
+      {
+        id: 'ch6_career_top',
+        title: 'Top of the Ladder',
+        description: 'Reach the top level of any career',
+        checkComplete: (s) =>
+          (s.careers ?? []).some(
+            (c) => c?.accepted && Array.isArray(c.levels) && c.levels.length > 1 && c.level >= c.levels.length - 1
+          ),
+        checkProgress: (s) => {
+          const best = (s.careers ?? [])
+            .filter((c) => c?.accepted && Array.isArray(c.levels) && c.levels.length > 1)
+            .reduce((max, c) => Math.max(max, c.level / (c.levels.length - 1)), 0);
+          return Math.min(1, best);
+        },
+      },
+      {
+        id: 'ch6_achievements_20',
+        title: 'Decorated',
+        description: 'Claim 20 achievements',
+        checkComplete: (s) => (s.claimedProgressAchievements ?? []).length >= 20,
+        checkProgress: (s) => Math.min(1, (s.claimedProgressAchievements ?? []).length / 20),
+      },
+      {
+        id: 'ch6_age_40',
+        title: 'Turn 40',
+        description: 'Reach your fortieth birthday',
+        checkComplete: (s) => getAge(s) >= 40,
+        checkProgress: (s) => Math.min(1, Math.max(0, (getAge(s) - ADULTHOOD_AGE) / (40 - ADULTHOOD_AGE))),
+      },
+    ],
+    completionReward: { money: 60000, gems: 250 },
+    perGoalReward: { money: 4000, gems: 35 },
+  },
+  {
+    id: 'ch7_life_sealed',
+    title: 'Chapter 7',
+    subtitle: 'A Life Sealed',
+    weekRange: [250, 9999],
+    goals: [
+      {
+        id: 'ch7_net_10m',
+        title: 'Net Worth $10M',
+        description: 'Reach $10,000,000 net worth',
+        checkComplete: (s) => wealthMark(s) >= 10_000_000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 10_000_000),
+      },
+      {
+        id: 'ch7_achievements_40',
+        title: 'A Full Cabinet',
+        description: 'Claim 40 achievements',
+        checkComplete: (s) => (s.claimedProgressAchievements ?? []).length >= 40,
+        checkProgress: (s) => Math.min(1, (s.claimedProgressAchievements ?? []).length / 40),
+      },
+      {
+        id: 'ch7_empire',
+        title: 'Business Empire',
+        description: 'Hold 3 companies at once',
+        checkComplete: (s) => (s.companies ?? []).length >= 3,
+        checkProgress: (s) => Math.min(1, (s.companies ?? []).length / 3),
+      },
+      {
+        id: 'ch7_age_60',
+        title: 'Turn 60',
+        description: 'Reach your sixtieth birthday',
+        checkComplete: (s) => getAge(s) >= 60,
+        checkProgress: (s) => Math.min(1, Math.max(0, (getAge(s) - ADULTHOOD_AGE) / (60 - ADULTHOOD_AGE))),
+      },
+    ],
+    completionReward: { money: 150000, gems: 300 },
+    perGoalReward: { money: 8000, gems: 40 },
+  },
 ];
 
 /** Get the currently active chapter for a game state */

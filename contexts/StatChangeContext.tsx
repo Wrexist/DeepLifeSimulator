@@ -22,12 +22,12 @@ interface StatChangeContextType {
  * still flagging genuinely impactful swings.
  */
 const STAT_CHANGE_THRESHOLDS: Record<StatChange['stat'], number> = {
-    energy: 20, // regenerates ~40/wk — a pill on every tick was pure noise
+    energy: 20, // regenerates ~40/wk - a pill on every tick was pure noise
     health: 8,
     happiness: 8,
     fitness: 8,
-    money: 250, // weekly income routinely clears 50 — only flag real swings
-    gems: 1, // rare and meaningful — always worth showing
+    money: 250, // weekly income routinely clears 50 - only flag real swings
+    gems: 1, // rare and meaningful - always worth showing
 };
 
 /** Max simultaneously-floating pills. 8 turned every week-advance into a

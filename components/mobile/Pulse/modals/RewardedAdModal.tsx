@@ -1,5 +1,5 @@
 /**
- * RewardedAdModal — watch ad for a follower boost.
+ * RewardedAdModal - watch ad for a follower boost.
  *
  * 1-per-week cap enforced by `watchAdForFollowerBoost` via weeksLived.
  * Verified Pro triples the reward (50 → 150 followers).
@@ -35,7 +35,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
   // Re-entrancy guard for rapid double-taps on the CTA.
   const busyRef = useRef(false);
 
-  // Timers are tracked so unmount cancels them — a dismissal fallback must
+  // Timers are tracked so unmount cancels them - a dismissal fallback must
   // never continue into runRewardedAd after the component is gone.
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const addTimer = (fn: () => void, ms: number) => {
@@ -78,12 +78,12 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
     busyRef.current = true;
     try {
       // P0-4: show a rewarded video ad and grant the boost ONLY when the ad
-      // reports the reward earned (or when there's no ad to show — dev / ad-free).
+      // reports the reward earned (or when there's no ad to show - dev / ad-free).
       // Granting with no ad in an ads-on build is a deceptive-UX (Apple 2.3.1) risk
       // and lost revenue. All that logic lives in the shared `runRewardedAd`.
       // REFUSE BEFORE THE AD PLAYS. `watchAdForFollowerBoost` enforces a
       // one-per-game-week cooldown, but it was only consulted AFTER the ad had
-      // been presented — so a player who had already used the boost watched a
+      // been presented - so a player who had already used the boost watched a
       // full rewarded video for nothing. Checking first costs them nothing and
       // costs us no impression that would have been wasted anyway.
       // 2026-07-30 audit UX-1.
@@ -102,7 +102,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       if (adsAvailable(adsRemoved)) {
         // A real fullscreen ad is about to present. Showing it over this open
         // RN Modal is unsupported by the ad SDK (iOS: the sheet vanishes but an
-        // invisible modal window keeps eating touches — total freeze — and the
+        // invisible modal window keeps eating touches - total freeze - and the
         // reward callback is lost). Dismiss the sheet FIRST and wait for the
         // native teardown to finish before the ad presents.
         onDismiss();
@@ -118,11 +118,11 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       // Reward earned AND the weekly cooldown allowed the grant.
       if (isGranted(outcome) && result.success) {
         pulseHaptics.success();
-        // Persist the committed grant — deferred one macrotask so the save
+        // Persist the committed grant - deferred one macrotask so the save
         // captures the post-setGameState state (repo post-commit convention).
         // Intentionally an UNTRACKED plain setTimeout (not addTimer): the unmount
         // cleanup clears tracked timers, and if PulseApp unmounts within this
-        // macrotask a tracked save would be silently dropped — the grant would
+        // macrotask a tracked save would be silently dropped - the grant would
         // then live only in memory until the next autosave. This save MUST
         // survive unmount; saveGame reads current state via a context ref, so
         // executing it after unmount is safe. All OTHER timers stay tracked.
@@ -131,7 +131,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       } else {
         pulseHaptics.error();
         // TELL THE PLAYER. This branch used to fire a haptic and drop
-        // `result.message` on the floor — so someone who watched a full
+        // `result.message` on the floor - so someone who watched a full
         // 30-second ad and received nothing got a buzz and no explanation,
         // with the sheet already dismissed so there was nowhere to show one.
         // 2026-07-30 audit UX-1.
@@ -146,13 +146,13 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       }
     } catch (adErr) {
       // `runRewardedAd` can reject (SDK error, no fill path throwing). Without
-      // this the failure UI below never ran and nothing was logged — the sheet
+      // this the failure UI below never ran and nothing was logged - the sheet
       // just closed. Review of UX-1.
       logger.error('[Pulse] Rewarded ad failed', adErr);
       pulseHaptics.error();
       Alert.alert(
         'Ad unavailable',
-        'The ad could not be shown right now. Nothing was charged — try again in a moment.',
+        'The ad could not be shown right now. Nothing was charged - try again in a moment.',
         [{ text: 'OK' }],
       );
     } finally {
@@ -161,7 +161,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
 
   }, [setGameState, gameState, onDismiss, saveGame, waitForDismissal]);
 
-  // NOTE: no `if (!visible) return null` — the parent renders this component
+  // NOTE: no `if (!visible) return null` - the parent renders this component
   // unconditionally, and the Modal must STAY MOUNTED with visible=false during
   // the watch flow so its native onDismiss can fire (unmounting tears the
   // native modal down without the callback).

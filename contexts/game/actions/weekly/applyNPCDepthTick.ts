@@ -65,7 +65,7 @@ export function applyNPCDepthTick(input: NPCDepthTickInput, ctx: WeekContext): N
     }
     return { relationships: npcResult.relationships };
   } catch (_e) {
-    // NPC depth module may not exist in tests — preserve inline behavior.
+    // NPC depth module may not exist in tests - preserve inline behavior.
     return { relationships: input.relationships };
   }
 }

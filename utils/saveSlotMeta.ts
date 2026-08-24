@@ -53,7 +53,7 @@ const clampCount = (n: unknown): number => Math.floor(clampAmount(n));
 /**
  * Derive a compact summary from a parsed game-state object. Returns null when
  * the object isn't a real, meaningful save (so callers never cache or display a
- * placeholder). Defensive throughout — the input is raw persisted JSON.
+ * placeholder). Defensive throughout - the input is raw persisted JSON.
  */
 export function extractSaveSlotMeta(data: unknown): SaveSlotMeta | null {
   if (!hasSaveStateShape(data) || !hasMeaningfulSaveData(data)) {
@@ -117,7 +117,7 @@ export async function readSaveSlotMeta(slot: number): Promise<SaveSlotMeta | nul
         typeof parsed.updatedAt === 'number' && Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : 0,
     };
   } catch {
-    // Malformed JSON — treat as absent.
+    // Malformed JSON - treat as absent.
     return null;
   }
 }
@@ -125,7 +125,7 @@ export async function readSaveSlotMeta(slot: number): Promise<SaveSlotMeta | nul
 // ───────────────────────────────────────────────────────────────────────────
 // Per-slot backfill guards. `backfillInFlight` dedupes concurrent cold-path
 // decodes (both pre-game screens can miss the cache for the same slot at once);
-// `slotDeletionGen` makes deletion win over an in-flight backfill — a delete
+// `slotDeletionGen` makes deletion win over an in-flight backfill - a delete
 // that lands between the blob read and the meta write bumps the generation, so
 // the late write is skipped instead of resurrecting metadata for a deleted or
 // just-overwritten blob.
@@ -151,8 +151,8 @@ export async function deleteSaveSlotMeta(slot: number): Promise<void> {
 export type SlotBlobProbe = 'exists' | 'empty' | 'unknown';
 
 /** Raw existence probe: does a persisted blob exist for this slot at all? Reads
- *  the three raw slot keys (double-buffer A/B + legacy) directly — no envelope
- *  decode, no HMAC verification, no JSON.parse — so it is genuinely cheap even
+ *  the three raw slot keys (double-buffer A/B + legacy) directly - no envelope
+ *  decode, no HMAC verification, no JSON.parse - so it is genuinely cheap even
  *  for multi-MB saves. A thrown storage read reports 'unknown' rather than
  *  'empty' (readSaveSlot can't be used here: it swallows storage errors into
  *  null, which would make a transient failure indistinguishable from a truly
@@ -218,7 +218,7 @@ export async function ensureSaveSlotMeta(slot: number): Promise<SaveSlotMeta | n
       if (!meta) return null;
 
       if ((slotDeletionGen.get(slot) ?? 0) !== gen) {
-        // The slot was deleted/overwritten while we were decoding — discard.
+        // The slot was deleted/overwritten while we were decoding - discard.
         return null;
       }
       await writeSaveSlotMeta(slot, meta);

@@ -85,7 +85,7 @@ describe('onboarding funnel reaches the transport', () => {
     });
   });
 
-  it('still logs locally — the transport is an addition, not a replacement', () => {
+  it('still logs locally - the transport is an addition, not a replacement', () => {
     // The dev console path is what makes a local run readable; regressing it
     // would trade one blind spot for another.
     const spy = jest.spyOn(console, 'log').mockImplementation(() => {});

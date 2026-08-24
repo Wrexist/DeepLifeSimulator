@@ -45,7 +45,7 @@ function pushNotif(o: HustleCompanyOverlay, text: string, type: any, weeksLived:
         type,
         text,
         // Seeded from the game week (deterministic) rather than wall-clock
-        // Date.now() — this is an otherwise fully-seeded tick, and Date.now()
+        // Date.now() - this is an otherwise fully-seeded tick, and Date.now()
         // made notifications save-scummable + StrictMode-inconsistent.
         timestamp: weeksLived,
         gameWeek: weeksLived,
@@ -119,7 +119,7 @@ export function processHustleWeeklyTick(
       // active (it just skips this week's spend + lift) so it resumes once the
       // player can afford it and still expires on its own schedule.
       if (availableCash < camp.spendPerWeek) {
-        o = pushNotif(o, `${camp.kind} campaign paused — insufficient funds`, 'campaign_complete', nextWeeksLived);
+        o = pushNotif(o, `${camp.kind} campaign paused - insufficient funds`, 'campaign_complete', nextWeeksLived);
         stillActive.push(camp);
         continue;
       }
@@ -128,13 +128,13 @@ export function processHustleWeeklyTick(
       availableCash -= camp.spendPerWeek;
       cashReasons.push(`${camp.kind} campaign weekly spend`);
       // Add ROI-driven revenue lift. MONEY-SAFETY FIX: the realized ROI is a
-      // SEEDED weekly gamble around the projected number (deterministic — seeded
+      // SEEDED weekly gamble around the projected number (deterministic - seeded
       // by campaign id + week), not the projected number itself. Previously the
       // full projected lift was credited risk-free, so any kind with projected
       // ROI > 2 (guerrilla/influencer/social) was a guaranteed, stackable printer
       // (net = spend × (ROI − 2) every week). Now bad weeks realize below break-
       // even (lift < spend, or 0 lift → the whole spend is a loss) while good
-      // weeks still pay out — expected net is ≈0-or-negative for the high-ROI kinds.
+      // weeks still pay out - expected net is ≈0-or-negative for the high-ROI kinds.
       const realizedROI = realizedCampaignROI(camp.id, camp.projectedROI, nextWeeksLived);
       const lift = Math.floor(camp.spendPerWeek * (realizedROI - 1));
       if (lift > 0) {
@@ -175,7 +175,7 @@ export function processHustleWeeklyTick(
         // Fill the ledger with REAL values (previously hardcoded 0 → the UI
         // showed a permanent "−$0 lost" line). Reconstruct the drag over the
         // scandal's active life from its initial (base) severity, weeks active,
-        // and current company income (deterministic — no persisted accumulator,
+        // and current company income (deterministic - no persisted accumulator,
         // since adding a field to HustleActiveScandal would touch shared types).
         const initialSeverity = SCANDAL_BASE_SEVERITY[o.activeScandal.kind] ?? o.activeScandal.severity;
         const weeksActive = Math.max(1, nextWeeksLived - o.activeScandal.startedWeek);
@@ -186,7 +186,7 @@ export function processHustleWeeklyTick(
         );
         o = pushNotif({
           ...o,
-          // R3-E: cap to 25 per company — was unbounded; multiplied by N
+          // R3-E: cap to 25 per company - was unbounded; multiplied by N
           // companies that's significant save bloat over many lives.
           scandalHistory: [
             ...o.scandalHistory,
@@ -222,7 +222,7 @@ export function processHustleWeeklyTick(
       }
     }
 
-    // 3b. Organic scandal roll — brand/size-gated, cooldown-respecting,
+    // 3b. Organic scandal roll - brand/size-gated, cooldown-respecting,
     // deterministic (seeded by company id + week). Only when no scandal is
     // active. Activates the fully-built resolution UI/ledger that previously
     // had no trigger (triggerScandal had zero callers).
@@ -251,7 +251,7 @@ export function processHustleWeeklyTick(
       }
     }
 
-    // 4. Named hires — morale & performance drift
+    // 4. Named hires - morale & performance drift
     if (o.hiringPipeline.namedHires.length > 0) {
       const updatedHires = o.hiringPipeline.namedHires.map((h) => {
         const delta = namedHireMoraleDelta(h, o, h.salary);
@@ -260,7 +260,7 @@ export function processHustleWeeklyTick(
         return { ...h, morale, performance };
       });
       // MONEY-SAFETY FIX: charge each named hire's weekly salary. Previously
-      // `salary` was only read for morale fairness — accepted hires raised
+      // `salary` was only read for morale fairness - accepted hires raised
       // `weeklyIncome` (via the headcount multiplier) but their payroll was never
       // deducted, so every hire was free money. Deduct it through the same
       // cash-delta path other company costs use (mirrors scandal drag / campaign
@@ -284,7 +284,7 @@ export function processHustleWeeklyTick(
     o = { ...o, marketSharePercent: recomputeMarketShare(o) };
     out.lifetimeStats.peakMarketShare = Math.max(out.lifetimeStats.peakMarketShare, o.marketSharePercent);
 
-    // 6. Acquisition offer generation — every 8 weeks, gated by company size
+    // 6. Acquisition offer generation - every 8 weeks, gated by company size
     if (nextWeeksLived % 8 === 0 && o.pendingAcquisitions.length < 2) {
       const offer = generateAcquisitionOffer(company, nextWeeksLived);
       if (offer) {
@@ -302,7 +302,7 @@ export function processHustleWeeklyTick(
       pendingAcquisitions: o.pendingAcquisitions.filter((a) => a.expiresWeek > nextWeeksLived),
     };
 
-    // 7. IPO quarterly earnings — every 12 weeks since listing
+    // 7. IPO quarterly earnings - every 12 weeks since listing
     if (o.ipo.status === 'public' && o.ipo.lastEarningsWeek != null) {
       if (nextWeeksLived - o.ipo.lastEarningsWeek >= 12) {
         const { newPrice, beat } = computeQuarterlyEarningsMovement(o, o.ipo.sharePrice);
@@ -321,7 +321,7 @@ export function processHustleWeeklyTick(
               recentEarnings: [...o.ipo.recentEarnings.slice(-3), earnings],
             },
           },
-          `${company.name} Q earnings: ${beat ? '✅ Beat' : '⚠️ Missed'} — share price $${newPrice}`,
+          `${company.name} Q earnings: ${beat ? '✅ Beat' : '⚠️ Missed'} - share price $${newPrice}`,
           'earnings_report',
           nextWeeksLived,
         );

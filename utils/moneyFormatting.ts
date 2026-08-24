@@ -49,7 +49,7 @@ export function formatMoney(amount: number, showDollarSign: boolean = true): str
  * "$12.3k". Same finite guard and the same sign-OUTSIDE-the-dollar rule; the
  * only differences are the lowercase `k` and one decimal on the thousands tier.
  *
- * This is the ONLY sanctioned variant — every other surface uses `formatMoney`.
+ * This is the ONLY sanctioned variant - every other surface uses `formatMoney`.
  * Do not add a third money format; divergent local copies are what this module
  * exists to replace.
  */
@@ -75,7 +75,7 @@ export function formatMoneyCompact(amount: number, showDollarSign: boolean = tru
     formatted = Math.round(absAmount).toLocaleString();
   }
 
-  // Same trailing-zero trim as formatMoney — the lookahead has to include the
+  // Same trailing-zero trim as formatMoney - the lookahead has to include the
   // lowercase k, or "$10.0k" ships.
   formatted = formatted
     .replace(/\.00(?=[kKMBTQ]?$)/, '')
@@ -125,7 +125,7 @@ export function formatCurrency(amount: number, currency: string = ''): string {
   }
   
   // Remove trailing zeros and the decimal point when not needed (lookahead:
-  // suffixed values end in K/M/B/T/Q — same fix as formatMoney above).
+  // suffixed values end in K/M/B/T/Q - same fix as formatMoney above).
   formatted = formatted.replace(/\.00(?=[KMBTQ]?$)/, '').replace(/(\.\d)0(?=[KMBTQ]?$)/, '$1');
 
   return `${sign}${formatted}${currency ? ` ${currency}` : ''}`;

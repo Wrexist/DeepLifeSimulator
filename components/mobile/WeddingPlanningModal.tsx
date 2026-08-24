@@ -22,7 +22,7 @@ interface WeddingPlanningModalProps {
 
 export default function WeddingPlanningModal({ visible, onClose, partnerId, partnerName }: WeddingPlanningModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const isDarkMode = settings?.darkMode ?? false;
 
   // Debug: Log venues on mount

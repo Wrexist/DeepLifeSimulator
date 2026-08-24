@@ -163,7 +163,7 @@ export function applyGrandchildWeek(child: ChildInfo, weeksLived: number): Child
   return { ...child, grandchildren: [...grandchildrenOf(child), born] };
 }
 
-/** Total living descendants below the children — a dynasty-score input. */
+/** Total living descendants below the children - a dynasty-score input. */
 export function countGrandchildren(children: readonly ChildInfo[] | undefined | null): number {
   if (!Array.isArray(children)) return 0;
   return children.reduce((sum, c) => sum + grandchildrenOf(c).length, 0);

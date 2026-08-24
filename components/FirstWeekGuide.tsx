@@ -52,10 +52,10 @@ export interface FirstWeekGuideGateState {
  * while `lifeStartWeek` exists. It is a v43 carve-out with no backfill
  * (CLAUDE.md §7), so every save created earlier has no baseline and
  * `weeksSinceLifeStart` falls back to the ABSOLUTE `weeksLived`
- * (utils/weekCounters.ts) — 104+ for any starting age above 18. The gate could
+ * (utils/weekCounters.ts) - 104+ for any starting age above 18. The gate could
  * never pass in life 1 of those saves. The first prestige then stamps
  * `lifeStartWeek` (lib/prestige/prestigeExecution.ts, both paths), the counter
- * reads newborn-small, and the guide appeared — after the first prestige, not
+ * reads newborn-small, and the guide appeared - after the first prestige, not
  * when first starting the game. Playtester-reported 2026-08.
  *
  * ── The rule ───────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ export interface FirstWeekGuideGateState {
  *      point this guide teaches; a fresh prestige state looks newborn precisely
  *      because `lifeStartWeek` was re-stamped, so the week check alone cannot
  *      tell "new player" from "new generation".
- *   2. Pre-v43 first-life saves have an unknowable week number — the baseline
+ *   2. Pre-v43 first-life saves have an unknowable week number - the baseline
  *      cannot be derived once `weeksLived` has moved. Rather than hide the
  *      guide from them forever, show it: they are demonstrably still in their
  *      first life, the card is one tap to dismiss, and that dismissal persists
@@ -170,7 +170,7 @@ const GUIDE_STEPS: GuideStep[] = [
         id: 'earn_rewards',
         week: 2,
         title: 'Earn Rewards',
-        description: 'Open the app each day for a login bonus, and chase achievements as you play — both hand out gems you can spend on perks.',
+        description: 'Open the app each day for a login bonus, and chase achievements as you play - both hand out gems you can spend on perks.',
         icon: Sparkles,
         iconColor: '#F59E0B',
         priority: 'medium',
@@ -241,7 +241,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
     // `currentWeek` is weeks into THIS life (`weeksInThisLife`), so it starts at
     // 0 for every scenario. The clamp into 1-3 stays: 0 would select no steps and
     // render a blank card. It used to be handed the ABSOLUTE `weeksLived`, which
-    // is 100+ for any start past age 18 — the clamp hid the symptom here (all
+    // is 100+ for any start past age 18 - the clamp hid the symptom here (all
     // three steps at once) while the caller's `<= 3` gate hid the guide outright.
     const relevantSteps = useMemo(() => {
         const guideWeek = Math.min(Math.max(currentWeek, 1), 3);
@@ -268,7 +268,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
     };
 
     // Don't show if already seen or still loading. (The guide is a one-time,
-    // dismiss-gated intro — we no longer hide it by absolute week, which had
+    // dismiss-gated intro - we no longer hide it by absolute week, which had
     // hidden it entirely for any start older than age 18.)
     if (hasSeenGuide !== false || !visible) {
         return null;
@@ -287,7 +287,7 @@ export function FirstWeekGuide({ currentWeek, onDismiss, visible = true }: First
           Presented as a MODAL rather than an absolutely-positioned sibling.
           It used to render inside the Home screen at `Z_INDEX.TOOLTIP`, which
           put it in the same stacking context as the screen's own content and
-          BELOW the tab layout's HUD — the shipped build showed the top stats
+          BELOW the tab layout's HUD - the shipped build showed the top stats
           bar clipping the guide's header. z-index cannot arbitrate between two
           different parents, so raising the number would only have moved the
           problem; a Modal gets its own window and is unconditionally on top.
@@ -475,7 +475,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
  * How long a dismissed tip stays dismissed, in game weeks.
  *
  * Dismissal used to be wiped on every week change, so a player sitting under $50
- * dismissed "Running low on cash?" and it returned on the very next Next Week —
+ * dismissed "Running low on cash?" and it returned on the very next Next Week -
  * forever. Tapping the X accomplished nothing, which is worse than having no X:
  * it teaches the player that the app ignores them. A tip whose condition is
  * still true is still worth re-raising eventually, so this is a cooldown rather

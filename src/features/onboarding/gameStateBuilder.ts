@@ -156,7 +156,7 @@ export function buildChildForSingleParent(childAge: number): any {
 /**
  * The sex encoded in a LEGACY starter-face id (`m3`, `f11`).
  *
- * The character creator no longer writes `avatarId` — a new life carries a
+ * The character creator no longer writes `avatarId` - a new life carries a
  * concrete sex and an encoded avatar config instead. This survives only for
  * onboarding drafts persisted by an older build, which can still be sitting in
  * AsyncStorage when a player updates mid-flow. Inlined here rather than
@@ -236,7 +236,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
     // Same 1-4 week-of-month cycle as the sibling `week` above. This used to
     // take the modulus by WEEKS_PER_YEAR, which only stayed inside the 1-4
     // range because computeWeeksLived returns a multiple of 52 for integer
-    // starting ages — a fractional age would have written date.week up to 52.
+    // starting ages - a fractional age would have written date.week up to 52.
     date: { ...initialGameState.date, age: scenario.start.age, week: (weeksLived % WEEKS_PER_MONTH) + 1 },
     educations: (() => {
       const existing: any[] = initialGameState.educations.map((e: any) => {
@@ -257,7 +257,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
         }
         return e;
       });
-      // BUGFIX: initialGameState.educations is empty by design — the player
+      // BUGFIX: initialGameState.educations is empty by design - the player
       // grows the list by enrolling in school during gameplay. Scenarios that
       // advertise "Start with X education" (corporate_intern → College, etc.)
       // were silently no-oping because the `.map` had nothing to mark complete.
@@ -304,7 +304,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       : undefined,
     scenarioId: scenario.id,
     challengeScenarioId,
-    // Life Ambition — the chosen lifelong goal (or undefined for a freeform life).
+    // Life Ambition - the chosen lifelong goal (or undefined for a freeform life).
     // Milestone tracking + payoff flag start clean so progress accrues over the life.
     ambitionId: ambitionId || undefined,
     // Pace for this life. `'story'` is written; anything else is written as
@@ -316,7 +316,7 @@ export function buildNewGameState(params: BuildGameStateParams): any {
       return i;
     }),
     hasPhone: scenarioItems.includes('smartphone') || mappedItemIds.includes('smartphone'),
-    // "Driver License" is not an inventory item — no catalogue entry exists,
+    // "Driver License" is not an inventory item - no catalogue entry exists,
     // so the ITEM_ID_MAP route was a no-op and the Real Estate Hustler
     // scenario's advertised license was never granted. The game's actual
     // license state is the `hasDriversLicense` flag (the same one the

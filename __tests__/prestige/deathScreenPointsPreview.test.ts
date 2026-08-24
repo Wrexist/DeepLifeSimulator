@@ -51,7 +51,7 @@ const oldPreviewFormula = (
 ): number =>
   Math.floor((netWorth / 10000) + (weeksLived / 5) + (achievements * 20) + (prestigeLevel * 100));
 
-describe('F1 — the preview quotes the real award', () => {
+describe('F1 - the preview quotes the real award', () => {
   it('calls calculatePrestigePoints rather than reimplementing it', () => {
     expect(CODE).toMatch(/const earnedPoints = calculatePrestigePoints\(/);
   });
@@ -111,7 +111,7 @@ describe('F1 — the preview quotes the real award', () => {
   });
 });
 
-describe('F2 — the death screen has exactly one path to end the life', () => {
+describe('F2 - the death screen has exactly one path to end the life', () => {
   it('does not render PrestigeModal', () => {
     expect(CODE).not.toMatch(/<PrestigeModal/);
   });

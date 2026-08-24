@@ -44,7 +44,7 @@ export const EDUCATION_PROGRAMS: EducationProgram[] = [
   { id: 'entrepreneurship',  name: 'Entrepreneurship',     description: 'Start and run companies.',                   cost: 30_000,  duration: 72,  tier: 'undergrad' },
   { id: 'business_degree',   name: 'Business Degree',      description: 'Teacher / nurse track.',                     cost: 48_000,  duration: 90,  tier: 'undergrad' },
   { id: 'computer_science',  name: 'Computer Science',     description: 'Software engineering track.',                cost: 72_000,  duration: 104, tier: 'undergrad' },
-  { id: 'masters_degree',    name: "Master's Degree",      description: 'Specialized — opens senior roles.',          cost: 90_000,  duration: 120, tier: 'graduate' },
+  { id: 'masters_degree',    name: "Master's Degree",      description: 'Specialized - opens senior roles.',          cost: 90_000,  duration: 120, tier: 'graduate' },
   { id: 'mba',               name: 'MBA',                  description: 'Required for corporate executive careers.',  cost: 120_000, duration: 150, tier: 'graduate' },
   { id: 'medical_school',    name: 'Medical School',       description: 'Doctor track.',                              cost: 150_000, duration: 180, tier: 'professional' },
   { id: 'law_school',        name: 'Law School',           description: 'Lawyer track.',                              cost: 132_000, duration: 156, tier: 'professional' },

@@ -1,5 +1,5 @@
 /**
- * JealousyModal — confrontation sheet that resolves an active jealousy event.
+ * JealousyModal - confrontation sheet that resolves an active jealousy event.
  *
  * Reads `sparkApp.activeJealousy`, renders the partner's accusation (copy driven
  * by trigger type + severity) and one button per available `SparkJealousyOutcome`,

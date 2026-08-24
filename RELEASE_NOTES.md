@@ -12,11 +12,11 @@
 
 We've done a comprehensive audit and fix of the entire purchase system to make sure every dollar you spend is properly applied:
 
-- **Purchase Safety**: Purchases are now fully applied to your account before being marked as consumed with Apple — no more risk of losing a purchase if the app closes at the wrong moment
-- **Perk Effects Fixed**: IAP perks (Work Boost, Fast Learner, Mindset, Good Credit) now properly apply their bonuses in-game. A naming mismatch was preventing purchased perks from having any effect — this is now fixed
+- **Purchase Safety**: Purchases are now fully applied to your account before being marked as consumed with Apple - no more risk of losing a purchase if the app closes at the wrong moment
+- **Perk Effects Fixed**: IAP perks (Work Boost, Fast Learner, Mindset, Good Credit) now properly apply their bonuses in-game. A naming mismatch was preventing purchased perks from having any effect - this is now fixed
 - **Restore Purchases Improved**: You'll now get clear feedback if a restore fails, instead of silent failure
 - **Ad Removal Reliable**: The "Remove Ads" purchase now consistently hides all ads across the entire app
-- **Work Boost Preserved**: Work Boost is now correctly saved as a permanent purchase — it won't disappear after reinstalling
+- **Work Boost Preserved**: Work Boost is now correctly saved as a permanent purchase - it won't disappear after reinstalling
 - **All Perks Bundle**: The unlock-all-perks bundle now properly persists all individual perk flags
 
 ---
@@ -25,7 +25,7 @@ We've done a comprehensive audit and fix of the entire purchase system to make s
 
 ### Save System Hardening
 - Fixed 4 missing default values that could cause save corruption on older saves
-- Cloud sync now validates data integrity on download — corrupted cloud saves won't overwrite your good local save
+- Cloud sync now validates data integrity on download - corrupted cloud saves won't overwrite your good local save
 - Fixed stale closure bugs in cloud sync that could cause sync to silently fail
 - Save migration properly backfills new fields for older save files
 
@@ -34,7 +34,7 @@ We've done a comprehensive audit and fix of the entire purchase system to make s
 - Vehicle selling has a proper minimum price floor
 - Dividend fees are now consistent across all code paths
 - Rent income rate unified across the entire codebase (was using 3 different rates!)
-- Stock symbols now handle case correctly — no more "phantom stocks" from mixed capitalization
+- Stock symbols now handle case correctly - no more "phantom stocks" from mixed capitalization
 - Company upgrade calculations fixed for stale state issues
 - Loan system guards against edge cases
 
@@ -100,13 +100,13 @@ Relationships now have real consequences for neglect:
 This is our biggest stability update yet:
 
 ✅ **70+ bugs fixed** across saves, economy, purchases, and state management
-✅ **Purchase system overhauled** — every IAP now works correctly
-✅ **Crash fixes** — resolved startup crashes and edge case crashes
-✅ **Fairness** — pity systems prevent infinite failures
-✅ **Consequences** — relationships feel meaningful
-✅ **Performance** — faster gameplay, smaller saves
+✅ **Purchase system overhauled** - every IAP now works correctly
+✅ **Crash fixes** - resolved startup crashes and edge case crashes
+✅ **Fairness** - pity systems prevent infinite failures
+✅ **Consequences** - relationships feel meaningful
+✅ **Performance** - faster gameplay, smaller saves
 
-All changes are **backward compatible** — your existing saves will work perfectly!
+All changes are **backward compatible** - your existing saves will work perfectly!
 
 ---
 

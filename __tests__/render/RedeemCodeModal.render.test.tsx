@@ -14,7 +14,7 @@ import RedeemCodeModal from '@/components/RedeemCodeModal';
  * Uses only icons present in the shared jest.setup lucide allow-list
  * (Gift / X / CheckCircle / AlertCircle), so no local lucide mock is needed.
  */
-describe('render — RedeemCodeModal', () => {
+describe('render - RedeemCodeModal', () => {
   it('mounts (visible) and shows the Redeem button', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <RedeemCodeModal visible onClose={() => {}} />,

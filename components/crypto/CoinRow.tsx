@@ -23,7 +23,7 @@ const REGIME_TINT: Record<string, string> = {
 };
 
 function formatPrice(n: number): string {
-  if (!isFinite(n) || n <= 0) return '—';
+  if (!isFinite(n) || n <= 0) return '-';
   if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   if (n >= 1) return `$${n.toFixed(2)}`;
   return `$${n.toFixed(4)}`;

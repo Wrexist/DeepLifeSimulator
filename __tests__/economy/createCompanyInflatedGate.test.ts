@@ -48,7 +48,7 @@ function foundableState(overrides: TestGameStateOverrides = {}): GameState {
   });
 }
 
-describe('createCompany — inflated-price gate math (UI parity)', () => {
+describe('createCompany - inflated-price gate math (UI parity)', () => {
   it('charges getInflatedPrice(baseCost, priceIndex), not the raw catalog cost', () => {
     const priceIndex = 1.4;
     const inflated = getInflatedPrice(FACTORY_BASE_COST, priceIndex);

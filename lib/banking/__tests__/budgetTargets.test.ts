@@ -65,7 +65,7 @@ describe('detectBudgetOverspend', () => {
   });
 });
 
-describe('runWeeklyBankingTick — overspend notification', () => {
+describe('runWeeklyBankingTick - overspend notification', () => {
   it('emits one overspend notification when a capped category is exceeded', () => {
     const b = setBudgetTarget(banking(), 'food', 50);
     const res = runWeeklyBankingTick({

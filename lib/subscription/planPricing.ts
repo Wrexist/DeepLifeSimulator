@@ -250,7 +250,7 @@ const WEEKS_PER_YEAR = 52;
  * The yearly plan's effective per-week price, formatted like the store's own
  * yearly price ("$0.97", "0,97 €", "¥150").
  *
- * Empty string when the yearly plan has no numeric amount — the SDK gave us only
+ * Empty string when the yearly plan has no numeric amount - the SDK gave us only
  * a formatted string, so any per-week figure would be a guess. The paywall omits
  * the line entirely in that case.
  */
@@ -266,7 +266,7 @@ export function perWeekPrice(yearly: PlanPrice): string {
  * Three conditions, all required: both plans carry a numeric amount, both are in
  * the SAME currency, and the yearly price is genuinely lower. A cross-currency
  * comparison would need an exchange rate the app does not have, and the two
- * plans' price tiers are set independently per storefront — so a percentage
+ * plans' price tiers are set independently per storefront - so a percentage
  * carried over from the USD tiers can be simply wrong elsewhere.
  *
  * FLOORED, not rounded: a claim of "SAVE 16%" against a true 16.6% under-states
@@ -307,7 +307,7 @@ function iso8601DurationToDays(period: string | null | undefined): number {
 
 /**
  * How many days of FREE trial this product's introductory offer carries,
- * according to the store — or null when the store has not told us.
+ * according to the store - or null when the store has not told us.
  *
  * null vs 0 is the load-bearing distinction:
  *   • `null` = unknown (no product loaded, or an SDK that does not expose offer
@@ -323,7 +323,7 @@ function iso8601DurationToDays(period: string | null | undefined): number {
  *
  * Note this is a question about the PRODUCT, not the player. Whether THIS player
  * may still use the offer is a separate per-user check
- * (`revenueCatService.getIntroEligibility`) — a product can carry a trial that a
+ * (`revenueCatService.getIntroEligibility`) - a product can carry a trial that a
  * returning subscriber already consumed.
  */
 export function storeFreeTrialDays(product: StoreProductLike | null | undefined): number | null {
@@ -381,17 +381,17 @@ export function storeFreeTrialDays(product: StoreProductLike | null | undefined)
 /**
  * What the paywall is allowed to SAY about the free trial.
  *
- *   'promise'     — this player will genuinely start at no charge. Only when the
+ *   'promise'     - this player will genuinely start at no charge. Only when the
  *                   store confirms the product carries a trial AND confirms THIS
  *                   player is eligible for it. This is the only state that earns
  *                   the "$0.00 today" copy.
- *   'conditional' — a trial exists on the product, but we could not confirm this
+ *   'conditional' - a trial exists on the product, but we could not confirm this
  *                   player's eligibility (Android exposes no per-user answer;
  *                   RevenueCat-disabled builds and failed calls return the same
  *                   'unknown'). Copy must hold for both readings, e.g. "includes
- *                   a 7-day free trial for new subscribers" — true whether or not
+ *                   a 7-day free trial for new subscribers" - true whether or not
  *                   this particular player still qualifies.
- *   'none'        — say nothing about a trial. Either the store reports the
+ *   'none'        - say nothing about a trial. Either the store reports the
  *                   product has no trial offer, or it reports this player as
  *                   ineligible (they already used it).
  *

@@ -39,7 +39,7 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 // ---------------------------------------------------------------------------
 // Loan eligibility — BUGFIX #24
 // ---------------------------------------------------------------------------
-describe('Loan eligibility — NaN safety', () => {
+describe('Loan eligibility - NaN safety', () => {
   const baseInput = {
     netWorth: 100_000,
     educationTiers: 1,
@@ -399,7 +399,7 @@ describe('Real estate tenant satisfaction', () => {
       let sat = 80;
       for (let w = 1; w <= 200; w++) {
         // Condition 10 (well under the 50 decay threshold) and a 3x-over-market
-        // ask — the worst sustained case a player can create.
+        // ask - the worst sustained case a player can create.
         sat = satisfactionStep(sat, 10, 3000, 1000, mode);
         expect(Number.isFinite(sat)).toBe(true);
         expect(sat).toBeGreaterThanOrEqual(0);
@@ -441,7 +441,7 @@ describe('Real estate tenant satisfaction', () => {
 // Cross-system regression
 // ---------------------------------------------------------------------------
 describe('Economic systems regression', () => {
-  it('500 random loanEligibility calls — fuzz with mixed valid/invalid inputs', () => {
+  it('500 random loanEligibility calls - fuzz with mixed valid/invalid inputs', () => {
     const types: any[] = [0, 1000, -100, NaN, Infinity, undefined, 'not a number'];
     let okCount = 0;
     let invalidCount = 0;

@@ -58,7 +58,7 @@ function declaredFollowUps(): { source: string; target: string; type: string; we
   return out;
 }
 
-describe('R4-X6 — the four missing payoffs now exist', () => {
+describe('R4-X6 - the four missing payoffs now exist', () => {
   it('the source event is really in the live pool (the premise)', () => {
     expect(enhancedEventTemplates.map((t) => t.id)).toContain('friend_invitation_exam');
     expect(templateIds.has('friend_invitation_exam')).toBe(true);
@@ -126,7 +126,7 @@ describe('R4-X6 — the four missing payoffs now exist', () => {
   });
 });
 
-describe('R4-X6 — no event promises a follow-up that does not exist', () => {
+describe('R4-X6 - no event promises a follow-up that does not exist', () => {
   /**
    * The generic guard, and the reason this file is worth more than five id
    * assertions. Any future template that names a follow-up and forgets to write

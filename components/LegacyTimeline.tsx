@@ -4,7 +4,7 @@
  * Displays previous lives with expandable details, family tree links,
  * and achievement badges
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Platform, View,
   Text,
   StyleSheet,
@@ -33,6 +33,9 @@ import {
 } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
+import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
+import { readLifeArchive } from '@/utils/lifeArchive';
+import type { PreviousLifeRecord } from '@/lib/legacy/lifeRecord';
 import {
   scale,
   fontScale,
@@ -65,14 +68,45 @@ interface PreviousLife {
   totalWeeksWorked?: number;
   spouseName?: string;
   memorableEvents?: string[];
+  // Stamped at the transition since 2026-08-24 (lib/legacy/lifeRecord.ts) -
+  // the score and ribbon the death screen used to compute and throw away.
+  lifeQualityScore?: number;
+  lifeQualityVerdict?: string;
+  ribbonName?: string;
 }
 
 export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: LegacyTimelineProps) {
-  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const previousLives = useGameSelector((s) => (s.previousLives || []) as PreviousLife[], shallowEqual);
   const currentGeneration = useGameSelector((s) => s.generationNumber || 1);
+  // The current life's standing, for the personal-best comparison below. A
+  // number selector, so re-renders only when the figure itself moves; guarded
+  // because this runs on a modal that must not crash on a partial state.
+  const currentNetWorth = useGameSelector((s) => {
+    try {
+      return Math.round(canonicalNetWorth(s));
+    } catch {
+      return 0;
+    }
+  });
 
   const [expandedLife, setExpandedLife] = useState<number | null>(null);
+
+  // Lives remembered OUTSIDE this dynasty (2026-08-24, §52): death without an
+  // heir used to erase the whole record; the archive keeps the memory. Loaded
+  // only when the modal is open - an async read on a modal must not run while
+  // it is closed, and a failed read degrades to an empty wall.
+  const [archivedLives, setArchivedLives] = useState<PreviousLifeRecord[]>([]);
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    readLifeArchive().then((lives) => {
+      if (!cancelled) setArchivedLives(lives);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   const sortedLives = useMemo(() => {
     return [...previousLives].sort((a, b) => (b.generation || 0) - (a.generation || 0));
@@ -183,6 +217,19 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                   </Text>
                 </View>
               </View>
+
+              {/* Personal best - the question a returning player actually asks:
+                  "is this life beating my last one?" bestLife was computed here
+                  since the screen was built and never rendered (2026-08-24). */}
+              {legacyStats.bestLife && (
+                <View style={[styles.bestBand, settings.darkMode && styles.bestBandDark]}>
+                  <Text style={[styles.bestText, settings.darkMode && styles.bestTextDark]}>
+                    {currentNetWorth > (legacyStats.bestLife.netWorth || 0)
+                      ? `This life has already passed your best - Gen ${legacyStats.bestLife.generation || '?'}'s ${formatMoney(legacyStats.bestLife.netWorth || 0)}.`
+                      : `Best life so far: Gen ${legacyStats.bestLife.generation || '?'} at ${formatMoney(legacyStats.bestLife.netWorth || 0)}. This life: ${formatMoney(currentNetWorth)}.`}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -197,6 +244,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 <Text style={[styles.emptySubtext, settings.darkMode && styles.emptySubtextDark]}>
                   Your legacy will begin here when you start your next generation
                 </Text>
+
               </View>
             ) : (
               <View style={styles.timeline}>
@@ -233,6 +281,11 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                 <Crown size={scale(16)} color="#F59E0B" />
                                 <Text style={styles.genNumber}>Gen {life.generation || '?'}</Text>
                               </View>
+                              {!!life.ribbonName && (
+                                <View style={styles.ribbonBadge}>
+                                  <Text style={styles.ribbonText}>{life.ribbonName}</Text>
+                                </View>
+                              )}
                               {life.timestamp && (
                                 <View style={styles.dateBadge}>
                                   <Calendar size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
@@ -272,6 +325,18 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                                 {life.ageAtDeath || '?'} years
                               </Text>
                             </View>
+
+                            {typeof life.lifeQualityScore === 'number' && (
+                              <View style={[styles.statCard, settings.darkMode && styles.statCardDark]}>
+                                <Star size={scale(16)} color="#F59E0B" />
+                                <Text style={[styles.statLabel, settings.darkMode && styles.statLabelDark]}>
+                                  Life Quality
+                                </Text>
+                                <Text style={[styles.statValue, settings.darkMode && styles.statValueDark]}>
+                                  {life.lifeQualityScore}%{life.lifeQualityVerdict ? ` · ${life.lifeQualityVerdict}` : ''}
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
                           {/* Expanded Details */}
@@ -411,6 +476,29 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 })}
               </View>
             )}
+                {/* Remembered lives (2026-08-24, §52) - earlier characters
+                whose line ended without an heir. Memory only: nothing
+                here grants anything to this dynasty. */}
+            {archivedLives.length > 0 && (
+              <View style={styles.rememberedSection}>
+                <Text style={[styles.rememberedTitle, settings.darkMode && styles.emptyTextDark]}>
+                  Remembered lives
+                </Text>
+                {archivedLives.slice(0, 8).map((life, idx) => (
+                  <View key={`${life.timestamp}-${idx}`} style={[styles.rememberedRow, settings.darkMode && styles.rememberedRowDark]}>
+                    <Text style={[styles.rememberedName, settings.darkMode && styles.emptyTextDark]} numberOfLines={1}>
+                      {life.name || `Generation ${life.generation}`}
+                      {life.ribbonName ? ` · ${life.ribbonName}` : ''}
+                    </Text>
+                    <Text style={[styles.rememberedMeta, settings.darkMode && styles.emptySubtextDark]}>
+                      {`Died at ${life.ageAtDeath || '?'} · ${formatMoney(life.netWorth || 0)}`}
+                      {typeof life.lifeQualityScore === 'number' ? ` · ${life.lifeQualityScore}% life` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
           </ScrollView>
         </LinearGradient>
       </View>
@@ -595,6 +683,72 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(12),
     paddingVertical: scale(6),
     borderRadius: scale(20),
+  },
+  ribbonBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(3),
+    borderRadius: scale(12),
+  },
+  ribbonText: {
+    fontSize: fontScale(10),
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
+  bestBand: {
+    marginTop: scale(8),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    borderRadius: scale(12),
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  bestBandDark: {
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+  },
+  bestText: {
+    fontSize: fontScale(11.5),
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  bestTextDark: {
+    color: '#FCD34D',
+  },
+  rememberedSection: {
+    marginTop: scale(24),
+    alignSelf: 'stretch',
+    gap: scale(8),
+  },
+  rememberedTitle: {
+    fontSize: fontScale(13),
+    fontWeight: '800',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: scale(4),
+  },
+  rememberedRow: {
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+    borderRadius: scale(12),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    backgroundColor: 'rgba(148, 163, 184, 0.06)',
+  },
+  rememberedRowDark: {
+    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+  },
+  rememberedName: {
+    fontSize: fontScale(12.5),
+    fontWeight: '700',
+    color: '#374151',
+  },
+  rememberedMeta: {
+    fontSize: fontScale(11),
+    color: '#6B7280',
+    marginTop: scale(2),
   },
   genNumber: {
     fontSize: fontScale(14),

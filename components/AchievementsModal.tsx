@@ -1,5 +1,5 @@
 /**
- * AchievementsModal — the full AchievementsProgress list in a scrollable
+ * AchievementsModal - the full AchievementsProgress list in a scrollable
  * fullscreen sheet, opened from the Home summary card's "View all". Keeps every
  * bit of the achievements feature intact, just off the Home tab by default.
  */

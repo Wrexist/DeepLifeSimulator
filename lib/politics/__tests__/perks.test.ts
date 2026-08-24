@@ -8,12 +8,12 @@
  */
 import { getActivePerks, getCombinedPerkEffects } from '../perks';
 
-describe('getActivePerks — office tier gating (1-based careerLevel)', () => {
+describe('getActivePerks - office tier gating (1-based careerLevel)', () => {
   it('a Citizen (careerLevel 0) has no political perks', () => {
     expect(getActivePerks(0)).toHaveLength(0);
   });
 
-  it('a Council Member (rank 1) gets only the base tier — never Mayor perks', () => {
+  it('a Council Member (rank 1) gets only the base tier - never Mayor perks', () => {
     const perks = getActivePerks(1);
     expect(perks.length).toBeGreaterThan(0);
     // requiredLevel is 0-based; Council is requiredLevel 0 only.

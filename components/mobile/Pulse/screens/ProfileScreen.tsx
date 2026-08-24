@@ -1,5 +1,5 @@
 /**
- * ProfileScreen — player's own Pulse profile.
+ * ProfileScreen - player's own Pulse profile.
  *
  * Hero cover + avatar + stats row + InfluenceMeter + bio + tabs (Posts /
  * Replies / Media / Likes). Tap the verified badge (when unverified) to
@@ -71,7 +71,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
   const displayName =
     profile.displayName || profile.name || profile.handle || 'You';
   const handle = profile.handle || profile.username || 'you';
-  const bio = profile.bio || 'No bio yet — tap edit profile to add one.';
+  const bio = profile.bio || 'No bio yet - tap edit profile to add one.';
   const location = profile.location;
   const website = profile.website;
   const joinedDate = profile.joinedDate;
@@ -251,7 +251,7 @@ export default function ProfileScreen({ onUpgradePro, onOpenPostDetail, onBoostP
               style={styles.proStripFill}
             >
               <Text style={styles.proStripText}>
-                ✦ Upgrade to Verified Pro — +25% engagement, blue check, longer posts
+                ✦ Upgrade to Verified Pro - +25% engagement, blue check, longer posts
               </Text>
             </LinearGradient>
           </Pressable>
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: COVER_HEIGHT,
   },
-  // (the flat `coverScrim` half-cover band is gone — see ImageScrim above)
+  // (the flat `coverScrim` half-cover band is gone - see ImageScrim above)
   identityWrap: {
     paddingHorizontal: responsiveSpacing.lg,
     marginTop: -AVATAR_SIZE / 2,

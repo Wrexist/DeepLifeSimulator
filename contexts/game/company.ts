@@ -63,7 +63,7 @@ export function createCompany(
 
   const workerConfig = workerConfigs[companyType as keyof typeof workerConfigs];
 
-  // Industry-varied starting income — kept consistent with the canonical
+  // Industry-varied starting income - kept consistent with the canonical
   // CompanyActions.createCompany (see COMPANY_STARTING_INCOME docs).
   const startingIncome = COMPANY_STARTING_INCOME[companyType] ?? 2000;
 
@@ -313,7 +313,7 @@ export function removeWorker(
 
 
 /**
- * Sale value quote: 50% of total (inflated) investment — company cost plus
+ * Sale value quote: 50% of total (inflated) investment - company cost plus
  * every upgrade level purchased. Pure; used by both the confirm dialog and
  * sellCompany itself so the quoted and paid numbers can never diverge.
  */
@@ -366,15 +366,15 @@ export function sellCompany(
   }
 
   setGameState(prev => {
-    // Re-check against prev — a same-batch double-tap must not sell twice.
+    // Re-check against prev - a same-batch double-tap must not sell twice.
     if (!(prev.companies || []).some(c => c.id === companyId)) return prev;
     const companies = prev.companies.filter(c => c.id !== companyId);
     // Canonical credit path (MONEY_CEILING clamp + dailySummary tracking).
-    // Abort outright if the credit is rejected — the company must never be
+    // Abort outright if the credit is rejected - the company must never be
     // removed while the player receives nothing.
     const salePatch = applyMoneyDelta(prev, sellValue, 'Company sale');
     if (!salePatch) return prev;
-    // Drop the sold company's Hustle overlay and count the exit — the
+    // Drop the sold company's Hustle overlay and count the exit - the
     // Dashboard 'Sold' milestone reads lifetimeStats.totalCompaniesSold.
     let hustleApp = prev.hustleApp;
     if (hustleApp) {
@@ -432,7 +432,7 @@ export function selectMiningCrypto(
  * WP-A: `buyMiner` used to assign a `let result` from inside its updater and
  * return it afterwards. React only evaluates the FIRST functional update of a
  * batch eagerly, so a purchase that committed could still report the
- * initialiser — "Purchase Failed — Unknown error" over a miner the player owns
+ * initialiser - "Purchase Failed - Unknown error" over a miner the player owns
  * and was charged for. Same shape, same fix as `resolveBuyCompanyUpgrade`
  * (C-8): run it against the caller's snapshot for the OUTCOME, and again
  * against `prev` for the STATE, so nothing crosses the updater boundary.
@@ -510,7 +510,7 @@ export function buyMiner(
  * Buy a warehouse (required for mining operations)
  */
 /**
- * The whole of `buyWarehouse`, as a PURE function of the state it is given —
+ * The whole of `buyWarehouse`, as a PURE function of the state it is given -
  * same WP-A fix and same reasoning as `resolveBuyMiner` above. The price is
  * re-derived from whichever state it runs on, so the committed charge always
  * matches that state's `economy.priceIndex`.
@@ -572,7 +572,7 @@ export function buyWarehouse(
  */
 /**
  * The whole of `upgradeWarehouse`, as a PURE function of the state it is
- * given — the same shape as `resolveBuyMiner` / `resolveBuyWarehouse` above.
+ * given - the same shape as `resolveBuyMiner` / `resolveBuyWarehouse` above.
  * The cost is re-derived from whichever state it runs on, so a queued second
  * upgrade is billed at the real, higher price for the level it is actually
  * buying, and the max-10 ceiling holds under a same-batch double-tap.
@@ -580,7 +580,7 @@ export function buyWarehouse(
  * This used to be the file's last capture-across-updater site: it read a
  * `let result` assigned inside the updater, defended by a comment arguing the
  * refusal-by-default failure mode was the safer direction. True, but the
- * preview/commit pair needs no trade-off at all — the caller's outcome comes
+ * preview/commit pair needs no trade-off at all - the caller's outcome comes
  * from running the resolver on the snapshot, the committed state from running
  * it again on `prev`, and on the stale double-tap the prev-side run refuses on
  * its own evidence. Money now goes through `applyMoneyDelta` like the

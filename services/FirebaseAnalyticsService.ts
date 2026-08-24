@@ -72,12 +72,12 @@ class FirebaseAnalyticsServiceImpl {
    *
    * WHY THIS EXISTS
    * ---------------
-   * The app emits a complete funnel — session_start, week_advanced, death,
-   * paywall_viewed, paywall_cta_tapped, purchase_started/succeeded/failed —
+   * The app emits a complete funnel - session_start, week_advanced, death,
+   * paywall_viewed, paywall_cta_tapped, purchase_started/succeeded/failed -
    * through `track()` in `lib/analytics`. That had exactly ONE sink: an HTTP
    * queue that needs a self-hosted endpoint. Without one, every event was
    * computed on every device and then dropped, so a shipped release produced no
-   * payer rate, no ARPDAU, no retention curve and no paywall funnel — and none
+   * payer rate, no ARPDAU, no retention curve and no paywall funnel - and none
    * of it can be backfilled afterwards.
    *
    * Firebase was already fully configured here (GoogleService files, config
@@ -86,7 +86,7 @@ class FirebaseAnalyticsServiceImpl {
    * session metrics. This is the missing half: with it, turning on
    * EXPO_PUBLIC_ENABLE_FIREBASE gives the whole funnel with no server to run.
    *
-   * Fire-and-forget and never throws — analytics must not be able to break a
+   * Fire-and-forget and never throws - analytics must not be able to break a
    * purchase flow or a week tick.
    */
   logEvent(name: string, params?: Record<string, unknown>): void {
@@ -109,7 +109,7 @@ class FirebaseAnalyticsServiceImpl {
 /**
  * Firebase only accepts string/number/boolean parameter values, caps keys at 40
  * chars and values at 100, and allows 25 params per event. Anything outside
- * that makes it discard the parameter — or the event — without complaint, so
+ * that makes it discard the parameter - or the event - without complaint, so
  * the shape is enforced here rather than trusted at every call site.
  */
 function sanitizeParams(params?: Record<string, unknown>): Record<string, string | number | boolean> {

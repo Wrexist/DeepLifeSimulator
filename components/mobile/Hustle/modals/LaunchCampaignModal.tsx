@@ -1,5 +1,5 @@
 /**
- * LaunchCampaignModal — pick campaign kind + spend + duration.
+ * LaunchCampaignModal - pick campaign kind + spend + duration.
  *
  * Five campaign kinds with different ROI / brand-lift / cost-floor profiles.
  * Live ROI preview updates as the player edits spend.
@@ -12,7 +12,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { launchCampaign, cancelCampaign } from '@/contexts/game/actions/HustleActions';
+import { launchCampaign, cancelCampaign, CAMPAIGN_ENERGY_COST } from '@/contexts/game/actions/HustleActions';
 import { campaignCostFloor, projectCampaignROI } from '@/lib/business/hustleLogic';
 import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
@@ -52,7 +52,13 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
     ? projectCampaignROI(selectedKind, spendNum, company?.weeklyIncome ?? 0)
     : 0;
   const floor = selectedKind ? campaignCostFloor(selectedKind) : 0;
-  const canLaunch = selectedKind != null && spendNum >= floor && (gameState.stats?.money ?? 0) >= spendNum;
+  // Energy gates alongside cash (2026-08-24) - the disabled button and the
+  // action's own refusal must agree on both.
+  const canLaunch =
+    selectedKind != null &&
+    spendNum >= floor &&
+    (gameState.stats?.money ?? 0) >= spendNum &&
+    (gameState.stats?.energy ?? 0) >= CAMPAIGN_ENERGY_COST;
 
   const handleSelect = useCallback((k: HustleCampaignKind) => {
     hustleHaptics.tap();
@@ -180,7 +186,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
                   />
                 </View>
                 <Text style={[styles.composerROI, { color: projectedROI > 1 ? HUSTLE_COLORS.success : HUSTLE_COLORS.warning }]}>
-                  Projected ROI: {projectedROI > 0 ? `${projectedROI}×` : 'Below cost floor'}
+                  Projected ROI: {projectedROI > 0 ? `${projectedROI}×` : 'Below cost floor'} · {CAMPAIGN_ENERGY_COST} energy
                 </Text>
                 <Pressable
                   onPress={handleLaunch}

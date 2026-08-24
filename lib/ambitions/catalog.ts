@@ -352,7 +352,7 @@ export const LIFE_AMBITIONS: LifeAmbition[] = [
     name: 'Live a Life of Crime',
     emoji: '🕵️',
     tagline: 'Rise through the underworld to become a feared kingpin.',
-    hint: 'Take risks in the shadows — but keep an eye on your heat.',
+    hint: 'Take risks in the shadows - but keep an eye on your heat.',
     color: '#EF4444',
     milestones: [
       {

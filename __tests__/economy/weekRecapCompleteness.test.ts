@@ -40,7 +40,7 @@ function afterRecapBuilt(): string {
   return CODE.slice(i);
 }
 
-describe('TICK-A4 — the reporting helpers exist and are honest', () => {
+describe('TICK-A4 - the reporting helpers exist and are honest', () => {
   it('there is one place a post-recap cash movement is recorded', () => {
     expect(CODE).toMatch(/const recordRecapCash = \(applied: number\): void =>/);
     expect(CODE).toMatch(/const applyCashAndRecord = \(delta: number\): void =>/);
@@ -69,7 +69,7 @@ describe('TICK-A4 — the reporting helpers exist and are honest', () => {
   });
 });
 
-describe('TICK-A4 — every post-recap cash movement reports itself', () => {
+describe('TICK-A4 - every post-recap cash movement reports itself', () => {
   /**
    * The structural guard. A raw `newStats.money = Math.max(0, newStats.money …)`
    * after the recap is built is exactly the shape that caused this, so the
@@ -121,10 +121,10 @@ describe('TICK-A4 — every post-recap cash movement reports itself', () => {
   });
 });
 
-describe('TICK-A4 — the two earlier fixes of this class are still in place', () => {
+describe('TICK-A4 - the two earlier fixes of this class are still in place', () => {
   /**
    * `luxuryRiskCost` and `luxuryYield` are the same bug found twice before.
-   * If either regresses, the structural guard above would not catch it — they
+   * If either regresses, the structural guard above would not catch it - they
    * are folded into the recap's initial construction, not written after it.
    */
   it('luxury risk cost is still counted as an expense', () => {
@@ -138,7 +138,7 @@ describe('TICK-A4 — the two earlier fixes of this class are still in place', (
 
   it('and none of them are taxed retroactively (the control)', () => {
     // `totalIncome` feeds calculateIncomeTax far earlier. Folding recap-only
-    // figures into it would be a balance change, not a reporting fix — the
+    // figures into it would be a balance change, not a reporting fix - the
     // helper writes to weekResult and nothing else.
     expect(CODE).not.toMatch(/recordRecapCash[\s\S]{0,400}totalIncome \+=/);
     expect(CODE).not.toMatch(/applyCashAndRecord[\s\S]{0,200}totalIncome =/);

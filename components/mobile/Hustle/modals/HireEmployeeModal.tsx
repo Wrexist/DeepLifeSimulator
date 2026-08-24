@@ -1,5 +1,5 @@
 /**
- * HireEmployeeModal — candidate list + offer flow.
+ * HireEmployeeModal - candidate list + offer flow.
  *
  * Lists fresh candidates from `sparkApp.hiringPipeline.candidates`, lets the
  * player adjust salary + sign-on bonus, then dispatches `hireCandidate`.
@@ -32,7 +32,7 @@ export default function HireEmployeeModal({ visible, companyId, onDismiss }: Hir
   const [salaryOffer, setSalaryOffer] = useState('');
   const [bonusOffer, setBonusOffer] = useState('');
   const [resultMsg, setResultMsg] = useState<string | null>(null);
-  // Per-open reroll nonce — bumped on every Refresh tap so the candidate seed
+  // Per-open reroll nonce - bumped on every Refresh tap so the candidate seed
   // changes and Refresh yields a genuinely different set within the same week.
   const [refreshNonce, setRefreshNonce] = useState(0);
 

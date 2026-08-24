@@ -66,7 +66,7 @@ export function applyCareerOffer(
       state: prev,
       outcome:
         choiceId === 'decline'
-          ? 'Too late — you already started. Resign from the Work tab if you want out.'
+          ? 'Too late - you already started. Resign from the Work tab if you want out.'
           : 'You had already started. Nothing to sign.',
     };
   }
@@ -147,12 +147,12 @@ export function applyArrearsPayment(prev: GameState, choiceId: string): Applied 
  *
  * An outside offer is how people actually get raises, and the game already has
  * the machinery: `raiseMultiplier`, its clamp, its cooldown and its performance
- * floor. So this is not a new pay lever — it is the existing one, reached a
+ * floor. So this is not a new pay lever - it is the existing one, reached a
  * different way, with a different risk profile.
  *
  * The trade: a normal raise request is a ROLL against your performance and can
  * be repeated every 8 weeks. Leverage is a CERTAINTY if you are worth keeping,
- * and it spends the same window — you cannot do both. Below the performance
+ * and it spends the same window - you cannot do both. Below the performance
  * floor your manager calls the bluff, which is a formal warning, because that
  * is what happens when you threaten to leave a job you are not doing well.
  */
@@ -180,7 +180,7 @@ export function applyRecruiterLeverage(
   const performance = typeof career.performance === 'number' ? career.performance : 50;
   const next = [...careers];
 
-  // The bluff is called. Same floor the raise system uses — two copies of that
+  // The bluff is called. Same floor the raise system uses - two copies of that
   // number would let one path reward what the other punishes.
   if (performance < RAISE_MIN_PERFORMANCE) {
     next[index] = {
@@ -250,7 +250,7 @@ export function applyRecruiterLeverage(
 /**
  * Rotate credentials after a breach notice.
  *
- * The only lever the player has over their own fraud exposure — everything else
+ * The only lever the player has over their own fraud exposure - everything else
  * feeding `scamRisk` pushes it up. Charged from `prev` and refused when
  * unaffordable, so it cannot be bought on credit the game does not have.
  */
@@ -289,7 +289,7 @@ export function applySecurityShield(
 /**
  * Pay off, or refuse, an extortion demand.
  *
- * Refusing is not a free "no" — that would make the decision a formality. It
+ * Refusing is not a free "no" - that would make the decision a formality. It
  * costs reputation and adds heat, which is exactly the pressure that produced
  * the demand in the first place.
  */

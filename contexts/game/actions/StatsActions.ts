@@ -51,7 +51,7 @@ export function applyStatsDelta(
     // just clamps and adds. Two money-mutation paths with different guarantees
     // is a double-spend / accounting-drift vector, so reject them here.
     if (k === 'money' || k === 'gems') {
-      log.warn(`updateStats ignored "${k}" — route money/gems through updateMoney, not updateStats.`);
+      log.warn(`updateStats ignored "${k}" - route money/gems through updateMoney, not updateStats.`);
       return;
     }
     if (typeof value === 'number' && !isNaN(value)) {

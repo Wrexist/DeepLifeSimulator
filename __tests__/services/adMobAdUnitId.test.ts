@@ -14,7 +14,7 @@ const TEST_ID = 'ca-app-pub-3940256099942544/2934735716'; // a Google sample/tes
 const REAL_ID = 'ca-app-pub-1234567890123456/1111111111';
 const PROD_DEFAULT = 'ca-app-pub-2286247955186424/8520540300'; // a real committed default
 
-describe('resolveAdUnitId — production never serves Google test ads', () => {
+describe('resolveAdUnitId - production never serves Google test ads', () => {
   it('production + unset env + no prod default → "" (no ad), NOT the Google test ID', () => {
     expect(resolveAdUnitId(undefined, TEST_ID, false)).toBe('');
   });

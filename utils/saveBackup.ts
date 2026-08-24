@@ -329,7 +329,7 @@ export async function canRestoreBackup(
     // player rewinding past a bad outcome mid-run; applied to a recovery they
     // do the opposite of their job. Concretely: `continueAsChild` bumps
     // generationNumber, so check 4 made every backup from the run that just
-    // ended permanently unrestorable — including one taken seconds earlier —
+    // ended permanently unrestorable - including one taken seconds earlier -
     // and the autosave keeps running while dead, so check 1 filled the ring
     // with dead-state backups that became the only legal restores.
     const isRecovery = intent === 'recovery';
@@ -422,9 +422,9 @@ export async function canRestoreBackup(
   } catch (error) {
     // Fail OPEN. This used to fail closed "for security", which trades a
     // single-player progression exploit against permanent, unrecoverable data
-    // loss for a player whose save is already broken — an exception in the
+    // loss for a player whose save is already broken - an exception in the
     // permission check is exactly the moment they need the restore most.
-    logger.error('Error checking restore permission — allowing restore', error);
+    logger.error('Error checking restore permission - allowing restore', error);
     return { allowed: true };
   }
 }
@@ -432,7 +432,7 @@ export async function canRestoreBackup(
 /**
  * Is an automatic backup throttled right now? Cheap enough to call FIRST.
  *
- * The 60-second throttle used to be the first statement inside `createBackup` —
+ * The 60-second throttle used to be the first statement inside `createBackup` -
  * i.e. after `createBackupFromState` had already run `JSON.stringify(state)`,
  * a CRC32 over the whole string and a pure-JS HMAC-SHA256 over it again. With
  * 155 `saveGame` call sites, every save within a minute of the last backup paid
@@ -442,7 +442,7 @@ export async function canRestoreBackup(
  * It also read the newest timestamp via `listBackups`, which `safeGetItem`s and
  * `JSON.parse`s EVERY backup blob for the slot (up to 5, each holding a full
  * save envelope) just to look at `metadata.timestamp`. This reads one small
- * key instead, and only falls back to `listBackups` when that key is absent —
+ * key instead, and only falls back to `listBackups` when that key is absent -
  * a save from before this key was maintained. 2026-07-30 audit PERF-1.
  */
 async function isAutoBackupThrottled(slot: number): Promise<boolean> {
@@ -498,7 +498,7 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
 /**
  * Create a backup of a save slot.
  *
- * `data` is a PERSISTED save payload — a v2 envelope, or a legacy raw payload
+ * `data` is a PERSISTED save payload - a v2 envelope, or a legacy raw payload
  * on builds that still accept those. Callers holding a live GameState must use
  * `createBackupFromState`, which wraps it first: handing a raw state string in
  * here is rejected by the envelope decode on every signed build (see the
@@ -512,7 +512,7 @@ function extractGameInfo(state: any): BackupGameInfo | undefined {
  * collide.
  *
  * The id was `save_backup_${slot}_${Date.now()}`, so a backup created in the
- * same millisecond as another silently OVERWROTE it — including its `reason`.
+ * same millisecond as another silently OVERWROTE it - including its `reason`.
  * That is how a rotation-exempt snapshot (`before_overwrite`, `before_prestige`)
  * could be replaced by a routine one and then evicted: exactly the copy the
  * generational-retention work exists to protect. CI caught it as a flaky
@@ -533,8 +533,8 @@ export async function createBackup(
 ): Promise<string | null> {
   try {
     // Rate-limit the automatic ring only. `createBackup` never went through
-    // `canCreateBackup`, so every 2-minute autosave — and every one of the 88
-    // saveGame call sites — wrote a backup and rotated. Five entries deep, that
+    // `canCreateBackup`, so every 2-minute autosave - and every one of the 88
+    // saveGame call sites - wrote a backup and rotated. Five entries deep, that
     // made the whole recovery history a few minutes long. Deliberate snapshots
     // (manual, before_overwrite, before_prestige…) are never throttled.
     if (reason === 'auto_save' && (await isAutoBackupThrottled(slot))) return null;
@@ -561,7 +561,7 @@ export async function createBackup(
       } as BackupMetadata
     };
 
-    // CHECK THE RETURN. `safeSetItem` does NOT throw on a full device — it
+    // CHECK THE RETURN. `safeSetItem` does NOT throw on a full device - it
     // catches the quota error, tries its own cleanup, and returns `false`. So
     // the quota branch in the catch below was unreachable dead code, and this
     // path did all three of the wrong things on a device that could not store
@@ -574,7 +574,7 @@ export async function createBackup(
       // Branch on the CAUSE. The catch below responds to a quota error by
       // deleting backups across EVERY slot down to one apiece; running that
       // after a transient I/O blip destroys recovery points for no reason. Only
-      // a confirmed quota failure earns the cleanup-and-retry path — anything
+      // a confirmed quota failure earns the cleanup-and-retry path - anything
       // else returns null, so the caller learns the backup did not land and
       // rotation never runs.
       if (write.quotaExceeded) {
@@ -591,7 +591,7 @@ export async function createBackup(
     logger.info(`Created backup for slot ${slot}: ${backupId} (${reason})`);
 
     // Rotate backups to keep only the latest ones. Only ever after a CONFIRMED
-    // write — rotating for a backup that did not land is a pure net loss.
+    // write - rotating for a backup that did not land is a pure net loss.
     await rotateBackups(slot);
 
     return backupId;
@@ -697,7 +697,7 @@ export async function createBackup(
           // attempt (a) left the throttle stamp stale, which made
           // `isAutoBackupThrottled` fall back to parsing every backup blob on a
           // device that has just proved it is short on storage, and (b) never
-          // rotated — the ring grew past its cap on the one device that cannot
+          // rotated - the ring grew past its cap on the one device that cannot
           // afford it, making the next quota failure more likely. Same order as
           // above: only ever after a CONFIRMED write.
           await recordBackupTime(slot);
@@ -725,9 +725,9 @@ export async function createBackup(
  * This used to stringify the RAW state and hand it to `createBackup`, whose
  * first step is `normalizeBackupPayload` → `decodePersistedSaveEnvelope`. A raw
  * state has no `v: 2`, so on any build where unsigned legacy saves are refused
- * — which is EVERY shipped build (`shouldAllowUnsignedLegacySaves()` is true
+ * - which is EVERY shipped build (`shouldAllowUnsignedLegacySaves()` is true
  * only under __DEV__ or an env flag that `scripts/preflightSaveSigning.js`
- * hard-errors on for production) — the decode returned "Unsigned legacy save
+ * hard-errors on for production) - the decode returned "Unsigned legacy save
  * format is not accepted", `normalizeBackupPayload` threw, and `createBackup`'s
  * catch swallowed it into `return null`. Because it never rejected, the
  * `.catch()` at the call site never fired and the save path reported success:
@@ -745,8 +745,8 @@ export async function createBackupFromState(
   reason: string
 ): Promise<string | null> {
   try {
-    // THROTTLE FIRST, serialize second. Everything below — stringify, CRC32,
-    // HMAC — is wasted work when `createBackup` is about to refuse this backup
+    // THROTTLE FIRST, serialize second. Everything below - stringify, CRC32,
+    // HMAC - is wasted work when `createBackup` is about to refuse this backup
     // for being inside the 60-second window. See `isAutoBackupThrottled`.
     if (reason === 'auto_save' && (await isAutoBackupThrottled(slot))) return null;
 
@@ -812,7 +812,7 @@ export async function loadBackup(backupId: string): Promise<{ data: string; chec
 
     const expectedHmac = typeof parsed.hmac === 'string' ? parsed.hmac : undefined;
     const expectedSignature = typeof parsed.signature === 'string' ? parsed.signature : undefined;
-    // P1-9: verify backups with the SAME strict envelope check as primary saves —
+    // P1-9: verify backups with the SAME strict envelope check as primary saves -
     // requires HMAC or signature (CRC32 alone is not tamper-evidence). Previously
     // loadBackup used verifySaveData, which accepts checksum-only during the weak
     // migration window, making the recovery path a weaker integrity tier than the
@@ -882,7 +882,7 @@ export async function restoreFromBackup(
       return { success: false, error: exploitCheck.reason };
     }
     
-    // BRC-14: a restore is itself destructive — it discards the state it
+    // BRC-14: a restore is itself destructive - it discards the state it
     // replaces. Snapshot that first, so picking the wrong entry out of the list
     // is not a one-way door. `currentData` is already a persisted envelope,
     // which is exactly what createBackup takes, so nothing is re-encoded and a
@@ -892,14 +892,14 @@ export async function restoreFromBackup(
     }
 
     // Write through the SAME path a real save uses. This used to be
-    // `atomicSave`, which writes only the legacy single key `save_slot_N` —
+    // `atomicSave`, which writes only the legacy single key `save_slot_N` -
     // but every save since the double-buffer landed writes `_A`/`_B` and sets
     // the `_active` pointer, and `doubleBufferLoad` consults that pointer FIRST,
     // falling through to the legacy key only when the pointer is missing AND
     // both buffers fail (and even then only when `allowLegacy`, which is false
     // on every signed production build). So on any device that had saved even
     // once, a "successful" restore reported success and the next load served
-    // the pre-restore buffer — the player was told it worked and got their
+    // the pre-restore buffer - the player was told it worked and got their
     // unrestored save back.
     const mainSaveKey = `save_slot_${slot}`;
     const restoreResult = await doubleBufferSave(mainSaveKey, canonicalBackupData);
@@ -913,7 +913,7 @@ export async function restoreFromBackup(
     await safeRemoveItem(mainSaveKey).catch(() => {});
 
     // The slot blob was just OVERWRITTEN with the backup, so the cached per-slot
-    // summary is now stale — invalidate it BEFORE reporting success so no caller
+    // summary is now stale - invalidate it BEFORE reporting success so no caller
     // can navigate to a menu that still reads the pre-restore name/age.
     // ensureSaveSlotMeta regenerates it from the restored blob on the next menu
     // visit. Errors swallowed (invalidation must not fail the restore).
@@ -935,11 +935,11 @@ export async function restoreFromBackup(
  *
  * The two production backup call sites both passed the state being WRITTEN: the
  * autosave under 'auto_save', and onboarding under the tag 'before_onboarding'
- * — which reads like a pre-overwrite snapshot and was a snapshot of the thing
+ * - which reads like a pre-overwrite snapshot and was a snapshot of the thing
  * doing the overwriting. Nothing in the app ever copied the outgoing save, so
  * an overwrite had no rescue copy at all.
  *
- * Reads the persisted envelope and stores it verbatim — no decode, no re-encode,
+ * Reads the persisted envelope and stores it verbatim - no decode, no re-encode,
  * so a save that no longer verifies is still captured byte-for-byte and stays
  * recoverable. Returns the backup id, or null when the slot held nothing.
  * Never throws: this must not be able to block the write it precedes.
@@ -968,7 +968,7 @@ async function rotateBackups(slot: number) {
   try {
     const backups = await listBackups(slot); // newest first
 
-    // Protected reasons are exempt entirely — they exist precisely because
+    // Protected reasons are exempt entirely - they exist precisely because
     // something destructive was about to happen.
     const rotatable = backups.filter((b) => !PROTECTED_BACKUP_REASONS.has(b.reason));
 
@@ -1059,7 +1059,7 @@ export async function createManualBackup(
     
     // Same unchecked-write bug as `createBackup`, and worse here: this is the
     // player DELIBERATELY asking to protect a moment. It reported success and
-    // rotated — evicting a real backup — while storing nothing.
+    // rotated - evicting a real backup - while storing nothing.
     if (!(await safeSetItem(backupId, JSON.stringify(backupData)))) {
       logger.error(`Manual backup for slot ${slot} was rejected by storage`);
       return { success: false, error: 'Not enough storage space to save this backup. Free up space and try again.' };

@@ -1,5 +1,5 @@
 /**
- * InsightsScreen — Creator Studio.
+ * InsightsScreen - Creator Studio.
  *
  * The real payoff for Verified Pro's "Advanced analytics" perk (previously a
  * deceptive-value no-op: `analyticsUnlocked` was set but read nowhere). Shows:
@@ -69,7 +69,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
       .slice(0, 3);
   }, [sm?.recentPosts]);
 
-  // Sparkline geometry — scale bar heights to the max sample in the window.
+  // Sparkline geometry - scale bar heights to the max sample in the window.
   const spark = useMemo(() => {
     const pts = history.slice(-24);
     const max = pts.reduce((m, p) => Math.max(m, p.followers), 1);
@@ -81,7 +81,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
     >
-      {/* Hero snapshot — always visible (basic stats aren't gated). */}
+      {/* Hero snapshot - always visible (basic stats aren't gated). */}
       <LinearGradient
         colors={PULSE_GRADIENT as unknown as string[]}
         start={{ x: 0, y: 0 }}
@@ -118,7 +118,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
         </Pressable>
       ) : null}
 
-      {/* Advanced sections — dimmed + non-interactive when the perk is inactive. */}
+      {/* Advanced sections - dimmed + non-interactive when the perk is inactive. */}
       <View
         style={analyticsUnlocked ? undefined : styles.gatedDim}
         pointerEvents={analyticsUnlocked ? 'auto' : 'none'}
@@ -148,7 +148,7 @@ export default function InsightsScreen({ onUpgradePro }: InsightsScreenProps) {
             </>
           ) : (
             <Text style={[styles.cardMuted, { color: theme.textSecondary }]}>
-              Not enough history yet — keep posting and your weekly growth will chart here.
+              Not enough history yet - keep posting and your weekly growth will chart here.
             </Text>
           )}
         </View>

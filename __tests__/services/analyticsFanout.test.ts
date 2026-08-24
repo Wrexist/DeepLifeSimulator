@@ -56,7 +56,7 @@ describe('analytics fan-out', () => {
     expect(params.session_id).toBeTruthy();
   });
 
-  it('still drops unknown event names — the schema stays honest', () => {
+  it('still drops unknown event names - the schema stays honest', () => {
     // @ts-expect-error deliberately not a member of AnalyticsEventName
     analytics.track('totally_made_up');
     expect(mockLogEvent).not.toHaveBeenCalled();

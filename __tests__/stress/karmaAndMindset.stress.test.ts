@@ -182,7 +182,7 @@ describe('Karma audit', () => {
     expect(getKarmaModifiers(neutral).crimeSuccessBonus).toBe(0);
   });
 
-  it('crimeSuccessBonus: monotonic — more negative violence → equal-or-greater bonus', () => {
+  it('crimeSuccessBonus: monotonic - more negative violence → equal-or-greater bonus', () => {
     let lastBonus = 0;
     for (let v = 0; v >= -100; v -= 5) {
       const k = { ...INITIAL_KARMA, dimensions: { ...INITIAL_KARMA.dimensions, violence: v } };
@@ -259,13 +259,13 @@ describe('Mindset audit', () => {
     expect(result.moneyDelta).toBe(100);
   });
 
-  it('applyMindsetEffects: frugal — positive income gets 1.1x', () => {
+  it('applyMindsetEffects: frugal - positive income gets 1.1x', () => {
     const state = makeState({ mindset: { traits: ['frugal'], activeTraitId: 'frugal' } as never });
     const result = applyMindsetEffects(state, { moneyDelta: 1000 });
     expect(result.moneyDelta).toBeCloseTo(1100, 0);
   });
 
-  it('applyMindsetEffects: workaholic — positive income +10%, but -1 health and -1 happiness', () => {
+  it('applyMindsetEffects: workaholic - positive income +10%, but -1 health and -1 happiness', () => {
     const state = makeState({ mindset: { traits: ['workaholic'], activeTraitId: 'workaholic' } as never });
     const result = applyMindsetEffects(state, { moneyDelta: 500, healthDelta: 0, happinessDelta: 0 });
     expect(result.moneyDelta).toBeCloseTo(550, 0);
@@ -273,7 +273,7 @@ describe('Mindset audit', () => {
     expect(result.happinessDelta).toBe(-1);
   });
 
-  it('applyMindsetEffects: riskAverse — reduces both gains and losses', () => {
+  it('applyMindsetEffects: riskAverse - reduces both gains and losses', () => {
     const state = makeState({ mindset: { traits: ['riskAverse'], activeTraitId: 'riskAverse' } as never });
     const gainResult = applyMindsetEffects(state, { moneyDelta: 1000 });
     expect(gainResult.moneyDelta).toBeCloseTo(950, 0);
@@ -281,7 +281,7 @@ describe('Mindset audit', () => {
     expect(Math.abs(lossResult.moneyDelta!)).toBeCloseTo(850, 0);
   });
 
-  it('applyMindsetEffects: gambler — randomly varies ±20% of moneyDelta', () => {
+  it('applyMindsetEffects: gambler - randomly varies ±20% of moneyDelta', () => {
     const state = makeState({ mindset: { traits: ['gambler'], activeTraitId: 'gambler' } as never });
     // Run many trials to bracket the random range.
     let min = Infinity;

@@ -53,7 +53,7 @@ const plainEvent = (): WeeklyEvent => ({
   choices: [{ id: 'share', text: 'Share it', effects: {} }],
 });
 
-describe('routing — exactly one channel owns an event', () => {
+describe('routing - exactly one channel owns an event', () => {
   it('routes letter-shaped events to mail and leaves everything else alone', () => {
     const routed = routeEvents([letterEvent(), plainEvent()], 100);
     expect(routed[0].channel).toBe('mail');
@@ -117,7 +117,7 @@ describe('letters carry the event, not a copy of it', () => {
     expect(letterFromEvent(event, 100)!.id).toBe(letterFromEvent(event, 103)!.id);
   });
 
-  it('lapses to the LAST choice — the passive one by template convention', () => {
+  it('lapses to the LAST choice - the passive one by template convention', () => {
     const event = routeEvents([letterEvent()], 100)[0];
     expect(letterFromEvent(event, 100)!.decision!.lapseChoiceId).toBe('excuse');
   });
@@ -192,7 +192,7 @@ describe('the job offer', () => {
     expect(outcome).toMatch(/already started/i);
   });
 
-  it('LAPSING ACCEPTS — a player who never opens mail lands where they do today', () => {
+  it('LAPSING ACCEPTS - a player who never opens mail lands where they do today', () => {
     // The floor must not move. Auto-accept is the existing behaviour; reading
     // your mail earns the extra options, ignoring it costs nothing.
     const state = applied();
@@ -206,7 +206,7 @@ describe('the job offer', () => {
   });
 });
 
-describe('payable arrears — the first action on overdueBalance', () => {
+describe('payable arrears - the first action on overdueBalance', () => {
   const owing = (overdue: number, cash: number): GameState => {
     const s = createTestGameState({ overdueBalance: overdue });
     s.stats.money = cash;
@@ -274,7 +274,7 @@ describe('an ignored letter stops being deferrable', () => {
     expect(applyMailLapse({ state, week: 103 }).state).toBeNull();
   });
 
-  it('is idempotent — a resolved decision cannot lapse a second time', () => {
+  it('is idempotent - a resolved decision cannot lapse a second time', () => {
     const event = routeEvents([letterEvent()], 100)[0];
     const state = createTestGameState({ pendingEvents: [event] });
     state.mail = { messages: [letterFromEvent(event, 100)!] };

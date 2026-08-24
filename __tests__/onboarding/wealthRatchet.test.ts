@@ -80,12 +80,12 @@ describe('the reported save: buying a computer must not padlock the grid', () =>
   /** The 23:04 screenshot: $2,522, employed, chapter flags never written. */
   const atHome = (): GameState => ratchetWealthPeak(withMoney(2_522));
 
-  it('starts where the screenshot does — tier 2, grid open', () => {
+  it('starts where the screenshot does - tier 2, grid open', () => {
     expect(unlockTier(atHome())).toBe(2);
     expect(isFeatureUnlocked(atHome(), 'app:stocks')).toBe(true);
   });
 
-  it('and stays there after the $775 purchase — the regression', () => {
+  it('and stays there after the $775 purchase - the regression', () => {
     // The 23:05 screenshot. Before the ratchet this dropped to tier 1 and left
     // Contacts and Bank as the only two open apps, which is exactly what the
     // player photographed.
@@ -107,7 +107,7 @@ describe('the reported save: buying a computer must not padlock the grid', () =>
 
   it('and the chapter goal they had met stays met', () => {
     // `applyChapterProgress` needs EVERY goal true in the same tick, so a goal
-    // that flips back to false is not a display bug — it is a chapter that can
+    // that flips back to false is not a display bug - it is a chapter that can
     // never complete, and its reward is one the player can never be paid.
     const saveGoal = LIFE_CHAPTERS
       .find((c) => c.id === 'ch2_settling_in')!.goals
@@ -165,7 +165,7 @@ describe('the tier is monotonic under spending', () => {
 describe('borrowed money is not a wealth high', () => {
   /**
    * `LoanActions` credits the FULL principal to `stats.money`, so without the
-   * debt subtraction the mark stamped borrowed cash — and because the mark is
+   * debt subtraction the mark stamped borrowed cash - and because the mark is
    * permanent, so was the tier it bought. A 43% debt-to-income cap rather than
    * a flat limit means a newly-employed character can carry ~$10k of principal:
    * tier 3 in week 5, three chapters of disclosure skipped for good. Before the
@@ -227,7 +227,7 @@ describe('borrowed money is not a wealth high', () => {
   it('a repaid loan still in the array is NOT counted', () => {
     // `remaining: 0` with the record retained. The first version fell back to
     // `principal` on any falsy `remaining`, so a paid-off loan was subtracted at
-    // its full original value — permanently suppressing the mark and the tier it
+    // its full original value - permanently suppressing the mark and the tier it
     // holds up. `??` and a truthiness test differ at exactly one value, and this
     // is it. Caught by review, not by the tests above.
     const repaid = withLoan(6_000, 0);
@@ -259,7 +259,7 @@ describe('losing a job does not take the tier back', () => {
   /**
    * `currentJob` was the last input to `unlockTier` that could go backwards. A
    * life starts with $200, so a player hired in week 1 who leaves before week 4
-   * had nothing else holding tier 1 up — and lost the Progression tab, Contacts
+   * had nothing else holding tier 1 up - and lost the Progression tab, Contacts
    * and Bank with it.
    */
   const employed = (): GameState => ratchetWealthPeak(withMoney(300, {
@@ -378,7 +378,7 @@ describe('the mark is taken where every writer passes through', () => {
 
   it('the provider stamps it on the wrapped setter', () => {
     // NOT in MoneyActions. `buyItem`, `sellItem` and many other actions write
-    // `stats.money` inside their own updater — correctly, for atomicity — so a
+    // `stats.money` inside their own updater - correctly, for atomicity - so a
     // hook in `updateMoney`/`applyMoneyDelta` would have missed the very
     // purchase in the bug report.
     const provider = read('contexts/game/GameStateContext.tsx');
@@ -405,7 +405,7 @@ describe('the completed chapter no longer renders a button that does nothing', (
   );
 
   it('the complete state is not a solid CTA', () => {
-    // It was a full-width solid-amber bar with bold dark text — the app's
+    // It was a full-width solid-amber bar with bold dark text - the app's
     // primary button, on a `View` with no handler. "Can't claim reward".
     expect(CARD).not.toMatch(/backgroundColor: '#FBBF24'/);
     expect(CARD).toMatch(/completeBanner/);
@@ -426,8 +426,8 @@ describe('the completed chapter no longer renders a button that does nothing', (
 describe('every app in both launchers is registered in the table', () => {
   /**
    * `isFeatureUnlocked` returns TRUE for an id it does not recognise. That
-   * default is deliberate and right — forgetting to register a new app should
-   * make it visible, not invisible — but it means a typo or a new app added to
+   * default is deliberate and right - forgetting to register a new app should
+   * make it visible, not invisible - but it means a typo or a new app added to
    * a grid without a row here is silently ungated, and an ungated app is a bug
    * nobody reports. The two grids and the table are three hand-maintained lists
    * that have to agree, so the agreement is checked rather than assumed.
@@ -440,7 +440,7 @@ describe('every app in both launchers is registered in the table', () => {
   it.each([
     ['app/(tabs)/computer.tsx', 19],
     ['app/(tabs)/mobile.tsx', 9],
-  ])('%s — every id resolves to a row', (file, expectedCount) => {
+  ])('%s - every id resolves to a row', (file, expectedCount) => {
     const ids = idsIn(file);
     // Guard the guard: a refactor that renames the field or reshapes the list
     // would otherwise leave this walking an empty array and passing vacuously.
@@ -482,11 +482,11 @@ describe('the ambition reward reads as status too, not as a button', () => {
   });
 });
 
-describe('chapter 2 stays completable at tier 1 — do not "fix" the friend goal', () => {
+describe('chapter 2 stays completable at tier 1 - do not "fix" the friend goal', () => {
   /**
    * `ch2_make_friend` is `relationships.length > 0`, and `initialState` seeds Mom
    * and Dad, so it reads as already complete on a brand-new life. That looks
-   * exactly like a bug worth tightening — the sibling ambition system tightened
+   * exactly like a bug worth tightening - the sibling ambition system tightened
    * the equivalent check for precisely this reason, with a comment saying so
    * (`lib/ambitions/catalog.ts`: "Exclude the starting parents ... so 'Make a
    * Connection' doesn't auto-complete at birth").
@@ -494,12 +494,12 @@ describe('chapter 2 stays completable at tier 1 — do not "fix" the friend goal
    * Tightening it HERE would deadlock chapter 2. A chosen (non-family)
    * relationship has two sources: Spark, which is tier 2, and a network-favour
    * introduction, which `FAVOR_KIND_BY_CONTACT` only offers on a `business`
-   * contact — personal kinds are excluded on purpose. A player working on
+   * contact - personal kinds are excluded on purpose. A player working on
    * chapter 2 is at tier 1 with two parents and no business contacts, so Spark
    * would be the only route, and chapter 2 is what UNLOCKS Spark.
    *
-   * That is rule 3 in `featureUnlocks.ts` — "a chapter's goal must not need an
-   * app that chapter unlocks" — and it is the deadlock a player was stranded in
+   * That is rule 3 in `featureUnlocks.ts` - "a chapter's goal must not need an
+   * app that chapter unlocks" - and it is the deadlock a player was stranded in
    * on 2026-08-13. The permissive check is load-bearing. This test exists to
    * make the next reader stop.
    */

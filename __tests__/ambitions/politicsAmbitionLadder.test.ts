@@ -75,7 +75,7 @@ describe('the Politics-app ladder counts toward the politics ambition', () => {
   });
 });
 
-describe('the job-board ladder still counts — this is additive, not a swap', () => {
+describe('the job-board ladder still counts - this is additive, not a swap', () => {
   it('credits entering the job-board politician career', () => {
     expect(milestone(jobBoardPoliticianAt(0), 'po_enter')?.complete).toBe(true);
   });

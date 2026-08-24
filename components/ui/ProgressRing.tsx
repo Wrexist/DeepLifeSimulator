@@ -1,5 +1,5 @@
 /**
- * ProgressRing — a premium circular-progress ring for long-running/ongoing
+ * ProgressRing - a premium circular-progress ring for long-running/ongoing
  * state (e.g. a career's promotion progress). React Native port of the classic
  * SVG-stroke progress ring, using react-native-svg + Animated (RN has no CSS
  * custom properties / conic-gradient / keyframes, so those become Animated
@@ -147,7 +147,7 @@ export default function ProgressRing({
       accessibilityLabel={label ?? 'Progress'}
       accessibilityValue={{ now: Math.round(clamped), min: 0, max: 100 }}
     >
-      {/* 1. Halo glow — only for the animated showpiece (hero). List rings skip
+      {/* 1. Halo glow - only for the animated showpiece (hero). List rings skip
           it: lighter, and avoids many rings sharing a halo def. */}
       {motion && (
         <Animated.View

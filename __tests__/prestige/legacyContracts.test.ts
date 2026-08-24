@@ -153,7 +153,7 @@ describe('progress and claiming', () => {
     expect(r.claimedIds).toBeUndefined();
   });
 
-  it('pays exactly once — the second run is a rejection', () => {
+  it('pays exactly once - the second run is a rejection', () => {
     // The property the action depends on: it runs the reducer for the report
     // and again inside the updater, so a double-tap must not pay twice.
     const state = withState((s) => { s.prestige!.totalPrestiges = 5; });
@@ -208,7 +208,7 @@ describe('the save format (v33)', () => {
     expect(createTestGameState().legacyContracts).toEqual({ claimedIds: [] });
   });
 
-  it('a v32 save is backfilled — it is NOT a carve-out field', () => {
+  it('a v32 save is backfilled - it is NOT a carve-out field', () => {
     const old = { ...initialGameState, version: 32 } as unknown as Record<string, unknown>;
     delete old.legacyContracts;
 

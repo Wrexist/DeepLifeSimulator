@@ -1,5 +1,5 @@
 /**
- * PartnerProfileScreen — partner / match profile view.
+ * PartnerProfileScreen - partner / match profile view.
  *
  * R7 Phase 3-B: replaces the earlier stub where `onOpenPartnerProfile` in
  * SparkApp returned to the matches tab. Surface for a single match's
@@ -7,10 +7,10 @@
  *
  * Mounted by SparkApp as a full-screen overlay (same pattern as ChatScreen).
  * The screen reads from `gameState.sparkApp.matches`/`messages` and the
- * `DATING_PROFILES` catalog — no extra state of its own besides a
+ * `DATING_PROFILES` catalog - no extra state of its own besides a
  * confirmation modal for the destructive actions.
  *
- * Promoted matches additionally show a "Dating" status tag — the existing
+ * Promoted matches additionally show a "Dating" status tag - the existing
  * DatingActions flow remains canonical for relationship progression
  * (proposeMarriage, planWedding, etc.) and is reachable from the
  * SocialActionsContext via the Family tab.
@@ -56,7 +56,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const lastMessages = useMemo(() => messages.slice(-3), [messages]);
 
-  // Catfish determination — same seed `swipeOnProfile` / the swipe-deck chip use,
+  // Catfish determination - same seed `swipeOnProfile` / the swipe-deck chip use,
   // so the "Expose" / "Send money" actions only appear on a genuine catfish.
   const catfishSuspected = profile ? isCatfish(profile, gameState.lineageId ?? 'initial') : false;
 
@@ -105,7 +105,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
     );
   }, [profile, gameState, setGameState, saveGame, onClosed]);
 
-  // 1c: expose a matched catfish — unmatches and grants reputation for calling
+  // 1c: expose a matched catfish - unmatches and grants reputation for calling
   // out the fake profile. Mirrors handleReport's confirm → act → save → close.
   const handleExpose = useCallback(() => {
     if (!profile) return;
@@ -130,7 +130,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
     );
   }, [profile, gameState, setGameState, saveGame, onClosed]);
 
-  // 1e: the risky counterpart to Expose — trust the catfish and send money.
+  // 1e: the risky counterpart to Expose - trust the catfish and send money.
   // Loses money + reputation (the scam downside) via the existing action.
   const handleSendMoney = useCallback(() => {
     if (!profile) return;
@@ -166,7 +166,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <Header theme={theme} title="Profile" onBack={onBack} />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        {/* Hero — Recipe B rose backdrop behind the gradient avatar ring. */}
+        {/* Hero - Recipe B rose backdrop behind the gradient avatar ring. */}
         <View
           style={[
             getGlassCard(isDark, 12),
@@ -272,7 +272,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
           </Section>
         ) : null}
 
-        {/* Catfish actions — only shown when this match is a suspected catfish.
+        {/* Catfish actions - only shown when this match is a suspected catfish.
             Expose (safe, +reputation) vs. Send money (risky, the scam downside). */}
         {catfishSuspected ? (
           <View style={styles.actions}>
@@ -297,7 +297,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
           </View>
         ) : null}
 
-        {/* Destructive actions — quiet glass buttons; danger lives on the label only. */}
+        {/* Destructive actions - quiet glass buttons; danger lives on the label only. */}
         <View style={styles.actions}>
           <Pressable
             onPress={handleUnmatch}

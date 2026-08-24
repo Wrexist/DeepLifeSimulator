@@ -43,7 +43,7 @@ const career = (id: string, level: number, accepted = true): Career => ({
   levels: [],
 });
 
-describe('detectReviewMoment — promotion', () => {
+describe('detectReviewMoment - promotion', () => {
   it('fires when an accepted career climbs a level', () => {
     const prev = makeState({ careers: [career('dev', 2)] });
     const next = makeState({ careers: [career('dev', 3)] });
@@ -75,7 +75,7 @@ describe('detectReviewMoment — promotion', () => {
   });
 });
 
-describe('detectReviewMoment — ambition milestones', () => {
+describe('detectReviewMoment - ambition milestones', () => {
   it('fires when a milestone becomes sticky', () => {
     const prev = makeState({ ambitionCompletedMilestones: ['m1'] });
     const next = makeState({ ambitionCompletedMilestones: ['m1', 'm2'] });
@@ -99,7 +99,7 @@ describe('detectReviewMoment — ambition milestones', () => {
   });
 });
 
-describe('detectReviewMoment — investment wins', () => {
+describe('detectReviewMoment - investment wins', () => {
   const withGains = (money: number, stocks: number, crypto = 0) =>
     makeState({
       stats: { money } as never,
@@ -157,7 +157,7 @@ describe('detectReviewMoment — investment wins', () => {
   });
 });
 
-describe('detectReviewMoment — safety', () => {
+describe('detectReviewMoment - safety', () => {
   it('returns null when either snapshot is missing', () => {
     expect(detectReviewMoment(null, makeState())).toBeNull();
     expect(detectReviewMoment(makeState(), null)).toBeNull();
@@ -189,7 +189,7 @@ describe('detectReviewMoment — safety', () => {
   });
 });
 
-describe('detectReviewMoment — intensity scoring', () => {
+describe('detectReviewMoment - intensity scoring', () => {
   const ladder = (id: string, level: number, rungs: number): Career => ({
     ...career(id, level),
     levels: Array.from({ length: rungs }, (_, i) => ({ name: `L${i}`, salary: 100 })),
@@ -237,7 +237,7 @@ describe('detectReviewMoment — intensity scoring', () => {
   });
 
   it('parks an unscoreable milestone below the ask threshold', () => {
-    // No resolvable ambition means no path length to score against — this
+    // No resolvable ambition means no path length to score against - this
     // could be the first of three milestones or the last of ten. With only
     // three asks a year, ambiguous data must not spend one.
     const moment = detectReviewMoment(

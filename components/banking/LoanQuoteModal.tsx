@@ -131,7 +131,7 @@ export default function LoanQuoteModal({ visible, gameState, weeklyIncome, darkM
                   value={principalText}
                   onChangeText={setPrincipalText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"

@@ -1,11 +1,11 @@
 /**
- * LuxuryApp — desktop "Luxury & Collectibles" screen (premium redesign).
+ * LuxuryApp - desktop "Luxury & Collectibles" screen (premium redesign).
  *
  * An aspirational late-game cash sink hosted as a computer mini-app (same model
  * as RealEstateApp / GamingApp): browse an artwork-led catalog, buy with in-game
  * cash, and manage owned trophies (each has weekly upkeep + a happiness/prestige
  * benefit). This pass matches the game's redesign wave:
- *  - ARTWORK BANNER per item — a bundled Image (luxuryArt require map) with a
+ *  - ARTWORK BANNER per item - a bundled Image (luxuryArt require map) with a
  *    graceful per-tier gradient placeholder (the emoji, large + subtle) until the
  *    real art is imported. Full names fit (2-line title, price off the title row).
  *  - Tiers made visual (ENTRY / PREMIUM / ELITE / ULTRA tinted chips).
@@ -16,7 +16,7 @@
  *  - Staggered card entrances + press feedback, honouring Reduce Motion.
  *
  * Cash safety: buy/sell dispatch LuxuryActions, which route every cash move
- * through the canonical applyMoneyDelta (stats.money only — never a mirrored bank
+ * through the canonical applyMoneyDelta (stats.money only - never a mirrored bank
  * balance). This component never mutates money directly.
  */
 
@@ -122,7 +122,7 @@ const AMBER_BORDER = 'rgba(245, 158, 11, 0.4)';
 // MOTION): a 0.94→1 scale + short translateY reveal on an ease-out curve, kept
 // under the 300ms UI budget. Easing is resolved defensively so environments
 // without the native Easing module (the render-test RN mock) can't crash at load
-// — the same guard the shared ConfirmDialog uses.
+// - the same guard the shared ConfirmDialog uses.
 const ENTER_SCALE = 0.94;
 const REVEAL_RISE = scale(10);
 const STAGGER_STEP = 55;
@@ -137,7 +137,7 @@ type Tab = 'browse' | 'collection';
 const clampUnit = (n: number): number => Math.max(0, Math.min(1, isFinite(n) ? n : 0));
 
 /**
- * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
+ * Staggered entrance wrapper - opacity + a short translateY rise, native-driven,
  * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
  */
 function RevealItem({
@@ -177,7 +177,7 @@ function RevealItem({
 }
 
 /**
- * Artwork banner — a bundled Image when present, otherwise a per-tier gradient
+ * Artwork banner - a bundled Image when present, otherwise a per-tier gradient
  * placeholder with the emoji rendered large + subtle (the graceful fallback).
  * Fills its (sized, overflow-clipped) parent; overlay chips are siblings.
  */
@@ -238,7 +238,7 @@ function SectionTitle({ theme, children }: { theme: ThemeColors; children: React
 }
 
 /**
- * Catalog / collection card — artwork banner (tier chip + price/owned pill) over
+ * Catalog / collection card - artwork banner (tier chip + price/owned pill) over
  * a 2-line title, stat chips, and a footer with a Details affordance + a Buy or
  * Sell action. Module-level so its press + entrance animation stay stable across
  * parent re-renders (toast/sheet state changes).
@@ -427,7 +427,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   const sheetTranslate = sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [0, scale(48)] });
 
   const queueSave = useCallback(() => {
-    // A failed post-transaction save must not be invisible — surface it in
+    // A failed post-transaction save must not be invisible - surface it in
     // diagnostics even though the UI flow continues either way.
     saveGame().catch((error) => {
       logger.error('[LUXURY] Failed to save after transaction:', error);
@@ -449,7 +449,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   // intercepting touches on iOS (the same stacked-modal hazard the rewarded-ad
   // flow works around). Sheet CTAs therefore stash the intent, dismiss the
   // sheet, and promote the intent to a ConfirmDialog once the native teardown
-  // settles — Modal.onDismiss on iOS, a short tracked fallback elsewhere.
+  // settles - Modal.onDismiss on iOS, a short tracked fallback elsewhere.
   // `settleSheetConfirm` is idempotent, so whichever fires first wins.
   const afterSheetConfirm = useRef<{ kind: 'buy' | 'sell'; item: LuxuryItem } | null>(null);
   const settleSheetConfirm = useCallback(() => {
@@ -499,11 +499,11 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     }
   }, [pendingBuy, gameState, setGameState, queueSave, showToast]);
 
-  /** Run a luxury verb — race the horse, book a track day, loan the diamond. */
+  /** Run a luxury verb - race the horse, book a track day, loan the diamond. */
   const runVerb = useCallback(
     (verbId: string) => {
       const result = performLuxuryVerb(gameState, setGameState, verbId);
-      // The outcome message IS the feedback — a win, a crash, a loan confirmed.
+      // The outcome message IS the feedback - a win, a crash, a loan confirmed.
       showToast(result.message);
       if (result.success) queueSave();
     },
@@ -513,7 +513,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
   /**
    * Insure / un-insure, and restore. These actions shipped with the Phase-5 risk
    * system and had ZERO call sites anywhere in the app, so the weekly incident
-   * roll was one-way value destruction with no counterplay — the player could
+   * roll was one-way value destruction with no counterplay - the player could
    * watch a collection degrade and had no button to do anything about it.
    * 2026-07-28 audit reach-2.
    */
@@ -561,9 +561,9 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     }
   }, [pendingSell, gameState, setGameState, queueSave, showToast]);
 
-  // ── Stateless render helpers (called as functions — no remount churn) ───────
+  // ── Stateless render helpers (called as functions - no remount churn) ───────
 
-  // "Luxury Life" progress module — real progress computed from state/selectors.
+  // "Luxury Life" progress module - real progress computed from state/selectors.
   const renderLuxuryLife = () => {
     const itemFrac = clampUnit(owned.length / LUXURY_LIFE_MIN_ITEMS);
     const valueFrac = clampUnit(stickerValue / LUXURY_LIFE_VALUE_THRESHOLD);
@@ -622,7 +622,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
 
   /**
    * Completion sets. The catalog was twelve independent purchases with nothing
-   * that recognised finishing a themed group — a player owning eleven pieces had
+   * that recognised finishing a themed group - a player owning eleven pieces had
    * the same standing as one owning eleven different pieces. Each row is a
    * long-horizon target that stays legible from the first purchase to the last.
    *
@@ -648,7 +648,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 styles.setRow,
                 {
                   backgroundColor: theme.surface,
-                  // Full border on all four sides — a one-sided colored stripe is
+                  // Full border on all four sides - a one-sided colored stripe is
                   // banned app-wide (Hard Rule #7).
                   borderColor: p.complete ? `rgba(${IDENTITY_RGB}, 0.45)` : theme.border,
                 },
@@ -662,7 +662,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                   </Text>
                   <Text style={[styles.setDesc, { color: theme.textMuted }]} numberOfLines={2}>
                     {p.complete
-                      ? `Complete — you are ${p.collection.title}.`
+                      ? `Complete - you are ${p.collection.title}.`
                       : p.collection.description}
                   </Text>
                 </View>
@@ -698,7 +698,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     );
   };
 
-  // Collection showcase summary — value / upkeep / prestige at a glance.
+  // Collection showcase summary - value / upkeep / prestige at a glance.
   const renderCollectionSummary = () => (
     <View
       style={[
@@ -754,7 +754,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
     </View>
   );
 
-  // Item detail sheet (bottom sheet) — large artwork, full stats, cost of
+  // Item detail sheet (bottom sheet) - large artwork, full stats, cost of
   // ownership, and Buy/Sell. Only mounted when an item is selected.
   const renderSheet = () => {
     if (!sheetItem) return null;
@@ -846,10 +846,10 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 </View>
               </View>
 
-              {/* VERBS — the things you can DO with it. A trophy that can only
+              {/* VERBS - the things you can DO with it. A trophy that can only
                   be bought and sold is the least interactive object in the game
                   despite being the most expensive. Shown only when owned. */}
-              {/* HOSTING — the collection becomes a social life. The rest of
+              {/* HOSTING - the collection becomes a social life. The rest of
                   what you own decides who turns up, so a broader collection is
                   a better room and every unrelated trophy improves every party. */}
               {isOwned && isHostingVenue(item.id) ? (
@@ -894,7 +894,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 </View>
               ) : null}
 
-              {/* CARE — condition, insurance and restoration. The weekly risk
+              {/* CARE - condition, insurance and restoration. The weekly risk
                   roll can damage or destroy an item; this is where the player
                   answers it. Without these controls the risk system was pure
                   loss with no decision attached (reach-2). */}
@@ -957,7 +957,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                         </Text>
                       </View>
                       <Text style={[styles.verbCta, { color: restoreCost > 0 ? EMERALD : theme.textMuted }]}>
-                        {restoreCost > 0 ? formatMoney(restoreCost) : '—'}
+                        {restoreCost > 0 ? formatMoney(restoreCost) : '-'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1127,7 +1127,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                 </View>
                 <Text style={[styles.emptyTitle, { color: theme.text }]}>You own the entire collection</Text>
                 <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                  Every trophy is yours. Head to your Collection to admire — or resell — what you&apos;ve amassed.
+                  Every trophy is yours. Head to your Collection to admire - or resell - what you&apos;ve amassed.
                 </Text>
               </View>
             )}
@@ -1193,7 +1193,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         </View>
       ) : null}
 
-      {/* Purchase confirm — blue identity, celebratory. */}
+      {/* Purchase confirm - blue identity, celebratory. */}
       <ConfirmDialog
         visible={!!pendingBuy}
         type="default"
@@ -1210,7 +1210,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         onCancel={() => setPendingBuy(null)}
       />
 
-      {/* Resale confirm — amber (cautionary, lossy but reversible), not the red
+      {/* Resale confirm - amber (cautionary, lossy but reversible), not the red
           destructive path. A sold trophy can be re-bought, so `warning` fits. */}
       <ConfirmDialog
         visible={!!pendingSell}
@@ -1218,7 +1218,7 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
         title={pendingSell ? `Sell the ${pendingSell.name}?` : ''}
         message={
           pendingSell
-            ? `You'll get ${formatMoney(getLuxuryHoldingValue(pendingSell, gameState.luxuryHoldings?.[pendingSell.id]))} back — ${Math.round((getLuxuryHoldingValue(pendingSell, gameState.luxuryHoldings?.[pendingSell.id]) / pendingSell.price) * 100)}% of the ${formatMoney(pendingSell.price)} you paid.`
+            ? `You'll get ${formatMoney(getLuxuryHoldingValue(pendingSell, gameState.luxuryHoldings?.[pendingSell.id]))} back - ${Math.round((getLuxuryHoldingValue(pendingSell, gameState.luxuryHoldings?.[pendingSell.id]) / pendingSell.price) * 100)}% of the ${formatMoney(pendingSell.price)} you paid.`
             : ''
         }
         confirmText="Sell"

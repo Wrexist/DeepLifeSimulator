@@ -73,7 +73,7 @@ describe('the cooldown is driven, not grepped', () => {
     expect(noFillOnCooldown(at(100, 100))).toBe(true);
   });
 
-  it('is STILL on cooldown one week later — the whole bug', () => {
+  it('is STILL on cooldown one week later - the whole bug', () => {
     // `< 1` made this false, and a week is one tap of the core-loop button.
     expect(noFillOnCooldown(at(101, 100))).toBe(true);
   });
@@ -145,7 +145,7 @@ describe('the orb is wired to the shared predicate', () => {
 describe('the save format carries the new marker', () => {
   it('the v28 bump shipped and the format has only moved forward since', () => {
     // Pins the FLOOR, not the exact number. This test is about the v28 marker;
-    // pinning the current version made every later, unrelated bump fail here —
+    // pinning the current version made every later, unrelated bump fail here -
     // C-11's v29 did exactly that. The version-is-current check belongs in the
     // migration-chain suite, and it is there.
     expect(STATE_VERSION).toBeGreaterThanOrEqual(28);
@@ -157,7 +157,7 @@ describe('the save format carries the new marker', () => {
     // value would deny the player their first legitimate courtesy grant.
     const { state } = runMigrations({ version: 27, weeksLived: 300, settings: {} });
 
-    // Migrates to CURRENT, not to 28 — later bumps run too, and the point of
+    // Migrates to CURRENT, not to 28 - later bumps run too, and the point of
     // this assertion is that none of them writes the carve-out key.
     expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(state.settings.lastNoFillGrantWeek).toBeUndefined();

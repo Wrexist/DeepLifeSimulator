@@ -34,7 +34,7 @@ jest.mock('lucide-react-native', () => new Proxy(
  * the config USD price (the localized-or-config contract) — which is exactly the
  * real-$ string we assert on. No iapService mock is needed for a render smoke.
  */
-describe('render — GemShopModal (IAP store)', () => {
+describe('render - GemShopModal (IAP store)', () => {
   it('mounts (visible) on the default Gems tab with a known pack at a real-$ price', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <GemShopModal visible onClose={() => {}} />,

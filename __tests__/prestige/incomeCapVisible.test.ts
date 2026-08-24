@@ -63,7 +63,7 @@ describe('the curve itself', () => {
     );
   });
 
-  it('lands the FULL catalogue stack under the hard cap — nothing is ever a zero', () => {
+  it('lands the FULL catalogue stack under the hard cap - nothing is ever a zero', () => {
     // raw 3.35 → 1.5 + 1.85×0.25 = 1.9625
     expect(getRawIncomeMultiplier(FULL_STACK)).toBeCloseTo(3.35, 10);
     expect(getIncomeMultiplier(FULL_STACK)).toBeCloseTo(1.9625, 10);
@@ -136,7 +136,7 @@ describe('what a purchase would ACTUALLY grant', () => {
     expect(incomeGainFromPurchase([], 'income_multiplier_3')).toBeCloseTo(0.25, 10);
   });
 
-  it('is the reduced amount past the soft cap — a quarter of the headline', () => {
+  it('is the reduced amount past the soft cap - a quarter of the headline', () => {
     const owned = lv('income_multiplier_3', 3); // raw 1.75, already diminished
     expect(incomeGainFromPurchase(owned, 'income_multiplier_2'))
       .toBeCloseTo(0.10 * INCOME_SOFT_CAP_RATE, 10);
@@ -170,7 +170,7 @@ describe('what a purchase would ACTUALLY grant', () => {
     }
   });
 
-  it('Wealth Magnet bought first delivers +62.5%, not its advertised +100% — the shop must say so', () => {
+  it('Wealth Magnet bought first delivers +62.5%, not its advertised +100% - the shop must say so', () => {
     // 1 + 1.0 raw = 2.0 → 1.5 + 0.5×0.25 = 1.625. Better than the old clamp's
     // +50%, still short of the headline — which is why the per-card
     // "Actually grants" note exists and must keep rendering.

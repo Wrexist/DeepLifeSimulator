@@ -1,10 +1,10 @@
 /**
- * OnionApp — Dark Web screen.
+ * OnionApp - Dark Web screen.
  *
  * Terminal DNA (differentiation pass). A full aesthetic break from the shared
  * "eyebrow hero + uniform rows" template while keeping the Slate Glass crash-safe
  * primitives (getGlassCard / getPlatformShadows elevation, the gradient wrapper
- * is intentionally NOT used — the terminal look is flat phosphor, purple only as
+ * is intentionally NOT used - the terminal look is flat phosphor, purple only as
  * cursor/accent glints). Everything reads as a monospace console: near-black
  * panels, "> "/"$ " prompts, ASCII dividers/bars, hex-dump wallet block, and every
  * action is a visible bracket-button like [ BUY ].
@@ -76,7 +76,7 @@ import { MIXER_TIERS, effectiveMixerParams } from '@/lib/darkweb/laundering';
 import { RAID_SHARE_OF_POLICE_EVENTS } from '@/lib/darkweb/weeklyTick';
 
 // ---------------------------------------------------------------------------
-// Terminal design language (local — a deliberate single-look dark console
+// Terminal design language (local - a deliberate single-look dark console
 // surface; the Slate Glass canvas/theme still branches on darkMode behind it,
 // and every hairline/divider lives inside a dark panel so light mode has no
 // white-on-white artifacts).
@@ -90,12 +90,12 @@ const TERM = {
   bgDeep: '#060907',      // insets / hex-dump wells
   border: 'rgba(34,197,94,0.22)',
   borderDim: 'rgba(34,197,94,0.12)',
-  green: '#22C55E',       // phosphor — data / prompts / values
+  green: '#22C55E',       // phosphor - data / prompts / values
   greenDim: 'rgba(34,197,94,0.66)',
   text: '#CFE3D6',        // soft terminal foreground
   muted: 'rgba(207,227,214,0.55)',
   faint: 'rgba(207,227,214,0.32)',
-  purple: '#A855F7',      // identity — cursor / accent glints only
+  purple: '#A855F7',      // identity - cursor / accent glints only
   purpleGlow: 'rgba(168,85,247,0.12)',
 } as const;
 
@@ -159,7 +159,7 @@ const SKILL_LABEL: Record<DarkWebSkillId, string> = {
   laundering: 'Laundering',
 };
 
-// Heat is a risk indicator — coloured by band (data), never recoloured to the
+// Heat is a risk indicator - coloured by band (data), never recoloured to the
 // purple identity accent. Mirrors HeatGauge's own band map.
 const HEAT_BAND_COLOR: Record<string, string> = {
   cold: accent.info,
@@ -333,7 +333,7 @@ type SubView =
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { id: 'market', label: 'Market', icon: ShoppingBag },
   // The gear store. `buyDarkWebItem` has existed and worked since the Onion tab
-  // shipped, with ZERO call sites anywhere in `components/` or `app/` — so the
+  // shipped, with ZERO call sites anywhere in `components/` or `app/` - so the
   // 20-item catalogue in `initialState.darkWebItems` was unreachable, and with
   // it 18 of the 19 illegal street jobs that gate on `darkWebRequirements`.
   // Reported as "Crime tools were removed… making only job available Find Lost
@@ -347,7 +347,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
 function OnionAppInner({ onBack }: OnionAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
   // The gear store's buy path. Already handles the BTC debit, the already-owned
-  // guard and the insufficient-funds message — it simply had no caller.
+  // guard and the insufficient-funds message - it simply had no caller.
   const { buyDarkWebItem } = useItemActions();
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
@@ -416,11 +416,11 @@ function OnionAppInner({ onBack }: OnionAppProps) {
      * Name the scam risk as a NUMBER, at the moment the BTC is committed.
      *
      * The dialog used to show "Vendor rep 15/100" and nothing else. Rep is not a
-     * linear scale — `vendorScamProbability` is a sigmoid, so rep 15 means a 95%
+     * linear scale - `vendorScamProbability` is a sigmoid, so rep 15 means a 95%
      * chance of losing the whole payment and rep 35 means 82%. A bare "15/100"
      * reads as "poor but worth a punt", and because low-rep vendors also price
      * cheapest (`priceMultiplierForReputation`), the game was steering a
-     * cash-poor new player straight at its worst odds — then flagging the vendor
+     * cash-poor new player straight at its worst odds - then flagging the vendor
      * so their listings vanished for tens of weeks. That compounding is what
      * produced "buyer rep is too slow to gain" and "listings do not shuffle"
      * (BBQ, 2026-08-11).
@@ -435,7 +435,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     Alert.alert(
       'Confirm purchase',
       `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\n` +
-        `Vendor rep ${vendor.reputation}/100 · scam risk ${scamPct}% — ${verdict}\n` +
+        `Vendor rep ${vendor.reputation}/100 · scam risk ${scamPct}% - ${verdict}\n` +
         `A scam costs the full ${listing.costBtc.toFixed(4)} ₿ and delivers nothing.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -444,7 +444,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           onPress: () => {
             const res = buyMarketListing(gameState, setGameState, listing.id);
             queueSave();
-            // Surface the outcome — a scam debits the full cost and grants
+            // Surface the outcome - a scam debits the full cost and grants
             // nothing, which read as a silent BTC drain without this.
             Alert.alert(res.outcome === 'scam' ? 'Scammed!' : res.success ? 'Purchase Complete' : 'Purchase Failed', res.message);
           },
@@ -527,7 +527,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           ) : null}
         </Text>
         {/* Scam risk shows on EVERY row, not only above 20%. Hiding it on safe
-            listings made its absence ambiguous — a player could not tell a low
+            listings made its absence ambiguous - a player could not tell a low
             risk from an unmeasured one, so the number never became something to
             shop on. It is the single most important figure on this card. */}
         <Text style={styles.monoXs} numberOfLines={1}>
@@ -659,8 +659,8 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const rep = dw.playerReputation ?? 0;
     const access = rep >= 35 ? 'common+pro+elite' : rep >= 10 ? 'common+pro' : 'common';
     const band = heatBand(dw.heat ?? 0);
-    // R3-C8: this printed P(any police event), but the raid — the only branch
-    // that jails you — is a sub-roll worth `RAID_SHARE_OF_POLICE_EVENTS` of
+    // R3-C8: this printed P(any police event), but the raid - the only branch
+    // that jails you - is a sub-roll worth `RAID_SHARE_OF_POLICE_EVENTS` of
     // them. At heat 80+ the label read 40%/wk against a real ~10%, so a player
     // managing heat was working from a number 4x too high.
     const raidRisk = policeEventProbability(dw.heat ?? 0) * RAID_SHARE_OF_POLICE_EVENTS * 100;
@@ -672,7 +672,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       <View style={{ gap: responsiveSpacing.lg }}>
         <EconomyEventBanner context="darkweb" />
 
-        {/* Console header — buyer standing / balance / vendors (EconomyEventBanner
+        {/* Console header - buyer standing / balance / vendors (EconomyEventBanner
             is this screen's colour moment, so this panel stays flat). */}
         <TerminalPanel darkMode={darkMode} elevation={12} glow>
           <TermTitleBar title="market@onion" />
@@ -739,7 +739,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           <CmdLine cmd="ls -la ./listings" count={listings.length} />
           {listings.length === 0 ? (
             <TerminalPanel darkMode={darkMode}>
-              <TermEmpty>no listings — vendors rotate stock each week</TermEmpty>
+              <TermEmpty>no listings - vendors rotate stock each week</TermEmpty>
             </TerminalPanel>
           ) : (
             listings.map((listing) => {
@@ -780,7 +780,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
    * The crime-tool store.
    *
    * Buys straight from `initialState.darkWebItems` through the long-orphaned
-   * `buyDarkWebItem`, which already debits `cryptos.btc` and flips `owned` — so
+   * `buyDarkWebItem`, which already debits `cryptos.btc` and flips `owned` - so
    * this screen adds a door, not a system. `riskReduction` / `rewardBonus` are
    * both live (summed in `ItemActionsContext` when a street job resolves), and
    * are surfaced per row so the ladder reads as a progression rather than a
@@ -890,7 +890,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           <CmdLine cmd="./shop --available" count={unowned.length} />
           {unowned.length === 0 ? (
             <TerminalPanel darkMode={darkMode}>
-              <TermEmpty>full kit — every tool acquired</TermEmpty>
+              <TermEmpty>full kit - every tool acquired</TermEmpty>
             </TerminalPanel>
           ) : (
             unowned.map(renderGearRow)
@@ -949,7 +949,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           <CmdLine cmd="./run --active" count={activeJobs.length} />
           {activeJobs.length === 0 ? (
             <TerminalPanel darkMode={darkMode}>
-              <TermEmpty>no active operations — start one above</TermEmpty>
+              <TermEmpty>no active operations - start one above</TermEmpty>
             </TerminalPanel>
           ) : (
             activeJobs.map((job) => renderOpRow(job))
@@ -1021,7 +1021,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const fronts = countLaunderingFronts(gameState);
     // R3-C5: gate on the TOTAL, not the base cost. `acquireNewIdentity`
     // charges `NEW_IDENTITY_COST_BTC + (dischargedUnsecuredPrincipal * 0.8) /
-    // btcPrice` and returns `prev` (log-only) when the player cannot cover it —
+    // btcPrice` and returns `prev` (log-only) when the player cannot cover it -
     // and it returns void, so nothing surfaced the refusal. With the button
     // gated on the base cost alone, a player carrying student debt (typed
     // 'personal', so it counts as discharged principal) tapped "Burn it" and
@@ -1118,7 +1118,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           </TerminalPanel>
         </View>
 
-        {/* New identity — the one loud CTA of this view. */}
+        {/* New identity - the one loud CTA of this view. */}
         <TerminalPanel darkMode={darkMode} tone="danger">
           <TermTitleBar title="identity.burn" accentColor={accent.danger} />
           <AsciiDivider color="rgba(239,68,68,0.25)" />
@@ -1167,7 +1167,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           <CmdLine cmd="jobs mixer" count={laundering.length} />
           {queue.length === 0 ? (
             <TerminalPanel darkMode={darkMode}>
-              <TermEmpty>mixer idle — submit dirty BTC to convert it to clean BTC</TermEmpty>
+              <TermEmpty>mixer idle - submit dirty BTC to convert it to clean BTC</TermEmpty>
             </TerminalPanel>
           ) : (
             <TerminalPanel darkMode={darkMode}>
@@ -1568,7 +1568,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      {/* Terminal window chrome — renders unconditionally; back is always top-left. */}
+      {/* Terminal window chrome - renders unconditionally; back is always top-left. */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={goBack}
@@ -1591,7 +1591,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         </View>
       </View>
 
-      {/* Command tabs — hidden inside detail sub-views (full-page). */}
+      {/* Command tabs - hidden inside detail sub-views (full-page). */}
       {view === null && (
         <View style={[getGlassCategoryTabsContainer(darkMode), styles.tabBar, { backgroundColor: TERM.bg, borderColor: TERM.border }]}>
           {TABS.map((t) => {
@@ -1620,7 +1620,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
       <ScrollView
         style={{ flex: 1 }}
-        // Clear the tab strip / floating chrome — a short padding left the bottom
+        // Clear the tab strip / floating chrome - a short padding left the bottom
         // buttons (Run Stage, cash-out) untappable underneath it.
         contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom) }}
       >
@@ -1654,7 +1654,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       />
 
       {/* `?? 0` guards: a partial darkWeb save can lack cleanBtc/dirtyBtc, and
-          this modal is always mounted — an unguarded .toFixed threw in render. */}
+          this modal is always mounted - an unguarded .toFixed threw in render. */}
       <AmountInputModal
         visible={showCashOut}
         title="Cash out clean BTC"
@@ -1685,7 +1685,7 @@ export default function OnionApp(props: OnionAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  // Terminal window title bar — dark chrome in both modes (a deliberate single-look
+  // Terminal window title bar - dark chrome in both modes (a deliberate single-look
   // console surface). The canvas behind still branches on darkMode.
   topBar: {
     flexDirection: 'row',

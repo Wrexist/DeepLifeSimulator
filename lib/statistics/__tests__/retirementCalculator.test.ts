@@ -13,7 +13,7 @@ function stateWithSalary(salary: number, over: Partial<any> = {}): GameState {
 }
 
 describe('calculateRetirementPlanning (salary is WEEKLY)', () => {
-  it('requiredNetWorth scales with salary — a $5k/wk earner needs far more than $390k', () => {
+  it('requiredNetWorth scales with salary - a $5k/wk earner needs far more than $390k', () => {
     const r = calculateRetirementPlanning(stateWithSalary(5000));
     // annualExpenses = 5000 * 0.7 * 52 = 182,000 → required = /4 * 100 = 4,550,000
     expect(r.requiredNetWorth).toBe((5000 * 0.7 * 52) / 4 * 100);

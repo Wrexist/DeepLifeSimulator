@@ -44,7 +44,7 @@ function SeedWedding({ partner }: { partner: string }) {
   return null;
 }
 
-describe('render — WeddingPopup keeps its only exit on screen', () => {
+describe('render - WeddingPopup keeps its only exit on screen', () => {
   it('mounts with the flag set and renders the Continue button', () => {
     const { renderer, unmount } = renderWithProviders(
       <>
@@ -72,7 +72,7 @@ describe('render — WeddingPopup keeps its only exit on screen', () => {
     unmount();
   });
 });
-describe('render — WelcomeBackPopup keeps its only exit on screen', () => {
+describe('render - WelcomeBackPopup keeps its only exit on screen', () => {
   it('mounts and renders the Continue Playing button', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <WelcomeBackPopup visible onClose={() => {}} />,
@@ -92,7 +92,7 @@ describe('render — WelcomeBackPopup keeps its only exit on screen', () => {
   });
 });
 
-describe('render — SimpleTutorialModal keeps its footer controls on screen', () => {
+describe('render - SimpleTutorialModal keeps its footer controls on screen', () => {
   const step: TutorialStep = {
     id: 'welcome',
     title: 'Welcome to DeepLife',
@@ -100,7 +100,7 @@ describe('render — SimpleTutorialModal keeps its footer controls on screen', (
     // length of the step copy, so the smoke test uses copy that would have
     // pushed the footer past the card's 80% cap on a small screen.
     description:
-      'Every week you live is a decision — where the money goes, who gets your ' +
+      'Every week you live is a decision - where the money goes, who gets your ' +
       'time, and which of the two dozen careers you want to climb. Tap the ' +
       'arrow to advance a week, and watch what the choices you made last week ' +
       'do to the numbers on this one.',

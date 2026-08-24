@@ -93,7 +93,7 @@ describe('the card has something to render for a real save', () => {
 
   it('every challenge in the catalogue is renderable', () => {
     // A challenge with no emoji, no name or no objectives would render a blank
-    // card — worse than no card.
+    // card - worse than no card.
     for (const c of WEEKLY_CHALLENGES) {
       expect(c.name).toBeTruthy();
       expect(c.reward).toBeGreaterThan(0);

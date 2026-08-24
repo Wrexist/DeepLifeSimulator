@@ -48,8 +48,8 @@ describe('the swept card surfaces have no side accent bar', () => {
 
   it('and none of them swapped it for a one-sided border', () => {
     // The other route to the same banned look. Hard Rule #7 permits one-sided
-    // borders for STRUCTURE — row/section dividers, an active-tab underline, a
-    // hairline indent guide — so a bare count would flag legitimate code.
+    // borders for STRUCTURE - row/section dividers, an active-tab underline, a
+    // hairline indent guide - so a bare count would flag legitimate code.
     // TravelApp has two of them: its tab bar's divider, and the underline on
     // the selected tab.
     const ALLOWED = /hairlineWidth|tabBar|tabBtn|divider|separator/i;
@@ -91,7 +91,7 @@ describe('the swept card surfaces have no side accent bar', () => {
     // pending a design call, because a flat row has no border to move a colour
     // onto and no radius to curl against.
     //
-    // The owner made that call on 2026-08-02 — tinted background, no border —
+    // The owner made that call on 2026-08-02 - tinted background, no border -
     // so the survivor is gone and the count is zero. See
     // `__tests__/render/rule7StockRows.test.ts` for the replacement's own
     // assertions, including that the sector colour still reaches the row.
@@ -115,7 +115,7 @@ describe('the colours the borders now carry are actually visible', () => {
 });
 
 describe('the exceptions Hard Rule #7 allows are left alone (the controls)', () => {
-  it('HealthCard keeps its "Active" pill — a badge, not a stripe', () => {
+  it('HealthCard keeps its "Active" pill - a badge, not a stripe', () => {
     const src = read('components/health/HealthCard.tsx');
 
     expect(src).toMatch(/activeStripe/);

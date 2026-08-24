@@ -10,7 +10,7 @@
  * name. A lookalike domain is the primary tell, and hiding it one tap deeper
  * would make the mechanic a trivia question rather than an observation.
  *
- * **The tells are revealed after resolution either way** — whether the player
+ * **The tells are revealed after resolution either way** - whether the player
  * fell for it or reported it. Showing them only on a loss would make the
  * feature feel like a punishment with a lecture attached; showing them on a
  * correct call is what tells a careful player their care was real.
@@ -51,8 +51,8 @@ interface Props {
    * Extra bottom clearance for the tab layout's floating "N decisions waiting"
    * pill, which is rendered by `(tabs)/_layout.tsx` at `bottom: scale(88)` and
    * is NOT hidden while a sub-app is open. `getAppScreenBottomPadding` reserves
-   * only the home indicator — deliberately, so sticky composers can sit against
-   * it — so nothing in the shared helper accounts for the pill, and it landed
+   * only the home indicator - deliberately, so sticky composers can sit against
+   * it - so nothing in the shared helper accounts for the pill, and it landed
    * directly on top of this screen's dispute button.
    *
    * Passed in rather than assumed so the space is only reserved when a decision
@@ -75,7 +75,7 @@ interface Props {
    *
    * Rendered as a collapsed trail above the open message, the way a mail client
    * shows what came before. Threads exist only where the game genuinely replied
-   * — a manager answering an outside offer — so a trail here means a
+   * - a manager answering an outside offer - so a trail here means a
    * conversation happened, not that a field was set.
    */
   thread: MailMessage[];
@@ -199,7 +199,7 @@ function MailDetail({
           </View>
         </View>
 
-        {/* An unverified sender gets a standing, neutral note — on EVERY
+        {/* An unverified sender gets a standing, neutral note - on EVERY
             unverified message, not only the fraudulent ones. A warning that
             appears exactly when something is a scam is not a warning, it is
             the answer. */}
@@ -241,7 +241,7 @@ function MailDetail({
           </View>
         ) : null}
 
-        {/* Reporting stays available on ordinary mail too — a mechanic that only
+        {/* Reporting stays available on ordinary mail too - a mechanic that only
             offers the button on the scam has already given the game away. */}
         {!message.action && message.folder !== 'spam' ? (
           <TouchableOpacity
@@ -255,7 +255,7 @@ function MailDetail({
           </TouchableOpacity>
         ) : null}
 
-        {/* A decision with a deadline — the thing mail can do that no other
+        {/* A decision with a deadline - the thing mail can do that no other
             surface in this game can. Every other decision channel covers the
             screen and demands an answer; this one waits. */}
         {message.decision && !message.decision.chosenId ? (
@@ -333,7 +333,7 @@ function MailDetail({
                   ? lost > 0
                     ? `This was a scam. ${docMoney(lost)} was taken.`
                     : 'This was a scam. There was nothing to take.'
-                  : 'Correct — this was a scam. Nothing was taken.'}
+                  : 'Correct - this was a scam. Nothing was taken.'}
               </Text>
             </View>
 
@@ -358,7 +358,7 @@ function MailDetail({
 
             {message.disputed ? (
               <Text style={s.disputedNote}>
-                Disputed. The bank recovered part of the loss — a dispute can only be
+                Disputed. The bank recovered part of the loss - a dispute can only be
                 filed once per charge.
               </Text>
             ) : null}

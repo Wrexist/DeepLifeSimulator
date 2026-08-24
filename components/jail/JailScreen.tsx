@@ -40,7 +40,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   const [activityCooldowns, setActivityCooldowns] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-  // Tick the cooldown countdown — but ONLY while a cooldown is actually active,
+  // Tick the cooldown countdown - but ONLY while a cooldown is actually active,
   // and stop as soon as none remain. The old version ran a 1s setState forever,
   // re-rendering the whole jail screen every second even when idle.
   const hasActiveCooldown = Object.values(activityCooldowns).some(
@@ -59,7 +59,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   }, [hasActiveCooldown, activityCooldowns]);
 
   // Wealth-scaled bail (shared helper) so display here always matches the charge
-  // in JobActionsContext.payBail. Memoized — calculateNetWorth walks every asset
+  // in JobActionsContext.payBail. Memoized - calculateNetWorth walks every asset
   // collection and this screen re-renders on a 250ms cooldown interval.
   const bailCost = useMemo(
     () => computeBailCost(jailWeeks, calculateNetWorth(gameState)),
@@ -77,7 +77,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   };
 
   // GUARANTEED escape valve. Bail needs money and activities need energy + the
-  // weekly cooldown — so a player who is broke, out of energy, and has used
+  // weekly cooldown - so a player who is broke, out of energy, and has used
   // their activities could previously get stuck on this screen (the whole Work
   // tab is replaced by it) until they happened to advance the week from the top
   // bar. "Serve a Week" always works: it advances the week, which decrements the
@@ -282,7 +282,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
         end={{ x: 1, y: 1 }}
         style={styles.background}
       >
-        {/* Header — when shown full-screen (onClose present) clear the notch;
+        {/* Header - when shown full-screen (onClose present) clear the notch;
             inside the Work tab it sits just under the stats bar, so no big gap. */}
         <View style={[styles.header, { paddingTop: onClose ? insets.top + 12 : 14 }]}>
           <View style={styles.headerLeft}>
@@ -403,7 +403,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                         return;
                       }
                       // Use custom prison food handler with reduced benefits.
-                      // Atomic: re-check affordability against prev — the old
+                      // Atomic: re-check affordability against prev - the old
                       // updateStats path clamped money at 0, so a same-batch
                       // double-tap bought a second meal effectively free.
                       const foodItem = foods.find(f => f.id === food.id);
@@ -545,7 +545,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                             <Shield size={12} color="#FFFFFF" />
                             <Text style={styles.rewardText}>
                               {/* A "release" activity (e.g. escape/parole) uses a
-                                  huge reduction as a sentinel — show "Release",
+                                  huge reduction as a sentinel - show "Release",
                                   not a nonsensical "-99w". */}
                               {activity.sentenceReduction >= jailWeeks
                                 ? 'Release'

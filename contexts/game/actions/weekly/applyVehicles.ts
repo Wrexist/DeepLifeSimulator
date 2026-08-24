@@ -111,7 +111,7 @@ export function applyVehiclesForWeek(
 
     // Accident roll via the tested accidents.ts model.
     // Pre-roll arrays are capped (length 10). For vehicles beyond the cap, wrap
-    // the index deterministically so they still roll — reading `undefined` here
+    // the index deterministically so they still roll - reading `undefined` here
     // would silently skip the accident for vehicle #11+ (and could feed NaN into
     // the severity pick). Wrapping keeps it StrictMode-deterministic.
     const accidentRoll = ctx.preRolls.vehicleAccident[vehIdx % ctx.preRolls.vehicleAccident.length];
@@ -130,12 +130,12 @@ export function applyVehiclesForWeek(
       ctx.newStats.health = Math.max(0, ctx.newStats.health - healthLoss);
 
       if (severity === 'total') {
-        // Total loss — remove the vehicle (return null → filtered below). No
+        // Total loss - remove the vehicle (return null → filtered below). No
         // out-of-pocket repair: a totaled car isn't repaired. Mirrors
         // processAccident's total-loss removal path.
         ctx.notifications.push({
           id: `vehicle-accident-${v.id}`,
-          message: `Your ${v.name} was totaled in an accident — it's a total loss. Health: -${healthLoss}.`,
+          message: `Your ${v.name} was totaled in an accident - it's a total loss. Health: -${healthLoss}.`,
           title: 'Vehicle Totaled',
         });
         return null;

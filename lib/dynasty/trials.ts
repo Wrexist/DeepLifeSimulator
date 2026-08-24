@@ -172,7 +172,7 @@ export function addPendingTrial(
   };
 }
 
-/** Withdraw a Trial before it starts. Free — nothing has been suffered yet. */
+/** Withdraw a Trial before it starts. Free - nothing has been suffered yet. */
 export function removePendingTrial(
   state: GameState | undefined | null,
   trialId: string
@@ -263,7 +263,7 @@ export function applyTrialEffectsToNewLife(
   }
 
   if (typeof effects.yearsLost === 'number' && effects.yearsLost > 0) {
-    // Age AND calendar year move together — advancing one without the other
+    // Age AND calendar year move together - advancing one without the other
     // desynchronises every birth-year calculation downstream.
     newState.date = {
       ...newState.date,

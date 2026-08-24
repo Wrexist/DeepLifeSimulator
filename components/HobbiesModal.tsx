@@ -1,5 +1,5 @@
 /**
- * HobbiesModal — the Hobby Mastery screen (v21). Practice hobbies weekly to
+ * HobbiesModal - the Hobby Mastery screen (v21). Practice hobbies weekly to
  * level them up; each level grants a stronger reward + perk. Refills the gap
  * left when the old hobbies were removed.
  */
@@ -58,7 +58,7 @@ export default function HobbiesModal({ visible, onClose }: HobbiesModalProps) {
             <View>
               <Text style={[styles.title, { color: theme.text }]}>Hobbies</Text>
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Practice to master — each level pays off more
+                Practice to master - each level pays off more
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={hitSlopToMinTarget(scale(22))} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close">

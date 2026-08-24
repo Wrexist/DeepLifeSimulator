@@ -21,7 +21,7 @@ function loan(over: Partial<Loan> = {}): Loan {
   } as Loan;
 }
 
-describe('applyLoanAutopay — 3x principal ceiling', () => {
+describe('applyLoanAutopay - 3x principal ceiling', () => {
   it('clamps a delinquent balance AT 3x principal (does not exceed it)', () => {
     // remaining 238000 → after interest+penalty would cross 240000 (3x of 80000);
     // cash 0 forces a missed payment so the penalty path runs.

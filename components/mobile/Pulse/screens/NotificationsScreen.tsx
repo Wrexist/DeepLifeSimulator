@@ -1,5 +1,5 @@
 /**
- * NotificationsScreen — grouped feed of likes / follows / comments / brand offers / scandals.
+ * NotificationsScreen - grouped feed of likes / follows / comments / brand offers / scandals.
  */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -112,7 +112,7 @@ interface NotificationsScreenProps {
   onOpenPostDetail?: (postId: string) => void;
   /** Tap a `scandal_update` notification → open the scandal recovery modal. */
   onOpenScandalRecovery?: () => void;
-  /** Empty-state CTA — opens the rewarded-ad modal for a follower boost. */
+  /** Empty-state CTA - opens the rewarded-ad modal for a follower boost. */
   onWatchAd?: () => void;
 }
 
@@ -182,7 +182,7 @@ export default function NotificationsScreen({
         onActionPress={handleMarkAll}
       />
 
-      {/* Rewarded-ad follower boost — also surfaced here (not just the empty
+      {/* Rewarded-ad follower boost - also surfaced here (not just the empty
           state) so the feature stays reachable once notifications exist. */}
       {onWatchAd ? (
         <Pressable

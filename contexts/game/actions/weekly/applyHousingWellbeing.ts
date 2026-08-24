@@ -95,7 +95,7 @@ export function applyHousingWellbeing(
   // The first week is charged at SIGNING (`resolveRentHome` takes it on the
   // spot, so a tenancy never starts already in arrears). Without this the tick
   // then bills the same week again and the player pays twice for one week of
-  // housing — the message says "first week's rent paid" while the bill line
+  // housing - the message says "first week's rent paid" while the bill line
   // disagrees. `startedWeek` is stamped from `weeksLived` at signing, so the
   // tick that carries the player out of that week skips exactly one charge.
   const startedWeek = input.prevState.rental?.startedWeek;

@@ -20,6 +20,7 @@
  * here would be both wrong across a restore and farmable.
  */
 import { PREGNANCY_DURATION_WEEKS } from '@/lib/config/gameConstants';
+import { mailEvents } from '@/lib/events/routing';
 import type { GameState, Relationship } from '@/contexts/game/types';
 
 import type { UpcomingEvent } from './types';
@@ -43,7 +44,7 @@ function educationEvents(state: GameState, now: number): UpcomingEvent[] {
         title: `${e.name} completes`,
         detail:
           weeksAway <= 1
-            ? 'You graduate next week — new careers open up.'
+            ? 'You graduate next week - new careers open up.'
             : `${weeksAway} weeks of study left.`,
         weeksAway,
         dueWeeksLived: now + weeksAway,
@@ -96,7 +97,7 @@ function weddingEvents(state: GameState, now: number): UpcomingEvent[] {
       title: 'Your wedding',
       detail:
         weeksAway <= 1
-          ? `At ${plan.venueName} next week — ${money(plan.budget ?? 0)} is due.`
+          ? `At ${plan.venueName} next week - ${money(plan.budget ?? 0)} is due.`
           : `Booked at ${plan.venueName} in ${weeksAway} weeks.`,
       weeksAway: Math.max(0, weeksAway),
       dueWeeksLived: plan.scheduledWeek,
@@ -107,7 +108,7 @@ function weddingEvents(state: GameState, now: number): UpcomingEvent[] {
 /**
  * Loans, reported as PAYOFF rather than as the next instalment.
  *
- * A weekly payment is not anticipation — it happens every week and would
+ * A weekly payment is not anticipation - it happens every week and would
  * crowd out everything else in the list within one tick. The date worth
  * seeing is the one the debt ENDS, because that is the one the player can act
  * to bring forward.
@@ -132,7 +133,7 @@ function loanEvents(state: GameState, now: number): UpcomingEvent[] {
 /**
  * Arrears, which are the one entry here with no natural date.
  *
- * Reported at `weeksAway: 0` because arrears are always "now" — they grow
+ * Reported at `weeksAway: 0` because arrears are always "now" - they grow
  * every week they are unpaid (v31) and there is no scheduled moment at which
  * they resolve themselves.
  */
@@ -171,7 +172,7 @@ function healthEvents(state: GameState, now: number): UpcomingEvent[] {
         title: `${d.name} is untreated`,
         detail:
           weeksAway <= 2
-            ? 'Get treatment now — this is close to fatal.'
+            ? 'Get treatment now - this is close to fatal.'
             : `Fatal in about ${weeksAway} weeks without treatment.`,
         weeksAway,
         dueWeeksLived: now + weeksAway,
@@ -182,7 +183,7 @@ function healthEvents(state: GameState, now: number): UpcomingEvent[] {
 /**
  * Savings goals that carry a target week the player set themselves.
  *
- * These live on `banking`, not at the top level — the top-level lookup
+ * These live on `banking`, not at the top level - the top-level lookup
  * type-errors, which is the useful kind of mistake to make.
  */
 function savingsEvents(state: GameState, now: number): UpcomingEvent[] {
@@ -240,10 +241,76 @@ function careerEvents(state: GameState, now: number): UpcomingEvent[] {
 }
 
 /**
+ * The next election, for a player whose seat (or campaign) is on the ballot.
+ *
+ * `politics.nextElectionWeek` is a real date the politics tick enforces, with
+ * up to $5M of office rewards riding on it - and it landed as a surprise. The
+ * campaign verbs exist precisely to be used in the weeks BEFORE this.
+ */
+function electionEvents(state: GameState, now: number): UpcomingEvent[] {
+  const politics = state.politics;
+  const next = politics?.nextElectionWeek;
+  if (!politics || (politics.careerLevel ?? 0) <= 0) return [];
+  if (typeof next !== 'number' || !Number.isFinite(next)) return [];
+  const weeksAway = next - now;
+  if (weeksAway < 0) return [];
+  const approval =
+    typeof politics.approvalRating === 'number' && Number.isFinite(politics.approvalRating)
+      ? Math.round(politics.approvalRating)
+      : null;
+  return [
+    {
+      id: 'election:next',
+      kind: 'election',
+      // Below ~45% approval the incumbent is genuinely in trouble - that is
+      // worth a caution; otherwise it is a date to plan around, not a threat.
+      tone: approval !== null && approval < 45 ? 'caution' : 'neutral',
+      title: 'Election day',
+      detail:
+        approval !== null
+          ? weeksAway <= 1
+            ? `Voters decide next week - approval sits at ${approval}%.`
+            : `Approval sits at ${approval}%. Campaigning still moves it.`
+          : 'Your seat is on the ballot.',
+      weeksAway: Math.max(0, weeksAway),
+      dueWeeksLived: next,
+    },
+  ];
+}
+
+/**
+ * Unanswered letters, reported as the deadlines they actually are.
+ *
+ * A mail-routed event lapses to its default choice when its `expiresAtWeek`
+ * passes (`applyMailLapse`) - a real tick-enforced deadline that could take
+ * money without the player ever knowing a clock was running.
+ */
+function letterEvents(state: GameState, now: number): UpcomingEvent[] {
+  return mailEvents(state)
+    .filter((e) => typeof e.expiresAtWeek === 'number' && (e.expiresAtWeek as number) >= now)
+    .map((e) => {
+      const dueWeek = e.expiresAtWeek as number;
+      const weeksAway = Math.max(0, dueWeek - now);
+      return {
+        id: `letter:${e.id}`,
+        kind: 'letter' as const,
+        tone: 'caution' as const,
+        title: 'A letter needs an answer',
+        detail:
+          weeksAway <= 1
+            ? 'Last week to reply - it answers itself if you do not.'
+            : `Unanswered mail lapses to its default in ${weeksAway} weeks.`,
+        weeksAway,
+        dueWeeksLived: dueWeek,
+      };
+    });
+}
+
+/**
  * Everything the player can see coming, soonest first.
  *
  * Sorted by `weeksAway`, then by tone so a caution outranks a nicety landing
- * the same week, then by id so the order is fully deterministic — the list is
+ * the same week, then by id so the order is fully deterministic - the list is
  * rendered every frame and must not reshuffle between renders.
  */
 export function upcomingEvents(
@@ -267,6 +334,8 @@ export function upcomingEvents(
     healthEvents,
     savingsEvents,
     careerEvents,
+    electionEvents,
+    letterEvents,
   ];
   for (const collect of collectors) {
     try {

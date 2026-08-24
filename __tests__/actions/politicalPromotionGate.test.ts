@@ -110,7 +110,7 @@ describe('the Work tab cannot promote past the office gate', () => {
     expect(get().careers?.[0].level).toBe(0);
   });
 
-  it('allows it at 30 (the control — the gate is age, not politics itself)', () => {
+  it('allows it at 30 (the control - the gate is age, not politics itself)', () => {
     const state = councilMember(30);
     const { setState, get } = batched(state);
 

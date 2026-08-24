@@ -8,7 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import RestoreBackupSheet from '@/components/onboarding/RestoreBackupSheet';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
-// Leaf context, not the @/contexts/GameContext barrel — the barrel's eager
+// Leaf context, not the @/contexts/GameContext barrel - the barrel's eager
 // `export * from './game'` pulled the whole provider graph into this screen's
 // module init and caused a production require-cycle (undefined screen export).
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -52,12 +52,12 @@ import {
 const PAGE_BG = '#020617';
 
 // Slot stats come from raw persisted JSON (no repair pass has run), so a
-// corrupt snapshot can carry NaN/Infinity/negative numbers — clamp for display.
+// corrupt snapshot can carry NaN/Infinity/negative numbers - clamp for display.
 const safeStatNumber = (n: unknown): number =>
   typeof n === 'number' && Number.isFinite(n) ? Math.max(0, n) : 0;
 
 /**
- * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
+ * Staggered entrance wrapper - opacity + a short translateY rise, native-driven,
  * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
  */
 function RevealItem({
@@ -103,11 +103,11 @@ export default function SaveSlots() {
   const [selectedSlot, setSelectedSlot] = useState<number | null>(state.slot || null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   // The slot whose restore points are open. A slot marked "Recovery Needed"
-  // used to offer nothing but Delete — the button that destroyed the last copy
+  // used to offer nothing but Delete - the button that destroyed the last copy
   // of the save the player came here to rescue (2026-07-29 audit BRC-1).
   const [restoreSlot, setRestoreSlot] = useState<number | null>(null);
   // This screen's background artwork index (null until the shared cycle counter
-  // is peeked — the flat PAGE_BG shows meanwhile). PEEK, not take: the main menu
+  // is peeked - the flat PAGE_BG shows meanwhile). PEEK, not take: the main menu
   // owns advancing the cycle, so revisiting slots never rotates the artwork.
   const [bgIndex, setBgIndex] = useState<number | null>(null);
 
@@ -149,7 +149,7 @@ export default function SaveSlots() {
   // is null even for an occupied slot, so acting on the primary button in that
   // window could start a new life on top of an existing save. Gate on this flag.
   const [slotsLoaded, setSlotsLoaded] = useState(false);
-  // R7 SB-6: synchronous re-entry guard. `isBusy` is a state flag — two rapid
+  // R7 SB-6: synchronous re-entry guard. `isBusy` is a state flag - two rapid
   // taps within the same render cycle BOTH see `isBusy === false` because the
   // state update hasn't flushed yet, so both enter the load path and race for
   // `loadGame` + `router.push`. The ref short-circuits the second tap
@@ -194,7 +194,7 @@ export default function SaveSlots() {
           // can never silently overwrite a possibly-recoverable save.
           const probe = await probeSaveSlotBlob(i);
           // 'exists' (blob present but unsummarizable) AND 'unknown' (storage
-          // read failed) both surface as recovery-needed — only a confirmed
+          // read failed) both surface as recovery-needed - only a confirmed
           // 'empty' may offer Start New Game, so a transient read failure can
           // never invite overwriting recoverable data.
           return probe === 'empty' ? { id: i, hasData: false } : { id: i, hasData: false, error: true };
@@ -240,18 +240,18 @@ export default function SaveSlots() {
     [slots]
   );
 
-  // The probe INPUTS as one stable primitive — `id:localWeeks` per slot, which
+  // The probe INPUTS as one stable primitive - `id:localWeeks` per slot, which
   // is exactly what `probeCloudSlot` is given and all that can change its
   // answer. Keyed on the `slots` ARRAY instead, the probe effect re-ran on every
   // identity change, and `loadSlots` builds a fresh array on mount, on every
-  // focus pass, and again after a cloud restore — so returning to this screen
+  // focus pass, and again after a cloud restore - so returning to this screen
   // re-downloaded every save several times over.
   const cloudProbeKey = useMemo(
     () => slots.map((slot) => `${slot.id}:${slot.hasData ? safeStatNumber(slot.weeksLived) : 0}`).join('|'),
     [slots]
   );
 
-  // Probed AFTER the local slots have painted — each probe downloads a save, so
+  // Probed AFTER the local slots have painted - each probe downloads a save, so
   // it must never be on the path that renders the list. The three probes are
   // independent, so they run CONCURRENTLY; sequencing them stacked three full
   // downloads end to end for no gain.
@@ -273,7 +273,7 @@ export default function SaveSlots() {
       if (cancelled) return;
       const offers: Record<number, number> = {};
       for (const { id, probe } of probes) {
-        // Only when the cloud copy is AHEAD — restoring must be able to gain
+        // Only when the cloud copy is AHEAD - restoring must be able to gain
         // something, and `hydrateRemoteState` would refuse an older one anyway.
         if (probe?.newer) offers[id] = probe.remoteWeeks;
       }
@@ -417,7 +417,7 @@ export default function SaveSlots() {
             if (i === slotId) continue;
             // A cached summary exists only for a meaningful, playable save, so its
             // presence is exactly the "has playable data" test the old decode+
-            // parse scan performed — without touching the multi-MB blob.
+            // parse scan performed - without touching the multi-MB blob.
             const meta = (await readSaveSlotMeta(i)) ?? (await ensureSaveSlotMeta(i));
             if (meta) {
               repointTo = i;
@@ -493,7 +493,7 @@ export default function SaveSlots() {
   return (
     <View style={styles.root}>
       {/* This launch's shared menu artwork behind everything (pure decoration),
-          under a single flat scrim for text contrast — no gradients, so the
+          under a single flat scrim for text contrast - no gradients, so the
           fallback renderer can never reintroduce a seam. Slightly stronger scrim
           (0.6) than the menu because this screen carries denser text. */}
       {bgIndex != null && (
@@ -527,7 +527,7 @@ export default function SaveSlots() {
         >
           {slots.map((slot, index) => {
             const isSelected = selectedSlot === slot.id;
-            // An error slot has unreadable data (hasData=false) — it must never
+            // An error slot has unreadable data (hasData=false) - it must never
             // present as empty: that path enables "Start New Game", silently
             // overwriting whatever the unreadable payload was.
             const needsRecovery = !!slot.error;
@@ -535,7 +535,7 @@ export default function SaveSlots() {
             const statusColor = needsRecovery ? '#F97316' : slot.hasData ? '#60A5FA' : '#94A3B8';
             const fullName = `${slot.userProfile?.firstName || ''} ${slot.userProfile?.lastName || ''}`.trim();
             // `undefined` means "no cloud copy, or one that is not ahead of this
-            // slot" — the offer is only shown when restoring can gain something.
+            // slot" - the offer is only shown when restoring can gain something.
             const cloudOffer = cloudOffers[slot.id];
 
             return (
@@ -565,7 +565,7 @@ export default function SaveSlots() {
                     {slot.hasData
                       ? fullName || 'Unnamed Character'
                       : needsRecovery
-                        ? 'Unreadable save — try Restore, or delete to reuse this slot'
+                        ? 'Unreadable save - try Restore, or delete to reuse this slot'
                         : 'Start a new life here'}
                   </Text>
 
@@ -588,7 +588,7 @@ export default function SaveSlots() {
 
                   {cloudOffer !== undefined ? (
                     <Text style={styles.cloudOfferText}>
-                      {`Cloud backup available — week ${Math.floor(cloudOffer)}`}
+                      {`Cloud backup available - week ${Math.floor(cloudOffer)}`}
                     </Text>
                   ) : null}
 
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
   },
   // One flat veil over the artwork so slot cards and dense stats keep full
-  // contrast on every image. Deliberately ONE layer — no gradient/stepped scrim.
+  // contrast on every image. Deliberately ONE layer - no gradient/stepped scrim.
   bgScrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(2, 6, 23, 0.6)',

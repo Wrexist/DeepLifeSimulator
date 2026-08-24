@@ -23,7 +23,7 @@ interface Props {
 }
 
 function formatPrice(n: number): string {
-  if (!isFinite(n) || n <= 0) return '—';
+  if (!isFinite(n) || n <= 0) return '-';
   if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   if (n >= 1) return `$${n.toFixed(2)}`;
   return `$${n.toFixed(4)}`;
@@ -120,7 +120,7 @@ export default function PlaceOrderModal({ visible, coin, cash, darkMode, onClose
                 value={amountText}
                 onChangeText={setAmountText}
                 keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"
@@ -138,7 +138,7 @@ export default function PlaceOrderModal({ visible, coin, cash, darkMode, onClose
                   value={limitText}
                   onChangeText={setLimitText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"
@@ -157,7 +157,7 @@ export default function PlaceOrderModal({ visible, coin, cash, darkMode, onClose
                   value={stopText}
                   onChangeText={setStopText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"

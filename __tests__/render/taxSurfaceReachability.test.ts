@@ -45,7 +45,7 @@ describe('the Bank app has a Tax tab', () => {
     expect(BANK).toMatch(/\{ id: 'tax', label: 'Tax', icon: Percent \}/);
   });
 
-  it('renders when selected — a tab that routes nowhere is the Discovery Center trap', () => {
+  it('renders when selected - a tab that routes nowhere is the Discovery Center trap', () => {
     expect(BANK).toMatch(/activeTab === 'tax' && renderTax\(\)/);
     expect(BANK).toMatch(/const renderTax = \(\) => \(/);
     expect(BANK).toMatch(/<TaxStatement/);
@@ -57,7 +57,7 @@ describe('the Bank app has a Tax tab', () => {
   });
 });
 
-describe('the phone bank carries tax too — it is not a desktop-only system', () => {
+describe('the phone bank carries tax too - it is not a desktop-only system', () => {
   // The tab shipped on `AdvancedBankApp`, registered in the DESKTOP category, so
   // the whole tax system sat behind a $5,000 computer. A player crosses their
   // first bracket around week 10. Exactly the trap renting was in.
@@ -116,7 +116,7 @@ describe('one implementation, two hosts', () => {
     expect(STATEMENT).toMatch(/const effective = effectiveTaxRate\(weeklyIncome, taxMult\);/);
   });
 
-  it('obeys Hard Rule #7 — no decorative one-sided colour bar', () => {
+  it('obeys Hard Rule #7 - no decorative one-sided colour bar', () => {
     const sheet = STATEMENT.slice(STATEMENT.indexOf('const styles = StyleSheet.create('));
     expect(sheet.length).toBeGreaterThan(500);
     expect(sheet).not.toMatch(/borderLeftColor|borderRightColor|borderTopColor/);

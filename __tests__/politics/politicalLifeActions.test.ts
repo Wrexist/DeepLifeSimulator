@@ -423,7 +423,7 @@ describe('retiring from office', () => {
     expect(getPoliticalWeeklySalary(retired)).toBe(0);
   });
 
-  it('winning office again SUSPENDS the pension — no double draw', () => {
+  it('winning office again SUSPENDS the pension - no double draw', () => {
     // A retired President who takes a council seat must not draw the $6,000/wk
     // maximum pension ON TOP of the new salary, indefinitely, from a seat they
     // can defend forever. The record survives; the payment pauses.
@@ -521,7 +521,7 @@ describe('the pure resolvers behind the actions', () => {
     }
   });
 
-  it('are idempotent under repeated application — the same-batch double tap', () => {
+  it('are idempotent under repeated application - the same-batch double tap', () => {
     // Applying a resolver to its own output must refuse the second time. This
     // is the property the whole preview/commit shape rests on: two dispatches
     // in one React batch are exactly `resolve(resolve(prev).next)`.
@@ -543,7 +543,7 @@ describe('the pure resolvers behind the actions', () => {
   it('never INTRODUCE a non-finite balance from a corrupt war chest', () => {
     // The honest property. A resolver that refuses returns the input untouched,
     // so a save that already carries `campaignFunds: NaN` still carries it
-    // afterwards — that is repair's job, not this action's. What must never
+    // afterwards - that is repair's job, not this action's. What must never
     // happen is a resolver ACCEPTING a corrupt pot and paying out against it,
     // which would move the NaN into `stats.money` and poison every later week.
     for (const funds of [NaN, Infinity, -1_000_000]) {

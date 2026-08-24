@@ -1,5 +1,5 @@
 /**
- * RestoreBackupSheet — the recovery surface the app never had.
+ * RestoreBackupSheet - the recovery surface the app never had.
  *
  * The backup machinery has always run: every save writes one, the double
  * buffer keeps two generations, and `restoreFromBackup` has existed for
@@ -11,8 +11,8 @@
  *
  * This is deliberately a *restore point picker*, not a file list. Each entry
  * leads with who the character was and how far they got, because that is the
- * question the player is actually answering — "which one of these is my life?"
- * — and the storage details are noise at that moment.
+ * question the player is actually answering - "which one of these is my life?"
+ * - and the storage details are noise at that moment.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -63,7 +63,7 @@ const REASON_LABEL: Record<string, string> = {
   auto_save: 'Automatic save',
 };
 
-/** Restore points worth calling out — these are the deliberate ones. */
+/** Restore points worth calling out - these are the deliberate ones. */
 const HIGHLIGHTED_REASONS = new Set([
   'before_overwrite',
   'before_prestige',
@@ -185,7 +185,7 @@ function RestoreBackupSheet({ visible, slot, onClose, onRestored }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* A restore is reversible — say so before they choose, not after. */}
+          {/* A restore is reversible - say so before they choose, not after. */}
           <View style={styles.reassurance}>
             <ShieldCheck size={scale(13)} color="#34D399" />
             <Text style={styles.reassuranceText}>
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.22)',
   },
   reassuranceText: { flex: 1, color: '#A7F3D0', fontSize: fontScale(11), lineHeight: fontScale(15) },
-  // `flexShrink: 1` pairs with the sheet's `maxHeight: '78%'` — RN defaults
+  // `flexShrink: 1` pairs with the sheet's `maxHeight: '78%'` - RN defaults
   // flexShrink to 0, so without it a player with many backups scrolls nothing
   // and the entries past the cut are unreachable.
   list: { marginTop: verticalScale(12), flexShrink: 1 },

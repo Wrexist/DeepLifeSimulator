@@ -52,14 +52,14 @@ function DeathPopup() {
   // The new life has to be told which slot it belongs in. This screen used to
   // navigate into onboarding without setting one, so the flow fell back to the
   // context default (slot 1) and wrote the fresh character over whatever was
-  // there — the save-loss a player reported after a prestiged run vanished.
+  // there - the save-loss a player reported after a prestiged run vanished.
   const { setState: setOnboardingState } = useOnboarding();
-  // App-level IAP store launcher — used to bridge out of "not enough gems"
+  // App-level IAP store launcher - used to bridge out of "not enough gems"
   // dead-ends (revive / rewind) without auto-opening or blocking the death flow.
   // `isStoreOpen` lets the death Modal SUPPRESS itself while the store's own RN
   // Modal is presented (stacked-modal safety), then re-present when it closes.
   const { openStore, isStoreOpen } = useGemStore();
-  // R2-A: death is the worst place to crash — onRequestClose is gated, so a
+  // R2-A: death is the worst place to crash - onRequestClose is gated, so a
   // settings/stats/date NPE soft-locks the player. Pull through safe accessors.
   const settings = safeSettings(gameState);
   const date = safeDate(gameState);
@@ -80,7 +80,7 @@ function DeathPopup() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
-  // P1-6: depend on specific fields rather than the whole gameState object —
+  // P1-6: depend on specific fields rather than the whole gameState object -
   // computeInheritance walks money + bank + properties + stocks, so the
   // recompute is expensive and we don't want it firing on every unrelated save.
   const inheritanceSummary = useMemo(() => {
@@ -235,7 +235,7 @@ function DeathPopup() {
       setSelectedHeirId(null);
 
       // Same reason as the rewind path: without the yield this persists the
-      // state as it was BEFORE the heir transition — showDeathPopup still true,
+      // state as it was BEFORE the heir transition - showDeathPopup still true,
       // so the next load reopens the death screen on an already-continued
       // legacy. 2026-07-28 audit save-1.
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -258,7 +258,7 @@ function DeathPopup() {
   }, [gameState, reviveCharacter]);
 
   // MON-5: spend the banked Revival Pack. Offered ABOVE the gem revive because
-  // it is already paid for — making someone spend 15,000 gems while holding an
+  // it is already paid for - making someone spend 15,000 gems while holding an
   // unused pack would be the second way this product could take money for
   // nothing.
   const handleReviveWithPack = useCallback(() => {
@@ -270,7 +270,7 @@ function DeathPopup() {
   // still presented is the exact iOS stacked-modal hazard this PR fixed for the
   // rewarded ad + LuxuryApp sheet. So we SUPPRESS the death Modal first
   // (visible → false via a local flag), let its native teardown settle, then
-  // open the store from the Modal's onDismiss — with a tracked-timer fallback
+  // open the store from the Modal's onDismiss - with a tracked-timer fallback
   // for Android (no onDismiss). When the store closes, `isStoreOpen` flips false
   // and the death Modal re-presents automatically; its state lives in game state
   // (showDeathPopup), so re-showing is clean and loses nothing.
@@ -295,7 +295,7 @@ function DeathPopup() {
 
   // Quiet bridge for the out-of-gems dead-ends: flip suppression + arm the
   // fallback so the death Modal dismisses, THEN the store opens. Never
-  // auto-invoked — only fired by an explicit tap.
+  // auto-invoked - only fired by an explicit tap.
   const bridgeToStore = useCallback(
     (tab: GemStoreTab = 'gems') => {
       pendingStoreTabRef.current = tab;
@@ -313,9 +313,9 @@ function DeathPopup() {
    * Buy the Revival Pack with real money.
    *
    * Lands on the `perks` tab, where the pack lives. It deliberately does NOT
-   * run the purchase inline: `GemShopModal` owns the whole flow — store
+   * run the purchase inline: `GemShopModal` owns the whole flow - store
    * loading, localized pricing, receipt verification, entitlement grant,
-   * restore — and a second copy of that on the death screen would be a second
+   * restore - and a second copy of that on the death screen would be a second
    * set of rules for taking someone's money.
    *
    * Buying while dead banks the charge (`revivalPack: true`), so the death
@@ -355,7 +355,7 @@ function DeathPopup() {
           `You need ${cost.toLocaleString()} gems to rewind.`,
           [
             { text: 'Not now', style: 'cancel' },
-            // Same pending+dismiss bridge as the revive path — the native Alert
+            // Same pending+dismiss bridge as the revive path - the native Alert
             // dismisses on button press, then the death Modal suppresses and the
             // store opens once teardown settles.
             { text: 'Get Gems', onPress: () => bridgeToStore() },
@@ -375,7 +375,7 @@ function DeathPopup() {
               if (restored) {
                 setGameState(() => restored);
                 // saveGame reads gameStateRef, which is only synced by a
-                // post-commit effect — calling it in this same synchronous
+                // post-commit effect - calling it in this same synchronous
                 // segment persists the PRE-rewind (dead) state, and the gems
                 // were already spent. Yield one macrotask so React commits and
                 // the ref catches up first (the 2026-07-14 stale-save-after-
@@ -402,10 +402,25 @@ function DeathPopup() {
         deathReason: undefined,
       }));
 
+      // Remember the life before erasing it (2026-08-24, §52). Death WITHOUT
+      // an heir was the one ending that left no record anywhere - the heir and
+      // prestige paths append to previousLives, this path deleted the slot.
+      // Out-of-save archive (utils/lifeArchive.ts): memory only, no mechanics,
+      // never blocks the new life on failure.
+      try {
+        const [{ buildLifeRecord }, { appendToLifeArchive }] = await Promise.all([
+          import('@/lib/legacy/lifeRecord'),
+          import('@/utils/lifeArchive'),
+        ]);
+        await appendToLifeArchive(buildLifeRecord(gameState));
+      } catch {
+        // archive is best-effort
+      }
+
       if (currentSlot) {
         // Snapshot the life we are about to erase FIRST. This path deleted the
-        // slot outright, so a player who tapped "Start New Game" by mistake —
-        // or who did not realise it wipes the slot — had no way back.
+        // slot outright, so a player who tapped "Start New Game" by mistake -
+        // or who did not realise it wipes the slot - had no way back.
         // Rotation-exempt, so it is not evicted by the next few autosaves.
         const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
         await snapshotOutgoingSave(currentSlot, 'before_overwrite');
@@ -414,13 +429,13 @@ function DeathPopup() {
         const { deleteSaveSlot } = await import('@/utils/saveValidation');
         await deleteSaveSlot(currentSlot);
         // Clear the cached slot summary too so SaveSlots can't show the dead
-        // character as a playable slot. AWAITED before the navigation below —
+        // character as a playable slot. AWAITED before the navigation below -
         // the next screen reads this cache, so the invalidation must land
         // first. Errors swallowed (must not block starting the new life).
         await import('@/utils/saveSlotMeta').then((m) => m.deleteSaveSlotMeta(currentSlot)).catch(() => {});
         await AsyncStorage.removeItem('lastSlot');
         // The slot we just emptied is exactly where this life's successor
-        // belongs — the player stays in the slot they were playing. Set it
+        // belongs - the player stays in the slot they were playing. Set it
         // explicitly; the onboarding write refuses an unset slot rather than
         // guessing one.
         // R3-S1: stop the app-wide autosave writing this dead character back
@@ -449,7 +464,7 @@ function DeathPopup() {
         showDeathPopup: true,
       }));
     }
-  }, [setGameState, currentSlot, router, setOnboardingState]);
+  }, [setGameState, currentSlot, router, setOnboardingState, gameState]);
 
   const handleShareObituary = useCallback(async () => {
     try {
@@ -541,7 +556,7 @@ function DeathPopup() {
       ? 'You passed away peacefully of natural causes.'
       : 'Your journey has ended.';
 
-  // Calculate life summary statistics. Reads the LIVE claimed store — the
+  // Calculate life summary statistics. Reads the LIVE claimed store - the
   // deprecated `achievements[].completed` flag is never set in play, so the
   // death screen told every player they had achieved nothing. GP-3.
   const claimedIds = gameState.claimedProgressAchievements || [];
@@ -579,7 +594,7 @@ function DeathPopup() {
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
   const hasBankedRevive = gameState.revivalPack === true;
 
-  // The config USD price. The live localized price lives in the store modal —
+  // The config USD price. The live localized price lives in the store modal -
   // this is the death screen's label, and a missing config price hides the row
   // rather than rendering a purchase button with no price on it.
   const revivalPackPrice = getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
@@ -587,7 +602,7 @@ function DeathPopup() {
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
 
   // The name the player gave this character, not the `userProfile.name` handle
-  // (which defaults to "player"). Shared resolver — see utils/characterName.ts.
+  // (which defaults to "player"). Shared resolver - see utils/characterName.ts.
   const displayName = characterName(gameState) || 'Unknown Soul';
 
   // A real score over the whole life, not the final tick's happiness. It is the
@@ -598,7 +613,7 @@ function DeathPopup() {
   // give a third of the screen to a gravestone.
   const heroHeight = Math.min(scale(190), windowHeight * 0.22);
 
-  // Shared secondary action row (Read Story + Share) — appears in both footers.
+  // Shared secondary action row (Read Story + Share) - appears in both footers.
   const secondaryActions = (
     <View style={styles.secondaryRow}>
       <TouchableOpacity
@@ -621,7 +636,7 @@ function DeathPopup() {
     </View>
   );
 
-  // Universal "fresh start" button — present on both pages so the player can
+  // Universal "fresh start" button - present on both pages so the player can
   // always move forward regardless of which tab they're on.
   const startNewLifeButton = (
     <TouchableOpacity
@@ -676,12 +691,12 @@ function DeathPopup() {
                 scroller, leaving it only the space left over. That space is
                 what broke: `flex: 1` on the scroller is flexBasis 0 + grow, and
                 RN defaults flexShrink to 0, so a footer taller than the
-                left-over space takes ALL of it — the scroll area resolves to
+                left-over space takes ALL of it - the scroll area resolves to
                 zero height and the footer's tail (the purple "Start New Life"
                 button) is clipped away by the card's `overflow: 'hidden'`, with
-                nothing scrollable to reach it. The Summary footer — revive,
+                nothing scrollable to reach it. The Summary footer - revive,
                 revival pack, gems, one row per checkpoint, new life, secondary
-                actions — is exactly that tall on a small phone. */}
+                actions - is exactly that tall on a small phone. */}
             <ScrollView
               ref={scrollRef}
               style={styles.scrollView}
@@ -697,7 +712,7 @@ function DeathPopup() {
                   is an ending, and an ending reads down the middle.
 
                   `DeathHero` draws the gravestone today and accepts the painted
-                  asset via `source` the moment one exists — see
+                  asset via `source` the moment one exists - see
                   `docs/DEATH_SCREEN_ASSETS.md`. */}
               <DeathHero
                 height={heroHeight}
@@ -713,7 +728,7 @@ function DeathPopup() {
                 <Text style={styles.heroCause}>{deathMessage}</Text>
               </View>
 
-              {/* Identity card — the portrait belongs here. A player who spent
+              {/* Identity card - the portrait belongs here. A player who spent
                   sixty years as this character should see their face, not a
                   generic skull, and certainly not be eulogised as "Player":
                   `userProfile.name` is the HANDLE and defaults to that string.
@@ -740,7 +755,7 @@ function DeathPopup() {
                 </View>
               </View>
 
-              {/* TOP MENU BAR — segmented control switching between the two pages.
+              {/* TOP MENU BAR - segmented control switching between the two pages.
                   Scrolls with the rest of the card; `onLayout` records where it
                   sits so a tab switch can bring it back to the top. */}
               <View style={styles.topBar} onLayout={handleTabBarLayout}>
@@ -975,14 +990,14 @@ function DeathPopup() {
                       </View>
                     </View>
 
-                    {/* ENGAGEMENT: Prestige Points Preview — reframes death as investment */}
+                    {/* ENGAGEMENT: Prestige Points Preview - reframes death as investment */}
                     {(() => {
                       /**
                        * F1: quote the REAL award, not a lookalike.
                        *
-                       * This preview used its own formula —
+                       * This preview used its own formula -
                        * `(netWorth/10000) + (weeksLived/5) + (achievements*20) +
-                       * (prestigeLevel*100)` — which shares not one term with
+                       * (prestigeLevel*100)` - which shares not one term with
                        * `calculatePrestigePoints`, the function that actually
                        * awards the points. It invented a `weeksLived/5` term and a
                        * flat `prestigeLevel*100`, paid DOUBLE per achievement and
@@ -1051,7 +1066,7 @@ function DeathPopup() {
                   </View>
 
                   {/* ── Summary actions ─────────────────────────────────────────
-                      The tail of the scroll, not a pinned footer — see the
+                      The tail of the scroll, not a pinned footer - see the
                       ScrollView comment above for why pinning it was what made
                       this page unscrollable.
 
@@ -1063,7 +1078,7 @@ function DeathPopup() {
                       Every priced row stays PRESSABLE when it cannot be afforded,
                       and dims only its price. A `disabled` button swallows the
                       tap, and that tap is the only route into the "not enough
-                      gems → store" bridge the handlers already implement — so
+                      gems → store" bridge the handlers already implement - so
                       disabling it turned the shortest path to a purchase into a
                       dead end. The rewind row already worked this way; revive now
                       matches it. */}
@@ -1121,7 +1136,7 @@ function DeathPopup() {
                     {/* ── Revive with real money ──────────────────────────────
                         Shown only while the pack can still be bought. It is a
                         NON-CONSUMABLE, so it is purchasable exactly once per
-                        Apple/Google account, ever — after that the row would be
+                        Apple/Google account, ever - after that the row would be
                         a button that cannot do anything, which is worse than no
                         row. (Making it repeatable is a store-side product change,
                         not a code one.)
@@ -1157,7 +1172,7 @@ function DeathPopup() {
                     ) : null}
 
                     {/* The store bridge. No urgency copy, and the store is still
-                        never opened automatically — this is a row you can tap,
+                        never opened automatically - this is a row you can tap,
                         not a thing that happens to you. */}
                     <TouchableOpacity
                       style={styles.optionRow}
@@ -1176,7 +1191,7 @@ function DeathPopup() {
                       <ChevronRight size={18} color={c.textSecondary} />
                     </TouchableOpacity>
 
-                    {/* Time Machine — rewind to a checkpoint, cheaper than revive. */}
+                    {/* Time Machine - rewind to a checkpoint, cheaper than revive. */}
                     {checkpoints.slice().reverse().map((cp: { id: string; label: string; age: number }) => (
                       <TouchableOpacity
                         key={cp.id}
@@ -1418,7 +1433,7 @@ function DeathPopup() {
                     </View>
                   </View>
 
-                  {/* Legacy actions — continue the bloodline, or start fresh */}
+                  {/* Legacy actions - continue the bloodline, or start fresh */}
                   <View style={styles.actions}>
                     <TouchableOpacity
                       style={[styles.actionButton, !canContinueLegacy && styles.disabledButton]}
@@ -1450,7 +1465,7 @@ function DeathPopup() {
     <LifeStoryModal visible={showLifeStory} onClose={handleHideLifeStory} />
     {/*
       F2: `PrestigeModal` is deliberately NOT rendered here, and must not be.
-      It was — with `visible={showPrestigeModal}` against a state nothing ever
+      It was - with `visible={showPrestigeModal}` against a state nothing ever
       set to true, so it was unreachable dead wiring rather than a feature.
 
       It should stay unreachable from this screen. `PrestigeModal` calls

@@ -62,7 +62,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 export default function ProgressOverview({ compact = false }: ProgressOverviewProps) {
   const achievements = useGameSelector((s) => s.achievements);
   const progressAchievements = useGameSelector((s) => s.progress?.achievements);
-  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const darkMode = settings?.darkMode ?? false;
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -236,7 +236,7 @@ export default function ProgressOverview({ compact = false }: ProgressOverviewPr
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 300, delay: index * 50 }}
       >
-        {/* A View, not a TouchableOpacity. It was the latter — with
+        {/* A View, not a TouchableOpacity. It was the latter - with
             `activeOpacity={0.7}` and no `onPress`, so every achievement card
             dimmed under your finger and then did nothing. That is the same dead
             tap reported on the home screen's reward banners (2026-08-14): press

@@ -12,7 +12,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 
 const LinearGradient = Gradient;
 
-// 2% commission — MUST match STOCK_FEE in contexts/game/actions/StockActions.ts
+// 2% commission - MUST match STOCK_FEE in contexts/game/actions/StockActions.ts
 // (buy validation here mirrors buyStockMarket's gross-cost check).
 const STOCK_FEE = 0.02;
 
@@ -36,7 +36,7 @@ interface Props {
 }
 
 /**
- * Per-share PRICE — cents matter below $1k, so this stays separate from the
+ * Per-share PRICE - cents matter below $1k, so this stays separate from the
  * canonical `formatMoney` used for the cash/order-value figures below.
  */
 function formatPrice(n: number): string {
@@ -69,7 +69,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
 
   const valid = useMemo(() => {
     if (!symbol || amount <= 0) return false;
-    // Buys settle at amount × (1 + fee) in buyStockMarket — validate against
+    // Buys settle at amount × (1 + fee) in buyStockMarket - validate against
     // the same gross cost, or amounts in (cash/1.02, cash] enable Confirm but
     // get silently rejected by the action.
     if (side === 'buy' && amount * (1 + STOCK_FEE) > cash) return false;
@@ -131,7 +131,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
                 value={amountText}
                 onChangeText={setAmountText}
                 keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"
@@ -149,7 +149,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
                   value={limitText}
                   onChangeText={setLimitText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"
@@ -168,7 +168,7 @@ export default function StockTradeModal({ visible, symbol, midPrice, cash, owned
                   value={stopText}
                   onChangeText={setStopText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"

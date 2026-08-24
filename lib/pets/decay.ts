@@ -160,7 +160,7 @@ export function tickAllPets(
 }
 
 /**
- * Helper for breeds.ts consumers — gives the breed's adjusted weekly hunger
+ * Helper for breeds.ts consumers - gives the breed's adjusted weekly hunger
  * decay at a given age band, used by the UI to show "this pet eats more
  * when juvenile" hints.
  */

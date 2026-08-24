@@ -93,7 +93,7 @@ function useAnimatedValues(
     return Array.from(keySet).filter((k) =>
       ALL_KEYS.includes(k as any),
     ) as (keyof AnimatedStyleValues)[];
-  }, []); // Stable — animation keys don't change after mount
+  }, []); // Stable - animation keys don't change after mount
 
   // Create one Animated.Value per key
   const animatedValues = useRef<Record<string, Animated.Value>>({});
@@ -144,7 +144,7 @@ function useAnimatedValues(
     if (animations.length === 0) return;
 
     // Capture the composite so it can be stopped on unmount / re-run. Without
-    // this, looping animations (LoadingSpinner, AnimatedProgressBar — both
+    // this, looping animations (LoadingSpinner, AnimatedProgressBar - both
     // mount/unmount constantly) kept running on the UI thread forever, the same
     // leak class fixed in TopStatsBar.
     const composite = Animated.parallel(animations);

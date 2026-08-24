@@ -154,7 +154,7 @@ const childSchoolTrouble: EventTemplate = {
     if (!child) return { id: 'child_school_trouble', description: 'A school issue arises.', choices: [{ id: 'skip', text: 'Continue', effects: {} }] };
     return {
       id: 'child_school_trouble',
-      description: `${child.name}'s teacher calls — they've been in trouble at school.`,
+      description: `${child.name}'s teacher calls - they've been in trouble at school.`,
       choices: [
         // Three genuinely different months, not three ways to feel mildly bad.
         // Before: -5 / -3 / -2, which made "ground them" and "brush it off"
@@ -266,7 +266,7 @@ const retirementThoughts: EventTemplate = {
     description: "Colleagues your age are starting to retire. You wonder if it's time.",
     choices: [
       { id: 'plan', text: 'Start planning retirement', effects: { stats: { happiness: 10 } } },
-      { id: 'keep_working', text: 'Keep working — you still have it', effects: { stats: { energy: -5, happiness: 3 } } },
+      { id: 'keep_working', text: 'Keep working - you still have it', effects: { stats: { energy: -5, happiness: 3 } } },
     ],
   }),
 };
@@ -274,10 +274,10 @@ const retirementThoughts: EventTemplate = {
 // ---------------------------------------------------------------------------
 // Retirement / Elder chapter events (age ≥ 65 / retired). Gentle, age-appropriate
 // beats that complement the Retirement mechanic + elder activities. Nothing here
-// is punishing — the "health scare" resolves gracefully.
+// is punishing - the "health scare" resolves gracefully.
 // ---------------------------------------------------------------------------
 
-/** Thrown shortly after retiring — a warm send-off. */
+/** Thrown shortly after retiring - a warm send-off. */
 const retirementParty: EventTemplate = {
   id: 'retirement_party',
   category: 'general',
@@ -298,7 +298,7 @@ const retirementParty: EventTemplate = {
   }),
 };
 
-/** A pension milestone / cost-of-living adjustment — a modest, bounded bonus. */
+/** A pension milestone / cost-of-living adjustment - a modest, bounded bonus. */
 const pensionMilestone: EventTemplate = {
   id: 'pension_milestone',
   category: 'economy',
@@ -314,7 +314,7 @@ const pensionMilestone: EventTemplate = {
   }),
 };
 
-/** A health scare in old age — resolves gracefully, never fatal. */
+/** A health scare in old age - resolves gracefully, never fatal. */
 const elderHealthScare: EventTemplate = {
   id: 'elder_health_scare',
   category: 'health',
@@ -322,7 +322,7 @@ const elderHealthScare: EventTemplate = {
   condition: state => (state.date?.age || ADULTHOOD_AGE) >= 65,
   generate: () => ({
     id: 'elder_health_scare',
-    description: 'A dizzy spell sends a jolt of worry through you. It passes — but it was a reminder to take care of yourself.',
+    description: 'A dizzy spell sends a jolt of worry through you. It passes - but it was a reminder to take care of yourself.',
     choices: [
       { id: 'see_doctor', text: 'See the doctor for a full check-up', effects: { money: -250, stats: { health: 9, happiness: 4 } } },
       { id: 'rest', text: 'Rest and take it easy', effects: { stats: { health: 4, energy: 6 } } },
@@ -331,7 +331,7 @@ const elderHealthScare: EventTemplate = {
   }),
 };
 
-/** Grandchildren come to visit — pure warmth. Needs at least one child. */
+/** Grandchildren come to visit - pure warmth. Needs at least one child. */
 const grandchildVisit: EventTemplate = {
   id: 'grandchild_visit',
   category: 'relationship',
@@ -400,7 +400,7 @@ const burnout: EventTemplate = {
   weight: 0.25,
   // BUGFIX: use ?? so a player with literal 0 energy is detected as exhausted.
   // With ||, 0 was silently treated as 100, making the burnout event NEVER
-  // fire on truly burned-out players — the exact opposite of intent.
+  // fire on truly burned-out players - the exact opposite of intent.
   condition: state => (state.stats?.energy ?? 100) < 30 && !!state.currentJob,
   generate: () => ({
     id: 'burnout',

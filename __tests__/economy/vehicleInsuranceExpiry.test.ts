@@ -91,7 +91,7 @@ describe('a policy past its term lapses', () => {
     expect(notes[0].message).toMatch(/Test Car/);
   });
 
-  it('only fires once — a lapsed policy is not re-expired every week', () => {
+  it('only fires once - a lapsed policy is not re-expired every week', () => {
     let vehicles = [insuredCar(TERM_WEEKS)];
     const ctx = ctxAt(TERM_WEEKS);
     vehicles = applyVehiclesForWeek(vehicles, ctx);

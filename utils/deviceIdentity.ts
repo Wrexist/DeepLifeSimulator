@@ -62,7 +62,7 @@ function getSecureStore(): SecureStoreModule | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     secureStoreModule = require('expo-secure-store') as SecureStoreModule;
   } catch {
-    logger.warn('[DeviceIdentity] expo-secure-store unavailable — falling back to AsyncStorage');
+    logger.warn('[DeviceIdentity] expo-secure-store unavailable - falling back to AsyncStorage');
     secureStoreModule = null;
   }
   return secureStoreModule;
@@ -116,13 +116,13 @@ function mintDeviceId(): string {
 /**
  * The device's backup identity, or null when there is none it could use AGAIN.
  *
- * Null is not "try later" — it means any id returned now would be unrecoverable
+ * Null is not "try later" - it means any id returned now would be unrecoverable
  * on the next launch, so every caller treats it as "skip this operation". A
  * backup uploaded under an identity the device cannot reproduce is unreachable
  * forever, which is strictly worse than not backing up at all.
  */
 export async function resolveDeviceId(): Promise<string | null> {
-  // 1. Secure store — the durable home, and on iOS the one that survives a
+  // 1. Secure store - the durable home, and on iOS the one that survives a
   //    reinstall.
   const secure = await secureGet(CLOUD_USER_ID_KEY);
   if (isValidDeviceId(secure)) {
@@ -136,7 +136,7 @@ export async function resolveDeviceId(): Promise<string | null> {
 
   // 2. A pre-existing AsyncStorage id, from before secure-store was wired.
   //    PROMOTE it, never replace it: minting a new id here would orphan every
-  //    backup this install has already made — the exact failure the migration
+  //    backup this install has already made - the exact failure the migration
   //    exists to prevent.
   const legacy = await safeGetItem(CLOUD_USER_ID_KEY);
   if (isValidDeviceId(legacy)) {
@@ -151,12 +151,12 @@ export async function resolveDeviceId(): Promise<string | null> {
   const asyncOk = await safeSetItem(CLOUD_USER_ID_KEY, generated);
 
   // Persisted ANYWHERE is enough to be recoverable next launch. Persisted
-  // nowhere is not an identity, and saying so is the honest answer — no retry
+  // nowhere is not an identity, and saying so is the honest answer - no retry
   // here, because safeSetItem already does its own quota cleanup-and-retry, so
   // a false means the value is genuinely not stored.
   if (!secureOk && !asyncOk) {
     logger.error(
-      '[DeviceIdentity] Could not persist a new device id — refusing to sync under an unrecoverable identity'
+      '[DeviceIdentity] Could not persist a new device id - refusing to sync under an unrecoverable identity'
     );
     return null;
   }

@@ -1,5 +1,5 @@
 /**
- * ReviewPromptHandler — headless watcher that turns positive beats into a
+ * ReviewPromptHandler - headless watcher that turns positive beats into a
  * well-timed native review request.
  *
  * Mounted once inside `GameProvider` (next to `IAPHandler`), it renders
@@ -9,7 +9,7 @@
  *
  * THE TIMING, WHICH IS THE WHOLE POINT
  * ------------------------------------
- * A beat commits the instant the state changes — while the toast, the haptic
+ * A beat commits the instant the state changes - while the toast, the haptic
  * and the celebration animation are all still running. Firing the sheet there
  * covers the reward the player is still reading, so instead the handler ARMS
  * the beat and polls `decideReviewTiming` until the moment is actually right:
@@ -18,8 +18,8 @@
  *
  * While armed it keeps watching. A bigger beat upgrades the pending one (and a
  * second beat inside the window means the player is on a roll, which earns a
- * small streak bonus). A sour beat — bankruptcy, jail, death, a health or money
- * collapse — abandons it outright: asking for a rating seconds after a disaster
+ * small streak bonus). A sour beat - bankruptcy, jail, death, a health or money
+ * collapse - abandons it outright: asking for a rating seconds after a disaster
  * is how you earn one star and waste one of iOS's three yearly asks doing it.
  *
  * WHY A WATCHER AND NOT A CALL INSIDE THE REDUCERS
@@ -32,7 +32,7 @@
  * WHY THE STORE AND NOT `useGameSelector`
  * ---------------------------------------
  * Beats are spread across careers, ambitions and both markets, so a selector
- * would have to select the whole snapshot — which re-renders this component on
+ * would have to select the whole snapshot - which re-renders this component on
  * every single state mutation, the exact anti-pattern the selector channel
  * exists to avoid. Subscribing directly costs zero renders. It also degrades
  * safely: `useGameSelector` THROWS without a provider, and a throw here would
@@ -72,7 +72,7 @@ export function ReviewPromptHandler() {
 
   useEffect(() => {
     if (!store) {
-      logger.debug('[ReviewPromptHandler] No game store in context — review prompts disabled');
+      logger.debug('[ReviewPromptHandler] No game store in context - review prompts disabled');
       return;
     }
 
@@ -109,7 +109,7 @@ export function ReviewPromptHandler() {
         appActive: AppState.currentState === 'active',
         soured: beat.soured,
         // A celebration modal is local component state, invisible to GameState,
-        // so the gate is checked alongside it — otherwise the sheet lands on
+        // so the gate is checked alongside it - otherwise the sheet lands on
         // top of the very celebration it is meant to follow.
         calm: isCalmEnoughToAsk(store.getSnapshot()) && !isCelebrationOnScreen(),
       });
@@ -167,7 +167,7 @@ export function ReviewPromptHandler() {
 
       if (armed) {
         // Already waiting on a beat. A second qualifying one inside the window
-        // means the player is on a roll — keep the strongest, add the streak
+        // means the player is on a roll - keep the strongest, add the streak
         // bonus, and do NOT restart the clock: the goal is to land inside the
         // glow, not to keep pushing the ask further out.
         const intensity = Math.min(

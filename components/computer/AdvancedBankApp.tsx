@@ -1,8 +1,8 @@
 /**
- * AdvancedBankApp — "Bank Pro" desktop banking screen.
+ * AdvancedBankApp - "Bank Pro" desktop banking screen.
  *
  * Remake (STATE_VERSION 14). Credit-score-driven banking sim rendered with a
- * DESKTOP-BANKING skeleton — deliberately distinct from the phone BankApp's
+ * DESKTOP-BANKING skeleton - deliberately distinct from the phone BankApp's
  * Apple-Wallet card deck:
  *   - A columnar ACCOUNT STATEMENT masthead (Assets / Liabilities / Net worth
  *     side-by-side, divided by vertical rules) instead of a 2×2 stat hero.
@@ -11,7 +11,7 @@
  *   - A net-worth COMPOSITION ledger that surfaces the stocks / crypto / real-
  *     estate the net-worth figure already sums but the old UI never showed.
  *   - Presentational list→detail sub-views (account statement page, full credit
- *     report page) via local useState routing — no new game mechanics.
+ *     report page) via local useState routing - no new game mechanics.
  *
  * State lives at `gameState.banking`; mutations go through BankingActions /
  * LoanActions. Weekly auto-pay, savings interest, and credit-score recompute
@@ -114,7 +114,7 @@ const LinearGradient = Gradient;
 
 type Tab = 'overview' | 'accounts' | 'borrow' | 'budget' | 'tax';
 
-/** Local list→detail routing (presentational only — reads existing state). */
+/** Local list→detail routing (presentational only - reads existing state). */
 type SubView = { kind: 'account'; id: string } | { kind: 'credit' } | null;
 
 interface AdvancedBankAppProps {
@@ -178,15 +178,15 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // Second step of goal creation: the weekly auto-contribution.
   //
   // `applySavingsGoals` has swept `goal.autoContribute` every week since it
-  // shipped — with a test suite proving asset conservation and idempotent
-  // completion — but nothing could ever SET the field, so the sweep ran over
+  // shipped - with a test suite proving asset conservation and idempotent
+  // completion - but nothing could ever SET the field, so the sweep ran over
   // `undefined` forever. Collecting it is the whole fix; the machinery behind
   // it already works.
   const [autoGoalPick, setAutoGoalPick] = useState<
     { name: string; category: SavingsGoalCategory; targetAmount: number } | null
   >(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
-  // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
+  // R3-M5: goal money used to be unrecoverable - contributing was a one-way door.
   const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
@@ -204,7 +204,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const totalLoanDebt = loans.reduce((s, l) => s + l.remaining, 0);
 
   // Net-worth composition. The old UI showed only the aggregate; a desktop
-  // statement itemises it — so break the figure into the same assets it already
+  // statement itemises it - so break the figure into the same assets it already
   // sums (stocks, crypto, real estate) and expose each line.
   const parts = useMemo(() => {
     const stocks = (gameState.stocks?.holdings ?? []).reduce((s, h) => s + (h.shares ?? 0) * (h.currentPrice ?? 0), 0);
@@ -214,7 +214,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       if (p.owned) re += p.currentValue ?? p.price ?? 0;
     }
     // Mirror accounts (`checking-default`, `savings-default`) are 1:1 reflections
-    // of the authoritative legacy fields — `stats.money` (=cash) and
+    // of the authoritative legacy fields - `stats.money` (=cash) and
     // `bankSavings`. Summing ALL accounts alongside `cash` double-counts the
     // checking mirror (and would rely on the savings mirror for bankSavings).
     // Count each authoritative pool once: cash + bankSavings + self-opened
@@ -246,7 +246,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     // multipliers, the political business perk, government contracts, the
     // Hustle overlay multiplier, the portfolio-size management penalty, the
     // $200K/wk ceiling and the net-worth soft cap. Summing it here showed a
-    // tycoon a "Weekly income" several times what the tick pays — and inflated
+    // tycoon a "Weekly income" several times what the tick pays - and inflated
     // the DTI gate by the same factor. One shared helper encodes the payout.
     income += companyIncomePaidWeekly(gameState);
     for (const rel of (gameState.relationships ?? [])) {
@@ -264,7 +264,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     [gameState]
   );
 
-  // Blended deposit APY (weighted by balance) — a fact the flat account list hid.
+  // Blended deposit APY (weighted by balance) - a fact the flat account list hid.
   const blendedAPY = totalBank > 0
     ? banking.accounts.reduce((s, a) => s + displayedDepositAPR(a.baseAPR, banking.rateEnvironment) * a.balance, 0) / totalBank
     : 0;
@@ -415,19 +415,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     ];
     // Live at last: `taxDueThisYear` now has a writer (the week loop's tax
     // ledger), so this row is no longer permanently hidden behind its `> 0`
-    // gate. Relabelled to what the number actually is — tax already PAID, not
+    // gate. Relabelled to what the number actually is - tax already PAID, not
     // a bill waiting to be settled.
     if (banking.taxDueThisYear > 0) {
       activityRows.push({ icon: Percent, tintHex: accent.warning, tintRGB: '245, 158, 11', label: 'Tax paid this year', value: `-${formatMoney(banking.taxDueThisYear)}`, valueColor: accent.warning });
     }
-    // The Tax tab is the fifth of five — the one furthest from the thumb and
+    // The Tax tab is the fifth of five - the one furthest from the thumb and
     // the easiest to never notice. The statement row that summarises it links
     // straight there, the same way the credit gauge links to the full report.
     const hasTaxToShow = banking.taxDueThisYear > 0;
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
-        {/* Statement masthead — the ONE focal gradient of this screen (Recipe B),
+        {/* Statement masthead - the ONE focal gradient of this screen (Recipe B),
             structured as side-by-side summary columns (desktop statement DNA). */}
         <View
           style={[
@@ -480,7 +480,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
         <EconomyEventBanner context="banking" />
 
-        {/* Net-worth composition ledger — itemises the aggregate above and
+        {/* Net-worth composition ledger - itemises the aggregate above and
             surfaces stocks / crypto / real estate the flat overview never showed. */}
         <SectionTitle theme={theme}>Net worth composition</SectionTitle>
         <StatementSection theme={theme} darkMode={darkMode} columns={['ITEM', 'VALUE']}>
@@ -509,7 +509,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           />
         </StatementSection>
 
-        {/* Activity summary — lifetime interest / fees / income the app never surfaced. */}
+        {/* Activity summary - lifetime interest / fees / income the app never surfaced. */}
         <SectionTitle theme={theme}>Activity summary</SectionTitle>
         <StatementSection theme={theme} darkMode={darkMode}>
           {activityRows.map((r, i) => (
@@ -541,7 +541,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           </TouchableOpacity>
         )}
 
-        {/* Credit standing — gauge stays; full report is one tap away. */}
+        {/* Credit standing - gauge stays; full report is one tap away. */}
         <SectionTitle theme={theme}>Credit standing</SectionTitle>
         <CreditScoreGauge score={banking.creditScore.score} band={banking.creditScore.band} darkMode={darkMode} compact />
         <TouchableOpacity
@@ -556,7 +556,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <ChevronRight size={scale(15)} color={accent.info} />
         </TouchableOpacity>
 
-        {/* Accounts ledger — slim statement rows (NOT the phone's card deck), each
+        {/* Accounts ledger - slim statement rows (NOT the phone's card deck), each
             taps through to a full account statement page. */}
         <SectionHeader theme={theme} title="Accounts" meta={`${banking.accounts.length} open · ${formatMoney(totalBank)} on deposit`} addLabel="Open" onAdd={() => setShowOpenAccount(true)} />
         <StatementSection theme={theme} darkMode={darkMode} columns={['ACCOUNT', 'BALANCE']}>
@@ -630,7 +630,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const goalsTarget = banking.savingsGoals.reduce((s, g) => s + g.targetAmount, 0);
     return (
       <View style={{ gap: responsiveSpacing.md }}>
-        {/* Deposit summary strip — totals + blended APY the flat list hid. */}
+        {/* Deposit summary strip - totals + blended APY the flat list hid. */}
         <View style={styles.summaryStrip}>
           <SummaryCell theme={theme} icon={PiggyBank} label="On deposit" value={formatMoney(totalBank)} tint={accent.success} />
           <SummaryCell theme={theme} icon={Wallet} label="Accounts" value={`${banking.accounts.length}`} tint={accent.info} />
@@ -649,7 +649,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             onClose={() => confirmCloseAccount(acct)}
           />
         ))}
-        {/* Account transfer — exposes the built-and-tested transferBetweenOwnAccounts.
+        {/* Account transfer - exposes the built-and-tested transferBetweenOwnAccounts.
             Only self-opened (non-mirrored) accounts can move money; ≥2 required. */}
         {transferableAccounts.length >= 2 && (
           <TouchableOpacity
@@ -815,7 +815,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
     const enabledBills = banking.billPayRules.filter((r) => r.enabled);
     const weeklyBills = enabledBills.filter((r) => r.cadence === 'weekly').reduce((s, r) => s + r.amount, 0);
     const nextDue = enabledBills.length > 0 ? Math.min(...enabledBills.map((r) => r.nextDueWeek)) : null;
-    const nextDueText = nextDue == null ? '—' : nextDue - gameState.weeksLived <= 0 ? 'Now' : `wk ${nextDue}`;
+    const nextDueText = nextDue == null ? '-' : nextDue - gameState.weeksLived <= 0 ? 'Now' : `wk ${nextDue}`;
 
     return (
       <View style={{ gap: responsiveSpacing.md }}>
@@ -826,7 +826,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <SummaryCell theme={theme} icon={TrendingUp} label="Weekly avg" value={formatMoney(weeklyAvg)} tint={accent.warning} />
         </View>
 
-        {/* Weekly spend trend — real per-week totals from the budget ring buffer. */}
+        {/* Weekly spend trend - real per-week totals from the budget ring buffer. */}
         {weekTotals.length >= 2 && (
           <View style={[getGlassCard(darkMode, 6), styles.trendCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.trendHead}>
@@ -900,7 +900,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // There was no tax surface at all. Income tax is withheld weekly inside the
   // week loop and shown as one `Tax -$N` line in the weekly summary; the
   // brackets, the year-to-date total, the four OTHER taxes and the Tax Strategy
-  // skill were entirely invisible. Players reasonably asked where to file — the
+  // skill were entirely invisible. Players reasonably asked where to file - the
   // answer is "you never do", and nothing in the app said so.
   //
   // Read-only by design: this is a statement, not a mechanic. Everything here
@@ -922,7 +922,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
     // Only `checking-default` is read-only now. `savings-default` deposits and
-    // withdraws through `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID.
+    // withdraws through `bankSavings` - see LEGACY_SAVINGS_ACCOUNT_ID.
     const isMirrored =
       isReadOnlyMirror(account.id);
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
@@ -945,7 +945,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: responsiveSpacing.md, paddingBottom: getAppScreenBottomPadding(insets.bottom), gap: responsiveSpacing.md }}
         >
-          {/* Hero balance (per-type flat tint via a plain View — gradient budget
+          {/* Hero balance (per-type flat tint via a plain View - gradient budget
               is reserved for the Deposit CTA below). */}
           <View
             style={[
@@ -981,12 +981,12 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             </View>
           </View>
 
-          {/* Actions — one loud CTA (Deposit); Withdraw / Close are quiet glass. */}
+          {/* Actions - one loud CTA (Deposit); Withdraw / Close are quiet glass. */}
           {isMirrored ? (
             <View style={[getGlassCard(darkMode, 6), styles.roCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Lock size={scale(14)} color={theme.textMuted} />
               <Text style={[styles.roCardText, { color: theme.textMuted }]}>
-                This is a primary account that mirrors your cash — deposits, withdrawals and closing are handled automatically.
+                This is a primary account that mirrors your cash - deposits, withdrawals and closing are handled automatically.
               </Text>
             </View>
           ) : (
@@ -1033,7 +1033,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             </View>
           )}
 
-          {/* Facts grid — opened week / age / min balance the flat list hid. */}
+          {/* Facts grid - opened week / age / min balance the flat list hid. */}
           <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>Account details</Text>
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.factsGrid}>
@@ -1054,7 +1054,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             </View>
           </View>
 
-          {/* Auto-pay drawing from this account — statement activity rows. */}
+          {/* Auto-pay drawing from this account - statement activity rows. */}
           <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>Auto-pay from this account</Text>
           {relatedBills.length === 0 ? (
             <EmptyCard theme={theme} darkMode={darkMode}>No auto-pay rules draw from this account.</EmptyCard>
@@ -1112,7 +1112,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         >
           <CreditScoreGauge score={cs.score} band={cs.band} darkMode={darkMode} />
 
-          {/* Score trend — real history only, no fabricated arrays. */}
+          {/* Score trend - real history only, no fabricated arrays. */}
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Score trend</Text>
             {hasTrend && (
@@ -1165,7 +1165,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>What&apos;s driving your score</Text>
           <CreditScoreBreakdown theme={theme} darkMode={darkMode} breakdown={cs.componentBreakdown} />
 
-          {/* Recent inquiries — surfaced from state for the first time. */}
+          {/* Recent inquiries - surfaced from state for the first time. */}
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent inquiries</Text>
             <Text style={[styles.sectionMeta, { color: theme.textMuted }]}>Updated wk {cs.lastUpdatedWeek}</Text>
@@ -1304,7 +1304,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         onOpen={(spec) => {
           // Player report (1.4 bug-reports): "Can't create a new savings."
           // `openNewAccount` used to return void and this closed the sheet
-          // regardless, so a rejection was indistinguishable from success —
+          // regardless, so a rejection was indistinguishable from success -
           // the player tapped Open, the sheet closed, and no account appeared.
           const result = openNewAccount(gameState, setGameState, spec);
           if (!result.success) {
@@ -1383,7 +1383,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       />
 
       {/* Auto-contribute step. Closing without confirming creates the goal with
-          no sweep — manual-only is a legitimate choice, so it must not require
+          no sweep - manual-only is a legitimate choice, so it must not require
           entering 0. */}
       <AmountInputModal
         visible={!!autoGoalPick}
@@ -1466,14 +1466,14 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
       />
 
       {/* v22 Wave A: set/clear a weekly budget cap for a category (computer-only,
-          informational — the weekly tick raises an overspend alert). */}
+          informational - the weekly tick raises an overspend alert). */}
       <AmountInputModal
         visible={!!budgetTargetCategory}
         title="Set weekly budget"
         subtitle={budgetTargetCategory ? `Weekly cap for ${budgetTargetCategory}. Enter 0 to clear.` : undefined}
         confirmLabel="Set cap"
         // "Enter 0 to clear" needs 0 to be confirmable (setBudgetTarget deletes
-        // the cap when amount <= 0) — without this the promise was impossible.
+        // the cap when amount <= 0) - without this the promise was impossible.
         allowZero
         presets={[100, 250, 500, 1000]}
         darkMode={darkMode}
@@ -1526,7 +1526,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             prepayLoan(setGameState, prepayLoanId, checking.id, amt);
             queueSave();
           } else if (prepayLoanId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first — loan payments are drawn from checking.');
+            Alert.alert('No checking account', 'Open a checking account first - loan payments are drawn from checking.');
           }
           setPrepayLoanId(null);
         }}
@@ -1547,13 +1547,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             payDownCard(setGameState, payCardId, checking.id, amt);
             queueSave();
           } else if (payCardId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first — card payments are drawn from checking.');
+            Alert.alert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
           }
           setPayCardId(null);
         }}
       />
 
-      {/* Charge a purchase to the card — grows the (interest-bearing) balance now
+      {/* Charge a purchase to the card - grows the (interest-bearing) balance now
           with no cash movement; cashback then accrues when you pay the balance
           down (see chargeCreditCard / payCreditCard anti-exploit note). */}
       <AmountInputModal
@@ -1561,7 +1561,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         title="Charge to card"
         subtitle={
           chargeCard
-            ? `Available credit: ${formatMoney(chargeAvailableCredit)}. Adds to your balance now — pay it down later to earn ${(chargeCard.rewardsRate * 100).toFixed(1)}% cashback.`
+            ? `Available credit: ${formatMoney(chargeAvailableCredit)}. Adds to your balance now - pay it down later to earn ${(chargeCard.rewardsRate * 100).toFixed(1)}% cashback.`
             : `Cash on hand: ${formatMoney(cash)}`
         }
         confirmLabel="Charge"
@@ -1913,7 +1913,7 @@ const styles = StyleSheet.create({
   // icon and its gap). Four tabs on a 375pt screen gave 94pt each and it just
   // fit; the fifth (Tax) cut that to 75pt and the longest label started
   // squeezing. Stacking drops the requirement to the label width alone, so all
-  // five sit on an even grid with room to spare — and an even grid is most of
+  // five sit on an even grid with room to spare - and an even grid is most of
   // what "premium" means in a tab bar.
   tab: {
     flex: 1,
@@ -2116,7 +2116,7 @@ const styles = StyleSheet.create({
   summaryCellLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', flex: 1 },
   summaryCellValue: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
-  // ── Weekly spend trend (Views, not SVG — crash-safe) ──────────────────────
+  // ── Weekly spend trend (Views, not SVG - crash-safe) ──────────────────────
   trendCard: {
     padding: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.xl,

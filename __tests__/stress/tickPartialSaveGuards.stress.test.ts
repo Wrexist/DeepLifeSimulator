@@ -112,7 +112,7 @@ describe('applyCareerProgress survives a save with no careers array', () => {
 
   it('the no-current-job early return is guarded too', () => {
     // This path returned `input.prevCareers` raw, so it propagated the
-    // undefined rather than throwing on it — the quieter half of the same bug.
+    // undefined rather than throwing on it - the quieter half of the same bug.
     const { updatedCareers } = applyCareerProgress({
       ...base,
       currentJob: undefined,

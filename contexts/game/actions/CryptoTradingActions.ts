@@ -179,7 +179,7 @@ function canPlaceCryptoOrder(
     }
     return true;
   }
-  // SELL — must own enough coins, net of coins already committed to open sells.
+  // SELL - must own enough coins, net of coins already committed to open sells.
   const owned = state.cryptos.find((c) => c.id === cryptoId)?.owned ?? 0;
   const committed = openOrders
     .filter((o) => o.side === 'sell' && o.status === 'open' && o.cryptoId === cryptoId)
@@ -201,7 +201,7 @@ export const placeLimitOrder = (
   setGameState((prev) => {
     const state = ensureMarket(prev);
     if (!state.cryptoMarket) return prev;
-    // R10-1: solvency/holdings guard — without it a limit SELL printed cash for
+    // R10-1: solvency/holdings guard - without it a limit SELL printed cash for
     // coins you never owned, and a limit BUY beyond cash printed free coins.
     if (!canPlaceCryptoOrder(state, cryptoId, side, amount, limitPrice)) return prev;
     const result = placeOrder(state.cryptoMarket, {

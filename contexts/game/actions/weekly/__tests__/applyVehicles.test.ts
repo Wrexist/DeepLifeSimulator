@@ -65,7 +65,7 @@ function vehicle(overrides: Partial<Vehicle> = {}): Vehicle {
   };
 }
 
-describe('applyVehiclesForWeek — baseline upkeep', () => {
+describe('applyVehiclesForWeek - baseline upkeep', () => {
   it('deducts maintenance + fuel, decays condition, adds mileage', () => {
     const s = stats({ money: 1000 });
     const ctx = ctxWith(s);
@@ -85,7 +85,7 @@ describe('applyVehiclesForWeek — baseline upkeep', () => {
   });
 });
 
-describe('applyVehiclesForWeek — accident chance scaling', () => {
+describe('applyVehiclesForWeek - accident chance scaling', () => {
   it('an accident fires on a worn, high-mileage car at a roll a pristine car shrugs off', () => {
     // Roll sits between the pristine base chance (~0.5%) and the worn+mileage
     // chance (~1.5%).
@@ -127,7 +127,7 @@ describe('applyVehiclesForWeek — accident chance scaling', () => {
   });
 });
 
-describe('applyVehiclesForWeek — insurance reduces injury', () => {
+describe('applyVehiclesForWeek - insurance reduces injury', () => {
   it('an insured driver loses less health than an uninsured one for the same crash', () => {
     // Deterministic non-total accident: low accident roll fires it; severity
     // roll 0.5 on a mid-condition car resolves to 'moderate'.
@@ -162,7 +162,7 @@ describe('applyVehiclesForWeek — insurance reduces injury', () => {
   });
 });
 
-describe('applyVehiclesForWeek — total loss', () => {
+describe('applyVehiclesForWeek - total loss', () => {
   it('a total-severity roll removes the vehicle from the returned array', () => {
     // Very low condition + a low severity roll resolves to 'total'.
     const ctx = ctxWith(stats({ health: 90 }), {

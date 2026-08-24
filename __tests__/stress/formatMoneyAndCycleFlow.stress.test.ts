@@ -17,7 +17,7 @@ import { formatMoney, formatMoneyNoSign, formatCurrency } from '@/utils/moneyFor
 // ---------------------------------------------------------------------------
 // formatMoney — BUGFIX #36, #37
 // ---------------------------------------------------------------------------
-describe('formatMoney NaN/Infinity safety — BUGFIX #36', () => {
+describe('formatMoney NaN/Infinity safety - BUGFIX #36', () => {
   it('NaN renders as $0', () => {
     expect(formatMoney(NaN)).toBe('$0');
   });
@@ -51,7 +51,7 @@ describe('formatMoney NaN/Infinity safety — BUGFIX #36', () => {
     expect(formatMoney(1_500_000_000)).toMatch(/^\$1\.50?B$/);
   });
 
-  it('negative numbers still work — sign OUTSIDE the $ (BUGFIX)', () => {
+  it('negative numbers still work - sign OUTSIDE the $ (BUGFIX)', () => {
     // Sign placement: "-$500", never "$-500".
     expect(formatMoney(-500)).toBe('-$500');
     expect(formatMoney(-1_500_000)).toMatch(/^-\$1\.50?M$/);
@@ -67,7 +67,7 @@ describe('formatMoney NaN/Infinity safety — BUGFIX #36', () => {
   });
 });
 
-describe('formatCurrency NaN/Infinity safety — BUGFIX #37', () => {
+describe('formatCurrency NaN/Infinity safety - BUGFIX #37', () => {
   it('NaN with currency renders as "0 GEMS"', () => {
     expect(formatCurrency(NaN, 'GEMS')).toBe('0 GEMS');
   });
@@ -106,7 +106,7 @@ describe('formatCurrency NaN/Infinity safety — BUGFIX #37', () => {
 // React Native, but we can verify the IAPHandler module imports from leaf
 // contexts only, not from the barrel)
 // ---------------------------------------------------------------------------
-describe('IAPHandler require-cycle fix — BUGFIX #35', () => {
+describe('IAPHandler require-cycle fix - BUGFIX #35', () => {
   it('IAPHandler source does NOT import from @/contexts/GameContext (barrel)', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');

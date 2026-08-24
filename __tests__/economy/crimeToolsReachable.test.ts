@@ -58,14 +58,14 @@ describe('the requirement data is sound', () => {
 describe('the catalogue has a storefront', () => {
   const onion = readCode('components/computer/OnionApp.tsx');
 
-  it('OnionApp calls buyDarkWebItem — the caller the action never had', () => {
+  it('OnionApp calls buyDarkWebItem - the caller the action never had', () => {
     expect(onion).toMatch(/buyDarkWebItem/);
     expect(onion).toMatch(/useItemActions\(\)/);
   });
 
   it('the gear tab is registered in the tab strip, not just defined', () => {
     // A `renderGear` with no TABS entry and no route would be dead code that
-    // still satisfies a naive grep — the exact failure mode being fixed.
+    // still satisfies a naive grep - the exact failure mode being fixed.
     expect(onion).toMatch(/id:\s*'gear'/);
     expect(onion).toMatch(/activeTab === 'gear'/);
   });
@@ -76,7 +76,7 @@ describe('the catalogue has a storefront', () => {
 });
 
 describe('the buy path is atomic now that it has a caller', () => {
-  // `buyDarkWebItem` gated on `stateRef.current` and granted inside the updater —
+  // `buyDarkWebItem` gated on `stateRef.current` and granted inside the updater -
   // the gate-outside/grant-inside shape from CLAUDE.md §4.4. It never bit because
   // nothing called it. The Gear tab is the first caller, so the re-check has to
   // be real: two taps in one React batch must not charge BTC twice.
@@ -114,7 +114,7 @@ describe('the removed Market-screen mapping is gone', () => {
     const market = readCode('app/(tabs)/market.tsx');
     // Anchor first. `indexOf` returns -1 for a renamed constant, which would
     // slice an empty/inverted region and let every assertion below pass on
-    // nothing — the exact drift this ratchet exists to catch.
+    // nothing - the exact drift this ratchet exists to catch.
     const from = market.indexOf('const ITEM_CATEGORIES');
     const to = market.indexOf('const FILTER_CATEGORIES');
     expect(`ITEM_CATEGORIES found: ${from > -1}`).toBe('ITEM_CATEGORIES found: true');

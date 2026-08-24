@@ -225,7 +225,7 @@ describe('Death → Revive → Prestige cycle', () => {
     //
     // Strictly greater, not `>=`. Both counts used to read `.ribbons`, a field
     // ribbonCollection does not have, so both were `(undefined || []).length`
-    // and this asserted `0 >= 0` — it passed whether or not death ever
+    // and this asserted `0 >= 0` - it passed whether or not death ever
     // classified a life.
     const ribbonsAfter = (captured!.state.ribbonCollection?.earned || []).length;
     expect(ribbonsAfter).toBeGreaterThan(ribbonsBefore);
@@ -267,7 +267,7 @@ describe('Death → Revive → Prestige cycle', () => {
 
   it('Revive: an exact balance revives and leaves 0 gems', () => {
     mounted = mountGame();
-    // Seeded from the constant, not a literal — the point of this case is the
+    // Seeded from the constant, not a literal - the point of this case is the
     // boundary (`gems === cost`), which a hard-coded 15000 stopped testing the
     // moment the price moved.
     seedDead('health', REVIVE_GEM_COST);
@@ -306,7 +306,7 @@ describe('Death → Revive → Prestige cycle', () => {
 
   it('Revive: a SECOND revive after dying again still charges (not over-blocked)', () => {
     // The control. Guarding on `showDeathPopup` must not make revive one-shot
-    // per save — a player who dies twice pays twice.
+    // per save - a player who dies twice pays twice.
     mounted = mountGame();
     seedDead('health', 3 * REVIVE_GEM_COST);
 
@@ -488,7 +488,7 @@ describe('Death → Revive → Prestige cycle', () => {
     seedDead('health', 0);
     const ribbonsBefore = (captured!.state.ribbonCollection?.earned || []).length;
 
-    // Tick while dead — should not add new ribbons each tick.
+    // Tick while dead - should not add new ribbons each tick.
     for (let i = 0; i < 3; i++) {
       await tick();
     }

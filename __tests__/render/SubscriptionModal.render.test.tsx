@@ -29,7 +29,7 @@ jest.mock('lucide-react-native', () => new Proxy(
  *   1. no purchase CTA is presented when the price could not be proven, and
  *   2. no unconditional free-trial promise is made without store confirmation.
  */
-describe('render — SubscriptionModal (DeepLife+ paywall)', () => {
+describe('render - SubscriptionModal (DeepLife+ paywall)', () => {
   it('mounts and shows the value stack', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <SubscriptionModal visible onClose={() => {}} />,
@@ -39,6 +39,23 @@ describe('render — SubscriptionModal (DeepLife+ paywall)', () => {
     expect(json).toContain('Ad-Free Forever');
     expect(json).toContain('Daily Gem Drop');
     expect(json).toContain('Bigger Paychecks');
+    expect(json).toContain('Legacy Pass Premium');
+    expect(json).toContain('Exclusive Cosmetics');
+    unmount();
+  });
+
+  it('keeps the pitch to five primary benefits, folding the rest into one line', () => {
+    // The 2026-08 redesign cut the pitch from seven rows to five so the plan
+    // selector and price stay on screen. Welcome gems and VIP support are still
+    // granted (and still listed on the post-purchase welcome panel) but must
+    // not reappear as full rows in the sales view.
+    const { json, unmount } = renderWithProviders(
+      <SubscriptionModal visible onClose={() => {}} />,
+    );
+    expect(json).not.toContain('500 Welcome Gems');
+    expect(json).not.toContain('VIP Priority Support');
+    // ...their value is carried by the single quiet "Plus..." line instead.
+    expect(json).toContain('welcome gems and VIP support');
     unmount();
   });
 

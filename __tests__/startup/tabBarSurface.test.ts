@@ -93,7 +93,7 @@ describe('bottom tab bar surface', () => {
     }
   });
 
-  it('keeps the visible bar at four — the wall starts at nine', () => {
+  it('keeps the visible bar at four - the wall starts at nine', () => {
     expect(VISIBLE_TABS).toHaveLength(4);
     expect(VISIBLE_TABS.length).toBeLessThanOrEqual(5);
   });

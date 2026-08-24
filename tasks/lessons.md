@@ -4225,3 +4225,42 @@ Owner: "do all that's left." Every deferred item from the second pass, resolved:
   new-seed saves share one version number. If a seeded VALUE is load-bearing,
   bump the version in the same change or accept-and-document the residue —
   deciding later costs the option.
+
+## 2026-08-24 — A currency on the stats object is a landmine in every stats loop
+
+**What happened.** The gameplay-depth audit found that `resolveEvent`'s stat-
+application loop clamped EVERY key in `effects.stats` to 0-100 — and `money`
+and `gems` live on `GameStats` beside the four real 0-100 stats. Two authored
+templates had mis-filed money inside `stats`: `policy_voting`'s Vote Yes
+(`money: policyEffects.money || 0`) and `tech_startup_success`'s Invest. The
+loop turned "add the policy's money" into "overwrite cash with at most $100" —
+and even `money: 0` destroyed a balance, because `clamp(0, 100, cash + 0)` is
+100 for anyone holding more than $100. A politician who voted yes on any
+passing bill lost their entire cash balance.
+
+**The pattern.** A generic loop over a mixed-semantics object applies the
+wrong rule to the minority keys, and the type system cannot catch it because
+the keys are all `number`. The producer mistake (money inside stats) is easy
+to make in a 400-template catalogue and compiles clean.
+
+**The rule.** When a loop applies one transformation to "all the stats", ask
+which keys on that object are NOT that kind of stat, and fence them at the
+CONSUMER (skip + warn), not just at the producers — with ~400 templates the
+mistake will be made again. The fence lives in `lib/events/statEffects.ts`;
+a pool-wide scan test (`statEffects.test.ts` POOL RATCHET) keeps the
+catalogue clean.
+
+**Also worth keeping from the same pass:**
+- A stale "NOTHING READS THIS" comment (C-11 legacy points) survived one
+  version after the sink shipped (v29) and cost a fresh audit a false
+  finding. When a system gains its consumer, grep for the comments that
+  said it had none.
+- `(weeksLived * K + C) % 100` with gcd(K mod 100, 100) = 1 is not a random
+  schedule — it is a fixed permutation with period 100, identical for every
+  player. Two "engagement" systems (lucky bonus, cliffhanger timing) shipped
+  on it. Determinism per (week, life) is the requirement; use
+  `makeWeeklyRoll` with a per-life salt, never a linear congruence mod 100.
+- A declarative API can be dead on arrival: `EventChoice.followUpEventId`
+  shipped with zero producers AND zero consumers, and nothing failed. When a
+  schema field looks like a feature, grep for both halves before assuming it
+  works — and after wiring it, pin BOTH halves in one test file.

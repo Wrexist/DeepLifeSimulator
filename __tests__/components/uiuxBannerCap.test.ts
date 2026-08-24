@@ -66,7 +66,7 @@ describe('capErrorBanners', () => {
 });
 
 /**
- * Regression (bug report 2026-07-03): "blue banner with nothing on it" —
+ * Regression (bug report 2026-07-03): "blue banner with nothing on it" -
  * a notification whose message resolved to undefined/empty rendered as a
  * bare icon-only banner. Blank notifications are now dropped at the source.
  */

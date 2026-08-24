@@ -92,7 +92,7 @@ describe('payBail re-checks that the player is still in jail', () => {
   });
 });
 
-describe('purchasePassport already charges once — pinned', () => {
+describe('purchasePassport already charges once - pinned', () => {
   const passportState = (money: number): GameState => {
     const base = createTestGameState();
     return createTestGameState({

@@ -44,7 +44,7 @@ function ed(over: Partial<Education> = {}): Education {
   };
 }
 
-describe('enrollInProgram — class picker', () => {
+describe('enrollInProgram - class picker', () => {
   it('populates enrolledClasses from the chosen class ids (cash mode)', () => {
     const snapshot = createTestGameState({ stats: { money: 100_000 } as never, educations: [] });
     const { setState, get } = makeBatchedSetState(snapshot);
@@ -131,7 +131,7 @@ describe('toggleStudyGroup', () => {
     expect(get().stats.money).toBe(1000 - STUDY_GROUP_JOIN_COST);
   });
 
-  it('is double-tap safe — two same-batch joins debit once', () => {
+  it('is double-tap safe - two same-batch joins debit once', () => {
     const snapshot = createTestGameState({ stats: { money: 1000 } as never, educations: [ed()] });
     const { setState, get } = makeBatchedSetState(snapshot);
 

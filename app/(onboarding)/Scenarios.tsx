@@ -91,7 +91,7 @@ const CHALLENGE_ICONS: Record<string, ImageSourcePropType> = {
 const RECOMMENDED_SCENARIO_ID = 'food_courier';
 
 // Display-only ordering so brand-new players see the gentlest starts first.
-// (We sort a copy for rendering — the source `scenarios` array and every lookup
+// (We sort a copy for rendering - the source `scenarios` array and every lookup
 // by id are untouched.)
 const LIFE_PATH_DIFFICULTY_RANK: Record<string, number> = {
   Easy: 0,
@@ -231,7 +231,7 @@ const ScenarioCardView = React.memo(function ScenarioCardView({
           end={{ x: 1, y: 1 }}
           style={[styles.card, isSelected && styles.cardSelected]}
         >
-          {/* Hero artwork — the scenario's own painting, full-bleed, under a
+          {/* Hero artwork - the scenario's own painting, full-bleed, under a
               bottom FADE so the title and difficulty read cleanly without
               hiding the art. This used to be one flat 90%-opaque band across
               the bottom 55%, which blacked out over half of every painting
@@ -440,7 +440,7 @@ export default function Scenarios() {
   });
 
   // R-perf: a single STABLE selection handler passed to the memoized scenario
-  // cards. Takes the scenario object directly — each card is rendered from the
+  // cards. Takes the scenario object directly - each card is rendered from the
   // canonical list, so the old id-lookup + not-found Alert was redundant.
   const onSelectScenario = useCallback(
     (scenario: ScenarioCard) => {
@@ -496,7 +496,7 @@ export default function Scenarios() {
       <Text style={styles.guidanceText}>
         {activeTab === 'life_paths'
           ? 'Pick how your life begins. New here? Tap the "Recommended" path at the top.'
-          : 'Challenges add tougher goals and gem rewards — best once you know the game.'}
+          : 'Challenges add tougher goals and gem rewards - best once you know the game.'}
       </Text>
 
       {/* Tab Selector */}
@@ -569,7 +569,7 @@ export default function Scenarios() {
 
 const styles = StyleSheet.create({
   /**
-   * Clearance for the pinned "Continue" bar. Scaled, not raw pixels — on a
+   * Clearance for the pinned "Continue" bar. Scaled, not raw pixels - on a
    * small device a fixed 140 leaves the last card partly under the bar.
    */
   bottomSpacer: {
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  // (the flat `heroScrim` band is gone — see ImageScrim in the hero above)
+  // (the flat `heroScrim` band is gone - see ImageScrim in the hero above)
   heroTitleRow: {
     position: 'absolute',
     left: 0,

@@ -21,7 +21,7 @@ jest.mock('@/utils/feedbackSystem', () => ({
   useFeedback: () => ({ buttonPress: jest.fn(), haptic: jest.fn() }),
 }));
 
-describe('render — CureSuccessModal (Liquid Glass)', () => {
+describe('render - CureSuccessModal (Liquid Glass)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGameState = {

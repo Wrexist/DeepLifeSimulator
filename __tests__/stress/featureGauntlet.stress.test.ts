@@ -144,7 +144,7 @@ function assertCleanState(stage: string) {
 
 // ──────────────────── Tests ────────────────────────────────────────────────
 
-describe('Feature Gauntlet — every major action through real provider', () => {
+describe('Feature Gauntlet - every major action through real provider', () => {
   jest.setTimeout(300_000);
   let mounted: { root: any } | null = null;
 
@@ -185,7 +185,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     // closes the exploit where UI callers could "buy" things at $0.
     const before = captured!.state.stats.money;
     act(() => captured!.money.updateMoney(-(before + 999_999), 'gauntlet-overdraw'));
-    expect(captured!.state.stats.money).toBe(before); // rejected — money unchanged
+    expect(captured!.state.stats.money).toBe(before); // rejected - money unchanged
     expect(captured!.state.stats.money).toBeGreaterThanOrEqual(0); // never negative
     assertCleanState('Money updateMoney');
   });
@@ -194,7 +194,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     mounted = mountGame();
     const before = captured!.state.stats.money;
     // Simulate the trap: caller passes lib-style (setGameState, amount, reason).
-    // The hook treats setGameState as `amount` — must reject, NOT poison money.
+    // The hook treats setGameState as `amount` - must reject, NOT poison money.
     act(() => { (captured!.money.updateMoney as unknown as (a: unknown, b: unknown, c: unknown) => void)(captured!.setGameState, -100, 'trap'); });
     expect(captured!.state.stats.money).toBe(before);
     expect(Number.isFinite(captured!.state.stats.money)).toBe(true);
@@ -271,7 +271,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     const career = (captured!.state.careers || []).find(
       c => Array.isArray(c.levels) && c.levels.length > 0
     );
-    if (!career) return; // no career catalog — skip
+    if (!career) return; // no career catalog - skip
     act(() => captured!.setGameState(prev => ({
       ...prev,
       currentJob: career.id,
@@ -363,15 +363,15 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     act(() => makeWealthy());
 
     // `!` because the assignment happens inside an `act()` callback, which
-    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // TypeScript's control-flow analysis cannot see through - `act` runs its
     // callback synchronously, so the variable really is assigned before it is
     // read, and the `expect(...).toBeDefined()` below is the runtime proof.
     // (Initialising to `undefined` instead narrows the variable to `void` and
-    // breaks every downstream cast — measured, not guessed.)
+    // breaks every downstream cast - measured, not guessed.)
     let lastResult!: { success: boolean; message?: string } | void;
-    // Do beg 4 times — 4th should be capped (max 3/week per job).
+    // Do beg 4 times - 4th should be capped (max 3/week per job).
     for (let i = 0; i < 4; i++) {
-      // performStreetJob is sync — wrap in act to flush state.
+      // performStreetJob is sync - wrap in act to flush state.
       act(() => { lastResult = captured!.job.performStreetJob('beg') as { success: boolean; message?: string }; });
     }
     // 4th call should be rejected by weekly cap.
@@ -428,7 +428,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
         (!j.darkWebRequirements || j.darkWebRequirements.length === 0) &&
         (!j.criminalLevelReq || j.criminalLevelReq <= 1)
     );
-    if (!illegalJob) return; // no unconditional illegal job in the catalog — skip
+    if (!illegalJob) return; // no unconditional illegal job in the catalog - skip
 
     // Known XP, level 1, energy for exactly ONE job, clear weekly tally.
     act(() => captured!.setGameState(prev => ({
@@ -456,12 +456,12 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     act(() => makeWealthy());
     const careerIds = (captured!.state.careers || []).map(c => c.id);
     if (careerIds.length === 0) {
-      // No careers in initial state — skip.
+      // No careers in initial state - skip.
       return;
     }
     const candidate = careerIds[0];
     act(() => captured!.job.applyForJob(candidate));
-    // Either currentJob set, or applyForJob rejected — both are valid states.
+    // Either currentJob set, or applyForJob rejected - both are valid states.
     // But state must remain clean.
     assertCleanState('Jobs applyForJob');
   });
@@ -475,7 +475,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     const beforeScore = partner.relationshipScore;
     act(() => captured!.social.giveGift(partner.id, 'flowers'));
     const afterRel = captured!.state.relationships?.find(r => r.id === partner.id);
-    // Score may go up, or gift may have been rejected (no such gift) — both fine.
+    // Score may go up, or gift may have been rejected (no such gift) - both fine.
     // Just assert state stayed clean and no NaN.
     expect(afterRel).toBeDefined();
     expect(typeof afterRel!.relationshipScore).toBe('number');
@@ -500,7 +500,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     // Buy the computer first (mining unlocked by computer in this game).
     act(() => captured!.item.buyItem('computer'));
     act(() => captured!.company.buyMiner('basic', 'Basic Miner', 100));
-    // Either miner registered or rejected by gating — must be clean either way.
+    // Either miner registered or rejected by gating - must be clean either way.
     assertCleanState('Companies buyMiner');
   });
 
@@ -557,7 +557,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
 
     assertCleanState('mixed before nextWeek');
 
-    // Drive nextWeek 5 times — exercises every per-tick subsystem with custom state.
+    // Drive nextWeek 5 times - exercises every per-tick subsystem with custom state.
     for (let i = 0; i < 5; i++) {
       await act(async () => { await captured!.game.nextWeek(); });
     }
@@ -583,7 +583,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     act(() => makeWealthy());
     // CRITICAL: action files in @/contexts/game/actions/* expect the LIB-style
     // updateMoney (signature `(setGameState, amount, reason)`), not the hook
-    // version `(amount, reason)`. Passing the hook here yields NaN money —
+    // version `(amount, reason)`. Passing the hook here yields NaN money -
     // CLAUDE.md calls this the "DatingActions Signature Trap".
     const { travelTo, returnFromTrip } = await import('@/contexts/game/actions/TravelActions');
     const { updateMoney: libUpdateMoney } = await import('@/contexts/game/actions/MoneyActions');
@@ -608,13 +608,13 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     expect(captured!.state.travel?.currentTrip).toBeUndefined();
   });
 
-  it('Travel: passing the hook updateMoney is now SAFE — guard rejects + state stays clean', async () => {
+  it('Travel: passing the hook updateMoney is now SAFE - guard rejects + state stays clean', async () => {
     mounted = mountGame();
     act(() => makeWealthy());
     // Previously this caused NaN poisoning of money. After the Signature Trap
     // guard in MoneyActionsContext.tsx, the hook rejects the function-typed
     // amount and money stays clean. The travel itself fails (no cost deducted)
-    // but the state remains valid — the failure is now LOUD and SAFE.
+    // but the state remains valid - the failure is now LOUD and SAFE.
     const { travelTo } = await import('@/contexts/game/actions/TravelActions');
     const wrongDeps = { updateMoney: captured!.money.updateMoney as never, updateStats: captured!.game.updateStats as never };
     act(() => captured!.item.buyItem('passport'));
@@ -653,7 +653,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     act(() => { getDriversLicense(captured!.state, captured!.setGameState, deps); });
     assertCleanState('Vehicles getDriversLicense');
 
-    // Try a known template id. If template not found, action returns an error — state stays clean.
+    // Try a known template id. If template not found, action returns an error - state stays clean.
     let pres: { success: boolean; message?: string } | undefined;
     act(() => { pres = purchaseVehicle(captured!.state, captured!.setGameState, 'sedan_basic', deps); });
     expect(pres).toBeDefined();
@@ -752,7 +752,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
 
   it('Stats: updateStats with bounded values stays in bounds', () => {
     mounted = mountGame();
-    // Push every stat hard +100/-100 — clamping must catch it all.
+    // Push every stat hard +100/-100 - clamping must catch it all.
     act(() => captured!.game.updateStats({
       health: 100, happiness: 100, energy: 100, fitness: 100,
       money: 1000, reputation: 100, gems: 100,
@@ -783,7 +783,7 @@ describe('Feature Gauntlet — every major action through real provider', () => 
     await act(async () => { await captured!.game.savePermanentPerk('test_perk'); });
     await act(async () => {
       const has = await captured!.game.hasPermanentPerk('test_perk');
-      // Test perk persistence — at least the call returns a boolean.
+      // Test perk persistence - at least the call returns a boolean.
       expect(typeof has).toBe('boolean');
     });
     assertCleanState('Perks savePermanentPerk + hasPermanentPerk');

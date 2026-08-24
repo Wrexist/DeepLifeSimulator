@@ -21,7 +21,7 @@ const byId = (id: string) => {
   return t;
 };
 
-describe('hobby events — wiring', () => {
+describe('hobby events - wiring', () => {
   it('every hobby template is registered in the master event pool', () => {
     for (const t of hobbyEventTemplates) {
       expect(eventTemplates.some((e) => e.id === t.id)).toBe(true);
@@ -35,7 +35,7 @@ describe('hobby events — wiring', () => {
   });
 });
 
-describe('hobby events — eligibility (roll gate)', () => {
+describe('hobby events - eligibility (roll gate)', () => {
   it('are NOT eligible with no active hobbies', () => {
     const state = withPursuits({});
     for (const t of hobbyEventTemplates) {
@@ -60,7 +60,7 @@ describe('hobby events — eligibility (roll gate)', () => {
   });
 });
 
-describe('hobby events — reward scales with mastery', () => {
+describe('hobby events - reward scales with mastery', () => {
   it('the local-show payout scales with the creative hobby level', () => {
     const show = byId('hobby_local_show');
     const state = withPursuits({ painting: { xp: 550, level: 5 } });

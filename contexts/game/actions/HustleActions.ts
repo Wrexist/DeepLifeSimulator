@@ -46,6 +46,17 @@ const log = logger.scope('HustleActions');
 
 const NOTIFICATION_CAP = 80;
 
+/**
+ * Energy costs on the two active management verbs (2026-08-24). Business
+ * management used to be the only active money path with zero energy cost, so
+ * it never competed with anything else the player wanted to do that week.
+ * These are the lightweight slice of a time budget: campaigns and interviews
+ * now draw on the same +40/week energy pool as street jobs, study and dates.
+ * Exported so the Hustle UI quotes the same numbers the charge applies.
+ */
+export const CAMPAIGN_ENERGY_COST = 8;
+export const HIRE_ENERGY_COST = 5;
+
 // ── Internal helpers ─────────────────────────────────────────────────────
 
 // P1-14: apply a reputation delta INSIDE an atomic updater — mirrors updateStats'
@@ -252,7 +263,7 @@ export const hireCandidate = (
     return { success: false, message: 'Already hired', accepted: false };
   }
 
-  // Headcount cap — mirrors addWorker's MAX_COMPANY_EMPLOYEES limit.
+  // Headcount cap - mirrors addWorker's MAX_COMPANY_EMPLOYEES limit.
   const hiringCompany = gameState.companies?.find((c) => c.id === companyId);
   if ((hiringCompany?.employees ?? 0) >= MAX_COMPANY_EMPLOYEES) {
     return { success: false, message: `At the ${MAX_COMPANY_EMPLOYEES}-employee limit`, accepted: false };
@@ -260,6 +271,12 @@ export const hireCandidate = (
 
   if (offeredBonus > 0 && (gameState.stats?.money ?? 0) < offeredBonus) {
     return { success: false, message: `Insufficient cash for $${offeredBonus} sign-on bonus`, accepted: false };
+  }
+
+  // Interviewing costs effort whether or not they say yes (2026-08-24) - the
+  // lightweight time-budget slice; see launchCampaign's note.
+  if ((gameState.stats?.energy ?? 0) < HIRE_ENERGY_COST) {
+    return { success: false, message: `Too tired to run an interview (needs ${HIRE_ENERGY_COST} energy)`, accepted: false };
   }
 
   const reputation = gameState.stats?.reputation ?? 0;
@@ -280,10 +297,17 @@ export const hireCandidate = (
 
   setGameState((prev) => {
     // Double-tap guard: if the candidate is already gone from the FRESH
-    // pipeline, the offer was already processed — don't hire (or charge) twice.
+    // pipeline, the offer was already processed - don't hire (or charge) twice.
     const freshPipeline = prev.hustleApp?.companies?.[companyId]?.hiringPipeline;
     const freshCandidate = freshPipeline?.candidates.some((c) => c.id === candidateId);
     if (!freshCandidate) return prev;
+    // Energy re-checked against prev like the money - no exhausted interview.
+    if ((prev.stats?.energy ?? 0) < HIRE_ENERGY_COST) return prev;
+    // The interview's energy cost, applied to whichever outcome commits below.
+    const drainOfferEnergy = (s: GameState): GameState => ({
+      ...s,
+      stats: { ...s.stats, energy: Math.max(0, (s.stats.energy ?? 0) - HIRE_ENERGY_COST) },
+    });
     // Idempotent per candidate id: if this candidate is already on the roster,
     // never hire (or charge / bump headcount for) them a second time. Closes the
     // hire → Refresh → hire-same-person duplicate-hire vector at the write side.
@@ -300,7 +324,7 @@ export const hireCandidate = (
 
     let next = withOverlay(prev, companyId, weeksLived, (o, ha) => {
       if (!accepted) {
-        // Remove the candidate from the pipeline regardless — they took
+        // Remove the candidate from the pipeline regardless - they took
         // another offer (or stayed at their current job).
         return {
           ...o,
@@ -310,7 +334,7 @@ export const hireCandidate = (
           },
         };
       }
-      // Accepted — move to namedHires and reset weeksSinceLastHire
+      // Accepted - move to namedHires and reset weeksSinceLastHire
       const newHire = {
         candidateId: candidate.id,
         hiredWeek: weeksLived,
@@ -335,7 +359,7 @@ export const hireCandidate = (
         weeksLived,
       );
     });
-    // Named hires ARE employees — bump the canonical headcount (and income
+    // Named hires ARE employees - bump the canonical headcount (and income
     // multiplier) in the SAME state update so counts can never drift.
     if (accepted) {
       next = withEmployeeDelta(next, companyId, +1);
@@ -345,9 +369,9 @@ export const hireCandidate = (
     if (accepted && offeredBonus > 0) {
       const spend = applyMoneyDelta(next, -offeredBonus, `Hustle sign-on bonus: ${candidate.name}`);
       if (!spend) return prev; // unaffordable → abort the hire entirely (no free hire)
-      return { ...next, ...spend };
+      return drainOfferEnergy({ ...next, ...spend });
     }
-    return next;
+    return drainOfferEnergy(next);
   });
 
   log.info(`Offer to ${candidate.name}: score=${score}, accepted=${accepted}`);
@@ -355,7 +379,7 @@ export const hireCandidate = (
     success: true,
     message: accepted
       ? `${candidate.name} accepted!`
-      : `${candidate.name} declined — they wanted $${candidate.salaryAsk}/week`,
+      : `${candidate.name} declined - they wanted $${candidate.salaryAsk}/week`,
     accepted,
     interestScore: score,
   };
@@ -379,7 +403,7 @@ export const fireNamedHire = (
 
   setGameState((prev) => {
     // Double-tap guard: if the hire is already gone from FRESH state, the fire
-    // already happened — don't pay severance or decrement headcount twice.
+    // already happened - don't pay severance or decrement headcount twice.
     const freshHire = prev.hustleApp?.companies?.[companyId]?.hiringPipeline.namedHires
       .some((h) => h.candidateId === candidateId);
     if (!freshHire) return prev;
@@ -400,10 +424,10 @@ export const fireNamedHire = (
         weeksLived,
       );
     });
-    // Named hires ARE employees — decrement the canonical headcount (floor 0)
+    // Named hires ARE employees - decrement the canonical headcount (floor 0)
     // in the SAME state update.
     next = withEmployeeDelta(next, companyId, -1);
-    // P0-2: pay severance IN THE SAME updater (atomic — closes the fire-without-paying race).
+    // P0-2: pay severance IN THE SAME updater (atomic - closes the fire-without-paying race).
     const spend = applyMoneyDelta(next, -severance, `Hustle severance payout`);
     if (!spend) return prev; // can't cover severance → don't fire
     // P1-14: -1 reputation hit folded into the SAME updater (was a trailing updateStats
@@ -434,6 +458,13 @@ export const launchCampaign = (
   const upfront = spendPerWeek;
   if ((gameState.stats?.money ?? 0) < upfront) {
     return { success: false, message: 'Insufficient cash for first week of spend' };
+  }
+  // Running a campaign is WORK (2026-08-24): the owner briefs creative, signs
+  // off spend, watches the numbers. Charging energy puts business management
+  // inside the same weekly budget street jobs, study and dates draw on -
+  // the lightweight slice of a time economy, without touching passive income.
+  if ((gameState.stats?.energy ?? 0) < CAMPAIGN_ENERGY_COST) {
+    return { success: false, message: `Too tired to run a campaign (needs ${CAMPAIGN_ENERGY_COST} energy)` };
   }
 
   const weeksLived = gameState.weeksLived ?? 0;
@@ -467,10 +498,16 @@ export const launchCampaign = (
         weeksLived,
       );
     });
-    // P0-2: charge the first-week spend IN THE SAME updater (atomic — no free campaign).
+    // P0-2: charge the first-week spend IN THE SAME updater (atomic - no free campaign).
     const spend = applyMoneyDelta(next, -upfront, `${kind} campaign first-week spend`);
     if (!spend) return prev; // unaffordable → don't launch
-    return { ...next, ...spend };
+    // Energy re-checked against prev like the money - no exhausted launch.
+    if ((prev.stats?.energy ?? 0) < CAMPAIGN_ENERGY_COST) return prev;
+    const charged = { ...next, ...spend };
+    return {
+      ...charged,
+      stats: { ...charged.stats, energy: Math.max(0, (charged.stats.energy ?? 0) - CAMPAIGN_ENERGY_COST) },
+    };
   });
 
   return { success: true, message: 'Campaign launched', projectedROI };
@@ -613,7 +650,7 @@ export const resolveScandal = (
         activeScandal: { ...o.activeScandal, severity: newSeverity, resolutionMethod: method },
       };
     });
-    // P0-2: pay the resolution cost IN THE SAME updater (atomic — no free resolution).
+    // P0-2: pay the resolution cost IN THE SAME updater (atomic - no free resolution).
     // P1-14: fold the reputation delta in too, so a money-bail can't grant free
     // reputation on a scandal that never resolved.
     let resolved: GameState;
@@ -715,8 +752,8 @@ export const launchIPO = (
  *
  * `isFinite` alone rejects `NaN` and `Infinity` but accepts `1e300`, which
  * survives the division and lands on `baseWeeklyIncome` as a permanent absurd
- * number. Well above any realistic target — generated offers top out orders of
- * magnitude below it — so it never binds on real data and only catches
+ * number. Well above any realistic target - generated offers top out orders of
+ * magnitude below it - so it never binds on real data and only catches
  * corruption. `companyIncomeCap` separately caps each company's income when it
  * reaches passive income ($200k/wk base + $5k per employee).
  */
@@ -726,19 +763,19 @@ export const MAX_ACQUISITION_ANNUAL_REVENUE = 100_000_000;
  * Sanity ceiling on a target's stated synergy percentage.
  *
  * Generated offers quote 8–30, so this never binds on real data; it exists for
- * the same reason as the revenue ceiling — `isFinite` accepts absurd finite
+ * the same reason as the revenue ceiling - `isFinite` accepts absurd finite
  * values, and this one is persisted into `marketSharePercent`.
  */
 export const MAX_ACQUISITION_SYNERGY_PERCENT = 30;
 
 /**
- * Weekly income an acquisition actually adds — the ONE definition.
+ * Weekly income an acquisition actually adds - the ONE definition.
  *
  * `AcquireModal` advertises this figure and `acceptAcquisition` pays it, and the
  * modal's own comment claims the two share their arithmetic. They did not: the
  * action validated `estimatedAnnualRevenue` before dividing, the modal divided
  * it raw. A malformed offer therefore rendered `+$NaN` on the card and then
- * granted 0 on accept — the display and the payout disagreeing in exactly the
+ * granted 0 on accept - the display and the payout disagreeing in exactly the
  * way the comment promised they could not.
  *
  * A non-finite or non-positive revenue yields 0, which is the honest answer:
@@ -789,7 +826,7 @@ export const acceptAcquisition = (
      * R4-X8: the offer must still be PENDING in `prev`.
      *
      * `offer` above comes from the stale outer `gameState`, and P0-2/P1-14
-     * re-checked affordability and folded the reputation in — but nothing
+     * re-checked affordability and folded the reputation in - but nothing
      * re-checked that the deal was still open. `AcquireModal` has no in-flight
      * guard, so two taps in one React batch both ran: the second's
      * `pendingAcquisitions.filter` was a no-op (the offer was already gone) yet
@@ -809,7 +846,7 @@ export const acceptAcquisition = (
           ...o,
           pendingAcquisitions: o.pendingAcquisitions.filter((a) => a.id !== offerId),
           // Synergy bonus: +X% to weekly market share; tick will recompute
-          // earnings. Through the SHARED helper — this site read the raw field
+          // earnings. Through the SHARED helper - this site read the raw field
           // while the modal read the validated one, so a NaN `synergyBonusPercent`
           // would have been persisted into `marketSharePercent` by
           // `Math.min(85, x + NaN)` and poisoned the overlay for the whole save.
@@ -833,15 +870,15 @@ export const acceptAcquisition = (
      *
      * He was right that nothing visible changed. The only mechanical payload was
      * `marketSharePercent + synergyBonusPercent / 4`, which reaches money as
-     * `share / 200` in `companyIncomeFactors` — so a headline "+24% synergy"
+     * `share / 200` in `companyIncomeFactors` - so a headline "+24% synergy"
      * delivered +6 share points and about **+3% weekly income**, for a
      * seven-figure price. Worse, `companyIncomeFactors` clamps at
      * `COMPANY_FACTOR_MAX` (1.6), so a mature company already at the cap got
      * literally nothing for the purchase.
      *
      * Buying a company that earns money should earn you money. The target's
-     * weekly revenue is added to `baseWeeklyIncome` — the stored base both
-     * Hustle surfaces render and the one the overlay multiplier scales — and
+     * weekly revenue is added to `baseWeeklyIncome` - the stored base both
+     * Hustle surfaces render and the one the overlay multiplier scales - and
      * `weeklyIncome` is recomputed through the same headcount multiplier
      * `buyCompanyUpgrade` and `adjustEmployees` use, so the three cannot
      * disagree about what a company earns.
@@ -889,12 +926,12 @@ export const acceptAcquisition = (
       };
     }
 
-    // P0-2: pay the acquisition price IN THE SAME updater (atomic — no free acquisition).
+    // P0-2: pay the acquisition price IN THE SAME updater (atomic - no free acquisition).
     const spend = applyMoneyDelta(withIncome, -offer.askingPrice, `Acquisition: ${offer.targetName}`);
     if (!spend) return prev; // unaffordable → don't close the deal
     // P1-14: +3 reputation folded into the SAME updater (was a trailing updateStats
     // that granted reputation even when the price bailed and the deal didn't close).
-    // Spread `withIncome`, NOT `next` — spreading the pre-acquisition state here
+    // Spread `withIncome`, NOT `next` - spreading the pre-acquisition state here
     // would silently drop the revenue gain computed above.
     return withReputationDelta({ ...withIncome, ...spend }, 3);
   });

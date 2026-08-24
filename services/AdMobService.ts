@@ -105,14 +105,14 @@ function recordFailure() {
   failureCount++;
   if (failureCount >= MAX_CONSECUTIVE_FAILURES) {
     circuitOpen = true;
-    log.warn('Circuit breaker tripped — ads disabled temporarily');
+    log.warn('Circuit breaker tripped - ads disabled temporarily');
     // D-1: Schedule auto-recovery instead of permanent disable
     if (!circuitRecoveryTimer) {
       circuitRecoveryTimer = setTimeout(() => {
         circuitOpen = false;
         failureCount = 0;
         circuitRecoveryTimer = null;
-        log.info('Circuit breaker auto-recovered — ads re-enabled');
+        log.info('Circuit breaker auto-recovered - ads re-enabled');
       }, CIRCUIT_RECOVERY_MS);
     }
   }
@@ -430,7 +430,7 @@ class AdMobServiceImpl {
       if (!adUnitId) {
         // Production build with no configured interstitial unit (EXPO_PUBLIC_ADMOB_*
         // unset). Skip rather than request an empty unit / serve a test ad.
-        log.warn('No interstitial ad unit ID configured — skipping load');
+        log.warn('No interstitial ad unit ID configured - skipping load');
         return;
       }
       this.interstitial = NativeInterstitialAd.createForAdRequest(adUnitId, this.adRequestOptions());
@@ -536,7 +536,7 @@ class AdMobServiceImpl {
     try {
       const adUnitId = __DEV__ && NativeTestIds ? NativeTestIds.REWARDED : AD_UNITS.REWARDED;
       if (!adUnitId) {
-        log.warn('No rewarded ad unit ID configured — skipping load');
+        log.warn('No rewarded ad unit ID configured - skipping load');
         return;
       }
       this.rewarded = NativeRewardedAd.createForAdRequest(adUnitId, this.adRequestOptions());

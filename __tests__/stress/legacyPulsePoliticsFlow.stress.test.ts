@@ -161,9 +161,9 @@ describe('Family tree', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Inheritance — BUGFIXES #25, #26
+// Inheritance - BUGFIXES #25, #26
 // ---------------------------------------------------------------------------
-describe('computeInheritance — BUGFIXES #25, #26', () => {
+describe('computeInheritance - BUGFIXES #25, #26', () => {
   it('returns finite legacyBonuses when reputation is undefined (BUGFIX #25)', () => {
     const state = createTestGameState({
       stats: { ...createTestGameState().stats, reputation: undefined as any },
@@ -297,9 +297,9 @@ describe('Dynasty stats', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Politics — BUGFIX #27 + policy economy
+// Politics - BUGFIX #27 + policy economy
 // ---------------------------------------------------------------------------
-describe('Politics policy effects — BUGFIX #27', () => {
+describe('Politics policy effects - BUGFIX #27', () => {
   it('calculatePolicyEffects: returns zero-effect object when policies is undefined', () => {
     const r = calculatePolicyEffects(undefined as any);
     expect(r.money).toBe(0);
@@ -338,7 +338,7 @@ describe('Politics policy effects — BUGFIX #27', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('getAvailablePolicies: monotonic — higher level unlocks more', () => {
+  it('getAvailablePolicies: monotonic - higher level unlocks more', () => {
     const lvl0 = getAvailablePolicies(0).length;
     const lvl3 = getAvailablePolicies(3).length;
     const lvl5 = getAvailablePolicies(5).length;
@@ -501,7 +501,7 @@ describe('processPulseWeeklyTick', () => {
 
   it('Verified Pro: pure tick no longer wall-clock-expires (in-game billing owns lapse)', () => {
     // Verified Pro is now an IN-GAME cash subscription. The legacy wall-clock
-    // `expiresTimestamp` expiry was removed from the pure tick — weekly billing +
+    // `expiresTimestamp` expiry was removed from the pure tick - weekly billing +
     // lapse (on insufficient cash) is handled by applySubscriptionsForWeek in the
     // nextWeek orchestrator (covered in __tests__/actions/weekly/applySubscriptions
     // .test.ts). So the stale timestamp must NOT deactivate the sub in the tick.
@@ -514,7 +514,7 @@ describe('processPulseWeeklyTick', () => {
           active: true,
           plan: 'weekly',
           weeklyPrice: 20,
-          expiresTimestamp: Date.now() - 1000, // legacy field — no longer consulted
+          expiresTimestamp: Date.now() - 1000, // legacy field - no longer consulted
           perksUnlocked: { postBoostMultiplier: 1.25, blueCheckmark: true, analyticsUnlocked: true, noAdsInFeed: true, longerPosts: true },
         } as any,
       } as any,

@@ -188,7 +188,7 @@ export const performStreetJob = (
   if (gameState.stats.energy < energyCost) {
     return {
       success: false,
-      message: `This job needs ${energyCost} energy — you have ${gameState.stats.energy}. Rest up or eat something first.`,
+      message: `This job needs ${energyCost} energy - you have ${gameState.stats.energy}. Rest up or eat something first.`,
     };
   }
 
@@ -196,11 +196,11 @@ export const performStreetJob = (
   if (job.requirements) {
     const items = gameState.items || [];
     // TRANSPORT: the delivery gig lists `bike` because that used to be the only
-    // way to move. Any transport tier satisfies it now — a rented scooter is a
+    // way to move. Any transport tier satisfies it now - a rented scooter is a
     // valid (if slower and lower-paid) way to run deliveries, which is the
     // whole point of the rental being reachable on a $200 starting wallet.
     const transportTier = getTransportTier(gameState);
-    // Scoped to the delivery gigs — see TRANSPORT_GOVERNED_JOB_IDS. Without the
+    // Scoped to the delivery gigs - see TRANSPORT_GOVERNED_JOB_IDS. Without the
     // job-id check this also unlocked the illegal `smuggling` job (which lists
     // `bike` as a requirement) off a $5 scooter rental.
     const transportGovernsThisJob = !!job.id && TRANSPORT_GOVERNED_JOB_IDS.has(job.id);
@@ -271,7 +271,7 @@ export const performStreetJob = (
    * receive nothing.
    *
    * The per-node `effect` strings ("+10%" … "+50%") are DISPLAY text and
-   * disagree with the tree's own rule — `TALENT_TREES[*].description` says
+   * disagree with the tree's own rule - `TALENT_TREES[*].description` says
    * "Each unlocked talent adds +5% success rate and +10% payment". The rule is
    * what is implemented here: parsing the display strings would be fragile and
    * would also stack to +150% on a single tree.
@@ -295,7 +295,7 @@ export const performStreetJob = (
   const { PITY_THRESHOLD_STREET_JOB } = require('@/lib/randomness/randomnessConstants');
   const pityThreshold = PITY_THRESHOLD_STREET_JOB; // Guaranteed success after 5 failures
   // P1-10 note: the failure count is read from the outer (snapshot) state and
-  // can be momentarily stale during rapid same-batch taps — but the failure
+  // can be momentarily stale during rapid same-batch taps - but the failure
   // counter itself is incremented inside `setGameState(prev => …)` below, so
   // the persisted state remains correct. A same-batch double-tap can miss
   // pity by one attempt, which is acceptable.
@@ -332,13 +332,13 @@ export const performStreetJob = (
   // STABILITY FIX: modest income boost for unemployed players so street jobs
   // remain viable as primary income (prevents a poverty trap). BALANCE: trimmed
   // from 1.5× to 1.25× so that grinding street jobs while jobless is no longer
-  // strictly better than holding a career — the scaled-down career penalties
+  // strictly better than holding a career - the scaled-down career penalties
   // (applyCareerSalaryAndPenalty) close the rest of the gap.
   const hasCareerJob = !!gameState.currentJob && gameState.currentJob.length > 0;
   const unemployedBonus = hasCareerJob ? 1.0 : 1.25;
 
   // Transport multiplier: a rented scooter pays 0.7x, your own bike 1x, a moped
-  // 1.35x, a car 1.8x. That gradient is the progression — the rental unlocks
+  // 1.35x, a car 1.8x. That gradient is the progression - the rental unlocks
   // the work, and every upgrade you buy out of it pays you more for the
   // same run.
   const transportTerms = getTransportTermsForJob(gameState, job, basePay);
@@ -350,7 +350,7 @@ export const performStreetJob = (
     TALENT_PAY_MULTIPLIER_MAX,
     1 + unlockedTalents * TALENT_PAY_BONUS_PCT,
   );
-  // Crime Boss onboarding perk: "+10% earnings from street jobs" — paid HERE,
+  // Crime Boss onboarding perk: "+10% earnings from street jobs" - paid HERE,
   // at the source the card names. It used to sit in the weekly tick's global
   // income product (boosting salary and dividends, and touching street pay
   // not at all, since street jobs pay at action time and never enter that
@@ -361,7 +361,7 @@ export const performStreetJob = (
     ? Math.round(effectiveBasePay * (1 + levelBonus) * unemployedBonus * talentPayMultiplier * crimeBossMult)
     : 0;
 
-  // Risk calculation — wanted level increases arrest chance
+  // Risk calculation - wanted level increases arrest chance
   const wantedLevel = gameState.wantedLevel || 0;
   const baseCaughtChance = job.illegal ? (100 - successChance) / 2 : 0;
   // Shared with the UI (lib/crime/criminalRecord) so the Street Jobs screen can
@@ -409,9 +409,9 @@ export const performStreetJob = (
   let rankIncreased = false;
   if (caught) {
     // When caught, update everything in a single state update to prevent race conditions
-    // Use prev.stats.money (fresh from updater) — moneyBeforeJob is a stale render-time snapshot
+    // Use prev.stats.money (fresh from updater) - moneyBeforeJob is a stale render-time snapshot
     setGameState(prev => {
-      // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
+      // P1-1: re-check energy against fresh `prev` - the outer guard reads a stale
       // render snapshot, so without this a same-batch double-tap runs two jobs on one
       // job's worth of energy. A 2nd same-batch tap now no-ops here.
       // Recomputed from `prev`: the transport tier is part of state, so the
@@ -442,12 +442,12 @@ export const performStreetJob = (
         ...applyStreetJobXp(prev, job, success),
         // ADDS to any sentence already standing rather than replacing it.
         //
-        // This was `Math.min(52, job.jailWeeks || 1)` — an assignment. Every
+        // This was `Math.min(52, job.jailWeeks || 1)` - an assignment. Every
         // other writer accumulates (the weekly tick adds
         // `darkWebTick.jailWeeksAdded` on top of the decayed base), so a bare
         // `=` here meant getting caught could SHORTEN a sentence. It happens not
         // to be reachable today only because `app/(tabs)/work.tsx` swaps the
-        // whole Work tab for `JailScreen` while `jailWeeks > 0` — an invariant
+        // whole Work tab for `JailScreen` while `jailWeeks > 0` - an invariant
         // enforced in a UI file, three modules away, by coincidence. The next
         // surface that can hand out a sentence without also hiding Work turns
         // "get arrested" into a jailbreak.
@@ -471,8 +471,8 @@ export const performStreetJob = (
     //
     // It used to quote `moneyLost`, computed from the render-time snapshot,
     // while the deduction used `freshMoneyLost` recomputed from `prev` inside
-    // the updater. That recompute is correct — it is what stops a same-batch
-    // double-tap charging twice — but it left the message as a second, divergent
+    // the updater. That recompute is correct - it is what stops a same-batch
+    // double-tap charging twice - but it left the message as a second, divergent
     // source of truth, so the toast could name an amount never actually taken.
     // (And the updater's energy re-check can reject the whole action, in which
     // case the old message announced a confiscation that never happened at all.)
@@ -481,7 +481,7 @@ export const performStreetJob = (
     // updater runs during the next render, not at the call, so anything it
     // assigns is still unset when this line executes. So say the thing that is
     // true under every ordering. Same lesson as the Legacy Pass claim toast
-    // (lessons.md, 2026-06-24) — report what happened, not what you predicted.
+    // (lessons.md, 2026-06-24) - report what happened, not what you predicted.
     const penaltyText = ` (${happinessPenalty} happiness, ${healthPenalty} health)`;
     if (moneyBeforeJob > 0) {
       message = `Caught. Jailed ${job.jailWeeks} weeks, 10% of your cash seized.${penaltyText}`;
@@ -501,7 +501,7 @@ export const performStreetJob = (
 
     // Not caught - update everything in a single state update to prevent race conditions
     setGameState(prev => {
-      // P1-1: re-check energy against fresh `prev` — the outer guard reads a stale
+      // P1-1: re-check energy against fresh `prev` - the outer guard reads a stale
       // render snapshot, so without this a same-batch double-tap runs two jobs on one
       // job's worth of energy. The cap re-checks below only catch it once the cap is hit.
       // Recomputed from `prev`: the transport tier is part of state, so the
@@ -605,7 +605,7 @@ export const performStreetJob = (
         },
         streetJobFailureCount: newFailureCount,
         streetJobsCompleted: (prev.streetJobsCompleted || 0) + (success ? 1 : 0),
-        // Mirror successful crimes into the lifetime statistics ticker —
+        // Mirror successful crimes into the lifetime statistics ticker -
         // achievementsData and the Statistics screen both read
         // gs.lifetimeStatistics.totalCrimesCommitted, but no callsite
         // ever ran trackCrime() to actually increment it.
@@ -640,7 +640,7 @@ export const performStreetJob = (
   // Kept SHORT on purpose. This is the single most-fired toast in the game (a
   // street job is three taps a week, every week) and it used to read
   // "Crime failed. Wanted level increased. 🔓 Stealth skill is now level 2!
-  // This work took a toll on your wellbeing (-7 happiness, -3 health)" — a
+  // This work took a toll on your wellbeing (-7 happiness, -3 health)" - a
   // paragraph, of which a two-line toast showed the first half. The stat cost
   // is the part a player actually re-reads, so it survives as a compact
   // "-7 happiness, -3 health" and the sentence around it does not.
@@ -754,10 +754,10 @@ export const applyForJob = (
   const blocked = rejectIfBlocked(gameState);
   if (blocked) return blocked;
 
-  // Retirement is a one-way latch — a retired life draws a fixed pension and
+  // Retirement is a one-way latch - a retired life draws a fixed pension and
   // cannot re-enter the career workforce (anti-farm: no un-retire via a new job).
   if (gameState.isRetired) {
-    return { success: false, message: "You've retired — enjoy your pension. There's no going back to work." };
+    return { success: false, message: "You've retired - enjoy your pension. There's no going back to work." };
   }
 
   const career = (gameState.careers || []).find(c => c.id === careerId);
@@ -782,12 +782,12 @@ export const applyForJob = (
     return { success: false, message: 'You have a pending application. Wait for a response first.' };
   }
 
-  // Requirements — fitness, items and education, all through the SAME helper
+  // Requirements - fitness, items and education, all through the SAME helper
   // the Apply button in `work.tsx` uses, so an enabled button can no longer
   // lead to a rejection here (and vice versa: the button checked fitness, this
   // action checked it in a separate block that did NOT consult the prestige
   // bonus). `early_career_access` waives the whole block, not just education,
-  // which is what "Unlock all careers from start" has always advertised —
+  // which is what "Unlock all careers from start" has always advertised -
   // see `lib/careers/careerRequirements.ts`.
   const requirements = career.requirements;
   const requirementCheck = checkCareerRequirements(requirements, gameState);
@@ -804,7 +804,7 @@ export const applyForJob = (
     const { required, actual } = requirementCheck.reputationShortfall;
     return {
       success: false,
-      message: `This role needs a reputation of ${required}+ — yours is ${Math.floor(actual)}. Get known first.`,
+      message: `This role needs a reputation of ${required}+ - yours is ${Math.floor(actual)}. Get known first.`,
     };
   }
 
@@ -836,7 +836,7 @@ export const applyForJob = (
   const criminalLevel = gameState.criminalLevel || 0;
   const wantedLevel = gameState.wantedLevel || 0;
   // Same shared helper. This one is the least guessable of the record's
-  // effects — it makes LEGITIMATE career applications fail more often, with the
+  // effects - it makes LEGITIMATE career applications fail more often, with the
   // cause sitting in a street-crime stat on a different screen.
   const criminalPenalty = hiringPenalty(criminalLevel, wantedLevel);
 
@@ -847,7 +847,7 @@ export const applyForJob = (
   // criminalLevel/wantedLevel, so a maxed-wanted player was auto-hired on the
   // 5th attempt. When there's a criminal penalty, the pity branch still helps
   // (caps the attempt at the best available chance) but employers can still
-  // reject — it's a roll capped at `100 - criminalPenalty`, never a guarantee.
+  // reject - it's a roll capped at `100 - criminalPenalty`, never a guarantee.
   const cleanGuarantee = guaranteedAcceptance && criminalPenalty <= 0;
   // Life Skills: Networking (+5% job application success). Additive percentage
   // points, folded in before the Math.min(90, …) ceiling so it stays bounded.
@@ -858,7 +858,7 @@ export const applyForJob = (
    * `jobOfferMultiplier` returns 0.85x-1.30x and documents itself as the
    * "hiring boost (better grades -> higher chance to land first job)". Its only
    * non-test caller was `EducationApp`, which renders "Hiring boost x1.30 on job
-   * offers" on the hero card — while this roll, the one that decides, had no GPA
+   * offers" on the hero card - while this roll, the one that decides, had no GPA
    * term at all and no file under `lib/careers/**` even mentioned `gpa`. So exam
    * grinding (energy, study actions, exam-failure risk) was advertised on the
    * Education screen as worth up to +30% and delivered 0%. GPA did still work
@@ -987,7 +987,7 @@ export const promoteCareer = (
     return { success: false, message: 'Career not found' };
   }
 
-  // Gate the promotion through the shared eligibility helper — the SAME check
+  // Gate the promotion through the shared eligibility helper - the SAME check
   // the Work-tab UI uses to show lock reasons. Layers: must be accepted, not at
   // max level, progress 100%, PERFORMANCE >= threshold (ties promotions into the
   // weekly performance/review system), and the target level's EXPERIENCE (tenure)
@@ -1011,7 +1011,7 @@ export const promoteCareer = (
    * only one of them was locked.
    *
    * `getPromotionEligibility` covers acceptance, progress, performance and
-   * tenure — and knows nothing about `POLITICAL_CAREER_REQUIREMENTS`. So the
+   * tenure - and knows nothing about `POLITICAL_CAREER_REQUIREMENTS`. So the
    * Politics app correctly refused a 27-year-old running for Mayor ("You must
    * be at least 30 years old") while this path promoted them into the very same
    * office from the Work tab. The two screens then disagreed about the player's
@@ -1049,7 +1049,7 @@ export const promoteCareer = (
     if (!getPromotionEligibility(cur, prev.weeksLived).eligible) return prev;
     const promotedLevel = cur.level + 1;
     if (!cur.levels[promotedLevel]) return prev;
-    // Re-run the office gate against `prev` too — the check above read the
+    // Re-run the office gate against `prev` too - the check above read the
     // stale snapshot, and age/reputation can both move between them.
     if (careerId === 'political') {
       const blocked = politicalPromotionBlocker({
@@ -1081,10 +1081,10 @@ export const promoteCareer = (
       ...prev,
       careers: updatedCareers,
       // Keep the Politics app's rank in step. `politics.careerLevel` is the
-      // 1-based office RANK (0 = Citizen), maintained by `runForOffice` — so
+      // 1-based office RANK (0 = Citizen), maintained by `runForOffice` - so
       // promoting from the Work tab used to leave it stale and the two screens
       // reported different offices for the same player.
-      // Only patch an EXISTING politics slice — `PoliticsState` has required
+      // Only patch an EXISTING politics slice - `PoliticsState` has required
       // fields, and fabricating a partial one here would be worse than a stale
       // rank. A player holding political office always has it.
       ...(careerId === 'political' && prev.politics
@@ -1101,12 +1101,12 @@ export const promoteCareer = (
   log.info(`Career promoted: ${careerId} to level ${newLevel} (${levelData.name})`);
 
   // Snapshot the before/after story for the celebration. This is the only
-  // moment both rungs are known — `career` is the pre-promotion snapshot, so
+  // moment both rungs are known - `career` is the pre-promotion snapshot, so
   // once state commits the old title and salary are unrecoverable.
   const previousLevelData = career.levels[career.level];
   // Both rungs priced the way payroll prices them. This used to apply the raise
   // premium alone, so a player with a Work Pay Boost, a salary life skill or
-  // DeepLife+ was celebrated with a number the paycheck then beat — and the
+  // DeepLife+ was celebrated with a number the paycheck then beat - and the
   // work tab, which showed the raw base, disagreed with both. One function,
   // `paidWeeklySalaryForLevel`, now answers for all of them.
   const paid = (levelIndex: number) => paidWeeklySalaryForLevel(gameState, career, levelIndex);
@@ -1153,7 +1153,7 @@ export const requestRaise = (
   const weeksSince = ws - lastRequest;
   if (weeksSince < RAISE_COOLDOWN_WEEKS) {
     const wait = RAISE_COOLDOWN_WEEKS - weeksSince;
-    return { success: false, message: `Too soon — wait ${wait} more week${wait === 1 ? '' : 's'} before asking again.` };
+    return { success: false, message: `Too soon - wait ${wait} more week${wait === 1 ? '' : 's'} before asking again.` };
   }
 
   if (isRaisePremiumMaxed(career.raiseMultiplier)) {
@@ -1219,7 +1219,7 @@ export const requestRaise = (
     success: true,
     approved: false,
     message: drawsWarning
-      ? "Denied — and your manager logged a formal warning. Watch your step."
+      ? "Denied - and your manager logged a formal warning. Watch your step."
       : 'Denied. Your manager wasn\'t convinced this time. (-5 happiness)',
   };
 };

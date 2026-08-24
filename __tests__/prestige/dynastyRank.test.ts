@@ -133,7 +133,7 @@ describe('progress toward the next rank', () => {
   });
 
   it('never runs backwards when a new rank is entered', () => {
-    // The bar resets into the NEW band rather than jumping — so progress is
+    // The bar resets into the NEW band rather than jumping - so progress is
     // always within [0,1] at every score, including exactly on a boundary.
     for (const rank of DYNASTY_RANKS) {
       const p = getDynastyProgress(baseStats({ familyReputation: rank.minScore }));
@@ -152,7 +152,7 @@ describe('progress toward the next rank', () => {
 
 describe('the rank is REACHABLE from the app', () => {
   // The whole reason this work exists. A rank nobody can see is a badge in a
-  // drawer — the third time this repo has shipped one.
+  // drawer - the third time this repo has shipped one.
   it('a screen renders it', () => {
     const source = fs.readFileSync(
       path.join(__dirname, '../../components/LegacyOverviewTab.tsx'),

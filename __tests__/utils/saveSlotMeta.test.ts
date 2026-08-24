@@ -173,7 +173,7 @@ describe('probeSaveSlotBlob', () => {
     expect(await probeSaveSlotBlob(2)).toBe('exists');
   });
 
-  it("reports 'unknown' — never 'empty' — when the storage read throws", async () => {
+  it("reports 'unknown' - never 'empty' - when the storage read throws", async () => {
     const original = AsyncStorageMock.getItem.getMockImplementation();
     AsyncStorageMock.getItem.mockImplementation(() => Promise.reject(new Error('storage down')));
     try {
@@ -188,7 +188,7 @@ describe('probeSaveSlotBlob', () => {
 describe('ensureSaveSlotMeta (one-time backfill)', () => {
   it('backfills the summary from a legacy blob and caches it', async () => {
     await seedSlot(3, meaningfulState);
-    // Nothing cached yet — the backfill must do the decode+parse.
+    // Nothing cached yet - the backfill must do the decode+parse.
     expect(await readSaveSlotMeta(3)).toBeNull();
 
     const meta = await ensureSaveSlotMeta(3);
@@ -211,7 +211,7 @@ describe('ensureSaveSlotMeta (one-time backfill)', () => {
   it('short-circuits to the cached summary without touching the blob', async () => {
     const cached: SaveSlotMeta = { name: 'Cached', age: 1, money: 2, weeksLived: 3, updatedAt: 4 };
     await writeSaveSlotMeta(1, cached);
-    // No blob seeded for slot 1 — a cache hit must still return the cached value.
+    // No blob seeded for slot 1 - a cache hit must still return the cached value.
     expect(await ensureSaveSlotMeta(1)).toEqual(cached);
   });
 
@@ -224,13 +224,13 @@ describe('ensureSaveSlotMeta (one-time backfill)', () => {
     expect(b).toBe(a);
   });
 
-  it('a deletion DURING the backfill wins — no resurrected metadata', async () => {
+  it('a deletion DURING the backfill wins - no resurrected metadata', async () => {
     await seedSlot(1, meaningfulState);
 
     // Gate the blob reads so the backfill parks between "read blob" and
     // "write meta" while we delete the slot's metadata. `reachedGate` tells us
     // the backfill has passed its generation capture and is inside the blob
-    // read — deleting any earlier would (correctly) let it re-cache from the
+    // read - deleting any earlier would (correctly) let it re-cache from the
     // still-existing blob.
     const original = AsyncStorageMock.getItem.getMockImplementation()!;
     let release!: () => void;

@@ -90,7 +90,7 @@ export default function AddBillModal({ visible, accounts, currentWeek, darkMode,
                 value={amountText}
                 onChangeText={setAmountText}
                 keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"

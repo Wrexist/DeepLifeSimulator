@@ -235,7 +235,7 @@ export function generateRandomDisease(state: GameState): Disease | null {
   //  - minAge keeps age-related conditions (heart disease, stroke, dementia…)
   //    from hitting implausibly young players;
   //  - no duplicates of an already-active disease;
-  //  - at most 2 concurrent non-mild conditions — beyond that only mild
+  //  - at most 2 concurrent non-mild conditions - beyond that only mild
   //    diseases can still occur;
   //  - never stack a second terminal (weeksUntilDeath) illness.
   const activeDiseases = Array.isArray(state.diseases) ? state.diseases : [];

@@ -16,7 +16,7 @@ interface LoadingButtonProps {
   textStyle?: TextStyle;
   loadingText?: string;
   icon?: React.ReactNode;
-  /** Screen-reader hint. Defaults to none — the title is usually self-describing.
+  /** Screen-reader hint. Defaults to none - the title is usually self-describing.
    *  Pass e.g. ACCESSIBILITY_HINTS.BUTTONS.BUY for purchase buttons. */
   accessibilityHint?: string;
   /** Screen-reader label override (defaults to `title`). */
@@ -80,7 +80,7 @@ export default function LoadingButton({
   const sizeStyles = getSizeStyles();
   const colors = getVariantColors();
 
-  // R10-UX: don't hard-code the "Tap to purchase" hint for every button — a Sell
+  // R10-UX: don't hard-code the "Tap to purchase" hint for every button - a Sell
   // or generic action button announced the wrong intent. Use the caller's hint
   // (or none) and let the label default to the title.
   const accessibilityProps = getButtonAccessibilityProps({

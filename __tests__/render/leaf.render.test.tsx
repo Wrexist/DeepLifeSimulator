@@ -8,7 +8,7 @@ import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloating
  * mounts without throwing. Establishes the component-level mock surface that the
  * full-screen render tests build on.
  */
-describe('render — OnboardingFloatingButton (leaf)', () => {
+describe('render - OnboardingFloatingButton (leaf)', () => {
   it('mounts without throwing and renders its title', () => {
     let tree: TestRenderer.ReactTestRenderer | undefined;
     act(() => {

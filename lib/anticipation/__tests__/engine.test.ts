@@ -115,4 +115,71 @@ describe('upcomingEvents', () => {
     });
     expect(upcomingEvents(far).some((e) => e.kind === 'career')).toBe(false);
   });
+
+  describe('elections (2026-08-24 - a tick-enforced date that landed as a surprise)', () => {
+    const politician = (overrides: Record<string, unknown> = {}) =>
+      createTestGameState({
+        weeksLived: 200,
+        politics: {
+          ...createTestGameState().politics!,
+          careerLevel: 2,
+          approvalRating: 60,
+          nextElectionWeek: 208,
+          ...overrides,
+        },
+      });
+
+    it('reports the next election with its real horizon', () => {
+      const election = upcomingEvents(politician()).find((e) => e.kind === 'election');
+      expect(election?.weeksAway).toBe(8);
+      expect(election?.dueWeeksLived).toBe(208);
+      expect(election?.tone).toBe('neutral');
+    });
+
+    it('turns cautionary when approval is genuinely in trouble', () => {
+      const election = upcomingEvents(politician({ approvalRating: 30 })).find(
+        (e) => e.kind === 'election'
+      );
+      expect(election?.tone).toBe('caution');
+      expect(election?.detail).toContain('30%');
+    });
+
+    it('is silent for a player with no political career', () => {
+      const state = createTestGameState({ weeksLived: 200 });
+      expect(upcomingEvents(state).some((e) => e.kind === 'election')).toBe(false);
+    });
+
+    it('is silent once the election week has passed', () => {
+      const state = politician({ nextElectionWeek: 190 });
+      expect(upcomingEvents(state).some((e) => e.kind === 'election')).toBe(false);
+    });
+  });
+
+  describe('unanswered letters (2026-08-24 - the mail-lapse deadline made visible)', () => {
+    it('reports a mail-routed event by the week it lapses', () => {
+      const state = createTestGameState({
+        weeksLived: 100,
+        pendingEvents: [
+          { id: 'jury_duty', description: 'A summons.', choices: [],
+            channel: 'mail', expiresAtWeek: 103 } as never,
+        ],
+      });
+      const letter = upcomingEvents(state).find((e) => e.kind === 'letter');
+      expect(letter?.weeksAway).toBe(3);
+      expect(letter?.tone).toBe('caution');
+      expect(letter?.dueWeeksLived).toBe(103);
+    });
+
+    it('ignores modal events and letters already past their deadline', () => {
+      const state = createTestGameState({
+        weeksLived: 100,
+        pendingEvents: [
+          { id: 'modal_evt', description: 'x', choices: [] } as never,
+          { id: 'lapsed', description: 'x', choices: [],
+            channel: 'mail', expiresAtWeek: 99 } as never,
+        ],
+      });
+      expect(upcomingEvents(state).some((e) => e.kind === 'letter')).toBe(false);
+    });
+  });
 });

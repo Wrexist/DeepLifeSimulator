@@ -26,12 +26,12 @@ export const updateMoney = (
       ? prev.stats.money
       : 0;
 
-    // CRASH FIX (B-1): Atomic affordability check — reject purchases that exceed balance
+    // CRASH FIX (B-1): Atomic affordability check - reject purchases that exceed balance
     // This prevents double-spend from button spam: if two taps read stale gameState,
     // the second one is rejected here because the functional updater reads fresh state.
     if (amount < 0 && currentMoney + amount < -0.01) {
       log.warn(`Rejected purchase: insufficient funds. Has: ${currentMoney}, Needs: ${Math.abs(amount)}. Reason: ${reason}`);
-      return prev; // REJECT — don't allow this deduction
+      return prev; // REJECT - don't allow this deduction
     }
 
     const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + amount));
@@ -53,7 +53,7 @@ export const updateMoney = (
         ...prev.dailySummary,
         moneyChange: (prev.dailySummary?.moneyChange || 0) + moneyChange,
         statsChange: { ...(prev.dailySummary?.statsChange || {}) },
-        // R2-B: cap to 50 — this used to grow unbounded between weekly resets.
+        // R2-B: cap to 50 - this used to grow unbounded between weekly resets.
         events: (prev.dailySummary?.events || []).slice(-50),
       };
     }
@@ -71,7 +71,7 @@ export const updateMoney = (
 
 /**
  * `applyMoneyDelta` (and the `MONEY_CEILING` it clamps to) now live in
- * `@/lib/economy/moneyDelta` — both are pure, and keeping them here forced
+ * `@/lib/economy/moneyDelta` - both are pure, and keeping them here forced
  * `lib/retirement/elderActivities` to import UPWARD into `contexts/`.
  * Re-exported unchanged, same names and same signatures, so the ~50 existing
  * importers are untouched.
@@ -80,7 +80,7 @@ export { applyMoneyDelta, MONEY_CEILING } from '@/lib/economy/moneyDelta';
 
 // P1-4: reasons that just move EXISTING money around rather than earning new
 // money. Used to keep `dailySummary.totalMoneyEarned` (and the daily "earn $X"
-// challenges that read it) honest — withdrawing savings, selling an asset, or
+// challenges that read it) honest - withdrawing savings, selling an asset, or
 // taking a loan must NOT count as "earning", otherwise the highest-value gem
 // challenges are farmable by shuffling money in and out of the bank.
 const NON_INCOME_REASON = /withdraw|deposit|loan|repay|sold|sell|transfer|inherit|refund|savings|cash ?out|redeem|\bbank\b/i;
@@ -107,7 +107,7 @@ export const batchUpdateMoney = (
       : 0;
     // R2-G: mirror the `updateMoney` overdraft rejection (P1-1). The previous
     // `Math.max(0, ...)` silently clamped any negative result to 0, so callers
-    // could "spend" more money than they had — the goods were granted and the
+    // could "spend" more money than they had - the goods were granted and the
     // money just zeroed out. Any caller that intends a multi-leg transaction
     // where one leg can fail must use a transactional pattern, not this batch
     // helper.
@@ -115,7 +115,7 @@ export const batchUpdateMoney = (
       log.warn(`Rejected batch update: insufficient funds. Has: ${currentMoney}, total negative change: ${totalChange}`);
       return prev;
     }
-    // P1-2: clamp to MONEY_CEILING for parity with updateMoney/applyMoneyDelta — all
+    // P1-2: clamp to MONEY_CEILING for parity with updateMoney/applyMoneyDelta - all
     // three money-mutation paths must enforce the same upper bound.
     const newMoney = Math.min(MONEY_CEILING, Math.max(0, currentMoney + totalChange));
     const actualChange = newMoney - currentMoney;

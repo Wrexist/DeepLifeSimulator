@@ -35,7 +35,7 @@ const richState = (earnedCount: number, priorStamp: number) =>
     prestige: prestigeWith({ achievementsCreditedForPoints: priorStamp }),
   });
 
-describe('prestige achievement stamp — monotonic high-water mark', () => {
+describe('prestige achievement stamp - monotonic high-water mark', () => {
   it('does not erode below the lifetime peak when this life earned fewer', () => {
     // Prior peak 10, this life re-claimed only 3 → the stamp must STAY 10 (not
     // drop to 3), so a subsequent re-claim of the same achievements pays nothing.

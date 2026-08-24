@@ -69,7 +69,7 @@ function makeVehicle(i: number, overrides: Partial<Vehicle> = {}): Vehicle {
   };
 }
 
-describe('weekly tick — pre-roll bounds (Batch 1: C3 vehicles, C4 diseases)', () => {
+describe('weekly tick - pre-roll bounds (Batch 1: C3 vehicles, C4 diseases)', () => {
   it('vehicles beyond the pre-roll cap (idx >= 10) still roll accidents via index wrap', () => {
     // 12 vehicles; accident pre-rolls length 10 with ONLY index 0 below the 1%
     // threshold. Vehicle #11 (idx 10) wraps to index 0 and must also crash.

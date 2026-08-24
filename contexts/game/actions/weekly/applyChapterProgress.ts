@@ -71,8 +71,8 @@ export function unlockAnnouncement(tier: UnlockTier): string {
 /**
  * Complete at most ONE chapter per tick.
  *
- * Deliberate: a save that jumps several tiers at once — a returning player, or
- * one who crosses two thresholds in a week — should not dump four chapters'
+ * Deliberate: a save that jumps several tiers at once - a returning player, or
+ * one who crosses two thresholds in a week - should not dump four chapters'
  * worth of notifications and rewards in a single Next Week. The next chapter
  * completes on the following tick, which also paces the unlocks the way the
  * design intends.
@@ -94,7 +94,7 @@ export function applyChapterProgress(input: ChapterProgressInput): ChapterProgre
   const money = active.completionReward.money + active.perGoalReward.money * totalGoals;
   const gems = active.completionReward.gems + active.perGoalReward.gems * totalGoals;
 
-  // The tier this completion takes the player TO — its index in the ordered
+  // The tier this completion takes the player TO - its index in the ordered
   // chapter list, plus one. Read from the catalogue rather than counting the
   // stored array, so an out-of-order flag cannot mis-announce.
   const index = LIFE_CHAPTERS.findIndex((c) => c.id === active.id);
@@ -107,7 +107,7 @@ export function applyChapterProgress(input: ChapterProgressInput): ChapterProgre
     gemReward: gems,
     notifications: [{
       id: `chapter-complete-${active.id}`,
-      title: `📖 ${active.title} complete — ${active.subtitle}`,
+      title: `📖 ${active.title} complete - ${active.subtitle}`,
       message: unlocked
         ? `${unlocked} +$${money.toLocaleString()}, +${gems} gems.`
         : `+$${money.toLocaleString()}, +${gems} gems.`,

@@ -60,8 +60,8 @@ const TUTORIAL_COMPLETED_KEY = 'tutorial_completed';
 
 /**
  * Cap on simultaneously-visible banners (mirrors the Toast system's limit of 3).
- * Without it, a burst of week-advance notifications — each with a unique,
- * week-numbered id, so they don't collapse by id — stacked unbounded and flooded
+ * Without it, a burst of week-advance notifications - each with a unique,
+ * week-numbered id, so they don't collapse by id - stacked unbounded and flooded
  * the screen (every banner is offset `stackIndex * 96px`) before the ~5s
  * auto-dismiss could clear them. Spamming "Next Week" reproduced this reliably.
  */
@@ -73,7 +73,7 @@ function isRealError(error: ErrorState): boolean {
 
 /**
  * A notification with no visible text renders as a bare icon-only banner
- * (the "empty blue banner" bug) — drop it at the source instead.
+ * (the "empty blue banner" bug) - drop it at the source instead.
  * Exported for unit testing.
  */
 export function isBlankNotification(message?: string, title?: string): boolean {
@@ -111,7 +111,7 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
    * Mirrors the tutorial's position for analytics only.
    *
    * `completeTutorial` and `skipTutorial` are `useCallback([])`, so the only
-   * in-callback route to the current step is the `setState` updater — and
+   * in-callback route to the current step is the `setState` updater - and
    * emitting from inside an updater is the double-fire bug this codebase keeps
    * relearning (§4.4): React may invoke it more than once per commit, so one
    * abandonment would report as two. A ref reads the same value from outside.
@@ -176,7 +176,7 @@ export function UIUXProvider({ children }: { children: ReactNode }) {
     // Same rule as the toast channel: emoji are stripped at the channel, not at
     // the call site, because banner copy is assembled upstream (subsystem
     // notifications carry titles like "🏠 Property Alert"). Length is NOT
-    // capped here — a banner is the taller surface and owns the multi-line
+    // capped here - a banner is the taller surface and owns the multi-line
     // weekly summary, so truncating it would lose real content.
     const cleanMessage = stripEmoji(message);
     const cleanTitle = title === undefined ? undefined : stripEmoji(title);

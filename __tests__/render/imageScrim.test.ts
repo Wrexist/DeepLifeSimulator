@@ -27,7 +27,7 @@ const HOSTS: [string, string][] = [
   ['Perks', 'app/(onboarding)/Perks.tsx'],
 ];
 
-describe.each(HOSTS)('%s — the flat slab is gone', (_name, file) => {
+describe.each(HOSTS)('%s - the flat slab is gone', (_name, file) => {
   const SRC = read(file);
 
   it('no longer defines a 55% opaque band', () => {

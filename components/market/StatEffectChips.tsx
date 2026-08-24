@@ -1,15 +1,15 @@
 /**
- * StatEffectChips — the one way a Market card states what it does to your stats.
+ * StatEffectChips - the one way a Market card states what it does to your stats.
  *
  * Food cards used to print an undifferentiated stack of identical blue lines
  * ("+3 Health / +2 Energy / +2 Happiness"), which reads as body copy rather than
  * as an effect, and shares no visual language with the HUD the numbers land in.
- * Each stat now carries the identity the HUD gives it — Heart/red for health,
+ * Each stat now carries the identity the HUD gives it - Heart/red for health,
  * Zap/blue for energy, Smile/amber for happiness (the same hex values
  * `components/TopStatsBar.tsx` uses for those bars), plus Dumbbell/purple for
  * fitness, which only the gym grants.
  *
- * House rules: full 4-side borders (Hard Rule #7 — no one-sided accent stripes),
+ * House rules: full 4-side borders (Hard Rule #7 - no one-sided accent stripes),
  * every dimension through `scale()` / `fontScale()`, and both themes handled via
  * the `darkMode` flag the Market screen already threads.
  */
@@ -23,7 +23,7 @@ export type StatEffectKey = 'health' | 'energy' | 'happiness' | 'fitness';
 
 export interface StatEffect {
   key: StatEffectKey;
-  /** Signed delta. Zero entries are dropped — a "+0 Health" chip is noise. */
+  /** Signed delta. Zero entries are dropped - a "+0 Health" chip is noise. */
   value: number;
 }
 
@@ -84,7 +84,7 @@ export default function StatEffectChips({ effects, darkMode = false, caption }: 
                 styles.chip,
                 {
                   backgroundColor: hexToRgba(meta.color, darkMode ? 0.16 : 0.1),
-                  // Full border on all four sides — Hard Rule #7.
+                  // Full border on all four sides - Hard Rule #7.
                   borderColor: hexToRgba(meta.color, darkMode ? 0.4 : 0.3),
                 },
               ]}

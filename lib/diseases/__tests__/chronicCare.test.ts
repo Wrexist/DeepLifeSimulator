@@ -76,7 +76,7 @@ const tick = (disease: Disease, nextWeeksLived: number) => {
   return { ctx, result };
 };
 
-describe('chronic care — weekly tick (applyDiseasesForWeek)', () => {
+describe('chronic care - weekly tick (applyDiseasesForWeek)', () => {
   it('unmanaged chronic disease keeps the legacy behavior: full penalties + worsening', () => {
     const { ctx, result } = tick(chronicDisease(), 100);
     expect(ctx.newStats.health).toBe(96);
@@ -107,7 +107,7 @@ describe('chronic care — weekly tick (applyDiseasesForWeek)', () => {
     expect(lapsed.result.diseases[0].effects.health).toBeCloseTo(-4.4, 5);
   });
 
-  it('management never pauses a terminal countdown — symptoms ease, progression continues', () => {
+  it('management never pauses a terminal countdown - symptoms ease, progression continues', () => {
     const terminal = chronicDisease({
       id: 'organ_failure',
       name: 'Organ Failure',
@@ -137,7 +137,7 @@ describe('chronic care — weekly tick (applyDiseasesForWeek)', () => {
   });
 });
 
-describe('chronic care — treatment helper (applyChronicCare)', () => {
+describe('chronic care - treatment helper (applyChronicCare)', () => {
   it('doctor visit manages chronic conditions for 4 weeks and resets compounded effects to base', () => {
     const compounded = chronicDisease({
       effects: { health: -8.8, energy: -6.6 }, // worsened over untreated weeks

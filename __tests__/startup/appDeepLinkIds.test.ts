@@ -62,7 +62,7 @@ describe('sub-app deep-link ids', () => {
     ] as const) {
       const ids = lookupMapIds(source);
       expect(`${name}:${ids.length > 4}`).toBe(`${name}:true`);
-      // Descriptor-array keys must NOT appear — they are the tell-tale of an
+      // Descriptor-array keys must NOT appear - they are the tell-tale of an
       // over-broad match.
       for (const noise of ['id', 'name', 'description', 'icon', 'gradient']) {
         expect(`${name}:${noise}=${ids.includes(noise)}`).toBe(`${name}:${noise}=false`);

@@ -1,5 +1,5 @@
 /**
- * ConfettiBurst — the app's one confetti implementation.
+ * ConfettiBurst - the app's one confetti implementation.
  *
  * Lifted verbatim out of `work/PromotionCelebrationModal`, which had the only
  * copy, at the point a second celebration needed it. The behaviour there is
@@ -15,7 +15,7 @@
  *   layout is stable across re-renders and identical in tests and screenshots.
  *   A random scatter re-rolls on every parent render and makes the flakes jump.
  *
- * Callers are responsible for `useReducedMotion` — pass `play={false}` and
+ * Callers are responsible for `useReducedMotion` - pass `play={false}` and
  * nothing mounts at all.
  */
 import React, { useEffect, useRef } from 'react';
@@ -40,7 +40,7 @@ function Flake({
 }) {
   const progress = useRef(new Animated.Value(0)).current;
 
-  // Deterministic per-index scatter — see the header.
+  // Deterministic per-index scatter - see the header.
   const spread = ((index * 37) % 100) / 100;
   const startX = spread * SCREEN_W;
   const drift = ((index % 5) - 2) * scale(26);

@@ -97,7 +97,7 @@ export function applyAnniversaries(params: {
     details: { yearsMarried },
   };
 
-  // Deterministic Pulse auto-post — only for players who already post (matching
+  // Deterministic Pulse auto-post - only for players who already post (matching
   // shouldAutoPostMilestone). Unlike the interactive composePost path, this does
   // not roll viral chance / follower gains / energy cost (that lives in pulseTick
   // and would break tick determinism); it is a faithful, seed-free feed entry.
@@ -124,7 +124,7 @@ export function applyAnniversaries(params: {
   }
 
   logger.info(
-    `[ANNIVERSARY] ${yearsMarried}-year anniversary with ${spouse.name} — +${10 + yearsMarried} happiness`,
+    `[ANNIVERSARY] ${yearsMarried}-year anniversary with ${spouse.name} - +${10 + yearsMarried} happiness`,
   );
 
   return {

@@ -109,7 +109,7 @@ export function rollMatch(
  * mismatches the listed job, or the bio uses scam-y phrases.
  */
 export function calculateCatfishProbability(profile: DatingProfile): number {
-  let p = 0.03; // baseline — most profiles are real
+  let p = 0.03; // baseline - most profiles are real
   const incomeMismatch = profile.wealth === 'millionaire' && profile.income < 100_000;
   const wealthMismatch = profile.wealth === 'millionaire' && profile.job === 'Student';
   const bioRedFlags = /\b(invest|crypto|send|cashapp|venmo|sugar)\b/i.test(profile.bio);
@@ -121,7 +121,7 @@ export function calculateCatfishProbability(profile: DatingProfile): number {
 }
 
 /**
- * Catfish risk based on deterministic per-profile seed — so the same profile is
+ * Catfish risk based on deterministic per-profile seed - so the same profile is
  * consistently catfish-or-not in a save.
  */
 export function isCatfish(profile: DatingProfile, lineageSeed: string): boolean {
@@ -172,7 +172,7 @@ export function perksForTier(tier: SparkPremiumTier): SparkPremium['perks'] {
 }
 
 /**
- * Spark Premium — in-game (cash) subscription pricing per tier. Paid from
+ * Spark Premium - in-game (cash) subscription pricing per tier. Paid from
  * stats.money and auto-renewed weekly on the tick (see applySubscriptionsForWeek).
  * Ultra is ~2× Plus (mirrors the old $4.99 / $9.99 split) and priced against the
  * game's weekly job income. NOT a real App Store IAP.

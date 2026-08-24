@@ -54,7 +54,7 @@ describe('recording a week', () => {
   });
 });
 
-describe('idempotence — a StrictMode double-invoke must not double-append', () => {
+describe('idempotence - a StrictMode double-invoke must not double-append', () => {
   it('running the same week twice produces the same journal', () => {
     const notes = [note('arrears-312'), note('tenancy-312', 'Evicted')];
 
@@ -71,7 +71,7 @@ describe('idempotence — a StrictMode double-invoke must not double-append', ()
     expect(out).toHaveLength(1);
   });
 
-  it('a later week with a same-named event still records — ids carry the week', () => {
+  it('a later week with a same-named event still records - ids carry the week', () => {
     const week1 = appendWeekToJournal([], [note('arrears-1')], 1);
     const week9 = appendWeekToJournal(week1, [note('arrears-9')], 9);
 
@@ -128,7 +128,7 @@ describe('bounds and robustness', () => {
 
   it('tags entries so the reader can categorise them', () => {
     const out = appendWeekToJournal([], [note('promo-x1', 'Promoted', 'New salary')], 1);
-    // (that id is excluded — use a real one)
+    // (that id is excluded - use a real one)
     const real = appendWeekToJournal([], [note('career-1', 'Promoted', 'New salary')], 1);
     expect(out).toHaveLength(0);
     expect(real[0].tags).toContain('career');

@@ -59,7 +59,7 @@ describe('updatePlayerReputation', () => {
     expect(updatePlayerReputation(0, 'success', 'elite')).toBe(3);
   });
 
-  it('does not move on a CANCELLED trade — nothing happened', (): void => {
+  it('does not move on a CANCELLED trade - nothing happened', (): void => {
     expect(updatePlayerReputation(50, 'cancelled', 'pro')).toBe(50);
   });
 

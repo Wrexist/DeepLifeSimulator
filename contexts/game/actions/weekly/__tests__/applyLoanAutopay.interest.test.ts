@@ -16,7 +16,7 @@ function loan(over: Partial<Loan> = {}): Loan {
   } as Loan;
 }
 
-describe('applyLoanAutopay — serviced interest', () => {
+describe('applyLoanAutopay - serviced interest', () => {
   it('reports the interest that compounded on a paid loan this week', () => {
     // 52% APR / 52 weeks = 1% weekly on $5000 = $50 interest serviced.
     const res = applyLoanAutopay({ prevLoans: [loan()], cashAvailable: 100000 });

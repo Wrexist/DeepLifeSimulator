@@ -32,7 +32,7 @@ function banking(over: Partial<BankingState> = {}): BankingState {
   };
 }
 
-describe('runWeeklyBankingTick — interest ledgers', () => {
+describe('runWeeklyBankingTick - interest ledgers', () => {
   it('accumulates totalInterestEarned from account accrual + legacy savings interest', () => {
     const res = runWeeklyBankingTick({
       banking: banking(),

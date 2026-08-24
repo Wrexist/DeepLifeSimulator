@@ -13,7 +13,7 @@ interface Props {
   account: BankAccount;
   currentWeek: number;
   darkMode: boolean;
-  /** Row tap — opens the deposit flow (kept for backwards compat). */
+  /** Row tap - opens the deposit flow (kept for backwards compat). */
   onPress?: () => void;
   /** Explicit action buttons. Hidden for mirrored (read-only) accounts. */
   onWithdraw?: () => void;
@@ -82,13 +82,13 @@ export default function AccountRow({
   const isLocked = account.lockUntilWeek != null && currentWeek < account.lockUntilWeek;
   const weeksUntilUnlock = isLocked ? account.lockUntilWeek! - currentWeek : 0;
   const Icon = variant === 'card' ? accountGlyph(account.type) : account.type === 'checking' ? Wallet : PiggyBank;
-  // `checking-default` is a read-only view of cash — deposit/withdraw/close are
+  // `checking-default` is a read-only view of cash - deposit/withdraw/close are
   // all rejected by the action layer, so don't offer them at all.
   //
   // `savings-default` is NOT in that bucket any more. It is the account behind
   // the HUD's gold chip, and hiding its controls was half of why that chip could
   // never move (BBQ, 2026-08-11). Its deposits and withdrawals route through
-  // `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID. Close stays unavailable: it is
+  // `bankSavings` - see LEGACY_SAVINGS_ACCOUNT_ID. Close stays unavailable: it is
   // a primary account, not something the player opened.
   // Both rules come from `lib/banking/operations` rather than being re-derived
   // here. Three components asked the same two questions inline, this change had
@@ -115,8 +115,8 @@ export default function AccountRow({
        *
        * The whole card used to be one `TouchableOpacity` with the Deposit /
        * Withdraw / Close buttons rendered INSIDE it. Nested interactive controls
-       * are invalid on web — RN-Web logs "<button> cannot contain a nested
-       * <button>" — and the outer control wins the hit test, so the inner
+       * are invalid on web - RN-Web logs "<button> cannot contain a nested
+       * <button>" - and the outer control wins the hit test, so the inner
        * buttons were unreliable to tap and ambiguous to a screen reader, which
        * sees a button inside a button.
        *
@@ -139,7 +139,7 @@ export default function AccountRow({
         ]}
       >
         <View style={styles.cardInner}>
-          {/* per-type flat tint wash (a plain View — no gradient needed / spent) */}
+          {/* per-type flat tint wash (a plain View - no gradient needed / spent) */}
           <View
             pointerEvents="none"
             style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(${pal.rgb}, ${darkMode ? 0.14 : 0.1})` }]}
@@ -235,7 +235,7 @@ export default function AccountRow({
           )}
           </TouchableOpacity>
 
-          {/* actions — labeled + >=36pt; mirrored accounts stay read-only */}
+          {/* actions - labeled + >=36pt; mirrored accounts stay read-only */}
           {showActions ? (
             <View style={styles.cardActions}>
               {onPress && (
@@ -284,7 +284,7 @@ export default function AccountRow({
     );
   }
 
-  // ── Compact list row (default — unchanged contract) ───────────────────────
+  // ── Compact list row (default - unchanged contract) ───────────────────────
   // Recipe C tinted bubble: checking = identity info, savings variants get a
   // small semantic success tint (matches the green APR chip they carry).
   const isChecking = account.type === 'checking';
@@ -295,7 +295,7 @@ export default function AccountRow({
     /**
      * Same split as the card variant above, and for the same reason: the
      * Deposit / Withdraw / Close buttons used to sit INSIDE the outer
-     * pressable, which nests interactive controls — invalid on web (a `button`
+     * pressable, which nests interactive controls - invalid on web (a `button`
      * inside a `button`) and ambiguous for a screen reader, which cannot say
      * whether a tap opens the account or withdraws from it.
      *

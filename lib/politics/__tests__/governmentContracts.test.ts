@@ -41,7 +41,7 @@ function stateWith(careerLevel: number, approvalRating: number, weeklyIncome = 1
   });
 }
 
-describe('calculateGovernmentContractBonus — office tier (1-based careerLevel)', () => {
+describe('calculateGovernmentContractBonus - office tier (1-based careerLevel)', () => {
   it('a Citizen (careerLevel 0) earns nothing', () => {
     expect(calculateGovernmentContractBonus(stateWith(0, 100), 'c1')).toBe(0);
   });
@@ -54,7 +54,7 @@ describe('calculateGovernmentContractBonus — office tier (1-based careerLevel)
     expect(calculateGovernmentContractBonus(stateWith(2, 100, 1000), 'c1')).toBe(100);
   });
 
-  it('the President (rank 6) earns the top 75% tier — NOT $0 (the bug)', () => {
+  it('the President (rank 6) earns the top 75% tier - NOT $0 (the bug)', () => {
     expect(calculateGovernmentContractBonus(stateWith(6, 100, 1000), 'c1')).toBe(750);
   });
 
@@ -84,7 +84,7 @@ describe('areGovernmentContractsAvailable', () => {
   });
 });
 
-describe('getContractType — 1-based office rank', () => {
+describe('getContractType - 1-based office rank', () => {
   it('maps Council/Mayor to local', () => {
     expect(getContractType(1)).toBe('local');
     expect(getContractType(2)).toBe('local');

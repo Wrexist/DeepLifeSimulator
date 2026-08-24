@@ -374,7 +374,7 @@ export default function Journal({ compact = false }: JournalProps) {
         </View>
       )}
 
-      {/* Entries List — C-1: Virtualized with FlatList to prevent OOM on large journals */}
+      {/* Entries List - C-1: Virtualized with FlatList to prevent OOM on large journals */}
       {filteredEntries.length === 0 ? (
         <View style={[styles.entriesContainer, styles.emptyState]}>
           <BookOpen size={48} color={settings.darkMode ? '#475569' : '#D1D5DB'} />

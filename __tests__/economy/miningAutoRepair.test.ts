@@ -89,7 +89,7 @@ describe('auto-repair durability restore is budgeted by the funding coin', () =>
     expect((r.updatedWarehouse as any).minerDurability.basic).toBe(100);
   });
 
-  it('PARTIALLY restores when the budget is below the fleet cost — no free full repair', () => {
+  it('PARTIALLY restores when the budget is below the fleet cost - no free full repair', () => {
     // budget = 0.05 BTC × $1000 = $50 < $91.25 cost → restore only the $50 fraction.
     const r = applyMiningWarehouse({
       prevWarehouse: wh(),

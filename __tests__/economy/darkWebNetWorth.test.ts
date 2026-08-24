@@ -52,7 +52,7 @@ const BTC: Crypto = {
 // in `initialState`, and silently substituting an empty object would rebuild the
 // very partial-fixture problem this replaced.
 function requireSlice<T>(slice: T | undefined, name: string): T {
-  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice - fixture cannot be built`);
   return slice;
 }
 
@@ -78,7 +78,7 @@ function launderer(over: TestGameStateOverrides = {}): GameState {
  * The boundary fixture: a save whose `cleanBtc` is a shape the types forbid.
  *
  * Isolated here, with ONE cast, because that is the only place a malformed
- * persisted value legitimately enters — corrupt storage, a hand-edited save, a
+ * persisted value legitimately enters - corrupt storage, a hand-edited save, a
  * field that changed type across versions. Keeping it out of `launderer` means
  * the well-formed fixture stays fully type-checked.
  */
@@ -132,7 +132,7 @@ describe('dirty BTC does NOT count', () => {
     expect(dirtyRich).toBe(broke);
   });
 
-  it('so laundering RAISES net worth — the point of the mechanic', () => {
+  it('so laundering RAISES net worth - the point of the mechanic', () => {
     const dirty = netWorth(launderer({ darkWeb: darkWebWith({ cleanBtc: 0, dirtyBtc: 4 }) }));
     // Same 4 BTC, laundered (a real mixer takes a cut; this is the ceiling).
     const cleaned = netWorth(launderer({ darkWeb: darkWebWith({ cleanBtc: 4, dirtyBtc: 0 }) }));
@@ -152,7 +152,7 @@ describe('it degrades rather than poisoning the total', () => {
   });
 
   it('a malformed cleanBtc contributes 0, not NaN', () => {
-    // One bad field must not render every net-worth-derived number as NaN —
+    // One bad field must not render every net-worth-derived number as NaN -
     // the same failure mode the vehicle guards exist for.
     for (const bad of [NaN, Infinity, -5, null, undefined, 'lots']) {
       const nw = netWorth(laundererWithRawCleanBtc(bad));
@@ -197,7 +197,7 @@ describe('the memo cache cannot serve a stale answer', () => {
     /**
      * `netWorth` memoises on an explicit list of state slices. `darkWeb` was
      * not on it, so once this term existed the cache would have returned the
-     * pre-laundering figure forever for a player who changed nothing else —
+     * pre-laundering figure forever for a player who changed nothing else -
      * a fix that reports the old number is not a fix.
      */
     const a = launderer({ darkWeb: darkWebWith({ cleanBtc: 1, dirtyBtc: 0 }) });

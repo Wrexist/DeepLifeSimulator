@@ -32,7 +32,7 @@ const salariedAt = (week: number): GameState =>
     ],
   });
 
-describe('mail — determinism', () => {
+describe('mail - determinism', () => {
   it('produces an identical inbox when the same week is generated twice', () => {
     const state = salariedAt(104);
     const facts = { careerSalary: 1200, incomeTax: 180 };
@@ -57,7 +57,7 @@ describe('mail — determinism', () => {
     }
   });
 
-  it('never uses Math.random — a re-rolled scam would be a second chance to rob the player', () => {
+  it('never uses Math.random - a re-rolled scam would be a second chance to rob the player', () => {
     const spy = jest.spyOn(Math, 'random');
     generateWeeklyMail({
       state: salariedAt(88),
@@ -69,7 +69,7 @@ describe('mail — determinism', () => {
   });
 });
 
-describe('mail — boundedness', () => {
+describe('mail - boundedness', () => {
   it('caps routine messages per week', () => {
     // Week 0 lines every 4-week cycle up at once, which is the collision the
     // cap exists for.
@@ -118,7 +118,7 @@ describe('mail — boundedness', () => {
 });
 
 /**
- * `applyMail` returns `GameState | null` — null meaning "nothing changed".
+ * `applyMail` returns `GameState | null` - null meaning "nothing changed".
  * Narrowing that with `as GameState` is what Hard Rule #3 bans and what the
  * weekly audit flagged, so this asserts the delivery happened and narrows off
  * the assertion instead. It also reads better: a null here is a real failure of
@@ -129,7 +129,7 @@ function deliveredState(result: { state: GameState | null }): GameState {
   return result.state;
 }
 
-describe('mail — the weekly subsystem', () => {
+describe('mail - the weekly subsystem', () => {
   it('is idempotent across a repeated tick', () => {
     const state = salariedAt(60);
     const first = deliveredState(
@@ -142,7 +142,7 @@ describe('mail — the weekly subsystem', () => {
       facts: { careerSalary: 1200, incomeTax: 180 },
     });
 
-    // Short-circuited by `lastGeneratedWeek` — no second delivery.
+    // Short-circuited by `lastGeneratedWeek` - no second delivery.
     expect(second.state).toBeNull();
     expect(second.delivered).toBe(0);
   });
@@ -171,17 +171,17 @@ describe('mail — the weekly subsystem', () => {
   });
 
   it('leaves state alone on a week with nothing to send', () => {
-    // No job, no rent, no savings, no education — and a week that hits no cycle.
+    // No job, no rent, no savings, no education - and a week that hits no cycle.
     const state = createTestGameState({ weeksLived: 501, bankSavings: 0 });
     state.stats.money = 0;
     const result = applyMail({ state, week: 501, facts: {} });
-    // Either nothing changed, or only the marker moved — never a phantom message.
+    // Either nothing changed, or only the marker moved - never a phantom message.
     const delivered = result.state ? getMailState(result.state).messages.length : 0;
     expect(delivered).toBeLessThanOrEqual(1);
   });
 });
 
-describe('mail — documents quote the tick, not a recomputation', () => {
+describe('mail - documents quote the tick, not a recomputation', () => {
   it('puts the salary the tick actually paid on the payslip', () => {
     // The career level says $1,200. The tick paid $1,800 (a raise premium plus
     // a boost). The payslip must show what landed, or it is worse than useless.
@@ -211,7 +211,7 @@ describe('mail — documents quote the tick, not a recomputation', () => {
   });
 });
 
-describe('mail — gates that must not be dead', () => {
+describe('mail - gates that must not be dead', () => {
   /**
    * The welcome message shipped with `if (week > 2) return null`, which looked
    * obviously right and was obviously wrong: `computeWeeksLived(age)` is
@@ -219,7 +219,7 @@ describe('mail — gates that must not be dead', () => {
    * 20-year-old and 624 for a 30-year-old. The gate fired for exactly the three
    * scenarios that begin at 18 and silently never fired for the other twelve.
    *
-   * It was found by opening the app, not by a test — every test had picked its
+   * It was found by opening the app, not by a test - every test had picked its
    * own convenient week. This is that test, written from the real starting
    * weeks rather than from a round number.
    */
@@ -250,7 +250,7 @@ describe('mail — gates that must not be dead', () => {
   });
 });
 
-describe('mail — addressed to the right person', () => {
+describe('mail - addressed to the right person', () => {
   /**
    * `userProfile.name` is a HANDLE and defaults to "player". The character's
    * name is `firstName` + `lastName`, which is what `IdentityCard` shows. Both

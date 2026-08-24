@@ -1,5 +1,5 @@
 /**
- * BaseModal — Unified modal component
+ * BaseModal - Unified modal component
  *
  * Provides consistent styling, animation, and structure for all modals.
  * Replaces the 43+ individually-styled modals with a shared foundation.
@@ -38,12 +38,12 @@ import { useTheme } from '@/hooks/useTheme';
  * Spacing, mapped off the theme scale BY VALUE.
  *
  * `lib/config/theme.ts`'s `spacing` was a second, raw scale used by exactly one
- * file — this one. Raw means it never ran through `scale()`, so BaseModal was
+ * file - this one. Raw means it never ran through `scale()`, so BaseModal was
  * the only shared chassis in the app whose padding did not grow with the
  * device: 16pt of padding inside chrome scaled to 1.8x on a tablet, roughly 45%
  * too tight, and worse the larger the screen.
  *
- * Mapped by VALUE, never by key — the two scales are offset by one step
+ * Mapped by VALUE, never by key - the two scales are offset by one step
  * (theme `lg` 16 === responsive `md` 16), so a key-for-key swap would have
  * inflated every value. Three of the five steps in use (2, 12, 20) have no
  * equivalent in the target scale and become explicit `scale()` calls rather
@@ -52,9 +52,9 @@ import { useTheme } from '@/hooks/useTheme';
  */
 const sp = {
   xxs: scale(2),                 // was raw 2
-  sm: responsiveSpacing.sm,      // scale(8)  — was raw 8
+  sm: responsiveSpacing.sm,      // scale(8)  - was raw 8
   md: scale(12),                 // was raw 12, no token at this step
-  lg: responsiveSpacing.md,      // scale(16) — was raw 16
+  lg: responsiveSpacing.md,      // scale(16) - was raw 16
   xl: scale(20),                 // was raw 20, no token at this step
 } as const;
 
@@ -134,7 +134,7 @@ export default function BaseModal({
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Overlay — tap to close */}
+        {/* Overlay - tap to close */}
         <TouchableOpacity
           activeOpacity={1}
           style={[
@@ -145,7 +145,7 @@ export default function BaseModal({
           ]}
           onPress={onClose}
         >
-          {/* Container — stop propagation */}
+          {/* Container - stop propagation */}
           <TouchableOpacity
             activeOpacity={1}
             style={[
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
 
   // Overlay
   // NOTE: every colour below is supplied at render time by `themed` in the
-  // component body. Do not reintroduce `colors.dark.*` here — a static value
+  // component body. Do not reintroduce `colors.dark.*` here - a static value
   // wins over nothing and silently breaks light mode again.
   overlay: {
     flex: 1,

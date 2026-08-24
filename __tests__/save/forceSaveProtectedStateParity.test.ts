@@ -108,7 +108,7 @@ describe('forceSave / performSave protected-state parity (H8, L10)', () => {
     expect(updateProtectedState).toHaveBeenCalledWith(1, state);
   });
 
-  it('the queued path still does both — the behaviour forceSave was missing', async () => {
+  it('the queued path still does both - the behaviour forceSave was missing', async () => {
     await queueSave(2, state);
     expect(lastPayload()._embeddedProtectedState).toEqual(PROTECTED);
     expect(updateProtectedState).toHaveBeenCalledWith(2, state);

@@ -1,5 +1,5 @@
 /**
- * IPOModal — take a company public, or show post-IPO earnings.
+ * IPOModal - take a company public, or show post-IPO earnings.
  *
  * For private companies: float percent slider (10/25/40), share price preview,
  * cash raised preview, confirm CTA.
@@ -48,7 +48,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
     if (r.success) {
       hustleHaptics.success();
       saveGame?.();
-      setResultMsg(`Raised $${r.cashRaised.toLocaleString()} at $${r.sharePrice}/share — you kept ${r.ownershipKept}%`);
+      setResultMsg(`Raised $${r.cashRaised.toLocaleString()} at $${r.sharePrice}/share - you kept ${r.ownershipKept}%`);
     } else {
       hustleHaptics.error();
       setResultMsg(r.message);
@@ -86,7 +86,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                 <Text style={[styles.earningsLabel, { color: theme.textSecondary }]}>Recent earnings reports</Text>
                 {overlay.ipo.recentEarnings.length === 0 ? (
                   <Text style={[styles.earningsEmpty, { color: theme.textMuted }]}>
-                    No reports yet — first quarterly drops at week {(overlay.ipo.lastEarningsWeek ?? 0) + 12}
+                    No reports yet - first quarterly drops at week {(overlay.ipo.lastEarningsWeek ?? 0) + 12}
                   </Text>
                 ) : (
                   overlay.ipo.recentEarnings.map((e: any) => (
@@ -104,7 +104,7 @@ export default function IPOModal({ visible, companyId, onDismiss }: IPOModalProp
                 )}
               </View>
               {/* The IPO fires from the private branch, but success flips the
-                  company to public and re-renders HERE — so the "raised $X"
+                  company to public and re-renders HERE - so the "raised $X"
                   confirmation must also show in the public branch, or a
                   successful IPO would look like it did nothing. */}
               {resultMsg ? <Text style={[styles.resultMsg, { color: theme.text }]}>{resultMsg}</Text> : null}

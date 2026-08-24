@@ -1,8 +1,8 @@
 /**
- * ProfileEditModal — edit display name, handle, bio, location, website.
+ * ProfileEditModal - edit display name, handle, bio, location, website.
  *
  * The verified flag, follower counts, and the lineage-bound first/last name
- * are NOT editable here — verified is granted via Pulse Pro IAP, follower
+ * are NOT editable here - verified is granted via Pulse Pro IAP, follower
  * counts are derived from gameplay, and the legal name is a save-bound
  * identity field. The plan's §2.7 ProfileEditModal explicitly preserved
  * validation behavior; this re-write keeps the simple-but-strict checks:
@@ -13,7 +13,7 @@
  *   - location:    0–40 chars
  *   - website:     blank or starts with http(s):// + domain
  *
- * Writes directly to `gameState.userProfile` via setGameState — no separate
+ * Writes directly to `gameState.userProfile` via setGameState - no separate
  * action because UserProfile edits don't need cross-system side effects.
  */
 
@@ -122,7 +122,7 @@ export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModa
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.backdrop, { zIndex: Z_INDEX.MODAL }]}
       >
-        {/* Real inset, not a scaled constant — see ComposeModal for the why. */}
+        {/* Real inset, not a scaled constant - see ComposeModal for the why. */}
         <View
           style={[
             styles.sheet,

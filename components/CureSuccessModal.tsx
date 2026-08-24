@@ -11,18 +11,18 @@ import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalSc
 
 const LinearGradient = Gradient;
 
-// Success accent — the whole card means "cured", so it's always green.
+// Success accent - the whole card means "cured", so it's always green.
 const ACCENT = '#34D399';
 const ACCENT_DEEP = '#059669';
 
 export default function CureSuccessModal() {
   const { gameState, dismissCureSuccessModal } = useGame();
   // curedDiseases is not backfilled by repairGameState, and its `.length` is read
-  // in the effect dependency array below (unconditionally, every render) — default
+  // in the effect dependency array below (unconditionally, every render) - default
   // it here so an old/partial save with curedDiseases === undefined can't crash.
   const { showCureSuccessModal, week } = gameState;
   const curedDiseases = gameState.curedDiseases || [];
-  // R2-A: rare-path modal — bail safely if settings is undefined.
+  // R2-A: rare-path modal - bail safely if settings is undefined.
   const settings = safeSettings(gameState);
   const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
 
@@ -83,7 +83,7 @@ export default function CureSuccessModal() {
             </Text>
           </View>
 
-          {/* Cured list (scrolls only if it ever gets long — the button below
+          {/* Cured list (scrolls only if it ever gets long - the button below
               stays put and can never be overlapped). */}
           <ScrollView
             style={styles.scroll}

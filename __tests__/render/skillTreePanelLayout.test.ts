@@ -33,7 +33,7 @@ function style(name: string): string {
   return (m as RegExpExecArray)[1];
 }
 
-describe('SkillTreeModal — the detail panel', () => {
+describe('SkillTreeModal - the detail panel', () => {
   it('is bounded by a share of the shell, not a fixed pixel cap', () => {
     const panel = style('detailsPanel');
     expect(panel).toMatch(/maxHeight: '\d+%'/);
@@ -50,7 +50,7 @@ describe('SkillTreeModal — the detail panel', () => {
   it('keeps the Unlock button OUT of the scrolling body', () => {
     // The whole point: prose that grows must not be able to push the action
     // out of the panel. If the button is inside the scroller again, a long
-    // description puts it below the fold — better than clipped, still wrong.
+    // description puts it below the fold - better than clipped, still wrong.
     const body = /<ScrollView style=\{styles\.detailsScroll\}[\s\S]*?<\/ScrollView>/.exec(CODE);
     expect(body).not.toBeNull();
     expect((body as RegExpExecArray)[0]).not.toContain('Unlock Skill');

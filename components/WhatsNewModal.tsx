@@ -32,7 +32,7 @@ const CATEGORY: Record<
   fixed: { label: 'FIXED', color: '#FBBF24', tint: 'rgba(251, 191, 36, 0.14)', icon: Wrench },
 };
 
-/** The "Coming next" tag. Deliberately muted — it is not a shipped change. */
+/** The "Coming next" tag. Deliberately muted - it is not a shipped change. */
 const UPCOMING_COLOR = '#A78BFA';
 const UPCOMING_TINT = 'rgba(167, 139, 250, 0.14)';
 
@@ -41,7 +41,7 @@ const UPCOMING_TINT = 'rgba(167, 139, 250, 0.14)';
  * opened from the Main Menu (top-right button) and Settings.
  *
  * Uses a plain <Modal> so it works BOTH at the root (Main Menu) and NESTED
- * inside the already-presented Settings Modal — the same iOS-safe nesting
+ * inside the already-presented Settings Modal - the same iOS-safe nesting
  * RedeemCodeModal/DevToolsModal rely on (never a sibling root Modal on iOS).
  *
  * Layout: a tall sheet that fills the screen between the safe-area insets, with
@@ -51,7 +51,7 @@ const UPCOMING_TINT = 'rgba(167, 139, 250, 0.14)';
  *
  * Only the LATEST release is expanded. A player opening this wants to know what
  * changed in the update they just took, and every older entry sits between that
- * and the "Coming next" section — a big release (2.9.0 ships ten groups) pushed
+ * and the "Coming next" section - a big release (2.9.0 ships ten groups) pushed
  * the previous four out of reach and made the newest one look like the whole
  * history. Older entries collapse to a tappable row showing their headline, so
  * the log is still complete and still one tap deep.
@@ -68,7 +68,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
 
   useEffect(() => {
     if (!visible) return;
-    // Opening the log counts as "seen" — clears the Main Menu NEW badge.
+    // Opening the log counts as "seen" - clears the Main Menu NEW badge.
     void markWhatsNewSeen();
     // Every open starts on the latest release. Carrying the previous session's
     // expansions forward would reopen an old entry above the new one.
@@ -97,7 +97,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        {/* Dismiss backdrop — sits BEHIND the sheet so taps outside close the
+        {/* Dismiss backdrop - sits BEHIND the sheet so taps outside close the
             popup while the ScrollView inside keeps full gesture control. */}
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -205,7 +205,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                           <View style={[styles.tag, { backgroundColor: meta.tint }]}>
                             <TagIcon size={scale(11)} color={meta.color} />
                             {/* One line, shrink-to-fit. The tag column is a FIXED
-                                width so every title starts on the same x — with
+                                width so every title starts on the same x - with
                                 `minWidth` the wider "IMPROVED" pushed its row's
                                 text right and the column visibly zig-zagged. */}
                             <Text
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   chevronOpen: {
     transform: [{ rotate: '180deg' }],
   },
-  // A collapsed entry ends on its headline, whose own marginBottom is 4 — too
+  // A collapsed entry ends on its headline, whose own marginBottom is 4 - too
   // tight against the divider below it. Restores the gap the summary was giving.
   collapsedSpacer: {
     height: scale(10),

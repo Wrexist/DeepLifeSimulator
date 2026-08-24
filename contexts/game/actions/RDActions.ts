@@ -61,7 +61,7 @@ export const buildRDLab = (
   if (gameState.stats.money < cost) {
     return {
       success: false,
-      message: `Lab upgrade costs ${formatMoney(cost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(cost - gameState.stats.money)} short).`,
+      message: `Lab upgrade costs ${formatMoney(cost)} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(cost - gameState.stats.money)} short).`,
     };
   }
 
@@ -71,7 +71,7 @@ export const buildRDLab = (
      * Re-check EVERYTHING against `prev`.
      *
      * This updater re-checked nothing: not funds, not which lab the company
-     * already had — and it debited with `Math.max(0, …)`, which floors instead
+     * already had - and it debited with `Math.max(0, …)`, which floors instead
      * of rejecting. Its three siblings in this file (`startResearch`,
      * `filePatent`, `enterCompetition`) all carry the fix and cite it in
      * comments; this one was left behind.
@@ -83,7 +83,7 @@ export const buildRDLab = (
      * $1,200,000, and end with one lab. On a thin wallet the floor zeroed the
      * player's cash rather than declining. CLAUDE.md §4.4.
      *
-     * The cost is re-derived from `prev`'s lab too — an upgrade is priced
+     * The cost is re-derived from `prev`'s lab too - an upgrade is priced
      * against what the company currently HAS, so a stale `currentLabType` would
      * charge the wrong amount even when only one tap lands.
      */
@@ -168,13 +168,13 @@ export const startResearch = (
   }
 
   /**
-   * Already in progress — the one gate that had no outer mirror.
+   * Already in progress - the one gate that had no outer mirror.
    *
    * The concurrency check above hides it on a Basic lab (max 1 project), but a
    * lab with `maxConcurrentProjects > 1` and a free slot passes it while the
    * updater still refuses a duplicate project for the SAME technology. That
    * refusal used to surface through a `let applied` flag read after the
-   * dispatch — unreliable for any update that is not first in its React batch,
+   * dispatch - unreliable for any update that is not first in its React batch,
    * so it also reported failure for research that had genuinely started.
    */
   if (activeProjects.some(p => p.technologyId === technologyId)) {
@@ -185,7 +185,7 @@ export const startResearch = (
   if (gameState.stats.money < technology.researchCost) {
     return {
       success: false,
-      message: `Research costs ${formatMoney(technology.researchCost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(technology.researchCost - gameState.stats.money)} short).`,
+      message: `Research costs ${formatMoney(technology.researchCost)} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(technology.researchCost - gameState.stats.money)} short).`,
     };
   }
 
@@ -202,18 +202,18 @@ export const startResearch = (
   //
   // ECON-2: every gate above reads the STALE outer `gameState` and the updater
   // re-checked none of them, while `Math.max(0, money - cost)` floored the debit
-  // instead of rejecting it. Two taps in one React batch — two technology rows,
-  // or the same row twice — both passed, so a Basic lab with
+  // instead of rejecting it. Two taps in one React batch - two technology rows,
+  // or the same row twice - both passed, so a Basic lab with
   // `maxConcurrentProjects: 1` ran N projects (defeating the whole lab-tier
   // progression gate) and the second charge silently clamped to 0. With two
   // projects for the SAME technology, `completeResearch` appends the id twice
-  // with no dedupe and rolls `triggerBreakthrough` once per completion — two
+  // with no dedupe and rolls `triggerBreakthrough` once per completion - two
   // chances at a PERMANENT 2x/3x company income multiplier for one purchase.
   //
   // Same fix `filePatent` and `enterCompetition` in this file already carry from
   // the 2026-07-02 audit; `startResearch` was left behind. 2026-07-30 audit.
   // Every re-check below now mirrors an outer guard, so they are same-batch
-  // RACE protection for STATE — not the reported outcome.
+  // RACE protection for STATE - not the reported outcome.
   setGameState(prev => {
     const prevCompany = (prev.companies || []).find(c => c.id === companyId);
     if (!prevCompany?.rdLab) return prev;
@@ -318,7 +318,7 @@ export const completeResearch = (
 
   // Roll a rare scientific breakthrough on completion. When it fires, the
   // company's income is permanently multiplied (the 2×/3× events in
-  // BREAKTHROUGH_EFFECTS) via applyBreakthroughEffects — this wires the
+  // BREAKTHROUGH_EFFECTS) via applyBreakthroughEffects - this wires the
   // previously-orphaned breakthroughs module into the live economy. The chance
   // is low and scales with lab type × technology tier (see triggerBreakthrough).
   const breakthrough = triggerBreakthrough(
@@ -368,7 +368,7 @@ export const completeResearch = (
   const hasPatentOpportunity = Math.random() < adjustedBreakthroughChance;
 
   const breakthroughNote = breakthrough
-    ? ` Breakthrough: ${breakthrough.name} — company income ×${breakthrough.effects.incomeMultiplier}!`
+    ? ` Breakthrough: ${breakthrough.name} - company income ×${breakthrough.effects.incomeMultiplier}!`
     : '';
 
   return {
@@ -380,7 +380,7 @@ export const completeResearch = (
 };
 
 /**
- * Weekly R&D research tick — the previously-missing driver that makes labs
+ * Weekly R&D research tick - the previously-missing driver that makes labs
  * actually finish research (before this, `completeResearch` had ZERO callers,
  * so research never completed and the whole R&D payoff chain was dead).
  *
@@ -437,7 +437,7 @@ export const advanceResearch = (
       // forever. calcWeeklyPassiveIncome (passiveIncome.ts) already gates patent
       // income on `duration > 0`, so an expired/dropped patent stops paying the
       // week it ages out. This weekly R&D step is the SOLE per-week driver for
-      // `updatePatents` (previously it had zero callers — patents never aged). It
+      // `updatePatents` (previously it had zero callers - patents never aged). It
       // runs off `prev` inside the updater, so a StrictMode double-invoke re-derives
       // the same one-week decrement rather than aging twice.
       if (Array.isArray(c.patents) && c.patents.length > 0) {
@@ -615,7 +615,7 @@ export const enterCompetition = (
   // H-8/H-9: fold the affordability + already-entered re-check, the entry-fee
   // charge, and the history append into ONE `setGameState(prev => …)` keyed off
   // `prev`. Previously the fee (deps.updateMoney) and the history append were two
-  // separate dispatches, and the append never re-checked `alreadyEntered` — so two
+  // separate dispatches, and the append never re-checked `alreadyEntered` - so two
   // same-batch taps both passed the stale outer gate and both appended a duplicate
   // entry. `processCompetitionResults` sums a prize PER entry, so the duplicate
   // paid out twice: a repeatable, untaxed money printer. Re-reading the gate from
@@ -630,10 +630,10 @@ export const enterCompetition = (
                entry.entryWeek === absoluteWeek &&
                !entry.completed
     );
-    if (enteredInPrev) return prev; // second same-batch tap — reject atomically
+    if (enteredInPrev) return prev; // second same-batch tap - reject atomically
 
     const spend = applyMoneyDelta(prev, -competition.entryCost, `Enter ${competition.name}`);
-    if (!spend) return prev; // unaffordable (race guard) — reject atomically
+    if (!spend) return prev; // unaffordable (race guard) - reject atomically
 
     const competitionEntry = {
       competitionId: competition.id,
@@ -670,13 +670,13 @@ export const enterCompetition = (
 /**
  * Resolve any company R&D competitions whose result week has arrived.
  *
- * R10-1: this used to be orphaned — `enterCompetition` charged the entry fee but
+ * R10-1: this used to be orphaned - `enterCompetition` charged the entry fee but
  * nothing ever called this to award prizes, so every entry was a permanent money
  * sink. It is now wired into the weekly tick (CompanyActionsContext effect on
  * `weeksLived`). Resolution runs in a SINGLE `setGameState` updater and grants
  * the prize via `applyMoneyDelta` folded into that same updater, so it is atomic
  * and idempotent: a double-invoke (React StrictMode) recomputes from the same
- * `prev` and only ever marks each entry `completed` once — no double-award.
+ * `prev` and only ever marks each entry `completed` once - no double-award.
  */
 export const processCompetitionResults = (
   setGameState: Dispatch<SetStateAction<GameState>>,
@@ -689,7 +689,7 @@ export const processCompetitionResults = (
    * PRIZE MONEY were drawn with `Math.random()` inside the updater. React
    * StrictMode double-invokes an updater (and a rebased update re-runs it), so
    * the discarded pass and the committed pass resolved different competitions
-   * — the log line said one thing and the bank another, and the idempotence
+   * - the log line said one thing and the bank another, and the idempotence
    * this function's docblock claims held only for the `completed` flag.
    *
    * Same pattern as `buildPreRolls` in `actions/weekly/preTick.ts`, minus its

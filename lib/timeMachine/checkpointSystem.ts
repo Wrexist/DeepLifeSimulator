@@ -228,7 +228,7 @@ export function addCheckpoint(
  * Get the gem cost to rewind to a checkpoint.
  * Cost doubles with each use this life.
  *
- * The Time Machine gold upgrade halves the cost — turns the 25,000-gem
+ * The Time Machine gold upgrade halves the cost - turns the 25,000-gem
  * upgrade into a real economic value-add (was previously a flag set on
  * purchase that nothing read). The Chronomaster upgrade goes further and makes
  * every rewind free (the top-tier gem sink), so it takes precedence.
@@ -274,7 +274,7 @@ export function rewindToCheckpoint(
     // new saves store it as an object (already deep-cloned at creation time).
     // Either way, we clone on rewind so the restored state is independent of
     // the checkpoint and safe for callers to mutate.
-    // audit-allow-clone: the REWIND path — user-initiated and rare, not the
+    // audit-allow-clone: the REWIND path - user-initiated and rare, not the
     // weekly tick. The restored state must be independent of the checkpoint.
     const rawSnapshot: any = typeof checkpoint.snapshot === 'string'
       ? JSON.parse(checkpoint.snapshot)
@@ -283,7 +283,7 @@ export function rewindToCheckpoint(
     // R2-C: migrate the checkpoint snapshot through any state-version bumps that
     // have happened since it was captured. Previously, a checkpoint taken at
     // STATE_VERSION 14 (no banking.creditScore, no socialMedia.verifiedPro,
-    // etc.) was restored verbatim into the v18 schema — every screen that
+    // etc.) was restored verbatim into the v18 schema - every screen that
     // dereferenced the new fields then crashed and the player black-screened.
     // Run the same migration + repair pipeline used on load.
     let migrated: any = rawSnapshot;
@@ -320,7 +320,7 @@ export function rewindToCheckpoint(
     // `mail` is stripped from snapshots (see CHECKPOINT_STRIPPED_TOP_LEVEL_KEYS)
     // but `pendingEvents` is NOT, so a letter-event restored here has a
     // decision and no inbox to render it in. Left alone it would be invisible
-    // in BOTH surfaces until `applyMailLapse` handed it back at its deadline —
+    // in BOTH surfaces until `applyMailLapse` handed it back at its deadline -
     // the exact silent failure `lib/events/routing.ts` exists to prevent.
     //
     // Clearing `channel` returns it to `WeeklyEventModal`, which is where it

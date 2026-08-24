@@ -107,13 +107,13 @@ describe('an advanced career the player holds renders once, from their own entry
   it('the advanced section defers to renderCareerCard for a held career', () => {
     // The catalog stub can only describe rung 0. A player working the career
     // needs their level, progress, raise premium and the Manage Job / promote
-    // controls — which only `renderCareerCard` draws.
+    // controls - which only `renderCareerCard` draws.
     expect(workTabSource).toMatch(/const held = gameState\.careers\.find\(c => c\.id === career\.id\);/);
     expect(workTabSource).toMatch(/if \(held\) return renderCareerCard\(held\);/);
   });
 
   it('and the stub it falls back to quotes pay in the shared money', () => {
-    // Was `$${salary.toLocaleString()}/wk` off `levels[0].salary` — a fourth
+    // Was `$${salary.toLocaleString()}/wk` off `levels[0].salary` - a fourth
     // format on a screen that now speaks one.
     expect(workTabSource).not.toMatch(/\$\$\{salary\.toLocaleString\(\)\}\/wk/);
     expect(workTabSource).toMatch(/paidWeeklySalaryForLevel\(gameState, career, 0\)/);

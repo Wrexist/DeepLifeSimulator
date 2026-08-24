@@ -72,7 +72,7 @@ const makeSaveUnder = (key: string): Promise<SerializedSave> =>
   });
 
 describe('a save is rejected outright under a different key', () => {
-  it('verifySaveData returns false — the save is lost, not degraded', async () => {
+  it('verifySaveData returns false - the save is lost, not degraded', async () => {
     const save = await makeSaveUnder(OLD_KEY);
 
     const ok = await withEnv({ EXPO_PUBLIC_SAVE_HMAC_KEY: NEW_KEY }, (m) =>
@@ -143,7 +143,7 @@ describe('listing the old key second recovers it', () => {
     // Neither rotated key can produce this HMAC for this payload.
     //
     // The earlier version of this suite only had the checksum case, so it
-    // passed for the wrong reason — it never exercised the multi-key path it
+    // passed for the wrong reason - it never exercised the multi-key path it
     // claimed to guard. Caught in review on PR #102.
     const save = await makeSaveUnder(OLD_KEY);
     const tampered = JSON.stringify({ weeksLived: 42, money: 999999999 });

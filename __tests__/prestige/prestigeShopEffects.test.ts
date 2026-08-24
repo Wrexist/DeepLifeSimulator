@@ -33,7 +33,7 @@ const withBonuses = (ids: string[], overrides: Partial<GameState> = {}): GameSta
     },
   } as Partial<GameState>);
 
-describe('early_education_access — "Start with all educations completed"', () => {
+describe('early_education_access - "Start with all educations completed"', () => {
   it('completes every catalogue programme on a life that has enrolled in nothing', () => {
     // The exact state every new life starts in, and the reason the bonus was
     // dead: it used to map over this empty list.
@@ -66,7 +66,7 @@ describe('early_education_access — "Start with all educations completed"', () 
   });
 });
 
-describe('legacy_education — "Future generations start with all educations"', () => {
+describe('legacy_education - "Future generations start with all educations"', () => {
   it('completes the catalogue for the heir', () => {
     const heir = createTestGameState({ educations: [] });
     const out = applyLegacyBonuses(heir, ['legacy_education'], 0, createTestGameState());
@@ -74,7 +74,7 @@ describe('legacy_education — "Future generations start with all educations"', 
     expect(out.educations.every(e => e.completed)).toBe(true);
   });
 
-  it('stays a LEGACY bonus — no previous life, no grant', () => {
+  it('stays a LEGACY bonus - no previous life, no grant', () => {
     const heir = createTestGameState({ educations: [] });
     const out = applyLegacyBonuses(heir, ['legacy_education'], 0, undefined);
     expect(out.educations).toHaveLength(0);
@@ -132,7 +132,7 @@ describe('completeAllPrograms', () => {
   });
 });
 
-describe('early_career_access — "Unlock all careers from start"', () => {
+describe('early_career_access - "Unlock all careers from start"', () => {
   // The shape that used to defeat it: education AND an item AND fitness.
   const gatedRequirements = {
     fitness: 60,
@@ -156,7 +156,7 @@ describe('early_career_access — "Unlock all careers from start"', () => {
     expect(check.waivedByPrestige).toBe(false);
   });
 
-  it('lifts ALL of them with the bonus — not just education', () => {
+  it('lifts ALL of them with the bonus - not just education', () => {
     const check = checkCareerRequirements(
       gatedRequirements,
       brokeAndUnqualified(['early_career_access']),
@@ -187,7 +187,7 @@ describe('early_career_access — "Unlock all careers from start"', () => {
   });
 });
 
-describe('income curve honesty — synergy_wealth_master and the soft cap', () => {
+describe('income curve honesty - synergy_wealth_master and the soft cap', () => {
   // Past the +50% soft-cap threshold: raw 1.75, effective ~1.5625.
   const diminished = ['income_multiplier_3', 'income_multiplier_3', 'income_multiplier_2'];
 
@@ -232,7 +232,7 @@ describe('income curve honesty — synergy_wealth_master and the soft cap', () =
   });
 });
 
-describe('early_company_access — reported broken, NOT reproduced', () => {
+describe('early_company_access - reported broken, NOT reproduced', () => {
   it('is honoured by the predicate every company gate reads', () => {
     expect(hasEarlyCompanyAccess(['early_company_access'])).toBe(true);
     expect(hasEarlyCompanyAccess([])).toBe(false);
@@ -245,7 +245,7 @@ describe('early_company_access — reported broken, NOT reproduced', () => {
   });
 });
 
-describe('early_career_access — end to end through applyForJob', () => {
+describe('early_career_access - end to end through applyForJob', () => {
   // A career gated on all three, on a character who meets none of them.
   const gatedCareer = {
     id: 'gated_role',
@@ -275,7 +275,7 @@ describe('early_career_access — end to end through applyForJob', () => {
     expect((result as { message: string }).message).toContain('Fitness');
   });
 
-  it('accepts the application with the bonus — the fitness block used to ignore it', () => {
+  it('accepts the application with the bonus - the fitness block used to ignore it', () => {
     // This is the regression that made "Unlock all careers from start" a lie
     // even after the education half was waived: `applyForJob` checked fitness
     // in a separate block that never consulted the prestige bonus, so an

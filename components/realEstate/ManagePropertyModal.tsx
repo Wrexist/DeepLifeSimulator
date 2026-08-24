@@ -150,14 +150,14 @@ export default function ManagePropertyModal({
 
               {/* An over-ask is accepted and then clamped by `effectiveAskRent`
                   at payout. Stating the collectable amount only when the ask
-                  exceeds the cap keeps this out of the way on a normal ask —
+                  exceeds the cap keeps this out of the way on a normal ask -
                   a warning shown every time is noise. */}
               {(() => {
                 const over = askRentOverage(rent, value);
                 if (!over) return null;
                 return (
                   <Text style={[styles.capNote, { color: accent.warning }]}>
-                    Tenants top out at ${Math.round(over.collected).toLocaleString()}/wk for this property — asking more collects the same.
+                    Tenants top out at ${Math.round(over.collected).toLocaleString()}/wk for this property - asking more collects the same.
                   </Text>
                 );
               })()}
@@ -311,7 +311,7 @@ export default function ManagePropertyModal({
 
                 {availableDecor.length === 0 && availableRooms.length === 0 && !nextTier && (
                   <Text style={[styles.helpText, { color: theme.textMuted }]}>
-                    Fully improved — every upgrade, room, and furnishing is installed.
+                    Fully improved - every upgrade, room, and furnishing is installed.
                   </Text>
                 )}
               </View>

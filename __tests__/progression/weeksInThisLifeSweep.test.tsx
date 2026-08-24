@@ -31,14 +31,14 @@ import type { GameState } from '@/contexts/game/types';
 const repoRoot = path.resolve(__dirname, '../..');
 const read = (rel: string) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
 
-describe('weeksSinceLifeStart — the primitive', () => {
+describe('weeksSinceLifeStart - the primitive', () => {
   it('subtracts the baseline', () => {
     expect(weeksSinceLifeStart(364, 364)).toBe(0);
     expect(weeksSinceLifeStart(368, 364)).toBe(4);
     expect(weeksSinceLifeStart(1144, 1144)).toBe(0);
   });
 
-  it('an age-18 life is unchanged — the baseline is 0', () => {
+  it('an age-18 life is unchanged - the baseline is 0', () => {
     expect(weeksSinceLifeStart(0, 0)).toBe(0);
     expect(weeksSinceLifeStart(7, 0)).toBe(7);
   });
@@ -103,7 +103,7 @@ describe('the no-job nudge waits for the player to actually be jobless a while',
     expect(tipFor(jobless(25, 3))).toBe('no_job');
   });
 
-  it('an age-18 life is unaffected — same weeks, same answer', () => {
+  it('an age-18 life is unaffected - same weeks, same answer', () => {
     expect(tipFor(jobless(18, 2))).toBeNull();
     expect(tipFor(jobless(18, 3))).toBe('no_job');
   });

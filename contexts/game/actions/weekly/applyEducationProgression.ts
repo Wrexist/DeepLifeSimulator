@@ -195,7 +195,7 @@ export function applyEducationProgression(
       };
 
       // Study group weekly bonuses. Read from the constant rather than
-      // repeating 2 and 3 — see C-12 in `educationSystem.ts`.
+      // repeating 2 and 3 - see C-12 in `educationSystem.ts`.
       if (edu.studyGroupActive) {
         ctx.newStats.happiness = Math.min(
           100,
@@ -249,7 +249,7 @@ export function applyEducationProgression(
 
         ctx.notifications.push({
           id: 'education-exam',
-          message: `${examResult.grade} — ${examResult.message}`,
+          message: `${examResult.grade} - ${examResult.message}`,
           title: `📝 Exam in ${edu.name}`,
         });
       }
@@ -275,7 +275,7 @@ export function applyEducationProgression(
         }
         ctx.notifications.push({
           id: 'education-complete',
-          message: `GPA: ${(updatedEdu.gpa || 2.5).toFixed(1)} — Class bonuses applied!`,
+          message: `GPA: ${(updatedEdu.gpa || 2.5).toFixed(1)} - Class bonuses applied!`,
           title: `🎓 ${edu.name} Completed!`,
         });
       }

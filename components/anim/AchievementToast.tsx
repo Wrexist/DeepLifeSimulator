@@ -38,7 +38,7 @@ export default function AchievementToast() {
   // CRITICAL: read through the selector channel directly rather than `useGame()`
   // so this stays a single hook call, which is safer during provider
   // initialization. If the context isn't ready the hook throws and the
-  // ErrorBoundary catches it — we can't try/catch, hooks must be unconditional.
+  // ErrorBoundary catches it - we can't try/catch, hooks must be unconditional.
   //
   // M4: this component's ONLY use of game state is the readiness null-check
   // below, so it selects exactly that boolean. `useGameState()` here subscribed

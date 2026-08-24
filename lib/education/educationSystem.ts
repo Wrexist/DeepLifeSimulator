@@ -71,7 +71,7 @@ export const CLASS_TEMPLATES: ClassTemplate[] = [
     statBonuses: { health: 2, reputation: 2 },
     difficulty: 3,
     availableIn: ['medical_school', 'phd'],
-    description: 'The dreaded "orgo" — a rite of passage.',
+    description: 'The dreaded "orgo" - a rite of passage.',
   },
   {
     id: 'data_structures',
@@ -80,7 +80,7 @@ export const CLASS_TEMPLATES: ClassTemplate[] = [
     statBonuses: { reputation: 4 },
     difficulty: 3,
     availableIn: ['computer_science', 'masters_degree'],
-    description: 'Arrays, trees, graphs — the building blocks of software.',
+    description: 'Arrays, trees, graphs - the building blocks of software.',
   },
   {
     id: 'constitutional_law',
@@ -363,9 +363,9 @@ export function runExam(
   }
 
   const messages: Record<string, string[]> = {
-    A: ['Aced it! Top of the class!', 'Perfect score — the professor is impressed.'],
-    B: ['Solid performance. Well done.', 'Good grade — your hard work paid off.'],
-    C: ['Passed, but barely. Room for improvement.', 'Average — could do better next time.'],
+    A: ['Aced it! Top of the class!', 'Perfect score - the professor is impressed.'],
+    B: ['Solid performance. Well done.', 'Good grade - your hard work paid off.'],
+    C: ['Passed, but barely. Room for improvement.', 'Average - could do better next time.'],
     D: ['Struggling. Need to study harder.', 'Barely hanging on.'],
     F: ['Failed the exam. Time to reconsider your approach.', 'Bombed it. That was rough.'],
   };

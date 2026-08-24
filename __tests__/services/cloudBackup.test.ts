@@ -113,7 +113,7 @@ describe('cloud backup flag gate', () => {
     jest.useRealTimers();
   });
 
-  it('is OFF when neither env var is set — a save uploads nothing', () => {
+  it('is OFF when neither env var is set - a save uploads nothing', () => {
     const mod = loadCloudBackup({});
     expect(mod.isCloudBackupEnabled()).toBe(false);
 
@@ -123,12 +123,12 @@ describe('cloud backup flag gate', () => {
     expect(mockQueueSync).not.toHaveBeenCalled();
   });
 
-  it('is OFF when the flag is set but the URL is missing — the UI would be a dead end', () => {
+  it('is OFF when the flag is set but the URL is missing - the UI would be a dead end', () => {
     const mod = loadCloudBackup({ EXPO_PUBLIC_ENABLE_CLOUD_SAVE: 'true' });
     expect(mod.isCloudBackupEnabled()).toBe(false);
   });
 
-  it('is OFF when the auth token is missing — every write would be refused', () => {
+  it('is OFF when the auth token is missing - every write would be refused', () => {
     // The token is supplied by the EAS env store, not eas.json, so a profile
     // that declares the flag and URL alone resolves to off rather than
     // rendering Back up / Restore buttons whose every tap fails.
@@ -136,7 +136,7 @@ describe('cloud backup flag gate', () => {
     expect(loadCloudBackup(withoutToken).isCloudBackupEnabled()).toBe(false);
   });
 
-  it('is ON with both, even under Boring Build — it is not a native SDK', () => {
+  it('is ON with both, even under Boring Build - it is not a native SDK', () => {
     const mod = loadCloudBackup({ ...CLOUD_ENV, EXPO_PUBLIC_BORING_BUILD: 'true' });
     expect(mod.isCloudBackupEnabled()).toBe(true);
   });
@@ -183,7 +183,7 @@ describe('cloud backup debounce', () => {
     expect(mockQueueSync.mock.calls[1][0]).toMatchObject({ weeksLived: 402 });
   });
 
-  it('re-checks the suspension at FIRE time — the window is minutes long', () => {
+  it('re-checks the suspension at FIRE time - the window is minutes long', () => {
     const mod = loadCloudBackup(CLOUD_ENV);
     mod.scheduleCloudBackup(createTestGameState({ weeksLived: 600 }));
     // The player walked out to the slot picker after the save, before the timer.
@@ -208,7 +208,7 @@ describe('cloud backup debounce', () => {
     }
   });
 
-  it('releases the window when the queue REJECTS — nothing was uploaded, so nothing was spent', async () => {
+  it('releases the window when the queue REJECTS - nothing was uploaded, so nothing was spent', async () => {
     const mod = loadCloudBackup(CLOUD_ENV);
     mockQueueSync.mockRejectedValueOnce(new Error('queue refused the state'));
 
@@ -337,7 +337,7 @@ describe('cloud restore verdict', () => {
     expect(outcome.status).toBe('empty');
   });
 
-  it('refuses everything when the flag is off — no download is even attempted', async () => {
+  it('refuses everything when the flag is off - no download is even attempted', async () => {
     const mod = loadCloudBackup({});
     const outcome = await mod.fetchCloudRestoreCandidate({ slot: 1, localWeeksLived: 0 });
     expect(outcome.status).toBe('disabled');
@@ -361,7 +361,7 @@ describe('cloud restore verdict', () => {
     expect(outcome.message).toMatch(/newer version of the app/i);
   });
 
-  it('never claims a restore it did not perform — the verdict is not persisted', async () => {
+  it('never claims a restore it did not perform - the verdict is not persisted', async () => {
     const mod = loadCloudBackup(CLOUD_ENV);
     mockDownloadState.mockResolvedValueOnce(createTestGameState({ weeksLived: 500 }));
 

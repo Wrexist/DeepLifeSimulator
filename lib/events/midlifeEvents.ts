@@ -101,7 +101,7 @@ const reconnectFriend: EventTemplate = {
     choices: [
       { id: 'reunion', text: 'Plan a proper reunion', effects: { stats: { happiness: 10, reputation: 3, energy: -4 } } },
       { id: 'text', text: 'Send a quick message', effects: { stats: { happiness: 6 } } },
-      { id: 'later', text: "Maybe later — you're busy", effects: { stats: { happiness: -2 } } },
+      { id: 'later', text: "Maybe later - you're busy", effects: { stats: { happiness: -2 } } },
     ],
   }),
 };

@@ -155,7 +155,7 @@ export function planSkim(input: {
   const fromCampaign = Math.min(requested, campaignAvailable);
   const fromPAC = requested - fromCampaign;
 
-  // Heat scales with how much of the ALLOWANCE was taken, not the raw dollars —
+  // Heat scales with how much of the ALLOWANCE was taken, not the raw dollars -
   // a small operator emptying their pot is as exposed as a big one skimming the
   // same fraction. Office rank adds scrutiny on top.
   const office = clamp(Math.floor(safe(input.careerLevel, 0)), 0, 6);

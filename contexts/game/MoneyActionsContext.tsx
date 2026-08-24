@@ -46,18 +46,18 @@ interface MoneyActionsContextType {
   purchaseLegacyUpgrade: (upgradeId: string) => { success: boolean; message: string };
   claimLegacyContract: (contractId: string) => { success: boolean; message: string };
 
-  // The Dynasty — prestige tiers 2-5. All five share one shape: a PURE reducer
+  // The Dynasty - prestige tiers 2-5. All five share one shape: a PURE reducer
   // in `lib/dynasty/` run once for the report and again inside the updater, so
   // a double-tap in one React batch cannot pay twice (§4.4).
-  /** Tier 2 — preserve a luxury piece across death, for a fee. */
+  /** Tier 2 - preserve a luxury piece across death, for a fee. */
   storeInDynastyVault: (itemId: string) => { success: boolean; message: string };
   removeFromDynastyVault: (itemId: string) => { success: boolean; message: string };
-  /** Tier 3 — convert money into Legacy Points, once per tranche, forever. */
+  /** Tier 3 - convert money into Legacy Points, once per tranche, forever. */
   claimDynastyEndowment: (trancheId: string) => { success: boolean; message: string };
-  /** Tier 4 — swear (or withdraw) a handicap for the next life. */
+  /** Tier 4 - swear (or withdraw) a handicap for the next life. */
   swearDynastyTrial: (trialId: string) => { success: boolean; message: string };
   withdrawDynastyTrial: (trialId: string) => { success: boolean; message: string };
-  /** Tier 5 — build a wing of the Dynasty Seat. */
+  /** Tier 5 - build a wing of the Dynasty Seat. */
   buyDynastySeatWing: (wingId: string) => { success: boolean; message: string };
 }
 
@@ -83,7 +83,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   // M4: read the LIVE state on demand instead of mirroring it into a ref.
   // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
   // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
-  // and still handed callbacks a snapshot that was one commit stale — the
+  // and still handed callbacks a snapshot that was one commit stale - the
   // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
   // returns a stable getter over the same store, so callbacks stay stable, the
   // memoized context value keeps its identity, and the provider no longer
@@ -94,7 +94,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   // Money & Economy Actions
   const updateMoney = useCallback((amount: number, reason: string, updateDailySummary = true) => {
     // ANTI-TRAP: reject non-finite amount before touching state. Catches the
-    // "DatingActions Signature Trap" — a caller passing the lib-style
+    // "DatingActions Signature Trap" - a caller passing the lib-style
     // (setGameState, amount, reason) into this hook treats setGameState as
     // `amount`, which is a function → arithmetic produces NaN and poisons
     // money. Failing fast here surfaces the bug at the call site instead.
@@ -127,7 +127,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       if (updateDailySummary && newState.dailySummary) {
         newState.dailySummary = {
           ...newState.dailySummary,
-          // P1-4: only count genuine income toward "earned" — exclude bank
+          // P1-4: only count genuine income toward "earned" - exclude bank
           // withdrawals / asset sales / loans so the daily "earn $X" gem
           // challenges can't be farmed by shuffling existing money.
           totalMoneyEarned:
@@ -166,7 +166,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   const batchUpdateMoney = useCallback((transactions: {amount: number, reason: string}[]) => {
     // P1-11 (C-2): classify each leg individually. Joining ALL reasons into one string
-    // and testing NON_INCOME_REASON against the result is all-or-nothing — a single
+    // and testing NON_INCOME_REASON against the result is all-or-nothing - a single
     // non-income keyword (e.g. "deposit") in any leg wrongly zeroes the income credit
     // for the entire batch. Split into an income group and a non-income group so
     // `totalMoneyEarned` only ever counts genuine income. Income is applied first so it
@@ -188,7 +188,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     });
 
     // Atomicity (CR): reject the WHOLE batch up-front when the NET is unaffordable, and apply the
-    // money-adding leg first — so the two updateMoney calls can never half-commit (a leg only trips
+    // money-adding leg first - so the two updateMoney calls can never half-commit (a leg only trips
     // updateMoney's overdraft guard when the net itself overdraws, which we've already rejected).
     const currentMoney = getGameState()?.stats?.money ?? 0;
     if (currentMoney + incomeTotal + nonIncomeTotal < -0.01) {
@@ -206,8 +206,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
   /*
    * DELETED 2026-08-23: `applyPerkEffects`. It branched on
-   * `goldUpgrades.work_boost` / `.fast_learner` / `.mindset` — three ids that
-   * exist in no catalogue and that nothing ever writes — and it had ZERO call
+   * `goldUpgrades.work_boost` / `.fast_learner` / `.mindset` - three ids that
+   * exist in no catalogue and that nothing ever writes - and it had ZERO call
    * sites: the perks it appeared to wire are actually consumed in
    * `weeklySalary.ts`, `applyCareerProgress`, `applyEducationProgression` and
    * `applyIncome`. A plausible-looking second wiring for effects the first
@@ -222,18 +222,18 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
    * Buy a gem upgrade. Returns TRUE only when the purchase was actually applied.
    *
    * M8: this used to return `void`, so `GemShopModal` alerted "Purchase
-   * Successful" for every tap — including a tap it had just refused for an
+   * Successful" for every tap - including a tap it had just refused for an
    * invalid id, an already-owned upgrade, or too few gems. No gems were ever
    * lost (the updater below is atomic and re-checks against `prev`), but the
    * player was told a paid-currency purchase landed when it had not.
    *
    * The result is reported from a PREVIEW of the same pure decision function
-   * on the committed snapshot — never from a variable assigned inside the
+   * on the committed snapshot - never from a variable assigned inside the
    * updater, which CLAUDE.md §4.1 says is not reliably visible outside it.
    * Same shape as `SkillTreeModal.commitUnlock`. Residual, and identical to
    * that reference: two taps in ONE React batch both preview against the same
    * pre-batch snapshot, so the second reports success while the updater
-   * correctly refuses it. The authority remains the updater — nothing is
+   * correctly refuses it. The authority remains the updater - nothing is
    * double-charged.
    */
   const buyGoldUpgrade = useCallback((upgradeId: string): boolean => {
@@ -330,7 +330,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
        *
        * Affordability was checked against the stale `getGameState()` and this
        * updater floored with `Math.max(0, …)` while crediting the coins
-       * unconditionally — the "goods granted, money zeroed out" pattern
+       * unconditionally - the "goods granted, money zeroed out" pattern
        * CLAUDE.md §4.4 names as the repo's most repeated bug class. Not
        * player-reachable today (the only non-test callers are `TestRunner`
        * behind the `__DEV__` devtools gate; the shipping crypto UI uses the
@@ -471,7 +471,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
        *
        * Ownership was checked against the stale `getGameState()` and this
        * updater floored the debit with `Math.max(0, …)` while crediting
-       * `toAmount` unconditionally — the gate → grant shape CLAUDE.md §4.4
+       * `toAmount` unconditionally - the gate → grant shape CLAUDE.md §4.4
        * names as the repo's most repeated bug class, here as a straight COIN
        * DUPLICATOR: two swaps in one React batch could only take the holding
        * once (the floor absorbs the rest) but paid out the destination coin
@@ -527,8 +527,8 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   /**
    * C-11: the Legacy Points sink.
    *
-   * Written as a PURE reducer called twice — once against the current state
-   * for the report, once against `prev` for the state — rather than capturing
+   * Written as a PURE reducer called twice - once against the current state
+   * for the report, once against `prev` for the state - rather than capturing
    * the outcome inside the updater and reading it after. That capture is only
    * reliable for the first update in a React batch
    * (`__tests__/refactor/updaterTimingContract.test.tsx`), and it is what
@@ -557,7 +557,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
    * Claim a completed Legacy Contract for its Legacy Points.
    *
    * Same shape as purchaseLegacyUpgradeAction: the reducer is PURE and
-   * idempotent — owning the claimed id is what blocks a second run — so it is
+   * idempotent - owning the claimed id is what blocks a second run - so it is
    * safe to run once for the report and again inside the updater. The points
    * are added in the SAME updater that records the claim, so a double-tap in
    * one React batch cannot pay twice (§4.4).
@@ -592,11 +592,11 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
   // purchase, and the reducer re-checks affordability against `prev`, so a
   // double-tap inside one React batch cannot pay twice or grant twice (§4.4).
   //
-  // Each reducer also re-checks its own prestige-tier gate, so no caller — a
-  // deep link, a devtool, a future screen — can reach a capability the save has
+  // Each reducer also re-checks its own prestige-tier gate, so no caller - a
+  // deep link, a devtool, a future screen - can reach a capability the save has
   // not earned.
 
-  /** Tier 2 — preserve a luxury piece across death, for a preservation fee. */
+  /** Tier 2 - preserve a luxury piece across death, for a preservation fee. */
   const storeInDynastyVaultAction = useCallback((itemId: string): { success: boolean; message: string } => {
     const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
@@ -635,7 +635,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     return preview;
   }, [setGameState]);
 
-  /** Tier 3 — money into Legacy Points, once per tranche, forever. */
+  /** Tier 3 - money into Legacy Points, once per tranche, forever. */
   const claimDynastyEndowmentAction = useCallback((trancheId: string): { success: boolean; message: string } => {
     const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
@@ -659,7 +659,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     return preview;
   }, [setGameState]);
 
-  /** Tier 4 — swear a handicap for the next life. Costs nothing until it starts. */
+  /** Tier 4 - swear a handicap for the next life. Costs nothing until it starts. */
   const swearDynastyTrialAction = useCallback((trialId: string): { success: boolean; message: string } => {
     const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
@@ -692,7 +692,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
     return preview;
   }, [setGameState]);
 
-  /** Tier 5 — build a wing of the Dynasty Seat. The one thing money outlives. */
+  /** Tier 5 - build a wing of the Dynasty Seat. The one thing money outlives. */
   const buyDynastySeatWingAction = useCallback((wingId: string): { success: boolean; message: string } => {
     const state = getGameState();
     if (!state) return { success: false, message: 'Game state not available' };
@@ -726,7 +726,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       return { success: false, message: 'Bonus not found' };
     }
     // R4-X2. The shop no longer renders the inert automation bonuses, but this
-    // action resolves from the RAW catalogue — so without this the id could
+    // action resolves from the RAW catalogue - so without this the id could
     // still be bought through a stale render, a deep link, or the next caller
     // that forgets. Refusing here is what actually stops points being spent on
     // a system with no state slice and no UI.
@@ -765,7 +765,7 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
 
       // ANTI-EXPLOIT: re-validate level + cost + affordability against FRESH
       // prevState (the outer checks read the lagging stateRef snapshot). Without
-      // this, two rapid taps both passed the stale guard and both applied —
+      // this, two rapid taps both passed the stale guard and both applied -
       // stacking a level-capped bonus past maxLevel, buying the next level at
       // the stale (cheaper) cost, and driving prestigePoints negative.
       const freshBonuses = prevState.prestige.unlockedBonuses || [];

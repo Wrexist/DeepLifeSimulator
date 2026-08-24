@@ -203,7 +203,7 @@ export async function initializeAndSaveGame(
   // Step 2: Backup + save
   try {
     // Snapshot the OUTGOING save first. The old 'before_onboarding' backup
-    // passed `newState` — it read like a pre-overwrite copy and was a copy of
+    // passed `newState` - it read like a pre-overwrite copy and was a copy of
     // the thing doing the overwriting, so an overwrite left nothing to recover.
     // Slot resolution above already refuses an occupied slot, so this normally
     // captures a placeholder or nothing; it is the belt to that braces.
@@ -240,7 +240,7 @@ export async function initializeAndSaveGame(
    *
    * `forceSave` has already COMMITTED by this point. Without a rollback, a
    * failed load returned "Load Failed" while the half-created character sat on
-   * disk — and the retry re-entered `resolveNewLifeSlot`, which reads the slot
+   * disk - and the retry re-entered `resolveNewLifeSlot`, which reads the slot
    * fresh, found `hasMeaningfulSaveData` true (the name is set) and refused:
    * "Slot N holds <the name the player just typed> (age 18). Choose an empty
    * slot, or delete that save first." The "Start Your Life" button could then

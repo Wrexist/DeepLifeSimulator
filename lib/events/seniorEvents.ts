@@ -68,7 +68,7 @@ const grandchildMilestone: EventTemplate = {
   condition: state => isSenior(state) && hasChildren(state),
   generate: () => ({
     id: 'senior_grandchild_milestone',
-    description: 'A grandchild has a big day coming up — a graduation, a recital, a first game.',
+    description: 'A grandchild has a big day coming up - a graduation, a recital, a first game.',
     choices: [
       { id: 'attend', text: 'Be there in the front row', effects: { stats: { happiness: 12, energy: -4 } } },
       { id: 'gift', text: 'Send a generous gift', effects: { money: -80, stats: { happiness: 9 }, karma: { dimension: 'generosity', amount: 2, reason: 'Spoiled a grandchild' } } },
@@ -119,7 +119,7 @@ const bucketList: EventTemplate = {
     choices: [
       { id: 'dream_trip', text: 'Finally take the dream trip', effects: { money: -400, stats: { happiness: 18, energy: -6 } } },
       { id: 'small', text: 'A smaller local adventure', effects: { money: -60, stats: { happiness: 10 } } },
-      { id: 'someday', text: 'Someday — not yet', effects: { stats: { happiness: 2 } } },
+      { id: 'someday', text: 'Someday - not yet', effects: { stats: { happiness: 2 } } },
     ],
   }),
 };

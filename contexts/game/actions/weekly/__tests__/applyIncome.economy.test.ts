@@ -32,7 +32,7 @@ function totalFor(economyIncomeMultiplier?: number): number {
   }).totalIncome;
 }
 
-describe('computeWeeklyIncome — macro economy modifier', () => {
+describe('computeWeeklyIncome - macro economy modifier', () => {
   const baseline = totalFor(undefined); // 1000
 
   it('no modifier is a no-op', () => {

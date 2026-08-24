@@ -104,7 +104,7 @@ export function applyChoiceConsequences(
   ];
   
   // Cap unbounded growth. choiceHistory is a pure log (keep the most recent).
-  // consequences keep every still-active entry plus the most recent spent ones —
+  // consequences keep every still-active entry plus the most recent spent ones -
   // over an 18→80 life (~3000+ weeks) both otherwise grew into the thousands and
   // were mapped every tick + serialized into every save.
   const mergedConsequences = [...currentConsequences, ...newConsequences];

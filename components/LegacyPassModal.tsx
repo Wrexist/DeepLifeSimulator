@@ -1,5 +1,5 @@
 /**
- * LegacyPassModal — the seasonal Legacy Pass UI (dual free/premium track).
+ * LegacyPassModal - the seasonal Legacy Pass UI (dual free/premium track).
  *
  * Reads the `legacyPass` slice via `useGameSelector` and drives the pure engine
  * (`lib/legacyPass`) + actions (`LegacyPassActions`). Premium is gated on an
@@ -36,7 +36,7 @@ import { toggleCosmetic } from '@/contexts/game/actions/CosmeticActions';
 import { resolveOwnedCosmetics, getCosmetic } from '@/lib/cosmetics/cosmetics';
 import { subscriptionService } from '@/services/SubscriptionService';
 
-// Hero lifestyle image for the premium card — the game's own neon-lit luxury
+// Hero lifestyle image for the premium card - the game's own neon-lit luxury
 // villa render (dark, immersive, on-theme). Swap this require to drop in a
 // bespoke hero later without touching the layout.
 const HERO_IMAGE = require('@/assets/images/Real Estate/Beach Villa.webp');
@@ -78,7 +78,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const claimedFree = useMemo(() => new Set(pass.claimedFreeTiers), [pass.claimedFreeTiers]);
   const claimedPremium = useMemo(() => new Set(pass.claimedPremiumTiers), [pass.claimedPremiumTiers]);
 
-  // Premium value framing — what the player is missing out on. Drives the
+  // Premium value framing - what the player is missing out on. Drives the
   // upsell copy so "go premium" is a concrete offer, not a vague banner.
   const premiumStats = useMemo(() => {
     let total = 0;         // total premium rewards in the season
@@ -110,7 +110,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   const fillAnim = useRef(new Animated.Value(fillRatio)).current;
   const toastAnim = useRef(new Animated.Value(0)).current;
 
-  // Premium upsell juice: a breathing glow, a shimmer sweep, and a crown pulse —
+  // Premium upsell juice: a breathing glow, a shimmer sweep, and a crown pulse -
   // makes the "Go Premium" card feel alive and draws the eye. All looped &
   // reduced-motion aware; the shimmer uses translateX so it can stay native.
   const showUpsell = !pass.premiumOwned;
@@ -153,7 +153,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
     Animated.spring(toastAnim, { toValue: 1, useNativeDriver: true, friction: 7, tension: 80 }).start();
   }, [toast, reducedMotion, toastAnim]);
 
-  // New-season banner entrance — a celebratory pop when a rollover summary appears.
+  // New-season banner entrance - a celebratory pop when a rollover summary appears.
   const hasSeasonSummary = !!(seasonSummary && seasonSummary.collectedCount > 0);
   const bannerAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
     const subscribed = subscriptionService.hasPremiumAccess();
     // R4-MON-4: this path does not load the purchase ledger, so a `false` here
     // may mean "could not ask". Never let opening the modal be what strips a
-    // paid premium track — `SubscriptionReconciler` owns the downgrade, with an
+    // paid premium track - `SubscriptionReconciler` owns the downgrade, with an
     // authoritative check behind it.
     setGameState((prev) => reconcileLegacyPassSeason(prev, subscribed, Date.now(), false));
   }, [visible, setGameState]);
@@ -263,14 +263,14 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
   };
 
   const valueCopy = premiumStats.earnedLocked > 0
-    ? `${premiumStats.earnedLocked} premium reward${premiumStats.earnedLocked === 1 ? '' : 's'} already waiting${premiumStats.lockedGems > 0 ? ` · +${premiumStats.lockedGems} gems` : ''} — incl. ${premiumStats.headline}`
-    : `Unlock all ${premiumStats.total} premium rewards — incl. ${premiumStats.headline}`;
+    ? `${premiumStats.earnedLocked} premium reward${premiumStats.earnedLocked === 1 ? '' : 's'} already waiting${premiumStats.lockedGems > 0 ? ` · +${premiumStats.lockedGems} gems` : ''} - incl. ${premiumStats.headline}`
+    : `Unlock all ${premiumStats.total} premium rewards - incl. ${premiumStats.headline}`;
 
   return (
     <Modal visible={visible} transparent animationType={reducedMotion ? 'fade' : 'slide'} onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}>
-          {/* Header — crown + title + tagline + close */}
+          {/* Header - crown + title + tagline + close */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <Crown size={scale(26)} color={accent.warning} fill={accent.warning} />
@@ -334,7 +334,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
               </Animated.View>
             )}
 
-            {/* ── HERO "Go Premium" card — lifestyle image + floating crown +
+            {/* ── HERO "Go Premium" card - lifestyle image + floating crown +
                 sparkles + shimmer, with a real value pitch and CTA. ── */}
             {showUpsell && (
               <Animated.View style={[styles.heroWrap, { transform: [{ scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] }) }] }]}>
@@ -368,7 +368,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
                   </TouchableOpacity>
                   <View style={styles.heroFootRow}>
                     <CheckCircle2 size={scale(13)} color="#FCD34D" />
-                    <Text style={styles.heroFootText}>Subscribe monthly — or unlock forever.</Text>
+                    <Text style={styles.heroFootText}>Subscribe monthly - or unlock forever.</Text>
                   </View>
                 </View>
               </Animated.View>
@@ -412,7 +412,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
               <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
 
-            {/* Track headers — premium highlighted with a gold pill */}
+            {/* Track headers - premium highlighted with a gold pill */}
             <View style={styles.trackHeaderRow}>
               <Text style={[styles.trackHeaderTier, { color: theme.textMuted }]}>Tier</Text>
               <Text style={[styles.trackHeader, { color: theme.textSecondary }]}>Free</Text>
@@ -422,7 +422,7 @@ export default function LegacyPassModal({ visible, onClose, onSubscribe }: Props
               </View>
             </View>
 
-            {/* Ladder rows (flattened — parent scrolls) */}
+            {/* Ladder rows (flattened - parent scrolls) */}
             {Array.from({ length: MAX_TIER }, (_, i) => i + 1).map((tier) => (
               <View key={tier} style={styles.row}>
                 <View style={[styles.tierBadge, { backgroundColor: currentTier >= tier ? colors.palette.primary : theme.surfaceElevated }]}>

@@ -94,7 +94,7 @@ export function applyAmbitionPayout(input: AmbitionPayoutInput): AmbitionPayoutR
       // Stable, ambition-scoped id: the outer notification flush dedupes by id,
       // so a StrictMode double-invoke cannot produce two toasts.
       id: `ambition-fulfilled-${completion.ambition.id}`,
-      title: `${emoji} Ambition fulfilled — ${name}`,
+      title: `${emoji} Ambition fulfilled - ${name}`,
       message: parts.length > 0
         ? `${parts.join(', ')}. Your life's ambition is complete.`
         : "Your life's ambition is complete.",

@@ -48,18 +48,18 @@ import {
  ArrowDown,
  AlertTriangle,
 } from 'lucide-react-native';
-// SicknessModal is rendered once at the root in app/_layout.tsx — no second mount here.
+// SicknessModal is rendered once at the root in app/_layout.tsx - no second mount here.
 import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import SeasonalIndicator from './SeasonalIndicator';
 import usePressableScale from '@/hooks/usePressableScale';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { usePerformanceMonitor, useMemoryCleanup } from '@/utils/performanceOptimization';
 import { getProgressAccessibilityProps, ACCESSIBILITY_HINTS } from '@/utils/accessibility';
-// Rarely-opened modals — lazy-loaded and only mounted when open, so they no
+// Rarely-opened modals - lazy-loaded and only mounted when open, so they no
 // longer sit permanently mounted with visible={false} (which kept their trees
 // built on every TopStatsBar render).
 const SettingsModal = React.lazy(() => import('./SettingsModal'));
-// GemShopModal is no longer mounted here — the app-level GemStoreProvider
+// GemShopModal is no longer mounted here - the app-level GemStoreProvider
 // (contexts/AppProviders.tsx) owns the single mount. This bar deep-links into
 // it via useGemStore().openStore(...) so there is no double-mount.
 const HelpModal = React.lazy(() => import('./HelpModal'));
@@ -75,10 +75,10 @@ const LinearGradient = Gradient;
 
 // Memoized TopStatsBar to prevent unnecessary re-renders
 function TopStatsBarComponent() {
- // Sprint 2: select only the slices this bar reads — it no longer re-renders
+ // Sprint 2: select only the slices this bar reads - it no longer re-renders
  // on changes to unrelated state (loans, companies, social feeds, ...).
  const setGameState = useSetGameState();
- // saveGame only — this hook's other members are not read here, and the actions
+ // saveGame only - this hook's other members are not read here, and the actions
  // context does not carry a state subscription.
  const { saveGame } = useGameActions();
  const stats = useGameSelector((s) => s?.stats, shallowEqual);
@@ -115,7 +115,7 @@ function TopStatsBarComponent() {
  // App-level IAP store launcher (single mount lives in GemStoreProvider).
  const { openStore } = useGemStore();
 
- // Single modal state — only one modal open at a time, reduces re-renders
+ // Single modal state - only one modal open at a time, reduces re-renders
  type ModalName = 'settings'|'help'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'bankBreakdown'|'gemsBreakdown'| null;
  const [openModal, setOpenModal] = useState<ModalName>(null);
  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
@@ -171,8 +171,8 @@ function TopStatsBarComponent() {
  // hobbies, so this was a general-purpose bypass of the whole weekly budget.
  // 2026-07-30 audit UX-R1-02.
  // `Number.isFinite`, not `typeof === 'number'`, and both sides normalized.
- // `NaN === NaN` is false, so a save carrying a NaN `weeksLived` — or a NaN
- // mark — made this return false unconditionally and reopened the very bypass
+ // `NaN === NaN` is false, so a save carrying a NaN `weeksLived` - or a NaN
+ // mark - made this return false unconditionally and reopened the very bypass
  // the gate exists to close. A non-finite value means "unknown week", which
  // must fall back to the gate being CLOSED for a mark that exists at all.
  const usedThisWeek = (prev: GameState, id: string): boolean => {
@@ -198,7 +198,7 @@ function TopStatsBarComponent() {
  // haptic. (Review of this change flagged the duplication.)
  const refuseWeeklyGate = () => {
  haptic('warning');
- info('Already done that this week — come back next week.');
+ info('Already done that this week - come back next week.');
  };
 
  const apply = (
@@ -207,7 +207,7 @@ function TopStatsBarComponent() {
  ) => {
  setGameState(prev => {
  // Re-check against `prev`, not the captured selector value, so two taps
- // in the same React batch cannot both pass — the weekly gate AND the
+ // in the same React batch cannot both pass - the weekly gate AND the
  // cost. The cost matters on its own: `social` (−8 energy) and `exercise`
  // (−12 energy) are different actions, so the weekly gate lets both
  // through in one batch, and both would read the same stale 15 energy
@@ -235,7 +235,7 @@ function TopStatsBarComponent() {
  success(msg);
  // Persist the grant AND the weekly marker. Without this the whole tick lives
  // only in memory until the 2-minute autosave, so a force-kill loses the
- // marker and re-arms the action for the same game week — the exact bypass
+ // marker and re-arms the action for the same game week - the exact bypass
  // this gate exists to close. Deferred a macrotask because saveGame reads
  // gameStateRef.current, which is synced post-commit.
  setTimeout(() => { void saveGame?.(false); }, 0);
@@ -250,7 +250,7 @@ function TopStatsBarComponent() {
  // driven from the committed snapshot instead, and the updater is purely
  // authoritative for state. The two can only disagree for two taps inside a
  // single React batch, where the worst case is an optimistic toast for a
- // second tap that correctly changed nothing — no grant, no exploit.
+ // second tap that correctly changed nothing - no grant, no exploit.
  if (usedThisWeek({ settings, weeksLived } as GameState, action)) {
  refuseWeeklyGate();
  return;
@@ -258,18 +258,18 @@ function TopStatsBarComponent() {
  switch (action) {
  case 'eat':
  if ((s.money ?? 0) < 12) { haptic('warning'); info('Need $12 to grab a healthy meal.'); return; }
- apply({ money: -12, health: 7, happiness: 4 }, 'Healthy meal — +7 health, +4 happiness.');
+ apply({ money: -12, health: 7, happiness: 4 }, 'Healthy meal - +7 health, +4 happiness.');
  break;
  case 'rest':
- apply({ happiness: -5, energy: 14 }, 'You rest up — +14 energy (−5 happiness).');
+ apply({ happiness: -5, energy: 14 }, 'You rest up - +14 energy (−5 happiness).');
  break;
  case 'social':
  if ((s.energy ?? 0) < 8) { haptic('warning'); info('Too tired to socialize right now.'); return; }
- apply({ energy: -8, happiness: 10 }, 'Good company — +10 happiness.');
+ apply({ energy: -8, happiness: 10 }, 'Good company - +10 happiness.');
  break;
  case 'exercise':
  if ((s.energy ?? 0) < 12) { haptic('warning'); info('Too tired to work out right now.'); return; }
- apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout — +6 fitness, +5 health.');
+ apply({ energy: -12, fitness: 6, health: 5 }, 'Great workout - +6 fitness, +5 health.');
  break;
  }
  }, [buttonPress, haptic, success, info, setGameState, stats, settings, weeksLived, saveGame]);
@@ -310,7 +310,7 @@ function TopStatsBarComponent() {
  // Use timing animations with native driver for better performance
  const healthAnimation = Animated.timing(animatedStats.health, {
  toValue: to(stats.health),
- duration: 0, // Instant snap — stat drain/gain shows the moment state changes
+ duration: 0, // Instant snap - stat drain/gain shows the moment state changes
  useNativeDriver: false, // Keep false for width animations
  easing: Easing.out(Easing.quad), // Smoother easing
  });
@@ -340,12 +340,12 @@ function TopStatsBarComponent() {
  const runGlow = (key: 'health'|'happiness'|'energy', value: number) => {
  // R-perf: native driver. The glow value now drives ONLY a native-compatible
  // `opacity` overlay (see progressFill below), so this continuous loop runs on
- // the UI thread and no longer touches the JS thread every frame — it stopped
+ // the UI thread and no longer touches the JS thread every frame - it stopped
  // janking the already-busy post-tick window.
  if (shouldGlow(value)) {
  // NOISE: pulse a few cycles as an attention cue, then rest. The old
  // unbounded loop kept the HUD pulsing for as long as the stat stayed
- // low — which early-game is basically always.
+ // low - which early-game is basically always.
  const glowLoop = Animated.loop(
  Animated.sequence([
  Animated.timing(glowAnimations[key], {
@@ -395,7 +395,7 @@ function TopStatsBarComponent() {
  activeGlowAnimations.forEach(anim => anim?.stop());
  };
  // P1-5: drop `stats` (object identity changes every save under the new
- // GameStateProvider behaviour) — primitive deps suffice. `animatedStats` and
+ // GameStateProvider behaviour) - primitive deps suffice. `animatedStats` and
  // `glowAnimations` are stable refs from useRef.
  }, [stats?.health, stats?.happiness, stats?.energy]);
 
@@ -403,8 +403,8 @@ function TopStatsBarComponent() {
  // R10-perf: derive the primitive signals the memo actually depends on. These
  // are cheap single-pass scans; depending on them (instead of the careers/
  // educations/dietPlans/realEstate ARRAYS, which get a new identity every decay
- // tick) means the heavier memo body — including the prestige require() and the
- // rounding math — only recomputes when a value that matters actually changes.
+ // tick) means the heavier memo body - including the prestige require() and the
+ // rounding math - only recomputes when a value that matters actually changes.
  const currentCareerAccepted = !!careers?.find(c => c.id === currentJob && c.accepted);
  const activeEducationCount = (educations || []).filter(edu =>
  edu &&!edu.completed &&!edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
@@ -458,7 +458,7 @@ function TopStatsBarComponent() {
  if (activeDietPlan && activeDietPlan.healthGain > 0) {
  healthChange += activeDietPlan.healthGain;
  }
- // Housing health — new, and negative while homeless.
+ // Housing health - new, and negative while homeless.
  healthChange += housing.health;
 
  // Happiness net change
@@ -477,7 +477,7 @@ function TopStatsBarComponent() {
  if (activeDietPlan && activeDietPlan.happinessGain && activeDietPlan.happinessGain > 0) {
  happinessChange += activeDietPlan.happinessGain;
  }
- // Housing: owned home, rental, or the penalty for neither. Signed — a
+ // Housing: owned home, rental, or the penalty for neither. Signed - a
  // homeless week SUBTRACTS, which the old `> 0` guards could not express.
  happinessChange += housing.happiness;
 
@@ -564,7 +564,7 @@ function TopStatsBarComponent() {
  },
  // P2: depend on the primitive stat VALUES (and the already-memoized derived
  // objects) rather than the whole `stats` object, whose identity changes every
- // tick — this list rebuild only matters when a displayed value changes.
+ // tick - this list rebuild only matters when a displayed value changes.
  [stats?.health, stats?.happiness, stats?.energy, statColors, handleQuickAction, statNetChanges]
  );
 
@@ -639,7 +639,7 @@ function TopStatsBarComponent() {
 
  // Calculate total savings including stock investments.
  // `nonMirrorDeposits` excludes checking-default / savings-default, which are
- // 1:1 reflections of `stats.money` / `bankSavings` — counting them here would
+ // 1:1 reflections of `stats.money` / `bankSavings` - counting them here would
  // double the savings line for anyone holding cash.
  const totalSavings = bankSavings + selfOpenedDeposits + calculateStockValue();
 
@@ -690,10 +690,10 @@ function TopStatsBarComponent() {
  </View>
  <View style={styles.leftIconRow}>
  {/* Same quiet circular button as Help/Settings beside it (the old big blue
-     "Shop" pill dominated the HUD — owner feedback); the blue storefront
+     "Shop" pill dominated the HUD - owner feedback); the blue storefront
      glyph keeps it findable without shouting. */}
  {/* Gold, with a slow shine. It keeps the EXACT footprint of the grey
-     Help/Settings circles beside it — the owner rejected an earlier large
+     Help/Settings circles beside it - the owner rejected an earlier large
      blue "Shop" pill for dominating the HUD, and this changes the finish,
      not the size. Motion honours reduced-motion and carries no badge or
      counter; see GoldStoreButton for the reasoning. */}
@@ -778,7 +778,7 @@ function TopStatsBarComponent() {
  >
  <Icon size={16} color={ringColor} />
  </ProgressRing>
- {/* Disease badge — corner of the health ring */}
+ {/* Disease badge - corner of the health ring */}
  {key ==='health'&& hasDiseases && (
  <TouchableOpacity
  style={[
@@ -806,8 +806,8 @@ function TopStatsBarComponent() {
  <View style={styles.vitalRingLabelRow}>
  <Text style={styles.vitalRingValue}>{Math.round(value)}</Text>
  {/* Visible long-press affordance. The quick actions (Rest / Eat /
- Exercise / Socialize) are the fastest way to fix a low vital — the
- exact thing the contextual tips nag about — but the only place the
+ Exercise / Socialize) are the fastest way to fix a low vital - the
+ exact thing the contextual tips nag about - but the only place the
  gesture was ever announced was `accessibilityHint`, i.e. VoiceOver
  users were told and sighted users were not. Tap opens the breakdown
  modal, so that is what everyone discovered instead. This dot is the
@@ -852,7 +852,7 @@ function TopStatsBarComponent() {
  })}
  </View>
 
- {/* Money, Bank, Gems — NEW CHIP STYLES */}
+ {/* Money, Bank, Gems - NEW CHIP STYLES */}
  <View style={styles.moneyRow}>
  <View style={[styles.leftMoneySection, { flexWrap: isVerySmallDevice ?'wrap': 'nowrap'}]}>
  <TouchableOpacity
@@ -962,7 +962,7 @@ function TopStatsBarComponent() {
  </Text>
  </View>
  {/* Static "+" affordance so the tap-to-buy intent is visible (no badge count,
-     no animation — the repo's animation bar gates high-frequency HUD). */}
+     no animation - the repo's animation bar gates high-frequency HUD). */}
  <View style={styles.gemChipPlus}>
  <Plus size={12} color="#FFFFFF" />
  </View>
@@ -974,7 +974,7 @@ function TopStatsBarComponent() {
 
  {/* Right: date + next week */}
  <RightSide date={date} />
- {/* Modals — single openModal state controls visibility. Each is lazy and
+ {/* Modals - single openModal state controls visibility. Each is lazy and
      only mounted while open, then wrapped in Suspense so the chunk can load. */}
  {openModal && (
  <Suspense fallback={null}>
@@ -1009,9 +1009,9 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // pre-v43 saves have no lifeStartWeek and fall back to the absolute counter.
  const lifeStartWeek = useGameSelector((s) => s?.lifeStartWeek);
  const adsRemoved = useGameSelector((s) => s?.settings?.adsRemoved === true);
- // A blocking result modal (death/wedding/jail) — or an auto-mounted
+ // A blocking result modal (death/wedding/jail) - or an auto-mounted
  // LifeMomentModal (app/(tabs)/_layout.tsx renders one whenever the tick sets
- // lifeMoments.pendingMoment) — must never get an interstitial on top of it (an
+ // lifeMoments.pendingMoment) - must never get an interstitial on top of it (an
  // ad over an open RN Modal is the documented iOS freeze). The tick itself can
  // RAISE any of these in the SAME tick, so we read them via a ref the
  // external-store selector keeps current, then check it AFTER the tick: nextWeek()
@@ -1044,7 +1044,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
 
  useEffect(() => {
  if (!date) return;
- // Reduced motion: skip the bounce entirely — the pip's color/state change is
+ // Reduced motion: skip the bounce entirely - the pip's color/state change is
  // the cue. This is the game's highest-frequency action, so the motion is kept
  // gentle (1→1.08→1) even when enabled.
  if (reduced) return;
@@ -1054,7 +1054,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  Animated.timing(weekAnimations[idx], { toValue: 1, duration: 140, useNativeDriver: true }),
  ]).start();
  // P1-5: drop `date` (object identity changes every save); `weekAnimations`
- // is a stable useRef.current array — only need `date?.week` for the effect.
+ // is a stable useRef.current array - only need `date?.week` for the effect.
  }, [date?.week, reduced]);
 
  // Spinner animation for loading state.
@@ -1114,7 +1114,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  const maxDateBoxWidth = isIPad()
  ? scale(170)
 : isExtraLargeDevice
- ? scale(95) // Extra large phones (iPhone 17 Pro Max etc) — give date box enough room
+ ? scale(95) // Extra large phones (iPhone 17 Pro Max etc) - give date box enough room
 : isVerySmallDevice
  ? scale(85) // Reduced from 90
 : scale(105); // Reduced from 110 to 105 for better fit
@@ -1267,7 +1267,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  }, 5000);
  // Defer the heavy synchronous nextWeek() work to the next frame so React
  // commits the greyed/spinner (disabled) state and PAINTS it before the tick
- // blocks the JS thread — the press registers instantly instead of feeling
+ // blocks the JS thread - the press registers instantly instead of feeling
  // frozen. Clearing isAdvancingWeek on real completion (await) keeps the
  // spinner honest: a brief flash for fast ticks, a real spin for slow ones.
  const rafId = requestAnimationFrame(() => {
@@ -1275,7 +1275,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  try {
  await nextWeek();
  // Natural breakpoint: if an in-game year just turned over, maybe show an
- // interstitial. Self-gated — a no-op when ads are removed, off, not
+ // interstitial. Self-gated - a no-op when ads are removed, off, not
  // loaded, or within the frequency cap. `blocked` is read AFTER the tick so
  // a death/wedding/jail modal this tick raised suppresses the ad.
  void maybeShowInterstitialForWeek(weeksBefore + 1, {

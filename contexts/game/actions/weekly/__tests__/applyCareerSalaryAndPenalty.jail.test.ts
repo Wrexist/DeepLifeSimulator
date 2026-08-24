@@ -48,7 +48,7 @@ function employedState(over: TestGameStateOverrides = {}): GameState {
   });
 }
 
-describe('applyCareerSalaryAndPenalty — no earned income while jailed', () => {
+describe('applyCareerSalaryAndPenalty - no earned income while jailed', () => {
   it('zeroes the weekly salary while incarcerated (jailWeeks > 0)', () => {
     const result = applyCareerSalaryAndPenalty(employedState({ jailWeeks: 3 }), ctx());
     expect(result.careerSalary).toBe(0);

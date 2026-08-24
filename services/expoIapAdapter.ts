@@ -132,7 +132,7 @@ function normalizePurchase(pu: any): any {
     pu?.id ??
     pu?.purchaseToken ??
     `${pu?.productId}:${pu?.transactionDate ?? Date.now()}`;
-  // expo-iap exposes the unified token (iOS JWS / Android purchaseToken) — the
+  // expo-iap exposes the unified token (iOS JWS / Android purchaseToken) - the
   // service's validateReceipt is a non-empty pre-check and its server verify
   // accepts this token, so it maps straight onto transactionReceipt.
   const receipt = pu?.purchaseToken ?? pu?.transactionReceipt ?? '';
@@ -151,7 +151,7 @@ function normalizePurchase(pu: any): any {
   };
 }
 
-// Store the listener subscriptions so they can be removed on disconnect —
+// Store the listener subscriptions so they can be removed on disconnect -
 // otherwise a connect→disconnect→connect cycle stacks duplicate callbacks.
 let updatedSub: { remove?: () => void } | null = null;
 let errorSub: { remove?: () => void } | null = null;
@@ -238,7 +238,7 @@ export async function getProductsAsync(
   // expo-iap requires the correct product type: 'in-app' for one-time products,
   // 'subs' for auto-renewing subscriptions. Querying subs under 'in-app' (or
   // vice-versa) returns an empty catalog, which is why subscriptions never
-  // loaded before — the caller now passes the right type per SKU group.
+  // loaded before - the caller now passes the right type per SKU group.
   const products = await requireIap().fetchProducts({ skus, type });
   const list = Array.isArray(products) ? products : [];
   return { responseCode: IAPResponseCode.OK, results: list.map(normalizeProduct) };
@@ -256,7 +256,7 @@ export function purchaseItemAsync(
 ): Promise<LegacyResult> {
   attachListeners();
   // The store only echoes a product id, so two concurrent purchases of the same
-  // SKU can't be told apart — reject the duplicate rather than misroute events.
+  // SKU can't be told apart - reject the duplicate rather than misroute events.
   if (pending.some((entry) => entry.sku === sku)) {
     return Promise.resolve({
       responseCode: IAPResponseCode.ERROR,

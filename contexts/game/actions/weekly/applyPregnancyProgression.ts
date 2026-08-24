@@ -91,7 +91,7 @@ export function applyPregnancyProgression(
       name: childName,
       type: 'child',
       // R3-F5: NOT 100. `clampNurture` caps Bond at 100, so a child created at
-      // the ceiling made every positive parenting action a no-op on arrival —
+      // the ceiling made every positive parenting action a no-op on arrival -
       // the +1 bumps (Bedtime Story, Playtime, Park Playdate, Teach Values,
       // Driving Lessons) and the +3s (Heart-to-Heart, the $1,500 Family Trip)
       // all clamped away. Starting with headroom is what makes the parenting
@@ -104,7 +104,7 @@ export function applyPregnancyProgression(
     };
     (newChild as ChildInfo).birthWeeksLived = nextWeeksLived;
 
-    // Hospital/birth costs — mandatory, so defer rather than forgive.
+    // Hospital/birth costs - mandatory, so defer rather than forgive.
     chargeOrDefer(ctx, 5000);
     ctx.newStats.happiness = Math.min(100, ctx.newStats.happiness + 30);
     const birthMessage = `${rel.name} gave birth to a beautiful ${childGender === 'male' ? 'baby boy' : 'baby girl'} named ${childName}!`;

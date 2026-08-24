@@ -399,7 +399,7 @@ describe('Random event resolution audit', () => {
       choices: [{ id: 'accept', effects: { money: 500 } }],
     });
     const moneyBefore = captured!.state.stats.money;
-    // Within the same render cycle, both calls run — but the second one
+    // Within the same render cycle, both calls run - but the second one
     // should detect the event is gone (already removed) OR the
     // resolvingEventsRef Set should block the second call.
     act(() => {

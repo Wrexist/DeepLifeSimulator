@@ -92,7 +92,7 @@ export function clampNotification(text: string, max: number = TOAST_MAX_CHARS): 
 
 /**
  * The full treatment for a message about to be shown in a toast: no emoji, no
- * double spaces, no paragraph. Banners get `stripEmoji` only — they are taller
+ * double spaces, no paragraph. Banners get `stripEmoji` only - they are taller
  * by design and carry the multi-line weekly summary.
  */
 export function toastText(text: string): string {

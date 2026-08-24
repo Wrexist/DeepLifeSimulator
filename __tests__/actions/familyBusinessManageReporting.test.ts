@@ -137,7 +137,7 @@ describe('manageFamilyBusiness reports the outcome it actually produced', () => 
   });
 
   it('the synchronous (eager) path still reports success too', () => {
-    // The path that already worked — pinned so the fix is not a swap of which
+    // The path that already worked - pinned so the fix is not a swap of which
     // timing is broken.
     const state = richOwner();
     const stub = createSetGameStateStub(state);
@@ -157,7 +157,7 @@ describe('manageFamilyBusiness under REAL React batching', () => {
    * to the reporting player's tap, and it is what actually reproduced the
    * banner: pre-fix this assertion failed with
    *
-   *   false :: Need $10,000 for "marketing" — you have $40.1M.
+   *   false :: Need $10,000 for "marketing" - you have $40.1M.
    *
    * character-for-character the shape of the report.
    */
@@ -180,7 +180,7 @@ describe('manageFamilyBusiness under REAL React batching', () => {
     let r: { success: boolean; message: string } | undefined;
     act(() => {
       // Burn the eager slot. React runs only the FIRST functional update of a
-      // batch at call time; anything after it is deferred — which is the
+      // batch at call time; anything after it is deferred - which is the
       // ordinary case in a handler that touches more than one piece of state.
       bump((n) => n + 1);
       r = manageFamilyBusiness(observed, setter, 'co1', 'marketing');
@@ -209,7 +209,7 @@ describe('manageFamilyBusiness still rejects what it should', () => {
 
     expect(r.success).toBe(false);
     expect(r.message).toContain('short');
-    // Rejected before the updater is even queued — nothing to flush.
+    // Rejected before the updater is even queued - nothing to flush.
     expect(pending()).toBe(0);
     expect(current().stats.money).toBe(10_000);
     expect(businessOf(current())?.reputation).toBe(50);

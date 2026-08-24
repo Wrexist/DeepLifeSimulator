@@ -74,7 +74,7 @@ beforeEach(() => {
 });
 
 describe('restoring a backup is visible to the loader', () => {
-  it('brings the backed-up character back — the whole point of a backup', async () => {
+  it('brings the backed-up character back - the whole point of a backup', async () => {
     const good = stateOf('Mara', 2231);
     const goodEnvelope = createSaveEnvelope(JSON.stringify(good));
 
@@ -100,7 +100,7 @@ describe('restoring a backup is visible to the loader', () => {
     const original = stateOf('Mara', 900);
     const backup = await createBackup(SLOT, createSaveEnvelope(JSON.stringify(original)), 'manual');
 
-    // Two saves so the active pointer has flipped at least once — the exact
+    // Two saves so the active pointer has flipped at least once - the exact
     // shape that made the legacy-key write invisible.
     await doubleBufferSave(SLOT_KEY, createSaveEnvelope(JSON.stringify(stateOf('A', 1))));
     await doubleBufferSave(SLOT_KEY, createSaveEnvelope(JSON.stringify(stateOf('B', 2))));

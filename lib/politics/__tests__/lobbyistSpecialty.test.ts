@@ -86,7 +86,7 @@ describe('targeting decides who counts', () => {
 
   it('a multi-type lobbyist counts on each of its types', () => {
     // The Union Representative's description has always read "Great for social
-    // and economic policies" — the singular `specialty` field could not say so.
+    // and economic policies" - the singular `specialty` field could not say so.
     expect(calculateTotalLobbyistInfluence(['union_representative'], 'social')).toBe(12);
     expect(calculateTotalLobbyistInfluence(['union_representative'], 'economic')).toBe(12);
     expect(calculateTotalLobbyistInfluence(['union_representative'], 'criminal')).toBe(0);
@@ -113,7 +113,7 @@ describe('targeting decides who counts', () => {
 describe('the discount stacks instead of replacing', () => {
   it('an unchanged player keeps exactly the discount they had', () => {
     // The base term is byte-identical to the old formula. A save whose
-    // influence came from enacting policies and lobbying — not from retainers —
+    // influence came from enacting policies and lobbying - not from retainers -
     // must not lose a single point.
     for (const influence of [0, 10, 25, 50, 100]) {
       const expected = Math.min(BASE_INFLUENCE_DISCOUNT_CAP, influence / 100);
@@ -132,7 +132,7 @@ describe('the discount stacks instead of replacing', () => {
   });
 
   it('the targeted term is capped on its own', () => {
-    // Every generalist hired at once — 5 + 25 + 35 + 50 = 115 influence.
+    // Every generalist hired at once - 5 + 25 + 35 + 50 = 115 influence.
     const all = ['local_lobbyist', 'top_tier_lobbyist', 'elite_lobbyist', 'retired_politician'];
     expect(policyDiscountFraction(0, all, 'social')).toBe(TARGETED_LOBBYIST_DISCOUNT_CAP);
   });
@@ -174,14 +174,14 @@ describe('the label the three UI sites print', () => {
 
   it('does not claim universal coverage for a missing catalogue entry', () => {
     /**
-     * The roster row used to read `cat?.specialty ?? 'all'` — an unknown
+     * The roster row used to read `cat?.specialty ?? 'all'` - an unknown
      * lobbyist defaulted to the STRONGEST possible claim. Centralising the
      * three call sites in one helper did not fix that on its own: the helper
      * returned `'all policies'` for `undefined` too, so the defect simply moved
      * inside the function written to remove it.
      *
      * `LobbyistRow` passes `cat?.specialties`, so a hired id with no catalogue
-     * entry — a retired lobbyist still sitting on an old save — lands here.
+     * entry - a retired lobbyist still sitting on an old save - lands here.
      * Absent must read as absent.
      */
     expect(describeSpecialties(undefined)).not.toBe('all policies');

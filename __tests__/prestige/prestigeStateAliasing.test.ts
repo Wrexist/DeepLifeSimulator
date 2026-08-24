@@ -47,7 +47,7 @@ describe('prestige grants do not leak into the initialGameState singleton', () =
     expect(holdingsOf(life3)).toEqual(holdingsOf(life2)); // …and did not compound
   });
 
-  it('leaves the singleton untouched — a NEW game starts with nothing', () => {
+  it('leaves the singleton untouched - a NEW game starts with nothing', () => {
     executePrestige(richState(), 'reset');
 
     expect(initialGameState.stocks?.holdings ?? []).toHaveLength(0);

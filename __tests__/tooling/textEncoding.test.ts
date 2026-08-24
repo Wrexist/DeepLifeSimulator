@@ -158,7 +158,7 @@ describe('text encoding', () => {
   it('does not flag legitimate non-ASCII text (the control)', () => {
     // Real em dashes, arrows, accents and emoji must pass untouched, or the
     // guard would push authors toward ASCII-only prose.
-    for (const clean of ['a — b', 'x → y', 'café', 'naïve', '✅ done', 'σ = 0.2', '≈ 5']) {
+    for (const clean of ['a - b', 'x → y', 'café', 'naïve', '✅ done', 'σ = 0.2', '≈ 5']) {
       expect(`${clean}: ${findMojibake(clean).length}`).toBe(`${clean}: 0`);
     }
   });

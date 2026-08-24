@@ -1,11 +1,11 @@
 /**
- * ElderCard — the late-game "Retirement / Elder" surface on the home feed.
+ * ElderCard - the late-game "Retirement / Elder" surface on the home feed.
  *
  * Appears once the player can retire (age ≥ 65, or age ≥ 45 with FIRE net worth),
  * is already elderly, or has retired. It hosts three things, all driven by the
  * pure lib/retirement module:
- *   • the Retire action (with a live pension projection) — before retiring,
- *   • the pension readout — after retiring,
+ *   • the Retire action (with a live pension projection) - before retiring,
+ *   • the pension readout - after retiring,
  *   • age-gated elder activities (memoir, mentoring, grandchildren, bucket-list,
  *     volunteering, reconnecting) with cost/cooldown, and
  *   • a legacy-planning summary (net worth, estate to heirs, achievements, family)
@@ -13,7 +13,7 @@
  *
  * Reuse-not-rebuild: money moves only through the canonical helpers inside the
  * pure reducers; nothing here mints money or touches a mirrored bank account.
- * Renders nothing for a normal working-age life — safe on every save.
+ * Renders nothing for a normal working-age life - safe on every save.
  */
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -78,7 +78,7 @@ function ElderCard() {
       projectedPension: computePension(state).weekly,
       pensionWeekly: getRetirementIncomeWeekly(state),
       retiredAtAge: state.retiredAtAge,
-      // Show activities for anyone RETIRED (FIRE path retires at 45) or elder —
+      // Show activities for anyone RETIRED (FIRE path retires at 45) or elder -
       // not just 65+, which used to leave early retirees with empty years.
       activities: retired || elder ? getElderActivityStatuses(state) : [],
       legacy: getElderLegacySummary(state),
@@ -90,7 +90,7 @@ function ElderCard() {
   const doRetire = () => {
     haptic.success();
     // Decide success from the render snapshot (pure retirePlayer) rather than a
-    // flag mutated inside the async state updater — React does not guarantee the
+    // flag mutated inside the async state updater - React does not guarantee the
     // updater runs synchronously, so the flag could stay false on a successful
     // retire and skip the toast + immediate save.
     const preview = retirePlayer(state);
@@ -113,7 +113,7 @@ function ElderCard() {
     haptic.light();
     // Decide success + toast from the render snapshot (pure applyElderActivity),
     // not a flag mutated inside the async state updater (which React may defer,
-    // leaving `ok` false on a successful activity — a false "Not available" warning
+    // leaving `ok` false on a successful activity - a false "Not available" warning
     // on an action that already charged + applied). Mirrors AmbitionCard.
     const preview = applyElderActivity(state, id);
     setGameState((prev) => {

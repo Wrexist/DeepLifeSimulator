@@ -13,7 +13,7 @@ interface WeeklyResultSheetProps {
 }
 
 /**
- * Rich weekly result sheet — shows income, expenses, lucky bonuses,
+ * Rich weekly result sheet - shows income, expenses, lucky bonuses,
  * streak info, and career progress after each week advance.
  *
  * Falls back to children-only rendering if no gameState is provided,

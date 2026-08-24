@@ -95,12 +95,12 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
   });
 
   // Accounts the player opened themselves. `MIRRORED_ACCOUNT_IDS` are skipped
-  // because those two rows ARE the cash and savings above — 1:1 mirrors of
-  // `stats.money` and `bankSavings` — so counting them here would double them.
+  // because those two rows ARE the cash and savings above - 1:1 mirrors of
+  // `stats.money` and `bankSavings` - so counting them here would double them.
   (gameState.banking?.accounts ?? []).forEach((a, i) => {
     if (!a) return;
-    // Resolved ONCE. The id was previously read three ways in four lines — bare
-    // for the mirror check, `?? i` for the asset id, and as a name fallback —
+    // Resolved ONCE. The id was previously read three ways in four lines - bare
+    // for the mirror check, `?? i` for the asset id, and as a name fallback -
     // so an account missing an id both escaped the mirror check and rendered a
     // row literally named "undefined".
     const accountId = a.id ?? `account-${i}`;
@@ -129,15 +129,15 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
 
   /**
    * Laundered dark-web BTC, valued exactly as the canonical `netWorth()` values
-   * it (D-5) — `cleanBtc × the BTC price`, dirty BTC excluded.
+   * it (D-5) - `cleanBtc × the BTC price`, dirty BTC excluded.
    *
    * It gets its own row rather than being folded into the coin above it: it is
    * the same asset but a different pocket, and a player looking for where their
    * laundering proceeds went should find them named. Omitting it here would
-   * reopen the exact gap this module exists to close — the headline counting a
+   * reopen the exact gap this module exists to close - the headline counting a
    * term the itemised list below it does not.
    */
-  // Same strict validation as the canonical `netWorth()` — `typeof === 'number'`
+  // Same strict validation as the canonical `netWorth()` - `typeof === 'number'`
   // rather than `Number(x)`, so a persisted string like "2" gets no row, and the
   // product clamped so two finite values cannot multiply to Infinity.
   const btcPrice = (gameState.cryptos ?? []).find((c) => c?.id === 'btc')?.price;
@@ -155,7 +155,7 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     });
   }
 
-  // Stocks — held holdings at their current price.
+  // Stocks - held holdings at their current price.
   (gameState.stocks?.holdings || []).forEach((h, i) => {
     const value = (h?.shares || 0) * (h?.currentPrice || 0);
     if (value <= 0) return;
@@ -168,7 +168,7 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     });
   });
 
-  // Luxury — resale value per piece, condition and appreciation included,
+  // Luxury - resale value per piece, condition and appreciation included,
   // matching what a sale would actually pay. `getLuxuryHoldingValue` is the
   // same helper `getTotalLuxuryMarketValue` reduces over, so a row and the
   // headline physically cannot price the same trophy differently.
@@ -222,7 +222,7 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     });
   });
 
-  // Real Estate — CURRENT value, not what was paid for it.
+  // Real Estate - CURRENT value, not what was paid for it.
   (realEstate || [])
     .filter((p) => p?.owned)
     .forEach((p) =>
@@ -237,14 +237,14 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
 
   /**
    * Vehicles, validated EXACTLY as the canonical `netWorth()` validates them
-   * (`lib/progress/achievements.ts`) — same guards, same fallbacks, same
+   * (`lib/progress/achievements.ts`) - same guards, same fallbacks, same
    * depreciation, so the two answers cannot drift.
    *
    * The guards are not defensive decoration. `condition` was read as
    * `vehicle.condition / 100` with no fallback while `mileage` got a `|| 0`, so
    * ONE legacy or hand-edited row with a missing `condition` or `price` produced
    * `NaN`, and `computeNetWorth` summed it into `totalAssets`. The headline,
-   * every percentage and `netWorth` itself would all render as `NaN` — a single
+   * every percentage and `netWorth` itself would all render as `NaN` - a single
    * bad row poisoning the entire modal. This code was moved verbatim out of the
    * component, so the hole came with it.
    *
@@ -291,7 +291,7 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     .map((l) => ({ id: l.id, type: 'loan', principal: l.remaining }));
 
   // Revolving credit-card debt, which the canonical `netWorth()` subtracts and
-  // the modal used to ignore — so a player carrying a balance saw a headline
+  // the modal used to ignore - so a player carrying a balance saw a headline
   // ABOVE the card that opened it. Same helper canonical uses, guarded because a
   // partial save can carry `banking` without a `creditCards` array.
   const creditCardDebt = totalCreditCardDebt({
@@ -302,7 +302,7 @@ export function buildNetWorthItemisation(gameState: GameState): NetWorthItemisat
     liabilities.push({ id: 'credit-card-debt', type: 'creditCard', principal: creditCardDebt });
   }
 
-  // `transactionFee: 0` — this breakdown exists to EXPLAIN the canonical
+  // `transactionFee: 0` - this breakdown exists to EXPLAIN the canonical
   // `netWorth()` shown on the card that opens it, and that figure applies no
   // liquidation haircut. Passing the default fee shaved ~1% off every asset, so
   // the modal total sat just below the card. With the fee off, `perAsset`

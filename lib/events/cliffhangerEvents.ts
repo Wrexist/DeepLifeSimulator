@@ -14,6 +14,7 @@
 import type { WeeklyEvent } from './engine';
 import type { GameState } from '@/contexts/game/types';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { makeWeeklyRoll } from '@/utils/seededRoll';
 
 export interface CliffhangerDefinition {
   id: string;
@@ -119,7 +120,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         choices: [
           {
             id: 'accept',
-            text: 'Accept it — at least I still have a job',
+            text: 'Accept it - at least I still have a job',
             effects: { money: -200, stats: { happiness: -8 } },
           },
           {
@@ -164,7 +165,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_mysterious_letter_resolve',
       description:
-        "The letter is from a long-lost relative. They're leaving you a small inheritance — but there's a catch. You must visit their hometown first.",
+        "The letter is from a long-lost relative. They're leaving you a small inheritance - but there's a catch. You must visit their hometown first.",
       choices: [
         {
           id: 'visit',
@@ -173,7 +174,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         },
         {
           id: 'decline',
-          text: 'Too suspicious — throw it away',
+          text: 'Too suspicious - throw it away',
           effects: { stats: { happiness: -3 } },
         },
       ],
@@ -207,7 +208,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
   // ── Health cliffhangers ──
   {
     id: 'ch_doctor_callback',
-    teaser: "The doctor's office called — they need to discuss your test results...",
+    teaser: "The doctor's office called - they need to discuss your test results...",
     weight: 0.2,
     condition: (s) => weeksInThisLife(s) > 15,
     resolveEvent: (state) => {
@@ -234,7 +235,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
       return {
         id: 'ch_doctor_callback_resolve',
         description:
-          "Great news — your bloodwork came back perfect! The doctor says you're in excellent health.",
+          "Great news - your bloodwork came back perfect! The doctor says you're in excellent health.",
         choices: [
           {
             id: 'celebrate',
@@ -273,7 +274,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_bank_call_resolve',
       description:
-        "Your bank detected unusual activity on your account. Fortunately, they froze it in time — no money was lost.",
+        "Your bank detected unusual activity on your account. Fortunately, they froze it in time - no money was lost.",
       choices: [
         {
           id: 'secure',
@@ -321,7 +322,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_friend_trouble_resolve',
       description:
-        "Your friend needed advice about a big life decision — they're thinking about moving abroad and wanted your honest opinion.",
+        "Your friend needed advice about a big life decision - they're thinking about moving abroad and wanted your honest opinion.",
       choices: [
         {
           id: 'support',
@@ -330,7 +331,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         },
         {
           id: 'honest',
-          text: "Think carefully — that's a huge change",
+          text: "Think carefully - that's a huge change",
           effects: { stats: { happiness: 3 }, relationship: 5 },
         },
       ],
@@ -438,7 +439,15 @@ export function rollCliffhanger(
   // age 18 — `weeksLived` is absolute and seeded from the starting age, so the
   // new-player bump never applied to any scenario that does not start at 18.
   const threshold = weeksInThisLife(state) <= 12 ? 0.10 : 0.07;
-  const roll = ((seed * 997 + 31) % 100) / 100;
+  // Deterministic per week, but genuinely varied. The old fire roll was
+  // `(seed*997+31)%100` — 997 ≡ 97 (mod 100), gcd(97,100)=1, so cliffhanger
+  // weeks were a FIXED permutation repeating every 100 weeks, identical for
+  // every player and every life (2026-08-24 audit; same class as the lucky
+  // bonus). Routed through the audited seeded RNG, salted per-life so two
+  // lives don't share a timeline. Same fix for the weight pick below.
+  const rollFor = makeWeeklyRoll(seed);
+  const lifeSalt = `${state.lineageId || ''}:${state.generationNumber || 1}`;
+  const roll = rollFor(`cliffhanger-fire:${lifeSalt}`);
   if (roll > threshold) return null;
 
   // Filter eligible cliffhangers
@@ -449,7 +458,7 @@ export function rollCliffhanger(
 
   // Pick one based on weights
   const totalWeight = eligible.reduce((sum, ch) => sum + ch.weight, 0);
-  let weightRoll = ((seed * 443 + 17) % 1000) / 1000 * totalWeight;
+  let weightRoll = rollFor(`cliffhanger-pick:${lifeSalt}`) * totalWeight;
 
   for (const ch of eligible) {
     weightRoll -= ch.weight;

@@ -202,7 +202,7 @@ export const enrollInProgram = (
       const aprAdjustment = -politicsReduction;
       const baseAPR = 0.06; // student loan baseline 6%
       // R3-M2 completion: this site was missed. A student loan does not hand
-      // the player cash, but it frees the cash that would have paid tuition —
+      // the player cash, but it frees the cash that would have paid tuition -
       // so a 2.5% student loan funding a 5.5% CD is the same risk-free carry
       // the floor exists to close.
       const studentAprFloor = politicsReduction > 0 ? POLITICS_LOAN_APR_FLOOR : 0.025;
@@ -236,7 +236,7 @@ export const enrollInProgram = (
     const newMoney = spec.mode === 'cash' ? Math.max(0, cash - netCost) : cash;
 
     // Budget tab: cash tuition is an education outflow. Loan-mode is NOT
-    // recorded here — its weekly repayments are tracked as 'debt' instead.
+    // recorded here - its weekly repayments are tracked as 'debt' instead.
     const banking =
       spec.mode === 'cash' && netCost > 0 && prev.banking?.budgetSpend
         ? trackBudgetSpend(prev.banking, prev.weeksLived, 'education', netCost)
@@ -278,7 +278,7 @@ export const enrollInProgram = (
       // Spend the tuition credit in the SAME updater that enrols (§4.4). The
       // quote above was computed from `prev`, so a second tap in the same React
       // batch re-quotes against the already-decremented credit and cannot spend
-      // it twice. Only the part that actually paid tuition is deducted — see
+      // it twice. Only the part that actually paid tuition is deducted - see
       // `quoteScholarship`'s `awardUSD`.
       ...(quote.waiverSpentUSD > 0
         ? { tuitionWaiverUSD: quote.waiverRemainingUSD > 0 ? quote.waiverRemainingUSD : undefined }
@@ -329,7 +329,7 @@ export const togglePauseProgram = (
 
 /**
  * Join / leave a course's study group. Joining charges a small one-time cost
- * (STUDY_GROUP_JOIN_COST) atomically via `applyMoneyDelta` — so a double-tap
+ * (STUDY_GROUP_JOIN_COST) atomically via `applyMoneyDelta` - so a double-tap
  * debits once and an unaffordable join is rejected without flipping the flag.
  * Leaving is free (no refund). Only active (non-completed) programs qualify.
  *
@@ -348,10 +348,10 @@ export const toggleStudyGroup = (
     }
     const willActivate = !ed.studyGroupActive;
     if (!willActivate) {
-      // Leaving — free, no refund.
+      // Leaving - free, no refund.
       return { ...prev, educations: setStudyGroupPure(prev.educations ?? [], educationId, false) };
     }
-    // Joining — atomic charge; reject (leave flag off) if unaffordable.
+    // Joining - atomic charge; reject (leave flag off) if unaffordable.
     const spend = applyMoneyDelta(prev, -STUDY_GROUP_JOIN_COST, `Study group join: ${ed.name}`);
     if (!spend) {
       log.warn(`Study group join rejected: can't afford $${STUDY_GROUP_JOIN_COST}`);
@@ -410,7 +410,7 @@ export const studyExtra = (
        * C-12. `STUDY_GROUP_BENEFITS.extraProgress` has documented "+1 extra
        * week progress per study action" since the constant was written, and
        * `applyStudySession` has always taken a `progressBoost` parameter for
-       * exactly this — but every caller passed a literal 1, so the constant was
+       * exactly this - but every caller passed a literal 1, so the constant was
        * never read by anything. Half a feature, fully plumbed, never connected.
        *
        * Bounded by the same `MAX_STUDY_SESSIONS_PER_WEEK` cap as before: a
@@ -430,7 +430,7 @@ export const studyExtra = (
 /**
  * Resolve a campus event with the player's chosen option: apply the choice's
  * stat effects (clamped 0–100), route money through the canonical
- * applyMoneyDelta path, and clear the pending flag — all in one atomic
+ * applyMoneyDelta path, and clear the pending flag - all in one atomic
  * setState so a double-tap can't apply the effects twice (the second call
  * sees the flag already cleared and no-ops).
  */
@@ -454,7 +454,7 @@ export const resolveCampusEventChoice = (
     const money = choice.effects.money;
     if (typeof money === 'number' && isFinite(money) && money !== 0) {
       const moneyPatch = applyMoneyDelta(next, money, 'Campus event');
-      // A rejected debit (can't afford) still resolves the event — campus
+      // A rejected debit (can't afford) still resolves the event - campus
       // events are flavor, not a purchase gate.
       if (moneyPatch) next = { ...next, ...moneyPatch };
     }

@@ -356,18 +356,18 @@ export async function lazyLoadTurboModule<T = any>(
             module = await import('expo-splash-screen');
             break;
           case 'expo-haptics':
-            // @ts-expect-error — optional native dependency, lazy-loaded at runtime
+            // @ts-expect-error - optional native dependency, lazy-loaded at runtime
             module = await import('expo-haptics');
             break;
           case 'expo-constants':
             module = await import('expo-constants');
             break;
           case 'expo-clipboard':
-            // @ts-expect-error — optional native dependency, lazy-loaded at runtime
+            // @ts-expect-error - optional native dependency, lazy-loaded at runtime
             module = await import('expo-clipboard');
             break;
           case '@react-native-community/netinfo':
-            // @ts-expect-error — optional native dependency, lazy-loaded at runtime
+            // @ts-expect-error - optional native dependency, lazy-loaded at runtime
             module = await import('@react-native-community/netinfo');
             break;
           default:

@@ -80,11 +80,11 @@ function generateTagline(gameState: GameState): string {
 }
 
 /**
- * Total net worth — the CANONICAL figure (`lib/progress/achievements.netWorth`),
+ * Total net worth - the CANONICAL figure (`lib/progress/achievements.netWorth`),
  * the same one prestige, the leaderboard, ambitions, bail cost and the stats
  * screen read. This card previously carried its own copy that summed only cash +
- * bank + real estate at PURCHASE price — no stocks, companies, vehicles, loans
- * or luxury — so a player's shareable card contradicted every other net-worth
+ * bank + real estate at PURCHASE price - no stocks, companies, vehicles, loans
+ * or luxury - so a player's shareable card contradicted every other net-worth
  * surface in the game (2026-07-28 weekly audit: 5-way net-worth duplication).
  */
 function calculateNetWorth(gameState: GameState): number {
@@ -127,7 +127,7 @@ export default function ShareLifeCard({ gameState, onClose }: ShareLifeCardProps
  const careerName = workingCareer?.id
  ? workingCareer.id.charAt(0).toUpperCase() + workingCareer.id.slice(1)
  : 'Unemployed';
- // What the week actually pays, not the ladder's listed base — a share card
+ // What the week actually pays, not the ladder's listed base - a share card
  // quoting a different salary than the work tab is the same conflicting-
  // numbers report, screenshotted and posted somewhere public.
  const salary = paidWeeklyCareerSalary(gameState).total;

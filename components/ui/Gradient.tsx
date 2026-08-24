@@ -1,21 +1,21 @@
 /**
- * Gradient — a drop-in `LinearGradient` that actually renders a gradient.
+ * Gradient - a drop-in `LinearGradient` that actually renders a gradient.
  *
  * ## Why
  *
  * `expo-linear-gradient` is banned app-wide: direct imports hard-abort on iOS 26
  * TurboModule init (P0-7/P0-8, `tasks/critical-bugs-2026-05-29.md`). Every call
  * site was swapped to `LinearGradientFallback`, which takes `colors[0]` and
- * paints it as a flat background — a correct crash fix, and a silent visual
+ * paints it as a flat background - a correct crash fix, and a silent visual
  * regression nobody swept up afterwards.
  *
  * The result: **113 `colors={[…]}` call sites, 75 of them passing two or more
  * DISTINCT colours**, every one rendering as a single flat slab. Hero cards,
- * the settings chrome, the HUD, the paywall, the jail screen — all designed as
+ * the settings chrome, the HUD, the paywall, the jail screen - all designed as
  * gradients, all shipping flat.
  *
  * `react-native-svg` draws a real interpolated gradient, is already a direct
- * dependency, and is a different library from the crashing Expo module —
+ * dependency, and is a different library from the crashing Expo module -
  * `GradientButton`, `ProgressRing` and `ImageScrim` all use it today. This wraps
  * it in the **exact prop signature of `LinearGradient`**, so fixing a call site
  * is a one-line import change with no other edit.
@@ -28,13 +28,13 @@
  * ```
  *
  * Every call site has now made that swap, so `LinearGradientFallback` is
- * deleted rather than left sitting in `components/fallbacks/` — a dead
+ * deleted rather than left sitting in `components/fallbacks/` - a dead
  * drop-in with the right-looking name is exactly what a future author reaches
  * for, and it would silently flatten the gradient again.
  *
  * ## Anatomy
  *
- * Outer view carries the caller's style (so shadows keep working — never put
+ * Outer view carries the caller's style (so shadows keep working - never put
  * `overflow: 'hidden'` on a shadow view); an absolutely-positioned inner view
  * clips the SVG to the caller's `borderRadius`; children render above both.
  * Layout is untouched, because the painting layer is absolute.
@@ -97,12 +97,12 @@ function solidFill(stop: { color: string; opacity: number }): string {
     const [r, g, b] = [1, 2, 3].map((i) => parseInt(hex[i], 16));
     return `rgba(${r}, ${g}, ${b}, ${stop.opacity})`;
   }
-  // Named colour with alpha — rare; keep the colour and drop the alpha rather
+  // Named colour with alpha - rare; keep the colour and drop the alpha rather
   // than emitting something the style system will reject outright.
   return stop.color;
 }
 
-/** Unique id per instance — SVG `<Defs>` ids share one namespace on web. */
+/** Unique id per instance - SVG `<Defs>` ids share one namespace on web. */
 let _gid = 0;
 
 export default function Gradient({
@@ -120,7 +120,7 @@ export default function Gradient({
   const stops = useMemo(() => {
     const list = Array.isArray(colors) ? colors.filter((c) => c != null) : [];
     if (list.length === 0) return [];
-    // A single colour is a legitimate (if pointless) gradient — duplicate it so
+    // A single colour is a legitimate (if pointless) gradient - duplicate it so
     // the SVG still has two stops and paints a flat fill, matching the old
     // fallback exactly for those call sites.
     const source = list.length === 1 ? [list[0], list[0]] : list;
@@ -152,12 +152,12 @@ export default function Gradient({
    * A "gradient" whose stops are all the same colour is a flat fill.
    *
    * Worth special-casing rather than rendering anyway: a real gradient costs an
-   * `<Svg>` + `<Defs>` + `<LinearGradient>` + N `<Stop>` + `<Rect>` — around six
-   * nodes — where a background colour costs zero. Plenty of call sites pass
+   * `<Svg>` + `<Defs>` + `<LinearGradient>` + N `<Stop>` + `<Rect>` - around six
+   * nodes - where a background colour costs zero. Plenty of call sites pass
    * `[c, c]` or a variable that happens to hold one colour, and those were the
    * ones the old flat fallback served perfectly well.
    *
-   * It is only a node-count saving, though — do NOT read it as a fix for the
+   * It is only a node-count saving, though - do NOT read it as a fix for the
    * `screens.render.test.tsx` hang that was being chased when it was written.
    * That was a `React.lazy` livelock in `app/(tabs)/home.tsx` (see
    * `__tests__/render/lazyMountGating.render.test.tsx`), and this short-circuit
@@ -217,14 +217,14 @@ const styles = StyleSheet.create({
    */
   root: { zIndex: 0 },
   /**
-   * The paint layer. `overflow: 'hidden'` lives on this INNER view only — the
+   * The paint layer. `overflow: 'hidden'` lives on this INNER view only - the
    * outer keeps the caller's shadow intact, since a shadow on an
    * overflow-hidden view is clipped away on iOS.
    *
    * `zIndex: -1` is load-bearing, and its absence was a real regression: an
    * absolutely-positioned sibling paints ABOVE static in-flow siblings in CSS,
    * so on web the gradient covered its own children. It blanked the three HUD
-   * control icons and the next-week arrow — visible only by looking at the
+   * control icons and the next-week arrow - visible only by looking at the
    * running app, because nothing about it fails a type-check or a test.
    */
   clip: { overflow: 'hidden', zIndex: -1 },

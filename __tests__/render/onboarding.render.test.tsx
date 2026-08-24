@@ -13,7 +13,7 @@ import Perks from '@/app/(onboarding)/Perks';
  * undefined-component / bad-import / provider-cycle class of crash that the
  * import-smoke test (screenImports.test.ts) cannot.
  */
-describe('render — onboarding screens', () => {
+describe('render - onboarding screens', () => {
   it('MainMenu mounts without throwing', () => {
     const { json, unmount } = renderWithProviders(<MainMenu />);
     expect(json.length).toBeGreaterThan(0);

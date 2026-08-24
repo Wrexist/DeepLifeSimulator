@@ -1,7 +1,7 @@
 /**
- * SparkPremiumUpsellModal — Spark Plus / Ultra, IN-GAME cash subscriptions.
+ * SparkPremiumUpsellModal - Spark Plus / Ultra, IN-GAME cash subscriptions.
  *
- * The player pays with the in-game money they earn from jobs — NOT a real App
+ * The player pays with the in-game money they earn from jobs - NOT a real App
  * Store IAP. Tapping a tier subscribes weekly: subscribeSparkPremium debits
  * `stats.money` immediately (canonical applyMoneyDelta, overdraft-reject) and the
  * fee auto-renews weekly on the game tick (applySubscriptionsForWeek), lapsing if
@@ -52,7 +52,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
   const activeTier = premium?.active === true ? premium.tier : null;
   const money = gameState.stats?.money ?? 0;
 
-  // Billing cadence — annual is a prepaid 52-week block (~17% cheaper) that
+  // Billing cadence - annual is a prepaid 52-week block (~17% cheaper) that
   // subscribeSparkPremium fully supports; without this toggle it was
   // unreachable (the modal always passed 'weekly').
   const [plan, setPlan] = useState<'weekly' | 'annual'>('weekly');
@@ -111,7 +111,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
               : 'Unlock unlimited swipes and see who likes you.'}
           </Text>
 
-          {/* Billing cadence toggle — hidden while a plan is active (you can't
+          {/* Billing cadence toggle - hidden while a plan is active (you can't
               switch cadence without cancelling first). */}
           {!activeTier ? (
             <View style={[styles.planToggle, { borderColor: theme.border }]}>
@@ -122,7 +122,7 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
                     key={p}
                     onPress={() => setPlan(p)}
                     accessibilityRole="button"
-                    accessibilityLabel={p === 'annual' ? 'Bill annually, prepaid 52 weeks — save 17%' : 'Bill weekly'}
+                    accessibilityLabel={p === 'annual' ? 'Bill annually, prepaid 52 weeks - save 17%' : 'Bill weekly'}
                     accessibilityState={{ selected }}
                     style={[
                       styles.planToggleBtn,
@@ -211,7 +211,7 @@ interface TierCardProps {
   theme: ReturnType<typeof useTheme>['theme'];
   recommended?: boolean;
   active: boolean;
-  /** Any tier (this or the other) is currently active — blocks buying a second tier. */
+  /** Any tier (this or the other) is currently active - blocks buying a second tier. */
   anyTierActive: boolean;
   affordable: boolean;
 }
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
   // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // button lands off the bottom of the SCREEN - and the sheet itself does not
   // scroll, so nothing can reach it. Bounding the sheet is what gives the list
   // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {

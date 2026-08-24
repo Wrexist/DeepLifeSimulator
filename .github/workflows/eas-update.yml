@@ -20,7 +20,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: expo/expo-github-action installs the LATEST eas-cli
+          # with yarn, and eas-cli's dependency tree now requires Node >=22
+          # (@oclif/plugin-autocomplete@3.3.0's engines field). Under Node 20
+          # the login step hard-fails before any check runs (2026-08-24).
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies

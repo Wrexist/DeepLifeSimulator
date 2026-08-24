@@ -179,7 +179,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
               effect = `+${Math.round((regenMultiplier - 1) * 100)}% energy regeneration`;
             } else if (bonus.id === 'reduced_event_frequency') {
               const eventModifier = getEventFrequencyModifier(unlockedBonuses);
-              // Events carry no positive/negative tag — the modifier scales ALL rolls.
+              // Events carry no positive/negative tag - the modifier scales ALL rolls.
               effect = `-${Math.round((1 - eventModifier) * 100)}% life events (good and bad)`;
             }
             break;

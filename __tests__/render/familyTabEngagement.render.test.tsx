@@ -84,7 +84,7 @@ const findAction = (renderer: TestRenderer.ReactTestRenderer, label: string) =>
 
 const CALL_OFF = 'Call off the engagement';
 
-describe('render — the engaged partner card offers a way out', () => {
+describe('render - the engaged partner card offers a way out', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGameState = stateWith();
@@ -108,7 +108,7 @@ describe('render — the engaged partner card offers a way out', () => {
     act(() => renderer.unmount());
   });
 
-  it('confirms first — a destructive action never fires on the first tap', () => {
+  it('confirms first - a destructive action never fires on the first tap', () => {
     const renderer = render();
     act(() => {
       findAction(renderer, CALL_OFF)!.props.onPress();

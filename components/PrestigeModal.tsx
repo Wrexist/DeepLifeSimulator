@@ -74,7 +74,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
         }),
       ]).start();
 
-      // Gentle glow animation (opacity — safe for native driver)
+      // Gentle glow animation (opacity - safe for native driver)
       const glow = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {

@@ -16,7 +16,7 @@ export const clampStat = (value: number, min = 0, max = 100): number => {
 
 /**
  * Clamp an unbounded non-negative amount (money/gems). Unlike `Math.max(0, v)`,
- * this also sanitizes NaN/Infinity — `Math.max(0, NaN)` returns NaN, so the bare
+ * this also sanitizes NaN/Infinity - `Math.max(0, NaN)` returns NaN, so the bare
  * form let a poisoned money/gems value slip through the very validator meant to
  * catch it and then propagate to every display and comparison.
  */

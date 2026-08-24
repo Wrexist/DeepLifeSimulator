@@ -1,10 +1,10 @@
 /**
- * GradientButton — a modern, tactile CTA with real depth.
+ * GradientButton - a modern, tactile CTA with real depth.
  *
  * The app's LinearGradient is stubbed to a flat single color (the expo module
  * crashes on iOS 26), so buttons looked like flat slabs. This draws a real
  * vertical gradient with react-native-svg, adds a soft top "glass" shine and a
- * colored glow shadow, and gives a subtle press-scale — clean and immersive on
+ * colored glow shadow, and gives a subtle press-scale - clean and immersive on
  * every platform. Disabled renders a calm muted surface with no glow.
  */
 import React, { useRef } from 'react';
@@ -16,7 +16,7 @@ interface GradientButtonProps {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
-  /** [top, mid, bottom] — top lightest for a raised, glossy feel. */
+  /** [top, mid, bottom] - top lightest for a raised, glossy feel. */
   colors: [string, string, string];
   /** Glow/shadow color (usually the mid gradient color). */
   glow: string;
@@ -108,7 +108,7 @@ export default function GradientButton({
                 </SvgLinearGradient>
               </Defs>
               {/* Rounded rects (rx/ry = the button radius) so the gradient shape
-                  itself is rounded — no square-corner seam against the clip. */}
+                  itself is rounded - no square-corner seam against the clip. */}
               <Rect x="0" y="0" width="100%" height="100%" rx={RADIUS} ry={RADIUS} fill={`url(#${gid}-fill)`} />
               <Rect x="0" y="0" width="100%" height="100%" rx={RADIUS} ry={RADIUS} fill={`url(#${gid}-shine)`} />
             </Svg>

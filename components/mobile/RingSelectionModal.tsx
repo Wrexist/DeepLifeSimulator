@@ -2,7 +2,7 @@
  * Ring selection for marriage proposals.
  *
  * Surfaces the engagement-ring catalog (lib/dating/engagementRings) that the
- * canonical proposeMarriage action prices in — the previous UI propose flow
+ * canonical proposeMarriage action prices in - the previous UI propose flow
  * charged a flat $5,000 and never offered a ring at all.
  */
 import React, { useMemo, useState } from 'react';
@@ -76,7 +76,7 @@ export default function RingSelectionModal({
           </View>
 
           <Text style={[styles.subtitle, darkMode && styles.textMuted]}>
-            Proposing to {partnerName} — the ring affects your chances of a “yes”.
+            Proposing to {partnerName} - the ring affects your chances of a “yes”.
           </Text>
 
           <ScrollView style={[styles.list, { flexShrink: 1 }]} showsVerticalScrollIndicator={false}>

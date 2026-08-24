@@ -1,5 +1,5 @@
 /**
- * The attachment card — a payslip, invoice, statement or receipt rendered as a
+ * The attachment card - a payslip, invoice, statement or receipt rendered as a
  * document rather than described as one.
  *
  * The layout is deliberately plain: a header block, ruled label/value rows with

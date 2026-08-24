@@ -90,7 +90,7 @@ export function getPromotionEligibility(
     return {
       eligible: false,
       blockedBy: 'performance',
-      reason: `Your review is too weak to promote — reach ${PROMOTION_MIN_PERFORMANCE} performance (now ${Math.round(performance)}). Keep energy, health and happiness up.`,
+      reason: `Your review is too weak to promote - reach ${PROMOTION_MIN_PERFORMANCE} performance (now ${Math.round(performance)}). Keep energy, health and happiness up.`,
       nextLevelIndex,
     };
   }

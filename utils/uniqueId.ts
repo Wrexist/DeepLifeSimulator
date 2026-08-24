@@ -49,7 +49,7 @@ export function mintId(prefix: string): string {
  * A fresh id that also differs from every id already in `taken`.
  *
  * For the cases where a collision is silently DESTRUCTIVE rather than merely
- * confusing — `buyPet`, whose duplicate-id guard would drop the new pet. The
+ * confusing - `buyPet`, whose duplicate-id guard would drop the new pet. The
  * loop is bounded: `mintId` already cannot repeat within a session, so this can
  * only iterate when a previous session minted the same string, and one retry
  * changes both the counter and the random suffix.

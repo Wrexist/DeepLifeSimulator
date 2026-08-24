@@ -1,8 +1,8 @@
 /**
- * RealEstateApp — desktop real-estate screen. "Zillow DNA" pass.
+ * RealEstateApp - desktop real-estate screen. "Zillow DNA" pass.
  *
  * Skeleton (intentionally NOT the generic "eyebrow hero + uniform rows" template):
- *   - Browse: a stack of PHOTO LISTING CARDS — real property photo up top with a
+ *   - Browse: a stack of PHOTO LISTING CARDS - real property photo up top with a
  *     price + status overlay, bed/bath/sqft spec strip, and a tappable Buy button.
  *   - Portfolio: an equity dashboard (stacked value/mortgage bar + KPI strip) over
  *     PHOTO ROWS that carry a weekly-income read-out and a 2-point value trend line.
@@ -15,7 +15,7 @@
  * (catalog) with a name-keyword fallback for legacy-owned properties (§PROPERTY_IMAGES).
  *
  * All existing behaviour is preserved: the 3-tab loop, the mortgage buy flow
- * (BuyPropertyModal) and the full management surface (ManagePropertyModal — rent
+ * (BuyPropertyModal) and the full management surface (ManagePropertyModal - rent
  * modes, maintenance, laundering front, sell) are unchanged; every action that used
  * to exist is still reachable, now with a visible button. Slate Glass tokens
  * (emerald identity, Recipe A/B/C, glass elevation helpers) remain the language.
@@ -82,7 +82,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 
 const LinearGradient = Gradient;
 
-// Real Estate identity accent — emerald (#10B981). Used ONLY as translucent
+// Real Estate identity accent - emerald (#10B981). Used ONLY as translucent
 // tints on large surfaces (hero wash/blob, Recipe C icon bubbles, value chip)
 // and as a solid on small CTAs/badges/active-tab state. Gains/losses stay
 // accent.success / accent.danger AS DATA, keeping portfolio P/L semantics
@@ -183,7 +183,7 @@ function propertyTypeLabel(p: RealEstate): string {
 }
 
 // Deterministic bed / bath / sqft "listing specs" from the property's price tier.
-// Presentation only (never stored) — the Zillow-style spec strip that makes a
+// Presentation only (never stored) - the Zillow-style spec strip that makes a
 // listing read as a listing. A pure function of existing data (price).
 function listingSpecs(p: RealEstate): { beds: number; baths: number; sqft: number } {
   const price = p.currentValue ?? p.price;
@@ -233,7 +233,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
 ];
 
 /**
- * Buyable catalog — residential ladder + a commercial/multi-unit tier. Lives in
+ * Buyable catalog - residential ladder + a commercial/multi-unit tier. Lives in
  * lib/realEstate/catalog.ts (data, ground rule #7) so late-game has inventory and
  * commercial rent mode + laundering fronts have real assets. Players who already
  * own catalog entries from the legacy app see them in Portfolio.
@@ -304,14 +304,14 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
     return { rented, vacant, residences, appreciation, needsWork };
   }, [ownedProperties]);
 
-  // Weekly income for loan DTI gating — approximation that mirrors AdvancedBankApp.
+  // Weekly income for loan DTI gating - approximation that mirrors AdvancedBankApp.
   const weeklyIncome = useMemo(() => {
     let income = 0;
     // R3-M3: political salaries are ANNUAL; every other ladder is weekly. This
     // read them all as weekly, so an elected player's borrowing capacity was
     // inflated 52x at the DTI gate. One shared helper now encodes the rule.
     income += weeklyCareerSalary(gameState);
-    // Company income through the same helper the paycheck uses — the stored
+    // Company income through the same helper the paycheck uses - the stored
     // `weeklyIncome` is the base before the ceiling and the net-worth soft cap,
     // so summing it inflated borrowing capacity for a large portfolio.
     income += companyIncomePaidWeekly(gameState);
@@ -436,7 +436,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
     const condition = p.condition ?? 90;
     const conditionColor = condition >= 70 ? accent.success : condition >= 40 ? accent.warning : accent.danger;
     const cycle = p.marketCycle ?? 'stable';
-    // Only a unit with an actual TENANT earns — a vacant rented-mode unit
+    // Only a unit with an actual TENANT earns - a vacant rented-mode unit
     // falling back to asking rent painted phantom income in earning-green.
     const weeklyIncomeRow = p.status === 'rented' && p.tenant ? (p.tenant.weeklyRent ?? p.rent ?? 0) : 0;
 
@@ -554,7 +554,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
                   <AmenityChip icon={Building} label="Commercial · rent & fronts" />
                 ) : (
                   <>
-                    {/* Comfort/energy only pay out while this is your residence — label it so. */}
+                    {/* Comfort/energy only pay out while this is your residence - label it so. */}
                     <AmenityChip icon={Sparkles} label={`+${p.weeklyHappiness} comfort (as home)`} />
                     <AmenityChip icon={Activity} label={`+${p.weeklyEnergy} energy (as home)`} />
                   </>
@@ -597,7 +597,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
       <View style={{ gap: responsiveSpacing.lg }}>
         <EconomyEventBanner context="generic" />
 
-        {/* Recipe B hero — equity dashboard (one per screen). */}
+        {/* Recipe B hero - equity dashboard (one per screen). */}
         <View
           style={[
             getGlassCard(darkMode, 12),
@@ -647,7 +647,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           </View>
         </View>
 
-        {/* KPI strip — surfaces counts/rates the old UI hid. */}
+        {/* KPI strip - surfaces counts/rates the old UI hid. */}
         <View style={styles.kpiWrap}>
           <Kpi theme={theme} darkMode={darkMode} icon={Banknote} label="Weekly rent" value={formatMoney(weeklyRentEstimate)} />
           <Kpi theme={theme} darkMode={darkMode} icon={Home} label="Owned" value={String(ownedProperties.length)} />
@@ -720,7 +720,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           </Text>
           <Text style={[styles.emptyText, { color: theme.textMuted }]}>
             {ownsHome
-              ? 'Owning beats renting — no rent, and your home still keeps you well.'
+              ? 'Owning beats renting - no rent, and your home still keeps you well.'
               : currentTier
               ? `${formatMoney(currentTier.weeklyRent)}/wk · +${currentTier.health} health · +${currentTier.happiness} happiness · +${currentTier.energy} energy each week.`
               : 'Sleeping rough costs you health, happiness and energy every week. Even a shared room helps.'}
@@ -731,7 +731,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           {missedWeeks > 0 && currentTier && !ownsHome ? (
             <Text style={[styles.rentReason, { color: accent.warning }]}>
               {missedWeeks >= EVICTION_AFTER_WEEKS - 1
-                ? `Final notice — ${missedWeeks} weeks behind. Clear what you owe or you lose this place next week.`
+                ? `Final notice - ${missedWeeks} weeks behind. Clear what you owe or you lose this place next week.`
                 : `${missedWeeks} week${missedWeeks === 1 ? '' : 's'} behind on rent. ${EVICTION_AFTER_WEEKS - missedWeeks} more and you are evicted.`}
             </Text>
           ) : null}
@@ -820,7 +820,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           </View>
           <Text style={[styles.browseEmptyTitle, { color: theme.text }]}>You own every listing</Text>
           <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-            The market is picked clean for now — new listings drop as the neighborhoods cycle. Head to Portfolio to improve and rent out what you own.
+            The market is picked clean for now - new listings drop as the neighborhoods cycle. Head to Portfolio to improve and rent out what you own.
           </Text>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -1114,7 +1114,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               weeklyIncome,
               asResidence: spec.asResidence,
             });
-            // Signing a mortgage is a life milestone — celebrate it (and explain
+            // Signing a mortgage is a life milestone - celebrate it (and explain
             // rejections, which previously vanished into the log).
             Alert.alert(result.success ? '🏠 Sold!' : 'Purchase', result.message);
             // On success the catalog detail would still read "For sale" with a
@@ -1228,7 +1228,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
 // ── Presentational leaf components ──────────────────────────────────────────
 
-// 2-point value trend segment (purchase -> current). Never fabricates history —
+// 2-point value trend segment (purchase -> current). Never fabricates history -
 // draws exactly the two values the state carries.
 function ValueTrend({ from, to, width, height }: { from: number; to: number; width: number; height: number }) {
   const up = to >= from;

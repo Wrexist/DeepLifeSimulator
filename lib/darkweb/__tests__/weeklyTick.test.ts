@@ -40,7 +40,7 @@ function policeRoll(kindRoll: number): (key: string) => number {
   };
 }
 
-describe('runDarkWebWeeklyTick — heat decay', () => {
+describe('runDarkWebWeeklyTick - heat decay', () => {
   it('decays heat over time', () => {
     const dw = emptyDw({ heat: 50, lastHeatDecayWeek: 0 });
     const r = runDarkWebWeeklyTick({
@@ -52,7 +52,7 @@ describe('runDarkWebWeeklyTick — heat decay', () => {
   });
 });
 
-describe('runDarkWebWeeklyTick — police events (sting bucket)', () => {
+describe('runDarkWebWeeklyTick - police events (sting bucket)', () => {
   it('seizes dirty BTC and bumps heat by 5', () => {
     const dw = emptyDw({ heat: 90, dirtyBtc: 1 });
     const r = runDarkWebWeeklyTick({
@@ -66,7 +66,7 @@ describe('runDarkWebWeeklyTick — police events (sting bucket)', () => {
   });
 });
 
-describe('runDarkWebWeeklyTick — police events (raid bucket)', () => {
+describe('runDarkWebWeeklyTick - police events (raid bucket)', () => {
   it('adds jail weeks and decays heat by 25', () => {
     const dw = emptyDw({ heat: 90 });
     const r = runDarkWebWeeklyTick({
@@ -81,7 +81,7 @@ describe('runDarkWebWeeklyTick — police events (raid bucket)', () => {
   });
 });
 
-describe('runDarkWebWeeklyTick — police events (informant bucket)', () => {
+describe('runDarkWebWeeklyTick - police events (informant bucket)', () => {
   it('drains clean BTC as payoff and bumps heat by 3', () => {
     const dw = emptyDw({ heat: 90, cleanBtc: 2 });
     const r = runDarkWebWeeklyTick({
@@ -105,7 +105,7 @@ describe('runDarkWebWeeklyTick — police events (informant bucket)', () => {
   });
 });
 
-describe('runDarkWebWeeklyTick — police events (surveillance bucket)', () => {
+describe('runDarkWebWeeklyTick - police events (surveillance bucket)', () => {
   it('spikes heat without jail / btc seizure', () => {
     const dw = emptyDw({ heat: 60 });
     const r = runDarkWebWeeklyTick({
@@ -120,7 +120,7 @@ describe('runDarkWebWeeklyTick — police events (surveillance bucket)', () => {
   });
 });
 
-describe('runDarkWebWeeklyTick — no police events when cold', () => {
+describe('runDarkWebWeeklyTick - no police events when cold', () => {
   it('skips events entirely when heat is below 20', () => {
     const dw = emptyDw({ heat: 10 });
     const r = runDarkWebWeeklyTick({
@@ -134,7 +134,7 @@ describe('runDarkWebWeeklyTick — no police events when cold', () => {
   });
 });
 
-describe('runDarkWebWeeklyTick — relationship discovery', () => {
+describe('runDarkWebWeeklyTick - relationship discovery', () => {
   /** Roll source that returns 0.99 (no police events) but 0.001 for the discovery roll. */
   const discoveryRoll = (key: string) => {
     if (key === 'darkweb.policeEvent') return 0.99;

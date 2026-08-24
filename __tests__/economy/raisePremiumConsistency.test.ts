@@ -61,7 +61,7 @@ describe('one definition of the raise premium', () => {
     expect(resolveRaisePremium(50)).toBe(RAISE_PREMIUM_CAP);
   });
 
-  it('clamps UP to the floor — a premium never cuts base pay', () => {
+  it('clamps UP to the floor - a premium never cuts base pay', () => {
     expect(resolveRaisePremium(0)).toBe(RAISE_PREMIUM_FLOOR);
     expect(resolveRaisePremium(-5)).toBe(RAISE_PREMIUM_FLOOR);
     expect(RAISE_PREMIUM_FLOOR).toBe(1);
@@ -99,7 +99,7 @@ describe('one definition of the raise premium', () => {
   });
 });
 
-describe('every reader goes through it — no site keeps its own clamp', () => {
+describe('every reader goes through it - no site keeps its own clamp', () => {
   // The premium is now reached through one more layer at the payout sites:
   // `paidWeeklySalaryForLevel` (`lib/careers/weeklySalary.ts`) applies it
   // alongside the boosts/life-skills/DeepLife+ multipliers the paycheck also

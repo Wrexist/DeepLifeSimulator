@@ -8,6 +8,7 @@
  *   - it fires EXACTLY ONCE (resolving records choiceHistory → condition false).
  */
 import { eventTemplates } from '../engine';
+import { LIFE_MOMENT_TEMPLATES } from '@/lib/lifeMoments/lifeMomentGenerator';
 import { GameState } from '@/contexts/GameContext';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
@@ -21,13 +22,37 @@ function stateWith(consequenceState: any): GameState {
   return createTestGameState({ weeksLived: 40, consequenceState });
 }
 
-const UNLOCK_PAYOFFS = ['street_musician_friend', 'startup_payout', 'hot_tip_outcome'];
+const UNLOCK_PAYOFFS = [
+  'street_musician_friend',
+  'startup_payout',
+  'hot_tip_outcome',
+  // The coffee-break introduction. Its unlock flag was written from day one;
+  // the payoff template only exists since 2026-08-24 - before that the
+  // promised introduction never arrived (orphaned-unlock class).
+  'networking_opportunity',
+];
 
 describe('life-moment payoff events', () => {
-  it('all four payoff templates are registered', () => {
-    ['street_musician_friend', 'startup_payout', 'hot_tip_outcome', 'audit_scandal'].forEach((id) => {
+  it('all five payoff templates are registered', () => {
+    ['street_musician_friend', 'startup_payout', 'hot_tip_outcome', 'audit_scandal', 'networking_opportunity'].forEach((id) => {
       expect(eventTemplates.find((e) => e.id === id)).toBeDefined();
     });
+  });
+
+  it('COMPLETENESS RATCHET: every unlock_event a life moment can write has a registered payoff', () => {
+    const targets = new Set<string>();
+    for (const template of LIFE_MOMENT_TEMPLATES) {
+      for (const choice of template.choices ?? []) {
+        for (const consequence of choice.hiddenConsequences ?? []) {
+          if (consequence.type === 'unlock_event' && consequence.targetEventId) {
+            targets.add(consequence.targetEventId);
+          }
+        }
+      }
+    }
+    expect(targets.size).toBeGreaterThan(0);
+    const missing = [...targets].filter((id) => !eventTemplates.some((e) => e.id === id));
+    expect(missing).toEqual([]);
   });
 
   describe.each(UNLOCK_PAYOFFS)('unlock-gated payoff: %s', (id) => {
@@ -100,7 +125,7 @@ describe('life-moment payoff events', () => {
       (s as any).weeksLived = w;
       descriptions.add(tpl.generate(s).description);
     }
-    // win / modest / bust — the seeded roll should surface more than one branch.
+    // win / modest / bust - the seeded roll should surface more than one branch.
     expect(descriptions.size).toBeGreaterThanOrEqual(2);
   });
 });

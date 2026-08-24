@@ -488,7 +488,7 @@ function getActiveSystems(gameState: GameState): string[] {
  * Derive which systems this life has actually touched, from observable state.
  *
  * `markSystemDiscovered` had NO callers, and `updateSystemUsage` had exactly one
- * — hard-coded to `'streetJobs'`. So `discoveredSystems` could hold at most one
+ * - hard-coded to `'streetJobs'`. So `discoveredSystems` could hold at most one
  * entry for the life of a save, while `DiscoveryIndicator` (mounted full-size on
  * the home feed after week 5) rendered "1 / 20" and `calculateDepthScore` drew
  * 40 of its 100 points from that ratio. A player running companies, stocks,
@@ -503,7 +503,7 @@ function getActiveSystems(gameState: GameState): string[] {
  *  - a new system cannot forget to call it; it is one function to extend.
  *  - it is pure and idempotent, so the tick can run it every week.
  *
- * Only ever ADDS. Selling your last property does not un-discover real estate —
+ * Only ever ADDS. Selling your last property does not un-discover real estate -
  * discovery is "you have seen this", not "you currently own this".
  */
 export function reconcileDiscoveredSystems(gameState: GameState): GameState {
@@ -529,11 +529,11 @@ export function reconcileDiscoveredSystems(gameState: GameState): GameState {
   mark('career', !!gameState.currentJob || !!gameState.careers?.some((c) => c?.accepted));
   // `relationships` is NOT evidence by mere presence: `initialGameState` seeds
   // every save with Mom and Dad (`type: 'parent'`, score 50, no counters), so
-  // `has(relationships)` was true before the first frame — the same shape as the
+  // `has(relationships)` was true before the first frame - the same shape as the
   // `banking.accounts` seeding two lines below, and as the `weeksLived` baseline
   // that cost three bugs (§4.2). Evidence is the player ENGAGING the system:
   // either a relationship they made (nothing but parents is seeded, so any
-  // non-parent is player-made — a friend, partner, spouse or child) or an
+  // non-parent is player-made - a friend, partner, spouse or child) or an
   // interaction recorded against one (`actions` written by ContactsActions,
   // `weeklyInteractions`/`lastInteractionWeek` by Contacts + Dating, `datesCount`
   // by Dating). Deliberately NOT the score: the weekly tick decays it on its own,
@@ -551,7 +551,7 @@ export function reconcileDiscoveredSystems(gameState: GameState): GameState {
   );
   mark('health', (gameState.stats?.fitness ?? 0) > 0 && (gameState.weeksLived ?? 0) > 0);
   // `pursuits` is a `Record<string, PlayerPursuit>`, never an array, so the old
-  // `has(pursuits)` could not fire — count keys instead.
+  // `has(pursuits)` could not fire - count keys instead.
   mark('hobbies', has(gameState.hobbies) || Object.keys(gameState.pursuits ?? {}).length > 0);
   mark('education', has(gameState.educations));
   mark('items', !!gameState.items?.some((i) => i?.owned));
@@ -576,7 +576,7 @@ export function reconcileDiscoveredSystems(gameState: GameState): GameState {
   );
   mark('realEstate', has(gameState.realEstate));
   // `state.stocks` is an OBJECT (`{ holdings: [...] }`), never an array, so
-  // `has(state.stocks)` could never be true — it was dead weight, not legacy-save
+  // `has(state.stocks)` could never be true - it was dead weight, not legacy-save
   // coverage. The real legacy shape is the `stocksOwned` map.
   mark('stocks', has(gameState.stocks?.holdings) || Object.keys(gameState.stocksOwned ?? {}).length > 0);
   mark('company', has(gameState.companies) || !!gameState.company);
@@ -592,7 +592,7 @@ export function reconcileDiscoveredSystems(gameState: GameState): GameState {
       has(politics?.lobbyists),
   );
   // R&D is a COMPANY subsystem (`Company.rdLab` / `patents` /
-  // `unlockedTechnologies`) — there is no root-level `rdProjects` or `research`.
+  // `unlockedTechnologies`) - there is no root-level `rdProjects` or `research`.
   mark(
     'rd',
     !!gameState.companies?.some(

@@ -135,7 +135,7 @@ function buildFor(scenarioId: string, opts: { perks?: string[]; permanentPerks?:
 
 // ──────────────────── Tests ────────────────────────────────────────────────
 
-describe('Onboarding Flow — end-to-end', () => {
+describe('Onboarding Flow - end-to-end', () => {
   jest.setTimeout(240_000);
   let mounted: { root: any } | null = null;
 

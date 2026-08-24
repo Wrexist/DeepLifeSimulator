@@ -60,7 +60,7 @@ function text(renderer: TestRenderer.ReactTestRenderer): string {
   return out.join('');
 }
 
-describe('render — PromotionCelebrationModal', () => {
+describe('render - PromotionCelebrationModal', () => {
   beforeEach(() => {
     reducedMotion = true;
     __resetCelebrationGateForTests();
@@ -80,7 +80,7 @@ describe('render — PromotionCelebrationModal', () => {
     expect(json).toContain('was $1,450/wk');
   });
 
-  it('lands the new pay immediately under reduced motion — nothing to watch count', () => {
+  it('lands the new pay immediately under reduced motion - nothing to watch count', () => {
     // With motion off the salary must already read the final figure; a player
     // who disabled animation should never be shown the pre-promotion number.
     const json = text(render());

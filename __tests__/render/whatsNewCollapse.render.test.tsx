@@ -74,7 +74,7 @@ describe('the What\'s New feed opens on the latest release', () => {
     act(() => tree.unmount());
   });
 
-  it('gives the latest release no toggle — it is never collapsible', () => {
+  it('gives the latest release no toggle - it is never collapsible', () => {
     const tree = render();
     expect(tree.root.findAllByProps({ testID: `whats-new-toggle-${LATEST.version}` })).toHaveLength(
       0,

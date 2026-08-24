@@ -113,7 +113,7 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
       notifications.push({
         id: 'darkweb-mixer-failed',
         title: '⚠️ Mixer Failure',
-        message: `${failed} mixer transaction${failed === 1 ? '' : 's'} failed — funds lost.`,
+        message: `${failed} mixer transaction${failed === 1 ? '' : 's'} failed - funds lost.`,
       });
     }
   }
@@ -130,7 +130,7 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
     });
   }
 
-  // 5) Police events at high heat — four flavors.
+  // 5) Police events at high heat - four flavors.
   let jailWeeksAdded = 0;
   let dirtyBtcSeized = 0;
   const eventProb = policeEventProbability(dw.heat);
@@ -149,7 +149,7 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
       });
     } else if (subRoll < RAID_SUBROLL_MAX) {
       // Raid: heat partially decays either way. Jail time is only added when the
-      // player isn't already serving a sentence — raids must never pile onto an
+      // player isn't already serving a sentence - raids must never pile onto an
       // existing jail term (which would let police events extend jail forever).
       dw = { ...dw, heat: Math.max(0, dw.heat - 25) };
       if (input.inJail) {
@@ -198,7 +198,7 @@ export function runDarkWebWeeklyTick(input: DarkWebWeeklyTickInput): DarkWebWeek
     };
   }
 
-  // 6) Relationship discovery — at heat ≥ 50, partner/spouse may discover the activity.
+  // 6) Relationship discovery - at heat ≥ 50, partner/spouse may discover the activity.
   //    Discovery probability scales with heat band. On discovery the relationship score
   //    drops sharply; a stronger relationship (rep ≥ 70) drops less because trust absorbs it.
   if (dw.heat >= 50 && input.relationships && input.relationships.length > 0) {

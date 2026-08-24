@@ -204,7 +204,7 @@ function unshrinkableScrollers(): { sites: Site[]; sheetsSeen: number } {
         let s: RegExpExecArray | null;
         while ((s = scroller.exec(inner)) !== null) {
           const tag = inner.slice(s.index, tagEnd(inner, s.index) + 1);
-          // A horizontal list has no vertical overflow, so it is exempt — but
+          // A horizontal list has no vertical overflow, so it is exempt - but
           // ONLY when it is actually horizontal. `tag.includes('horizontal')`
           // would also swallow `horizontal={false}`, which is a VERTICAL
           // scroller spelled explicitly, and exempting those would let the
@@ -231,7 +231,7 @@ describe('every scroller inside a maxHeight-only sheet can shrink', () => {
 
   it('the sweep resolved real sheets (the control)', () => {
     // Without this, a parser that silently stopped matching would report a
-    // clean app — the exact way the previous sweep let sixteen sites through.
+    // clean app - the exact way the previous sweep let sixteen sites through.
     expect(sheetsSeen).toBeGreaterThanOrEqual(15);
   });
 
@@ -249,10 +249,10 @@ describe('the two banking modals that started this', () => {
     expect(apply).toMatch(/maxHeight: '90%'/);
   });
 
-  it('OpenAccountModal does too — same flow, same defect, no percentage bound at all', () => {
+  it('OpenAccountModal does too - same flow, same defect, no percentage bound at all', () => {
     // This one is the reason the fix was widened. It is byte-for-byte the same
     // sheet as ApplyCardModal, in the same banking flow, with the same
-    // `scale(360)` cap — and unlike ApplyCardModal its sheet had no bound, so
+    // `scale(360)` cap - and unlike ApplyCardModal its sheet had no bound, so
     // it could grow straight past the screen.
     expect(open).toMatch(/<ScrollView style=\{\{ flexShrink: 1 \}\}/);
     expect(open).toMatch(/maxHeight: '90%'/);

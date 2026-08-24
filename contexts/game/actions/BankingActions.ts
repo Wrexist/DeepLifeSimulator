@@ -90,7 +90,7 @@ export const depositCashToAccount = (
       log.warn(`Deposit rejected: amount=${amount}, available=${currentMoney}`);
       return prev;
     }
-    // The savings mirror is a real deposit target — routed through `bankSavings`,
+    // The savings mirror is a real deposit target - routed through `bankSavings`,
     // the field it reflects, so the weekly re-mirror has nothing to overwrite.
     // See LEGACY_SAVINGS_ACCOUNT_ID for why this one is not read-only.
     if (accountId === LEGACY_SAVINGS_ACCOUNT_ID) {
@@ -117,13 +117,13 @@ export const depositCashToAccount = (
     }
     /**
      * Debit cash through `applyMoneyDelta`, then credit the account with what
-     * actually left — the same shape as every other money movement here.
+     * actually left - the same shape as every other money movement here.
      *
      * The direct `money: currentMoney - amount` write this replaces skipped
      * `dailySummary.moneyChange` entirely, while the WITHDRAW half credits it.
      * So a deposit followed by a withdrawal of the same sum reported a net
      * positive week even though cash had returned to exactly where it started.
-     * (`totalMoneyEarned` was never affected — `NON_INCOME_REASON` already
+     * (`totalMoneyEarned` was never affected - `NON_INCOME_REASON` already
      * excludes deposit/withdraw/savings/bank, which is what keeps the daily
      * "earn $X" gem challenges unfarmable.)
      */
@@ -173,17 +173,17 @@ export const withdrawCashFromAccount = (
        * Debit savings by what ACTUALLY landed in cash, not by what was asked
        * for.
        *
-       * `applyMoneyDelta` does not refuse an over-ceiling credit — it CLAMPS
+       * `applyMoneyDelta` does not refuse an over-ceiling credit - it CLAMPS
        * (`Math.min(MONEY_CEILING, …)`) and returns a value. Debiting `amount`
        * while cash only rose by the clamped delta would silently destroy the
        * difference, which is the money-conservation failure the whole
        * read-only-mirror rule exists to prevent. `MONEY_CEILING` is
-       * `MAX_SAFE_INTEGER`, so this is only reachable in an extreme late game —
+       * `MAX_SAFE_INTEGER`, so this is only reachable in an extreme late game -
        * but deriving the debit from the credit makes the invariant hold at every
        * balance instead of below a threshold.
        */
       const landed = credit.stats.money - currentMoney;
-      if (landed <= 0) return prev; // nothing moved — don't burn the savings
+      if (landed <= 0) return prev; // nothing moved - don't burn the savings
       return { ...withLegacySavings(state, currentSavings - landed), ...credit };
     }
     // CRITICAL EXPLOIT FIX (C-1): checking-default mirrors stats.money. Crediting
@@ -311,7 +311,7 @@ function resolveOpenAccount(
       return { result: { success: false, message: `You already have a ${spec.name} account.` }, next: null };
     }
     const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;
-    // Reject a non-finite or negative deposit as well as an unaffordable one — a
+    // Reject a non-finite or negative deposit as well as an unaffordable one - a
     // negative initialDeposit previously passed the `> currentMoney` check and
     // credited free money (currentMoney - (-X) = +X).
     if (!Number.isFinite(spec.initialDeposit) || spec.initialDeposit < 0 || spec.initialDeposit > currentMoney) {
@@ -415,16 +415,16 @@ export const payDownCard = (
     if (!state.banking) return prev;
     // EXPLOIT FIX (H-1): when paying from the mirrored checking account, the debit
     // landed only on the account balance, which the next mirror tick restored from
-    // stats.money — i.e. free debt repayment. Compute the amount actually paid and
+    // stats.money - i.e. free debt repayment. Compute the amount actually paid and
     // debit authoritative stats.money so the payment really costs the player.
     const fundedFromCash = MIRRORED_ACCOUNT_IDS.has(fromAccountId);
     const card = state.banking.creditCards.find((c) => c.id === cardId);
     const cardBalanceBefore = typeof card?.balance === 'number' && isFinite(card.balance) ? card.balance : 0;
-    // Premium Credit Card IAP cashback floor — applied at settlement (payment),
+    // Premium Credit Card IAP cashback floor - applied at settlement (payment),
     // matching where rewards now accrue (see chargeCreditCard anti-exploit note).
     const cashbackFloor = state.settings?.premiumCreditCard ? 0.1 : undefined;
     // The mirrored checking balance is only re-synced from stats.money on the
-    // weekly tick, but the pay modal caps against LIVE cash — so mid-week the
+    // weekly tick, but the pay modal caps against LIVE cash - so mid-week the
     // stale mirror could silently reject ("Insufficient funds") a payment the
     // player can afford, or fund one they can't. Refresh the mirror to live
     // cash before validating; the actual debit below hits stats.money anyway.
@@ -559,7 +559,7 @@ export const toggleBill = (
  * Create a savings goal.
  *
  * `autoContribute` is accepted here because the weekly sweep that consumes it
- * — `contexts/game/actions/weekly/applySavingsGoals.ts` — has shipped, is
+ * - `contexts/game/actions/weekly/applySavingsGoals.ts` - has shipped, is
  * wired into the tick, and has its own test suite proving asset conservation
  * and idempotent completion... while NOTHING could ever set the field. This
  * signature omitted it and neither goal-creation modal collected it, so the
@@ -567,7 +567,7 @@ export const toggleBill = (
  *
  * Same reader-without-writer shape as `banking.taxDueThisYear` and the journal.
  * The field is optional on `SavingsGoal`, so an absent value still means "no
- * auto-contribution" — no migration, no version bump.
+ * auto-contribution" - no migration, no version bump.
  */
 export const createSavingsGoal = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -615,12 +615,12 @@ export const contributeToSavingsGoal = (
       return prev;
     }
     let working: GameState = { ...state, banking: result.banking };
-    // Debit the cash-funded portion (audit fix — Contribute is no longer free).
+    // Debit the cash-funded portion (audit fix - Contribute is no longer free).
     if (result.cashDebit > 0) {
       const debit = applyMoneyDelta(working, -result.cashDebit, `Savings goal contribution`);
       if (!debit) {
         log.warn('Goal contribution rejected: insufficient cash');
-        return prev; // roll back — no partial funding.
+        return prev; // roll back - no partial funding.
       }
       working = { ...working, ...debit };
     }
@@ -663,7 +663,7 @@ export const withdrawFromSavingsGoal = (
     let working: GameState = { ...state, banking: result.banking };
     if (result.cashCredit > 0) {
       const credit = applyMoneyDelta(working, result.cashCredit, 'Savings goal withdrawal');
-      // Roll back rather than move the money out of the goal and lose it — the
+      // Roll back rather than move the money out of the goal and lose it - the
       // exact failure this whole fix exists to prevent.
       if (!credit) return prev;
       working = { ...working, ...credit };
@@ -678,7 +678,7 @@ export const withdrawFromSavingsGoal = (
 
 /**
  * v22 Wave A (computer-only): set or clear a weekly budget cap for a category.
- * Purely informational — the weekly tick raises an overspend notification when a
+ * Purely informational - the weekly tick raises an overspend notification when a
  * category's spend exceeds its cap. Zero economy risk (no money moves).
  */
 export const setBudgetTarget = (
@@ -700,7 +700,7 @@ export const setBudgetTarget = (
 /** One sponsored bonus per in-game week. */
 export const AD_CASH_BONUS_COOLDOWN_WEEKS = 1;
 
-/** Floor — the bonus is never smaller than this, however poor the player is. */
+/** Floor - the bonus is never smaller than this, however poor the player is. */
 export const AD_CASH_BONUS_MIN = 2_000;
 /** Share of the player's worth paid out, once per in-game week. */
 export const AD_CASH_BONUS_RATE = 0.02;
@@ -713,7 +713,7 @@ export const AD_CASH_BONUS_MAX = 500_000;
 /**
  * The bank's weekly sponsored bonus, scaled off everything the player owns.
  *
- * Exported so the button quotes exactly what the action will pay — a reward
+ * Exported so the button quotes exactly what the action will pay - a reward
  * that advertises one number and grants another is the shape of every "silent
  * rejection" finding in this codebase.
  *
@@ -721,8 +721,8 @@ export const AD_CASH_BONUS_MAX = 500_000;
  *
  * This used to read `stats.money` alone, floored at $50 and capped at $5,000.
  * Cash is the worst available proxy for how far along a player is: someone with
- * $40M in property, companies and stock but $300 in their wallet — an entirely
- * normal late-game shape, since idle cash earns nothing — was offered **$50**.
+ * $40M in property, companies and stock but $300 in their wallet - an entirely
+ * normal late-game shape, since idle cash earns nothing - was offered **$50**.
  * Meanwhile `AdRewardOrb` had already been fixed to scale off
  * `max(netWorth, cash) × 1.5%` with a $1,000 floor and a $500,000 cap, so the
  * game shipped two cash ad rewards on scales three orders of magnitude apart.
@@ -738,8 +738,8 @@ export const AD_CASH_BONUS_MAX = 500_000;
  * otherwise be pushed to the floor by a number that says nothing about what
  * they can spend.
  *
- * The floor is what makes this worth watching an ad for early — 2% of a
- * starting $1,500 is $30 — and it binds until roughly $100k of worth, after
+ * The floor is what makes this worth watching an ad for early - 2% of a
+ * starting $1,500 is $30 - and it binds until roughly $100k of worth, after
  * which the percentage takes over.
  */
 export const getAdCashBonusAmount = (state: GameState): number => {
@@ -751,7 +751,7 @@ export const getAdCashBonusAmount = (state: GameState): number => {
     worth = calculateNetWorth(state);
   } catch (err) {
     // A corrupt save must degrade to the floor, never to a throw inside a
-    // render — this feeds a button label on a screen the player can always open.
+    // render - this feeds a button label on a screen the player can always open.
     // Logged rather than swallowed: silently paying every player the floor would
     // hide the underlying corruption indefinitely.
     log.error('getAdCashBonusAmount: calculateNetWorth failed, using the floor', err);
@@ -765,7 +765,7 @@ export const getAdCashBonusAmount = (state: GameState): number => {
   return Math.max(AD_CASH_BONUS_MIN, Math.round(clamped / 10) * 10);
 };
 
-/** Weeks until the bonus is claimable again — 0 when it is ready now. */
+/** Weeks until the bonus is claimable again - 0 when it is ready now. */
 export const weeksUntilAdCashBonus = (state: GameState): number => {
   const ws = state.weeksLived ?? 0;
   const last = state.settings?.lastAdCashBonusWeek;
@@ -788,7 +788,7 @@ export const canClaimAdCashBonus = (state: GameState): boolean =>
  * one React batch cannot both pay out.
  *
  * The marker lives on `settings` as an optional field with an undefined default
- * — the sanctioned no-migration pattern — and is game time, never wall clock.
+ * - the sanctioned no-migration pattern - and is game time, never wall clock.
  */
 export const claimAdCashBonus = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
@@ -805,7 +805,7 @@ export const claimAdCashBonus = (
    * This used to report a `let granted` assigned inside the updater. That read
    * is only reliable for the FIRST functional update of a React batch, so a
    * deferred dispatch told a player who had just WATCHED A REWARDED AD that the
-   * "Bonus unavailable right now" — while the cash landed. The updater still
+   * "Bonus unavailable right now" - while the cash landed. The updater still
    * re-derives the amount from `prev`, which is what keeps the payout atomic.
    */
   setGameState((prev) => {

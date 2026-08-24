@@ -74,7 +74,7 @@ describe('feedbackSystem routes messages to the toast channel', () => {
   // Each of the four helpers must reach the toast channel. Parameterised so a
   // new helper added without wiring fails here rather than shipping mute.
   const cases: ['success' | 'error' | 'warning' | 'info', string][] = [
-    ['success', 'You rest up — +14 energy'],
+    ['success', 'You rest up - +14 energy'],
     ['error', 'Something went wrong'],
     ['warning', 'Already done that this week'],
     ['info', 'Market opens Monday'],

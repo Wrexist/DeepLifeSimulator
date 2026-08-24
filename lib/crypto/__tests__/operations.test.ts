@@ -65,7 +65,7 @@ describe('placeOrder + cancelOrder', () => {
   });
 });
 
-describe('executeMarketOrder — buys', () => {
+describe('executeMarketOrder - buys', () => {
   it('debits notional, credits coins, updates cost basis', () => {
     const r = executeMarketOrder(emptyMarket(), [btc], {
       cryptoId: 'btc',
@@ -93,7 +93,7 @@ describe('executeMarketOrder — buys', () => {
   });
 });
 
-describe('executeMarketOrder — sells & cost basis', () => {
+describe('executeMarketOrder - sells & cost basis', () => {
   it('records realized gain when selling above cost', () => {
     // Seed cost basis: 10 coins @ $50 = $500 cost
     let market: CryptoMarketState = {

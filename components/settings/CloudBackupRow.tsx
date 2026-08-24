@@ -2,17 +2,17 @@
  * Settings → "Cloud backup".
  *
  * Renders nothing at all unless the `cloudSave` flag is on (both
- * EXPO_PUBLIC_ENABLE_CLOUD_SAVE and EXPO_PUBLIC_CLOUD_SAVE_URL) — a row that
+ * EXPO_PUBLIC_ENABLE_CLOUD_SAVE and EXPO_PUBLIC_CLOUD_SAVE_URL) - a row that
  * cannot do anything is worse than no row, because the player will try it.
  *
  * Four actions beyond backup/restore's two: a transfer code out, a transfer
  * code in, and a delete. Delete is the GDPR article 17 path and erases more
- * than the backup — leaderboard entries too — which the confirm copy states,
+ * than the backup - leaderboard entries too - which the confirm copy states,
  * because "delete backup" would otherwise undersell what it does.
  *
  * Restore is behind a confirm dialog: it replaces the game currently in
  * memory. The one case that is NOT a choice is a cloud copy that sits behind
- * the live game — `fetchCloudRestoreCandidate` refuses that outright and this
+ * the live game - `fetchCloudRestoreCandidate` refuses that outright and this
  * shows the refusal (`CLOUD_RESTORE_OLDER_MESSAGE`) rather than offering an
  * "overwrite anyway" escape hatch, which would only ever destroy progress.
  */
@@ -40,7 +40,7 @@ const LinearGradient = Gradient;
  * without mounting the row and driving an Alert.
  *
  * Three answers, not two:
- *  - 'older' is the weeksLived-regression refusal — a real answer, not an
+ *  - 'older' is the weeksLived-regression refusal - a real answer, not an
  *    error, so it gets its own title and the explanatory message;
  *  - an applied-but-UNSAVED restore is live in memory only, and a title reading
  *    "Backup Restored" over that is the half-truth that gets it lost;
@@ -48,7 +48,7 @@ const LinearGradient = Gradient;
  */
 export function restoreAlertTitle(outcome: CloudRestoreOutcome): string {
   if (outcome.status === 'applied') {
-    return outcome.persisted ? 'Backup Restored' : 'Restored — Not Saved Yet';
+    return outcome.persisted ? 'Backup Restored' : 'Restored - Not Saved Yet';
   }
   return outcome.status === 'older' ? 'Cloud Save Is Older' : 'Nothing Restored';
 }
@@ -102,7 +102,7 @@ export default function CloudBackupRow() {
       const userId = await resolveDeviceId();
       if (!userId) {
         // No identity means nothing was ever uploaded under one, so there is
-        // nothing to erase — and saying "deleted" would be a lie.
+        // nothing to erase - and saying "deleted" would be a lie.
         Alert.alert('Nothing To Delete', 'This device has no cloud backup.');
         return;
       }

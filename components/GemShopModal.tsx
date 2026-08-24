@@ -58,7 +58,7 @@ const LinearGradient = Gradient;
 // Entrance motion mirrors the shared house tokens (src/utils/animated MOTION):
 // a short slide-up + fade on an ease-out curve, kept under the 300ms UI budget.
 // Easing is resolved defensively so the render-test RN mock (no native Easing)
-// can't crash at load — same pattern as components/ConfirmDialog.tsx.
+// can't crash at load - same pattern as components/ConfirmDialog.tsx.
 const ENTER_TRANSLATE = 22;
 const DURATION_BASE = 260;
 const DURATION_FAST = 150;
@@ -97,7 +97,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 // Extract a NUMERIC price + ISO currency from a loaded store product, if the
 // SDK actually exposed them. The legacy adapter (services/expoIapAdapter.ts)
-// stringifies `price` for display, so a clean numeric is NOT guaranteed — return
+// stringifies `price` for display, so a clean numeric is NOT guaranteed - return
 // null unless we can read a finite, positive amount AND a currency code. When
 // this returns a value the UI can label the ratio in the REAL storefront
 // currency instead of a fabricated "$"; when it returns null the UI omits the
@@ -154,7 +154,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // Reflect the store's live connection/catalog so buy buttons can degrade to a
   // clear "Store unavailable" state instead of failing on tap. Presentation only
-  // — no transaction logic here; the app initializes IAP at startup.
+  // - no transaction logic here; the app initializes IAP at startup.
   useEffect(() => {
     setIapState(iapService.getState());
     const unsubscribe = iapService.addListener((s) => setIapState(s));
@@ -184,7 +184,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     outputRange: [verticalScale(ENTER_TRANSLATE), 0],
   });
 
-  // True only when the store connected AND a non-empty catalog loaded — mirrors
+  // True only when the store connected AND a non-empty catalog loaded - mirrors
   // iapService.isStoreAvailable(), but read from local state so the UI re-renders
   // when the catalog finishes loading.
   const storeReady = iapState.isConnected && iapState.products.length > 0;
@@ -199,7 +199,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // Per-SKU availability: an IAP is buyable only if THIS product id actually
   // loaded from the store. `storeReady` (any product loaded) still drives the
-  // global banner, but a mixed catalog — most SKUs loaded, one missing — must
+  // global banner, but a mixed catalog - most SKUs loaded, one missing - must
   // not present a buyable button for the missing one on a config-price fallback.
   // Gem-SPEND upgrades (handleBuyUpgrade) are not IAPs and are never gated here.
   const isProductAvailable = (id: string): boolean => productsById.has(id);
@@ -228,7 +228,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     return undefined;
   };
 
-  // Real-money CTA label — the real price is unmistakable on every buy button.
+  // Real-money CTA label - the real price is unmistakable on every buy button.
   const buyLabel = (id: string, owned: boolean, displayPrice: string, available: boolean, ownedLabel?: string): string => {
     if (owned) return ownedLabel ?? 'Owned';
     if (!available) return 'Unavailable';
@@ -245,7 +245,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // The five-tier gem ladder with a per-pack gems-per-$ value (computed from the
   // REAL gemAmount / USD price). The truthfully-best gems-per-$ pack earns the
-  // "Best Value" badge — not whatever the config's stale bestValue flag claims.
+  // "Best Value" badge - not whatever the config's stale bestValue flag claims.
   const gemPacks = useMemo(() => {
     const base = [
       { id: IAP_PRODUCTS.GEMS_100, gems: 100, image: IAP_ART[IAP_PRODUCTS.GEMS_100] },
@@ -282,13 +282,13 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     [gemPacks, bestGemId],
   );
 
-  // Confirm step + purchase. Transaction logic is unchanged — presentation only.
+  // Confirm step + purchase. Transaction logic is unchanged - presentation only.
   const handlePurchase = async (id: string, name: string, displayPrice: string) => {
     if (iapBusy) {
       Alert.alert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
       return;
     }
-    // Refuse before touching iapService when THIS SKU didn't load — its price on
+    // Refuse before touching iapService when THIS SKU didn't load - its price on
     // the card is a config fallback, not a real store price, so it isn't buyable.
     if (!isProductAvailable(id)) {
       Alert.alert(
@@ -313,7 +313,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               logger.info(`Attempting to purchase: ${id} (${name})`);
               const result = await iapService.purchaseProduct(id);
               if (result.success) {
-                // IAPService already applies benefits — do not re-apply here.
+                // IAPService already applies benefits - do not re-apply here.
                 Alert.alert(
                   'Purchase Successful!',
                   result.message || 'Purchase completed! Your items have been added to your account.',
@@ -353,14 +353,14 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     }
     // M8: only claim success when the reducer says it APPLIED. This used to
     // alert "Purchase Successful" unconditionally, because `buyGoldUpgrade`
-    // returned void — so a refusal (already owned / too few gems, decided
+    // returned void - so a refusal (already owned / too few gems, decided
     // against fresher state than the two gates above read) still told the
     // player their gems had bought something. `buyGoldUpgrade` surfaces the
     // specific reason itself via `showError`, so there is nothing to alert here
     // on refusal.
     if (!buyGoldUpgrade(id)) return;
     // The upgrade commits to game state synchronously here. Persisting can still
-    // reject (disk/quota) — swallow it into a clear message rather than letting
+    // reject (disk/quota) - swallow it into a clear message rather than letting
     // it bubble as an unhandled rejection. Do NOT claim the purchase failed: the
     // state change stands, and the periodic autosave will retry the write.
     try {
@@ -528,11 +528,11 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     owned: boolean;
     featured?: string;
   }) => {
-    // DeepLife+ members pay 20% less — same helper the reducer charges with.
+    // DeepLife+ members pay 20% less - same helper the reducer charges with.
     const cost = memberUpgradeCost(item.price, settings);
     const discounted = cost < item.price;
     const afford = gems >= cost;
-    // Single badge only — the card reserves limited top-right space, so two
+    // Single badge only - the card reserves limited top-right space, so two
     // badges collide with the title. A featured tag (e.g. "Most Popular") leads
     // when present; otherwise "Permanent" reassures it's a one-time buy (and the
     // tab footnote already says every upgrade is permanent).
@@ -585,7 +585,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       accent: 'gems' as ShopAccent,
       image: bestGem.image,
       title: getProductConfig(bestGem.id)?.name ?? `${bestGem.gems.toLocaleString()} Gems`,
-      description: `${bestGem.gems.toLocaleString()} gems — the best gem value in the store.`,
+      description: `${bestGem.gems.toLocaleString()} gems - the best gem value in the store.`,
       valueLine: bestGemValueLine ? `Best value · ${bestGemValueLine}` : undefined,
       badges: [{ label: 'Best Value', color: BADGE_BEST }] as ShopBadge[],
       owned: false,
@@ -674,7 +674,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     },
   ];
 
-  // All FOUR perks the bundle grants — `mindset` was missing, though the
+  // All FOUR perks the bundle grants - `mindset` was missing, though the
   // Mindset row two entries below reads the very same field. A player who had
   // bought Work Pay Boost, Fast Learner and Good Credit individually saw the
   // $6.99 bundle labelled "Owned" with a greyed-out, untappable button, so the
@@ -734,7 +734,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       title: 'Revival Pack',
       owned: settings?.hasRevivalPack === true,
       // The pack is a NON-CONSUMABLE, so once bought it can never be bought
-      // again — "Owned" is accurate but says nothing about whether a charge is
+      // again - "Owned" is accurate but says nothing about whether a charge is
       // left. After the revive is spent that reads as though the player still
       // has one. "Ready" / "Used" tells the truth without pretending the
       // product can be repurchased.
@@ -751,7 +751,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // M8: names, descriptions and prices come from the ONE catalogue in
   // `lib/config/gemUpgrades.ts`, which `MoneyActionsContext.buyGoldUpgrade`
-  // also reads — so the price shown here and the price charged cannot drift.
+  // also reads - so the price shown here and the price charged cannot drift.
   // Only genuinely presentational data (artwork, ribbons) is mapped in here.
   const upgrades = GEM_UPGRADES.map((u) => ({
     id: u.id,
@@ -770,13 +770,13 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     .reduce((min, u) => Math.min(min, memberUpgradeCost(u.price, settings)), Infinity);
   const shortOnGemsForUpgrades = Number.isFinite(cheapestUnownedUpgrade) && gems < cheapestUnownedUpgrade;
 
-  // An honest limited-time promo (ships disabled — nothing renders until a real
+  // An honest limited-time promo (ships disabled - nothing renders until a real
   // store offer is configured; see lib/shop/gemPromo.ts).
   const gemPromo = activeGemPromo(new Date());
   const gemPromoCountdown = gemPromo ? formatPromoCountdown(new Date(), gemPromo.endsAtIso) : '';
 
   // The RECURRING weekly rotation, distinct from `gemPromo` above (which is the
-  // manual, ships-disabled one-off — see the note in `lib/offers/types.ts`).
+  // manual, ships-disabled one-off - see the note in `lib/offers/types.ts`).
   // Only the offer's NAME is read here; every price lives inside the Offer
   // Center, where `resolveOfferPrice` can refuse to claim a discount it cannot
   // prove. A name is safe to render without a loaded store product; a price is
@@ -786,7 +786,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   // Starter offer: highlight the one-time Starter Pack to players who haven't
   // converted yet (no ads-removed / lifetime / DeepLife+). Reuses the existing
-  // GEMS_STARTER SKU + its real store price — no new product needed.
+  // GEMS_STARTER SKU + its real store price - no new product needed.
   const showStarterOffer =
     !hasDeepLifePlusEntitlement(settings) &&
     settings?.adsRemoved !== true &&
@@ -798,7 +798,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     title: getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.name ?? 'Starter Pack',
     description:
       getProductConfig(IAP_PRODUCTS.GEMS_STARTER)?.description ??
-      'A big gem head start — your best first buy.',
+      'A big gem head start - your best first buy.',
     features: getProductDisplayMeta(IAP_PRODUCTS.GEMS_STARTER).contents,
     badges: [{ label: 'Best First Buy', color: BADGE_BEST }] as ShopBadge[],
     owned: false,
@@ -814,7 +814,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const storeBanner = !storeReady ? (
     <View style={styles.banner}>
       <AlertCircle size={scale(15)} color={BADGE_BEST} />
-      <Text style={styles.bannerText}>Store unavailable — check your connection and try again in a moment.</Text>
+      <Text style={styles.bannerText}>Store unavailable - check your connection and try again in a moment.</Text>
     </View>
   ) : null;
 
@@ -833,7 +833,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
           {/* Pull handle */}
           <View style={styles.handle} />
 
-          {/* Header — title + prominent balance + close */}
+          {/* Header - title + prominent balance + close */}
           <View style={styles.headerRow}>
             <View style={styles.headerTitleCol}>
               <Text style={styles.title}>Store</Text>
@@ -881,10 +881,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
           {/* Content */}
           <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* DeepLife+ subscription upsell — pinned above every tab. Self-hides
+            {/* DeepLife+ subscription upsell - pinned above every tab. Self-hides
                 for members and opens the RevenueCat paywall (or the in-app one). */}
             <DeepLifePlusUpsell variant="banner" surface="gem_shop" />
-            {/* Weekly rotation — an entry point, not an interruption. It states
+            {/* Weekly rotation - an entry point, not an interruption. It states
                 which offer is featured and nothing else; the player opens it if
                 they want to.
 
@@ -892,7 +892,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
                 which put it one tab away from the shop's own front door: the HUD
                 button calls `openStore('store')`, so the tab a player actually
                 lands on is Featured. A weekly rotation nobody can find is not a
-                rotation. Deliberately NOT on `perks`/`upgrades` — those spend
+                rotation. Deliberately NOT on `perks`/`upgrades` - those spend
                 gems the player already owns, and a real-money pack there is an
                 interruption rather than an option. */}
             {(tab === 'gems' || tab === 'store') ? (
@@ -933,7 +933,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
                   </>
                 ) : null}
 
-                {/* Free daily reward — shares its claim state with the identity
+                {/* Free daily reward - shares its claim state with the identity
                     card, so a player can only claim once per day from either. */}
                 <Text style={[styles.sectionLabel, showStarterOffer && styles.sectionLabelSpaced]}>Free daily reward</Text>
                 {/* The shop sheet is always dark, so keep the claim's dark
@@ -969,7 +969,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
             {tab === 'upgrades' ? (
               <>
-                <Text style={styles.footnote}>Permanent upgrades — bought with in-game gems.</Text>
+                <Text style={styles.footnote}>Permanent upgrades - bought with in-game gems.</Text>
                 {shortOnGemsForUpgrades ? (
                   <TouchableOpacity
                     onPress={() => setTab('gems')}
@@ -988,7 +988,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
             ) : null}
           </ScrollView>
 
-          {/* Footer — Restore Purchases */}
+          {/* Footer - Restore Purchases */}
           <View style={styles.footer}>
             <TouchableOpacity
               onPress={handleRestorePurchases}

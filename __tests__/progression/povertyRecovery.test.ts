@@ -90,7 +90,7 @@ describe('the scholarship event can now actually fire', () => {
     expect(scholarship).toBeDefined();
   });
 
-  it('was unreachable while the counter was never written — the bug', () => {
+  it('was unreachable while the counter was never written - the bug', () => {
     // `undefined` is what every save carried, because nothing wrote the field.
     expect(condition(stuck(undefined))).toBe(false);
   });

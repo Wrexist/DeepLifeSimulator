@@ -85,7 +85,7 @@ function advance(ms: number) {
   });
 }
 
-describe('render — ReviewPromptHandler', () => {
+describe('render - ReviewPromptHandler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
@@ -101,7 +101,7 @@ describe('render — ReviewPromptHandler', () => {
     expect(mount(makeStore(makeState())).toJSON()).toBeNull();
   });
 
-  it('does NOT ask the instant the beat lands — the celebration is still playing', () => {
+  it('does NOT ask the instant the beat lands - the celebration is still playing', () => {
     const store = makeStore(beforePromotion());
     mount(store);
 
@@ -145,7 +145,7 @@ describe('render — ReviewPromptHandler', () => {
     advance(AFTERGLOW_MS + 2000);
     expect(maybeRequestReview).not.toHaveBeenCalled();
 
-    // Event dismissed — the screen is calm again.
+    // Event dismissed - the screen is calm again.
     store.push(makeState({ careers: [ladder('dev', 5)] as never, pendingEvents: [] as never }));
     advance(2000);
     expect(maybeRequestReview).toHaveBeenCalledTimes(1);
@@ -165,7 +165,7 @@ describe('render — ReviewPromptHandler', () => {
 
   it('waits for a celebration modal to be dismissed before asking', () => {
     // The promotion celebration is local component state, invisible to
-    // GameState — without the celebration gate the afterglow timer elapses
+    // GameState - without the celebration gate the afterglow timer elapses
     // mid-celebration and the store sheet lands on top of the reward.
     const store = makeStore(beforePromotion());
     mount(store);
@@ -181,7 +181,7 @@ describe('render — ReviewPromptHandler', () => {
   });
 
   it('ignores a beat too small to be worth an ask', () => {
-    // The first milestone of a real four-stage ambition scores below the bar —
+    // The first milestone of a real four-stage ambition scores below the bar -
     // it is a good moment, just not a peak one worth one of three yearly asks.
     const store = makeStore(
       makeState({ ambitionId: 'business_empire', ambitionCompletedMilestones: [] }),
@@ -248,7 +248,7 @@ describe('render — ReviewPromptHandler', () => {
 
   it('mounts harmlessly with no game store in context', () => {
     // A throw here would trip the surrounding ProviderBoundary and replace the
-    // whole game with an error screen — over an optional review prompt.
+    // whole game with an error screen - over an optional review prompt.
     let renderer!: TestRenderer.ReactTestRenderer;
     expect(() => {
       act(() => {

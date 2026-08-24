@@ -56,7 +56,7 @@ function freshDisk(): void {
   mockDisk.state.stats.gems = 0;
 }
 
-describe('IAP applyBenefit — no double grant', () => {
+describe('IAP applyBenefit - no double grant', () => {
   beforeEach(() => {
     freshDisk();
     iapService.setStateUpdater(null);

@@ -333,7 +333,7 @@ export function attemptJobStage(
 
   if (!attempt.success) {
     // Reset progress on failure. After MAX_STAGE_FAILS total failures the job is
-    // lost (terminal 'failed' status) — attemptJobStage rejects non-in-progress
+    // lost (terminal 'failed' status) - attemptJobStage rejects non-in-progress
     // jobs, so it can no longer be retried. This makes brute-forcing cost you the
     // job instead of being free.
     const priorFails = job.completedStages.filter((c) => c.outcome === 'fail').length;
@@ -345,7 +345,7 @@ export function attemptJobStage(
       completedStages: [...job.completedStages, { stage: job.currentStage, week: currentWeek, outcome: 'fail' }],
     };
     if (failedOut) {
-      // Terminal failure — archive to history and remove from activeJobs, exactly
+      // Terminal failure - archive to history and remove from activeJobs, exactly
       // like completion. Previously a burned job kept status:'failed' but stayed
       // in activeJobs, so startJob's templateId dedupe blocked that template
       // forever and OnionApp rendered a dead "RUN STAGE" button that always
@@ -530,7 +530,7 @@ export function settleLaunderingTransactions(
 
 /**
  * Move clean BTC from the dark-web wallet into the player's regular BTC holdings
- * tracked in `gameState.cryptos`. Returns the dw delta — caller handles the
+ * tracked in `gameState.cryptos`. Returns the dw delta - caller handles the
  * crypto side.
  */
 export function withdrawCleanBtc(

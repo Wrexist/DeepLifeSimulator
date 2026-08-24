@@ -33,7 +33,7 @@ const read = (rel: string) => {
 const STOCK_ROW = read('components/stocks/StockRow.tsx');
 const STOCKS_APP = read('components/mobile/StocksApp.tsx');
 
-describe('StockRow — grouped list variant', () => {
+describe('StockRow - grouped list variant', () => {
   it('no longer renders a fixed-width accent bar', () => {
     expect(STOCK_ROW).not.toMatch(/stripe:\s*\{\s*width:/);
     expect(STOCK_ROW).not.toMatch(/styles\.stripe/);
@@ -61,7 +61,7 @@ describe('StockRow — grouped list variant', () => {
   });
 });
 
-describe('StocksApp — order rows', () => {
+describe('StocksApp - order rows', () => {
   it('no longer renders a fixed-width accent bar', () => {
     expect(STOCKS_APP).not.toMatch(/stripe:\s*\{\s*width:/);
     expect(STOCKS_APP).not.toMatch(/styles\.stripe/);

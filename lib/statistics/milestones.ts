@@ -150,7 +150,7 @@ export function buildMilestones(state: GameState): Milestone[] {
 }
 
 // ---------------------------------------------------------------------------
-// Milestone rewards — a small ONE-TIME gem grant per milestone the first time
+// Milestone rewards - a small ONE-TIME gem grant per milestone the first time
 // it is claimed. Milestones were display-only; this makes crossing a threshold
 // pay out modestly (5–15 gems by category tier). Once-ever per milestone id,
 // gated by the additive `claimedMilestoneRewards` set, granted via the canonical

@@ -76,7 +76,7 @@ function noWarehouse(money: number): GameState {
   return { ...state, warehouse: undefined };
 }
 
-describe('buyMiner — the outcome survives a deferred updater', () => {
+describe('buyMiner - the outcome survives a deferred updater', () => {
   it('reports the purchase it actually made, even when the updater runs later', () => {
     const snapshot = withWarehouse(10_000);
     const { setState, flush, get } = deferred(snapshot);
@@ -129,7 +129,7 @@ describe('buyMiner — the outcome survives a deferred updater', () => {
   });
 });
 
-describe('buyMiner — the gate still lives inside the updater', () => {
+describe('buyMiner - the gate still lives inside the updater', () => {
   it('a double tap in ONE batch buys one miner and charges once', () => {
     // Money is the gate that has to hold: only one purchase is affordable.
     const snapshot = withWarehouse(600);
@@ -155,7 +155,7 @@ describe('buyMiner — the gate still lives inside the updater', () => {
   });
 });
 
-describe('buyWarehouse — same shape, same fix', () => {
+describe('buyWarehouse - same shape, same fix', () => {
   it('reports success for a purchase whose updater is deferred', () => {
     const snapshot = noWarehouse(5_000_000);
     const { setState, flush, get } = deferred(snapshot);

@@ -141,7 +141,7 @@ describe('Item + Gold Upgrade interactions', () => {
     assertClean('buyItem guitar');
   });
 
-  it('buyItem: smartphone special — sets hasPhone=true', () => {
+  it('buyItem: smartphone special - sets hasPhone=true', () => {
     mounted = mountGame();
     seedWealthy();
     expect(captured!.state.hasPhone).toBeFalsy();
@@ -158,7 +158,7 @@ describe('Item + Gold Upgrade interactions', () => {
     expect(captured!.state.stats.money).toBe(afterFirst); // No second deduction.
   });
 
-  it('buyItem: insufficient funds — no purchase, no money change', () => {
+  it('buyItem: insufficient funds - no purchase, no money change', () => {
     mounted = mountGame();
     // Drop money to less than the cheapest item's price.
     act(() => captured!.setGameState(prev => ({ ...prev, stats: { ...prev.stats, money: 50 } })));
@@ -175,7 +175,7 @@ describe('Item + Gold Upgrade interactions', () => {
     expect(captured!.state.stats.money).toBe(before);
   });
 
-  it('buyItem: inflation-aware — late-game price > base price', async () => {
+  it('buyItem: inflation-aware - late-game price > base price', async () => {
     const { getInflatedPrice } = await import('@/lib/economy/inflation');
     const basePrice = 1000;
     const lateGameIndex = 2.5; // simulates ~30 years of 3%/yr inflation
@@ -308,7 +308,7 @@ describe('Item + Gold Upgrade interactions', () => {
       stats: { ...prev.stats, health: 100, happiness: 100, energy: 100, fitness: 100 },
     })));
 
-    // Tick 20 weeks — without immortality, ~10-20% chance of death per year at age 95.
+    // Tick 20 weeks - without immortality, ~10-20% chance of death per year at age 95.
     // With immortality, must never trigger old-age death.
     for (let i = 0; i < 20; i++) {
       await act(async () => { await captured!.game.nextWeek(); });

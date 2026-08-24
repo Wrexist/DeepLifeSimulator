@@ -480,15 +480,15 @@ function suspects(): string[] {
  * updater and read AFTER it.
  *
  * This was the detector's exclusion until 2026-08-15, when a player report
- * disproved the premise — a $40.25M player told they needed $10,000 for a
+ * disproved the premise - a $40.25M player told they needed $10,000 for a
  * $10,000 action that had in fact succeeded. React runs only the FIRST
  * functional update of a batch eagerly, so a capture reads its initial value
  * for any dispatch that is not first, and the function reports failure for work
  * that landed.
  *
  * Both spellings count, because both fail the same way:
- *   - a boolean flag  — `let applied = false; … if (!applied) return failure;`
- *   - a result object — `let result = { success: false }; … return result;`
+ *   - a boolean flag  - `let applied = false; … if (!applied) return failure;`
+ *   - a result object - `let result = { success: false }; … return result;`
  *
  * A ratchet that treats a broken shape as the fix cannot reach zero, and worse,
  * its own failure message recommends adopting it.
@@ -499,7 +499,7 @@ function suspects(): string[] {
  *
  * Extracted so it can be exercised on fixtures. The real count is 0 as of
  * 2026-08-15, and a detector that only ever returns an empty list is
- * indistinguishable from a broken one — the fixtures below are what tell the
+ * indistinguishable from a broken one - the fixtures below are what tell the
  * difference.
  */
 export function bodyHasCrossUpdaterCapture(body: string): boolean {
@@ -511,7 +511,7 @@ export function bodyHasCrossUpdaterCapture(body: string): boolean {
   // ANY top-level `let`, not just `= false` / `= {}`. The first version of this
   // detector matched only those two initialisers AND only two read forms
   // (`if (!x)` / `return x;`), and so reported ZERO while nine functions still
-  // carried the shape — `let lost = 0` read as `onResolved({ lost })`,
+  // carried the shape - `let lost = 0` read as `onResolved({ lost })`,
   // `let mutualFollow = false` read inside a ternary, and so on. A detector
   // that is narrower than the defect is worse than none, because its zero is
   // read as proof.
@@ -529,7 +529,7 @@ export function bodyHasCrossUpdaterCapture(body: string): boolean {
       .some((idx) => ranges.some(([a, b]) => idx > a && idx < b));
     if (!assignedInside) continue;
 
-    // Read ANYWHERE after the last dispatch — a bare reference is enough.
+    // Read ANYWHERE after the last dispatch - a bare reference is enough.
     if (new RegExp(`\\b${v}\\b`).test(tail)) return true;
   }
   return false;
@@ -566,7 +566,7 @@ export function captureSuspects(): string[] {
       /**
        * Only declarations at the FUNCTION's top level (two-space indent) can be
        * read across the updater boundary. A `let` inside the updater body is
-       * indented further and is an ordinary local — that is the false-positive
+       * indented further and is an ordinary local - that is the false-positive
        * class (`let next: GameState = …`, `let working = …`) which makes a
        * naive sweep for this shape unusable. `normalizeIndent` is what makes
        * "two-space indent" mean "this function's top level" for a nested
@@ -585,7 +585,7 @@ function allSuspects(): string[] {
 }
 
 /**
- * The ratchet. LOWER THIS when you fix one — never raise it.
+ * The ratchet. LOWER THIS when you fix one - never raise it.
  *
  * If you are here because you added an action and this failed: use the
  * pessimistic-capture shape in the header comment. Do not raise the number.
@@ -595,11 +595,11 @@ function allSuspects(): string[] {
  * Three members were always in this class and the DETECTOR could not see them.
  * No production code got worse; the count got honest:
  *
- *   - `CrimeActions::buyMarketListing` — success return written as a ternary
+ *   - `CrimeActions::buyMarketListing` - success return written as a ternary
  *     whose branches are BOTH `success: true`. The old regex only matched the
  *     statement form (BBQ report M-1).
  *   - `TravelActions::investInBusinessOpportunity` and
- *     `SparkActions::promoteMatchToRelationship` — statement form, but more
+ *     `SparkActions::promoteMatchToRelationship` - statement form, but more
  *     than 900 characters from the end of the extracted body, so the old fixed
  *     window never reached them.
  *
@@ -614,7 +614,7 @@ function allSuspects(): string[] {
  * The 86 → 62 correction above was WRONG, and this is the entry that says so.
  * It "found" 24 fixes by teaching the detector that a captured flag counts as
  * fixed. A capture is not a fix: it is only readable for the FIRST functional
- * update of a React batch, and a player report proved it in production — a
+ * update of a React batch, and a player report proved it in production - a
  * $40.25M player told they needed $10,000 for an action that had succeeded.
  *
  * So the number was never 62 or 65; those were 65 plus a pile the detector had
@@ -622,7 +622,7 @@ function allSuspects(): string[] {
  * unconditional-success tail, `captureSuspects` for a cross-updater read) and
  * the baseline is set to the honest total. The 22 boolean captures were
  * converted to outer-guard reporting in the same change, which moves them from
- * one bucket to the other rather than out of the count — the ratchet measures
+ * one bucket to the other rather than out of the count - the ratchet measures
  * a SHAPE, and the shape they now have is the one the repo's own
  * `innerOnlyRejections.test.ts` prescribes.
  *
@@ -634,7 +634,7 @@ function allSuspects(): string[] {
  *
  * 2026-08-16 (WP-G): the scan grew from one non-recursive directory to three
  * trees (see the header). Not one line of production code changed for this
- * bump, and every one of the 93 previous members is still a member — the
+ * bump, and every one of the 93 previous members is still a member - the
  * original extraction pass is preserved verbatim precisely so that claim is
  * checkable. The 8 additions are all code that existed all along, in files the
  * scan simply never opened:
@@ -645,7 +645,7 @@ function allSuspects(): string[] {
  *   contexts/game/MoneyActionsContext.tsx::purchasePrestigeBonus
  *   contexts/game/SocialActionsContext.tsx::haveChild
  *
- * Seven are the same benign shape as the bulk of the 92 — every inner
+ * Seven are the same benign shape as the bulk of the 92 - every inner
  * `return prev` mirrors an outer guard that already reported the failure, so
  * the unconditional success tail is correct on the single tap that is nearly
  * all real play. `performHack` and `haveChild` say so in their own comments.
@@ -661,7 +661,7 @@ function allSuspects(): string[] {
  */
 const RATCHET = 101;
 
-describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
+describe('C-9 / ARCH-1 - the read-out-of-updater ratchet', () => {
   it('the detector finds something (it is not silently matching nothing)', () => {
     // A ratchet on a broken detector passes forever and protects nothing.
     expect(suspects().length).toBeGreaterThan(0);
@@ -673,7 +673,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      * All 43 live members were converted to outer-guard reporting or to a pure
      * preview/commit resolver.
      *
-     * `processVehicleWeekly` has NO production caller — the live weekly path is
+     * `processVehicleWeekly` has NO production caller - the live weekly path is
      * `weekly/applyVehicles.ts`, whose own comment calls this "the
      * pre-WeekContext version". Only the stress and insurance suites reach it,
      * through a synchronous stub. It is pinned here by name rather than deleted
@@ -681,7 +681,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      * itself carries the same warning.
      *
      * `company.ts::upgradeWarehouse` was the one live capture the widened
-     * 2026-08-16 scope found — the Mining app's warehouse upgrade button. It
+     * 2026-08-16 scope found - the Mining app's warehouse upgrade button. It
      * was briefly pinned here, then converted to `resolveUpgradeWarehouse`,
      * the same preview/commit pair as its three siblings in the file, in the
      * same change that landed this scope. Nothing capture-shaped remains on a
@@ -691,7 +691,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      *
      * The first version of the detector matched only `let x = false` / `= {}`
      * initialisers and only two read forms (`if (!x)`, `return x;`). It
-     * reported ZERO while nine functions still carried the shape — `let lost =
+     * reported ZERO while nine functions still carried the shape - `let lost =
      * 0` read as `onResolved({ lost })`, `let mutualFollow = false` read inside
      * a ternary, `let totalRewardsOut = 0` read in a template string. A
      * detector narrower than the defect is worse than none, because its zero
@@ -730,7 +730,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     });
 
     it('does NOT flag a local declared INSIDE the updater', () => {
-      // `let next: GameState = { ...prev }` and friends — the false-positive
+      // `let next: GameState = { ...prev }` and friends - the false-positive
       // class that makes a naive sweep for this shape unusable.
       expect(bodyHasCrossUpdaterCapture(wrap([
         '  setGameState((prev) => {',
@@ -801,7 +801,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
    * The SCOPE, checked the same way the detector is: on fixtures.
    *
    * `components/` and `app/` currently contribute nothing to the count, which is
-   * the correct answer — and also exactly what a scan that silently reads no
+   * the correct answer - and also exactly what a scan that silently reads no
    * files would report. These fixtures are what tells the two apart. They feed
    * `functionBodies` the shapes the widened scope exists for and require the
    * real detector to fire on the extracted body.
@@ -850,8 +850,8 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
     });
 
     it('sees a capture in a ONE-space-indented file (GameActionsContext.tsx)', () => {
-      // Not hypothetical: `contexts/game/GameActionsContext.tsx` — 4,100 lines,
-      // the week loop and ~40 actions — is indented in ones. Without
+      // Not hypothetical: `contexts/game/GameActionsContext.tsx` - 4,100 lines,
+      // the week loop and ~40 actions - is indented in ones. Without
       // `normalizeIndent` the detector's two-space anchor lands on nothing there
       // and the whole file reports clean.
       const oneSpace = [
@@ -913,7 +913,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
    * Previously the second entry read `openAccount`, which is the imported PURE
    * op from `lib/banking/operations`, not the action. Two things followed:
    *
-   *  - `not.toContain('BankingActions.ts::openAccount')` could never fail — the
+   *  - `not.toContain('BankingActions.ts::openAccount')` could never fail - the
    *    detector keys on exported action names, so that string is not a possible
    *    member of the list. The assertion tested nothing.
    *  - The shape check did `src.indexOf('openAccount')`, which matched the
@@ -921,7 +921,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
    *    real `openNewAccount` declaration sits at ~8,300, so the check was only
    *    passing because the intervening code happened to be short enough to drag
    *    the declaration inside the window. Adding ~1.7k of unrelated code above
-   *    it pushed the declaration out and the control failed — reporting a
+   *    it pushed the declaration out and the control failed - reporting a
    *    regression in a function nobody had touched.
    *
    * Anchoring to the declaration makes both assertions real and removes the
@@ -942,11 +942,11 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      * was believed to be the fix. On 2026-08-15 it was inverted to `toContain`,
      * because that premise was disproved by a player report. Now all three have
      * been converted to pure preview/commit resolvers, so they are out of the
-     * capture bucket for a real reason rather than a definitional one — and the
+     * capture bucket for a real reason rather than a definitional one - and the
      * source check below is what tells those two apart.
      */
     for (const [file, fn] of CONTROLS) {
-      // Keyed by repo-relative path since the 2026-08-16 scope change — a bare
+      // Keyed by repo-relative path since the 2026-08-16 scope change - a bare
       // filename can no longer be a member, so it could not fail.
       expect(captureSuspects()).not.toContain(`${ACTIONS_REL}/${file}::${fn}`);
     }
@@ -957,9 +957,9 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
      * The source-level proof that the line above is not passing by definition.
      * There are exactly two sound fixes for this class and both are represented:
      *
-     *   resolver    — a pure `resolve*` called once for the outcome and once for
+     *   resolver    - a pure `resolve*` called once for the outcome and once for
      *                 the state, for functions whose result carries data.
-     *   outer-guard — every inner rejection mirrors a check against the caller's
+     *   outer-guard - every inner rejection mirrors a check against the caller's
      *                 snapshot, so no resolver is needed. This is what
      *                 `innerOnlyRejections.test.ts` prescribes.
      */
@@ -972,7 +972,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
       expect(`${file}::${fn} declared: ${i !== -1}`).toBe(`${file}::${fn} declared: true`);
 
       // Slice to the function's REAL extent (next top-level export), not a
-      // fixed byte window — the mistake this file's own history records twice.
+      // fixed byte window - the mistake this file's own history records twice.
       const after = src.indexOf('\nexport ', i + 10);
       const body = src.slice(i, after === -1 ? src.length : after);
       // Use the real predicate, not a prose-sensitive regex: these functions
@@ -1002,7 +1002,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   it('sees an all-success ternary tail (the defect it was blind to)', () => {
     expect(suspects()).toContain(`${ACTIONS_REL}/CrimeActions.ts::buyMarketListing`);
 
-    // And that really is the shape — both branches report success.
+    // And that really is the shape - both branches report success.
     const src = fs.readFileSync(path.join(ACTIONS_DIR, 'CrimeActions.ts'), 'utf8');
     const i = src.indexOf('export const buyMarketListing');
     expect(`declared: ${i !== -1}`).toBe('declared: true');
@@ -1018,7 +1018,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
   /**
    * The scoping, tested on synthetic tails.
    *
-   * The real-file tests above cannot reach the interesting case — a tree that
+   * The real-file tests above cannot reach the interesting case - a tree that
    * happens not to contain an all-success ternary NEXT TO an unrelated failure
    * return proves nothing about whether the two interfere.
    */
@@ -1061,7 +1061,7 @@ describe('C-9 / ARCH-1 — the read-out-of-updater ratchet', () => {
 
   it('does NOT flag a ternary that can actually report failure (the control)', () => {
     // `claimAdCashBonus` ends with `granted > 0 ? success : failure`. That is a
-    // real conditional outcome — the fixed shape — and counting it would make
+    // real conditional outcome - the fixed shape - and counting it would make
     // the ratchet punish the very pattern it is trying to encourage.
     expect(suspects()).not.toContain(`${ACTIONS_REL}/BankingActions.ts::claimAdCashBonus`);
 

@@ -110,7 +110,7 @@ function fatState(): GameState {
   s.criminalLevel = 5;
   s.criminalXp = 200;
   // `totalCrimesCommitted` lives on `lifetimeStatistics`, not the GameState root.
-  // Writing it at the root did nothing at all — the "maximally populated" state
+  // Writing it at the root did nothing at all - the "maximally populated" state
   // this helper promises was silently missing the field, so anything reading it
   // was exercised against 0. Found by type-checking the test tree for the first
   // time (2026-07-30 audit ARCH-2).
@@ -156,7 +156,7 @@ function fatState(): GameState {
  * Ten `delete (state as Record<string, unknown>).field` lines used to do this
  * inline. Two problems with that shape, beyond the ten casts: the assertion
  * `as Record<string, unknown>` is one TypeScript rejects outright (GameState
- * has no index signature), and — worse — a MISTYPED field name would delete
+ * has no index signature), and - worse - a MISTYPED field name would delete
  * nothing at all, silently leaving the state intact while the test went on to
  * "prove" every accessor survives a stripping that never happened.
  *

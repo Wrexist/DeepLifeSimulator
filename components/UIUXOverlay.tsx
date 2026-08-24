@@ -15,7 +15,7 @@ export default function UIUXOverlay() {
   } = useUIUX();
   
   // M4: this overlay is root-mounted and used to subscribe to the ENTIRE game
-  // state for two things — one boolean it renders on, and a diagnostic payload
+  // state for two things - one boolean it renders on, and a diagnostic payload
   // built only when the player taps "Report". Both now read narrowly: a
   // selector for the boolean, and an on-demand getter for the report (which
   // must see the LIVE state, and no longer needs to be a callback dependency).
@@ -81,7 +81,7 @@ export default function UIUXOverlay() {
           header on the home screen every week (weekly subsystem updates flush
           through here, and social actions like dating/gifts also used it).
           Those updates are still reflected in the game state and the in-game
-          notification center — only the intrusive banner is suppressed. Real,
+          notification center - only the intrusive banner is suppressed. Real,
           actionable problems (warning/error/critical) still surface here. */}
       {errorStates
         .filter((error) => error.severity !== 'info')

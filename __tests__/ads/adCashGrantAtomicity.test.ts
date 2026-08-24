@@ -61,7 +61,7 @@ function player(money: number, claimedWeek?: number): GameState {
   });
 }
 
-describe('cashGrantClaimed — the outer guard', () => {
+describe('cashGrantClaimed - the outer guard', () => {
   it('is false for a player who has never claimed', () => {
     expect(cashGrantClaimed(player(1000))).toBe(false);
   });
@@ -78,7 +78,7 @@ describe('cashGrantClaimed — the outer guard', () => {
   });
 });
 
-describe('applyAdCashGrant — stamp and credit are one step', () => {
+describe('applyAdCashGrant - stamp and credit are one step', () => {
   it('credits the reward AND stamps the week in a single updater', () => {
     const { setState, get } = batched(player(1_000));
 
@@ -88,7 +88,7 @@ describe('applyAdCashGrant — stamp and credit are one step', () => {
     expect(get().settings?.lastAdCashGrantWeek).toBe(WEEK);
   });
 
-  it('a stamped week is NEVER a $0 grant — the two cannot come apart', () => {
+  it('a stamped week is NEVER a $0 grant - the two cannot come apart', () => {
     // The (a) defect: the marker committed while the money did not. Whatever
     // the updater returns, either both moved or neither did.
     const before = player(1_000);
@@ -127,7 +127,7 @@ describe('applyAdCashGrant — stamp and credit are one step', () => {
     expect(get().settings?.lastAdCashGrantWeek).toBe(WEEK);
   });
 
-  it('runs the money through the central clamp — a bogus reward is refused, not stamped', () => {
+  it('runs the money through the central clamp - a bogus reward is refused, not stamped', () => {
     const snapshot = player(1_000);
     const { setState, get } = batched(snapshot);
 

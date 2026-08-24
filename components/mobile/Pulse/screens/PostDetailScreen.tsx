@@ -1,5 +1,5 @@
 /**
- * PostDetailScreen — full view of a single post + its comment thread.
+ * PostDetailScreen - full view of a single post + its comment thread.
  *
  * Layout (top → bottom):
  *   [Back header]
@@ -73,7 +73,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
     saveGame?.();
   }, [setGameState, saveGame, postId]);
 
-  // Bookmark parity with the feed card — the toggle that feeds ProfileScreen's
+  // Bookmark parity with the feed card - the toggle that feeds ProfileScreen's
   // Bookmarks tab. `bookmarkPost` had no caller anywhere before this.
   const onBookmark = useCallback(() => {
     pulseHaptics.light();
@@ -160,7 +160,7 @@ export default function PostDetailScreen({ postId, onClose }: PostDetailScreenPr
             <ImageWithFallback uri={post.photo} style={styles.photo} />
           ) : null}
 
-          {/* Stat row — passive counts (likes, reposts, comments, views) */}
+          {/* Stat row - passive counts (likes, reposts, comments, views) */}
           <View style={[styles.statRow, { borderColor: theme.border }]}>
             <StatBlock value={post.likes} label="likes" color={theme.text} muted={theme.textSecondary} />
             <StatBlock value={post.reposts ?? 0} label="reposts" color={theme.text} muted={theme.textSecondary} />

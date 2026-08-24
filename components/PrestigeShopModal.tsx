@@ -47,8 +47,8 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   const { gameState, purchasePrestigeBonus } = useGame();
   const { purchaseLegacyUpgrade: buyLegacyUpgrade, claimLegacyContract } = useMoneyActions();
   // 'dynasty' is the Legacy Points tree. It rides the same tab chrome as the
-  // prestige-point categories because it is the same question — "what do I
-  // spend my meta-currency on?" — just a different currency.
+  // prestige-point categories because it is the same question - "what do I
+  // spend my meta-currency on?" - just a different currency.
   const [selectedCategory, setSelectedCategory] = useState<ShopTab>('starting');
   const [searchQuery, _setSearchQuery] = useState('');
 
@@ -56,7 +56,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
 
   const prestigeData = gameState?.prestige;
   const prestigePoints = prestigeData?.prestigePoints || 0;
-  // C-11: the spendable legacy balance — lifetime earned minus what has been
+  // C-11: the spendable legacy balance - lifetime earned minus what has been
   // bought, derived rather than stored (the week loop only ever ADDS to
   // `legacyPoints`, so it is a lifetime total, not a wallet).
   const legacyAvailable = legacyPointsAvailable(gameState?.legacyPoints, gameState?.legacyUpgrades);
@@ -67,7 +67,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
   const categories: ShopTab[] = ['starting', 'multiplier', 'unlock', 'qol', 'special', 'dynasty'];
 
   // Legacy Contracts sit on the SIXTH of six horizontally-scrolling tabs, below
-  // the Dynasty board — two or three taps and a scroll from anywhere the player
+  // the Dynasty board - two or three taps and a scroll from anywhere the player
   // normally is. `getClaimableContracts` had no non-test caller at all, so a
   // completed contract announced itself nowhere in the app. It now drives a
   // count badge on the tab, matching how the Legacy Pass badges on Progress.
@@ -230,7 +230,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   * C-11: Legacy Points had no readout anywhere, so a player
                   * could accrue hundreds without ever knowing the currency
                   * existed. Shown beside Prestige Points, and only once the
-                  * player actually has some — an always-visible zero for a
+                  * player actually has some - an always-visible zero for a
                   * currency you cannot yet earn is noise.
                   */}
                 {legacyAvailable > 0 && (
@@ -313,9 +313,9 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   ]}
                 >
                   {incomeHeadroom.atCap
-                    ? `Income bonus +${Math.round((incomeHeadroom.cap - 1) * 100)}% — hard cap reached. Further income bonuses grant nothing.`
+                    ? `Income bonus +${Math.round((incomeHeadroom.cap - 1) * 100)}% - hard cap reached. Further income bonuses grant nothing.`
                     : incomeHeadroom.diminished
-                    ? `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% — past the +${Math.round((incomeHeadroom.softCap - 1) * 100)}% threshold, further income bonuses apply at ¼ strength (hard cap +${Math.round((incomeHeadroom.cap - 1) * 100)}%).`
+                    ? `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% - past the +${Math.round((incomeHeadroom.softCap - 1) * 100)}% threshold, further income bonuses apply at ¼ strength (hard cap +${Math.round((incomeHeadroom.cap - 1) * 100)}%).`
                     : `Income bonus +${Math.round((incomeHeadroom.current - 1) * 100)}% · full effect up to +${Math.round((incomeHeadroom.softCap - 1) * 100)}%, ¼ strength beyond, capped at +${Math.round((incomeHeadroom.cap - 1) * 100)}%`}
                 </Text>
               </View>
@@ -339,7 +339,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       : 'Legacy points accrue as you live. Spend them here on the next generation.'}
                   </Text>
 
-                  {/* Prestige tiers 2-5 — the Vault, the Endowment, Trials and
+                  {/* Prestige tiers 2-5 - the Vault, the Endowment, Trials and
                       the Dynasty Seat. Rendered first because they are the
                       answer to "why prestige again?", and because two of them
                       (the Endowment, and Trials) are SOURCES of the legacy
@@ -348,7 +348,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       the late game is legible before it is earned. */}
                   <DynastyBoard gameState={gameState} />
 
-                  {/* Contracts — the multi-life goals that PAY the points the
+                  {/* Contracts - the multi-life goals that PAY the points the
                       tree below spends. Rendered first so the board reads as
                       "earn, then spend" rather than two unrelated lists. */}
                   <Text style={[styles.categoryTabText, isDarkMode && styles.categoryTabTextDark, { marginBottom: scale(6) }]}>
@@ -369,7 +369,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                         padding: scale(10),
                         marginBottom: scale(6),
                         borderRadius: scale(12),
-                        // Full border all round — Hard Rule #7.
+                        // Full border all round - Hard Rule #7.
                         borderWidth: 1,
                         borderColor: p.claimable
                           ? 'rgba(16, 185, 129, 0.55)'
@@ -434,7 +434,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                               padding: scale(10),
                               marginBottom: scale(6),
                               borderRadius: scale(12),
-                              // Full border on all four sides — a one-sided
+                              // Full border on all four sides - a one-sided
                               // coloured stripe is banned app-wide (Hard Rule #7).
                               borderWidth: 1,
                               borderColor: owned
@@ -556,15 +556,15 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             </Text>
                             {/* The cap is deliberate anti-snowball; the silence
                                 was the bug. State the real effect whenever it
-                                differs from the headline — including the case
+                                differs from the headline - including the case
                                 where it is zero. */}
                             {inertReason ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>
-                                No effect — {inertReason}
+                                No effect - {inertReason}
                               </Text>
                             ) : incomeWasted ? (
                               <Text style={[styles.capNote, { color: '#f59e0b' }]}>
-                                No effect — income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% hard cap
+                                No effect - income bonus is already at its +{Math.round((incomeHeadroom.cap - 1) * 100)}% hard cap
                               </Text>
                             ) : realIncomeGain > 0 ? (
                               <Text style={[styles.capNote, { color: '#10b981' }]}>

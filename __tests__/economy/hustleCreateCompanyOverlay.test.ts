@@ -44,7 +44,7 @@ function foundableState(overrides: Partial<GameState> = {}): GameState {
   });
 }
 
-describe('createCompany — Hustle overlay seeding', () => {
+describe('createCompany - Hustle overlay seeding', () => {
   it('seeds a per-company overlay and increments totalCompaniesFounded', () => {
     const snapshot = foundableState();
     const cap = captureUpdater();

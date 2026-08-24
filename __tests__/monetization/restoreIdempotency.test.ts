@@ -49,7 +49,7 @@ describe('which grants must stay ledger-gated on restore', () => {
     }
   });
 
-  it('does NOT gate idempotent boolean entitlements — those must repair a wipe', () => {
+  it('does NOT gate idempotent boolean entitlements - those must repair a wipe', () => {
     // These are the ones a restore exists to bring back after the prestige
     // wipe. Gating them is what made restore structurally unable to repair it.
     for (const id of [

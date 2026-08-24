@@ -368,7 +368,7 @@ export function purchaseLegacyUpgrade(
   if (available < upgrade.cost) {
     return {
       success: false,
-      message: `${upgrade.name} costs ${upgrade.cost} legacy points — you have ${available}.`,
+      message: `${upgrade.name} costs ${upgrade.cost} legacy points - you have ${available}.`,
     };
   }
 

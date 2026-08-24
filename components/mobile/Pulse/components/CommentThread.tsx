@@ -1,5 +1,5 @@
 /**
- * CommentThread — inline comments under a post.
+ * CommentThread - inline comments under a post.
  *
  * Renders up to `inlineLimit` comments by default with a "View N more"
  * affordance for the rest. Depth is rendered visually via CommentItem's
@@ -78,7 +78,7 @@ export default function CommentThread({
 // ──────────────────────────────────────────────────────────────────────────
 // Ordering: roots first (newest → oldest), each immediately followed by its
 // direct replies (depth 1). Replies-of-replies are flattened to depth 2 so
-// the visual stays readable — matches the plan's "depth-2 inline" rule.
+// the visual stays readable - matches the plan's "depth-2 inline" rule.
 // ──────────────────────────────────────────────────────────────────────────
 
 function orderForDisplay(

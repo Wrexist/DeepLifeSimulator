@@ -151,7 +151,7 @@ export function applyChildProportions(svg: string, age: number): string {
     out = wrapGroup(out, group, cluster);
   }
 
-  // Applied INSIDE the cluster wrapper — `wrapGroup` finds the inner group —
+  // Applied INSIDE the cluster wrapper - `wrapGroup` finds the inner group -
   // so it is expressed in the cluster's own space and the eyes stay put
   // relative to the brows they sit under.
   const eyeScale = 1 + (INFANT_EYE_SCALE - 1) * youth;

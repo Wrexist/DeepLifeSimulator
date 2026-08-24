@@ -45,7 +45,7 @@ describe('the production EAS profile does not enable dev tools', () => {
   });
 
   it('no profile other than preview turns it on', () => {
-    // preview IS the internal QA build — that one is deliberate.
+    // preview IS the internal QA build - that one is deliberate.
     const offenders = Object.entries(eas.build)
       .filter(([name]) => name !== 'preview')
       .filter(([, p]) => (p.env ?? {})[FLAG] === 'true')
@@ -60,7 +60,7 @@ describe('the gate itself cannot be loosened by accident', () => {
 
   it('requires an EXACT "true" string, not a truthy value', () => {
     // `process.env.X` is a STRING in an Expo build. A `!!process.env.X` or
-    // `=== true` gate would flip on for "false", "0" or "off" — the three values
+    // `=== true` gate would flip on for "false", "0" or "off" - the three values
     // someone disabling it is most likely to write.
     expect(src).toMatch(
       /const DEV_TOOLS_ENABLED\s*=\s*\n?\s*__DEV__ \|\| process\.env\.EXPO_PUBLIC_ENABLE_DEVTOOLS === 'true';/,
@@ -80,10 +80,10 @@ describe('the gate itself cannot be loosened by accident', () => {
      * STRUCTURAL, not proximity-based. Two earlier versions of this assertion
      * were both satisfiable without the property holding:
      *
-     *   1. `not.toMatch(/<DevToolsModal(?![^>]*)/)` — `[^>]*` matches the empty
+     *   1. `not.toMatch(/<DevToolsModal(?![^>]*)/)` - `[^>]*` matches the empty
      *      string, so the negative lookahead always succeeded and the pattern
      *      could never match a real tag.
-     *   2. "the guard appears in the preceding 200 characters" — a nearby
+     *   2. "the guard appears in the preceding 200 characters" - a nearby
      *      guarded render, a comment mentioning the flag, or a string could
      *      satisfy the window for a DIFFERENT, unguarded render site.
      *
@@ -119,7 +119,7 @@ describe('no committed env file turns it on', () => {
      * Ask GIT, not the working tree.
      *
      * The first version read `fs.readdirSync(ROOT)`, which fails the moment a
-     * developer copies `.env.example` to `.env` locally — the correct, expected
+     * developer copies `.env.example` to `.env` locally - the correct, expected
      * thing to do, and `.gitignore` already covers it. It also missed tracked
      * env files in subdirectories entirely. What matters is what is COMMITTED,
      * because that is what reaches a build.

@@ -92,14 +92,14 @@ describe('a Spark match can become a friend', () => {
     expect(result.message).toMatch(/friend/i);
   });
 
-  it('starts above the neglect threshold — a new friend is not born "at risk"', () => {
+  it('starts above the neglect threshold - a new friend is not born "at risk"', () => {
     const base = stateWithMatches();
     const after = apply(base, (set) => promoteMatchToFriend(set, base, 'm1'));
     const rel = after.relationships?.find((r) => r.id === 'm1');
     expect(rel!.relationshipScore).toBeGreaterThan(NEGLECT_THRESHOLD);
   });
 
-  it('is NOT exclusive — every match can become a friend', () => {
+  it('is NOT exclusive - every match can become a friend', () => {
     // The whole point of the report: only the first match could ever become a
     // contact, because partners are exclusive and friends did not exist.
     const base = stateWithMatches();
@@ -109,7 +109,7 @@ describe('a Spark match can become a friend', () => {
     expect(two.relationships?.filter((r) => r.type === 'friend')).toHaveLength(2);
   });
 
-  it('coexists with a partner — befriending does not trip anti-bigamy', () => {
+  it('coexists with a partner - befriending does not trip anti-bigamy', () => {
     const base = stateWithMatches();
     const dating = apply(base, (set) => promoteMatchToRelationship(set, base, 'm1'));
     const both = apply(dating, (set) => promoteMatchToFriend(set, dating, 'm2'));

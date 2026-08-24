@@ -1,11 +1,11 @@
 /**
- * ImageWithFallback — drop-in replacement for `<Image source={{ uri }} />`
+ * ImageWithFallback - drop-in replacement for `<Image source={{ uri }} />`
  * that gracefully degrades to a placeholder when the URI fails to load.
  *
  * R4-B: round 2's UI audit flagged that every `<Image source={{ uri }}>` in
  * Pulse/Spark/Tinder profile photos had no `onError`, no `defaultSource`, no
  * fallback. A 404 or network failure showed up as a transparent gap with
- * console spam — rendering a feed of broken posts.
+ * console spam - rendering a feed of broken posts.
  *
  * Usage:
  *   <ImageWithFallback
@@ -15,7 +15,7 @@
  *   />
  *
  * For a PERSON, pass `face` as well. Without it the fallback is a grey disc
- * with a letter in it — which is what the whole social feed looked like, since
+ * with a letter in it - which is what the whole social feed looked like, since
  * hardly any character has an uploaded photo. With it, the same character's
  * generated face appears here as it does everywhere else in the game.
  *
@@ -29,7 +29,7 @@ import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 interface ImageWithFallbackProps {
   /** Source URI. If undefined/null/empty, the fallback renders directly. */
   uri?: string | null;
-  /** Text to show in the placeholder (typically a name or handle — first
+  /** Text to show in the placeholder (typically a name or handle - first
    * letter is uppercased and rendered). */
   fallback?: string;
   /** Style applied to both the <Image> and the placeholder <View>. */
@@ -55,7 +55,7 @@ export default function ImageWithFallback({
   face,
 }: ImageWithFallbackProps) {
   const [errored, setErrored] = useState(false);
-  // Reset error state when the uri changes — previously a failed-load left
+  // Reset error state when the uri changes - previously a failed-load left
   // the placeholder stuck even when a new valid uri came in.
   const lastUriRef = useRef(uri);
   useEffect(() => {

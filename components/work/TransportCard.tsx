@@ -1,12 +1,12 @@
 /**
- * TransportCard — rent your way into delivery work.
+ * TransportCard - rent your way into delivery work.
  *
  * Delivery is the best early gig in the game ($180 a run) and it was gated on
  * owning a $450 bike, against a $200 starting wallet. So for the first stretch
  * of a life it was a job the player could see, wanted, and could not reach.
  *
  * This card is the way in. A scooter pass costs a few dollars to sign and a
- * small weekly fee after that — cheap to start, expensive to hold, which is the
+ * small weekly fee after that - cheap to start, expensive to hold, which is the
  * exact opposite curve to buying and exactly right for someone broke. It shows
  * what the player is currently riding, what delivery pays at that tier, and
  * (bluntly) when the rental has become pure waste because they now own
@@ -40,7 +40,7 @@ export default function TransportCard({ gameState, onRent, onEndRental }: Transp
 
   const deliveryLine =
     profile.tier === 'none'
-      ? 'No wheels — delivery work is closed to you.'
+      ? 'No wheels - delivery work is closed to you.'
       : `Delivery pays ${Math.round(profile.deliveryMultiplier * 100)}% · ${profile.energyPerRun} energy a run`;
 
   return (

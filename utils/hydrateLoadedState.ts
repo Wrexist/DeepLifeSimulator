@@ -146,7 +146,7 @@ export function hydrateLoadedState(
   //
   // Merged with initialGameState so every required property exists. Parsed
   // values override the defaults, a null in the save does NOT, and a key the
-  // save has survives even when the defaults object has none — that last rule
+  // save has survives even when the defaults object has none - that last rule
   // is `loadedStateMerge.ts`, and the fields it was quietly eating are listed
   // there.
   let safeState: GameState = {
@@ -228,7 +228,7 @@ export function hydrateLoadedState(
   }
 
   // F-14: the LAST word on state sanity, after migrations, repair, autoFix and
-  // the relationship repair above have all had their turn — and after the merge
+  // the relationship repair above have all had their turn - and after the merge
   // onto `initialGameState`, so it sees the state the app will actually run.
   // It catches what the earlier stages miss (a `date.week` outside 1-4, which
   // `validateGameState` only rejects when negative; a negative or non-finite
@@ -282,7 +282,7 @@ export type RemoteStateDecision =
  * Two gates, in order:
  *
  *   1. It must survive hydration and come out VALID. A cloud state gets the
- *      same pipeline a local save gets — see `hydrateLoadedState` — because it
+ *      same pipeline a local save gets - see `hydrateLoadedState` - because it
  *      is strictly less trustworthy, not more: different device, different
  *      build, possibly a different STATE_VERSION.
  *   2. It must not move `weeksLived` BACKWARDS. That is the absolute counter
@@ -292,7 +292,7 @@ export type RemoteStateDecision =
  *      slot backwards?"), asked at the other door.
  *
  * Callers must run `runMigrations` (and refuse a future-version state) BEFORE
- * calling this — migration is async and version policy is the caller's.
+ * calling this - migration is async and version policy is the caller's.
  */
 export function hydrateRemoteState(
   remote: unknown,
@@ -318,7 +318,7 @@ export function hydrateRemoteState(
   if (remoteWeeks < localWeeks) {
     // Refused outright rather than re-prompted. The conflict alert has already
     // been dismissed by the time this runs, and asking a second time about a
-    // state we can already see is stale is a trap, not a choice — consistent
+    // state we can already see is stale is a trap, not a choice - consistent
     // with the sibling future-version refusal, which also just logs.
     logger.error(`${logTag} Refusing remote state: it would regress this device's progress`, {
       localWeeks,

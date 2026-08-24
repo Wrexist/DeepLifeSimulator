@@ -66,7 +66,7 @@ const mount = () => {
   act(() => { TestRenderer.create(React.createElement(Probe)); });
 };
 
-describe('React functional-updater timing — the contract these actions rely on', () => {
+describe('React functional-updater timing - the contract these actions rely on', () => {
   it('the FIRST update in a batch runs eagerly, so a capture is readable', () => {
     mount();
     let ran = false;
@@ -80,7 +80,7 @@ describe('React functional-updater timing — the contract these actions rely on
 
   it('the SECOND update in the same batch is DEFERRED, so a capture is stale', () => {
     // The whole point. If this ever starts passing, React changed its bailout
-    // optimisation — which would make capture MORE reliable, not less, but it
+    // optimisation - which would make capture MORE reliable, not less, but it
     // still would not be a guarantee worth building on.
     mount();
 
@@ -93,7 +93,7 @@ describe('React functional-updater timing — the contract these actions rely on
     });
   });
 
-  it('but BOTH updates land — the state is never the thing that is wrong', () => {
+  it('but BOTH updates land - the state is never the thing that is wrong', () => {
     // Worth stating explicitly, because it is what makes this class a
     // reporting bug rather than an economy bug. Every C-8-shaped function got
     // the money right; they only lied about it.

@@ -218,7 +218,7 @@ describe('save migration (repairGameState extends short ladders)', () => {
     expect(legal.levels[5].experienceRequired).toBeGreaterThan(0);
   });
 
-  it('is idempotent — a save already at 6 levels is left untouched', () => {
+  it('is idempotent - a save already at 6 levels is left untouched', () => {
     const current = JSON.parse(JSON.stringify(createTestGameState()));
     const before = JSON.stringify((current.careers as Career[]).find((c) => c.id === 'legal'));
     repairGameState(current);

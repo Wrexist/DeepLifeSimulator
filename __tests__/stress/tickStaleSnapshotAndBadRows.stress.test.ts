@@ -40,7 +40,7 @@ const SRC = fs.readFileSync(
 
 // ───────────────────────────── TICK-A2 ─────────────────────────────
 
-describe('TICK-A2 — the challenge snapshot carries this tick\'s changes', () => {
+describe('TICK-A2 - the challenge snapshot carries this tick\'s changes', () => {
   it('objectives really do read beyond stats and weeksLived (the premise)', () => {
     // If they only read stats, the old snapshot would have been fine and this
     // whole fix is noise. They do not.
@@ -124,7 +124,7 @@ describe('TICK-A2 — the challenge snapshot carries this tick\'s changes', () =
 
 // ───────────────────────────── TICK-A3 ─────────────────────────────
 
-describe('TICK-A3 — one malformed row cannot cancel the week', () => {
+describe('TICK-A3 - one malformed row cannot cancel the week', () => {
   it('the outer catch really does cancel the week (the premise)', () => {
     // This is what makes an unguarded throw expensive rather than cosmetic.
     expect(SRC).toMatch(/return prevState;\s*\n\s*\}\s*catch|Return previous state unchanged to prevent corruption/);

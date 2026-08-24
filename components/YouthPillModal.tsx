@@ -14,7 +14,7 @@ interface YouthPillModalProps {
 
 export default function YouthPillModal({ visible, onClose }: YouthPillModalProps) {
   const setGameState = useSetGameState();
-  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const youthPills = useGameSelector((s) => s.youthPills || 0);
   const currentAge = useGameSelector((s) => s.date?.age ?? 18);
 

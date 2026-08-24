@@ -58,7 +58,7 @@ const scenario = (id: string): Scenario => {
 };
 
 describe('every achievement a scenario requires actually exists', () => {
-  // The LIVE catalogue — the one `getSatisfiedAchievementIds` searches. The
+  // The LIVE catalogue - the one `getSatisfiedAchievementIds` searches. The
   // first version of this suite validated against it too, but the projection
   // fed the evaluator the deprecated `initialState.achievements` array, so
   // agreeing with this list proved nothing. The projection assertion below is
@@ -119,7 +119,7 @@ describe('Political Dynasty can be won', () => {
     expect(result.won).toBe(false);
   });
 
-  it('does NOT score when level is stripped — the actual bug', () => {
+  it('does NOT score when level is stripped - the actual bug', () => {
     // This is exactly the shape `prestigeExecution` used to project. It must
     // stay unwinnable so the assertion above is really testing the projection.
     const result = checkScenarioWin(
@@ -137,7 +137,7 @@ describe('Political Dynasty can be won', () => {
 describe('the projection reads the LIVE achievement system', () => {
   it('reports an achievement whose condition the player has actually met', () => {
     // `first_child` is a counter achievement over the player's children. Build a
-    // state that satisfies it and check the projection sees it — this is the
+    // state that satisfies it and check the projection sees it - this is the
     // assertion that was missing, and its absence is why swapping one dead id
     // for another looked like a fix.
     const withChild = createTestGameState({
@@ -253,7 +253,7 @@ describe('a relationship condition counts the right relationships', () => {
   });
 
   it('still counts ALL relationships where no type is named', () => {
-    // Social Butterfly wants 10+ relationships of any kind — narrowing that
+    // Social Butterfly wants 10+ relationships of any kind - narrowing that
     // one would be the opposite regression.
     const socialButterfly = scenario('social_butterfly');
     const result = checkScenarioWin(

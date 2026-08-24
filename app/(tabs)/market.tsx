@@ -6,6 +6,7 @@ import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { satietyHint } from '@/lib/economy/foodSatiety';
 import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
@@ -58,7 +59,7 @@ type MarketFilter = (typeof FILTER_CATEGORIES)[number]['id'];
 type MarketTab = 'items' | 'food' | 'gym' | 'housing';
 
 // Help text, one entry per tab. This used to live as a per-segment `accessory`
-// InfoButton inside the tab bar — four "?" badges competing with four labels.
+// InfoButton inside the tab bar - four "?" badges competing with four labels.
 // The copy is unchanged; only the affordance moved (one button beside the row,
 // showing the active tab's entry).
 const TAB_INFO: Record<MarketTab, { title: string; content: string }> = {
@@ -72,7 +73,7 @@ const TAB_INFO: Record<MarketTab, { title: string; content: string }> = {
   },
   housing: {
     title: 'Renting a Home',
-    content: "A home gives you weekly health, happiness and energy. Rent is charged every week — fall behind for too long and you'll be evicted. Moving between tiers is free, so upgrade whenever you can afford it.",
+    content: "A home gives you weekly health, happiness and energy. Rent is charged every week - fall behind for too long and you'll be evicted. Moving between tiers is free, so upgrade whenever you can afford it.",
   },
   gym: {
     title: 'Gym Training',
@@ -128,7 +129,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       const item = gameState.items.find(i => i.id === itemId);
       const itemPrice = item ? getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses) : 0;
       if (!item || gameState.stats.money < itemPrice) {
-        // Not an error — just a normal "you need more money" state. Use the
+        // Not an error - just a normal "you need more money" state. Use the
         // calmer info toast instead of the alarming red error toast.
         showInfo("Not enough money for this yet");
         setLoading(itemId, false);
@@ -137,7 +138,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
       // P2-8: buyItem applies its money + ownership change synchronously via
       // setGameState (and re-checks affordability atomically). Affordability is
-      // already gated above, so confirm immediately — no arbitrary delay/jank.
+      // already gated above, so confirm immediately - no arbitrary delay/jank.
       buyItem(itemId);
       showSuccess(`Purchased ${itemName}!`);
     } catch (error) {
@@ -151,7 +152,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     setLoading(itemId, true);
     try {
       // P2-8: compute the sale price from CURRENT state (the item is still owned
-      // here) BEFORE selling, then sell synchronously — no arbitrary delay, and
+      // here) BEFORE selling, then sell synchronously - no arbitrary delay, and
       // the "$0" race (reading the item after it's removed) can't happen.
       const sellPrice = parseFloat((getInflatedPrice(
         gameState.items.find(i => i.id === itemId)?.price || 0,
@@ -176,7 +177,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     }
   }, [gameState.items, highlightedItem, clearHighlight]);
 
-  // P1-8: scroll-indicator state was dead — the setters had been renamed with
+  // P1-8: scroll-indicator state was dead - the setters had been renamed with
   // an underscore by an unused-variable lint sweep, so `contentHeight` and
   // `scrollViewHeight` stayed at 0 forever, producing NaN/Infinity in the
   // derived layout. The feature was never wired to a real scroll handler;
@@ -208,12 +209,12 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   );
 
   // Memoize canAfford function
-  // FOOD affordability: plain inflated price — `buyFood` charges exactly this
+  // FOOD affordability: plain inflated price - `buyFood` charges exactly this
   // (ItemActionsContext), and the Premium Access discount is an ITEM-shop
   // effect, so gating food on the discounted figure would let the gate pass a
   // price the charge then rejects.
   const canAfford = useCallback((price: number) => gameState.stats.money >= getInflatedPrice(price, gameState.economy?.priceIndex ?? 1), [gameState.stats.money, gameState.economy?.priceIndex]);
-  // ITEM affordability: inflation × the prestige Premium Access discount — the
+  // ITEM affordability: inflation × the prestige Premium Access discount - the
   // same helper buyItem charges with, so the card and the charge agree (§4.4).
   const canAffordItem = useCallback((price: number) => gameState.stats.money >= getItemPurchasePrice(price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses), [gameState.stats.money, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses]);
   const hasMembership = useMemo(() => {
@@ -226,7 +227,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // "all zero" as "already in top shape".
   const gymGainsAllZero = useMemo(() => {
     // Normalize first: a NaN/undefined stat on a corrupted save makes every
-    // delta NaN, and `NaN <= 0` is false — the guard's answer would flip on
+    // delta NaN, and `NaN <= 0` is false - the guard's answer would flip on
     // garbage input instead of being computed from a real baseline.
     const fitness = Number.isFinite(gameState.stats.fitness) ? gameState.stats.fitness : 0;
     const health = Number.isFinite(gameState.stats.health) ? gameState.stats.health : 0;
@@ -240,7 +241,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   // A gym session also refreshes the gym-visit timer the weekly tick reads to
   // scale fitness decay. When that timer is stale (behind the current week) a
   // workout is still worth doing even at capped stats, so the card must stay
-  // tappable — otherwise a peak-shape player silently suffers accelerated decay.
+  // tappable - otherwise a peak-shape player silently suffers accelerated decay.
   const gymTimerStale = useMemo(
     () => (gameState.lastGymVisitWeek || 0) !== (gameState.weeksLived || 0),
     [gameState.lastGymVisitWeek, gameState.weeksLived]
@@ -329,7 +330,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             </Text>
           )}
           {/* Raw interpolation printed "$20000" beside rows whose own confirm
-              dialog already said "$20K" — this file imports `formatMoney` and
+              dialog already said "$20K" - this file imports `formatMoney` and
               uses it for rents and the purchase dialog. One convention. */}
           <Text style={styles.itemPrice}>{formatMoney(inflatedPrice)}</Text>
         </View>
@@ -395,7 +396,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           <Text style={[styles.itemName, settings.darkMode && styles.itemNameDark]}>{food.name}</Text>
           {/**
             * F5. This printed the RAW price while the button beside it was
-            * disabled off `canAfford`, which inflates — so affordable food
+            * disabled off `canAfford`, which inflates - so affordable food
             * showed an unusable button. Every item row on this screen already
             * displays the inflated price; food is now consistent with them and
             * with what `buyFood` charges.
@@ -404,7 +405,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             {formatMoney(getInflatedPrice(food.price, gameState.economy?.priceIndex ?? 1))}
           </Text>
 
-          {/* One chip per stat, in the HUD's own colors — see
+          {/* One chip per stat, in the HUD's own colors - see
               components/market/StatEffectChips.tsx. The three identical blue
               lines this replaces gave the player no way to tell at a glance
               which bar a card feeds. */}
@@ -422,8 +423,23 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         <LoadingButton
           onPress={() => {
             if (canAfford(food.price)) {
-              buyFood(food.id);
-              showSuccess(`Ate ${food.name}! +${food.healthRestore} health, +${happinessRestore} happiness, +${food.energyRestore} energy`);
+              // The toast reports what the purchase ACTUALLY applied - the
+              // satiety curve (v48) scales restores down after the third meal
+              // of the week, and a toast quoting the catalogue values would be
+              // the advertised-vs-actual bug all over again.
+              const result = buyFood(food.id);
+              if (result.success && result.applied) {
+                // One short line. The full-strength toast lists the restores;
+                // once satiety kicks in, the STATE is the news (the standing
+                // section hint carries the detail), so the toast leads with it
+                // instead of overflowing into a truncated "until next..." tail
+                // (screenshot report, 2026-08-24).
+                showSuccess(
+                  result.hint
+                    ? `Ate ${food.name}. ${result.hint}`
+                    : `Ate ${food.name}! +${result.applied.health} health, +${result.applied.happiness} happiness, +${result.applied.energy} energy`
+                );
+              }
             } else {
               showInfo("Not enough money for this yet");
             }
@@ -450,7 +466,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     if (gymGainsAllZero && !gymTimerStale) return;
 
     // The gate the PLAYER is told about, read from the committed snapshot. It is
-    // a fast path for messaging only — the authoritative check is against `prev`
+    // a fast path for messaging only - the authoritative check is against `prev`
     // inside the updater below.
     if (gameState.stats.money < cost) return;
     if (gameState.stats.energy < energyCost) return;
@@ -483,19 +499,19 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         },
       };
     });
-    // Persist the session — deferred one macrotask so the save captures the
+    // Persist the session - deferred one macrotask so the save captures the
     // post-commit state (repo convention). Untracked on purpose: the save must
     // survive even if the screen unmounts right after the tap.
     setTimeout(() => { void saveGame?.(); }, 0);
     // Effort → reward feedback, matching the food/buy paths on this screen. When
-    // stats are already capped the session still counts — it keeps the routine up.
+    // stats are already capped the session still counts - it keeps the routine up.
     showSuccess(gymGainsAllZero
       ? '💪 Workout done! Fitness routine maintained.'
       : '💪 Workout done! +5 Fitness, +3 Health');
   }, [hasMembership, gymGainsAllZero, gymTimerStale, gameState.stats.money, gameState.stats.energy, setGameState, saveGame, showSuccess]);
 
 
-  // (P1-8: scroll indicator layout block removed — see comment near the dead
+  // (P1-8: scroll indicator layout block removed - see comment near the dead
   // scroll-indicator state above.)
 
   return (
@@ -506,7 +522,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
 
           ONE info button for the row, not four. Every segment used to carry its
           own "?" accessory inside the tab, which (a) competed with the label for
-          the eye and (b) ate 24pt of each slot — with four segments in the
+          the eye and (b) ate 24pt of each slot - with four segments in the
           compact embedded bar that truncated the labels themselves. The single
           button sits outside the control and describes whichever tab is active,
           so no help text was lost.
@@ -524,11 +540,11 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           segments={[
             { key: 'items', label: t('market.items'), icon: ShoppingBag },
             { key: 'food', label: t('market.food'), icon: Apple },
-            // HOUSING. Renting used to live as tab 2 of the Real Estate app —
+            // HOUSING. Renting used to live as tab 2 of the Real Estate app -
             // which is DESKTOP-ONLY (a $5,000 computer) and gated at tier 3
             // ("Finish Chapter 3"). So a player in their first 30 weeks, bleeding
             // vitals and with nowhere to live, could not see that housing
-            // existed at all — even though a tenancy grants weekly health,
+            // existed at all - even though a tenancy grants weekly health,
             // happiness and energy and carries an eviction failure state.
             // Market is always reachable, needs no device and has no tier gate,
             // which is what a week-1 survival need requires.
@@ -557,7 +573,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         showsVerticalScrollIndicator={true}
       >
         <View style={[styles.content, settings.darkMode && styles.contentDark]}>
-          {/* Macro economy strip — a recession/boom/crash now affects prices,
+          {/* Macro economy strip - a recession/boom/crash now affects prices,
               income, and markets, but was invisible outside buried sub-apps.
               Renders nothing in normal times. */}
           <EconomyEventBanner context="generic" />
@@ -567,7 +583,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 {t('market.purchaseItems')}
               </Text>
 
-              {/* Inflation indicator — surfaces the otherwise-invisible price index. */}
+              {/* Inflation indicator - surfaces the otherwise-invisible price index. */}
               {(gameState.economy?.priceIndex ?? 1) > 1.001 && (
                 <View style={styles.inflationChip}>
                   <TrendingUp size={scale(12)} color={accent.amber} />
@@ -630,7 +646,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 <View style={styles.emptyState}>
                   <Package size={scale(40)} color="rgba(226, 232, 240, 0.45)" />
                   {/* A chip that matches nothing used to render dead space under
-                      the filter bar — "Owned" does that on week 1 for every new
+                      the filter bar - "Owned" does that on week 1 for every new
                       character. Name the dead end and offer the way out. */}
                   <Text style={styles.emptyStateTitle}>
                     {activeFilter === 'owned' ? "You don't own anything yet" : 'Nothing here'}
@@ -659,6 +675,14 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
                 {t('market.buyFood')}
               </Text>
+              {/* Satiety state (v48) - shown BEFORE buying, so a reduced
+                  restore is never a surprise on the receipt. Absent at full
+                  strength, which is the normal state. */}
+              {!!satietyHint(gameState.weeklyFoodPurchases) && (
+                <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark, { fontStyle: 'italic' }]}>
+                  {satietyHint(gameState.weeklyFoodPurchases)}
+                </Text>
+              )}
               {sortedFoods.map((food) => renderFood({ item: food }))}
             </>
           ) : activeTab === 'housing' ? (
@@ -693,7 +717,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                     style={[
                       styles.gymCard,
                       {
-                        // Full border on all four sides — Hard Rule #7.
+                        // Full border on all four sides - Hard Rule #7.
                         borderWidth: 1,
                         borderColor: option.current
                           ? accent.success
@@ -709,13 +733,13 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                         <Text style={styles.gymCardTitle}>{t2.name}</Text>
                         <Text style={styles.gymCardSubtitle}>
                           {option.current
-                            ? 'Your home — tap to move out'
+                            ? 'Your home - tap to move out'
                             : disabled
                               ? option.reason || 'Not available yet'
                               : `${formatMoney(t2.weeklyRent)} / week`}
                         </Text>
                         {/* A tenancy's whole point is the weekly stat grant, and
-                            the card never showed it — the same chips the food
+                            the card never showed it - the same chips the food
                             and gym cards use say it in one line. */}
                         <StatEffectChips
                           caption="Per week"
@@ -755,7 +779,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                 </View>
               ) : (
                 <>
-                  {/* Same chip row as the food cards — the gym's three big
+                  {/* Same chip row as the food cards - the gym's three big
                       number tiles said the same thing in a third visual
                       language, and coloured health green while the HUD's
                       health bar is red. */}
@@ -789,7 +813,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
                   </TouchableOpacity>
 
                   <Text style={styles.gymTip}>
-                    Consistent sessions raise fitness — which unlocks better jobs.
+                    Consistent sessions raise fitness - which unlocks better jobs.
                   </Text>
                 </>
               )}
@@ -805,7 +829,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           title={`Sell ${showSellConfirm.itemName}?`}
           message={
             // Same value the Sell button prints, so the two must format the
-            // same way — raw interpolation here read "$2500.5" under a button
+            // same way - raw interpolation here read "$2500.5" under a button
             // saying "$2.5K".
             showSellConfirm.itemId === 'computer'
               ? `Are you sure you want to sell your ${showSellConfirm.itemName} for ${formatMoney(showSellConfirm.price)}?\n\nDon't worry - all your data (crypto, stocks, real estate, etc.) will be preserved and restored if you buy another computer later.`

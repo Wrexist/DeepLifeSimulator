@@ -1,10 +1,10 @@
 /**
- * The appearance editor — the part of character creation where you choose a face.
+ * The appearance editor - the part of character creation where you choose a face.
  *
  * ── What was wrong ────────────────────────────────────────────────────────
  *
  * It was a list of WORDS. Hair had 28 options and each one was a chip reading
- * "Fro", "Long Bob", "Shaggy Mullet" — so choosing a hairstyle meant tapping a
+ * "Fro", "Long Bob", "Shaggy Mullet" - so choosing a hairstyle meant tapping a
  * word, looking up at the hero avatar to see what it did, and tapping the next
  * word. Twenty-eight times. The one screen in the game whose entire job is
  * visual was driven by a vocabulary test.
@@ -14,8 +14,8 @@
  * say they existed. You cannot choose from options you cannot see, and you
  * cannot navigate a list you do not know the shape of.
  *
- * And the option area was whatever height its contents happened to be — 28 hair
- * chips or 4 mouth chips — so switching category reflowed the page under the
+ * And the option area was whatever height its contents happened to be - 28 hair
+ * chips or 4 mouth chips - so switching category reflowed the page under the
  * player's thumb.
  *
  * ── What it is now ────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@
  *
  * 3. THE OPTIONS ARE A RAIL, NOT A PAGE. One horizontal row at a fixed height.
  *    The hero avatar and the category chips stay put while you browse, which is
- *    what makes comparing options possible — a wrapped grid of 28 faces would
+ *    what makes comparing options possible - a wrapped grid of 28 faces would
  *    push the very avatar you are judging them against off the top of the
  *    screen. It also means the section is the same height for Mouth (4) as for
  *    Hair (28), so nothing jumps.
@@ -44,7 +44,7 @@
  *
  * A thumbnail is a real `VectorAvatar`, so a category mounts up to 28 of them.
  * That is affordable because only the ACTIVE category is mounted, each preview
- * is memoized on the exact config it draws, and `alive` is off — the blink and
+ * is memoized on the exact config it draws, and `alive` is off - the blink and
  * breathe timers are for the hero avatar alone (see `VectorAvatar`'s own note
  * about mounting dozens). Switching category unmounts the previous rail.
  */
@@ -69,7 +69,7 @@ const THUMB = scale(58);
  * How far the OUTFIT previews pull back.
  *
  * The default framing centres the head, so a circular thumbnail of a clothing
- * option shows a sliver of collar — four different outfits render as four
+ * option shows a sliver of collar - four different outfits render as four
  * identical headshots, which is the same "cannot see what you are choosing"
  * problem in a new costume. Verified against the running app: at this zoom the
  * shoulders and chest are in frame and the outfits are told apart at a glance.
@@ -77,7 +77,7 @@ const THUMB = scale(58);
 const OUTFIT_ZOOM = 0.62;
 /** The categories whose subject is below the neck. */
 const TORSO_FIELDS = new Set(['clothing', 'clothingColor']);
-/** Width of a rail cell — the face plus room for its label. */
+/** Width of a rail cell - the face plus room for its label. */
 const CELL = scale(70);
 
 export interface AppearanceEditorProps {
@@ -131,7 +131,7 @@ function AppearanceEditorImpl({
 
   /**
    * The avatar WITHOUT the field currently being edited, as a stable key.
-   * See `previewConfigs` — this is what stops a selection change rebuilding
+   * See `previewConfigs` - this is what stops a selection change rebuilding
    * every preview in the rail.
    */
   const avatarRest = useMemo(() => {
@@ -144,14 +144,14 @@ function AppearanceEditorImpl({
    * Bring the current choice into view when the category changes.
    *
    * Without this, opening a category you have already edited starts at option 1
-   * with your actual choice somewhere off to the right — the player has to hunt
+   * with your actual choice somewhere off to the right - the player has to hunt
    * for their own selection. Guarded because the ref is null on first paint and
    * the method is absent under the render-test mock.
    */
   useEffect(() => {
     const x = Math.max(0, (selected - 1) * (CELL + responsiveSpacing.xs));
     railRef.current?.scrollTo?.({ x, animated: false });
-    // Only on a category change — re-running on every selection would fight the
+    // Only on a category change - re-running on every selection would fight the
     // player's own scrolling as they tap along the rail.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category.field]);
@@ -192,7 +192,7 @@ function AppearanceEditorImpl({
     if (category.kind === 'color') return null;
     return category.options.map((_, index) => ({ ...avatar, [category.field]: index }));
     // `avatarRest`, not `avatar`. Every config here OVERRIDES `category.field`,
-    // so picking a different option produces value-identical previews — but a
+    // so picking a different option produces value-identical previews - but a
     // new `avatar` object each time, which rebuilt the array, broke
     // `OptionFace`'s memo and regenerated all 28 SVGs on every tap. Depending on
     // the fields that actually appear in the output keeps them stable, so a tap
@@ -202,7 +202,7 @@ function AppearanceEditorImpl({
 
   return (
     <View style={styles.root}>
-      {/* Categories — wrapped, so all eleven are visible at once. */}
+      {/* Categories - wrapped, so all eleven are visible at once. */}
       <View style={styles.categoryWrap}>
         {categories.map((entry, index) => {
           const isSelected = entry.field === category.field;
@@ -272,7 +272,7 @@ function AppearanceEditorImpl({
                 )}
               </View>
 
-              {/* Colour swatches are their own label — a name under a shade of
+              {/* Colour swatches are their own label - a name under a shade of
                   brown adds nothing but noise. Shapes keep theirs, because two
                   hairstyles can look similar at thumbnail size. */}
               {category.kind !== 'color' && (
@@ -290,7 +290,7 @@ function AppearanceEditorImpl({
 
       {/* The colour for this same feature, under the shapes it applies to.
           Hair colour used to be a category of its own, so picking a hairstyle
-          and then colouring it meant finding a second chip among nine — one
+          and then colouring it meant finding a second chip among nine - one
           decision split across two places, and two of the eleven chips existed
           only to colour other chips. */}
       {category.tint && (
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
    * The paired colour strip. Deliberately smaller than the option rail and
    * un-labelled: it is a secondary control for the category already open, not a
    * category of its own, and sizing it the same would say otherwise. Wraps
-   * rather than scrolls — there are at most 15, and a second horizontal
+   * rather than scrolls - there are at most 15, and a second horizontal
    * scroller under the first one is a trap for the thumb.
    */
   tintRow: {

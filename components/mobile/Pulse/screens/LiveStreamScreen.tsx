@@ -1,5 +1,5 @@
 /**
- * LiveStreamScreen — 3-phase state machine: setup → live → summary.
+ * LiveStreamScreen - 3-phase state machine: setup → live → summary.
  *
  * Setup: pick a topic + go-live CTA. Live: pulsing avatar, viewer/earning
  * counters, end-stream button. Summary: recap of donations + new followers.
@@ -84,7 +84,7 @@ export default function LiveStreamScreen({ onClose }: LiveStreamScreenProps) {
   const handleEnd = useCallback(() => {
     const result = endLiveStream(setGameState, gameState);
     if (result.success) {
-      // Persist tips + follower gains now — this is the moment the whole
+      // Persist tips + follower gains now - this is the moment the whole
       // stream's accumulated value lands in state.
       setTimeout(() => { void saveGame?.(); }, 0);
       setSummary({

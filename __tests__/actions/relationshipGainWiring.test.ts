@@ -32,7 +32,7 @@ describe('life-skill relationship bonus', () => {
     expect(charismatic).toBeGreaterThan(plain);
   });
 
-  it('never scales a LOSS — skills do not soften a betrayal', () => {
+  it('never scales a LOSS - skills do not soften a betrayal', () => {
     expect(applyRelationshipGain(withSkills(['charisma', 'socialMaster']), -10)).toBe(-10);
     expect(applyRelationshipGain(withSkills(['charisma']), 0)).toBe(0);
   });

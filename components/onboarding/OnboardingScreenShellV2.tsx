@@ -35,7 +35,7 @@ export default function OnboardingScreenShellV2({
 
   return (
     <View style={styles.container}>
-      {/* Animated background glows — soft, slow-drifting orbs for life. */}
+      {/* Animated background glows - soft, slow-drifting orbs for life. */}
       <Animated.View
         style={[
           styles.backgroundGradient1,

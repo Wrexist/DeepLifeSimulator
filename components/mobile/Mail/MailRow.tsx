@@ -3,7 +3,7 @@
  *
  * Gmail's row is doing more work than it looks: the avatar circle gives the
  * sender an identity you recognise before reading, weight carries unread, and
- * the snippet is what lets you triage without opening. All three matter here —
+ * the snippet is what lets you triage without opening. All three matter here -
  * the whole scam mechanic depends on the player noticing that a sender they
  * know is suddenly writing from an address they do not.
  *
@@ -12,7 +12,7 @@
  * discoverable only after the decision.
  *
  * The DEADLINE is on the row for the same reason. A letter that settles itself
- * in two weeks rendered identically to a promotional email — the one row in the
+ * in two weeks rendered identically to a promotional email - the one row in the
  * app with a consequence attached was the one row with nothing to distinguish
  * it. Triage is the point of a list, and you cannot triage what you cannot see.
  */
@@ -36,7 +36,7 @@ interface Props {
    * Where this message lives, shown only when the list spans folders.
    *
    * Search does span them, and a result with no location is a message the
-   * player cannot find again — they read "Archive" here or they go hunting.
+   * player cannot find again - they read "Archive" here or they go hunting.
    */
   folderLabel?: string;
   /**
@@ -115,7 +115,7 @@ function MailRow({
         </View>
 
         {/* Chips: the deadline, and where the message lives when the list spans
-            folders. Full border on all four sides — Hard Rule #7 bans the
+            folders. Full border on all four sides - Hard Rule #7 bans the
             one-sided coloured stripe, and the colour still carries the meaning
             (amber = last week to act). */}
         {deadline || folderLabel ? (
@@ -178,7 +178,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       gap: responsiveSpacing.sm,
       minHeight: touchTargets.minimum,
       // Row separators are a structural divider, which Hard Rule #7 explicitly
-      // allows — they are not a decorative accent stripe.
+      // allows - they are not a decorative accent stripe.
       borderBottomWidth: 1,
       borderBottomColor: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
     },

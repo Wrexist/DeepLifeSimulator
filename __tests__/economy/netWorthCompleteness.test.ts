@@ -277,7 +277,7 @@ function mirroredState(spec: {
   });
 }
 
-describe('R4 — the mirror accounts are not counted twice', () => {
+describe('R4 - the mirror accounts are not counted twice', () => {
   it('a real save really does ship both mirror accounts (the premise)', () => {
     // If the mirrors were ever removed, the double-count could not happen and
     // this whole block would be testing nothing.
@@ -323,7 +323,7 @@ function cardState(money: number, creditCards: unknown[]): GameState {
   });
 }
 
-describe('R4 — credit-card debt is on the balance sheet', () => {
+describe('R4 - credit-card debt is on the balance sheet', () => {
   it('subtracts an outstanding card balance', () => {
     const state = cardState(20_000, [{ id: 'c1', name: 'Card', balance: 5_000, limit: 10_000, apr: 0.24 }]);
 
@@ -379,7 +379,7 @@ describe('v31 arrears are on the balance sheet', () => {
     expect(netWorth(behind)).toBe(behind.stats.money - 4_000);
   });
 
-  it('subtracts the FULL amount — no discount, no partial weighting', () => {
+  it('subtracts the FULL amount - no discount, no partial weighting', () => {
     const small = stateWith({ overdueBalance: 1_000 });
     const large = stateWith({ overdueBalance: 9_000 });
 
@@ -387,7 +387,7 @@ describe('v31 arrears are on the balance sheet', () => {
     expect(large.stats.money - netWorth(large)).toBe(9_000);
   });
 
-  it('allows the result to go NEGATIVE — there is no floor at zero', () => {
+  it('allows the result to go NEGATIVE - there is no floor at zero', () => {
     // Deliberate: this sum has always permitted negative net worth (debt >
     // assets), and flooring arrears at the player's assets would hide exactly
     // the situation the arrears bucket exists to represent.

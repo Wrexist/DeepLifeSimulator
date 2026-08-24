@@ -60,9 +60,9 @@ export function resolveRentHome(state: GameState, tierId: string): RentalTransit
 
   // The canonical money path (§4.4). It re-checks affordability against the
   // state it is charging and returns null rather than a floored balance, so the
-  // rejection and the debit cannot disagree — and it records the charge in
+  // rejection and the debit cannot disagree - and it records the charge in
   // `dailySummary`, which a hand-rolled `stats.money` write skips.
-  const spend = applyMoneyDelta(state, -tier.weeklyRent, `First week's rent — ${tier.name}`);
+  const spend = applyMoneyDelta(state, -tier.weeklyRent, `First week's rent - ${tier.name}`);
   if (!spend) {
     return {
       next: state,
@@ -73,7 +73,7 @@ export function resolveRentHome(state: GameState, tierId: string): RentalTransit
   return {
     next: {
       ...state,
-      // Charge and record in ONE object — the gate-then-grant split is the most
+      // Charge and record in ONE object - the gate-then-grant split is the most
       // repeated bug class in this repo (§4.4).
       ...spend,
       rental: {
@@ -82,7 +82,7 @@ export function resolveRentHome(state: GameState, tierId: string): RentalTransit
         // Moving house does not pay what you owe, so it must not reset the
         // eviction clock either. Rebuilding this record from scratch let a
         // tenant three weeks behind drop to the $45 room and buy back the full
-        // four weeks, repeatedly, while `overdueBalance` stood untouched —
+        // four weeks, repeatedly, while `overdueBalance` stood untouched -
         // `canRent` only asks for the first week's cash, and arrears are settled
         // off next week's INCOME, so holding cash and owing money is normal.
         // The counter still resets the week the balance clears, which is the

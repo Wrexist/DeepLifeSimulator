@@ -173,15 +173,15 @@ export interface VerbOutcome {
  * Race the horse.
  *
  * Win chance improves with the horse's record, so a campaigned horse becomes a
- * better horse — the reason to keep racing rather than doing it once. Balanced
+ * better horse - the reason to keep racing rather than doing it once. Balanced
  * so racing is never a money printer: only a WIN turns a profit; a PLACE returns
  * less than the entry (it softens the loss, it does not cover it); an unplaced
  * run loses the whole entry. At the 25% base win rate the expected value of a
  * race is NEGATIVE, so an unproven horse loses money on average, and even a
- * fully-campaigned one only edges positive per race — which its weekly upkeep
+ * fully-campaigned one only edges positive per race - which its weekly upkeep
  * (net of yield) more than eats over the cooldown. Before the 2026-07-28 weekly
  * audit the place purse ($30k) exceeded the entry ($25k), so 2 of 3 outcomes
- * profited and base EV was +$5k/race — a soft printer this comment denied.
+ * profited and base EV was +$5k/race - a soft printer this comment denied.
  */
 export function resolveRace(roll: number, holding: LuxuryHolding | undefined): VerbOutcome {
   const runs = num(holding?.runs);
@@ -263,7 +263,7 @@ export function resolveTrackDay(roll: number): VerbOutcome {
 /**
  * Put the diamond on display.
  *
- * No roll — a museum loan is an arrangement, not a gamble. The trade is that
+ * No roll - a museum loan is an arrangement, not a gamble. The trade is that
  * the stone is unavailable to sell while it is out, which is the cost that
  * makes the fee and the reputation worth something.
  */

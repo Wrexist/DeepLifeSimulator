@@ -1,5 +1,5 @@
 /**
- * SwipeScreen — main browse surface for Spark.
+ * SwipeScreen - main browse surface for Spark.
  *
  * Card stack of dating profiles. Player swipes left to pass, right to like,
  * up to super-like. The bottom action row mirrors the same three gestures
@@ -44,7 +44,7 @@ import { useTimerManager } from '@/hooks/useTimerManager';
 
 const LinearGradient = Gradient;
 
-/** Compose an rgba() string from a #RRGGBB hex + alpha — for Recipe C tint fills/rims. */
+/** Compose an rgba() string from a #RRGGBB hex + alpha - for Recipe C tint fills/rims. */
 function withAlpha(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
   const r = parseInt(h.slice(0, 2), 16);
@@ -71,7 +71,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   const timers = useTimerManager();
   const reduced = useReducedMotion();
 
-  // Catfish suspicion — the seed MUST match the one `swipeOnProfile` uses
+  // Catfish suspicion - the seed MUST match the one `swipeOnProfile` uses
   // (contexts/game/actions/SparkActions.ts), otherwise the warning chip would
   // contradict the swipe result. A profile the player has deliberately proceeded
   // on (recorded in `dismissedCatfishIds`) no longer shows the chip.
@@ -84,7 +84,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
     isCatfish(p, catfishSeed) && !dismissedCatfish.has(p.id);
 
   // The gender the player is seeking. Saves from before this field existed (or
-  // an explicit 'any') should NOT empty the deck — only filter when we have a
+  // an explicit 'any') should NOT empty the deck - only filter when we have a
   // concrete male/female preference to honor.
   const seeking = gameState.userProfile?.seekingGender;
   const genderFilter = seeking === 'male' || seeking === 'female' ? seeking : null;
@@ -95,7 +95,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
     const sp = gameState.sparkApp;
     const byGender = (p: DatingProfile) => genderFilter == null || p.gender === genderFilter;
     if (!sp) return DATING_PROFILES.filter(byGender);
-    // Legacy saves can have sparkApp without these arrays — guard each one.
+    // Legacy saves can have sparkApp without these arrays - guard each one.
     const swipedIds = new Set((sp.swipes ?? []).map((s: any) => s.profileId));
     const matchedIds = new Set((sp.matches ?? []).map((m: any) => m.profileId));
     const reportedIds = new Set(sp.reportedIds ?? []);
@@ -143,10 +143,10 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         }
         if (result.matched) {
           sparkHaptics.match();
-          // 1b: the swipe result carries the catfish signal — surface it so the
+          // 1b: the swipe result carries the catfish signal - surface it so the
           // player learns of the risk at the moment they match.
           if (result.catfishSuspected) {
-            showInfo('This match seems suspicious — be cautious about sending money or sharing personal details.');
+            showInfo('This match seems suspicious - be cautious about sending money or sharing personal details.');
           }
           // P1-5: open the exact match the action just created (its id is returned),
           // instead of guessing the last entry from stale closure state.
@@ -184,12 +184,12 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
             ? { x: SCREEN_WIDTH * 1.5, y: 0 }
             : { x: 0, y: -SCREEN_HEIGHT * 1.5 };
       if (reduced) {
-        // Reduced motion: no fling, no promote tween — commit instantly.
+        // Reduced motion: no fling, no promote tween - commit instantly.
         promote.setValue(1);
         finishSwipe(direction, profile);
         return;
       }
-      // Promote the behind card in parallel with the fly-off — a separate node
+      // Promote the behind card in parallel with the fly-off - a separate node
       // from pan, so it can run on the native driver. Never gates finishSwipe.
       Animated.timing(promote, {
         toValue: 1,
@@ -233,7 +233,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           } else {
             Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false, friction: 6 }).start();
             // If this gesture interrupted an in-flight fling, the behind card may
-            // be mid-promotion — retarget it back to its rest pose alongside the
+            // be mid-promotion - retarget it back to its rest pose alongside the
             // snap-back (starting a new timing supersedes any running one).
             Animated.timing(promote, {
               toValue: 0,
@@ -254,7 +254,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         sparkHaptics.error();
         return;
       }
-      // Pass/Like also cost a daily swipe — block them (not just Super-like)
+      // Pass/Like also cost a daily swipe - block them (not just Super-like)
       // when the player is out, instead of animating the card away for nothing.
       if (direction !== 'super' && remaining <= 0) {
         sparkHaptics.error();
@@ -279,7 +279,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
   }, [setGameState, gameState, saveGame, showInfo]);
 
   const handleRewind = useCallback(() => {
-    // Free tier pays 20 gems — confirm before charging (Boost gets a whole
+    // Free tier pays 20 gems - confirm before charging (Boost gets a whole
     // confirming modal; a one-tap silent gem drain here was the outlier).
     const isPremium = gameState.sparkApp?.premium?.perks?.rewindLastSwipe ?? false;
     if (isPremium) {
@@ -311,7 +311,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
 
   return (
     <View style={styles.root}>
-      {/* Card stack — next card sits behind, top card receives gestures */}
+      {/* Card stack - next card sits behind, top card receives gestures */}
       <View style={styles.deck}>
         {next ? (
           <Animated.View
@@ -426,7 +426,7 @@ function ActionBtn({
   gradient?: boolean;
   darkMode?: boolean;
 }) {
-  // Primary (Like) keeps the solid rose gradient — the one loud action.
+  // Primary (Like) keeps the solid rose gradient - the one loud action.
   // Everything else is a Recipe C tinted glass bubble in its own action hue.
   const disabledFill = darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)';
   const disabledRim = darkMode ? 'rgba(255,255,255,0.14)' : 'rgba(15,23,42,0.12)';

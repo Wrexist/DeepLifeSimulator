@@ -39,7 +39,7 @@ describe('goalsAchievedBetween', () => {
     expect(ids(before as never, after as never)).not.toContain('now_bank_savings');
   });
 
-  it('stays silent on regression — losing ground never congratulates', () => {
+  it('stays silent on regression - losing ground never congratulates', () => {
     const rich = createTestGameState({ currentJob: 'tech', stats: { money: 60_000 } });
     const poor = createTestGameState({ currentJob: undefined, stats: { money: 10 } });
     expect(goalsAchievedBetween(rich, poor)).toEqual([]);

@@ -66,7 +66,7 @@ function stubCtx(stats: GameStats): WeekContext {
   };
 }
 
-describe('tickPetsForWeek — routed through the real decay engine', () => {
+describe('tickPetsForWeek - routed through the real decay engine', () => {
   it('returns [] for empty / undefined / null input', () => {
     expect(tickPetsForWeek([], noSick)).toEqual([]);
     expect(tickPetsForWeek(undefined, noSick)).toEqual([]);
@@ -137,7 +137,7 @@ describe('tickPetsForWeek — routed through the real decay engine', () => {
   });
 });
 
-describe('applyPetLivingSideEffects — capped bonding + food cost', () => {
+describe('applyPetLivingSideEffects - capped bonding + food cost', () => {
   it('applies bondingSummary happiness + health deltas for a well-cared roster', () => {
     const pets = [
       pet({ id: 'p1', happiness: 90, health: 90 }),
@@ -179,7 +179,7 @@ describe('applyPetLivingSideEffects — capped bonding + food cost', () => {
     const pets = [pet({ id: 'p1', happiness: 10, health: 10 })]; // neglected → negative happiness
     const ctx = stubCtx(stubStats({ happiness: 60, health: 40, money: 1000 }));
     applyPetLivingSideEffects(pets, ctx);
-    expect(ctx.newStats.health).toBe(40); // unchanged — no negative health from pets
+    expect(ctx.newStats.health).toBe(40); // unchanged - no negative health from pets
   });
 
   it('dead pets contribute no bonus and no food cost', () => {
@@ -192,7 +192,7 @@ describe('applyPetLivingSideEffects — capped bonding + food cost', () => {
   });
 });
 
-describe('applyPetDeathSideEffects — unchanged mourning behavior', () => {
+describe('applyPetDeathSideEffects - unchanged mourning behavior', () => {
   it('mourns a newly-dead pet with -20 happiness + a notification', () => {
     const prev = [pet({ id: 'p1', health: 0, weeksAtZeroHealth: 2 })];
     const updated = [{ ...prev[0], isDead: true }];

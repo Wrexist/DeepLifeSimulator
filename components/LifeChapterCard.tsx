@@ -1,13 +1,13 @@
 /**
- * LifeChapterCard — the front door for the Life Chapters spine.
+ * LifeChapterCard - the front door for the Life Chapters spine.
  *
- * The chapter system (lib/progress/lifeChapters.ts) was fully built — chapters,
- * goals, progress, rewards — but had NO UI and never granted anything. This
+ * The chapter system (lib/progress/lifeChapters.ts) was fully built - chapters,
+ * goals, progress, rewards - but had NO UI and never granted anything. This
  * card shows the active chapter's goals with live progress.
  *
  * It is now READ-ONLY. Chapter completion drives progressive disclosure
  * (`lib/progress/featureUnlocks.ts` reads `completedChapters`), so it cannot
- * depend on the player finding this card and tapping a button — the week tick
+ * depend on the player finding this card and tapping a button - the week tick
  * owns it, in `actions/weekly/applyChapterProgress.ts`, and grants the reward
  * with a notification naming what was unlocked.
  */
@@ -87,17 +87,17 @@ function LifeChapterCard() {
 
       {/**
         * Progressive disclosure: the WEEK TICK now completes chapters and
-        * grants the reward (`applyChapterProgress`). It has to — chapter
+        * grants the reward (`applyChapterProgress`). It has to - chapter
         * completions drive what the player can see, and gating that on finding
         * this card and tapping a button meant the unlock spine depended on a
         * screen they might never open.
         *
-        * So this is a status line, not a button — and it has to LOOK like one.
+        * So this is a status line, not a button - and it has to LOOK like one.
         * It used to render as a solid amber full-width bar with bold dark text,
         * i.e. pixel-for-pixel the app's primary CTA, on a `View` with no
         * `onPress`. Players tapped it and nothing happened; a dead tap reads as
         * a bug, and it was reported as exactly that ("can't claim reward",
-        * 2026-08-14). Adding the handler back is not the fix — that is the
+        * 2026-08-14). Adding the handler back is not the fix - that is the
         * second granting path the tick was built to remove. Looking like what
         * it is, is: a tinted status banner that says when the reward lands.
         */}
@@ -105,7 +105,7 @@ function LifeChapterCard() {
         <View style={styles.completeBanner}>
           <Gift size={scale(15)} color="#FBBF24" />
           <Text style={styles.completeText}>
-            All goals complete — +${reward.money.toLocaleString()} and +{reward.gems} gems
+            All goals complete - +${reward.money.toLocaleString()} and +{reward.gems} gems
             arrive when you end the week.
           </Text>
         </View>

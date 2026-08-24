@@ -65,7 +65,7 @@ describe('reading the submission id back out of the eas submit transcript', () =
 describe('stripAnsi', () => {
   it('leaves text after a literal ] alone', () => {
     // An ANSI regex whose OSC arm is not anchored on the ESC byte eats
-    // everything after the first `]` in the log — which in this repo is the
+    // everything after the first `]` in the log - which in this repo is the
     // line the submission id is on.
     expect(S.stripAnsi(`[eas] done: ${URL}`)).toBe(`[eas] done: ${URL}`);
   });
@@ -260,7 +260,7 @@ describe('what FINISHED is allowed to claim', () => {
   it('says the upload was accepted, not the review', () => {
     // EAS finishes when the store accepts the UPLOAD. Apple validates
     // afterwards, which is where ITMS-91064 and friends surface as Invalid
-    // Binary (CLAUDE.md section 9) — reading green as "shipped" is how a build
+    // Binary (CLAUDE.md section 9) - reading green as "shipped" is how a build
     // sits in Invalid Binary for a day.
     const text = S.formatSuccess({ elapsedMs: 12 * 60_000, url: URL, platform: 'ios' });
     expect(text).toContain('12m00s');
@@ -296,7 +296,7 @@ describe('the unreadable-status grace', () => {
     // A single `eas submit:view` is killed at READ_DEADLINE_MS and counted as
     // an unreadable poll. If one stalled read could consume the whole grace,
     // one hung process would fail a release; the grace is meant to absorb
-    // several. Without the deadline the loop would not turn at all — no
+    // several. Without the deadline the loop would not turn at all - no
     // heartbeat, and the watch timeout never even evaluated.
     expect(S.READ_DEADLINE_MS).toBeLessThan(S.READ_FAILURE_GRACE_MS / 2);
     // And long enough that a merely slow API call is not mistaken for a hang.

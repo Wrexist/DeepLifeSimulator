@@ -65,7 +65,7 @@ describe('installPropertyDecor', () => {
     expect(get().stats.money).toBe(10_000 - bed.cost);
   });
 
-  it('is double-tap safe — two same-batch taps install + debit once', () => {
+  it('is double-tap safe - two same-batch taps install + debit once', () => {
     const snap = stateWith(10_000, [ownedProp()]);
     const { setState, get } = makeBatchedSetState(snap);
     installPropertyDecor(snap, setState, 'p1', bed.id);
@@ -155,7 +155,7 @@ describe('upgradePropertyTier', () => {
     expect(get().stats.money).toBe(100_000);
   });
 
-  it('is double-tap safe — two same-batch taps advance one tier', () => {
+  it('is double-tap safe - two same-batch taps advance one tier', () => {
     const snap = stateWith(100_000, [ownedProp({ upgradeLevel: 0 })]);
     const { setState, get } = makeBatchedSetState(snap);
     upgradePropertyTier(snap, setState, 'p1');

@@ -49,12 +49,12 @@ describe('makeWeeklyRoll', () => {
 /**
  * The 2026-08-16 audit (H7c) collapsed five hand-copied FNV-1a loops and two
  * mulberry32 copies into the two primitives in `utils/seededRoll.ts`. Every one
- * of those copies feeds a roll that is baked into a save — stock prices, the job
- * board, Pulse scandals, the deterministic RNG commit log — so "the loops looked
+ * of those copies feeds a roll that is baked into a save - stock prices, the job
+ * board, Pulse scandals, the deterministic RNG commit log - so "the loops looked
  * the same" is not good enough. These tests re-implement each replaced copy
  * VERBATIM and assert bit-equality, which is the actual claim being made.
  */
-describe('shared RNG primitives — bit-identical to the copies they replaced', () => {
+describe('shared RNG primitives - bit-identical to the copies they replaced', () => {
   // Verbatim copy of the loop that lived in lib/social/pulseTick.ts,
   // lib/careers/jobMarket.ts and lib/randomness/deterministicRng.ts.
   const legacyFnv = (input: string): number => {
@@ -116,7 +116,7 @@ describe('shared RNG primitives — bit-identical to the copies they replaced', 
   });
 
   it('fnv1a32 seedBasis reproduces the week-folded seed exactly', () => {
-    // How makeWeeklyRoll folds the week in — pinned so a future signature
+    // How makeWeeklyRoll folds the week in - pinned so a future signature
     // change cannot quietly re-seed every weekly subsystem.
     const w = 137;
     expect(fnv1a32('darkweb.policeEvent', (w | 0) ^ 0x811c9dc5)).toBe(
@@ -150,8 +150,8 @@ describe('shared RNG primitives — bit-identical to the copies they replaced', 
   });
   it('the TravelActions copy WAS this function (H7b follow-up dedupe)', () => {
     // contexts/game/actions/TravelActions.ts carried the sixth hand-copy inside
-    // `makeTripRoller`. It omitted the intra-loop `>>> 0` — a no-op, because `^`
-    // and `Math.imul` read only the low 32 bits — and ended on `h >>> 0` like
+    // `makeTripRoller`. It omitted the intra-loop `>>> 0` - a no-op, because `^`
+    // and `Math.imul` read only the low 32 bits - and ended on `h >>> 0` like
     // this one, so it is bit-identical and was folded onto the shared export.
     // The mirror image of the grandchildren case above: this asserts they NEVER
     // disagree, over ASCII, punctuation, accented and astral inputs.

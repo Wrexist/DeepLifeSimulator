@@ -257,7 +257,7 @@ describe('processPulseWeeklyTick', () => {
   });
 });
 
-describe('processPulseWeeklyTick — Wave A additions', () => {
+describe('processPulseWeeklyTick - Wave A additions', () => {
   // ── Scandal risk accrual ──────────────────────────────────────────────
   it('accrues scandal risk for popular+ accounts and keeps novices at zero', () => {
     const novice = freshState({ weeksLived: 5 });
@@ -425,7 +425,7 @@ describe('processPulseWeeklyTick — Wave A additions', () => {
     state.socialMedia!.commentThreads = {};
     const r1 = processPulseWeeklyTick(state, 6);
     const count1 = (r1.socialMedia.commentThreads?.['p1'] ?? []).filter(c => c.isFromHater).length;
-    // Feed the result back and re-run the SAME week — must not add more haters.
+    // Feed the result back and re-run the SAME week - must not add more haters.
     const state2 = freshState({ weeksLived: 5 });
     state2.socialMedia = JSON.parse(JSON.stringify(r1.socialMedia));
     const r2 = processPulseWeeklyTick(state2, 6);

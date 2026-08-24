@@ -5,7 +5,49 @@
  */
 
 import type { PendingChainedEvent, ChainedEvent } from '@/contexts/game/types';
+import type { EventChoice } from './engine';
 import { makeWeeklyRoll } from '@/utils/seededRoll';
+
+/**
+ * Default gap before a declarative sequel (`EventChoice.followUpEventId`)
+ * arrives. Long enough to feel like the world moved, short enough that the
+ * player still remembers the choice that caused it.
+ */
+export const DEFAULT_FOLLOW_UP_DELAY_WEEKS = 3;
+
+/**
+ * The consumer half of `EventChoice.followUpEventId` — the one-line sequel API.
+ *
+ * Unlike `checkForChainedEvent` below (the hand-maintained trigger/condition
+ * registry), this reads the sequel straight off the CHOICE the player picked:
+ * no registry entry, no 70% roll — a declared sequel always arrives, because a
+ * template that wants uncertainty can express it in the sequel's own generate.
+ * Returns null when the choice declares nothing, which is every choice written
+ * before 2026-08-24.
+ */
+export function followUpFromChoice(
+  sourceEventId: string,
+  choice: Pick<EventChoice, 'followUpEventId' | 'followUpDelayWeeks'> | undefined | null,
+  currentWeek: number,
+  /** The source event's bound relationship, carried so the sequel's
+   *  relationship effects hit the same person. */
+  relationId?: string
+): PendingChainedEvent | null {
+  const targetId = choice?.followUpEventId;
+  if (typeof targetId !== 'string' || targetId.length === 0) return null;
+  const delay =
+    typeof choice?.followUpDelayWeeks === 'number' &&
+    Number.isFinite(choice.followUpDelayWeeks) &&
+    choice.followUpDelayWeeks > 0
+      ? Math.floor(choice.followUpDelayWeeks)
+      : DEFAULT_FOLLOW_UP_DELAY_WEEKS;
+  return {
+    eventId: targetId,
+    triggerWeek: (currentWeek || 0) + delay,
+    sourceEventId,
+    ...(typeof relationId === 'string' && relationId ? { relationId } : {}),
+  };
+}
 
 /**
  * Registry of chained events

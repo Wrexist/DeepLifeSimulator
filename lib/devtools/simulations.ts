@@ -136,7 +136,7 @@ class Checks {
   readonly details: string[] = [];
   private failures = 0;
   ok(cond: boolean, label: string): boolean {
-    this.details.push(`${cond ? 'PASS' : 'FAIL'} — ${label}`);
+    this.details.push(`${cond ? 'PASS' : 'FAIL'} - ${label}`);
     if (!cond) this.failures += 1;
     return cond;
   }
@@ -184,7 +184,7 @@ function defineSim(
           name,
           pass: false,
           message: `Threw: ${errMsg(e)}`,
-          details: [...c.details, `THREW — ${errMsg(e)}`],
+          details: [...c.details, `THREW - ${errMsg(e)}`],
         };
       }
     },
@@ -354,7 +354,7 @@ const sim52WeekTick = defineSim(
     c.ok(inRange(end.stats.happiness, 0, 100), `happiness in [0,100] (${end.stats.happiness.toFixed(1)})`);
     c.ok(inRange(end.stats.energy, 0, 100), `energy in [0,100] (${end.stats.energy.toFixed(1)})`);
     c.ok(inRange(end.stats.fitness, 0, 100), `fitness in [0,100] (${end.stats.fitness.toFixed(1)})`);
-    return 'Survived 52 weeks — time, money and stats all stayed valid.';
+    return 'Survived 52 weeks - time, money and stats all stayed valid.';
   },
 );
 
@@ -422,7 +422,7 @@ const simBuyEveryLuxury = defineSim(
     // luxury_life predicate (real constants): ≥3 trophies AND value ≥ threshold.
     const luxuryLife = getOwnedLuxuryCount(owned) >= LUXURY_LIFE_MIN_ITEMS && getTotalLuxuryValue(owned) >= LUXURY_LIFE_VALUE_THRESHOLD;
     c.ok(luxuryLife, `luxury_life predicate true (count ${getOwnedLuxuryCount(owned)}≥${LUXURY_LIFE_MIN_ITEMS}, value $${getTotalLuxuryValue(owned).toLocaleString()}≥$${LUXURY_LIFE_VALUE_THRESHOLD.toLocaleString()})`);
-    return 'Bought the entire trophy catalog — ownership, spend, net worth and luxury_life all check out.';
+    return 'Bought the entire trophy catalog - ownership, spend, net worth and luxury_life all check out.';
   },
 );
 
@@ -477,7 +477,7 @@ const simCareerToTop = defineSim(
     // At the top, the real gate now reports max-level.
     const atTop = promoteCareer(h.getState(), h.setGameState, careerId);
     c.ok(!atTop.success, `further promotion blocked at max ("${atTop.message.slice(0, 40)}…")`);
-    return 'Climbed from hire to the top rung — gating enforced, salary rose each level.';
+    return 'Climbed from hire to the top rung - gating enforced, salary rose each level.';
   },
 );
 
@@ -542,7 +542,7 @@ const simHobbyToMaster = defineSim(
       isFiniteNum(tierUpGain) && isFiniteNum(normalGain) && tierUpGain > normalGain,
       `tier-up spike exceeds a normal practice (${Math.round(tierUpGain)} > ${Math.round(normalGain)})`,
     );
-    return `Mastered ${pursuit.name} in ${practices} practices — top tier "${tierForLevel(finalLevel).name}" reached.`;
+    return `Mastered ${pursuit.name} in ${practices} practices - top tier "${tierForLevel(finalLevel).name}" reached.`;
   },
 );
 
@@ -554,7 +554,7 @@ const simRetireToPension = defineSim(
   (s, c) => {
     const peakSalary = 2000; // weekly $
     s.date = { ...s.date, age: 66 };
-    // A 66-year-old has a long life behind them — keep weeksLived realistic so
+    // A 66-year-old has a long life behind them - keep weeksLived realistic so
     // the tick's beginner-luck window (weeks < 20) does not spike the paycheck.
     s.weeksLived = Math.round((66 - 18) * WEEKS_PER_YEAR);
     s.isRetired = false;
@@ -628,7 +628,7 @@ const simParentingToHeir = defineSim(
     c.ok(applied > 0, `parenting action applied (${applied}×)`);
     c.ok(anyStatRose, 'at least one nurture/heir stat rose');
     c.ok((cur.parenting?.totalActions ?? 0) >= applied, `parenting bookkeeping advanced (${cur.parenting?.totalActions ?? 0} total)`);
-    return `Nurtured the heir ${applied}× — child-development stats improved and stayed capped.`;
+    return `Nurtured the heir ${applied}× - child-development stats improved and stayed capped.`;
   },
 );
 
@@ -636,7 +636,7 @@ const simParentingToHeir = defineSim(
 const simFulfillAmbition = defineSim(
   'ambition_fulfill',
   'Fulfill Ambition',
-  'Assigns an ambition, satisfies every milestone (real predicates), claims once — idempotent on a 2nd claim.',
+  'Assigns an ambition, satisfies every milestone (real predicates), claims once - idempotent on a 2nd claim.',
   (s, c) => {
     // business_empire: milestones = own ≥1 & ≥3 companies, net worth ≥$5M & ≥$25M.
     const ambition = LIFE_AMBITIONS.find((a) => a.id === 'business_empire') ?? LIFE_AMBITIONS[0];
@@ -664,7 +664,7 @@ const simFulfillAmbition = defineSim(
     const grantedTwice = grantAmbitionPayout(granted);
     c.ok(grantedTwice.stats.money === granted.stats.money, 'second claim does not re-grant money');
     c.ok((grantedTwice.stats.gems ?? 0) === (granted.stats.gems ?? 0), 'second claim does not re-grant gems');
-    return `Completed "${ambition.name}" — payoff granted once and idempotent on re-claim.`;
+    return `Completed "${ambition.name}" - payoff granted once and idempotent on re-claim.`;
   },
 );
 
@@ -762,7 +762,7 @@ const simMoneyIntegrity = defineSim(
     // Overdraft attempt: spending more than on hand must be rejected (not negative).
     const beforeOverdraft = h.getState().stats.money;
     updateMoney(h.setGameState, -(beforeOverdraft + 5_000_000), 'devtools: overdraft attempt');
-    c.ok(h.getState().stats.money === beforeOverdraft, 'overdraft rejected — balance unchanged');
+    c.ok(h.getState().stats.money === beforeOverdraft, 'overdraft rejected - balance unchanged');
     check('overdraft-reject');
 
     // Transfer between two real accounts conserves the account total.
@@ -779,7 +779,7 @@ const simMoneyIntegrity = defineSim(
       c.ok(approx(fromBefore + toBefore, fromAfter + toAfter, 0.001), 'transfer conserved the two account balances');
       h.setGameState((prev) => ({ ...prev, banking: tr.banking }));
     } else {
-      c.note('no default accounts present — transfer leg skipped');
+      c.note('no default accounts present - transfer leg skipped');
     }
 
     // Bill-pay + mirror sync: run the REAL banking weekly tick and assert the
@@ -798,7 +798,7 @@ const simMoneyIntegrity = defineSim(
       c.ok(!!checking, 'checking-default account exists');
       c.ok(!!checking && approx(checking.balance, st.stats.money, 0.001), `checking mirror equals stats.money ($${Math.round(checking?.balance ?? -1).toLocaleString()})`);
     } else {
-      c.note('no banking slice present — mirror-sync leg skipped');
+      c.note('no banking slice present - mirror-sync leg skipped');
     }
 
     // Conservation: a no-op tick for an established life with NO income sources
@@ -816,7 +816,7 @@ const simMoneyIntegrity = defineSim(
     const afterNoop = advanceOneWeekHeadless(noop);
     c.ok(afterNoop.stats.money === moneyPreNoop, `no money minted on a no-op tick ($${Math.round(afterNoop.stats.money).toLocaleString()})`);
     c.ok(isFiniteNum(afterNoop.stats.money) && afterNoop.stats.money >= 0, 'money finite & non-negative after tick');
-    return 'Money survived earn/buy/sell/overdraft/transfer/bill-pay/tick — no desync, no negative, no minting.';
+    return 'Money survived earn/buy/sell/overdraft/transfer/bill-pay/tick - no desync, no negative, no minting.';
   },
 );
 
@@ -846,10 +846,10 @@ const simSkillEffects = defineSim(
     const afterCha = getLifeSkillModifiers(buyCha.state);
     c.ok(afterCha.relationshipGainMult > baseline.relationshipGainMult, `relationshipGainMult increased (${baseline.relationshipGainMult} → ${afterCha.relationshipGainMult})`);
 
-    // Re-purchase is a no-op (already unlocked) — no double charge.
+    // Re-purchase is a no-op (already unlocked) - no double charge.
     const dup = purchaseLifeSkill(buyCha.state, { id: 'negotiation', cost: 5000, levelRequired: 0 });
     c.ok(!dup.purchased && dup.reason === 'already-unlocked', 'already-unlocked skill is not re-charged');
-    return 'Unlocked negotiation + charisma — salary and relationship modifiers changed as designed.';
+    return 'Unlocked negotiation + charisma - salary and relationship modifiers changed as designed.';
   },
 );
 

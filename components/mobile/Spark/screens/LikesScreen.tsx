@@ -1,5 +1,5 @@
 /**
- * LikesScreen — the "who liked you" inbox that finally delivers the Ultra
+ * LikesScreen - the "who liked you" inbox that finally delivers the Ultra
  * "See who liked you" perk.
  *
  * - Ultra (premium.perks.seeWhoLikedYou): full reveal of each profile that
@@ -104,7 +104,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
               {likedYou.length} {likedYou.length === 1 ? 'person likes' : 'people like'} you
             </Text>
             <Text style={[styles.lockedSub, { color: theme.textSecondary }]}>
-              Upgrade to Spark Ultra to see exactly who liked you — and match instantly.
+              Upgrade to Spark Ultra to see exactly who liked you - and match instantly.
             </Text>
 
             {/* Blurred avatar rail teaser. */}
@@ -114,7 +114,7 @@ export default function LikesScreen({ onOpenChat, onOpenPremium }: LikesScreenPr
                 if (!profile) return null;
                 return (
                   <View key={entry.profileId} style={[styles.blurAvatarRing, { borderColor: theme.glassBorder }]}>
-                    {/* The face is deliberately obscured — this rail teases who
+                    {/* The face is deliberately obscured - this rail teases who
                         liked you behind the paywall. `blurRadius` is an Image-only
                         prop and does nothing to an SVG, so the identity is hidden
                         by the scrim over it rather than by a blur. */}
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     // Raised from 0.18: this used to sit over an already-blurred Image and only
     // needed to tint it. It is now the ONLY thing hiding the face, so it has to
-    // actually obscure — at 0.18 the paywalled identity was legible.
+    // actually obscure - at 0.18 the paywalled identity was legible.
     backgroundColor: 'rgba(136,32,66,0.82)',
   },
   upsellCta: {

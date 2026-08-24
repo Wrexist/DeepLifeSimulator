@@ -79,13 +79,13 @@ export const createCompany = (
     const shortfall = cost - currentMoney;
     return {
       success: false,
-      message: `Need ${formatMoney(cost)} to start this company — you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
+      message: `Need ${formatMoney(cost)} to start this company - you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
     };
   }
 
   // Prestige gate: a SECOND company of a type is conglomerate play, and is the
   // first concrete answer this game has ever had to "why prestige again?".
-  // Only bites on subsidiaries — the first of each type is untouched, so
+  // Only bites on subsidiaries - the first of each type is untouched, so
   // nothing an existing player can already do is taken away.
   if (ownedOfType > 0 && !isPrestigeFeatureUnlocked(gameState, 'feature:conglomerate')) {
     return {
@@ -156,7 +156,7 @@ export const createCompany = (
     const prevMoney = prev.stats?.money ?? 0;
     if (prevMoney < cost) return prev; // Re-check affordability against fresh state
     // Re-check ownership against FRESH state so a double-tap can't found (and
-    // charge) twice — and so we never double-increment totalCompaniesFounded.
+    // charge) twice - and so we never double-increment totalCompaniesFounded.
     if ((prev.companies || []).some(c => c && c.id === newCompany.id)) return prev;
     // And re-check the PER-TYPE CAP against `prev`, not the stale outer read.
     // `ownedOfType`, the id and the escalating price were all computed outside
@@ -168,7 +168,7 @@ export const createCompany = (
 
     // Seed a Hustle overlay for the new company + increment the "Founded"
     // milestone. Without this the weekly tick skips overlay-less companies
-    // (`if (!prevOverlay) continue`) — a fresh company would get no brand
+    // (`if (!prevOverlay) continue`) - a fresh company would get no brand
     // drift, market-share evolution, scandals or acquisition offers until the
     // player happened to open a Hustle modal (lazy ensureOverlay). The
     // milestone tile also stayed pinned at 0. Additive + defensive.
@@ -254,7 +254,7 @@ export const buyCompanyUpgrade = (
     return { success: false, message: 'Upgrade is already at maximum level.' };
   }
 
-  // Calculate cost based on current level (optimistic — recalculated inside updater)
+  // Calculate cost based on current level (optimistic - recalculated inside updater)
   const costMultiplier = COMPANY_UPGRADE_COST_MULTIPLIER;
   const nextLevelCostOuter = currentLevelOuter === 0
     ? upgradeDefinition.cost
@@ -276,7 +276,7 @@ export const buyCompanyUpgrade = (
   const currentMoney = typeof gameState.stats.money === 'number' && isFinite(gameState.stats.money) && gameState.stats.money >= 0 ? gameState.stats.money : 0;
 
   if (currentMoney < costOuter) {
-    return { success: false, message: `Need ${formatMoney(costOuter)} for this upgrade — you have ${formatMoney(gameState.stats.money)} (${formatMoney(costOuter - gameState.stats.money)} short).` };
+    return { success: false, message: `Need ${formatMoney(costOuter)} for this upgrade - you have ${formatMoney(gameState.stats.money)} (${formatMoney(costOuter - gameState.stats.money)} short).` };
   }
 
   const preview = resolveBuyCompanyUpgrade(gameState, targetId, upgradeId, upgradeDefinition);
@@ -290,7 +290,7 @@ export const buyCompanyUpgrade = (
  * PURE: what does buying `upgradeId` for `targetId` do to `state`?
  *
  * `next: null` means refuse. Called once against the caller's snapshot for the
- * outcome and once against `prev` for the state — every level, cost and bonus
+ * outcome and once against `prev` for the state - every level, cost and bonus
  * read stays a read of the state it is given, which is what the original
  * "STALE CLOSURE FIX" comments were protecting.
  *
@@ -298,7 +298,7 @@ export const buyCompanyUpgrade = (
  *
  * This is C-8, the function the whole read-out-of-updater ratchet was named
  * after. It was first fixed by writing the outcome into a `let result` from
- * inside the updater — "so an updater that React discards, or never runs,
+ * inside the updater - "so an updater that React discards, or never runs,
  * reports a rejection rather than a phantom purchase". That trades one wrong
  * answer for another: React runs only the FIRST functional update of a batch
  * eagerly, so a deferred dispatch reported "Could not purchase the upgrade."
@@ -315,7 +315,7 @@ function resolveBuyCompanyUpgrade(
     const companies = [...(state.companies || [])];
     const freshIndex = companies.findIndex(c => c.id === targetId);
     if (freshIndex === -1) {
-      // Company disappeared — bail out safely
+      // Company disappeared - bail out safely
       return { result: { success: false, message: 'Company not found.' }, next: null };
     }
     const companyToUpdate = companies[freshIndex];
@@ -350,7 +350,7 @@ function resolveBuyCompanyUpgrade(
       return {
         result: {
           success: false,
-          message: `Need ${formatMoney(cost)} for this upgrade — you have ${formatMoney(prevMoney)} (${formatMoney(cost - prevMoney)} short).`,
+          message: `Need ${formatMoney(cost)} for this upgrade - you have ${formatMoney(prevMoney)} (${formatMoney(cost - prevMoney)} short).`,
         },
         next: null,
       };

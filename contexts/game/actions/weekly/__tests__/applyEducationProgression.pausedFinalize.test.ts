@@ -48,7 +48,7 @@ function ed(over: Partial<Education> = {}): Education {
   };
 }
 
-describe('applyEducationProgression — paused 0-week program finalizes', () => {
+describe('applyEducationProgression - paused 0-week program finalizes', () => {
   describe('needsEducationProgressionTick predicate', () => {
     it('qualifies a PAUSED program already at weeksRemaining <= 0', () => {
       expect(needsEducationProgressionTick(ed({ paused: true, weeksRemaining: 0 }))).toBe(true);

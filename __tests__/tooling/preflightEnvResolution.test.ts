@@ -120,7 +120,7 @@ describe('merge precedence', () => {
     expect(r.env.EXPO_PUBLIC_ENABLE_FIREBASE).toBe('true');
   });
 
-  it('an explicit export wins — it stands in for the EAS server store, which EAS ranks above eas.json', () => {
+  it('an explicit export wins - it stands in for the EAS server store, which EAS ranks above eas.json', () => {
     const r = resolveEffectiveEnv({
       cwd: dir, profile: 'production', processEnv: { EXPO_PUBLIC_ENABLE_ADMOB: 'false' },
     });
@@ -178,7 +178,7 @@ describe('"not verifiable locally" is narrower than "not set"', () => {
   });
 });
 
-describe("the repo's own eas.json — the config the gate was failing on", () => {
+describe("the repo's own eas.json - the config the gate was failing on", () => {
   const r = resolveEffectiveEnv({ cwd: REPO_ROOT, profile: 'production', processEnv: {} });
 
   it('production profile is readable', () => {
@@ -222,7 +222,7 @@ describe('preflight-check.js routes its config sections through the merged env',
     expect(offenders).toEqual([]);
   });
 
-  it('still fails hard on Google TEST ad unit ids — present-but-wrong is not softened', () => {
+  it('still fails hard on Google TEST ad unit ids - present-but-wrong is not softened', () => {
     expect(SRC).toMatch(/ca-app-pub-3940256099942544/);
     const section = SRC.slice(SRC.indexOf('testUnits.length > 0'));
     expect(section).toMatch(/hasErrors = true/);

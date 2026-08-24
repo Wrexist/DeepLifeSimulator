@@ -55,7 +55,7 @@ import type {
  * and it would do it silently.
  */
 function requireSlice<T>(slice: T | undefined, name: string): T {
-  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice - fixture cannot be built`);
   return slice;
 }
 
@@ -149,7 +149,7 @@ function richState(): GameState {
     banking: {
       ...BASE_BANKING,
       accounts: [
-        // The two mirrors — these must NOT produce rows; they duplicate the
+        // The two mirrors - these must NOT produce rows; they duplicate the
         // cash and savings above.
         account({ id: 'checking-default', type: 'checking', name: 'Checking', balance: 12_500 }),
         account({ id: 'savings-default', type: 'savings', name: 'Savings', balance: 40_000, baseAPR: 0.01 }),
@@ -179,7 +179,7 @@ describe('every value in the headline is visible in a row', () => {
   it('the fixture actually holds something in every group (guards everything below)', () => {
     // Without this, a fixture that silently stopped populating (a renamed field,
     // a changed shape) would leave `rows` short and the sum assertions would
-    // pass on almost nothing — the vacuous-pass failure mode these tests exist
+    // pass on almost nothing - the vacuous-pass failure mode these tests exist
     // to prevent.
     expect(rows.map((r) => r.group).sort()).toEqual([...NET_WORTH_GROUPS].sort());
   });
@@ -219,7 +219,7 @@ describe('the mirror accounts are not counted twice', () => {
     expect(crypto?.items.map((i) => i.name)).toEqual(['Bitcoin', 'Bitcoin (laundered)']);
   });
 
-  it('dirty BTC is not itemised — it is not counted anywhere', () => {
+  it('dirty BTC is not itemised - it is not counted anywhere', () => {
     const { rows } = buildNetWorthItemisation(richState());
     const names = rows.flatMap((r) => r.items.map((i) => i.name));
     expect(names.filter((n) => /dirty/i.test(n))).toEqual([]);
@@ -242,7 +242,7 @@ describe('the mirror accounts are not counted twice', () => {
     };
     const { rows, breakdown } = buildNetWorthItemisation(bare);
     expect(rows.some((r) => r.group === 'accounts')).toBe(false);
-    // Cash and savings survive — they never came from the accounts list.
+    // Cash and savings survive - they never came from the accounts list.
     expect(rows.some((r) => r.group === 'cash')).toBe(true);
     expect(rows.some((r) => r.group === 'savings')).toBe(true);
     // And the total drops by roughly the removed balance, not by more.
@@ -267,10 +267,10 @@ describe('the itemised headline equals the canonical net worth', () => {
   // ways: the modal shaved a 1% liquidation fee off every asset, omitted savings
   // goals, and ignored credit-card debt. All three are now closed.
   //
-  // `liquidState` holds one of every class the canonical figure counts — but no
+  // `liquidState` holds one of every class the canonical figure counts - but no
   // company miners and no generic `items`, which the modal itemises and the
   // canonical figure does NOT (a known scope gap, asserted separately below).
-  // `extra` merges through `createTestGameState` (Hard Rule #3 — never hand-build
+  // `extra` merges through `createTestGameState` (Hard Rule #3 - never hand-build
   // or cast a GameState), so a caller can add e.g. companies/items on top of the
   // liquid baseline without spreading a raw state object.
   function liquidState(extra: Parameters<typeof createTestGameState>[0] = {}): GameState {
@@ -307,7 +307,7 @@ describe('the itemised headline equals the canonical net worth', () => {
     const state = liquidState();
     const { breakdown, rows } = buildNetWorthItemisation(state);
     expect(breakdown.netWorth).toBe(canonicalNetWorth(state));
-    // The savings goal is a visible, named row — not a silent addition to the total.
+    // The savings goal is a visible, named row - not a silent addition to the total.
     const savings = rows.find((r) => r.group === 'savings');
     expect(savings?.items.some((i) => /Emergency Fund/.test(i.name))).toBe(true);
   });
@@ -317,7 +317,7 @@ describe('the itemised headline equals the canonical net worth', () => {
     // `netWorth()` counts neither. This locks that as the sole residual so a NEW
     // divergence (a re-introduced fee, a dropped term) cannot hide behind it.
     // If net worth should include hardware/inventory, that is a canonical change
-    // for the owner to make — not something the modal decides on its own.
+    // for the owner to make - not something the modal decides on its own.
     const withHardware = liquidState({
       companies: [ACME], // 2 basic miners @ 2,500 = 5,000, income already in canonical
       items: [LAPTOP], // 1,200, no resale path in the canonical figure
@@ -352,7 +352,7 @@ describe('an empty life produces an empty list, not a broken one', () => {
     const { rows, breakdown } = buildNetWorthItemisation(broke);
     // Assert the TITLE. The loop below alone proved nothing: an empty `rows`
     // never enters it, and a non-empty `rows` passes as long as the values are
-    // positive — so the test claimed "no rows" while checking neither case.
+    // positive - so the test claimed "no rows" while checking neither case.
     // Verified empty against the real `createTestGameState`, which seeds no
     // owned items or vehicles.
     expect(rows).toEqual([]);

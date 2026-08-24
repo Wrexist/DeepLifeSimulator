@@ -25,7 +25,7 @@ const AREA_CONFIG: Record<CommitmentArea, { label: string; icon: typeof Briefcas
     description: 'Focus on work and career advancement',
   },
   // Internal key stays 'hobbies' (avoids a save migration), but hobbies were
-  // removed — this axis is now "Skills": committing here boosts studying /
+  // removed - this axis is now "Skills": committing here boosts studying /
   // education / self-improvement (see getSystemFromAction routing).
   hobbies: {
     label: 'Skills',
@@ -50,7 +50,7 @@ const AREA_CONFIG: Record<CommitmentArea, { label: string; icon: typeof Briefcas
 export default function ActivityCommitmentModal({ visible, onClose }: ActivityCommitmentModalProps) {
   const { gameState, setGameState } = useGame();
   const insets = useSafeAreaInsets();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const commitments = gameState.activityCommitments;
   
   const [selectedPrimary, setSelectedPrimary] = useState<CommitmentArea | undefined>(commitments?.primary);
@@ -226,7 +226,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        {/* Dismiss backdrop — sits BEHIND the sheet, so a tap anywhere outside
+        {/* Dismiss backdrop - sits BEHIND the sheet, so a tap anywhere outside
             closes the modal. A transparent RN Modal owns every touch in its
             window, so without this the ONLY way out is the sheet's own buttons;
             when the sheet mislaid itself (it used to render as a clipped sliver
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 600,
     // `maxHeight` is the ONLY height bound here, so the sheet is content-sized
-    // and `flexShrink` is what lets it clamp — see `content` below, which must
+    // and `flexShrink` is what lets it clamp - see `content` below, which must
     // NOT be `flex: 1` for the same reason.
     maxHeight: '100%',
     flexShrink: 1,
@@ -425,13 +425,13 @@ const styles = StyleSheet.create({
   },
   content: {
     // NOT `flex: 1`. The sheet above is bounded by `maxHeight` only, so its own
-    // height is content-driven — and `flex: 1` means `flexBasis: 0`, which in a
+    // height is content-driven - and `flex: 1` means `flexBasis: 0`, which in a
     // content-sized column contributes nothing to that measurement and then has
     // no free space to grow back into. The list resolved to ZERO height and the
     // modal shipped as a header-and-footer sliver with the whole body missing.
     // `flexShrink: 1` keeps the list's measured height and lets it give space
     // back when the column exceeds the sheet's bound. Same pair as the banking
-    // sheets — see __tests__/render/modalListsShrink.test.ts.
+    // sheets - see __tests__/render/modalListsShrink.test.ts.
     flexShrink: 1,
   },
   contentInner: {

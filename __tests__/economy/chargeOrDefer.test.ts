@@ -55,7 +55,7 @@ describe('paying what you can', () => {
     expect(ctx.deferredCharges).toBe(556_820);
   });
 
-  it('never drives cash negative — the invariant ~40 call sites depend on', () => {
+  it('never drives cash negative - the invariant ~40 call sites depend on', () => {
     for (const [money, cost] of [[0, 100], [50, 1_000], [999, 1_000]]) {
       const ctx = ctxWith(money);
       chargeOrDefer(ctx, cost);
@@ -74,7 +74,7 @@ describe('paying what you can', () => {
     expect(ctx.deferredCharges).toBe(400);
   });
 
-  it('does not compound — the shortfall is carried at face value', () => {
+  it('does not compound - the shortfall is carried at face value', () => {
     // lessons.md records a version that compounded a surcharge on the standing
     // debt and turned $1,000 into $144,755 over ten years: a locked save, not
     // pressure. Late fees belong in applyArrears, in one place.
@@ -127,7 +127,7 @@ describe('the forgiving pattern is gone from the mandatory-cost reducers', () =>
     expect(source).not.toMatch(/newStats\.money\s*=\s*Math\.max\(\s*0\s*,[^)]*-\s*/);
   });
 
-  it('leaves diet and education alone — they are ALREADY in weeklyBillsDue', () => {
+  it('leaves diet and education alone - they are ALREADY in weeklyBillsDue', () => {
     // Deferring them here too would double-charge: `dietWeeklyCost` and
     // `educationWeeklyCost` are both summed into the pre-writeback bill line
     // that applyArrears already settles. Diet additionally self-skips when

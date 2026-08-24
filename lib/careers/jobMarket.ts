@@ -198,11 +198,11 @@ export function evaluateHiring(
 
 /**
  * Stable 32-bit hash. Used instead of an RNG so the board is a pure function of
- * (life seed, week block) — no stored state, no reshuffle on reload, and the
+ * (life seed, week block) - no stored state, no reshuffle on reload, and the
  * same life always sees the same market.
  */
 function hash(input: string): number {
-  // FNV-1a body moved to the shared `fnv1a32` (audit H7c) — bit-identical to
+  // FNV-1a body moved to the shared `fnv1a32` (audit H7c) - bit-identical to
   // the hand-rolled loop that was here, so no board reshuffles.
   return fnv1a32(input);
 }
@@ -215,7 +215,7 @@ function hash(input: string): number {
  * which is what makes the board stable: anything that drifts (money, week,
  * stats) would reshuffle the openings underneath the player mid-decision.
  * Pre-RNG-log saves fall back to the name alone, and a nameless state to the
- * week rotation only — degraded, never broken.
+ * week rotation only - degraded, never broken.
  */
 function lifeSeed(state: GameState | null | undefined): string {
   const seed = num(state?.rngCommitLog?.seed);
@@ -236,7 +236,7 @@ export interface BoardOpening {
  *  - `BOARD_SIZE` openings, rotating every `BOARD_ROTATION_WEEKS`.
  *  - At least one opening the player QUALIFIES for is always present. Without
  *    this guarantee a low-stat character could face a board of four jobs that
- *    all reject them, which is not a hard choice — it is a dead end.
+ *    all reject them, which is not a hard choice - it is a dead end.
  *  - Careers the player already works, has applied to, or has been accepted
  *    into are never filtered out by the board; the caller keeps showing those.
  */
@@ -275,7 +275,7 @@ export function weeksUntilBoardRefresh(state: GameState | null | undefined): num
   return BOARD_ROTATION_WEEKS - into;
 }
 
-/** Top salary on a career's ladder — the number that makes a low entry wage a bet. */
+/** Top salary on a career's ladder - the number that makes a low entry wage a bet. */
 export function careerCeiling(career: { levels?: { salary: number }[] } | undefined): number {
   const levels = career?.levels;
   if (!Array.isArray(levels) || levels.length === 0) return 0;
@@ -285,4 +285,19 @@ export function careerCeiling(career: { levels?: { salary: number }[] } | undefi
 /** Short label for the growth pace, for the card. */
 export function growthLabel(growth: GrowthPace): string {
   return growth === 'fast' ? 'Climbs fast' : growth === 'slow' ? 'Climbs slow' : 'Steady climb';
+}
+
+/**
+ * Promotion-progress multiplier for a career's authored growth pace.
+ *
+ * ADVERTISED VS ACTUAL (2026-08-24 audit): the job card has always printed
+ * `growthLabel` - "Climbs fast" on the musician, "Climbs slow" on the farmer -
+ * while `applyCareerProgress` used one flat base rate for every ladder, so the
+ * label described nothing. This is the consumer that makes it true. Careers
+ * without a profile (advanced tier, political) are 'steady' = 1.0, i.e.
+ * exactly the historical rate.
+ */
+export function growthProgressMultiplier(careerId: string | undefined): number {
+  const growth = careerId ? PROFILE_BY_ID.get(careerId)?.growth : undefined;
+  return growth === 'fast' ? 1.3 : growth === 'slow' ? 0.7 : 1.0;
 }

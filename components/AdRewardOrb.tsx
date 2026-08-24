@@ -1,15 +1,15 @@
 /**
- * AdRewardOrb — a small "watch ad → reward" orb that drifts in from the LEFT
+ * AdRewardOrb - a small "watch ad → reward" orb that drifts in from the LEFT
  * edge of the screen at random during play. Each appearance randomly offers one
  * of two rewards:
  *
- *   • cash     — a cash bonus scaled to the player's wealth (net worth / cash),
+ *   • cash     - a cash bonus scaled to the player's wealth (net worth / cash),
  *                floored/capped so it's meaningful early and never game-breaking.
- *   • vitality — a full refill of Health, Happiness and Energy (+100 each).
+ *   • vitality - a full refill of Health, Happiness and Energy (+100 each).
  *
  * Tapping the orb opens a clean rewarded-ad sheet; watching the ad grants the
  * reward. When the player owns the Remove Ads IAP (or DeepLife+), the orb never
- * appears at all — see `areAdsRemoved`.
+ * appears at all - see `areAdsRemoved`.
  *
  * Self-contained: owns its own appear/hide scheduling, animations, reward math,
  * and the ad sheet. Mount once (e.g. on the home screen).
@@ -52,13 +52,13 @@ const VITALITY_BOOST = 100; // +100 Health / Happiness / Energy (caps them at 10
 // ~$33M net worth and still caps ad income for whales.
 const REWARD_PCT = 0.015;
 // $1k floor (owner request): a fresh Age-18 character starts with ~$200, so the
-// early-game offer must be worth a 30s ad — $50 read as an insult and was never
+// early-game offer must be worth a 30s ad - $50 read as an insult and was never
 // tapped. Whales stay bounded by REWARD_MAX exactly as before.
 const REWARD_MIN = 1_000;
 const REWARD_MAX = 500_000;
 // Appearance cadence (ms). Randomised within each range.
 // The repeat window was [110s, 210s], which put a pulsing orb over the middle
-// of whatever the player was reading 6-8 times in a 15-minute session — the
+// of whatever the player was reading 6-8 times in a 15-minute session - the
 // single most frequent interruption in the app. Widened to 6-10 minutes: the
 // offer is still there for anyone who wants it, at roughly a third the rate.
 const FIRST_DELAY: [number, number] = [45000, 75000];
@@ -99,7 +99,7 @@ function computeReward(state: GameState): number {
  * Has the CASH orb already been claimed for the game week `state` is in?
  *
  * Pure, and exported, for two reasons. It is the OUTER guard that mirrors the
- * inner `return prev` in `applyAdCashGrant` — the C-9 pattern
+ * inner `return prev` in `applyAdCashGrant` - the C-9 pattern
  * (`__tests__/actions/innerOnlyRejections.test.ts`), which replaces the
  * `let allowed` capture this function used to read across the updater boundary.
  * And it lets the SPAWNER refuse to offer a cash orb that cannot be redeemed,
@@ -144,13 +144,13 @@ export function applyAdCashGrant(prev: GameState, reward: number): GameState {
 function AdRewardOrb() {
   /**
    * PERF-7: this component is mounted in the tab-tree root for the entire
-   * session, and it used `useGame()` — a full-state subscription — so every
+   * session, and it used `useGame()` - a full-state subscription - so every
    * mutation anywhere in the game re-rendered it AND rebuilt the merged
    * 9-context object inside `useGame`'s memo.
    *
    * It renders off two booleans. The only reason it needed the whole object was
    * the `gsRef` mirror, which has to stay fresh for timers that fire minutes
-   * later — and that is what `useGameStateGetter` is for: a read with no
+   * later - and that is what `useGameStateGetter` is for: a read with no
    * subscription. CLAUDE.md §4.1.
    */
   const setGameState = useSetGameState();
@@ -164,7 +164,7 @@ function AdRewardOrb() {
   // report its native dismissal, but nothing of ours is visible or tappable.
   const [phase, setPhase] = useState<'hidden' | 'orb' | 'ad' | 'watching'>('hidden');
   // Lowest priority in the shared queue. The orb only claims a slot while the
-  // ORB is showing — once the player taps through to the ad it is their own
+  // ORB is showing - once the player taps through to the ad it is their own
   // deliberate action and no longer an interruption, so it doesn't hold the
   // queue against anything else.
   const orbSlot = useInterruptionSlot(
@@ -175,7 +175,7 @@ function AdRewardOrb() {
   const [kind, setKind] = useState<RewardKind>('cash');
   const [reward, setReward] = useState(0); // cash amount (unused for vitality)
   const [granted, setGranted] = useState(false);
-  // The week's cash orb was already taken — the sheet says so instead of
+  // The week's cash orb was already taken - the sheet says so instead of
   // claiming a reward that was not paid.
   const [claimBlocked, setClaimBlocked] = useState(false);
 
@@ -199,11 +199,11 @@ function AdRewardOrb() {
   const sheetDismissResolver = useRef<(() => void) | null>(null);
   // Latest game state, so a timer that fires later computes the reward off the
   // player's CURRENT wealth (not the value captured when it was scheduled).
-  // `getGameState()` reads the provider's live snapshot directly — the old
+  // `getGameState()` reads the provider's live snapshot directly - the old
   // `useRef` + effect mirror needed a re-render on every mutation to stay
   // fresh, which is precisely the subscription this component should not have.
 
-  // Don't intrude during blocking moments — death/wedding/jail popups, or an
+  // Don't intrude during blocking moments - death/wedding/jail popups, or an
   // auto-mounted LifeMomentModal (a real RN Modal raised whenever the weekly tick
   // sets lifeMoments.pendingMoment). The orb must not slide in over any of them.
   // Also a single boolean: the orb only cares THAT something is blocking.
@@ -230,7 +230,7 @@ function AdRewardOrb() {
     pulseLoop.current?.stop();
   }, [slideX]);
 
-  // Schedule the next appearance. Stable identity — `getGameState` is the
+  // Schedule the next appearance. Stable identity - `getGameState` is the
   // provider's own `getSnapshot`, created once, so this stays referentially
   // stable while still reading the player's CURRENT wealth when the timer fires.
   // Picks a fresh reward kind each time so cash and vitality alternate randomly.
@@ -239,7 +239,7 @@ function AdRewardOrb() {
     addTimer(() => {
       // Courtesy no-fill limit: once an ads-on player has taken their one no-ad
       // courtesy grant this session, stop spawning orbs until a real ad fills
-      // again (which clears the flag) — otherwise the capped reward could be
+      // again (which clears the flag) - otherwise the capped reward could be
       // farmed with no ad ever shown. Ads-removed players are exempt: their
       // direct grant is a paid perk, not a no-fill fallback.
       const snapshot = getGameState();
@@ -261,7 +261,7 @@ function AdRewardOrb() {
     }, delay);
   }, [getGameState]);
 
-  // First appearance after mount — but never once the player has removed ads.
+  // First appearance after mount - but never once the player has removed ads.
   useEffect(() => {
     if (adsRemoved) { clearTimers(); return; }
     scheduleNext(rand(FIRST_DELAY));
@@ -276,7 +276,7 @@ function AdRewardOrb() {
     // waitForSheetDismissal). clearTimers just cancelled that dismissal fallback,
     // so resolve any pending waiter here or the flow strands with busyRef stuck.
     // Once resolved it continues into runRewardedAd, which re-reads the fresh
-    // entitlement and direct-grants (no ad). Only in THIS effect — never in the
+    // entitlement and direct-grants (no ad). Only in THIS effect - never in the
     // unmount cleanup, where resolving could fire continuations on a dead
     // component (and a true-unmount orphan is harmless).
     sheetDismissResolver.current?.();
@@ -298,7 +298,7 @@ function AdRewardOrb() {
     }
     // No haptic on APPEARANCE. An unprompted offer buzzing the phone teaches
     // the player that a vibration means nothing actionable. The tap itself
-    // still gives feedback (see openAd) — that one is player-initiated.
+    // still gives feedback (see openAd) - that one is player-initiated.
     slideX.setValue(-160);
     Animated.spring(slideX, { toValue: 0, useNativeDriver: true, damping: 14, stiffness: 140 }).start();
     pulseLoop.current = Animated.loop(
@@ -351,7 +351,7 @@ function AdRewardOrb() {
   const grant = useCallback(() => {
     if (kind === 'cash') {
       // GAME-WEEK gate. The orb's reward is 1.5% of net worth and its only
-      // limiter was a wall-clock respawn timer — decoupled from `weeksLived`,
+      // limiter was a wall-clock respawn timer - decoupled from `weeksLived`,
       // so tapping every orb compounded net worth ~1.5% each time and doubled
       // it roughly every 2.2 hours of REAL time, invisible to the tax brackets
       // and the net-worth soft cap. One cash grant per game week turns it from
@@ -359,7 +359,7 @@ function AdRewardOrb() {
       // cannot be banked or compounded.
       //
       // OUTER guard, mirroring the inner `return prev` inside
-      // `applyAdCashGrant` — read from the provider's LIVE snapshot, so no
+      // `applyAdCashGrant` - read from the provider's LIVE snapshot, so no
       // value crosses the updater boundary. The captured `allowed` flag this
       // replaced was wrong in both directions: on a DEFERRED updater it read
       // its `false` default and silently dropped a legitimate reward while the
@@ -375,7 +375,7 @@ function AdRewardOrb() {
       // (§4.4), so two taps in one React batch cannot pay twice.
       setGameState(prev => applyAdCashGrant(prev, reward));
     } else {
-      // +100 to each caps Health/Happiness/Energy at 100 — a full vitality refill.
+      // +100 to each caps Health/Happiness/Energy at 100 - a full vitality refill.
       updateStats(setGameState, {
         health: VITALITY_BOOST,
         happiness: VITALITY_BOOST,
@@ -417,7 +417,7 @@ function AdRewardOrb() {
       if (adsAvailable(adsRemoved)) {
         // A real fullscreen ad is about to present. Presenting it over our open
         // RN Modal is unsupported by the ad SDK: on iOS the ad's view controller
-        // fights the Modal's — when the ad closes, the sheet vanishes natively
+        // fights the Modal's - when the ad closes, the sheet vanishes natively
         // while an invisible modal window keeps eating every touch (app reads as
         // frozen) and the reward callback is lost. Dismiss the sheet FIRST and
         // let the native dismissal finish before showing the ad.
@@ -438,7 +438,7 @@ function AdRewardOrb() {
       // inventory returned, so lift the limit again.
       if (isNoFillGrant(outcome)) {
         // Stamp the game week INSIDE the updater so the mark and the grant land
-        // together — a trailing write could be lost to a concurrent update, and
+        // together - a trailing write could be lost to a concurrent update, and
         // a lost mark is an uncapped faucet.
         setGameState((prev) => ({
           ...prev,
@@ -452,7 +452,7 @@ function AdRewardOrb() {
         });
       }
       if (isGranted(outcome)) {
-        // Reopen the sheet in its "Reward added!" state — a fresh present is
+        // Reopen the sheet in its "Reward added!" state - a fresh present is
         // safe now that the ad's view controller is gone; the short beat lets
         // its window teardown settle before we animate back in. Tracked timer:
         // unmount clears it, so no post-unmount UI work can be scheduled.
@@ -460,7 +460,7 @@ function AdRewardOrb() {
         setPhase('ad');
         finishAfterClaim();
       } else {
-        // no-fill / error — reward NOT granted. The sheet is already gone;
+        // no-fill / error - reward NOT granted. The sheet is already gone;
         // retract fully and let the orb reschedule.
         haptic.error();
         setPhase('hidden');
@@ -496,7 +496,7 @@ function AdRewardOrb() {
       ? 'Reward added!'
       : isCash ? 'Watch ad → cash' : 'Watch ad → vitality';
   const sheetSubtitle = claimBlocked
-    ? "You've already taken a cash orb this game week — nothing was charged. Live another week and it's back."
+    ? "You've already taken a cash orb this game week - nothing was charged. Live another week and it's back."
     : granted
       ? isCash
         ? `${formatMoney(reward)} was added to your wallet.`
@@ -564,7 +564,7 @@ function AdRewardOrb() {
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{sheetSubtitle}</Text>
 
             {/* The reward card is a PROMISE of a payout. Suppress it when the
-                week's cash orb was already taken — showing "+$X cash" above a
+                week's cash orb was already taken - showing "+$X cash" above a
                 refusal is the same lie the success sheet used to tell. */}
             {claimBlocked ? null : (
             <View style={[styles.rewardCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
@@ -612,7 +612,7 @@ function AdRewardOrb() {
               </Pressable>
             )}
 
-            {/* Ad-watchers are the prime audience for going ad-free — upsell
+            {/* Ad-watchers are the prime audience for going ad-free - upsell
                 DeepLife+ right here. Self-hides for members. */}
             <DeepLifePlusUpsell variant="inline" surface="ad_boost" />
           </View>
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
  *
  * This is rendered INLINE in a layout root (app/(tabs)/_layout.tsx), which itself
  * subscribes to game state. A selector inside a component cannot stop a
- * re-render driven by its parent — so narrowing this component's own
+ * re-render driven by its parent - so narrowing this component's own
  * subscription achieved nothing on its own. Taking no props, `React.memo` is a
  * total barrier against that cascade, which is what makes the narrowing pay.
  */

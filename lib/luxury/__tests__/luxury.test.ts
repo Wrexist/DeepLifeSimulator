@@ -118,7 +118,7 @@ describe('purchaseLuxuryItem', () => {
     expect(store.get().luxuryItems).toContain('rare_watch_collection');
   });
 
-  it('rejects when unaffordable — no deduction, no grant', () => {
+  it('rejects when unaffordable - no deduction, no grant', () => {
     const store = makeStore(baseState({ stats: { money: 100_000 } }));
     const res = purchaseLuxuryItem(store.get(), store.setGameState, 'rare_watch_collection');
     expect(res.success).toBe(false);
@@ -245,7 +245,7 @@ describe('isLuxuryLifeComplete', () => {
   });
 
   it('demands a real collection, not an errand', () => {
-    // Audit C3: the bar used to be 3 items or $25M — about 2% of the catalog's
+    // Audit C3: the bar used to be 3 items or $25M - about 2% of the catalog's
     // total value, reachable with the two cheapest items plus one more.
     const catalogValue = LUXURY_CATALOG.reduce((sum, i) => sum + i.price, 0);
     expect(LUXURY_LIFE_MIN_ITEMS).toBeGreaterThanOrEqual(LUXURY_CATALOG.length / 2);

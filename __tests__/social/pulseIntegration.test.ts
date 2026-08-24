@@ -103,7 +103,7 @@ describe('Pulse 8-week integration: compose → grow → scandal → recover', (
     const repBeforeScandal = getState().stats.reputation;
     const followersBeforeScandal = getState().socialMedia!.followers;
 
-    // Week 5: tick decays the scandal — should drop reputation and followers
+    // Week 5: tick decays the scandal - should drop reputation and followers
     advanceWeek(getState, setGameState);
     expect(getState().stats.reputation).toBeLessThan(repBeforeScandal);
     expect(getState().socialMedia!.followers).toBeLessThan(followersBeforeScandal);
@@ -165,7 +165,7 @@ describe('Pulse 8-week integration: compose → grow → scandal → recover', (
 
     const apologyState = runScandalFor(2, 'apology');
     const silenceState = runScandalFor(2, 'silence');
-    // Apology drops severity by 25/week, silence by 10/week — after 2 weeks
+    // Apology drops severity by 25/week, silence by 10/week - after 2 weeks
     // apology should have a lower severity (or be resolved entirely).
     const apologySev = apologyState.socialMedia?.activeScandal?.severity ?? 0;
     const silenceSev = silenceState.socialMedia?.activeScandal?.severity ?? 0;

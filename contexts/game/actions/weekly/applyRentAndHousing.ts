@@ -116,11 +116,11 @@ export function applyRentAndHousing(
       });
     }
   } catch {
-    // Housing module may not exist in tests — preserved silent fallback.
+    // Housing module may not exist in tests - preserved silent fallback.
   }
 
   // 3. Real-estate Remake 4 tick: neighborhood cycle + tenant lifecycle + Airbnb variance.
-  // Layers on top of the legacy housing pass — replaces `housingRentalIncome`
+  // Layers on top of the legacy housing pass - replaces `housingRentalIncome`
   // with the realized figure from the new model.
   try {
     const reTick = runRealEstateWeeklyTick({
@@ -129,7 +129,7 @@ export function applyRentAndHousing(
       currentWeek: nextWeeksLived,
       rollFor,
       // Prestige Property Manager (+15% tenant rent) × the Landlord onboarding
-      // perk (+7% — its card's promise, paid at the source it names; excluded
+      // perk (+7% - its card's promise, paid at the source it names; excluded
       // from the weekly tick's global perk product so it cannot apply twice).
       // Both applied inside the tick, before its $150K/wk cap.
       rentalIncomeMultiplier:
@@ -142,7 +142,7 @@ export function applyRentAndHousing(
       newActivity.push({ id: note.id, week: nextWeeksLived, kind: activityKind(note.id), label: note.message });
     }
   } catch {
-    // Real-estate weeklyTick module may not exist in tests — preserved silent fallback.
+    // Real-estate weeklyTick module may not exist in tests - preserved silent fallback.
   }
 
   // Merge the new entries into the persisted slice, de-duping by id (idempotent

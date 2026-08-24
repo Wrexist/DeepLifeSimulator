@@ -7,7 +7,7 @@ import { X, Mail, Crown } from 'lucide-react-native';
 import { hasDeepLifePlusEntitlement } from '@/lib/subscription/deepLifePlus';
 import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 // The help copy quotes the revive price. Hard-coded, it said 15,000 for as long
-// as the constant did and would have gone stale the moment it moved — which it
+// as the constant did and would have gone stale the moment it moved - which it
 // just did.
 import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
 
@@ -17,11 +17,11 @@ import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
  *
  * It was pasted twice. An edit to one copy would not reach the other, and the
  * test that pins this copy (`__tests__/economy/uiTruthF5toF8.test.ts`) uses
- * `toMatch`, which is satisfied by EITHER copy — so the stale one could describe
+ * `toMatch`, which is satisfied by EITHER copy - so the stale one could describe
  * a dark web that no longer exists and nothing would fail.
  */
 const ONION_BROWSER_ANSWER =
-  'The Onion Browser (dark web) has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store — lockpicks, gloves, VPNs, malware kits — bought with Bitcoin. Those tools are what unlock the illegal street jobs on the main Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts — recon, social engineering, exploit, exfiltration, then fencing the take — and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.';
+  'The Onion Browser (dark web) has four tabs: Market, Gear, Jobs and Wallet. Gear is the tool store - lockpicks, gloves, VPNs, malware kits - bought with Bitcoin. Those tools are what unlock the illegal street jobs on the main Work tab that list them as requirements, and several also cut your risk or raise your payout. Jobs are multi-stage contracts - recon, social engineering, exploit, exfiltration, then fencing the take - and each stage is rolled against one of your four dark-web skills: Hacking, Social Eng, OPSEC and Laundering. Failing a stage loses progress and adds heat. Jobs pay in crypto, which you launder through the Wallet before it is safe to spend. The Market is vendor listings: check the scam risk before you buy, because a scam takes the full price and delivers nothing. High risk, high reward.';
 
 
 interface HelpModalProps {
@@ -281,7 +281,7 @@ const helpContent = [
     items: [
       {
         question: 'What are underground jobs?',
-        answer: 'Underground jobs are the dark web\'s multi-stage contracts, run from the Jobs tab of the Onion Browser. Each job is a chain of stages — recon, social engineering, exploit, exfiltration, fencing — and every stage rolls against the relevant dark-web skill. Harder jobs gate on minimum skill levels, pay more, and add more heat. Failing a stage costs you progress and raises heat; you keep any gear you bought. Skills level up from the XP each completed job awards.',
+        answer: 'Underground jobs are the dark web\'s multi-stage contracts, run from the Jobs tab of the Onion Browser. Each job is a chain of stages - recon, social engineering, exploit, exfiltration, fencing - and every stage rolls against the relevant dark-web skill. Harder jobs gate on minimum skill levels, pay more, and add more heat. Failing a stage costs you progress and raises heat; you keep any gear you bought. Skills level up from the XP each completed job awards.',
       },
       {
         question: 'What is wanted level?',
@@ -293,7 +293,7 @@ const helpContent = [
       },
       {
         question: 'How do I reduce dark-web risk?',
-        answer: 'Raise the dark-web skill the job\'s stages roll against — OPSEC in particular lowers how much heat you take. Buy gear under Life → Market before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defence. Attempting a job below its skill gate is how most runs go wrong.',
+        answer: 'Raise the dark-web skill the job\'s stages roll against - OPSEC in particular lowers how much heat you take. Buy gear under Life → Market before attempting a harder contract, and launder your crypto through the Wallet rather than letting it sit. Heat decays on its own if you stop taking contracts, so pacing jobs is itself a defence. Attempting a job below its skill gate is how most runs go wrong.',
       },
       {
         question: 'What are talent trees?',
@@ -695,11 +695,11 @@ const helpContent = [
 
 export default function HelpModal({ visible, onClose }: HelpModalProps) {
   const { gameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // DeepLife+ members get a priority-flagged support request — a real VIP
+  // DeepLife+ members get a priority-flagged support request - a real VIP
   // support channel (owner triages these first).
   const handleContactSupport = useCallback(() => {
     const isVip = hasDeepLifePlusEntitlement(gameState.settings);
@@ -715,7 +715,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
         Alert.alert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
       })
       .catch((error) => {
-        // Log the failure (never the body — it contains player details).
+        // Log the failure (never the body - it contains player details).
         logger.error('[HelpModal] failed to open support email', { error });
         Alert.alert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
       });

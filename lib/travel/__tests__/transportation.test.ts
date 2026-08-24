@@ -95,7 +95,7 @@ function withPolicies(ids: string[]): GameState {
   return s;
 }
 
-describe('R4-X3 — an enacted transport policy discounts travel, it does not delete the price', () => {
+describe('R4-X3 - an enacted transport policy discounts travel, it does not delete the price', () => {
   it('the catalogue really does store percents (the premise)', () => {
     // If these were ever migrated to 0..1 this whole block is wrong, and this
     // assertion is what will say so.
@@ -137,7 +137,7 @@ describe('R4-X3 — an enacted transport policy discounts travel, it does not de
   });
 
   it('the commute cut does not pin duration at the floor', () => {
-    // 20 + 25 = 45%, so 0.55× — well clear of the 0.25 floor a fraction read
+    // 20 + 25 = 45%, so 0.55× - well clear of the 0.25 floor a fraction read
     // used to slam it into.
     const r = transportationMods(withPolicies(TRANSPORT_POLICY_IDS));
 

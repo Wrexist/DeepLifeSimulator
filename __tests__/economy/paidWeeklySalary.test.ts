@@ -84,7 +84,7 @@ describe('the reported case: one Surgical Director, one number', () => {
     expect(paidWeeklyCareerSalary(state).total).toBe(13000);
   });
 
-  it('a maxed raise doubles it — and every reader says so', () => {
+  it('a maxed raise doubles it - and every reader says so', () => {
     // The screenshot's "Manage Job (+100%)" button: raiseMultiplier at the cap.
     const state = surgeon({}, 2);
     expect(payrollCredits(state)).toBe(26000);

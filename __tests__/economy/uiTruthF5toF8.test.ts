@@ -39,7 +39,7 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 const ROOT = path.join(__dirname, '..', '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-describe('F5 — food is priced like everything else', () => {
+describe('F5 - food is priced like everything else', () => {
   it('inflation actually moves a price (the premise)', () => {
     // If getInflatedPrice were a no-op, none of this would be observable.
     expect(getInflatedPrice(100, 1.5)).toBeGreaterThan(100);
@@ -47,11 +47,17 @@ describe('F5 — food is priced like everything else', () => {
   });
 
   it('the charge is inflated, not raw', () => {
-    const src = read('contexts/game/ItemActionsContext.tsx');
+    // v48 moved the whole purchase into the pure resolver
+    // (lib/economy/foodPurchase.ts — the C-9 sound shape); what F5 asserts is
+    // unchanged: the deducted amount is the inflated `price`, never the raw
+    // catalogue figure, and the action charges through that one resolver.
+    const resolver = read('lib/economy/foodPurchase.ts');
+    expect(resolver).toMatch(/const price = getInflatedPrice\(food\.price, state\.economy\?\.priceIndex \?\? 1\)/);
+    expect(resolver).toMatch(/money: \(state\.stats\.money \?\? 0\) - price/);
+    expect(resolver).not.toMatch(/- food\.price\b/);
 
-    expect(src).toMatch(/const price = getInflatedPrice\(food\.price, state\.economy\?\.priceIndex \?\? 1\)/);
-    expect(src).toMatch(/updateMoney\(-price, `Food purchase/);
-    expect(src).not.toMatch(/updateMoney\(-food\.price/);
+    const action = read('contexts/game/ItemActionsContext.tsx');
+    expect(action).toMatch(/setGameState\(prev => resolveFoodPurchase\(prev, foodId\)\.next\)/);
   });
 
   it('the displayed price is inflated too', () => {
@@ -85,7 +91,7 @@ describe('F5 — food is priced like everything else', () => {
   });
 });
 
-describe('F6 — the Help describes the dark web that shipped', () => {
+describe('F6 - the Help describes the dark web that shipped', () => {
   // Comments stripped for the same reason as F7 below.
   const HELP = read('components/HelpModal.tsx')
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -127,7 +133,7 @@ describe('F6 — the Help describes the dark web that shipped', () => {
     expect(uiCallersOf(/\b(performHack|buyHack)\s*\(/)).toEqual([]);
   });
 
-  it('but buyDarkWebItem DOES — the gear store is wired', () => {
+  it('but buyDarkWebItem DOES - the gear store is wired', () => {
     // The inverse of the original assertion, and the reason the Help answers
     // below were rewritten to describe the Gear tab again.
     expect(uiCallersOf(/\bbuyDarkWebItem\s*\(/)).toContain('components/computer/OnionApp.tsx');
@@ -168,7 +174,7 @@ describe('F6 — the Help describes the dark web that shipped', () => {
   });
 });
 
-describe('F7 — Verified Pro only advertises what it delivers', () => {
+describe('F7 - Verified Pro only advertises what it delivers', () => {
   const RAW = read('components/mobile/Pulse/modals/VerifiedProUpsellModal.tsx');
   /**
    * Comments STRIPPED. The first version of this test asserted against the raw
@@ -209,13 +215,13 @@ describe('F7 — Verified Pro only advertises what it delivers', () => {
       .toMatch(/verifiedProActive \? 0\.0095 : 0\.01/);
   });
 
-  it('the rewarded-ad perk is untouched — it was never the false one', () => {
+  it('the rewarded-ad perk is untouched - it was never the false one', () => {
     expect(read('components/mobile/Pulse/modals/RewardedAdModal.tsx'))
       .toMatch(/Verified Pro: ×3 reward/);
   });
 });
 
-describe('F8 — eviction asks first', () => {
+describe('F8 - eviction asks first', () => {
   const APP = read('components/computer/RealEstateApp.tsx');
 
   it('eviction is irreversible (the premise)', () => {

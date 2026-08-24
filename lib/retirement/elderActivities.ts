@@ -86,7 +86,7 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
   {
     id: 'spoil_grandchildren',
     label: 'Spoil the grandchildren',
-    description: 'Toys, treats, and undivided attention — the elder’s privilege.',
+    description: 'Toys, treats, and undivided attention - the elder’s privilege.',
     icon: 'Baby',
     emoji: '🧸',
     moneyCost: 500,
@@ -94,7 +94,7 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
     minAge: RETIREMENT_AGE,
     requiresChildren: true,
     effects: { happiness: 10, health: 2 },
-    toast: 'A day of spoiling the little ones — pure joy on every face.',
+    toast: 'A day of spoiling the little ones - pure joy on every face.',
   },
   {
     id: 'bucket_list_trip',
@@ -119,7 +119,7 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
     cooldownWeeks: 3,
     minAge: RETIREMENT_AGE,
     effects: { happiness: 4, health: 1, reputation: 4 },
-    toast: 'A rewarding shift volunteering — the community is grateful.',
+    toast: 'A rewarding shift volunteering - the community is grateful.',
   },
   {
     id: 'reconnect_friends',
@@ -139,14 +139,14 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
   {
     id: 'coach_sports',
     label: 'Volunteer coaching',
-    description: 'Coach a youth team on weekends — energy you still have plenty of.',
+    description: 'Coach a youth team on weekends - energy you still have plenty of.',
     icon: 'Whistle',
     emoji: '🏅',
     moneyCost: 0,
     cooldownWeeks: 3,
     minAge: EARLY_RETIRE_MIN_AGE,
     effects: { happiness: 6, health: 3, reputation: 4 },
-    toast: 'The team is fired up — coaching keeps you as sharp as they are.',
+    toast: 'The team is fired up - coaching keeps you as sharp as they are.',
   },
   {
     id: 'travel_club',
@@ -164,7 +164,7 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
   {
     id: 'part_time_consulting',
     label: 'Part-time consulting',
-    description: 'Take the occasional advisory gig — keep your skills and network warm.',
+    description: 'Take the occasional advisory gig - keep your skills and network warm.',
     icon: 'Briefcase',
     emoji: '💼',
     moneyCost: 0,
@@ -172,19 +172,19 @@ export const ELDER_ACTIVITIES: readonly ElderActivity[] = [
     minAge: EARLY_RETIRE_MIN_AGE,
     effects: { happiness: 4, reputation: 6 },
     legacyPoints: 1,
-    toast: 'A well-received consulting engagement — your reputation grows.',
+    toast: 'A well-received consulting engagement - your reputation grows.',
   },
   {
     id: 'lifelong_learning',
     label: 'Take up a new skill',
-    description: 'Enroll in a class you never had time for — painting, coding, a language.',
+    description: 'Enroll in a class you never had time for - painting, coding, a language.',
     icon: 'BookOpen',
     emoji: '🎓',
     moneyCost: 400,
     cooldownWeeks: 6,
     minAge: EARLY_RETIRE_MIN_AGE,
     effects: { happiness: 8, energy: 3 },
-    toast: 'A rewarding class — turns out you can teach an old dog new tricks.',
+    toast: 'A rewarding class - turns out you can teach an old dog new tricks.',
   },
 ] as const;
 

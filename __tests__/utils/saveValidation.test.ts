@@ -10,7 +10,7 @@ import { scoreToBand } from '@/lib/banking/creditScore';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
 
 describe('saveValidation', () => {
-  describe('repairGameState — legacy IAP subscription expiry', () => {
+  describe('repairGameState - legacy IAP subscription expiry', () => {
     const HOUR = 3_600_000;
 
     it('expires an active legacy Verified Pro grant past its term and clears the blue check', () => {
@@ -90,7 +90,7 @@ describe('saveValidation', () => {
     });
   });
 
-  describe('repairGameState — credit band backfill', () => {
+  describe('repairGameState - credit band backfill', () => {
     it('backfills a missing band from the score (source of truth: scoreToBand)', () => {
       const state = createTestGameState() as any;
       state.banking = {
@@ -128,7 +128,7 @@ describe('saveValidation', () => {
     });
   });
 
-  describe('repairGameState — checkpoint re-slim on load', () => {
+  describe('repairGameState - checkpoint re-slim on load', () => {
     it('strips heavy collections from stored (fat) checkpoints, keeps gameplay data', () => {
       const state = createTestGameState() as any;
       state.checkpoints = [

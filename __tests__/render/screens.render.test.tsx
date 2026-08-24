@@ -15,7 +15,7 @@ import Progression from '@/app/(tabs)/progression';
  * In-game tab screen render smoke tests — the highest-traffic screens, mounted
  * inside the real provider tree with the default (valid) GameState.
  */
-describe('render — in-game tab screens', () => {
+describe('render - in-game tab screens', () => {
   it('home mounts without throwing', () => {
     const { json, unmount } = renderWithProviders(<Home />);
     expect(json.length).toBeGreaterThan(0);
@@ -86,7 +86,7 @@ describe('render — in-game tab screens', () => {
  * the screen in its own `ErrorBoundary`, whose fallback is a perfectly valid
  * tree — so a screen that threw would still satisfy every assertion below.
  */
-describe('render — the Market filter bar names its dead ends', () => {
+describe('render - the Market filter bar names its dead ends', () => {
   const mountMarket = () => {
     const r = renderWithProviders(<MarketScreenContent />);
     const chip = r.renderer.root
@@ -134,7 +134,7 @@ describe('render — the Market filter bar names its dead ends', () => {
  * figure in the file (the rental rows and the purchase dialog already did).
  * Raw interpolation printed "$5000" next to a confirm dialog saying "$5,000".
  */
-describe('render — Market prices use the app-wide money format', () => {
+describe('render - Market prices use the app-wide money format', () => {
   it('formats the item price instead of interpolating the number', () => {
     const { json, unmount } = renderWithProviders(<MarketScreenContent />);
 

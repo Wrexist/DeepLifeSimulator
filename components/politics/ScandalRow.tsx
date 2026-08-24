@@ -43,7 +43,7 @@ export default function ScandalRow({ scandal, darkMode, onSuppress }: Props) {
 
   return (
     // Hard Rule #7: severity used to be a scale(4) bar down the left edge,
-    // clipped by borderRadius.lg + overflow:hidden — the banned decorative
+    // clipped by borderRadius.lg + overflow:hidden - the banned decorative
     // stripe, in the combination that curls into a crescent. The colour moves
     // onto the full border, which this card was already doing while a scandal
     // was active; it now does it always, so severity reads either way. The

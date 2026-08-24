@@ -37,7 +37,7 @@ describe('resolvePlanPrice', () => {
     expect(p.fromStore).toBe(true);
   });
 
-  it('returns an EMPTY price when the product did not load — never a fallback', () => {
+  it('returns an EMPTY price when the product did not load - never a fallback', () => {
     const p = resolvePlanPrice(YEARLY, null);
     expect(p.displayPrice).toBe('');
     expect(p.fromStore).toBe(false);
@@ -67,7 +67,7 @@ describe('resolvePlanPrice', () => {
   });
 });
 
-describe('reformatPriceAmount — keeps the storefront\'s own formatting', () => {
+describe('reformatPriceAmount - keeps the storefront\'s own formatting', () => {
   it.each([
     // [store string, new amount, expected]
     ['$49.99', 0.9613, '$0.97'],
@@ -115,7 +115,7 @@ describe('perWeekPrice', () => {
   });
 });
 
-describe('yearlySavingsPercent — only a provable saving earns a badge', () => {
+describe('yearlySavingsPercent - only a provable saving earns a badge', () => {
   const monthlyUSD = resolvePlanPrice(MONTHLY, { displayPrice: '$4.99', priceAmount: 4.99, currency: 'USD' });
 
   it('computes the real saving when both plans are numeric and same-currency', () => {
@@ -131,7 +131,7 @@ describe('yearlySavingsPercent — only a provable saving earns a badge', () => 
     expect(yearlySavingsPercent(monthly, yearly)).toBe(16);
   });
 
-  it('refuses a CROSS-CURRENCY comparison — no exchange rate exists here', () => {
+  it('refuses a CROSS-CURRENCY comparison - no exchange rate exists here', () => {
     const yearlyEUR = resolvePlanPrice(YEARLY, { displayPrice: '54,99 €', priceAmount: 54.99, currency: 'EUR' });
     expect(yearlySavingsPercent(monthlyUSD, yearlyEUR)).toBe(0);
   });
@@ -153,7 +153,7 @@ describe('yearlySavingsPercent — only a provable saving earns a badge', () => 
   });
 });
 
-describe('storeFreeTrialDays — null (unknown) vs 0 (no offer)', () => {
+describe('storeFreeTrialDays - null (unknown) vs 0 (no offer)', () => {
   it('reads the current iOS shape', () => {
     expect(
       storeFreeTrialDays({
@@ -174,7 +174,7 @@ describe('storeFreeTrialDays — null (unknown) vs 0 (no offer)', () => {
     ).toBe(3);
   });
 
-  it('returns 0 — NOT null — when iOS reports a paid intro offer', () => {
+  it('returns 0 - NOT null - when iOS reports a paid intro offer', () => {
     // A pay-up-front intro is still an offer, but it is not a FREE trial, so no
     // trial copy may be shown even though the configured constant says 7.
     expect(
@@ -224,7 +224,7 @@ describe('storeFreeTrialDays — null (unknown) vs 0 (no offer)', () => {
   });
 });
 
-describe('resolveTrialClaim — what the paywall is allowed to SAY', () => {
+describe('resolveTrialClaim - what the paywall is allowed to SAY', () => {
   const CONFIGURED = 7;
 
   it('promises $0.00 only when the store confirms BOTH the offer and this player', () => {

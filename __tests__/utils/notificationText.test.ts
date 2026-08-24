@@ -41,14 +41,14 @@ describe('stripEmoji', () => {
     expect(out).not.toMatch(/[️︎]/);
   });
 
-  it('keeps arrows — they are navigation in this app, not decoration', () => {
+  it('keeps arrows - they are navigation in this app, not decoration', () => {
     expect(stripEmoji('Health is low! Go to Life → Health, or buy food in Life → Market.')).toBe(
       'Health is low! Go to Life → Health, or buy food in Life → Market.'
     );
   });
 
   it('keeps ordinary punctuation, currency, separators and accents', () => {
-    expect(stripEmoji('Earned $1,200 · Rank 2 — nice')).toBe('Earned $1,200 · Rank 2 — nice');
+    expect(stripEmoji('Earned $1,200 · Rank 2 - nice')).toBe('Earned $1,200 · Rank 2 - nice');
     expect(stripEmoji('Zoë Ångström got a raise (+8%)')).toBe('Zoë Ångström got a raise (+8%)');
   });
 
@@ -60,7 +60,7 @@ describe('stripEmoji', () => {
     expect(stripEmoji('  🎯 Savings Goal Reached  ')).toBe('Savings Goal Reached');
   });
 
-  it('preserves newlines — the weekly summary banner is built from them', () => {
+  it('preserves newlines - the weekly summary banner is built from them', () => {
     expect(stripEmoji('📉 Rates up\n📈 Yields up')).toBe('Rates up\nYields up');
   });
 
@@ -103,7 +103,7 @@ describe('clampNotification', () => {
   });
 });
 
-describe('toastText — what the channel actually applies', () => {
+describe('toastText - what the channel actually applies', () => {
   it('strips and clamps in one pass', () => {
     const out = toastText(
       '🔓 Stealth skill is now level 2! This work took a toll on your wellbeing ' +
@@ -114,7 +114,7 @@ describe('toastText — what the channel actually applies', () => {
     expect(out.length).toBeLessThanOrEqual(TOAST_MAX_CHARS);
   });
 
-  it('is idempotent — sanitising an already-clean string changes nothing', () => {
+  it('is idempotent - sanitising an already-clean string changes nothing', () => {
     const clean = toastText('Earned $120. Rank 2. (-5 happiness, -2 health)');
     expect(toastText(clean)).toBe(clean);
   });

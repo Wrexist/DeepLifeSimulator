@@ -102,7 +102,7 @@ describe('Beta Hub content', () => {
   it('never asks a tester for a Google credential', () => {
     // The one password field in the whole hub is the ADMIN token on admin.html,
     // which is the operator's own credential. No tester-facing page may collect
-    // a password of any kind — Google Play handles the opt-in itself, and a
+    // a password of any kind - Google Play handles the opt-in itself, and a
     // form that asked would be indistinguishable from a phishing page.
     const testerPages = fs.readdirSync(HUB)
       .filter((f) => /\.html$/.test(f) && f !== 'admin.html');
@@ -143,7 +143,7 @@ describe('Beta Hub content', () => {
     });
   });
 
-  it('mission and badge ids are unique — a duplicate would double-award XP', () => {
+  it('mission and badge ids are unique - a duplicate would double-award XP', () => {
     const missionIds = C.missions.map((m: { id: string }) => m.id);
     expect(new Set(missionIds).size).toBe(missionIds.length);
     const badgeIds = C.badges.map((b: { id: string }) => b.id);

@@ -1,5 +1,5 @@
 /**
- * EmptyState — illustrated empty state for Hustle screens.
+ * EmptyState - illustrated empty state for Hustle screens.
  *
  * Uses a stylized bar-chart SVG drawn in the Hustle indigo→cyan gradient.
  */

@@ -65,7 +65,7 @@ const POPUPS: ReadonlyArray<{ file: string; bound: RegExp; label: string }> = [
   },
 ];
 
-describe.each(POPUPS)('$label — a blocking popup must be escapable', ({ file, bound }) => {
+describe.each(POPUPS)('$label - a blocking popup must be escapable', ({ file, bound }) => {
   const CODE = read(file);
 
   it('has a scroll surface', () => {
@@ -92,7 +92,7 @@ describe.each(POPUPS)('$label — a blocking popup must be escapable', ({ file, 
   });
 });
 
-describe('WeddingPopup — the dismiss control stays pinned and reachable', () => {
+describe('WeddingPopup - the dismiss control stays pinned and reachable', () => {
   const CODE = read('components/WeddingPopup.tsx');
 
   it('the Continue button is a sibling of the scroller, not inside it', () => {
@@ -114,7 +114,7 @@ describe('WeddingPopup — the dismiss control stays pinned and reachable', () =
   });
 });
 
-describe('WelcomeBackPopup — the dismiss control stays pinned and reachable', () => {
+describe('WelcomeBackPopup - the dismiss control stays pinned and reachable', () => {
   const CODE = read('components/WelcomeBackPopup.tsx');
 
   it('Continue Playing is a sibling of the scroller, not inside it', () => {
@@ -126,7 +126,7 @@ describe('WelcomeBackPopup — the dismiss control stays pinned and reachable', 
   });
 });
 
-describe('LifeMomentModal — the choices ARE the dismiss control', () => {
+describe('LifeMomentModal - the choices ARE the dismiss control', () => {
   const CODE = read('components/LifeMomentModal.tsx');
 
   it('the choice list is inside the scroller, not pinned below it', () => {

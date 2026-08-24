@@ -4,7 +4,7 @@
  * The account-free answer to "I got a new phone". A code is minted on the OLD
  * device and typed into the NEW one, which copies the saves across.
  *
- * A code is a BEARER CREDENTIAL — whoever reads it gets the save — so the copy
+ * A code is a BEARER CREDENTIAL - whoever reads it gets the save - so the copy
  * on screen says so plainly, and the server gives it 15 minutes and one use.
  * The code is rendered `selectable` rather than behind a copy button on
  * purpose: a clipboard button would mean another native dependency, and this
@@ -12,7 +12,7 @@
  *
  * Claiming COPIES rather than moves: the old phone keeps working and the two
  * diverge from that point. This is a backup transfer, not a live sync, and the
- * copy here says that too — a player who expects continuous mirroring would
+ * copy here says that too - a player who expects continuous mirroring would
  * otherwise discover the truth only after playing on both.
  */
 import React, { useCallback, useEffect, useState } from 'react';
@@ -120,7 +120,7 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
                 <>
                   <Text selectable style={styles.code}>{code}</Text>
                   <Text style={styles.warning}>
-                    Valid for 15 minutes, once. Anyone who has this code can copy your save — don&apos;t post it anywhere.
+                    Valid for 15 minutes, once. Anyone who has this code can copy your save - don&apos;t post it anywhere.
                   </Text>
                 </>
               ) : null}

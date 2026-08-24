@@ -1,5 +1,5 @@
 /**
- * EmptyState — illustrated empty-state with one-line observation + nudge.
+ * EmptyState - illustrated empty-state with one-line observation + nudge.
  *
  * The illustration is a soft EKG-line drawn as a single SVG path to fit
  * the Pulse heartbeat brand identity. Caller provides observation + nudge

@@ -43,7 +43,7 @@ function owned(over: Partial<RealEstate> = {}): RealEstate {
 
 const tier3 = UPGRADE_TIERS.find((t) => t.level === 3)!;
 
-describe('applyRentAndHousing — realEstateActivity slice', () => {
+describe('applyRentAndHousing - realEstateActivity slice', () => {
   it('records a tenant-arrival tick event as an activity entry stamped with the week', () => {
     // Vacant rented unit + forced find-tenant roll → "New Tenant" notification.
     const vacant = owned({ rentMode: 'longTerm', status: 'rented', rent: 1000, tenant: undefined });
@@ -82,7 +82,7 @@ describe('applyRentAndHousing — realEstateActivity slice', () => {
     expect(res.realEstateActivity[res.realEstateActivity.length - 1].week).toBe(99);
   });
 
-  it('de-dupes by id (idempotent — re-running the same week adds nothing new)', () => {
+  it('de-dupes by id (idempotent - re-running the same week adds nothing new)', () => {
     const vacant = owned({ rentMode: 'longTerm', status: 'rented', rent: 1000, tenant: undefined });
     const first = applyRentAndHousing(
       [vacant],
@@ -110,7 +110,7 @@ describe('applyRentAndHousing — realEstateActivity slice', () => {
   });
 });
 
-describe('applyRentAndHousing — upgrade rent bonus reaches realized rent', () => {
+describe('applyRentAndHousing - upgrade rent bonus reaches realized rent', () => {
   it('an upgraded tenanted unit earns ~rentBonus more than an identical un-upgraded one', () => {
     const tenant = { id: 't1', name: 'Sam', satisfaction: 95, movedInWeek: 0, weeklyRent: 1500 };
     const upgraded = owned({ upgradeLevel: 3, rentMode: 'longTerm', status: 'rented', rent: 1500, tenant });

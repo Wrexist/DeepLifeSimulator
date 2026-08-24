@@ -163,7 +163,7 @@ describe('scam risk is earned, not sprinkled', () => {
  * Lowering the probability alone would not have fixed "scams every other week":
  * an independent per-week roll clusters, so two in three weeks stays possible
  * however low it goes. These assert the property that a probability cannot
- * give — a hard floor on the gap between attempts, holding for the WORST
+ * give - a hard floor on the gap between attempts, holding for the WORST
  * possible save.
  */
 describe('scams are spaced by a window, not just made rarer', () => {
@@ -201,14 +201,14 @@ describe('scams are spaced by a window, not just made rarer', () => {
       expect(weeks[i] - weeks[i - 1]).toBeGreaterThanOrEqual(1);
       // Consecutive windows can be adjacent at the boundary (last week of one,
       // first of the next), so the guarantee is one PER WINDOW rather than a
-      // flat gap — assert that directly.
+      // flat gap - assert that directly.
       expect(Math.floor(weeks[i] / SCAM_WINDOW_WEEKS)).not.toBe(
         Math.floor(weeks[i - 1] / SCAM_WINDOW_WEEKS)
       );
     }
   });
 
-  it('is stable for a given week — a replayed tick decides the same way', () => {
+  it('is stable for a given week - a replayed tick decides the same way', () => {
     for (let w = 0; w < 60; w += 1) {
       expect(scamWindowOpen(w)).toBe(scamWindowOpen(w));
       expect(!!generateScam(alwaysFires(w))).toBe(!!generateScam(alwaysFires(w)));
@@ -242,7 +242,7 @@ describe('a scam is never verified', () => {
   });
 });
 
-describe('acting on a scam — §4.4 atomicity', () => {
+describe('acting on a scam - §4.4 atomicity', () => {
   it('charges once when the button is double-tapped in one batch', () => {
     const h = harness(withScamMessage(10_000));
     const seen: number[] = [];
@@ -271,7 +271,7 @@ describe('acting on a scam — §4.4 atomicity', () => {
   it('takes nothing from a message that was merely received', () => {
     const state = withScamMessage(10_000);
     expect(state.stats.money).toBe(10_000);
-    // No action taken — receiving and reading are free.
+    // No action taken - receiving and reading are free.
     expect(getMailState(state).messages[0].lostAmount).toBeUndefined();
   });
 

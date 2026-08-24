@@ -1,16 +1,25 @@
 /**
- * SubscriptionModal — the DeepLife+ premium paywall.
+ * SubscriptionModal - the DeepLife+ premium paywall.
  *
- * A high-intent, conversion-optimized paywall: golden-crown hero, a truthful
- * value stack, an annual-default plan selector with per-week price framing, and
- * a free-trial-led CTA. Drives the purchase via `subscriptionService` and
- * applies in-game benefits via `applyDeepLifePlusBenefits` on success.
+ * Redesigned (2026-08-24) around one conversion rule: the player must see the
+ * value proposition, the price, the plan and the CTA on ONE screen, with ONE
+ * dominant action. The previous revision buried the plan selector below a
+ * seven-row benefit list and a trial banner, so the single most important
+ * conversion element - the price - often sat below the fold. Now:
  *
- * Marketing choices (all App Store compliant — NO countdown timers, fake
+ *   • Small crest + "Make every life better." headline (2-second value prop).
+ *   • FIVE primary benefits; welcome gems + VIP support fold into one quiet
+ *     "Plus..." line so the list reads in a glance.
+ *   • The plan selector (annual pre-selected, BEST VALUE badge) and the CTA are
+ *     PINNED below the scroll area - the price is on screen in every state.
+ *   • Gold is reserved for what matters: the brand mark, the selected plan and
+ *     the CTA. Everything else is dark navy, white type and muted secondaries.
+ *
+ * Marketing choices (all App Store compliant - NO countdown timers, fake
  * scarcity, or strike-through "was" prices, per the app's review notes):
  *   • Annual plan pre-selected (higher LTV; users anchor to the default).
  *   • Free trial is the primary hook, but only where it is TRUE (see below).
- *   • Yearly framed per-week — the strongest value cue.
+ *   • Yearly framed per-week - the strongest value cue.
  *   • Every listed benefit is one the game actually grants (kept truthful).
  *
  * ── TWO THINGS THIS SCREEN IS NOT ALLOWED TO GUESS ──────────────────────────
@@ -24,9 +33,9 @@
  * CTA rather than printing a number it cannot stand behind.
  *
  * THE TRIAL. The trial claim was shown whenever eligibility was not a definite
- * 'ineligible' — which is every Android user, every build without RevenueCat
+ * 'ineligible' - which is every Android user, every build without RevenueCat
  * keys, and every failed lookup. So a returning subscriber who had already spent
- * their trial was shown "Start for $0.00 Today" and charged in full on tap.
+ * their trial was shown a "free" CTA and charged in full on tap.
  * `resolveTrialClaim` now separates a hard promise (store confirms the offer AND
  * this player's eligibility) from conditional copy that is true either way.
  */
@@ -46,7 +55,7 @@ import {
   Linking,
   type ImageSourcePropType,
 } from 'react-native';
-import { X, Crown, Check, Ban, Palette, Gem, ShieldCheck, TrendingUp, Headphones, ChevronRight, Sparkles, Gift } from 'lucide-react-native';
+import { X, Crown, Check, Ban, Palette, Gift, ShieldCheck, TrendingUp, ChevronRight } from 'lucide-react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSetGameState } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -62,6 +71,7 @@ import {
   DEEP_LIFE_PLUS_BENEFITS,
   DEEP_LIFE_PLUS_LIFETIME,
   DEEP_LIFE_PLUS_FREE_TRIAL_DAYS,
+  DEEP_LIFE_PLUS_WELCOME_GEMS,
   isDeepLifePlusActive,
   type DeepLifePlusPlan,
 } from '@/lib/subscription/deepLifePlus';
@@ -80,16 +90,17 @@ interface Props {
 }
 
 // Luxe dark + gold palette. Fixed (not theme-driven) so the paywall keeps its
-// premium look in every theme. Flat colors only — the app's LinearGradient
+// premium look in every theme. Flat colors only - the app's LinearGradient
 // fallback renders just the first color, so we never rely on gradients.
+// Gold is deliberately scarce: brand mark, selected plan, BEST VALUE badge and
+// the CTA. If everything is gold, nothing is.
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
 const GOLD_DEEP = '#F59E0B';
-const GOLD_TINT = 'rgba(250, 204, 21, 0.12)';
-const GOLD_BORDER = 'rgba(250, 204, 21, 0.38)';
 const SHEET_BG = '#0B1120';
 const CARD_BG = '#111A2E';
 const CARD_BORDER = 'rgba(255, 255, 255, 0.08)';
+const ICON_BG = 'rgba(255, 255, 255, 0.06)';
 const TEXT = '#F8FAFC';
 const TEXT_MUTED = '#94A3B8';
 const TEXT_DIM = '#64748B';
@@ -100,30 +111,23 @@ const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: 
   income_boost: TrendingUp,
   legacy_premium: Crown,
   cosmetics: Palette,
-  welcome_gems: Gem,
-  vip_support: Headphones,
 };
 
-// The DeepLife+ crest — the illustrated gold crown on its dark gold-framed
+// The five benefits that sell the membership in a glance. Welcome gems and VIP
+// support are real perks but weak headliners - they collapse into the single
+// "Plus..." line below the list so the stack stays scannable. All seven still
+// appear on the post-purchase welcome panel, where completeness matters.
+const PRIMARY_BENEFIT_IDS = ['no_ads', 'daily_gems', 'income_boost', 'legacy_premium', 'cosmetics'];
+
+// The DeepLife+ crest - the illustrated gold crown on its dark gold-framed
 // plate. The same file backs the avatar badge in `DeepLifePlusUpsell`, so the
 // mark a player taps on the player card is the mark that greets them here.
+// Rendered small on purpose: the headline sells, the crest just signs it.
 const CREST_ART: ImageSourcePropType = require('@/assets/images/deeplife-plus-crest.webp');
 
 const BENEFIT_ART: Record<string, ImageSourcePropType> = {
   no_ads: require('@/assets/images/iap/premium/remove_ads.webp'),
   income_boost: require('@/assets/images/iap/perks/work_pay_boost.webp'),
-  welcome_gems: require('@/assets/images/iap/gems/gems_500.webp'),
-};
-
-// Short right-aligned value chip per benefit (mockup-style). Honest labels only.
-const BENEFIT_CHIP: Record<string, string> = {
-  no_ads: 'AD-FREE',
-  daily_gems: '250/DAY',
-  income_boost: '+25%',
-  legacy_premium: 'ALL ACCESS',
-  cosmetics: 'EXCLUSIVE',
-  welcome_gems: '+500',
-  vip_support: 'VIP',
 };
 
 export default function SubscriptionModal({ visible, onClose }: Props) {
@@ -139,7 +143,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     () => DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'monthly'),
     [],
   );
-  // Annual pre-selected — the higher-LTV default that users anchor to.
+  // Annual pre-selected - the higher-LTV default that users anchor to.
   const [selected, setSelected] = useState<DeepLifePlusPlan>(yearlyPlan);
   const [lifetime, setLifetime] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -171,7 +175,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
    *
    * `store-disabled` is the ONLY state that falls back to the config price: no
    * store exists in that build, so nothing can be charged and no wrong number
-   * can lead to a wrong payment — it keeps the layout reviewable in Expo Go and
+   * can lead to a wrong payment - it keeps the layout reviewable in Expo Go and
    * the web preview, with the CTA disabled (the same way GemShopModal degrades).
    * Every other state shows a placeholder, because there a purchase COULD still
    * be attempted and a stale USD figure would be a false price.
@@ -179,12 +183,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const priceLabel = useCallback(
     (resolved: PlanPrice, configPrice: string): string => {
       if (resolved.fromStore) return resolved.displayPrice;
-      return prices.state === 'store-disabled' ? configPrice : '—';
+      return prices.state === 'store-disabled' ? configPrice : '-';
     },
     [prices.state],
   );
 
-  // Derived value framing — silent unless it can be computed from real,
+  // Derived value framing - silent unless it can be computed from real,
   // same-currency store prices (see lib/subscription/planPricing.ts).
   const perWeek = useMemo(() => perWeekPrice(yearlyPrice), [yearlyPrice]);
   const savingsPct = useMemo(
@@ -195,8 +199,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   // ── What we may claim about the free trial ────────────────────────────────
   // Two independent questions: does the PRODUCT carry a free-trial offer (the
   // store's product data), and may THIS player still use it (the per-user
-  // eligibility check below). Only a yes to both earns the "$0.00 today"
-  // promise; a partial answer gets copy that holds either way.
+  // eligibility check below). Only a yes to both earns the free-trial CTA;
+  // a partial answer gets copy that holds either way.
   const trial = useMemo(() => {
     if (active || lifetime) return { claim: 'none' as const, days: 0 };
     const product = prices.productFor(selected.productId);
@@ -211,21 +215,19 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const trialMentioned = trial.claim !== 'none';
 
   // Can the player actually buy right now? Gated on having a real price to show
-  // them — presenting a purchase button beside a price we could not load is the
+  // them - presenting a purchase button beside a price we could not load is the
   // failure this whole screen was rebuilt to prevent.
   const canPurchase = selectedPrice.fromStore;
 
-  // Motion that makes the sheet feel alive: a slow gold pulse behind the crest,
-  // twinkling hero sparkles, and a periodic light sweep across the CTA. All
-  // native-driven and disabled under the OS "Reduce Motion" setting.
+  // Motion, kept minimal on purpose: a slow gold pulse behind the crest and a
+  // periodic light sweep across the CTA - the one element allowed to shout.
+  // Native-driven and disabled under the OS "Reduce Motion" setting.
   const glow = useRef(new Animated.Value(0)).current;
-  const sparkle = useRef(new Animated.Value(0)).current; // hero twinkle
-  const shine = useRef(new Animated.Value(0)).current;    // CTA sweep
+  const shine = useRef(new Animated.Value(0)).current; // CTA sweep
   useEffect(() => {
     if (!visible) return;
     if (reducedMotion) {
       glow.setValue(1);
-      sparkle.setValue(0.6);
       shine.setValue(0);
       return;
     }
@@ -233,13 +235,6 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       Animated.sequence([
         Animated.timing(glow, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
         Animated.timing(glow, { toValue: 0.35, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    const sparkleLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sparkle, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(sparkle, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.delay(500),
       ]),
     );
     // A light band sweeps across the CTA every ~3.5s (premium "shine").
@@ -250,14 +245,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       ]),
     );
     glowLoop.start();
-    sparkleLoop.start();
     shineLoop.start();
     return () => {
       glowLoop.stop();
-      sparkleLoop.stop();
       shineLoop.stop();
     };
-  }, [visible, reducedMotion, glow, sparkle, shine]);
+  }, [visible, reducedMotion, glow, shine]);
 
   // ── Funnel instrumentation ────────────────────────────────────────────────
   // `once` keeps the per-open events (viewed, intro offer shown) to one each per
@@ -340,7 +333,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   // A REF, not the `busy` state, is what actually closes the double-tap window.
   // `setBusy(true)` does not update `busy` until React re-renders, so two taps
   // landing in one batch would both read `busy === false` and both open a store
-  // sheet — the same gate-then-act shape that has produced double-grant bugs in
+  // sheet - the same gate-then-act shape that has produced double-grant bugs in
   // this repo (CLAUDE.md §4.4). The ref flips synchronously, so the second tap
   // is refused before it can reach the store. `busy` is kept for the UI.
   const purchaseInFlight = useRef(false);
@@ -356,7 +349,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         surface: 'deeplife_plus',
         productId,
         trialClaim: trial.claim,
-        // The price the player was actually looking at when they committed —
+        // The price the player was actually looking at when they committed -
         // the only way to reconcile the funnel against a storefront's real tiers.
         displayPrice: selectedPrice.displayPrice,
         currency: selectedPrice.currency,
@@ -404,8 +397,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         setMessage('Subscription restored.');
       } else {
         // Not an error: a player with nothing to restore is the common case.
-        // Tracked apart from a failure so a spike in genuine restore FAILURES —
-        // the ones that cost a paying player their entitlement — stays visible.
+        // Tracked apart from a failure so a spike in genuine restore FAILURES -
+        // the ones that cost a paying player their entitlement - stays visible.
         track('restore_failed', { surface: 'deeplife_plus', reason: 'nothing_to_restore' });
         setMessage('No active subscription found to restore.');
       }
@@ -463,14 +456,6 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     opacity: glow,
     transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.15] }) }],
   };
-  const sparkleAStyle = {
-    opacity: sparkle,
-    transform: [{ scale: sparkle.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.1] }) }],
-  };
-  const sparkleBStyle = {
-    opacity: sparkle.interpolate({ inputRange: [0, 1], outputRange: [1, 0.2] }),
-    transform: [{ scale: sparkle.interpolate({ inputRange: [0, 1], outputRange: [1.1, 0.6] }) }],
-  };
   const shineStyle = {
     opacity: shine.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.5, 0] }),
     transform: [
@@ -478,6 +463,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       { skewX: '-18deg' },
     ],
   };
+
+  const primaryBenefits = DEEP_LIFE_PLUS_BENEFITS.filter((b) => PRIMARY_BENEFIT_IDS.includes(b.id));
 
   // ── Primary CTA ───────────────────────────────────────────────────────────
   // A four-state machine, because "we could not load the price" and "the store
@@ -514,11 +501,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             ? 'Retry'
             : lifetime
               ? `Unlock Forever · ${selectedLabel}`
-              // "$0.00 today" is a hard promise about THIS player's next charge,
-              // so it is reserved for a store-confirmed eligible trial. Everyone
-              // else is shown the price they will actually be charged.
+              // A free-trial headline is a hard promise about THIS player's next
+              // charge, so it is reserved for a store-confirmed eligible trial.
+              // Everyone else is shown the price they will actually be charged.
               : trialPromised
-                ? 'Start for $0.00 Today'
+                ? `Start ${trialDays}-Day Free Trial`
                 : `Continue · ${selectedLabel} ${selected.unit}`;
 
   const ctaSub =
@@ -529,7 +516,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         : ctaMode === 'disabled'
           ? 'Purchases are not available in this build'
           : ctaMode === 'retry'
-            ? "We couldn't reach the store — tap to try again"
+            ? "We couldn't reach the store - tap to try again"
             : lifetime
               ? 'One-time payment · yours forever, never renews'
               : trialPromised
@@ -563,21 +550,11 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           </TouchableOpacity>
 
           <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* Hero */}
+            {/* Hero - the 2-second value proposition. The crest signs it small;
+                the headline does the selling. */}
             <View style={styles.hero}>
               <View style={styles.crownWrap}>
                 <Animated.View style={[styles.crownGlow, glowStyle]} pointerEvents="none" />
-                <Animated.View style={[styles.sparkleA, sparkleAStyle]} pointerEvents="none">
-                  <Sparkles size={scale(15)} color={GOLD_SOFT} fill={GOLD_SOFT} />
-                </Animated.View>
-                <Animated.View style={[styles.sparkleB, sparkleBStyle]} pointerEvents="none">
-                  <Sparkles size={scale(11)} color={GOLD_SOFT} fill={GOLD_SOFT} />
-                </Animated.View>
-                {/* The crest is illustrated art with its own gold frame and
-                    plate, so it is rendered bare — the chip that used to draw a
-                    tinted background and a 1.5pt gold border around a flat
-                    lucide glyph would now frame an already-framed badge. The
-                    glow and sparkles behind it are unchanged. */}
                 <Image source={CREST_ART} style={styles.crest} resizeMode="contain" />
               </View>
               <Text style={styles.brand}>
@@ -587,149 +564,76 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 {purchased
                   ? "You're in. Here's everything you just unlocked."
                   : active
-                    ? 'Your membership is active — thank you!'
-                    : 'Your best life, unlocked.'}
+                    ? 'Your membership is active - thank you!'
+                    : 'Make every life better.'}
               </Text>
             </View>
 
-            {/* Value stack */}
+            {/* Value stack - five rows, one glance. */}
             <View style={styles.benefits}>
-              {DEEP_LIFE_PLUS_BENEFITS.map((b) => {
+              {primaryBenefits.map((b, i) => {
                 const Icon = BENEFIT_ICON[b.id] ?? Check;
                 const Art = BENEFIT_ART[b.id];
                 return (
-                  <View key={b.id} style={styles.benefitRow}>
+                  <View key={b.id} style={[styles.benefitRow, i > 0 && styles.benefitRowDivider]}>
                     <View style={styles.benefitIcon}>
                       {Art ? (
                         <Image source={Art} style={styles.benefitArt} resizeMode="contain" />
                       ) : (
-                        <Icon size={scale(14)} color={GOLD} />
+                        <Icon size={scale(15)} color={GOLD} />
                       )}
                     </View>
                     <View style={styles.benefitText}>
                       <Text style={styles.benefitTitle}>{b.title}</Text>
                       <Text style={styles.benefitDesc}>{b.description}</Text>
                     </View>
-                    {BENEFIT_CHIP[b.id] ? (
-                      <View style={styles.benefitChip}>
-                        <Text style={styles.benefitChipText}>{BENEFIT_CHIP[b.id]}</Text>
-                      </View>
-                    ) : null}
                   </View>
                 );
               })}
             </View>
 
-            {!active && !purchased && (
-              <>
-                {/* Free-trial banner — the hook, in whichever form is TRUE.
-                    A promise ("no charge") is only made when the store has
-                    confirmed both that the offer exists and that this player is
-                    eligible for it; otherwise the copy describes the offer
-                    without asserting anything about this player's next charge. */}
-                {trialMentioned ? (
-                  <View style={styles.trialBanner}>
-                    <View style={styles.trialBannerBody}>
-                      <Text style={styles.trialBannerTitle}>
-                        {trialPromised ? `${trialDays} days risk-free` : `${trialDays}-day free trial`}
-                      </Text>
-                      <Text style={styles.trialBannerSub}>
-                        {trialPromised
-                          ? 'Try every perk. Love it or cancel — no charge.'
-                          : 'New subscribers start with a free trial — the store confirms your terms at checkout.'}
-                      </Text>
-                    </View>
-                    {/* The "100% RISK-FREE" seal is an absolute claim, so it
-                        rides only on a confirmed promise — never on the
-                        conditional wording. */}
-                    {trialPromised ? (
-                      <View style={styles.riskSeal}>
-                        <Text style={styles.riskSealPct} numberOfLines={1} adjustsFontSizeToFit>
-                          100%
-                        </Text>
-                        <Text style={styles.riskSealLabel} numberOfLines={1} adjustsFontSizeToFit>
-                          RISK-FREE
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
+            {/* The rest of the value, in one quiet line - real perks, weak
+                headliners. Kept truthful: both are granted on join. */}
+            {!active && !purchased ? (
+              <Text style={styles.plusLine}>
+                Plus {DEEP_LIFE_PLUS_WELCOME_GEMS} welcome gems and VIP support when you join.
+              </Text>
+            ) : null}
 
-                {/* Plan selector — annual default */}
-                <View style={styles.plansRow}>
-                  {/* Annual */}
-                  <TouchableOpacity
-                    style={[styles.planCard, !lifetime && selected.period === 'yearly' && styles.planCardSelected]}
-                    onPress={selectYearly}
-                    activeOpacity={0.9}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Annual plan, ${priceLabel(yearlyPrice, yearlyPlan.price)} per year${savingsPct ? `, save ${savingsPct} percent` : ''}`}
-                  >
-                    {/* Only rendered when the saving is provable from two real,
-                        same-currency store prices — never from config USD. */}
-                    {savingsPct ? (
-                      <View style={styles.saveBadge}>
-                        <Text style={styles.saveBadgeText}>SAVE {savingsPct}%</Text>
-                      </View>
-                    ) : null}
-                    <Text style={styles.planPeriod}>Annual</Text>
-                    <Text style={styles.planPrice}>{priceLabel(yearlyPrice, yearlyPlan.price)}</Text>
-                    <Text style={styles.planUnit}>per year</Text>
-                    {perWeek ? <Text style={styles.planPerWeek}>just {perWeek}/week</Text> : null}
-                  </TouchableOpacity>
-
-                  {/* Monthly */}
-                  {DEEP_LIFE_PLUS_PLANS.filter((p) => p.period === 'monthly').map((plan) => (
-                    <TouchableOpacity
-                      key={plan.period}
-                      style={[styles.planCard, !lifetime && selected.period === 'monthly' && styles.planCardSelected]}
-                      onPress={() => selectPlan(plan)}
-                      activeOpacity={0.9}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Monthly plan, ${priceLabel(monthlyPrice, plan.price)} per month`}
-                    >
-                      <Text style={styles.planPeriod}>Monthly</Text>
-                      <Text style={styles.planPrice}>{priceLabel(monthlyPrice, plan.price)}</Text>
-                      <Text style={styles.planUnit}>per month</Text>
-                      <Text style={styles.planPerWeekMuted}>billed monthly</Text>
-                    </TouchableOpacity>
-                  ))}
+            {/* Pay-once alternative - a secondary path, styled quiet. */}
+            {!active && !purchased ? (
+              <TouchableOpacity
+                style={[styles.lifetimeCard, lifetime && styles.lifetimeCardSelected]}
+                onPress={selectLifetime}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel={`Unlock forever, one-time ${priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)}`}
+              >
+                <View style={styles.lifetimeLeft}>
+                  <Text style={styles.lifetimeTitle}>Prefer to pay once?</Text>
+                  <Text style={styles.lifetimeSub}>Unlock forever · no subscription, never renews</Text>
                 </View>
-
-                {/* Pay-once alternative */}
-                <TouchableOpacity
-                  style={[styles.lifetimeCard, lifetime && styles.lifetimeCardSelected]}
-                  onPress={selectLifetime}
-                  activeOpacity={0.9}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Unlock forever, one-time ${priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)}`}
-                >
-                  <View style={styles.lifetimeLeft}>
-                    <Text style={styles.lifetimeTitle}>Unlock forever</Text>
-                    <Text style={styles.lifetimeSub}>Pay once · no subscription, never renews</Text>
-                  </View>
-                  <Text style={styles.lifetimePrice}>
-                    {priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+                <Text style={styles.lifetimePrice}>
+                  {priceLabel(lifetimePrice, DEEP_LIFE_PLUS_LIFETIME.price)}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             {/* ── The activation moment ──────────────────────────────────
                 A purchase used to end with a one-line string under the plan
-                selector the player had just accepted — no acknowledgement, no
+                selector the player had just accepted - no acknowledgement, no
                 statement of what they now have, and nothing to do next. That is
                 the moment a subscriber decides whether the charge was a good
                 idea, and the first premium perk they actually USE is the best
                 predictor of whether they renew.
 
                 So: name what they unlocked, and point them at the fastest one to
-                feel — the welcome gems are already in their balance, granted by
+                feel - the welcome gems are already in their balance, granted by
                 `applyDeepLifePlusBenefits` in the same handler. */}
             {purchased ? (
               <View style={styles.welcome}>
                 <Text style={styles.welcomeTitle}>
-                  {purchased.lifetime ? 'Premium unlocked — forever' : 'Welcome to DeepLife+'}
+                  {purchased.lifetime ? 'Premium unlocked - forever' : 'Welcome to DeepLife+'}
                 </Text>
                 <Text style={styles.welcomeSub}>
                   Every perk below is live right now. Your welcome gems are already in your
@@ -747,9 +651,58 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             {message ? <Text style={styles.message}>{message}</Text> : null}
           </ScrollView>
 
-          {/* Primary CTA — after a purchase it becomes the way OUT of the
-              sheet, so a new subscriber is never left tapping a buy button for
-              something they already own. */}
+          {/* Plan selector - PINNED below the scroll so price + plan + CTA are
+              on screen together in every state. Annual pre-selected. */}
+          {!active && !purchased ? (
+            <View style={styles.plansRow}>
+              {/* Annual */}
+              <TouchableOpacity
+                style={[styles.planCard, !lifetime && selected.period === 'yearly' && styles.planCardSelected]}
+                onPress={selectYearly}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel={`Annual plan, best value, ${priceLabel(yearlyPrice, yearlyPlan.price)} per year${savingsPct ? `, save ${savingsPct} percent` : ''}`}
+              >
+                {/* "SAVE n%" only when provable from two real, same-currency
+                    store prices - never from config USD. "BEST VALUE" is the
+                    plan's own standing badge. */}
+                <View style={styles.saveBadge}>
+                  <Text style={styles.saveBadgeText}>
+                    {savingsPct ? `BEST VALUE · SAVE ${savingsPct}%` : 'BEST VALUE'}
+                  </Text>
+                </View>
+                <Text style={styles.planPeriod}>Annual</Text>
+                <Text style={styles.planPrice} numberOfLines={1} adjustsFontSizeToFit>
+                  {priceLabel(yearlyPrice, yearlyPlan.price)}
+                </Text>
+                <Text style={styles.planUnit}>per year</Text>
+                {perWeek ? <Text style={styles.planPerWeek}>just {perWeek}/week</Text> : null}
+              </TouchableOpacity>
+
+              {/* Monthly */}
+              {DEEP_LIFE_PLUS_PLANS.filter((p) => p.period === 'monthly').map((plan) => (
+                <TouchableOpacity
+                  key={plan.period}
+                  style={[styles.planCard, !lifetime && selected.period === 'monthly' && styles.planCardSelected]}
+                  onPress={() => selectPlan(plan)}
+                  activeOpacity={0.9}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Monthly plan, ${priceLabel(monthlyPrice, plan.price)} per month`}
+                >
+                  <Text style={styles.planPeriod}>Monthly</Text>
+                  <Text style={styles.planPrice} numberOfLines={1} adjustsFontSizeToFit>
+                    {priceLabel(monthlyPrice, plan.price)}
+                  </Text>
+                  <Text style={styles.planUnit}>per month</Text>
+                  <Text style={styles.planPerWeekMuted}>billed monthly</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Primary CTA - the one element allowed to dominate. After a
+              purchase it becomes the way OUT of the sheet, so a new subscriber
+              is never left tapping a buy button for something they already own. */}
           <TouchableOpacity
             style={[styles.cta, (ctaDisabled || busy) && styles.ctaDisabled]}
             onPress={purchased ? handleClose : onCtaPress}
@@ -777,23 +730,14 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             )}
           </TouchableOpacity>
 
-          {/* Trust row */}
+          {/* Compact reassurance line */}
           {!active && !purchased ? (
             <View style={styles.trustRow}>
-              <View style={styles.trustItem}>
-                <ShieldCheck size={scale(13)} color={TEXT_MUTED} />
-                <Text style={styles.trustText}>Cancel anytime</Text>
-              </View>
-              <View style={styles.trustItem}>
-                <Check size={scale(13)} color={TEXT_MUTED} />
-                <Text style={styles.trustText}>No commitment</Text>
-              </View>
-              <View style={styles.trustItem}>
-                <Check size={scale(13)} color={TEXT_MUTED} />
-                <Text style={styles.trustText}>
-                  {Platform.select({ ios: 'Secure via App Store', android: 'Secure via Google Play', default: 'Secure checkout' })}
-                </Text>
-              </View>
+              <ShieldCheck size={scale(13)} color={TEXT_MUTED} />
+              <Text style={styles.trustText}>
+                Cancel anytime ·{' '}
+                {Platform.select({ ios: 'Secure via App Store', android: 'Secure via Google Play', default: 'Secure payment' })}
+              </Text>
             </View>
           ) : null}
 
@@ -819,7 +763,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           {/* ── Compliant legal disclosure ───────────────────────────────────
               Apple requires the recurring nature, the price and the billing
               period to be clear before purchase. The price quoted here is the
-              SAME resolved store price shown on the plan card and the CTA —
+              SAME resolved store price shown on the plan card and the CTA -
               they read from one value, so the disclosure and the button can
               never quote different figures. When no price could be loaded the
               disclosure says so plainly instead of inventing one; the CTA is a
@@ -827,23 +771,23 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           <Text style={styles.legal}>
             {purchased
               ? purchased.lifetime
-                ? 'One-time purchase — no subscription, nothing renews.'
+                ? 'One-time purchase - no subscription, nothing renews.'
                 : 'Your subscription renews automatically until cancelled. Manage or cancel anytime in your store account.'
               : active
                 ? 'Manage or cancel anytime in your store account.'
                 : lifetime
-                  ? 'One-time purchase. Yours forever — no subscription, never renews.'
+                  ? 'One-time purchase. Yours forever - no subscription, never renews.'
                   : prices.state === 'store-disabled'
                     // Prices ARE on screen in this state (the config fallback,
                     // shown only where nothing can be purchased), so claiming
                     // none loaded would contradict the cards right above.
-                    ? 'Purchases are unavailable in this build. Prices shown are indicative — the store always shows your exact price and renewal terms before any charge.'
+                    ? 'Purchases are unavailable in this build. Prices shown are indicative - the store always shows your exact price and renewal terms before any charge.'
                     : !canPurchase
                       ? 'Prices could not be loaded from the store. Your exact price and renewal terms are always shown by the store before any charge.'
                       : trialPromised
                         ? `${trialDays}-day free trial, then ${selectedLabel} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
                         : trialMentioned
-                          ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial — the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
+                          ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial - the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
                           : `${selectedLabel} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
           </Text>
         </View>
@@ -860,10 +804,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: scale(26),
     borderTopRightRadius: scale(26),
     borderWidth: 1,
-    borderColor: GOLD_BORDER,
+    borderColor: CARD_BORDER,
     paddingHorizontal: scale(18),
-    paddingTop: scale(18),
-    paddingBottom: scale(18),
+    paddingTop: scale(16),
+    paddingBottom: scale(16),
   },
   closeBtn: {
     position: 'absolute',
@@ -878,167 +822,90 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148,163,184,0.14)',
   },
   // flexShrink lets the scroll area shrink within the maxHeight-clamped sheet so
-  // the CTA + trust/footer below it stay pinned and visible while the content
-  // (hero, 6 benefits, plans) scrolls internally.
+  // the PINNED region below it (plan selector, CTA, trust, footer, legal) stays
+  // visible while the content (hero, benefits, pay-once row) scrolls internally.
+  // That pinning is the redesign's core conversion move: the price is on screen
+  // in every state, on every device height.
   scroll: { flexShrink: 1 },
-  scrollContent: { paddingBottom: scale(6) },
+  scrollContent: { paddingBottom: scale(4) },
 
-  // Hero
-  hero: { alignItems: 'center', paddingTop: scale(8), paddingBottom: scale(14) },
-  crownWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: scale(12) },
+  // Hero. Crest deliberately small (~half its old 84pt) - it signs the
+  // headline instead of pushing the price below the fold.
+  hero: { alignItems: 'center', paddingTop: scale(6), paddingBottom: scale(12) },
+  crownWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: scale(8) },
   crownGlow: {
     position: 'absolute',
-    width: scale(120),
-    height: scale(120),
-    borderRadius: scale(60),
-    backgroundColor: 'rgba(250, 204, 21, 0.22)',
+    width: scale(66),
+    height: scale(66),
+    borderRadius: scale(33),
+    backgroundColor: 'rgba(250, 204, 21, 0.18)',
   },
-  sparkleA: { position: 'absolute', top: scale(-2), right: scale(2) },
-  sparkleB: { position: 'absolute', bottom: scale(4), left: scale(4) },
   crest: {
-    width: scale(84),
-    height: scale(84),
+    width: scale(46),
+    height: scale(46),
   },
   brand: { fontSize: fontScale(30), fontWeight: '900', color: TEXT, letterSpacing: 0.3 },
   brandPlus: { color: GOLD },
-  tagline: { fontSize: fontScale(14), fontWeight: '600', color: TEXT_MUTED, marginTop: scale(4), textAlign: 'center' },
+  tagline: { fontSize: fontScale(15), fontWeight: '600', color: TEXT_MUTED, marginTop: scale(3), textAlign: 'center' },
 
-  // Benefits
+  // Benefits - a quiet card: neutral icon plates, hairline dividers, no chips,
+  // no gold borders. Gold appears only in the small icons themselves.
   benefits: {
     backgroundColor: CARD_BG,
     borderRadius: scale(18),
     borderWidth: 1,
     borderColor: CARD_BORDER,
-    padding: scale(10),
-    marginBottom: scale(12),
+    paddingVertical: scale(4),
+    paddingHorizontal: scale(12),
+    marginBottom: scale(10),
   },
-  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(10), paddingVertical: scale(4) },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: scale(11), paddingVertical: scale(8) },
+  benefitRowDivider: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   benefitIcon: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(9),
+    width: scale(30),
+    height: scale(30),
+    borderRadius: scale(10),
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: GOLD_TINT,
-    borderWidth: 1,
-    borderColor: GOLD_BORDER,
+    backgroundColor: ICON_BG,
   },
   benefitArt: { width: scale(22), height: scale(22) },
   benefitText: { flex: 1 },
-  benefitTitle: { fontSize: fontScale(13.5), fontWeight: '800', color: TEXT },
-  benefitDesc: { fontSize: fontScale(11.5), color: TEXT_MUTED, marginTop: scale(1) },
-  benefitChip: {
-    borderWidth: 1,
-    borderColor: GOLD_BORDER,
-    backgroundColor: GOLD_TINT,
-    borderRadius: scale(8),
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(3),
-    marginLeft: scale(6),
-  },
-  benefitChipText: { color: GOLD_SOFT, fontSize: fontScale(11), fontWeight: '900', letterSpacing: 0.3 },
-
-  // Trial banner
-  trialBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(12),
-    backgroundColor: GOLD_TINT,
-    borderColor: GOLD_BORDER,
-    borderWidth: 1,
-    borderRadius: scale(16),
-    paddingVertical: scale(12),
-    paddingHorizontal: scale(14),
-    marginBottom: scale(14),
-  },
-  trialBannerBody: { flex: 1 },
-  trialBannerTitle: { fontSize: fontScale(17), fontWeight: '900', color: GOLD_SOFT },
-  trialBannerSub: { fontSize: fontScale(12.5), color: TEXT_MUTED, marginTop: scale(3) },
-  riskSeal: {
-    width: scale(62),
-    height: scale(62),
-    borderRadius: scale(31),
-    borderWidth: 1.5,
-    borderColor: GOLD,
-    backgroundColor: 'rgba(250,204,21,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: scale(6),
-    overflow: 'hidden',
-  },
-  riskSealPct: {
-    fontSize: fontScale(15),
-    fontWeight: '900',
-    color: GOLD_SOFT,
-    lineHeight: fontScale(17),
+  benefitTitle: { fontSize: fontScale(14.5), fontWeight: '700', color: TEXT },
+  benefitDesc: { fontSize: fontScale(12), color: TEXT_MUTED, marginTop: scale(1) },
+  plusLine: {
+    fontSize: fontScale(12),
+    color: TEXT_MUTED,
     textAlign: 'center',
-    alignSelf: 'stretch',
-  },
-  riskSealLabel: {
-    // Legibility floor: nothing ships below 10pt. This label sits on the
-    // paywall, so sub-10 fine print here is both unreadable and a review risk.
-    fontSize: fontScale(10),
-    fontWeight: '900',
-    color: GOLD_SOFT,
-    letterSpacing: 0.3,
-    textAlign: 'center',
-    alignSelf: 'stretch',
+    marginBottom: scale(10),
   },
 
-  // Plans
-  plansRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
-  planCard: {
-    flex: 1,
-    backgroundColor: CARD_BG,
-    borderRadius: scale(16),
-    borderWidth: 1.5,
-    borderColor: CARD_BORDER,
-    paddingVertical: scale(16),
-    paddingHorizontal: scale(10),
-    alignItems: 'center',
-  },
-  planCardSelected: { borderColor: GOLD, backgroundColor: 'rgba(250,204,21,0.07)' },
-  saveBadge: {
-    position: 'absolute',
-    top: -scale(10),
-    backgroundColor: GOLD,
-    borderRadius: scale(10),
-    paddingHorizontal: scale(9),
-    paddingVertical: scale(2),
-  },
-  saveBadgeText: { color: '#1A1206', fontSize: fontScale(10), fontWeight: '900', letterSpacing: 0.3 },
-  planPeriod: { fontSize: fontScale(13), fontWeight: '700', color: TEXT_MUTED, marginTop: scale(2) },
-  planPrice: { fontSize: fontScale(22), fontWeight: '900', color: TEXT, marginTop: scale(4) },
-  planUnit: { fontSize: fontScale(11), color: TEXT_MUTED, marginTop: scale(1) },
-  planPerWeek: { fontSize: fontScale(12), fontWeight: '800', color: GOLD_SOFT, marginTop: scale(6) },
-  planPerWeekMuted: { fontSize: fontScale(11), color: TEXT_DIM, marginTop: scale(6) },
-
-  // Lifetime
+  // Pay-once row - present but quiet; the subscription is the primary path.
   lifetimeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CARD_BG,
-    borderRadius: scale(16),
-    borderWidth: 1.5,
+    borderRadius: scale(14),
+    borderWidth: 1,
     borderColor: CARD_BORDER,
-    paddingVertical: scale(13),
-    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(14),
   },
   lifetimeCardSelected: { borderColor: GOLD, backgroundColor: 'rgba(250,204,21,0.07)' },
   lifetimeLeft: { flex: 1 },
-  lifetimeTitle: { fontSize: fontScale(15), fontWeight: '800', color: TEXT },
-  lifetimeSub: { fontSize: fontScale(11.5), color: TEXT_MUTED, marginTop: scale(2) },
-  lifetimePrice: { fontSize: fontScale(20), fontWeight: '900', color: GOLD_SOFT },
+  lifetimeTitle: { fontSize: fontScale(13.5), fontWeight: '700', color: TEXT },
+  lifetimeSub: { fontSize: fontScale(11), color: TEXT_MUTED, marginTop: scale(1) },
+  lifetimePrice: { fontSize: fontScale(16), fontWeight: '800', color: TEXT },
 
   message: { fontSize: fontScale(13), fontWeight: '700', color: TEXT, textAlign: 'center', marginTop: scale(12) },
 
-  // Activation moment. Full four-sided border (Hard Rule #7 — no one-sided
+  // Activation moment. Full four-sided border (Hard Rule #7 - no one-sided
   // accent stripes anywhere in the app).
   welcome: {
     marginTop: scale(4),
-    backgroundColor: GOLD_TINT,
+    backgroundColor: 'rgba(250, 204, 21, 0.12)',
     borderWidth: 1,
-    borderColor: GOLD_BORDER,
+    borderColor: 'rgba(250, 204, 21, 0.38)',
     borderRadius: scale(16),
     padding: scale(14),
   },
@@ -1069,12 +936,41 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  // CTA
+  // Plans - pinned. The price is the largest number on the sheet.
+  plansRow: { flexDirection: 'row', gap: scale(10), marginTop: scale(10) },
+  planCard: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderRadius: scale(16),
+    borderWidth: 1.5,
+    borderColor: CARD_BORDER,
+    paddingTop: scale(14),
+    paddingBottom: scale(12),
+    paddingHorizontal: scale(8),
+    alignItems: 'center',
+  },
+  planCardSelected: { borderColor: GOLD, backgroundColor: 'rgba(250,204,21,0.07)' },
+  saveBadge: {
+    position: 'absolute',
+    top: -scale(10),
+    backgroundColor: GOLD,
+    borderRadius: scale(10),
+    paddingHorizontal: scale(9),
+    paddingVertical: scale(2),
+  },
+  saveBadgeText: { color: '#1A1206', fontSize: fontScale(10), fontWeight: '900', letterSpacing: 0.3 },
+  planPeriod: { fontSize: fontScale(12.5), fontWeight: '700', color: TEXT_MUTED, marginTop: scale(2) },
+  planPrice: { fontSize: fontScale(26), fontWeight: '900', color: TEXT, marginTop: scale(3) },
+  planUnit: { fontSize: fontScale(11), color: TEXT_MUTED, marginTop: scale(1) },
+  planPerWeek: { fontSize: fontScale(12), fontWeight: '800', color: GOLD_SOFT, marginTop: scale(5) },
+  planPerWeekMuted: { fontSize: fontScale(11), color: TEXT_DIM, marginTop: scale(5) },
+
+  // CTA - the strongest visual element on the sheet, by design.
   cta: {
-    marginTop: scale(14),
+    marginTop: scale(12),
     backgroundColor: GOLD,
     borderRadius: scale(16),
-    paddingVertical: scale(13),
+    paddingVertical: scale(15),
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1095,17 +991,16 @@ const styles = StyleSheet.create({
   // Symmetric horizontal padding keeps the centered title/subtitle clear of the
   // absolutely-positioned chevron on the right (which occupies ~scale(34) of edge
   // space) on every screen width, so they never overlap.
-  ctaText: { color: '#1A1206', fontSize: fontScale(17), fontWeight: '900', letterSpacing: 0.2, textAlign: 'center', paddingHorizontal: scale(34) },
+  ctaText: { color: '#1A1206', fontSize: fontScale(18), fontWeight: '900', letterSpacing: 0.2, textAlign: 'center', paddingHorizontal: scale(34) },
   ctaSub: { color: 'rgba(26,18,6,0.72)', fontSize: fontScale(11.5), fontWeight: '700', marginTop: scale(2), textAlign: 'center', paddingHorizontal: scale(38) },
   ctaChevronWrap: { position: 'absolute', right: scale(14), top: 0, bottom: 0, justifyContent: 'center' },
 
-  // Trust + footer
-  trustRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: scale(14), marginTop: scale(12) },
-  trustItem: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
+  // Trust + footer - one quiet reassurance line, then the required links.
+  trustRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(5), marginTop: scale(10) },
   trustText: { fontSize: fontScale(11.5), fontWeight: '600', color: TEXT_MUTED },
   // flexWrap + horizontal padding: on narrow phones the four links ("Restore ·
   // Manage · Terms of Use · Privacy") overflow a single 390pt row and clip at
-  // the sheet edges — wrapping to a second centred line keeps every link
+  // the sheet edges - wrapping to a second centred line keeps every link
   // reachable (Apple reviewers tap these).
   footerRow: {
     flexDirection: 'row',
@@ -1114,9 +1009,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(8),
     paddingHorizontal: scale(6),
-    marginTop: scale(12),
+    marginTop: scale(8),
   },
-  footerLink: { fontSize: fontScale(13), fontWeight: '700', color: TEXT_MUTED },
-  footerDivider: { fontSize: fontScale(13), color: TEXT_DIM },
-  legal: { fontSize: fontScale(10), lineHeight: fontScale(14), color: TEXT_DIM, textAlign: 'center', marginTop: scale(10) },
+  footerLink: { fontSize: fontScale(12.5), fontWeight: '700', color: TEXT_MUTED },
+  footerDivider: { fontSize: fontScale(12.5), color: TEXT_DIM },
+  legal: { fontSize: fontScale(10.5), lineHeight: fontScale(14.5), color: TEXT_DIM, textAlign: 'center', marginTop: scale(8) },
 });

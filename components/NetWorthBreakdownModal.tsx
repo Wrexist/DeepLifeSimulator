@@ -16,7 +16,7 @@ interface NetWorthBreakdownModalProps {
 
 /**
  * How each group from `buildNetWorthItemisation` is presented. Presentation
- * only — the grouping, the ordering and the arithmetic all live in that pure
+ * only - the grouping, the ordering and the arithmetic all live in that pure
  * module, which is where the "rows must add up to the headline" invariant is
  * tested (`__tests__/economy/netWorthItemisation.test.ts`).
  */

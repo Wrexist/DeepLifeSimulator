@@ -86,7 +86,7 @@ export const GEM_UPGRADES: readonly GemUpgrade[] = [
   {
     id: 'tycoon',
     name: 'Tycoon Empire',
-    description: 'Double all earnings — stacks on top of every other bonus',
+    description: 'Double all earnings - stacks on top of every other bonus',
     cost: 100000,
   },
   {

@@ -9,7 +9,7 @@ import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalSc
  * Whether the CTA already states the price, making the standalone price beside
  * it a second copy of the same number.
  *
- * Real-money cards read "$19.99" on the left and "BUY · $19.99" on the button —
+ * Real-money cards read "$19.99" on the left and "BUY · $19.99" on the button -
  * the same figure twice, a few centimetres apart, on every card in the shop.
  * Owner report, with device screenshots.
  *
@@ -17,7 +17,7 @@ import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalSc
  * the whole point: gem-priced upgrades label their button "Redeem" or "Not
  * enough gems" and never state the cost, so for those the standalone label is
  * the ONLY place a player can see what an upgrade charges. Suppressing it there
- * would hide the price entirely — a worse bug than the duplication. Keying off
+ * would hide the price entirely - a worse bug than the duplication. Keying off
  * the strings means every caller gets the right answer without knowing the
  * rule, and a button that later drops its price automatically gets its
  * left-hand label back.
@@ -32,7 +32,7 @@ export function ctaStatesPrice(priceLabel: string, buttonText: string): boolean 
   return priceLabel.length > 0 && buttonText.includes(priceLabel);
 }
 
-// expo-linear-gradient is a TurboModule that has crashed on iOS 26 — use the safe fallback.
+// expo-linear-gradient is a TurboModule that has crashed on iOS 26 - use the safe fallback.
 const LinearGradient = Gradient;
 
 export type ShopAccent = 'upgrades' | 'gems' | 'packs' | 'perks';
@@ -60,7 +60,7 @@ interface ShopItemCardProps {
   /** When 'gems', a gem icon prefixes the price. When 'money', no icon. */
   priceKind: 'gems' | 'money';
   /**
-   * Truthful value line rendered beneath the price — e.g. a computed
+   * Truthful value line rendered beneath the price - e.g. a computed
    * "≈ 300 gems / $1" for gem packs. NOT a fabricated strike-through price.
    */
   valueLine?: string;
@@ -70,7 +70,7 @@ interface ShopItemCardProps {
   onPress?: () => void;
   accent: ShopAccent;
   owned?: boolean;
-  /** Disabled — typically insufficient funds, loading, or store unavailable. */
+  /** Disabled - typically insufficient funds, loading, or store unavailable. */
   locked?: boolean;
   /** 'row' (default) or 'hero' (banner-size featured card). */
   variant?: ShopCardVariant;
@@ -79,10 +79,10 @@ interface ShopItemCardProps {
 }
 
 const ACCENT_BUTTON: Record<ShopAccent, [string, string, string]> = {
-  upgrades: ['#10B981', '#059669', '#047857'], // gem-purchased — green
-  gems: ['#6366F1', '#4F46E5', '#4338CA'], // real-money gem packs — indigo
-  packs: ['#8B5CF6', '#7C3AED', '#6D28D9'], // bundles — violet
-  perks: ['#F59E0B', '#D97706', '#B45309'], // perks — amber
+  upgrades: ['#10B981', '#059669', '#047857'], // gem-purchased - green
+  gems: ['#6366F1', '#4F46E5', '#4338CA'], // real-money gem packs - indigo
+  packs: ['#8B5CF6', '#7C3AED', '#6D28D9'], // bundles - violet
+  perks: ['#F59E0B', '#D97706', '#B45309'], // perks - amber
 };
 
 const DISABLED_GRADIENT: [string, string] = ['#1E293B', '#0F172A'];

@@ -305,7 +305,7 @@ describe('IAP / Monetization audit', () => {
   // `buyStarterPack` / `buyGoldPack` / `buyRevival` were DELETED 2026-08-23:
   // log-only stubs named after real SKUs, whose real grants flow through
   // IAPService.applyProductBenefitsToState (exercised above). This pin keeps
-  // them deleted — a revived stub would be a paid no-op waiting for a caller.
+  // them deleted - a revived stub would be a paid no-op waiting for a caller.
   it('the log-only purchase stubs stay deleted from the money actions surface', () => {
     mounted = mountGame();
     const money = captured!.money as unknown as Record<string, unknown>;

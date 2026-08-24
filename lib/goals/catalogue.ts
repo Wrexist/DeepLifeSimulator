@@ -18,6 +18,8 @@
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { visibleContracts, getContractProgress } from '@/lib/legacy/contracts';
+import { lifeQuality } from '@/lib/legacy/lifeQuality';
 
 import type { GoalDefinition } from './types';
 
@@ -42,7 +44,7 @@ const countPair = (current: number, target: number): string =>
   `${Math.max(0, Math.round(current))} / ${Math.round(target)}`;
 
 /**
- * The savings ladder. One definition, six rungs — a player who banks $1k is
+ * The savings ladder. One definition, six rungs - a player who banks $1k is
  * shown $5k next, not the same goal with a tick on it. `activeRung` picks the
  * lowest rung not yet reached, so the ladder can never recommend a target the
  * player is already past (the failure mode that makes a goal card feel stale).
@@ -58,7 +60,7 @@ const activeNetWorthRung = (s: GameState): number =>
   NET_WORTH_RUNGS.find((r) => netWorth(s) < r) ?? NET_WORTH_RUNGS[NET_WORTH_RUNGS.length - 1];
 
 export const GOAL_CATALOGUE: GoalDefinition[] = [
-  // ── NOW — actionable inside one or two weeks ──────────────────────────────
+  // ── NOW - actionable inside one or two weeks ──────────────────────────────
   {
     id: 'now_get_hired',
     horizon: 'now',
@@ -68,7 +70,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     isEligible: (s) => !s.currentJob,
     // Measured in APPLICATIONS SENT, not in "do you have a job".
     //
-    // The obvious measure — `currentJob ? 1 : 0` — is pinned at 0 across the
+    // The obvious measure - `currentJob ? 1 : 0` - is pinned at 0 across the
     // entire region where the goal is visible, because the goal stops being
     // eligible the instant it would read 1. That is the deleted goal system's
     // defect exactly: a bar that cannot move while you are looking at it.
@@ -115,7 +117,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     id: 'now_lift_happiness',
     horizon: 'now',
     title: 'Do something you enjoy',
-    rationale: 'Unhappy weeks compound — the longer it sits low, the more it costs.',
+    rationale: 'Unhappy weeks compound - the longer it sits low, the more it costs.',
     route: '/(tabs)/life',
     isEligible: (s) => (s.stats?.happiness ?? 100) < 45,
     measure: (s) => ({ current: s.stats?.happiness ?? 0, target: 45 }),
@@ -127,7 +129,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     id: 'now_clear_arrears',
     horizon: 'now',
     title: 'Clear your overdue bills',
-    rationale: 'Arrears keep growing until they are paid — this is the one debt that never waits.',
+    rationale: 'Arrears keep growing until they are paid - this is the one debt that never waits.',
     route: '/(tabs)/market',
     isEligible: (s) => (s.overdueBalance ?? 0) > 0,
     // Measured as "how much of the arrears you can already cover", so the bar
@@ -144,7 +146,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     achievementLevel: (s) => ((s.overdueBalance ?? 0) <= 0 ? 1 : 0),
   },
 
-  // ── SOON — a handful of weeks of deliberate play ──────────────────────────
+  // ── SOON - a handful of weeks of deliberate play ──────────────────────────
   {
     id: 'soon_promotion',
     horizon: 'soon',
@@ -190,7 +192,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     id: 'soon_first_property',
     horizon: 'soon',
     title: 'Buy your first property',
-    rationale: 'Owning beats renting — it appreciates instead of vanishing.',
+    rationale: 'Owning beats renting - it appreciates instead of vanishing.',
     route: '/(tabs)/market',
     isEligible: (s) => ownedProperties(s) === 0,
     // Progress against the cheapest listing, so the bar means "how close is the
@@ -240,7 +242,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     achievementLevel: (s) => (s.family?.spouse ? 1 : 0),
   },
 
-  // ── DREAM — the thing the whole life is pointed at ────────────────────────
+  // ── DREAM - the thing the whole life is pointed at ────────────────────────
   {
     id: 'dream_net_worth',
     horizon: 'dream',
@@ -271,7 +273,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     title: 'Leave a dynasty',
     rationale: 'Prestige carries your legacy into the next life instead of ending it.',
     route: '/(tabs)/progression',
-    // Only once the player is genuinely in range — offering prestige to a
+    // Only once the player is genuinely in range - offering prestige to a
     // week-3 character is noise, and the repo already holds the preview card
     // back on the same principle.
     isEligible: (s) => netWorth(s) >= 1_000_000,
@@ -284,12 +286,65 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     id: 'dream_family',
     horizon: 'dream',
     title: 'Raise a family',
-    rationale: 'Children inherit your traits — and eventually your fortune.',
+    rationale: 'Children inherit your traits - and eventually your fortune.',
     route: '/(tabs)/life',
     isEligible: (s) => (s.family?.children ?? []).length < 2,
     measure: (s) => ({ current: (s.family?.children ?? []).length, target: 2 }),
     priority: (s) => (s.family?.spouse ? 65 : 30),
     format: countPair,
     achievementLevel: (s) => (s.family?.children ?? []).length,
+  },
+
+  // ── DREAM depth (2026-08-24). The audit's finding: NOW/SOON were well fed
+  // while DREAM had four definitions and collapsed late-game onto contracts
+  // "surfaced nowhere in the app". These three widen it - and one of them is
+  // deliberately not about money at all. ──────────────────────────────────
+  {
+    id: 'dream_business_empire',
+    horizon: 'dream',
+    title: 'Build a business empire',
+    rationale: 'One company is a job you own. Five is an empire.',
+    route: '/(tabs)/computer',
+    isEligible: (s) => (s.companies ?? []).length >= 1 && (s.companies ?? []).length < 5,
+    measure: (s) => ({ current: (s.companies ?? []).length, target: 5 }),
+    priority: () => 68,
+    format: countPair,
+    achievementLevel: (s) => (s.companies ?? []).length,
+  },
+  {
+    id: 'dream_legacy_contracts',
+    horizon: 'dream',
+    title: 'Fulfil the Legacy Contracts',
+    rationale: 'Goals that span lives - the longest game the dynasty plays.',
+    route: '/(tabs)/progression',
+    // Only once the multi-life game has begun; offering contracts to a first
+    // life that has never prestiged is noise.
+    isEligible: (s) => {
+      if ((s.prestige?.totalPrestiges ?? 0) < 1) return false;
+      const contracts = visibleContracts(s);
+      return (s.legacyContracts?.claimedIds ?? []).length < contracts.length;
+    },
+    measure: (s) => ({
+      current: (s.legacyContracts?.claimedIds ?? []).length,
+      target: Math.max(1, visibleContracts(s).length),
+    }),
+    priority: () => 75,
+    format: countPair,
+    achievementLevel: (s) =>
+      visibleContracts(s).filter((c) => getContractProgress(s, c).complete).length,
+  },
+  {
+    id: 'dream_life_quality',
+    horizon: 'dream',
+    title: 'A life well lived',
+    rationale: 'The score the obituary keeps - wealth is only a fifth of it.',
+    route: '/(tabs)/life',
+    // From the second year on: the score needs some life behind it to mean
+    // anything, and it is the one DREAM that no pile of money can buy alone.
+    isEligible: (s) => weeksInThisLife(s) >= 52 && lifeQuality(s).score < 80,
+    measure: (s) => ({ current: lifeQuality(s).score, target: 80 }),
+    priority: () => 55,
+    format: (c, t) => `${Math.round(c)} / ${t} life quality`,
+    achievementLevel: (s) => Math.floor(lifeQuality(s).score / 20),
   },
 ];

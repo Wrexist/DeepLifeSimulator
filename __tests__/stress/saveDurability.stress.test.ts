@@ -145,21 +145,21 @@ describe('Save Durability Stress (real tick + real save serialization)', () => {
     expect(sizeBytes).toBeLessThan(MAX_SAVE_SIZE);
 
     // History arrays must be write-capped, so save size is bounded at ANY week
-    // count — this is *why* a 2000-week save can't soft-lock. Generous upper
+    // count - this is *why* a 2000-week save can't soft-lock. Generous upper
     // bounds (≥ the documented caps) catch an array that grows unbounded.
     expect(state.eventLog?.length ?? 0).toBeLessThanOrEqual(600);
     expect(state.journal?.length ?? 0).toBeLessThanOrEqual(80);
     expect(state.memories?.length ?? 0).toBeLessThanOrEqual(300);
     expect(state.lifeMilestones?.length ?? 0).toBeLessThanOrEqual(300);
     // `netWorthHistory` hangs off `lifetimeStatistics`, not the root. Read at the
-    // root with `?.length ?? 0` this was permanently `0 <= 300` — an unbounded-
+    // root with `?.length ?? 0` this was permanently `0 <= 300` - an unbounded-
     // growth guard that asserted nothing, in the very suite whose job is to prove
     // a 2000-week save cannot soft-lock. ARCH-2.
     expect(state.lifetimeStatistics?.netWorthHistory?.length ?? 0).toBeLessThanOrEqual(300);
   });
 
   it('H5: a corrupted state self-heals via validate(autoFix) and survives a real tick', async () => {
-    // A degraded state: NaN/Infinity numerics — the kind a CloudSync merge, a
+    // A degraded state: NaN/Infinity numerics - the kind a CloudSync merge, a
     // hand-edited save, or arithmetic drift can produce.
     const corrupt = createTestGameState();
     corrupt.stats.money = NaN;
@@ -167,8 +167,8 @@ describe('Save Durability Stress (real tick + real save serialization)', () => {
     corrupt.stats.energy = NaN;
     corrupt.bankSavings = Infinity;
 
-    // 1. The documented load-path repair — validateGameState(autoFix=true), which
-    //    runs autoFixStats in place — must clean the numerics and yield a valid
+    // 1. The documented load-path repair - validateGameState(autoFix=true), which
+    //    runs autoFixStats in place - must clean the numerics and yield a valid
     //    state. (Roadmap H5: prove the load path actually self-heals.)
     validateGameState(corrupt, true);
     expect(Number.isFinite(corrupt.stats.money)).toBe(true);
@@ -178,7 +178,7 @@ describe('Save Durability Stress (real tick + real save serialization)', () => {
     expect(validateGameState(corrupt).valid).toBe(true);
 
     // 2. Even a RAW corrupt state (loaded without pre-repair) must not crash the
-    //    live tick, and the post-tick path must leave it valid & finite — i.e. it
+    //    live tick, and the post-tick path must leave it valid & finite - i.e. it
     //    can't load "valid" then soft-lock/NaN-out on the very first week-advance.
     const raw = createTestGameState();
     raw.stats.money = NaN;

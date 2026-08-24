@@ -22,7 +22,7 @@ const code = (rel: string) =>
   fs.readFileSync(path.join(repoRoot, rel), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-describe('2B — criminal progression is a gate, so show progress toward it', () => {
+describe('2B - criminal progression is a gate, so show progress toward it', () => {
   it('matches the curve the tick levels you up on', () => {
     // `applyStreetJobXp`: +10 XP per illegal job, level at `criminalLevel*100`.
     expect(criminalXpForNextLevel(1)).toBe(100);
@@ -60,7 +60,7 @@ describe('2B — criminal progression is a gate, so show progress toward it', ()
   });
 });
 
-describe('2C — protection the player paid for is now confirmable', () => {
+describe('2C - protection the player paid for is now confirmable', () => {
   const src = code('app/(tabs)/health.tsx');
 
   it('the health screen lists vaccinations and immunities', () => {
@@ -82,7 +82,7 @@ describe('2C — protection the player paid for is now confirmable', () => {
   });
 });
 
-describe('2D — timed legacy buffs have a timer now', () => {
+describe('2D - timed legacy buffs have a timer now', () => {
   const base = (over: Record<string, unknown> = {}) =>
     createTestGameState({ weeksLived: 100, ...over });
 
@@ -124,7 +124,7 @@ describe('2D — timed legacy buffs have a timer now', () => {
   });
 });
 
-describe('2E — triaged, and deliberately unchanged', () => {
+describe('2E - triaged, and deliberately unchanged', () => {
   /*
    * Twelve fields were flagged as "logic, no UI". On inspection ELEVEN are
    * internal bookkeeping that a player has no reason to see:

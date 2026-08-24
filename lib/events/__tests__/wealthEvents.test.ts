@@ -145,7 +145,7 @@ function allChoices(state: GameState): { template: EventTemplate; choice: EventC
 
 // ── Wiring / reachability ──────────────────────────────────────────────────
 
-describe('wealth events — wiring', () => {
+describe('wealth events - wiring', () => {
   it('ships a substantial pack (35-45 templates)', () => {
     expect(wealthEventTemplates.length).toBeGreaterThanOrEqual(35);
     expect(wealthEventTemplates.length).toBeLessThanOrEqual(45);
@@ -173,7 +173,7 @@ describe('wealth events — wiring', () => {
   });
 });
 
-describe('wealth events — shape', () => {
+describe('wealth events - shape', () => {
   const rich = stateAt(DYNASTY_NET_WORTH * 2);
 
   it('each template has a valid category and a positive weight', () => {
@@ -203,7 +203,7 @@ describe('wealth events — shape', () => {
     }
   });
 
-  it('no choice is a pure no-op — declining always costs or gains something', () => {
+  it('no choice is a pure no-op - declining always costs or gains something', () => {
     // The brief for this pack: not "accept / decline" where declining does
     // nothing. Every choice must move money, a stat, a relationship or karma.
     for (const { template, choice } of allChoices(rich)) {
@@ -230,13 +230,13 @@ describe('wealth events — shape', () => {
 
 // ── moneyPct authoring rules ───────────────────────────────────────────────
 
-describe('wealth events — moneyPct declarations', () => {
+describe('wealth events - moneyPct declarations', () => {
   const rich = stateAt(DYNASTY_NET_WORTH * 2);
 
   it('the pack actually adopts moneyPct (the mechanism is no longer a no-op)', () => {
     const scaled = allChoices(rich).filter(({ choice }) => (choice.effects.moneyPct ?? 0) !== 0);
     expect(scaled.length).toBeGreaterThanOrEqual(40);
-    // And at least a quarter of them are LOSSES — a rich player must be able to
+    // And at least a quarter of them are LOSSES - a rich player must be able to
     // lose meaningfully, not only win.
     const losses = scaled.filter(({ choice }) => (choice.effects.moneyPct ?? 0) < 0);
     expect(losses.length / scaled.length).toBeGreaterThanOrEqual(0.25);
@@ -285,7 +285,7 @@ describe('wealth events — moneyPct declarations', () => {
 
 // ── Gating ─────────────────────────────────────────────────────────────────
 
-describe('wealth events — gating', () => {
+describe('wealth events - gating', () => {
   it('an early-game player sees NONE of them', () => {
     const early = earlyState();
     for (const t of wealthEventTemplates) {
@@ -293,7 +293,7 @@ describe('wealth events — gating', () => {
     }
   });
 
-  it('money alone is not enough — the weeksLived floor also holds', () => {
+  it('money alone is not enough - the weeksLived floor also holds', () => {
     const richButNew = stateAt(DYNASTY_NET_WORTH * 4, MIN_WEEKS_LIVED - 1);
     for (const t of wealthEventTemplates) {
       expect(`${t.id}:${t.condition?.(richButNew)}`).toBe(`${t.id}:false`);
@@ -347,7 +347,7 @@ describe('wealth events — gating', () => {
 
 // ── Resolution bounds / exploit safety ─────────────────────────────────────
 
-describe('wealth events — resolution at several net-worth levels', () => {
+describe('wealth events - resolution at several net-worth levels', () => {
   const LEVELS = [0, 1, 1_000, AFFLUENT_NET_WORTH, WEALTHY_NET_WORTH, TYCOON_NET_WORTH, DYNASTY_NET_WORTH, 10_000_000_000];
 
   it('resolves finite, bounded money at every level', () => {
@@ -420,7 +420,7 @@ describe('wealth events — resolution at several net-worth levels', () => {
 
 // ── Reachability from the engine ───────────────────────────────────────────
 
-describe('wealth events — reachable from rollWeeklyEvents', () => {
+describe('wealth events - reachable from rollWeeklyEvents', () => {
   it('a wealthy late-game player actually receives them', () => {
     const seen = new Set<string>();
     let total = 0;
@@ -465,7 +465,7 @@ describe('wealth events — reachable from rollWeeklyEvents', () => {
 
 // ── Purity ─────────────────────────────────────────────────────────────────
 
-describe('wealth events — generate() purity', () => {
+describe('wealth events - generate() purity', () => {
   it('is deterministic and never throws, even for a broke default state', () => {
     const poor = earlyState();
     for (const t of wealthEventTemplates) {

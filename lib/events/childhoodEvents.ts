@@ -82,7 +82,7 @@ const childDiscoverTalent: EventTemplate = {
   condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_discover_talent',
-    description: 'A teacher pulls you aside — you have a real knack for something: art, music, or numbers.',
+    description: 'A teacher pulls you aside - you have a real knack for something: art, music, or numbers.',
     choices: [
       { id: 'lean_in', text: 'Throw yourself into it after school', effects: { stats: { happiness: 8, reputation: 3 } } },
       { id: 'shrug', text: 'Eh, maybe later', effects: { stats: { happiness: 3 } } },
@@ -97,7 +97,7 @@ const childFirstAllowance: EventTemplate = {
   condition: state => inAgeBand(state, 13, 17),
   generate: () => ({
     id: 'child_first_allowance',
-    description: 'Your parents bump up your allowance now that you\'re older — real pocket money at last. What do you do with it?',
+    description: 'Your parents bump up your allowance now that you\'re older - real pocket money at last. What do you do with it?',
     choices: [
       { id: 'save', text: 'Stash it in your savings', effects: { money: 15, stats: { happiness: 3 } } },
       { id: 'sweets', text: 'Blow it on snacks and games', effects: { money: 5, stats: { happiness: 8 } } },
@@ -161,7 +161,7 @@ const teenFirstJob: EventTemplate = {
   condition: state => inAgeBand(state, 15, 17),
   generate: () => ({
     id: 'teen_first_job',
-    description: 'The corner store is hiring for weekend shifts — your first real job.',
+    description: 'The corner store is hiring for weekend shifts - your first real job.',
     choices: [
       { id: 'take_it', text: 'Take the shifts', effects: { money: 40, stats: { energy: -10, happiness: 3 } } },
       { id: 'studies', text: 'Focus on your studies instead', effects: { stats: { happiness: 5, reputation: 2 } } },

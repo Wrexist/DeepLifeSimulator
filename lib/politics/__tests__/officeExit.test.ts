@@ -93,7 +93,7 @@ describe('applyOfficeExit', () => {
   });
 });
 
-describe('runPoliticsWeeklyTick — voted out settles the office', () => {
+describe('runPoliticsWeeklyTick - voted out settles the office', () => {
   it('the re-election loss resolves active scandals and deactivates lobbyists', () => {
     const politics = basePolitics({
       careerLevel: 1,
@@ -126,7 +126,7 @@ describe('runPoliticsWeeklyTick — voted out settles the office', () => {
   });
 });
 
-describe('runPoliticsWeeklyTick — failed higher-office bids do not punish incumbents', () => {
+describe('runPoliticsWeeklyTick - failed higher-office bids do not punish incumbents', () => {
   it('a sitting official keeps their approval after losing an upward run', () => {
     // Incumbent mid-term: no election due, quiet tick — but the ACTION-layer
     // rule under test is mirrored here via the exit-free path: approval only

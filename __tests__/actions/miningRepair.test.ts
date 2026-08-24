@@ -56,7 +56,7 @@ describe('repairRig', () => {
     expect(get().stats.money).toBe(875); // 1000 − 125
   });
 
-  it('is double-tap safe — two same-batch taps debit once', () => {
+  it('is double-tap safe - two same-batch taps debit once', () => {
     const snapshot = stateWith({ money: 1000, miners: { basic: 2 }, durability: { basic: 50 } });
     const { setState, get } = makeBatchedSetState(snapshot);
 

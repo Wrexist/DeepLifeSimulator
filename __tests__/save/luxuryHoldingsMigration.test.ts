@@ -36,7 +36,7 @@ describe('STATE_VERSION registration', () => {
   });
 });
 
-describe('migration 32 — `rental`, a no-backfill carve-out', () => {
+describe('migration 32 - `rental`, a no-backfill carve-out', () => {
   // Registration alone proves nothing here: the whole point of a carve-out is
   // that the migration writes NOTHING, and "writes nothing" and "was never
   // written" are indistinguishable unless the absence is asserted. Writing a
@@ -46,7 +46,7 @@ describe('migration 32 — `rental`, a no-backfill carve-out', () => {
     const result = runMigrations(save as never);
 
     // Runs the whole remaining chain, so assert the CURRENT version rather than
-    // 32 — later bumps must still leave this carve-out alone.
+    // 32 - later bumps must still leave this carve-out alone.
     expect(result.state.version).toBe(CURRENT_STATE_VERSION);
     expect('rental' in (result.state as object)).toBe(false);
   });
@@ -55,7 +55,7 @@ describe('migration 32 — `rental`, a no-backfill carve-out', () => {
     const rental = { tierId: 'bedsit', startedWeek: 12, missedWeeks: 2 };
     const result = runMigrations({ version: 31, weeksLived: 300, rental } as never);
 
-    // Including the eviction counter — a migration that reset it would hand a
+    // Including the eviction counter - a migration that reset it would hand a
     // tenant three weeks behind a free reprieve on update day.
     expect(result.state.rental).toEqual(rental);
   });
@@ -68,7 +68,7 @@ describe('migration 32 — `rental`, a no-backfill carve-out', () => {
   });
 });
 
-describe('migration 24 — backfill', () => {
+describe('migration 24 - backfill', () => {
   it('mints a holding for every already-owned item', () => {
     const save = {
       version: 23,
@@ -80,7 +80,7 @@ describe('migration 24 — backfill', () => {
 
     expect(state.version).toBe(CURRENT_STATE_VERSION);
     expect(Object.keys(state.luxuryHoldings).sort()).toEqual(['private_island', 'supercar']);
-    // Stamped from the save's own week, not 0 — an island bought in a 412-week
+    // Stamped from the save's own week, not 0 - an island bought in a 412-week
     // life must not claim to have been owned since birth.
     expect(state.luxuryHoldings.private_island.acquiredWeek).toBe(412);
   });
@@ -149,7 +149,7 @@ describe('migration 24 — backfill', () => {
   });
 });
 
-describe('repairGameState — partial saves that skipped the chain', () => {
+describe('repairGameState - partial saves that skipped the chain', () => {
   // repairGameState mutates the state it is handed and returns a repair report.
   type Repairable = { luxuryHoldings?: Record<string, { acquiredWeek: number }> };
 
@@ -178,12 +178,12 @@ describe('repairGameState — partial saves that skipped the chain', () => {
 
     repairGameState(healthy);
 
-    // The original acquisition week survives — repair must never restamp it.
+    // The original acquisition week survives - repair must never restamp it.
     expect(healthy.luxuryHoldings!.supercar.acquiredWeek).toBe(3);
   });
 });
 
-describe('migration 25 — pilot licence', () => {
+describe('migration 25 - pilot licence', () => {
   it('backfills the flag as false', () => {
     const { state } = runMigrations({ version: 24, weeksLived: 10 });
     expect(state.hasPilotLicense).toBe(false);

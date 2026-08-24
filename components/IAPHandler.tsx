@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import type { GameState } from '@/contexts/game/types';
 // BUGFIX: importing from `@/contexts/GameContext` re-routes through the
 // `contexts/game/index.ts` barrel which in turn imports `GameProvider` which
-// imports this file — a require cycle that left `useGame` undefined during
+// imports this file - a require cycle that left `useGame` undefined during
 // onboarding boot and crashed `<Stack>` with "Element type is invalid".
 // Pulling the hooks directly from the leaf context modules breaks the cycle.
 import { useSetGameState } from '@/contexts/game/useGameSelector';
@@ -12,7 +12,7 @@ import { logger } from '@/utils/logger';
 
 export function IAPHandler() {
     // M4: `useGameState()` subscribes this root-mounted handler to the ENTIRE
-    // GameState even though it only ever WRITES — the documented re-render
+    // GameState even though it only ever WRITES - the documented re-render
     // regression in CLAUDE.md §4.1. `useSetGameState` is the same setter with
     // no subscription.
     const setGameState = useSetGameState();
@@ -33,7 +33,7 @@ export function IAPHandler() {
                     }
 
                     // Deep clone state to ensure immutability.
-                    // R2-E: use structuredClone (Hermes/RN 0.81+) — JSON round-trip
+                    // R2-E: use structuredClone (Hermes/RN 0.81+) - JSON round-trip
                     // is 60-150ms on a 200KB+ GameState AND drops `undefined`,
                     // `Date`, `Map`, `Set`, and function properties silently.
                     let newState;
@@ -48,7 +48,7 @@ export function IAPHandler() {
                     }
 
                     // Apply logic using the shared helper
-                    // `opts.entitlementsOnly` is set when RESTORING a mixed product —
+                    // `opts.entitlementsOnly` is set when RESTORING a mixed product -
                     // a consumable that also carries permanent entitlements. It drops
                     // every quantity grant so a Restore Purchases tap can never
                     // re-credit the Mega Pack's 40,000 gems.

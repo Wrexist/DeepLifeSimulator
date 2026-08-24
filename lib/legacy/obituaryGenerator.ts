@@ -76,7 +76,7 @@ export function generateObituary(state: GameState): Obituary {
   const netWorth = cash + bank + stocks + realEstate;
 
   // Achievements
-  // `achievements[].completed` is the DEPRECATED store — 52 entries that ship
+  // `achievements[].completed` is the DEPRECATED store - 52 entries that ship
   // `false` and are never set in normal play (`evaluateAchievements` is a
   // documented no-op). The live store is `claimedProgressAchievements`. Reading
   // the dead flag made this silently empty for every player. 2026-07-30 audit
@@ -92,7 +92,7 @@ export function generateObituary(state: GameState): Obituary {
   else if (netWorth >= 0) descriptor = 'humble';
   else descriptor = 'debt-ridden';
 
-  // Properties — count only currently-owned entries. The array retains
+  // Properties - count only currently-owned entries. The array retains
   // `owned === false` records (sold homes), so an unfiltered length overcounts.
   const propertyCount = (state.realEstate || []).filter(
     (r) => r?.owned !== false
@@ -134,7 +134,7 @@ export function generateObituary(state: GameState): Obituary {
   // made every shared death a dead end: a reader who wanted the game had to go
   // search a store for a hashtag, and nothing about the install was
   // attributable. A share is the cheapest acquisition channel the game has and
-  // it was terminating one tap short of working. Keep the URL last — messaging
+  // it was terminating one tap short of working. Keep the URL last - messaging
   // apps and social clients build their preview from the final link.
   const shareText = [
     `RIP ${name} (Age ${age})`,
@@ -157,25 +157,25 @@ export function generateObituary(state: GameState): Obituary {
  * ── Two bugs, one line ────────────────────────────────────────────────────
  *
  * This used to read `career.name || career.title` through `as any`, and
- * `Career` has NEITHER — the title lives in `levels[level].name`. So it
+ * `Career` has NEITHER - the title lives in `levels[level].name`. So it
  * evaluated to `undefined || undefined` and fell through to the literal
  * 'employed' on every obituary ever shown. The cast is what hid it; without it
  * the expression would not have compiled.
  *
  * Fixing that exposed the second one. The filter was `accepted`, and `accepted`
- * means "employed RIGHT NOW", not "was ever employed" — both `quitJob` and the
+ * means "employed RIGHT NOW", not "was ever employed" - both `quitJob` and the
  * firing path set it false. So a character who retired, quit, or was fired
  * before dying still got no career named, which is most of the people whose
  * working life is worth a sentence. Caught in review of #130.
  *
  * So: the job held at death if there is one, else the last job ever held,
- * recovered from `lifetimeStatistics.careerHistory` — which already records
+ * recovered from `lifetimeStatistics.careerHistory` - which already records
  * every job with a `startWeek` and a closing `endWeek`.
  *
  * The LEVEL is read from `state.careers`, which is safe because neither the
  * quit path nor the firing path resets it: they clear `accepted`, `applied`,
  * `progress`, `performance` and `warningsReceived`, and leave the ladder
- * position alone. Deliberately NOT "the highest level ever reached" — no such
+ * position alone. Deliberately NOT "the highest level ever reached" - no such
  * record exists, and inventing one from the ladder length would eulogise a
  * promotion the character never got.
  */
@@ -191,8 +191,8 @@ function lastJobTitle(state: GameState): string {
     return levels[safeLevel]?.name ?? '';
   };
 
-  // 1. The job they held when they died. `currentJob` is the canonical answer —
-  //    the same one `getCareerName` uses — and only falls back to scanning for
+  // 1. The job they held when they died. `currentJob` is the canonical answer -
+  //    the same one `getCareerName` uses - and only falls back to scanning for
   //    an accepted flag if it is unset. Scanning is a LAST match, not a first:
   //    a save should only ever have one accepted career, but if it somehow has
   //    two, the later one is the one they moved to.

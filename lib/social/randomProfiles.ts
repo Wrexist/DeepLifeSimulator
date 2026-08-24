@@ -272,7 +272,7 @@ export function generateScandalPileOnComments(
       sentiment: 'hostile',
       isFromHater: true,
     });
-    // authorName is on SocialPost but not on PulseComment — handle/initials suffice for the UI.
+    // authorName is on SocialPost but not on PulseComment - handle/initials suffice for the UI.
     void RANDOM_PROFILE_NAMES[nameIdx];
   }
 

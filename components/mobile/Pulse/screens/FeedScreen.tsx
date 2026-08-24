@@ -1,9 +1,9 @@
 /**
- * FeedScreen — home tab of the Pulse app.
+ * FeedScreen - home tab of the Pulse app.
  *
  * Renders a single timeline that interleaves the player's own
- * `socialMedia.recentPosts` with ambient content — posts from relationships
- * the player knows plus trending posts from unknown profiles — so the feed
+ * `socialMedia.recentPosts` with ambient content - posts from relationships
+ * the player knows plus trending posts from unknown profiles - so the feed
  * feels alive instead of showing one lonely post. Ambient posts regenerate
  * once per game week and their like/repost toggles are optimistic-only.
  *
@@ -11,7 +11,7 @@
  * for quick text posts, with a chevron to escalate to the full ComposeModal
  * for content-type pickers, hashtags, and sponsor selection.
  *
- * Pull-to-refresh is decorative — Pulse posts are weekly so a swipe doesn't
+ * Pull-to-refresh is decorative - Pulse posts are weekly so a swipe doesn't
  * actually fetch.
  */
 
@@ -37,7 +37,7 @@ import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseRecentPost, SocialPost } from '@/contexts/game/types';
 
 /**
- * A single row in the feed — either the player's own post or an ambient
+ * A single row in the feed - either the player's own post or an ambient
  * NPC/trending post. Both are rendered through `PostCard`; the discriminant
  * `isPlayerPost` decides whether taps route to global game state (player) or
  * to the local optimistic toggler (ambient).
@@ -50,7 +50,7 @@ interface FeedEntry {
   isPlayerPost: boolean;
 }
 
-/** Local like/repost toggles for ambient posts (not persisted — the feed
+/** Local like/repost toggles for ambient posts (not persisted - the feed
  *  refreshes every game week anyway). */
 type AmbientEngagement = Record<string, { liked?: boolean; reposted?: boolean }>;
 
@@ -113,7 +113,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
     || 'you';
   const avatar = gameState.userProfile?.profilePhoto;
   const currentEnergy = Math.max(0, Math.floor(gameState.stats?.energy ?? 0));
-  // A text post really costs getEnergyCost('text') (15), not 5 — gating at 5
+  // A text post really costs getEnergyCost('text') (15), not 5 - gating at 5
   // let the button enable at 5-14 energy only for composePost to silently
   // reject. Gate on the true cost so the button reflects what will happen.
   const textPostCost = getEnergyCost('text');
@@ -131,7 +131,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
       saveGame?.();
     } else {
       // Surface the real failure reason (e.g. "Not enough energy…") instead of
-      // just buzzing — previously a 5-14 energy tap did nothing visible.
+      // just buzzing - previously a 5-14 energy tap did nothing visible.
       pulseHaptics.error();
       showError(r.message);
     }
@@ -165,7 +165,7 @@ export default function FeedScreen({ onCompose, onOpenPostDetail, onGoLive, onBo
 
   }, [weeksLived]);
 
-  // Local optimistic like/repost toggles for ambient posts — they aren't in
+  // Local optimistic like/repost toggles for ambient posts - they aren't in
   // the player's persisted `recentPosts`, so the global actions would no-op.
   const [ambientEngagement, setAmbientEngagement] = useState<AmbientEngagement>({});
   const toggleAmbientLike = useCallback((id: string) => {

@@ -81,13 +81,13 @@ export function isValidSlotNumber(slot: unknown): slot is number {
 /**
  * Read a slot and decide whether a new life may be written over it.
  *
- * `free` is only ever returned on POSITIVE evidence — either no blob exists at
+ * `free` is only ever returned on POSITIVE evidence - either no blob exists at
  * all, or one exists, decodes cleanly, and contains no gameplay. Everything
  * else is `unreadable`. "I could not tell" must never authorise a destructive
  * write.
  *
  * That is why the raw probe comes first and `readSaveSlot` does not: readSaveSlot
- * flattens *three* different outcomes into one `null` — nothing stored, stored
+ * flattens *three* different outcomes into one `null` - nothing stored, stored
  * but failing CRC32/HMAC verification, and the storage read threw. Branching on
  * that null would call a save that merely failed to verify "empty" and delete
  * it, which is the whole failure mode this module exists to prevent. A key
@@ -115,7 +115,7 @@ export async function inspectSlotForNewLife(slot: number): Promise<SlotInspectio
 
     const data = await readSaveSlot(slot, undefined, { allowLegacy });
     // A blob demonstrably exists (the probe just saw it), so a null here means
-    // it could not be verified — not that the slot is free.
+    // it could not be verified - not that the slot is free.
     if (!data) return { status: 'unreadable' };
 
     const decoded = decodePersistedSaveEnvelope(data, { allowLegacy });
@@ -176,7 +176,7 @@ export async function resolveNewLifeSlot(requestedSlot: unknown): Promise<NewLif
       ok: false,
       code: 'slot-unreadable',
       title: 'Slot Could Not Be Read',
-      message: `Slot ${requestedSlot} has save data we could not open, so we will not write over it — it may still be recoverable. Please choose another slot.`,
+      message: `Slot ${requestedSlot} has save data we could not open, so we will not write over it - it may still be recoverable. Please choose another slot.`,
     };
   }
 

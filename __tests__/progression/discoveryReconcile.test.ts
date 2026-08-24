@@ -227,7 +227,7 @@ describe('every system is detected through its real GameState path', () => {
 });
 
 describe('it is safe to run every tick', () => {
-  it('is idempotent — running twice adds nothing', () => {
+  it('is idempotent - running twice adds nothing', () => {
     const played = createTestGameState({
       weeksLived: 100,
       realEstate: [{ id: 'house', value: 1 }] as never,
@@ -239,7 +239,7 @@ describe('it is safe to run every tick', () => {
     expect(idsOf(twice).sort()).toEqual(idsOf(once).sort());
   });
 
-  it('only ever ADDS — selling your last property does not un-discover it', () => {
+  it('only ever ADDS - selling your last property does not un-discover it', () => {
     const owned = reconcileDiscoveredSystems(
       createTestGameState({ weeksLived: 100, realEstate: [{ id: 'h', value: 1 }] as never }),
     );

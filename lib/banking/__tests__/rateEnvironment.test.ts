@@ -59,7 +59,7 @@ describe('effective rate helpers', () => {
   });
 });
 
-describe('ECONOMY INVARIANT — no borrow-low/save-high arbitrage', () => {
+describe('ECONOMY INVARIANT - no borrow-low/save-high arbitrage', () => {
   it('max effective deposit APY < min effective loan APR across all economy states', () => {
     let maxDepositAPY = -Infinity;
     let minLoanAPR = Infinity;

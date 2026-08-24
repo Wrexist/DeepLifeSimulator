@@ -29,7 +29,7 @@ const SRC = fs.readFileSync(
 );
 const CODE = SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-describe('ApplyCardModal — the product list must not be fixed-height', () => {
+describe('ApplyCardModal - the product list must not be fixed-height', () => {
   it('the list shrinks rather than capping at a fixed height', () => {
     expect(CODE).toMatch(/<ScrollView style=\{\{ flexShrink: 1 \}\}/);
   });

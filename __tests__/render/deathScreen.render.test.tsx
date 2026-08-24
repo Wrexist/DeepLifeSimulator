@@ -71,7 +71,7 @@ describe('the character is named, not "player"', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('render — the hero', () => {
+describe('render - the hero', () => {
   it('mounts without an image asset, because none exists yet', () => {
     // Metro resolves `require()` at BUILD time, so a component reaching for a
     // file that is not there does not degrade — it fails to bundle. The drawn
@@ -85,7 +85,7 @@ describe('render — the hero', () => {
     }
   });
 
-  it('draws nothing random — two renders are byte-identical', () => {
+  it('draws nothing random - two renders are byte-identical', () => {
     // A death screen must not roll dice to render: the embers are fixed
     // positions precisely so a re-render does not reshuffle the artwork.
     expect(renderToText(<DeathHero height={180} mood="fair" />)).toBe(
@@ -103,7 +103,7 @@ describe('render — the hero', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('render — the Life Quality arc', () => {
+describe('render - the Life Quality arc', () => {
   const at = (score: number) => ({
     score,
     verdict: 'Test',
@@ -115,7 +115,7 @@ describe('render — the Life Quality arc', () => {
     expect(renderToText(<LifeQualityGauge quality={at(28)} darkMode />)).toContain('28%');
   });
 
-  it('mounts at 0 and at 100 — the two ends the masking gets wrong', () => {
+  it('mounts at 0 and at 100 - the two ends the masking gets wrong', () => {
     expect(renderToText(<LifeQualityGauge quality={at(0)} darkMode />)).toContain('0%');
     expect(renderToText(<LifeQualityGauge quality={at(100)} darkMode />)).toContain('100%');
   });
@@ -139,7 +139,7 @@ describe('render — the Life Quality arc', () => {
     expect(angles(100)).toBe('"rotate":"-45deg" "rotate":"45deg"');
   });
 
-  it('moves the arc monotonically — more score is never less arc', () => {
+  it('moves the arc monotonically - more score is never less arc', () => {
     const leftAngle = (score: number) =>
       Number(
         /"rotate":"(-?[\d.]+)deg"/.exec(

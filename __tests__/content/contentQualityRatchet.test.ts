@@ -36,7 +36,7 @@ describe('content-quality ratchet', () => {
     expect(actual.cliffhangerBadShare).toBeGreaterThanOrEqual(FLOORS.cliffhangerBadShare);
   });
 
-  it('no floor has drifted slack — each stays close to what is measured', () => {
+  it('no floor has drifted slack - each stays close to what is measured', () => {
     // A floor far below reality would pass while the corpus quietly degraded.
     expect(actual.bigStakesShare - FLOORS.bigStakesShare).toBeLessThan(0.05);
     expect(actual.cliffhangerBadShare - FLOORS.cliffhangerBadShare).toBeLessThan(0.15);
@@ -48,7 +48,7 @@ describe('content-quality ratchet', () => {
     expect(actual.medianAbsHappiness).toBe(CURRENT.medianAbsHappiness);
   });
 
-  it('keeps every goal above its floor — a goal at the floor is not a goal', () => {
+  it('keeps every goal above its floor - a goal at the floor is not a goal', () => {
     expect(GOALS.bigStakesShare).toBeGreaterThan(FLOORS.bigStakesShare);
     expect(GOALS.cliffhangerBadShare).toBeGreaterThanOrEqual(FLOORS.cliffhangerBadShare);
   });
@@ -112,14 +112,14 @@ describe('content-quality ratchet', () => {
   });
 });
 
-describe('inert events — the metric that replaced the happiness-only goal', () => {
+describe('inert events - the metric that replaced the happiness-only goal', () => {
   const actual = measureContentQuality();
 
   it('scans a real population of multi-choice events', () => {
     expect(actual.multiChoiceEventCount).toBeGreaterThan(100);
   });
 
-  it('stays at or below the ceiling — this one ratchets DOWN', () => {
+  it('stays at or below the ceiling - this one ratchets DOWN', () => {
     expect(actual.inertEventShare).toBeLessThanOrEqual(INERT_EVENT_CEILING);
   });
 
@@ -143,7 +143,7 @@ describe('inert events — the metric that replaced the happiness-only goal', ()
     expect(withStakes / actual.multiChoiceEventCount).toBeGreaterThan(0.95);
   });
 
-  it('targets zero, and zero is reachable — unlike the goal it replaced', () => {
+  it('targets zero, and zero is reachable - unlike the goal it replaced', () => {
     expect(GOALS.inertEventShare).toBe(0);
     // Both known offenders are in the file that documents itself as flavour, so
     // clearing them is a content decision someone can actually make.

@@ -37,12 +37,12 @@ function SicknessModal() {
 
   /**
    * GL-3: the treatment prices, from the catalogue and after enacted
-   * healthcare policy — the same figures `performHealthActivity` charges.
+   * healthcare policy - the same figures `performHealthActivity` charges.
    *
    * These were hardcoded 500 and 2000 in five places: the two `disabled`
    * gates, the two gradient colours, and the two price labels. That already
    * risked drifting from `healthActivities`, and once policy discounts the
-   * real charge it also disables a button the player CAN afford — a player
+   * real charge it also disables a button the player CAN afford - a player
    * with $1,600 and a 50% healthcare policy was refused a hospital stay that
    * now costs $1,000.
    */
@@ -93,7 +93,7 @@ function SicknessModal() {
   }, [isInActiveGame, showSicknessModal, hasDiseases, isVisible]);
   
   useEffect(() => {
-    // Compute the desired visibility from external state only — NEVER include
+    // Compute the desired visibility from external state only - NEVER include
     // `isVisible` in deps and set it from inside (that's an infinite-loop trap
     // that fires "Maximum update depth exceeded" warnings).
     const shouldShow = isInActiveGame && showSicknessModal && hasDiseases && !isClosing;
@@ -228,7 +228,7 @@ function SicknessModal() {
     const template = getDiseaseInfo(disease);
     const recommendations: string[] = [];
 
-    // A disease with `weeksUntilDeath` that is NOT curable is terminal — no
+    // A disease with `weeksUntilDeath` that is NOT curable is terminal - no
     // treatment can cure it. Telling the player to "seek treatment for a cure"
     // (or that it "can be managed") would be misleading, so terminal diseases
     // get their own honest messaging.
@@ -240,7 +240,7 @@ function SicknessModal() {
     if (isTerminal) {
       const weeksLeft = (disease as { weeksUntilDeath: number }).weeksUntilDeath;
       recommendations.push(
-        `This is a terminal illness — approximately ${weeksLeft} week(s) remain and there is no cure.`,
+        `This is a terminal illness - approximately ${weeksLeft} week(s) remain and there is no cure.`,
       );
       recommendations.push('Treatment can ease symptoms but will not stop its progression.');
     } else if ('weeksUntilDeath' in disease && typeof disease.weeksUntilDeath === 'number' && disease.weeksUntilDeath <= 4) {
@@ -262,7 +262,7 @@ function SicknessModal() {
         recommendations.push('Hospital stay guarantees cure but costs more');
       }
     } else {
-      recommendations.push('This condition is chronic — it cannot be cured, but treatment keeps it managed.');
+      recommendations.push('This condition is chronic - it cannot be cured, but treatment keeps it managed.');
       recommendations.push(`While managed (doctor visit: ${DOCTOR_MANAGEMENT_WEEKS} weeks, hospital stay: ${HOSPITAL_MANAGEMENT_WEEKS} weeks), symptoms are halved and the condition cannot worsen.`);
     }
 
@@ -665,8 +665,8 @@ function SicknessModal() {
                                 managedWeeksLeft <= 0 && { color: darkMode ? '#FCD34D' : '#B45309' },
                               ]}>
                                 {managedWeeksLeft > 0
-                                  ? `✓ Managed — ${managedWeeksLeft} week${managedWeeksLeft !== 1 ? 's' : ''} of care remaining`
-                                  : '⚠ Unmanaged — visit a doctor to manage symptoms'}
+                                  ? `✓ Managed - ${managedWeeksLeft} week${managedWeeksLeft !== 1 ? 's' : ''} of care remaining`
+                                  : '⚠ Unmanaged - visit a doctor to manage symptoms'}
                               </Text>
                             </LinearGradient>
                           </View>

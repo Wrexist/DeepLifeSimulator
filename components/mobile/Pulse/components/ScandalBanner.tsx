@@ -1,10 +1,10 @@
 /**
- * ScandalBanner — sticky banner shown when an active scandal exists.
+ * ScandalBanner - sticky banner shown when an active scandal exists.
  *
  * Visual treatment depends on severity:
  *   ≥ 70: red gradient + alert role + warning haptic on mount
  *   40-69: amber gradient + alert role
- *   < 40: hidden (notification only — too quiet to block the feed)
+ *   < 40: hidden (notification only - too quiet to block the feed)
  *
  * Tapping opens the ScandalRecoveryModal (provided by the caller).
  */

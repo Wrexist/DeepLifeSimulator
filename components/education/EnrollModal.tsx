@@ -48,7 +48,7 @@ function bonusLabel(c: ClassTemplate): string {
 export default function EnrollModal({ visible, template, gameState, darkMode, onClose, onConfirm }: Props) {
   const theme = getThemeColors(darkMode);
   const [mode, setMode] = useState<'cash' | 'loan'>('cash');
-  // Offered classes for this program (derived once per open — getAvailableClasses
+  // Offered classes for this program (derived once per open - getAvailableClasses
   // shuffles, so we freeze it in state to keep the picker stable across renders).
   const [offered, setOffered] = useState<ClassTemplate[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -145,9 +145,9 @@ export default function EnrollModal({ visible, template, gameState, darkMode, on
                     <GraduationCap size={scale(13)} color={accent.success} />
                     <Text style={[styles.eligibilityText, { color: accent.success }]}>
                       {quote.scholarship.eligibility === 'full'
-                        ? 'Full ride — your GPA earned you this'
+                        ? 'Full ride - your GPA earned you this'
                         : quote.scholarship.eligibility === 'half'
-                          ? 'Half-off — your record speaks for itself'
+                          ? 'Half-off - your record speaks for itself'
                           : 'Partial aid awarded'}
                     </Text>
                   </View>

@@ -64,7 +64,7 @@ const pending = (expiresAtWeek: number) => ({
   resolver: { kind: 'event' as const, eventId: 'jury_duty' },
 });
 
-describe('render — DeepMail', () => {
+describe('render - DeepMail', () => {
   it('mounts on an empty inbox without throwing', () => {
     const { json, unmount } = renderWithProviders(<MailApp onBack={() => {}} />);
     expect(json.length).toBeGreaterThan(0);
@@ -74,7 +74,7 @@ describe('render — DeepMail', () => {
   it('renders a document with exact, checkable figures', () => {
     const attachment: MailAttachment = {
       kind: 'payslip',
-      title: 'Payslip — period ending Mar 8, 2027',
+      title: 'Payslip - period ending Mar 8, 2027',
       issuer: 'Engineer · Payroll Services',
       reference: 'PAY-4417-22',
       rows: [
@@ -111,7 +111,7 @@ describe('render — DeepMail', () => {
  * app with a consequence attached had nothing on it to say so, and a list you
  * cannot triage is just a pile.
  */
-describe('render — the list row carries the deadline', () => {
+describe('render - the list row carries the deadline', () => {
   it('shows the weeks left on an unanswered decision', () => {
     expect(renderRow(row({ decision: pending(103) }), 100)).toContain('3 weeks left');
   });
@@ -125,7 +125,7 @@ describe('render — the list row carries the deadline', () => {
     expect(text).not.toMatch(/weeks? left/);
   });
 
-  it('shows nothing on an ordinary message — the control', () => {
+  it('shows nothing on an ordinary message - the control', () => {
     const text = renderRow(row(), 100);
     expect(text).not.toMatch(/weeks? left|Due this week/);
   });

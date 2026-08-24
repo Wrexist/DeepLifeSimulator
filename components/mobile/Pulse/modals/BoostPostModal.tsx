@@ -1,5 +1,5 @@
 /**
- * BoostPostModal — gem-spend modal that supercharges a post.
+ * BoostPostModal - gem-spend modal that supercharges a post.
  *
  * Triples viral roll chance on the targeted post and bumps engagement.
  * Dispatches `boostPostWithGems` from PulseActions; closes on success.
@@ -37,7 +37,7 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
     const result = boostPostWithGems(setGameState, gameState, postId, GEM_COST);
     if (result.success) {
       pulseHaptics.success();
-      // Persist the gem spend like every sibling Pulse mutation — without
+      // Persist the gem spend like every sibling Pulse mutation - without
       // this a reload inside the 2-minute autosave window reverted it.
       setTimeout(() => { void saveGame?.(); }, 0);
       onDismiss();

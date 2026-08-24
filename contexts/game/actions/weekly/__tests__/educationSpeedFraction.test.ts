@@ -47,7 +47,7 @@ describe('fractional speed', () => {
     }
   });
 
-  it('1.10x averages ~1.1 weeks/tick over many weeks — not the old flat 2', () => {
+  it('1.10x averages ~1.1 weeks/tick over many weeks - not the old flat 2', () => {
     let total = 0;
     const N = 400;
     for (let week = 0; week < N; week++) {

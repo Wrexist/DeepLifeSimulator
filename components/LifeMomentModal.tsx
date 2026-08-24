@@ -76,7 +76,7 @@ export default function LifeMomentModal() {
       }
 
       // The moment was already counted when it was GENERATED
-      // (applyLifeMoment.ts). Resolving it must NOT re-increment the counters —
+      // (applyLifeMoment.ts). Resolving it must NOT re-increment the counters -
       // just clear the pending moment. (Previously double-counted every moment.)
       setGameState(prev => ({
         ...prev,
@@ -129,14 +129,14 @@ export default function LifeMomentModal() {
               Unlike the celebration popups there is no footer to pin here:
               the CHOICES are the only way out of this modal (it has no close
               X and no backdrop tap), so every one of them has to stay
-              reachable. Both halves of the column are variable — `situation`
+              reachable. Both halves of the column are variable - `situation`
               is free-form prose and `choices` is an unbounded list where each
-              option can carry its own row of effect chips — so a wordy moment
+              option can carry its own row of effect chips - so a wordy moment
               with four options runs past the card and takes the last choices
               off the bottom of the screen with it. Everything scrolls.
 
               `flexShrink: 1` against the card's `maxHeight` bound, not
-              `flex: 1` — see the note in `WeddingPopup`/`ApplyCardModal`. */}
+              `flex: 1` - see the note in `WeddingPopup`/`ApplyCardModal`. */}
           <ScrollView
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
-    // The bound the scroll area shrinks within — '100%' is the overlay's
+    // The bound the scroll area shrinks within - '100%' is the overlay's
     // height less its padding. Without it `flexShrink` has nothing to shrink
     // against and the card grows off-screen exactly as before.
     maxHeight: '100%',

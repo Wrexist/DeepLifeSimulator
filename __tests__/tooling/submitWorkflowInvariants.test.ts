@@ -119,7 +119,7 @@ describe('the watch step that carries the release signal', () => {
       const condition = entry.step.split('\n').find((line) => /^\s*if:/.test(line));
       expect(condition).toBeDefined();
       // A custom `if:` REPLACES the implicit success() check on a step. Without
-      // it, a FAILED submit is still followed by the watch — which then finds
+      // it, a FAILED submit is still followed by the watch - which then finds
       // the previous run's submission and reports its outcome as this one's.
       expect(condition).toContain('success()');
       // Read off the step itself rather than off any matching line in the file:
@@ -143,8 +143,8 @@ describe('the wait_for_submission input', () => {
 
   it.each(submittingWorkflows)('%s declares it, defaulting to true', (name) => {
     // The gap the rest of this file did not cover: every step above can stay
-    // exactly as written while `default: false` quietly turns the watch — and
-    // with it the whole red-on-rejection signal — off for every release.
+    // exactly as written while `default: false` quietly turns the watch - and
+    // with it the whole red-on-rejection signal - off for every release.
     const block = inputBlock(workflows.find((workflow) => workflow.name === name)!.text);
     expect(block).not.toBeNull();
     expect(block).toMatch(/default:\s*true/);

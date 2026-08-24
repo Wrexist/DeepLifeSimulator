@@ -90,7 +90,7 @@ function batched(initial: GameState) {
   return { setState, get: () => state };
 }
 
-describe('C-8 — the catalogue premise', () => {
+describe('C-8 - the catalogue premise', () => {
   it('there is a real upgrade with a real cost and a max level', () => {
     expect(UPGRADE).toBeTruthy();
     expect(UPGRADE.cost).toBeGreaterThan(0);
@@ -98,7 +98,7 @@ describe('C-8 — the catalogue premise', () => {
   });
 });
 
-describe('C-8 — a rejected purchase says so', () => {
+describe('C-8 - a rejected purchase says so', () => {
   it('a double-tap past the max level buys exactly one level', () => {
     // Sit the upgrade one below max, then tap twice in one batch: the first
     // lands, the second finds it maxed against fresh state.
@@ -213,7 +213,7 @@ describe('C-8 — a rejected purchase says so', () => {
   });
 });
 
-describe('C-8 — a real purchase still succeeds (the control)', () => {
+describe('C-8 - a real purchase still succeeds (the control)', () => {
   it('reports success, the level, and takes the money exactly once', () => {
     const snapshot = withCompany(100_000_000);
     const { setState, get } = batched(snapshot);

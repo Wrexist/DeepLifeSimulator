@@ -27,7 +27,7 @@ const PKG = JSON.parse(read('package.json')) as { scripts: Record<string, string
 /** The single source of truth for the frozen count. */
 function baseline(): number {
   const m = /^const BASELINE = (\d+);$/m.exec(SCRIPT);
-  if (!m) throw new Error('BASELINE constant not found — the ratchet has no baseline');
+  if (!m) throw new Error('BASELINE constant not found - the ratchet has no baseline');
   return Number(m[1]);
 }
 
@@ -77,7 +77,7 @@ describe('the baseline is honest', () => {
     expect(SCRIPT).toMatch(/^const BASELINE = \d+;$/m);
   });
 
-  it('only ever goes down — the ratchet fails on a DROP as well as a rise', () => {
+  it('only ever goes down - the ratchet fails on a DROP as well as a rise', () => {
     // The non-obvious half. A stale baseline silently re-opens the gap: leave
     // it at 182 after fixing 20 and someone can add 20 back unnoticed.
     expect(SCRIPT).toMatch(/count > BASELINE/);
@@ -110,7 +110,7 @@ describe('there is exactly ONE baseline', () => {
 
   it('the weekly audit imports the ratchet baseline rather than restating it', () => {
     // It used to hardcode 186. Once the CI ratchet burned the real count to 90,
-    // the audit still reported "within budget (90/186)" — a second ratchet that
+    // the audit still reported "within budget (90/186)" - a second ratchet that
     // would have admitted 96 new errors while claiming to guard the same thing.
     expect(AUDIT).toMatch(/require\('\.\.\/check-test-types\.js'\)/);
     expect(AUDIT).toMatch(/BASELINE: RATCHET_BASELINE/);

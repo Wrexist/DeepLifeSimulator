@@ -265,7 +265,7 @@ export function calculateHmacSignature(data: string): string {
  *
  * Built on BYTES, not strings. The original constructed the ipad/opad blocks as
  * a JS string (`String.fromCharCode(keyByte ^ 0x36)`) and handed that to a
- * `sha256` that UTF-8-encoded its input — so every one of the 64 block bytes
+ * `sha256` that UTF-8-encoded its input - so every one of the 64 block bytes
  * at or above 0x80 silently expanded into two bytes before hashing. Combined
  * with the length-padding bug, the result was self-consistent but was not
  * HMAC-SHA256 for any input at all. Found by comparing against `node:crypto`
@@ -273,7 +273,7 @@ export function calculateHmacSignature(data: string): string {
  *
  * One divergence from `node:crypto` REMAINS, and it is a decision rather than a
  * bug (2026-08-16 audit L9): `utf8Bytes` encodes astral-plane characters as
- * CESU-8 — surrogate halves encoded separately, 6 bytes instead of 4 — so any
+ * CESU-8 - surrogate halves encoded separately, 6 bytes instead of 4 - so any
  * message containing an emoji hashes differently here than under a stock UTF-8
  * encoder. It is self-consistent, so in-app signing and verification always
  * agree; see the comment on `utf8Bytes` for why correcting it would invalidate
@@ -304,7 +304,7 @@ function hmacWith(data: string, key: string): string {
 }
 
 /**
- * The ORIGINAL signature function, reproduced verbatim — string-built pad
+ * The ORIGINAL signature function, reproduced verbatim - string-built pad
  * blocks (so every pad byte >= 0x80 UTF-8-expands) and the wrong 64-bit length
  * word. Kept for VERIFICATION ONLY, so every save already on a device keeps
  * loading and re-signs onto the real HMAC on its next write. Nothing signs with
@@ -398,7 +398,7 @@ export function autoFixStats(state: unknown): { fixed: boolean; fixes: string[] 
       }
     } else if (state.stats[stat] !== undefined) {
       // P0-6: a NaN/Infinity/non-number core stat would pass save validation but
-      // then be rejected by gameEntryValidation's isFinite check — an unplayable
+      // then be rejected by gameEntryValidation's isFinite check - an unplayable
       // save. Reset it to a safe neutral midpoint so the save loads and plays.
       const oldValue = state.stats[stat];
       state.stats[stat] = Math.round((min + max) / 2);
@@ -463,13 +463,13 @@ function isGameStateLike(obj: unknown): obj is Partial<GameState> {
  * top-level reference is preserved (so callers using `{...prev}` to get a new
  * React state object still work), but every nested reference (`state.stats`,
  * `state.banking`, …) is replaced with a fresh object. That way React's memo
- * deps actually fire after a repair — previously the in-place mutation kept
+ * deps actually fire after a repair - previously the in-place mutation kept
  * the same nested refs and selectors silently saw stale data, freezing the UI.
  */
 /**
  * The repair verdict for a 1-based calendar marker (`week`, `day`).
  *
- * Returns `null` — meaning LEAVE IT ALONE — for every value a real save can
+ * Returns `null` - meaning LEAVE IT ALONE - for every value a real save can
  * legitimately hold. Only an absent, non-numeric, non-finite, below-1 or
  * fractional value is healed, because overwriting a valid marker would silently
  * move the player's position in the month.
@@ -501,7 +501,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       : JSON.parse(JSON.stringify(state))) as Record<string, any>;
   } catch {
     // If cloning fails (e.g. circular refs), fall back to in-place mutation
-    // — degraded mode but better than crashing the repair flow.
+    // - degraded mode but better than crashing the repair flow.
     s = state as Record<string, any>;
   }
 
@@ -510,7 +510,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // never re-synced: `darkMode: false` where the app ships `true`, `health: 50`
   // where a new life starts at 100, and no key at all for anything added since.
   // A player whose `settings` block was lost therefore came back from repair
-  // with a light-themed app and a silently different set of toggles — a repair
+  // with a light-themed app and a silently different set of toggles - a repair
   // that is itself a small corruption. There is exactly one definition of a
   // default in this codebase and this file already imports it.
   const defaultsFor = <T,>(key: string): T =>
@@ -537,14 +537,14 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
-  // `week` (week-of-month, 1–4, DISPLAY ONLY — `weeksLived` is the absolute
+  // `week` (week-of-month, 1–4, DISPLAY ONLY - `weeksLived` is the absolute
   // counter) and `day` both carry a concrete `1` default in initialState and had
   // neither a migration nor a repair mirror: on any path that does not spread
   // `initialGameState` (a CloudSync field-merge, a hand-edited or truncated blob)
   // they arrived `undefined` and the HUD rendered a blank/NaN date.
   //
   // Written by hand rather than through a table because the table mechanisms
-  // either replace the whole value or only test `Array.isArray` — neither is safe
+  // either replace the whole value or only test `Array.isArray` - neither is safe
   // for a scalar the player's calendar position depends on. ONLY an absent or
   // structurally invalid value is filled; a valid stored week/day is never
   // touched, because overwriting one would silently rewind the player's month.
@@ -564,7 +564,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
-  // `date.month` — the last member of the `date` slice with a concrete default
+  // `date.month` - the last member of the `date` slice with a concrete default
   // and no mirror (`year`/`week`/`age` are all reached above/below). The HUD
   // renders the month string directly, so an absent key printed an empty month
   // beside a valid year. Only an absent/non-string value is filled: a stored
@@ -577,7 +577,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // `userProfile` had no existence branch at all, unlike its three sibling
   // merged slices (`stats`, `date`, `settings` above). A save that lost the
-  // object arrived at every profile/social read as `undefined` — the one slice
+  // object arrived at every profile/social read as `undefined` - the one slice
   // of the four whose total loss repair could not heal.
   if (!s.userProfile || typeof s.userProfile !== 'object') {
     s.userProfile = defaultsFor<Record<string, unknown>>('userProfile');
@@ -607,7 +607,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
 
   // Ensure required arrays exist
-  // `goals` joins this table (concrete `[]` default in initialState) — see the
+  // `goals` joins this table (concrete `[]` default in initialState) - see the
   // week/day block above for why these long-lived fields are getting mirrors now.
   const requiredArrays = ['careers', 'hobbies', 'items', 'relationships', 'achievements', 'educations', 'pets', 'companies', 'realEstate', 'cryptos', 'diseases', 'loans', 'goals'];
   for (const field of requiredArrays) {
@@ -639,7 +639,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // Catalog arrays hold the game's available jobs/foods/activities/hacks. An
   // empty default would break gameplay, and validateGameEntry REQUIRES these to
-  // exist — so when repair didn't create them (its list had drifted behind the
+  // exist - so when repair didn't create them (its list had drifted behind the
   // entry validator), a save missing one passed repair but failed entry, locking
   // the player out of their own save. Restore them from initialGameState so
   // repair's required set is a superset of validateGameEntry's.
@@ -655,8 +655,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
 
   // `crimeSkills` is a concrete-default object that repair never backfilled, and
-  // the Work tab reads it BARE in render — `gameState.crimeSkills[job.skill].level`
-  // (app/(tabs)/work.tsx) — so a save missing it (CloudSync merge / hand-edit)
+  // the Work tab reads it BARE in render - `gameState.crimeSkills[job.skill].level`
+  // (app/(tabs)/work.tsx) - so a save missing it (CloudSync merge / hand-edit)
   // white-screens the tab. Restore the whole container when it is missing, and
   // fill individual skills when it is present-but-partial (the likelier shape as
   // the skill list grows). 2026-07-28 audit crash-1.
@@ -706,7 +706,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
   // Per-item luxury state (v24). The sidecar must exist AND carry an entry for
-  // every owned id — an owned item with no holding reads as "acquired at week 0"
+  // every owned id - an owned item with no holding reads as "acquired at week 0"
   // everywhere downstream. Mirrors migration 24 exactly, because repair also
   // runs on partial saves (CloudSync merge / hand-edit) the ladder never saw.
   if (typeof s.hasPilotLicense !== 'boolean') {
@@ -738,7 +738,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
   // `realEstateActivity` (a concrete-default `[]`) is backfilled on the version
-  // ladder by migration 22, but — like luxuryItems above — repair also runs on
+  // ladder by migration 22, but - like luxuryItems above - repair also runs on
   // partial saves (CloudSync merge / hand-edit) that a wholesale migration can
   // miss, so heal a present-but-malformed state here too. This closes the
   // migration/repair asymmetry (CLAUDE.md save-format rule (b)).
@@ -746,7 +746,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // Normalize the CONTENTS, not just the top-level shape: the weekly tick does
   // `(prevActivity ?? []).map((e) => e.id)` (`applyRentAndHousing.ts:139`) and
   // RealEstateApp spreads each entry (`RealEstateApp.tsx:338`), neither with a
-  // per-entry guard — so a present array carrying a `null`/non-object entry
+  // per-entry guard - so a present array carrying a `null`/non-object entry
   // throws before the slice can be rebuilt, and the save keeps failing week
   // progression. Drop malformed entries here (same "normalize a present-but-
   // broken shape at the load boundary" contract as the favorLedger repair).
@@ -801,7 +801,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Backfilled missing weeklyPursuitPractice map from defaults');
     repaired = true;
   }
-  // Legacy Pass cosmetics (migration 20) — parent-guarded, mirroring the
+  // Legacy Pass cosmetics (migration 20) - parent-guarded, mirroring the
   // migration's own `else if` branch for a partially-shaped legacyPass.
   if (
     s.legacyPass &&
@@ -816,7 +816,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // ── v22 Wave-A NESTED concrete defaults (migration/repair parity) ─────────
   // Migration 22 backfills these on the version ladder, but repair also runs on
   // partial saves already stamped at a later version (CloudSync merge /
-  // hand-edit) that the wholesale ladder skips — the same asymmetry
+  // hand-edit) that the wholesale ladder skips - the same asymmetry
   // `realEstateActivity` had (CLAUDE.md save-format rule (b)). Every consumer
   // guards its read, so these are healing-not-crash repairs; they are mirrored
   // here so the rule holds for NESTED fields too, not just top-level ones.
@@ -850,7 +850,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
 
-  // F-4 / v22 mirror for the Pet `ownedToys` → `toys` COLLAPSE — the one part of
+  // F-4 / v22 mirror for the Pet `ownedToys` → `toys` COLLAPSE - the one part of
   // migration 22 that moves data rather than defaulting it, and the one part
   // that had no repair counterpart. A partial save already stamped at v22 or
   // later still carrying `ownedToys` is skipped by the ladder, and every reader
@@ -877,12 +877,12 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
 
   // A present-but-malformed `favorLedger` (CloudSync merge / hand-edit /
-  // interrupted migration) — e.g. `{}` or `{ favors: null }` — is truthy, so the
+  // interrupted migration) - e.g. `{}` or `{ favors: null }` - is truthy, so the
   // consumers that fall back only on nullish (`favorLedger ?? emptyLedger()`,
   // ContactsApp's `?? { favors: [] }`) skip the fallback and then crash on
   // `ledger.favors.filter/.some/.map`. Normalise the shape once here at the load
   // boundary so no consumer (weekly tick, ContactsApp render, ContactsActions,
-  // cross-system stats) ever sees a bad `favors`. Missing entirely is fine — the
+  // cross-system stats) ever sees a bad `favors`. Missing entirely is fine - the
   // nullish fallbacks already cover that; only repair a present, broken shape.
   if (s.favorLedger != null && !Array.isArray(s.favorLedger.favors)) {
     s.favorLedger = { favors: [] };
@@ -892,7 +892,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // Reconcile each saved career's `levels` ladder with the current catalog.
   // Several ladders were extended to 6 levels (task #46), but saves persist the
-  // FULL career object — including its `levels` snapshot — so a player who
+  // FULL career object - including its `levels` snapshot - so a player who
   // started before the extension would otherwise stay capped at the old, shorter
   // ladder. When the catalog now offers MORE levels for a career, adopt the
   // catalog's `levels` (which also carries the new per-level `experienceRequired`
@@ -900,7 +900,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // (level, progress, accepted/applied, performance, raiseMultiplier,
   // startedWeeksLived, …). Idempotent and one-directional: only runs when the
   // save is behind, never shrinks a ladder, and never moves the player's level.
-  // No save-version bump — repairGameState runs on every load.
+  // No save-version bump - repairGameState runs on every load.
   if (Array.isArray(s.careers)) {
     // Lazy require keeps the career catalogs out of every import of this module.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -942,7 +942,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // object default in initialState and had neither a migration nor a repair
   // mirror, and `prestige` / `family.children` are read BARE in the week loop and
   // the prestige UI. The restore-or-shallow-merge shape is exactly right for
-  // them — a missing slice comes back whole, a partial one keeps every value the
+  // them - a missing slice comes back whole, a partial one keeps every value the
   // player actually has and only gains the keys it lacks.
   const subsystemObjects = ['banking', 'darkWeb', 'cryptoMarket', 'legacyPass', 'social', 'family', 'economy', 'progress', 'prestige'];
   for (const key of subsystemObjects) {
@@ -968,9 +968,9 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // P1-12: clamp a tampered/corrupt credit score into the real FICO range [300, 850].
   // The loan-APR adjustment already clamps at use (amortization.ts:84), but the loan/card
   // eligibility gates (operations.ts:194,498) and the UI read banking.creditScore.score
-  // RAW — so keep the persisted value honest after the partial-subsystem merge above.
+  // RAW - so keep the persisted value honest after the partial-subsystem merge above.
   // Use `in`-guards (no union cast, per the project rule) and repair NON-numeric / missing scores
-  // too — a partial `creditScore` object (e.g. `{}` or `score: "700"`) survives the merge above.
+  // too - a partial `creditScore` object (e.g. `{}` or `score: "700"`) survives the merge above.
   if (s.banking && typeof s.banking === 'object' && 'creditScore' in s.banking) {
     const creditScore = (s.banking as { creditScore?: unknown }).creditScore;
     if (creditScore && typeof creditScore === 'object') {
@@ -989,7 +989,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       // creditScore object exists but has no (or an invalid) `band`, so the
       // credit gauge renders it as undefined. Derive it from the normalized
       // score. Source of truth for the score→band thresholds is scoreToBand in
-      // lib/banking/creditScore.ts — imported here, never duplicated.
+      // lib/banking/creditScore.ts - imported here, never duplicated.
       const validBands = ['poor', 'fair', 'good', 'veryGood', 'excellent'];
       if (typeof csObj.band !== 'string' || !validBands.includes(csObj.band)) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1162,7 +1162,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
   // C-11 / v29 mirror. `legacyUpgrades` has a concrete stored default, so a
-  // partial save that never went through the migration still needs it — this
+  // partial save that never went through the migration still needs it - this
   // is the parity CLAUDE.md §7 warns is not checked by the static audit.
   // `repaired = true` matters: the repaired clone is only written back when
   // that flag is set, so a backfill without it is computed and discarded.
@@ -1173,7 +1173,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
 
   // Legacy Contracts / v33 mirror. Concrete stored default, so the migration's
-  // backfill must be mirrored here for a PARTIAL save — the parity CLAUDE.md §7
+  // backfill must be mirrored here for a PARTIAL save - the parity CLAUDE.md §7
   // warns is not checked by the static audit. Claimed ids are the only stored
   // part; progress is derived, so a repaired save simply resumes where its
   // lifetime metrics already put it.
@@ -1185,18 +1185,18 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   // MON-5 / v30 mirror. Same reasoning as legacyUpgrades above: a concrete
   // stored default (`false`) needs the partial-save path too, not just the
-  // migration. `false` is also the only safe repair — inventing a banked revive
+  // migration. `false` is also the only safe repair - inventing a banked revive
   // for a save that lost the key would hand out a paid one-shot for free.
   if (typeof s.revivalPack !== 'boolean') {
     s.revivalPack = false;
     repairs.push('Set missing revivalPack to false');
     repaired = true;
   }
-  // v31 mirror for `overdueBalance` — the arrears bucket. Migration ↔ repair
+  // v31 mirror for `overdueBalance` - the arrears bucket. Migration ↔ repair
   // parity matters more than usual here: this value is ARITHMETIC in the weekly
   // cash line, so a partial/CloudSync save that arrives without the key would
   // produce `cash - undefined` = NaN and poison `stats.money` for the rest of
-  // the life. `0` is also the only safe repair — inventing a debt for a save
+  // the life. `0` is also the only safe repair - inventing a debt for a save
   // that merely lost the key would charge the player for nothing.
   if (typeof s.overdueBalance !== 'number' || !isFinite(s.overdueBalance) || s.overdueBalance < 0) {
     s.overdueBalance = 0;
@@ -1250,7 +1250,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
           try {
             let snap: unknown = cp.snapshot;
             if (typeof snap === 'string') {
-              // Legacy JSON-string snapshot — parse, then persist the slimmed
+              // Legacy JSON-string snapshot - parse, then persist the slimmed
               // object form (this also removes the double-encoding overhead).
               snap = JSON.parse(snap);
             }
@@ -1259,7 +1259,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
             }
             kept.push(cp);
           } catch {
-            // Unparseable snapshot — drop this one checkpoint, keep the rest.
+            // Unparseable snapshot - drop this one checkpoint, keep the rest.
           }
         }
         s.checkpoints = kept;
@@ -1270,7 +1270,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
         }
       }
     } catch {
-      // checkpointSystem unavailable / unexpected shape — skip re-slim, never crash repair.
+      // checkpointSystem unavailable / unexpected shape - skip re-slim, never crash repair.
     }
   }
   if (typeof s.timeMachineUsesThisLife !== 'number') {
@@ -1278,7 +1278,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Set missing timeMachineUsesThisLife to 0');
     repaired = true;
   }
-  // F-3 / v12 mirror for `lastEventWeeksLived` — the event-pity spacing marker.
+  // F-3 / v12 mirror for `lastEventWeeksLived` - the event-pity spacing marker.
   // Its migration seeds it from `weeksLived`, and it was the one v12 field with
   // no repair counterpart, so a partial save already stamped at a later version
   // (CloudSync field-merge / hand-edit) reached the event engine without it.
@@ -1403,7 +1403,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repaired = true;
   }
   // `activeBrandDeals` is a concrete-default `[]` in initialState with neither a
-  // migration backfill nor a repair mirror — it predates both (2026-07-28 audit
+  // migration backfill nor a repair mirror - it predates both (2026-07-28 audit
   // save-5). The static parity check in audit-save.cjs only sees fields a
   // migration touches, so a field that never got one is invisible to it.
   if (!Array.isArray(sm.activeBrandDeals)) {
@@ -1445,7 +1445,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing socialMedia.lastViralBoostBySkill');
     repaired = true;
   }
-  // v22 Wave-A concrete defaults — mirrored from migration 22 so a partial save
+  // v22 Wave-A concrete defaults - mirrored from migration 22 so a partial save
   // already stamped past v22 is healed here too (save-format rule (b)). The
   // history is anchored with the current follower count, exactly like the
   // migration, so charts always have a datum; the 52-point cap is re-applied.
@@ -1489,7 +1489,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     repairs.push('Created missing sparkApp.messages');
     repaired = true;
   }
-  // Every branch below MUST set `repaired` — the repaired clone is only written
+  // Every branch below MUST set `repaired` - the repaired clone is only written
   // back onto the caller's object when that flag is true, so a backfill without
   // it is computed and silently discarded (CLAUDE.md; 2026-07-28 audit save-3).
   if (typeof sp.swipeQuota !== 'number') { sp.swipeQuota = 30; repairs.push('Created missing sparkApp.swipeQuota'); repaired = true; }
@@ -1538,7 +1538,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   }
   // Same rule (b) flag discipline as above. `likedYou` is the one with a live
   // crash consumer: likeBackFromLikedYou reads the RAW sparkApp, so a save
-  // missing it threw — and the repair that fixed it was being thrown away.
+  // missing it threw - and the repair that fixed it was being thrown away.
   if (!Array.isArray(sp.likedYou)) { sp.likedYou = []; repairs.push('Created missing sparkApp.likedYou'); repaired = true; }
   if (!Array.isArray(sp.catfishRecords)) { sp.catfishRecords = []; repairs.push('Created missing sparkApp.catfishRecords'); repaired = true; }
   if (sp.activeJealousy === undefined) { sp.activeJealousy = null; repairs.push('Normalized missing sparkApp.activeJealousy'); repaired = true; }
@@ -1621,7 +1621,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
     // `lifetimePremium` is an ENTITLEMENT, so this fills ONLY an absent key and
     // never coerces a present one. Absent already reads falsy, so writing the
-    // `false` default changes no behaviour — which is the only safe answer
+    // `false` default changes no behaviour - which is the only safe answer
     // here: inventing `true` would hand out a paid unlock, and coercing a
     // present-but-odd value could revoke one a player paid for (the v30
     // `revivalPack` reasoning).
@@ -1656,7 +1656,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
     }
   }
 
-  // Ensure version exists — use current STATE_VERSION, not a stale hardcoded value
+  // Ensure version exists - use current STATE_VERSION, not a stale hardcoded value
   if (typeof s.version !== 'number' || s.version < 1) {
     s.version = STATE_VERSION;
     repairs.push(`Set missing/invalid version to current (${STATE_VERSION})`);
@@ -1666,8 +1666,8 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // Migrate staking positions from cyclical week to absolute week
   if (s.warehouse?.stakingPositions) {
     s.warehouse.stakingPositions.forEach((pos: any) => {
-      // `=== undefined`, not `!`. Absolute week 0 is a legitimate value —
-      // MiningActions writes `startAbsoluteWeek: prev.weeksLived || 0` — and
+      // `=== undefined`, not `!`. Absolute week 0 is a legitimate value -
+      // MiningActions writes `startAbsoluteWeek: prev.weeksLived || 0` - and
       // testing falsy rewrote a correct 0, moving the position's start (and
       // resetting lastClaimAbsoluteWeek) on every load. 2026-07-29 audit MR-5.
       if (pos.startAbsoluteWeek === undefined && pos.startWeek <= 4 && (s.weeksLived || 0) > 4) {
@@ -1682,7 +1682,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 
   // Migrate travel trip from cyclical week to absolute week
   if (s.travel?.currentTrip && s.travel.currentTrip.returnWeek <= 8 && (s.weeksLived || 0) > 8) {
-    // Legacy returnWeek was stored using cyclical week — allow immediate return
+    // Legacy returnWeek was stored using cyclical week - allow immediate return
     s.travel.currentTrip.returnWeek = 0;
     s.travel.currentTrip.startWeek = 0;
     repairs.push('Migrated travel trip timing from cyclical to absolute week');
@@ -1694,7 +1694,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
   // (so React memos keyed on e.g. `gameState.stats` actually fire).
   if (s !== state && repaired) {
     const original = state as Record<string, any>;
-    // Remove keys that the clone no longer has (defensive — repair never deletes,
+    // Remove keys that the clone no longer has (defensive - repair never deletes,
     // but covers future code that does).
     for (const key of Object.keys(original)) {
       if (!(key in s)) delete original[key];
@@ -1709,7 +1709,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
 }
 
 /**
- * True when the state is the pristine boot default — no life has been started.
+ * True when the state is the pristine boot default - no life has been started.
  *
  * Every real game built by onboarding has a `scenarioId` AND a non-empty
  * `userProfile.firstName` (name entry is mandatory); the provider's initial
@@ -1744,7 +1744,7 @@ export function validateGameState(
      * stricter error-vs-warning grading further down).
      *
      * For the one caller that has ALREADY repaired the exact object it is
-     * handing over — the load/hydration path. `repairGameState` opens with a
+     * handing over - the load/hydration path. `repairGameState` opens with a
      * `structuredClone` of the whole state, so running it twice made every load
      * pay for two deep clones of a multi-MB object to do one repair, and the
      * second pass by construction found nothing left to fix. Defaults to
@@ -1951,7 +1951,7 @@ export function validateGameState(
     e.includes('must be an array') ||
     e.includes('repair failed') ||
     // P0-6: NaN/Infinity in a stat is corruption that makes a save load as
-    // "valid" but then fail gameEntryValidation (isFinite check) — an
+    // "valid" but then fail gameEntryValidation (isFinite check) - an
     // unplayable save. Treat it as critical so the load path repairs it.
     e.includes('NaN/Infinity')
   );
@@ -2028,7 +2028,7 @@ export function createSaveEnvelope(dataString: string): string {
 /**
  * Does `expectedHmac` match under ANY configured verification key, in either
  * padding mode? First entry in `EXPO_PUBLIC_SAVE_HMAC_KEY` signs; every entry
- * verifies. Never throws — an unconfigured build simply matches nothing.
+ * verifies. Never throws - an unconfigured build simply matches nothing.
  */
 function verifyHmacAgainstAnyKey(data: string, expectedHmac: string): boolean {
   let keys: string[];
@@ -2066,7 +2066,7 @@ export function verifySaveData(data: string, expectedChecksum: string, expectedS
     // no way back (the weak-migration escape hatch is refused by the production
     // preflight). Accepting a list makes a rotation converge instead: old saves
     // keep verifying and re-sign onto the current key on their next write.
-    // The legacy padding is here for the same reason — see `Sha256Padding`.
+    // The legacy padding is here for the same reason - see `Sha256Padding`.
     // 2026-07-29 audit SEC-2 / SEC-8.
     if (verifyHmacAgainstAnyKey(data, expectedHmac)) return true;
 
@@ -2346,14 +2346,14 @@ export async function doubleBufferSave(
 
     // Step 4: Flip the pointer to the newly written buffer. THIS is the commit:
     // the buffer write above is invisible until the pointer moves, so a crash
-    // before this line leaves the previous save active and intact — the whole
+    // before this line leaves the previous save active and intact - the whole
     // point of the scheme.
     //
     // Verified by read-back for the same reason the buffer write is (AsyncStorage
     // has been observed to accept a write that is not yet readable). An
     // unverified flip is the one failure that loses committed data: the newer
     // payload sits in a buffer nothing points at, the load returns the older
-    // one, and the NEXT save — which targets the inactive buffer — overwrites
+    // one, and the NEXT save - which targets the inactive buffer - overwrites
     // the newer payload. Reporting failure instead lets the caller retry, and
     // the retry re-writes the same inactive buffer, so nothing is lost.
     // (The pointer is a single character; this read-back is free.)
@@ -2392,8 +2392,8 @@ export async function doubleBufferSave(
  *
  * `none` and `unverified`/`unknown` used to be the SAME `{data: null}`, and
  * three separate occupancy guards read that null as "this slot is free to
- * overwrite". A save that merely failed CRC32/HMAC verification — after an HMAC
- * key rotation, say, which invalidates every save on the device at once —
+ * overwrite". A save that merely failed CRC32/HMAC verification - after an HMAC
+ * key rotation, say, which invalidates every save on the device at once -
  * looked exactly like an empty slot. So did a storage read that threw.
  * (2026-07-29 audit PIPE-1 / SEC-1.)
  */
@@ -2427,7 +2427,7 @@ export interface SaveSlotReadResult {
  * present or parseable, so a buffer with no usable timestamp never displaces one
  * that has a real timestamp, and two of them fall back to pointer order.
  *
- * Only ever called on the pointer-lost path in `doubleBufferLoad` — it parses
+ * Only ever called on the pointer-lost path in `doubleBufferLoad` - it parses
  * the whole state string, which is not something to do on every load.
  */
 function extractSaveTimestamp(dataString: string | undefined): number {
@@ -2470,7 +2470,7 @@ export async function doubleBufferLoad(
     // MISSING we still try both: this whole block used to sit inside
     // `if (currentActive === 'A' || currentActive === 'B')`, so a lost pointer
     // skipped the buffers entirely and fell straight through to the legacy key
-    // — reporting "no data" for a slot holding two intact megabyte saves
+    // - reporting "no data" for a slot holding two intact megabyte saves
     // (2026-07-29 audit SAVE-OW-3).
     const pointerKnown = currentActive === 'A' || currentActive === 'B';
     const order: ('A' | 'B')[] = currentActive === 'B' ? ['B', 'A'] : ['A', 'B'];
@@ -2490,7 +2490,7 @@ export async function doubleBufferLoad(
 
     // Candidates kept only while the POINTER IS MISSING. With a usable pointer
     // the first verifying buffer in pointer order is the answer and the loop
-    // returns from inside — comparing timestamps there would mean reading and
+    // returns from inside - comparing timestamps there would mean reading and
     // HMAC-verifying a second multi-megabyte buffer on every single load, to
     // decide something the pointer already decides correctly.
     const candidates: { buffer: 'A' | 'B'; raw: string; timestamp: number }[] = [];
@@ -2522,7 +2522,7 @@ export async function doubleBufferLoad(
     if (candidates.length > 0) {
       // The pointer is gone or corrupt, so buffer ORDER carries no information:
       // 'A' is not "the active one", it is just the one we happen to try first.
-      // Picking it would silently adopt the OLDER save when B held the newer —
+      // Picking it would silently adopt the OLDER save when B held the newer -
       // and then heal the pointer to A and let the next save overwrite B. Both
       // buffers verified here, so the save's own `updatedAt` decides; pointer
       // order is only the tiebreak when neither carries a usable timestamp.
@@ -2540,12 +2540,12 @@ export async function doubleBufferLoad(
       return { data: chosen.raw, source: chosen.buffer, blobPresent: true };
     }
 
-    // Both buffers absent or unverifiable — check the legacy single-key save.
+    // Both buffers absent or unverifiable - check the legacy single-key save.
     //
     // Reading this KEY used to be gated on `allowLegacy`, which is the
     // unsigned-legacy-FORMAT flag and is false on every shipped build (the
     // preflight hard-fails a production build that enables it). So
-    // `save_slot_N` was never read in production no matter what it held — and
+    // `save_slot_N` was never read in production no matter what it held - and
     // a correctly signed v2 envelope sitting there verifies under the normal
     // rules. That conflation made the legacy→double-buffer migration below
     // unreachable and, chained with the empty/unreadable conflation, let an
@@ -2564,7 +2564,7 @@ export async function doubleBufferLoad(
           // Migrate: write to buffer A and set pointer.
           //
           // Wrap the DECODED payload, never the raw blob. `decoded.data` is the
-          // unwrapped state string for both formats — the inner `data` of a v2
+          // unwrapped state string for both formats - the inner `data` of a v2
           // envelope, or the whole payload of a raw legacy save. Re-wrapping the
           // raw blob double-wraps an already-v2 envelope (checksum computed over
           // the envelope, not the state); loading it once yields the inner
@@ -2577,7 +2577,7 @@ export async function doubleBufferLoad(
             const canonicalEnvelope = createSaveEnvelope(decoded.data);
             await storage.setItem(keyA, canonicalEnvelope);
             await storage.setItem(pointerKey, 'A');
-            // Don't delete legacy key yet — keep as extra fallback until next successful save
+            // Don't delete legacy key yet - keep as extra fallback until next successful save
             logger.info(`[DOUBLE_BUFFER] Migrated legacy save to double-buffer for ${slotKey}`);
             return { data: canonicalEnvelope, source: 'legacy', migrated: true, blobPresent: true };
           } catch (migrateError) {
@@ -2595,7 +2595,7 @@ export async function doubleBufferLoad(
     return { data: null, source: 'none', blobPresent: false };
   } catch (error) {
     logger.error('[DOUBLE_BUFFER] Load failed:', error);
-    // Last resort: try reading the legacy key directly. Same split as above —
+    // Last resort: try reading the legacy key directly. Same split as above -
     // the key is always read; the FORMAT policy lives in the decoder.
     try {
       const legacyData = await storage.getItem(slotKey);
@@ -2614,7 +2614,7 @@ export async function doubleBufferLoad(
 
 /**
  * Read a slot and report WHY it came back empty, for callers deciding whether a
- * slot may be overwritten. `readSaveSlot` cannot answer that — it returns the
+ * slot may be overwritten. `readSaveSlot` cannot answer that - it returns the
  * same `null` for "nothing stored", "failed verification" and "the read threw".
  * Only `'none'` means safe to overwrite.
  */

@@ -234,13 +234,13 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
   }
 
   // 2b. Record the weekly pipeline's categorized cash outflows into the budget
-  //     tracker. These were already deducted from cash by the legacy tick —
+  //     tracker. These were already deducted from cash by the legacy tick -
   //     this only makes them visible on the Budget tab (no balance changes).
   for (const ev of input.spendEvents ?? []) {
     banking = trackBudgetSpend(banking, input.currentWeek, ev.category, ev.amount);
   }
 
-  // 2c. Budget targets (computer-only) — flag any category whose week's spend
+  // 2c. Budget targets (computer-only) - flag any category whose week's spend
   //     exceeded its configured cap with a single overspend notification. Pure
   //     read; no money moves. Fires at most once per week (one tick / week).
   const overspends = detectBudgetOverspend(banking, input.currentWeek);

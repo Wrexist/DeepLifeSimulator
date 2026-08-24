@@ -34,7 +34,7 @@ import type { GameState } from '@/contexts/game/types';
 const read = (rel: string): string =>
   fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
-describe('R3-S2 — a restarted game is DELETED, because it can never be saved', () => {
+describe('R3-S2 - a restarted game is DELETED, because it can never be saved', () => {
   it('the restarted state really is pristine (the reason saving cannot work)', () => {
     const live = createTestGameState({
       scenarioId: 'rags_to_riches',
@@ -74,7 +74,7 @@ describe('R3-S2 — a restarted game is DELETED, because it can never be saved',
   });
 });
 
-describe('R3-S3 — a newer save is refused, not reported as missing', () => {
+describe('R3-S3 - a newer save is refused, not reported as missing', () => {
   it('loadGame re-throws SaveFromFutureError instead of returning null', () => {
     const source = read('contexts/game/GameActionsContext.tsx');
     const outerCatch = source.slice(source.lastIndexOf("logger.error('Failed to load game:'") - 600);
@@ -96,7 +96,7 @@ describe('R3-S3 — a newer save is refused, not reported as missing', () => {
   });
 });
 
-describe('R3-S4 — a failed post-save load rolls the write back', () => {
+describe('R3-S4 - a failed post-save load rolls the write back', () => {
   const source = read('src/features/onboarding/gameInitializer.ts');
 
   it('defines a rollback', () => {
@@ -104,7 +104,7 @@ describe('R3-S4 — a failed post-save load rolls the write back', () => {
     expect(source).toMatch(/deleteSaveSlot\(targetSlot\)/);
   });
 
-  it('runs it on BOTH failure branches — the throw and the null', () => {
+  it('runs it on BOTH failure branches - the throw and the null', () => {
     // The null branch is the likelier one and was just as stranding.
     const calls = source.match(/await rollbackFailedInit\(\);/g) ?? [];
     expect(calls.length).toBe(2);

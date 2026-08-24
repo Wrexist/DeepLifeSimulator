@@ -3,7 +3,7 @@
  *
  * ## Why this is drawn and not an image
  *
- * The design calls for a painted gravestone — lit headstone, purple wisp, moss,
+ * The design calls for a painted gravestone - lit headstone, purple wisp, moss,
  * a flower, drifting embers. That asset does not exist yet, and Metro resolves
  * `require()` at BUILD time, so a component that reaches for a file which is
  * not there does not degrade, it fails to bundle. "Ship the layout now, add the
@@ -14,7 +14,7 @@
  * radial bloom behind it, a ground mound and scattered embers. It reads as the
  * intended image at the intended size, and it costs no download.
  *
- * When the painted asset lands, `source` takes it and the drawing steps aside —
+ * When the painted asset lands, `source` takes it and the drawing steps aside -
  * one prop, no other change. The prompts for generating it are in
  * `docs/DEATH_SCREEN_ASSETS.md`.
  *
@@ -37,7 +37,7 @@ interface Props {
   source?: ImageSourcePropType;
   /** Height of the whole band. The screen sizes this to the device. */
   height: number;
-  /** Drives the glow colour — a bleak life gets a colder light. */
+  /** Drives the glow colour - a bleak life gets a colder light. */
   mood?: 'bleak' | 'poor' | 'fair' | 'good' | 'great';
 }
 
@@ -49,7 +49,7 @@ const GLOW: Record<NonNullable<Props['mood']>, string> = {
   great: '#8B5CF6',
 };
 
-/** Embers, at fixed positions — a death screen must not roll dice to render. */
+/** Embers, at fixed positions - a death screen must not roll dice to render. */
 const EMBERS: { left: string; top: string; size: number; opacity: number }[] = [
   { left: '18%', top: '22%', size: 3, opacity: 0.5 },
   { left: '27%', top: '58%', size: 2, opacity: 0.35 },
@@ -102,7 +102,7 @@ function DeathHero({ source, height, mood = 'poor' }: Props) {
         />
       ))}
 
-      {/* The wisp — three tapering columns, widest at the base, so it reads as
+      {/* The wisp - three tapering columns, widest at the base, so it reads as
           flame rising rather than as a bar of light. */}
       <View style={[s.wisp, { height: stoneHeight * 0.86, width: scale(13), right: '25%' }]} />
       <View style={[s.wisp, { height: stoneHeight * 0.62, width: scale(8), right: '26.4%', opacity: 0.5 }]} />
@@ -141,7 +141,7 @@ function DeathHero({ source, height, mood = 'poor' }: Props) {
       <View style={[s.mound, { width: height * 1.5, height: height * 0.34, borderTopLeftRadius: height, borderTopRightRadius: height }]} />
 
       {/* Moss tufts along the mound, and the one small flower catching the
-          light. Fixed offsets — nothing here rolls dice. */}
+          light. Fixed offsets - nothing here rolls dice. */}
       {[-0.30, -0.18, -0.07, 0.09, 0.2, 0.31].map((offset, i) => (
         <View
           key={offset}
@@ -196,7 +196,7 @@ const makeStyles = (height: number, glow: string) =>
       justifyContent: 'center',
       paddingTop: '14%',
       marginBottom: height * 0.16,
-      // Full four-sided border — Hard Rule #7 bans the one-sided kind, and a
+      // Full four-sided border - Hard Rule #7 bans the one-sided kind, and a
       // slab needs its edge to read as carved rather than as a flat rectangle.
       borderWidth: 1,
       borderColor: '#4C5567',

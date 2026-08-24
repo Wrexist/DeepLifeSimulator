@@ -1,5 +1,5 @@
 /**
- * OfferCenterModal — the weekly rotating offer, shown somewhere the player
+ * OfferCenterModal - the weekly rotating offer, shown somewhere the player
  * chose to go.
  *
  * WHY A CENTER AND NOT A POPUP. The design constraint from the brief, and the
@@ -9,7 +9,7 @@
  * nothing except close it. Showing LAST / THIS / NEXT is the other half: a
  * rotation you can see ahead of is a schedule, not a scarcity tactic.
  *
- * PRICING — READ `lib/offers/pricing.ts` BEFORE CHANGING ANYTHING HERE.
+ * PRICING - READ `lib/offers/pricing.ts` BEFORE CHANGING ANYTHING HERE.
  * Every price on this screen comes from the store SDK. This component never
  * computes a discounted price and never renders `regularPriceUSD` on its own.
  * A discount badge appears only when `resolveOfferPrice` proved one against the
@@ -62,7 +62,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
    * Not read during render: a schedule derived from `Date.now()` inline would
    * make the render impure, and the countdown would only update when something
    * unrelated re-rendered the tree. A minute is the right granularity for a
-   * "3d 14h" label — a per-second timer on a shop window is pressure for its
+   * "3d 14h" label - a per-second timer on a shop window is pressure for its
    * own sake, and it would wake the JS thread 60× more often for no visible
    * difference.
    */
@@ -95,7 +95,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
    * The live USD amount, or null.
    *
    * Passed into `offerBenefits` so a scheduled App Store Connect discount makes
-   * the gems-per-dollar line BETTER — the one case where that number should
+   * the gems-per-dollar line BETTER - the one case where that number should
    * move, and it moves because the store genuinely charges less. Same currency
    * rule as the discount badge: outside USD we cannot compare, so we pass null
    * and the ratio falls back to the config price rather than mixing currencies.
@@ -129,7 +129,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
       discounted: featuredPrice.discountPercent !== null,
       discountPercent: featuredPrice.discountPercent,
     });
-    // Once per open, keyed on the offer — not on price, which can arrive late
+    // Once per open, keyed on the offer - not on price, which can arrive late
     // when the catalog finishes loading and would otherwise double-report.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, featured.id]);
@@ -190,7 +190,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
                 {/* The pack's own artwork, from the shared map. A shop card
                     without its art is the one thing that makes a real product
                     look like a placeholder. Falls back to nothing rather than
-                    to a generic icon — a wrong picture is worse than none. */}
+                    to a generic icon - a wrong picture is worse than none. */}
                 {art ? (
                   <Image source={art} style={styles.art} resizeMode="contain" />
                 ) : null}
@@ -209,7 +209,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
 
               {/* What you actually get. Sourced from PRODUCT_DISPLAY_META, whose
                   contents are the same list `applyProductBenefitsToState`
-                  grants — so every line here is a promise the purchase code
+                  grants - so every line here is a promise the purchase code
                   keeps, not copy that can drift away from it. */}
               {benefits.bullets.length > 0 && (
                 <View style={styles.benefits}>
@@ -235,7 +235,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
                   rather than simply offline. The button carries that state. */}
               {featuredPrice.purchasable ? (
                 <View style={styles.priceRow}>
-                  {/* Only ever rendered ALONGSIDE a proven discount — the two are
+                  {/* Only ever rendered ALONGSIDE a proven discount - the two are
                       emitted together or not at all. */}
                   {featuredPrice.strikethroughPrice && (
                     <Text style={styles.strikethrough}>{featuredPrice.strikethroughPrice}</Text>
@@ -295,7 +295,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
               <Gift size={scale(13)} color="#64748B" />
               <Text style={styles.footNoteText}>
                 Offers rotate every week. Prices are set by the App Store and shown in your own
-                currency — nothing here expires early or changes for you personally.
+                currency - nothing here expires early or changes for you personally.
               </Text>
             </View>
           </ScrollView>

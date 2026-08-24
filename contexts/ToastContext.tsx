@@ -5,12 +5,14 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport } from '@/utils/diagnosticReport';
 import { setToastHandler } from '@/utils/toastBridge';
 import { toastText } from '@/utils/notificationText';
+import { shouldShowToast } from '@/utils/toastPolicy';
+import { GameStoreContext } from '@/contexts/game/useGameSelector';
 import { logger } from '@/utils/logger';
 
 /**
  * Turn a raw error into something actionable: one tap on an error toast's
  * "Report" button emails us a COMPREHENSIVE diagnostic (build, live game
- * position, state validation, recent logs) — built via the shared
+ * position, state validation, recent logs) - built via the shared
  * diagnosticReport helper, which pulls the live game state from the AI debug
  * getter when no state is passed. Goes to the canonical support inbox.
  */
@@ -59,6 +61,26 @@ interface ToastProviderProps {
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  /**
+   * The player's pop-up preference, read WITHOUT subscribing.
+   *
+   * `useGameStateGetter` would throw outside a GameProvider; this layer wraps
+   * most of the app and must never be the thing that crashes it, so the store
+   * context is read directly and a missing store degrades to "show
+   * everything" (the setting's own default). Reading through the getter at
+   * FIRE time rather than via a selector keeps `showToast` identity-stable
+   * with `[]` deps - it has ~200 call sites and sits in a memoised context
+   * value, so re-creating it on every settings read would re-render the tree.
+   */
+  const gameStore = useContext(GameStoreContext);
+  const notificationsEnabled = useCallback((): boolean | undefined => {
+    try {
+      return gameStore?.getSnapshot()?.settings?.notificationsEnabled;
+    } catch {
+      return undefined; // never let a preference read break a toast
+    }
+  }, [gameStore]);
+
   const showToast = useCallback(
     (
       message: string,
@@ -69,7 +91,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       persistent?: boolean
     ) => {
       // Warnings used to be dropped entirely: they "overlapped the status bar".
-      // That silenced the whole rejection channel — a refused job application, a
+      // That silenced the whole rejection channel - a refused job application, a
       // denied promotion, a blocked retirement and a failed street job all
       // buzzed and rendered nothing, so a rejected tap was indistinguishable
       // from a successful one. The overlap was a POSITION problem, not a reason
@@ -78,7 +100,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       const resolvedPosition: Toast['position'] =
         position ?? (type === 'warning' ? 'bottom' : 'top');
 
-      // Drop blank toasts — an empty message renders as a bare icon-only
+      // Drop blank toasts - an empty message renders as a bare icon-only
       // blue pill (a call site passed an optional result?.message that was
       // undefined). Nothing useful to show.
       if (!message?.trim()) {
@@ -86,7 +108,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return;
       }
 
-      // Emoji out, length capped — applied HERE rather than at the ~200 call
+      // Emoji out, length capped - applied HERE rather than at the ~200 call
       // sites, because most toast copy is assembled by concatenation several
       // modules away from the call (see utils/notificationText.ts). A message
       // that is nothing but emoji sanitises to empty and is dropped like any
@@ -94,6 +116,14 @@ export function ToastProvider({ children }: ToastProviderProps) {
       const text = toastText(message);
       if (!text) {
         if (__DEV__) logger.warn('[toast suppressed: no text after sanitising]', { type });
+        return;
+      }
+
+      // Player preference (Settings > Pop-up Notifications). Warnings and
+      // errors are deliberately exempt - see utils/toastPolicy.ts for why
+      // muting the rejection channel would re-ship a documented bug.
+      if (!shouldShowToast(type, notificationsEnabled())) {
+        if (__DEV__) logger.info('[toast suppressed: notifications off]', { type });
         return;
       }
 
@@ -119,7 +149,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return updatedToasts;
       });
     },
-    []
+    [notificationsEnabled]
   );
 
   const showSuccess = useCallback(
@@ -197,7 +227,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
             onDismiss={dismissToast}
             position={toast.position}
             // Only problems buzz. Buzzing on every success/info toast meant a
-            // burst of purchases became a burst of vibrations — action handlers
+            // burst of purchases became a burst of vibrations - action handlers
             // already give their own press haptics.
             hapticEnabled={toast.type === 'error' || toast.type === 'warning'}
             action={toast.action}

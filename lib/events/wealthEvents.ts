@@ -161,10 +161,10 @@ const hostileTakeover: EventTemplate = {
     const defence = M(-60_000, 0.015);
     return {
       id: 'wealth_hostile_takeover',
-      description: 'A raider has quietly built a stake in your largest holding and gone public with a bid — above market, below what you think it is worth.',
+      description: 'A raider has quietly built a stake in your largest holding and gone public with a bid - above market, below what you think it is worth.',
       choices: [
         { id: 'sell', text: `Sell into the bid (${show(state, premium)}, you lose the asset)`, effects: { ...premium, stats: { reputation: -6, happiness: -4 } } },
-        { id: 'defend', text: `Fund a defence — bankers, poison pill (${show(state, defence)})`, effects: { ...defence, stats: { reputation: 8, energy: -12 } } },
+        { id: 'defend', text: `Fund a defence - bankers, poison pill (${show(state, defence)})`, effects: { ...defence, stats: { reputation: 8, energy: -12 } } },
         { id: 'counter', text: 'Court a friendlier buyer instead', effects: { stats: { reputation: 4, energy: -8, happiness: -2 } } },
       ],
     };
@@ -200,11 +200,11 @@ const ipoWindow: EventTemplate = {
     const partial = M(90_000, 0.02);
     return {
       id: 'wealth_ipo_window',
-      description: 'Your bankers say the listing window is open — but only for about six weeks. After that, who knows.',
+      description: 'Your bankers say the listing window is open - but only for about six weeks. After that, who knows.',
       choices: [
         { id: 'full', text: `List the whole thing now (${show(state, full)}, and the story becomes public)`, effects: { ...full, stats: { reputation: 10, happiness: -5, energy: -15 } } },
         { id: 'partial', text: `Sell a minority stake and keep control (${show(state, partial)})`, effects: { ...partial, stats: { reputation: 5, energy: -8 } } },
-        { id: 'wait', text: 'Stay private — no quarterly circus', effects: { stats: { happiness: 8, reputation: -2 } } },
+        { id: 'wait', text: 'Stay private - no quarterly circus', effects: { stats: { happiness: 8, reputation: -2 } } },
       ],
     };
   },
@@ -288,7 +288,7 @@ const namingGift: EventTemplate = {
       choices: [
         { id: 'named', text: `Fund the wing, name on the wall (${show(state, named)})`, effects: { ...named, stats: { reputation: 18, happiness: 8 }, karma: { dimension: 'generosity', amount: 6, reason: 'Funded a hospital wing' } } },
         { id: 'anonymous', text: `Fund it anonymously (${show(state, quiet)}, nobody knows)`, effects: { ...quiet, stats: { happiness: 12 }, karma: { dimension: 'generosity', amount: 9, reason: 'Gave anonymously' } } },
-        { id: 'decline', text: 'Decline — you already pay tax for this', effects: { stats: { reputation: -8 }, karma: { dimension: 'generosity', amount: -4, reason: 'Refused a hospital appeal' } } },
+        { id: 'decline', text: 'Decline - you already pay tax for this', effects: { stats: { reputation: -8 }, karma: { dimension: 'generosity', amount: -4, reason: 'Refused a hospital appeal' } } },
       ],
     };
   },
@@ -308,7 +308,7 @@ const foundationLaunch: EventTemplate = {
       choices: [
         { id: 'endow', text: `Endow it properly (${show(state, endow)})`, effects: { ...endow, stats: { reputation: 20, happiness: 10 }, karma: { dimension: 'generosity', amount: 8, reason: 'Endowed a foundation' } } },
         { id: 'token', text: `Fund a modest first year and see (${show(state, small)})`, effects: { ...small, stats: { reputation: 6, happiness: 4 }, karma: { dimension: 'generosity', amount: 3, reason: 'Started a small foundation' } } },
-        { id: 'shelve', text: 'Shelve it — give directly instead', effects: { stats: { happiness: 3, reputation: -2 } } },
+        { id: 'shelve', text: 'Shelve it - give directly instead', effects: { stats: { happiness: 3, reputation: -2 } } },
       ],
     };
   },
@@ -346,7 +346,7 @@ const scholarshipEndowment: EventTemplate = {
       description: 'Your old school wants to endow a scholarship in your name. They have sent a photograph of you at seventeen, which is an unfair negotiating tactic.',
       choices: [
         { id: 'endow', text: `Endow it in perpetuity (${show(state, endow)})`, effects: { ...endow, stats: { reputation: 15, happiness: 10 }, karma: { dimension: 'generosity', amount: 6, reason: 'Endowed a scholarship' } } },
-        { id: 'mentor', text: 'Skip the money — mentor two students yourself', effects: { stats: { happiness: 9, reputation: 6, energy: -10 }, karma: { dimension: 'generosity', amount: 5, reason: 'Gave time instead of money' } } },
+        { id: 'mentor', text: 'Skip the money - mentor two students yourself', effects: { stats: { happiness: 9, reputation: 6, energy: -10 }, karma: { dimension: 'generosity', amount: 5, reason: 'Gave time instead of money' } } },
         { id: 'decline', text: 'Send regrets', effects: { stats: { reputation: -5 } } },
       ],
     };
@@ -366,7 +366,7 @@ const givingPledge: EventTemplate = {
       choices: [
         { id: 'sign_and_pay', text: `Sign it and make the first transfer now (${show(state, first)})`, effects: { ...first, stats: { reputation: 22, happiness: 12 }, karma: { dimension: 'generosity', amount: 10, reason: 'Signed and honoured a giving pledge' } } },
         { id: 'sign_only', text: 'Sign it, give later', effects: { stats: { reputation: 12, happiness: -3 }, karma: { dimension: 'honesty', amount: -3, reason: 'Made a pledge with no money behind it' } } },
-        { id: 'refuse', text: 'Refuse — your heirs come first', effects: { stats: { reputation: -10, happiness: 4 }, karma: { dimension: 'generosity', amount: -5, reason: 'Refused the giving pledge' } } },
+        { id: 'refuse', text: 'Refuse - your heirs come first', effects: { stats: { reputation: -10, happiness: 4 }, karma: { dimension: 'generosity', amount: -5, reason: 'Refused the giving pledge' } } },
       ],
     };
   },
@@ -408,7 +408,7 @@ const offshoreStructure: EventTemplate = {
       id: 'wealth_offshore_structure',
       description: 'A boutique firm can restructure your holdings through three jurisdictions. It is legal. It is also the sort of thing that reads badly in print.',
       choices: [
-        { id: 'do_it', text: `Do it — the saving is real (${show(state, saving)})`, effects: { ...saving, stats: { reputation: -12 }, karma: { dimension: 'honesty', amount: -6, reason: 'Moved wealth offshore' } } },
+        { id: 'do_it', text: `Do it - the saving is real (${show(state, saving)})`, effects: { ...saving, stats: { reputation: -12 }, karma: { dimension: 'honesty', amount: -6, reason: 'Moved wealth offshore' } } },
         { id: 'onshore', text: `Bring the old structures home instead (${show(state, cleanUp)})`, effects: { ...cleanUp, stats: { reputation: 12, happiness: 5 }, karma: { dimension: 'honesty', amount: 6, reason: 'Unwound an offshore structure' } } },
         { id: 'nothing', text: 'Leave everything exactly as it is', effects: { stats: { energy: 5 } } },
       ],
@@ -652,9 +652,9 @@ const truceDinner: EventTemplate = {
       id: 'wealth_truce_dinner',
       description: 'Your oldest rival invites you to dinner, alone. Halfway through the second course they suggest, gently, that you stop competing on price.',
       choices: [
-        { id: 'agree', text: `Shake on it (${show(state, carveUp)} a year in margin — and it is a cartel)`, effects: { ...carveUp, stats: { reputation: -10, happiness: 4 }, karma: { dimension: 'honesty', amount: -7, reason: 'Agreed to carve up a market' } } },
+        { id: 'agree', text: `Shake on it (${show(state, carveUp)} a year in margin - and it is a cartel)`, effects: { ...carveUp, stats: { reputation: -10, happiness: 4 }, karma: { dimension: 'honesty', amount: -7, reason: 'Agreed to carve up a market' } } },
         { id: 'refuse', text: 'Refuse and finish the wine anyway', effects: { stats: { reputation: 8, happiness: 3 }, karma: { dimension: 'honesty', amount: 5, reason: 'Refused a price-fixing arrangement' } } },
-        { id: 'record', text: 'Refuse — and quietly hand the recording to a regulator', effects: { stats: { reputation: 6, happiness: -5, energy: -8 }, karma: { dimension: 'loyalty', amount: -5, reason: 'Recorded and reported a rival' } } },
+        { id: 'record', text: 'Refuse - and quietly hand the recording to a regulator', effects: { stats: { reputation: 6, happiness: -5, energy: -8 }, karma: { dimension: 'loyalty', amount: -5, reason: 'Recorded and reported a rival' } } },
       ],
     };
   },
@@ -678,7 +678,7 @@ const fireSalePortfolio: EventTemplate = {
       choices: [
         { id: 'whole_book', text: `Take the whole book, diligence later (${show(state, whole)})`, effects: { ...whole, stats: { reputation: 8, energy: -14, happiness: 5 } } },
         { id: 'best_lots', text: `Take only the three assets you understand (${show(state, slice)})`, effects: { ...slice, stats: { reputation: 4, energy: -6 } } },
-        { id: 'pass', text: 'Pass — four days is not diligence', effects: { stats: { happiness: -3, energy: 3 } } },
+        { id: 'pass', text: 'Pass - four days is not diligence', effects: { stats: { happiness: -3, energy: 3 } } },
       ],
     };
   },
@@ -752,7 +752,7 @@ const artDeaccession: EventTemplate = {
     const lend = M(-30_000, 0.007);
     return {
       id: 'wealth_art_deaccession',
-      description: 'An estate is quietly releasing a painting you have wanted for twenty years — but the only way to fund it this month is to sell something of your own.',
+      description: 'An estate is quietly releasing a painting you have wanted for twenty years - but the only way to fund it this month is to sell something of your own.',
       choices: [
         { id: 'sell_collection', text: `Sell three pieces at auction (${show(state, sell)})`, effects: { ...sell, stats: { happiness: -6, reputation: 3 } } },
         { id: 'lend_museum', text: `Lend your collection to a museum instead (${show(state, lend)} in transport and insurance)`, effects: { ...lend, stats: { reputation: 14, happiness: 6 }, karma: { dimension: 'generosity', amount: 4, reason: 'Lent a private collection to the public' } } },
@@ -799,7 +799,7 @@ const heirAllowance: EventTemplate = {
       choices: [
         { id: 'generous', text: `Set it generously (${show(state, generous)} a year)`, effects: { ...generous, relationship: 14, stats: { happiness: 5 } } },
         { id: 'modest', text: `Set it modestly and explain why (${show(state, modest)} a year)`, effects: { ...modest, relationship: -4, stats: { happiness: 3, reputation: 5 } } },
-        { id: 'earn_it', text: 'No allowance — a job at the company instead', effects: { relationship: -12, stats: { reputation: 8, happiness: -3 } } },
+        { id: 'earn_it', text: 'No allowance - a job at the company instead', effects: { relationship: -12, stats: { reputation: 8, happiness: -3 } } },
       ],
     };
   },
@@ -1017,7 +1017,7 @@ const homelandRequest: EventTemplate = {
       choices: [
         { id: 'build', text: `Build all of it (${show(state, invest)})`, effects: { ...invest, stats: { reputation: 22, happiness: 12 }, karma: { dimension: 'generosity', amount: 8, reason: 'Rebuilt the town you came from' } } },
         { id: 'partial', text: `Fund the school and the clinic only (${show(state, modest)})`, effects: { ...modest, stats: { reputation: 12, happiness: 7 }, karma: { dimension: 'generosity', amount: 5, reason: 'Funded a school and a clinic' } } },
-        { id: 'refuse', text: 'Refuse — it is the state\'s job, not yours', effects: { stats: { reputation: -12, happiness: -5 } } },
+        { id: 'refuse', text: 'Refuse - it is the state\'s job, not yours', effects: { stats: { reputation: -12, happiness: -5 } } },
       ],
     };
   },
@@ -1036,7 +1036,7 @@ const macroHedge: EventTemplate = {
       description: 'Your risk desk says the whole portfolio is one correlated bet on a single currency. Hedging it costs real money. Doubling down costs nothing until it does.',
       choices: [
         { id: 'hedge', text: `Buy the hedge and sleep at night (${show(state, hedge)})`, effects: { ...hedge, stats: { happiness: 6, health: 4 } } },
-        { id: 'double_down', text: `Double the position instead (${show(state, bet)} — this time)`, effects: { ...bet, stats: { happiness: 8, health: -6, reputation: 4 }, karma: { dimension: 'ambition', amount: 5, reason: 'Doubled down on a concentrated bet' } } },
+        { id: 'double_down', text: `Double the position instead (${show(state, bet)} - this time)`, effects: { ...bet, stats: { happiness: 8, health: -6, reputation: 4 }, karma: { dimension: 'ambition', amount: 5, reason: 'Doubled down on a concentrated bet' } } },
         { id: 'diversify', text: 'Sell down and diversify slowly', effects: { stats: { happiness: 3, energy: -8, reputation: 2 } } },
       ],
     };
@@ -1057,7 +1057,7 @@ const opportunityFund: EventTemplate = {
       choices: [
         { id: 'anchor', text: `Anchor the fund (${show(state, anchor)}, locked for years)`, effects: { ...anchor, stats: { reputation: 8, happiness: 3 } } },
         { id: 'small_ticket', text: `Write a small cheque and watch (${show(state, small)})`, effects: { ...small, stats: { reputation: 3 } } },
-        { id: 'pass', text: 'Pass — one page is not a track record', effects: { stats: { reputation: -2, energy: 3 } } },
+        { id: 'pass', text: 'Pass - one page is not a track record', effects: { stats: { reputation: -2, energy: 3 } } },
       ],
     };
   },

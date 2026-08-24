@@ -21,7 +21,7 @@ import { ChevronRight, Megaphone, Play, Plus, Save, Settings, Zap } from 'lucide
 // Leaf contexts (NOT the @/contexts/GameContext barrel): the barrel does
 // `export * from './game'` which eagerly pulls the entire provider graph
 // (GameProvider + all 9 contexts incl. the 4000-line GameActionsContext) into
-// this screen's module init — a require cycle that left this screen's default
+// this screen's module init - a require cycle that left this screen's default
 // export `undefined` in the production Hermes bundle ("Element type is invalid").
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -44,13 +44,13 @@ import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalSc
 import { haptic } from '@/utils/haptics';
 
 // What's New popup is a leaf component (changelog data + RN primitives only, no
-// context graph), so a static import is safe and cheap here — it doesn't drag
+// context graph), so a static import is safe and cheap here - it doesn't drag
 // the heavy Settings graph into MainMenu's module init the way SettingsModal did.
 import WhatsNewModal from '@/components/WhatsNewModal';
 import { hasUnseenWhatsNew } from '@/utils/whatsNewSeen';
 
 // SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
-// imports MainMenu (so this isn't a require cycle) — but a failed module-eval of
+// imports MainMenu (so this isn't a require cycle) - but a failed module-eval of
 // that heavy graph in the production Hermes bytecode left MainMenu's own default
 // export `undefined` ("Element type is invalid" when the navigator renders it).
 // Lazy-load it so its graph is NOT part of MainMenu's module init; it only loads
@@ -66,7 +66,7 @@ const SettingsModal = lazy(() => import('@/components/SettingsModal'));
 const PAGE_BG = '#020617';
 
 // Real installed app version, read the way the rest of the app does
-// (utils/versionCheck.ts). Baked into expoConfig at build time — no fragile
+// (utils/versionCheck.ts). Baked into expoConfig at build time - no fragile
 // native call on this first screen. Falls back to the brand wordmark if absent.
 const APP_VERSION = Constants.expoConfig?.version ?? null;
 
@@ -83,12 +83,12 @@ interface SaveSummary {
 // dissolves seamlessly into this menu on the identical background.
 
 /**
- * Staggered entrance wrapper — opacity + a short translateY rise, native-driven,
+ * Staggered entrance wrapper - opacity + a short translateY rise, native-driven,
  * ease-out, no bounce. Honors the OS "Reduce Motion" setting by rendering static.
  */
 /**
  * When the action cards start, relative to the brand entrance. See the delay
- * note inside `RevealItem` — this exists so the two sequences read as one.
+ * note inside `RevealItem` - this exists so the two sequences read as one.
  */
 const MENU_LEAD_MS = 560;
 
@@ -111,14 +111,14 @@ function RevealItem({
     const animation = Animated.timing(progress, {
       toValue: 1,
       // 420ms/70ms rather than the old 200ms/45ms. The previous timing was so
-      // quick the stagger read as a single flicker — technically animated,
+      // quick the stagger read as a single flicker - technically animated,
       // visually a hard cut. A premium entrance needs long enough for the eye
       // to follow one card to the next; this is still under half a second to
       // the last item, so nothing is waiting on it.
       duration: 420,
       // Offset so the cards follow the brand rather than racing it. The hero's
       // last line starts at 90 + 2*130 = 350ms and runs 620ms, so the menu
-      // begins arriving as the title settles — overlapping slightly, which
+      // begins arriving as the title settles - overlapping slightly, which
       // reads as one continuous entrance instead of two separate ones.
       delay: MENU_LEAD_MS + index * 70,
       // A gentle overshoot-free ease. `back` was tried and rejected: on a
@@ -143,7 +143,7 @@ function RevealItem({
 }
 
 /**
- * The brand entrance — the first thing anyone sees, so it is the one place
+ * The brand entrance - the first thing anyone sees, so it is the one place
  * worth spending animation on.
  *
  * The three lines arrive in sequence (eyebrow → DEEP LIFE → SIMULATOR) rather
@@ -152,7 +152,7 @@ function RevealItem({
  *
  * Everything animated here is opacity + transform, so `useNativeDriver` holds
  * and the entrance stays smooth while JS is still busy hydrating the menu
- * behind it. Honours reduced motion by snapping straight to the end state —
+ * behind it. Honours reduced motion by snapping straight to the end state -
  * the check is a hard branch, not a shortened duration, because a vestibular
  * trigger is not fixed by making it faster.
  */
@@ -193,8 +193,8 @@ function HeroLine({
 }
 
 /**
- * Primary action card — the one high-emphasis choice (Continue when a save
- * exists, otherwise New Game). Solid blue fill (no gradient — see PAGE_BG).
+ * Primary action card - the one high-emphasis choice (Continue when a save
+ * exists, otherwise New Game). Solid blue fill (no gradient - see PAGE_BG).
  */
 function PrimaryActionCard({
   icon: Icon,
@@ -245,7 +245,7 @@ function PrimaryActionCard({
   );
 }
 
-/** Secondary action card — dark surface + tinted icon chip. Clearly below the
+/** Secondary action card - dark surface + tinted icon chip. Clearly below the
  *  primary in emphasis, clearly above the quiet tertiary tiles. */
 function SecondaryActionCard({
   icon: Icon,
@@ -283,7 +283,7 @@ function SecondaryActionCard({
   );
 }
 
-/** Quiet tertiary tile — the low-frequency utilities (Save Slots / Settings)
+/** Quiet tertiary tile - the low-frequency utilities (Save Slots / Settings)
  *  sit side by side so they never compete with the two real choices above. */
 function TertiaryTile({
   icon: Icon,
@@ -333,17 +333,17 @@ export default function MainMenu() {
   // Handle for a scheduled one-time meta backfill so we can cancel it on blur.
   const backfillTaskRef = useRef<{ cancel: () => void } | null>(null);
   // Refresh generation: cancel() can't stop a backfill whose callback already
-  // started, and this component stays mounted while blurred — so every refresh
+  // started, and this component stays mounted while blurred - so every refresh
   // (focus cycle) bumps this and async continuations from an older cycle check
   // it before touching state, ensuring a stale slot's result can never
   // overwrite the current Continue card.
   const refreshGenRef = useRef(0);
-  // This launch's background (null until the cycle counter is read — the flat
+  // This launch's background (null until the cycle counter is read - the flat
   // base shows meanwhile, so first paint stays instant).
   const [bgIndex, setBgIndex] = useState<number | null>(null);
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
-  // Take this launch's background (show + advance the shared cycle — see
+  // Take this launch's background (show + advance the shared cycle - see
   // utils/menuBackground.ts). Mount-only on purpose: rotating on every focus
   // would swap the artwork when returning from SaveSlots/Settings, which reads
   // as a glitch rather than variety. takeMenuBackgroundIndex never throws.
@@ -385,7 +385,7 @@ export default function MainMenu() {
   const applyMeta = useCallback((meta: SaveSlotMeta) => {
     if (!isMountedRef.current) return;
     setHasSave(true);
-    // Name may be an empty string on a valid save — fall back at render time.
+    // Name may be an empty string on a valid save - fall back at render time.
     setSaveSummary({ name: meta.name, age: meta.age, money: meta.money });
   }, []);
 
@@ -412,7 +412,7 @@ export default function MainMenu() {
         return;
       }
 
-      // Fast path: the per-slot summary cache is tiny — reading it never touches
+      // Fast path: the per-slot summary cache is tiny - reading it never touches
       // the multi-MB blob, so the Continue card paints instantly.
       const meta = await readSaveSlotMeta(slotNumber);
       if (!isCurrent()) return;
@@ -467,7 +467,7 @@ export default function MainMenu() {
     }
   }, [applyMeta, clearSave, log]);
 
-  // useFocusEffect fires on the initial focus too, so it covers first mount —
+  // useFocusEffect fires on the initial focus too, so it covers first mount -
   // no separate mount effect needed (a duplicate one used to run the heavy save
   // read TWICE on launch). Cancel any pending backfill when the screen blurs.
   useFocusEffect(
@@ -532,7 +532,7 @@ export default function MainMenu() {
         // R3-S3: this inner catch sat between `loadGame` and the
         // `isSaveFromFutureError` branch below, so it swallowed the refusal and
         // showed the generic "or start a new game" message over an intact save
-        // from a newer build — the exact advice the outer handler exists to
+        // from a newer build - the exact advice the outer handler exists to
         // avoid. Re-throw that one case so it reaches its handler.
         if (isSaveFromFutureError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
@@ -603,7 +603,7 @@ export default function MainMenu() {
         router.replace('/(tabs)/home');
       }, 100);
     } catch (error) {
-      // A save from a newer build is REFUSED on purpose — loading it would let
+      // A save from a newer build is REFUSED on purpose - loading it would let
       // the next autosave overwrite it. Say that, instead of the generic error
       // (and never suggest starting a new game over an intact save).
       // 2026-07-29 audit MR-4.
@@ -625,21 +625,21 @@ export default function MainMenu() {
   };
 
   /**
-   * Quick Start — one tap from the menu to a life, for players who have not
+   * Quick Start - one tap from the menu to a life, for players who have not
    * yet earned an opinion about scenarios, ambitions or perks.
    *
    * ── Why this exists ───────────────────────────────────────────────────
    * A 3-star review said "it's too much to read". Measured, the copy is not
    * the problem: event descriptions run a median of 13 words and all of
-   * onboarding plus the main tabs is ~870 words. The problem is STRUCTURAL —
+   * onboarding plus the main tabs is ~870 words. The problem is STRUCTURAL -
    * "New Game" led to four consecutive screens (Scenarios, Customize,
    * Ambitions, Perks), each asking a decision about a system the player has
    * not seen yet. Perks in particular are mostly LOCKED on a first run, so the
    * screen exists to be skipped and says so in its own guidance text.
    *
    * This fills in exactly what the full flow would have produced from its own
-   * defaults — the recommended beginner scenario, a random name, no ambition,
-   * no perks — and lands on the final step, where one clearly-labelled tap
+   * defaults - the recommended beginner scenario, a random name, no ambition,
+   * no perks - and lands on the final step, where one clearly-labelled tap
    * starts the life.
    *
    * It stops at Perks rather than starting the game directly ON PURPOSE.
@@ -648,7 +648,7 @@ export default function MainMenu() {
    * duplicating it to save one tap would put a second, less-tested path into
    * the code that can overwrite a save. Reusing it is worth the tap.
    *
-   * The long flow is untouched — this is an additional door, not a replacement.
+   * The long flow is untouched - this is an additional door, not a replacement.
    */
   const startQuick = async () => {
     haptic.light();
@@ -694,7 +694,7 @@ export default function MainMenu() {
     haptic.light();
     try {
       // Always target the first EMPTY slot. Previously a new life inherited the
-      // default slot (1) and could silently overwrite an existing save — tapping
+      // default slot (1) and could silently overwrite an existing save - tapping
       // "New Game" with a game already in slot 1 clobbered it with no warning.
       // Auto-picking the first free slot keeps brand-new players friction-free
       // (they land in slot 1) while protecting returning players' saves.
@@ -733,7 +733,7 @@ export default function MainMenu() {
     <>
       <View style={styles.root}>
         {/* This launch's background artwork, faded in over the flat base with a
-            uniform dark scrim for text/card contrast. pointerEvents none — pure
+            uniform dark scrim for text/card contrast. pointerEvents none - pure
             decoration; a single flat scrim (no gradients) so the fallback
             renderer can never reintroduce a seam. */}
         {bgIndex != null && (
@@ -760,7 +760,7 @@ export default function MainMenu() {
           {/* Slight upward bias: 0.9 above / 1.1 below reads centered-but-lifted. */}
           <View style={styles.spacerTop} />
 
-          {/* Brand block — crisp text on the flat dark base, no lighter panel. */}
+          {/* Brand block - crisp text on the flat dark base, no lighter panel. */}
           <View style={styles.hero}>
             <HeroLine index={0} reduced={reduced}>
               <Text style={styles.eyebrow}>LIVE A THOUSAND LIVES</Text>
@@ -802,7 +802,7 @@ export default function MainMenu() {
               FIRST-TIME PLAYER: "Play" is the primary action and it skips
               character setup entirely.
 
-              Research on first-session retention is blunt about this — a player
+              Research on first-session retention is blunt about this - a player
               should be IN the game inside 60 seconds, and the fastest way to
               lose them is to open with a choice they have no basis to make.
               Measured on this build: Play reaches a live game in 2 taps against
@@ -811,7 +811,7 @@ export default function MainMenu() {
               So the doors are ordered by what a newcomer needs rather than by
               what the app can do. Someone who WANTS to pick a scenario, a name,
               an ambition and perks still has that door, one line below and
-              plainly labelled — it is demoted, not hidden.
+              plainly labelled - it is demoted, not hidden.
             */}
             {!hasSave ? (
               <RevealItem index={1} reduced={reduced}>
@@ -831,7 +831,7 @@ export default function MainMenu() {
                 subtitle={
                   hasSave
                     ? t('mainMenu.newGameSubtitle')
-                    // Short enough to fit on one line at the card's width —
+                    // Short enough to fit on one line at the card's width -
                     // the longer version truncated to "Choose your scenario,
                     // name, …", which reads as a bug rather than a summary.
                     : 'Pick everything yourself'
@@ -872,7 +872,7 @@ export default function MainMenu() {
           </RevealItem>
         </View>
 
-        {/* What's New — a quiet top-right corner button that opens the update
+        {/* What's New - a quiet top-right corner button that opens the update
             log. A small green dot flags an unseen release. */}
         <TouchableOpacity
           accessibilityRole="button"
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
   },
   // Uniform dark veil over the artwork so the title, cards, and labels keep
-  // full contrast on every image. Deliberately ONE flat layer — a stepped or
+  // full contrast on every image. Deliberately ONE flat layer - a stepped or
   // gradient scrim would recreate the hard-seam bug this screen just escaped.
   bgScrim: {
     ...StyleSheet.absoluteFillObject,
@@ -937,7 +937,7 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(12),
   },
   // Poster-grade brand type WITHOUT bundling font files: Avenir Next Heavy
-  // ships built into iOS — smooth, wide geometric curves at maximum weight,
+  // ships built into iOS - smooth, wide geometric curves at maximum weight,
   // the same language as the DeepLife key art (assets/images/Main_Menu*.png).
   // (Futura Condensed ExtraBold was tried first; its narrow angular forms read
   // harsh on-device.) Named PostScript families must not be paired with a

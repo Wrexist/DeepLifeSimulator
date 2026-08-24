@@ -37,7 +37,7 @@ import { initialGameState } from '@/contexts/game/initialState';
 const read = (rel: string): string =>
   fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
-describe('R3-C1 + R3-C10 — a gear purchase delivers gear', () => {
+describe('R3-C1 + R3-C10 - a gear purchase delivers gear', () => {
   const source = read('contexts/game/actions/CrimeActions.ts');
 
   /**
@@ -102,7 +102,7 @@ describe('R3-C1 + R3-C10 — a gear purchase delivers gear', () => {
   });
 });
 
-describe('R3-C2 — crime talent nodes affect the job math', () => {
+describe('R3-C2 - crime talent nodes affect the job math', () => {
   const source = read('contexts/game/actions/JobActions.ts');
 
   it('reads the unlocked talents', () => {
@@ -130,7 +130,7 @@ describe('R3-C2 — crime talent nodes affect the job math', () => {
   });
 });
 
-describe('R3-C4 — Legal Appeal names a real education', () => {
+describe('R3-C4 - Legal Appeal names a real education', () => {
   it('requires law_school, the actual template id', () => {
     const activity = (initialGameState.jailActivities ?? []).find(
       (a) => (a as { requiresEducation?: string }).requiresEducation,
@@ -147,7 +147,7 @@ describe('R3-C4 — Legal Appeal names a real education', () => {
   });
 });
 
-describe('R3-C5 — New Identity is gated on what it charges', () => {
+describe('R3-C5 - New Identity is gated on what it charges', () => {
   const source = read('components/computer/OnionApp.tsx');
 
   it('gates the button on the TOTAL, not the base cost', () => {
@@ -163,7 +163,7 @@ describe('R3-C5 — New Identity is gated on what it charges', () => {
   });
 });
 
-describe('R3-C6 — a double tap cannot burn two skill points', () => {
+describe('R3-C6 - a double tap cannot burn two skill points', () => {
   it('re-checks already-unlocked inside the updater', () => {
     const source = read('contexts/game/JobActionsContext.tsx');
 
@@ -171,7 +171,7 @@ describe('R3-C6 — a double tap cannot burn two skill points', () => {
   });
 });
 
-describe('R3-C8 — raid_risk states the raid chance', () => {
+describe('R3-C8 - raid_risk states the raid chance', () => {
   it('the raid is a slice of police events, not all of them', () => {
     expect(RAID_SHARE_OF_POLICE_EVENTS).toBeGreaterThan(0);
     expect(RAID_SHARE_OF_POLICE_EVENTS).toBeLessThan(1);
@@ -184,7 +184,7 @@ describe('R3-C8 — raid_risk states the raid chance', () => {
   });
 });
 
-describe('R3-C7 + R3-C9 — the UI stops promising systems that do not exist', () => {
+describe('R3-C7 + R3-C9 - the UI stops promising systems that do not exist', () => {
   it('the dark-web banner no longer claims heat or raid-risk effects', () => {
     const source = read('components/shared/EconomyEventBanner.tsx');
     const code = source
@@ -205,7 +205,7 @@ describe('R3-C7 + R3-C9 — the UI stops promising systems that do not exist', (
   });
 });
 
-describe('R3-C11 — jail-activity XP cannot be dropped', () => {
+describe('R3-C11 - jail-activity XP cannot be dropped', () => {
   const source = read('contexts/game/JobActionsContext.tsx');
 
   it('applies the XP inside the same updater', () => {

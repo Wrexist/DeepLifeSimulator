@@ -64,7 +64,7 @@ describe('the tick taxes the right base', () => {
   });
 });
 
-describe('why it matters — progressivity', () => {
+describe('why it matters - progressivity', () => {
   it('a landlord and a salaried earner on the same gross now owe the same', () => {
     // The whole point. Previously the rent half was free.
     const salaryOnly = calculateIncomeTax(150_000);

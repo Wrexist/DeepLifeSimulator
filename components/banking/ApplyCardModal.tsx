@@ -61,7 +61,7 @@ const PRODUCTS: CardProduct[] = [
     rewardsRate: 0.03,
     minCreditScore: 800,
     annualFee: 495,
-    // Was #0f172a — near-black, which read as "no colour at all" against the
+    // Was #0f172a - near-black, which read as "no colour at all" against the
     // dark surface even on the icon. Now the tier colour is also the row's
     // border it has to actually be visible, so this uses the lighter slate
     // that CreditCardRow already switched to for the same reason.
@@ -116,7 +116,7 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
             this list, a conditional rejection notice, and the Apply button. A
             fixed max-height cannot give space back when that column is taller
             than the sheet, so on a short screen the button is pushed outside the
-            sheet's bounds — and there is nothing to scroll to reach it, because
+            sheet's bounds - and there is nothing to scroll to reach it, because
             only this inner list scrolls and the sheet itself does not.
 
             Shrinking instead means the list takes whatever is left after the
@@ -134,8 +134,8 @@ export default function ApplyCardModal({ visible, creditScore, darkMode, onApply
                   disabled={!eligible}
                   // Hard Rule #7: the tier read as a scale(6) coloured bar down
                   // the left edge, same banned stripe as CreditCardRow. The
-                  // colour moves to a full border on all four sides — which
-                  // this row was already doing when selected — so the tier is
+                  // colour moves to a full border on all four sides - which
+                  // this row was already doing when selected - so the tier is
                   // still legible at a glance and selection still reads as the
                   // heavier rim.
                   style={[

@@ -31,6 +31,7 @@ import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBo
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
 import { computeInheritance } from '@/lib/legacy/inheritance';
+import { buildLifeRecord } from '@/lib/legacy/lifeRecord';
 
 
 /**
@@ -229,13 +230,13 @@ export function executePrestige(
   // --- Award prestige achievements (idempotent) ------------------------------
   // Evaluate against a MERGED view of the life that just ended plus the freshly
   // updated prestige accumulators:
-  //   • old life (gameState): stats / loans / relationships / educations — lets
+  //   • old life (gameState): stats / loans / relationships / educations - lets
   //     the "prestige with 100 stats / zero debt / all educations / 20+
   //     relationships" conditions read the ending life (post-reset stats would
   //     be wrong).
   //   • new prestige data + previousLives (newGameState): incremented
   //     totalPrestiges, preserved unlockedBonuses, and the just-appended life
-  //     with weeksLivedAtEnd/netWorth — lets the count / speed / net-worth
+  //     with weeksLivedAtEnd/netWorth - lets the count / speed / net-worth
   //     conditions read the accumulators.
   // The claimed store (carried into updatedPrestigeData) makes each award
   // one-time and gives existing veterans a one-shot retroactive catch-up on
@@ -270,7 +271,7 @@ export function executePrestige(
  * The old shape here spread the top level and hand-cloned only
  * `stats`/`date`/`settings`, so every OTHER nested default (`politics`,
  * `socialMedia`, `travel`, the arrays…) was the module singleton shared by
- * reference — the exact aliasing hazard `createTestGameState` documents. No
+ * reference - the exact aliasing hazard `createTestGameState` documents. No
  * production write mutates those in place today, which is why it never bit;
  * a deep clone removes the trap instead of trusting that to stay true.
  * Same guarded pattern as `repairGameState` (utils/saveValidation.ts).
@@ -295,9 +296,9 @@ function createResetGameState(
   const newState: GameState = freshInitialState();
 
   // A purchase belongs to the PLAYER, not the character. `settings` above comes
-  // from initialGameState, so without this every purchased entitlement flag —
+  // from initialGameState, so without this every purchased entitlement flag -
   // Remove Ads, lifetime premium, the nine gem-bought gold upgrades, unspent
-  // youth pills — was erased by prestige AND by the ungated death -> heir flow.
+  // youth pills - was erased by prestige AND by the ungated death -> heir flow.
   // Carrying the DeepLife+ claim stamps also closes the printer that let a
   // player re-mint the 500-gem welcome bonus once per prestige.
   // 2026-07-30 audit MON-1/2/3, ECON-R1-01/02.
@@ -325,12 +326,12 @@ function createResetGameState(
 
   /**
    * C-11: legacy points and purchases are lineage data, so they survive a
-   * prestige RESET too — otherwise prestiging would silently destroy them, the
+   * prestige RESET too - otherwise prestiging would silently destroy them, the
    * same class of bug as the entitlement wipe above (MON-1/2/3).
    *
    * The heir STARTING BONUSES are deliberately NOT applied here. Every upgrade
    * is worded "Your heir starts with…", and a reset is the same character
-   * starting over, not a new generation. The purchase is not wasted — it is
+   * starting over, not a new generation. The purchase is not wasted - it is
    * permanent and applies to every future heir.
    */
   newState.legacyPoints = oldState.legacyPoints || 0;
@@ -339,7 +340,7 @@ function createResetGameState(
   // Family businesses are LINEAGE assets and must survive the reset path too.
   // The heir path has carried them (with a generationsHeld increment) since the
   // "Preserve family businesses on prestige" fix, but this path silently
-  // dropped them — so the same player lost their family business, and with it
+  // dropped them - so the same player lost their family business, and with it
   // the entire legacy_business income bonus (which pays per generationsHeld),
   // simply by choosing "start fresh" instead of "continue as heir".
   // generationsHeld is NOT incremented here: a reset is the same character
@@ -356,7 +357,7 @@ function createResetGameState(
     }
   }
 
-  // Legacy Pass is SEASONAL (account-level), not per-life — preserve it across
+  // Legacy Pass is SEASONAL (account-level), not per-life - preserve it across
   // prestige so a reset doesn't wipe the player's battle-pass progress.
   if (oldState.legacyPass) {
     newState.legacyPass = {
@@ -388,19 +389,14 @@ function createResetGameState(
   // Preserve previous lives AND append the life that just ended. This was
   // copy-only before, so previousLives stayed permanently empty and the whole
   // Legacy Timeline UI, the IdentityCard generations counter, and the
-  // secret_full_circle event never populated.
+  // secret_full_circle event never populated. The record itself is built by
+  // the ONE shared builder (lib/legacy/lifeRecord.ts) so this path and the
+  // heir path below cannot drift - and so the life-quality score, ribbon,
+  // career history and family facts the death screen computes stop being
+  // discarded at the only moment they can still be captured.
   newState.previousLives = [
     ...(oldState.previousLives || []),
-    {
-      generation: oldState.generationNumber || 1,
-      netWorth: Math.round(netWorth(oldState)),
-      ageAtDeath: Math.floor(oldState.date?.age || 0),
-      deathReason: oldState.deathReason,
-      timestamp: Date.now(),
-      summaryAchievements: getEarnedAchievementNames(oldState),
-      // Weeks lived when this life ended — feeds the prestige-speed achievements.
-      weeksLivedAtEnd: oldState.weeksLived || 0,
-    },
+    buildLifeRecord(oldState),
   ];
 
   // Preserve ribbon collection across prestiges
@@ -439,7 +435,7 @@ function createResetGameState(
     };
   }
 
-  // Preserve the chosen Life Ambition — the prestige RESET keeps the SAME
+  // Preserve the chosen Life Ambition - the prestige RESET keeps the SAME
   // character, so their aspiration carries over. Milestones + reward-claimed
   // are already reset via initialGameState, so it's a fresh run of the same
   // ambition. Without this, ambitionId was wiped and the feature went
@@ -476,7 +472,7 @@ function createResetGameState(
     age: 18,
   };
   // A fresh 18-year-old starts the counter at 0, which `initialGameState`
-  // already gives — stamped explicitly so the baseline is stated rather than
+  // already gives - stamped explicitly so the baseline is stated rather than
   // inherited, and so this path reads the same as the heir one below.
   newState.weeksLived = computeWeeksLived(18);
   newState.lifeStartWeek = newState.weeksLived;
@@ -548,13 +544,13 @@ function createChildGameState(
     selectedChild = simulateChildToAge(selectedChild, oldState, ADULTHOOD_AGE);
   }
 
-  // Start with a fully independent copy — see `freshInitialState` above.
+  // Start with a fully independent copy - see `freshInitialState` above.
   const newState: GameState = freshInitialState();
 
   // A purchase belongs to the PLAYER, not the character. `settings` above comes
-  // from initialGameState, so without this every purchased entitlement flag —
+  // from initialGameState, so without this every purchased entitlement flag -
   // Remove Ads, lifetime premium, the nine gem-bought gold upgrades, unspent
-  // youth pills — was erased by prestige AND by the ungated death -> heir flow.
+  // youth pills - was erased by prestige AND by the ungated death -> heir flow.
   // Carrying the DeepLife+ claim stamps also closes the printer that let a
   // player re-mint the 500-gem welcome bonus once per prestige.
   // 2026-07-30 audit MON-1/2/3, ECON-R1-01/02.
@@ -608,7 +604,7 @@ function createChildGameState(
   }
 
 
-  // Legacy Pass is SEASONAL (account-level) — carry it to the heir too.
+  // Legacy Pass is SEASONAL (account-level) - carry it to the heir too.
   if (oldState.legacyPass) {
     newState.legacyPass = {
       ...oldState.legacyPass,
@@ -677,7 +673,7 @@ function createChildGameState(
     })(),
     netWorth: currentNetWorth,
     causeOfDeath: 'Prestige',
-    // Live store — the dead flag made every obituary and legacy summary list
+    // Live store - the dead flag made every obituary and legacy summary list
     // no achievements at all. GP-3.
     achievements: [...(oldState.claimedProgressAchievements || [])],
     gender: (oldState.userProfile?.gender || oldState.userProfile?.sex || 'male') as 'male' | 'female',
@@ -729,18 +725,10 @@ function createChildGameState(
 
   // Preserve previous lives AND append the life that just ended (heir path),
   // so the Legacy Timeline and generations counter populate across generations.
+  // Same shared builder as the reset path - see lib/legacy/lifeRecord.ts.
   newState.previousLives = [
     ...(oldState.previousLives || []),
-    {
-      generation: oldState.generationNumber || 1,
-      netWorth: Math.round(netWorth(oldState)),
-      ageAtDeath: Math.floor(oldState.date?.age || 0),
-      deathReason: oldState.deathReason,
-      timestamp: Date.now(),
-      summaryAchievements: getEarnedAchievementNames(oldState),
-      // Weeks lived when this life ended — feeds the prestige-speed achievements.
-      weeksLivedAtEnd: oldState.weeksLived || 0,
-    },
+    buildLifeRecord(oldState),
   ];
 
   // Preserve ribbon collection and discovered secrets across legacy transitions
@@ -772,7 +760,7 @@ function createChildGameState(
 
   // `weeksLived` must agree with that age. `newState` is spread from
   // `initialGameState`, whose `weeksLived` is 0, so an heir who takes over at
-  // 20 carried `age: 20` with `weeksLived: 0` — a combination
+  // 20 carried `age: 20` with `weeksLived: 0` - a combination
   // `aiIntegrityChecks` already flags ("weeks lived inconsistent with age"),
   // and one that would make every age-derived read disagree with the counter
   // for the whole of that life.
@@ -783,7 +771,7 @@ function createChildGameState(
   newState.lifeStartWeek = newState.weeksLived;
 
   // Timed legacy buffs (A Family Mentor / The Heirloom Charm). Stamped HERE,
-  // after `weeksLived` is seeded from the heir's actual starting age — expiry
+  // after `weeksLived` is seeded from the heir's actual starting age - expiry
   // is `weeksLived`-based (CLAUDE.md §4.2), and stamping before the seed would
   // date a two-year buff from the wrong baseline and expire it at birth for
   // any heir who does not start at 18.
@@ -852,7 +840,7 @@ function createChildGameState(
   };
 
   // Preserve only genuine extended family for the heir. The deceased's personal
-  // relationships (spouse/partner/friend/parent/ex) must NOT carry over —
+  // relationships (spouse/partner/friend/parent/ex) must NOT carry over -
   // otherwise the heir starts already dating the deceased's romantic partner,
   // inherits stale-age "friends", keeps the wrong parents, and a leaked pregnant
   // partner produces a negative pregnancy duration (stuck pregnant forever).
@@ -919,7 +907,7 @@ function createChildGameState(
   // Note: currentNetWorth is already calculated above on line 344
   finalState = applyLegacyBonuses(finalState, unlockedBonuses, currentNetWorth, oldState);
 
-  // Same hook, same reason, as the reset path — so the death → heir flow
+  // Same hook, same reason, as the reset path - so the death → heir flow
   // (`continueAsChild`, which lands here without going through
   // `executePrestige`) cannot skip a settlement the prestige path pays.
   return applyDynastyTransition(oldState, finalState);

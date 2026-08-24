@@ -3,11 +3,11 @@
  *
  * Replaces a pair of buttons that each opened a separate modal. Moving money in
  * and out is the ONLY reason most players open an account, so making it the
- * thing already on screen — rather than two taps and a keyboard behind a CTA —
+ * thing already on screen - rather than two taps and a keyboard behind a CTA -
  * is the difference between the screen being a form and being a control.
  *
  * Anatomy, top to bottom:
- *   1. Direction segmented control (Deposit / Withdraw) — one panel, not two.
+ *   1. Direction segmented control (Deposit / Withdraw) - one panel, not two.
  *   2. The amount, large, with the source balance under it so the ceiling is
  *      always visible rather than discovered by hitting a rejection.
  *   3. A drag slider across the full available range.
@@ -30,9 +30,9 @@ import { formatMoney } from '@/utils/moneyFormatting';
 export type TransferDirection = 'deposit' | 'withdraw';
 
 interface Props {
-  /** Cash the player is holding — the ceiling for a deposit. */
+  /** Cash the player is holding - the ceiling for a deposit. */
   cashAvailable: number;
-  /** The account's balance — the ceiling for a withdrawal. */
+  /** The account's balance - the ceiling for a withdrawal. */
   accountBalance: number;
   /** Accent for the account type, so the panel matches its card. */
   tint: string;
@@ -43,7 +43,7 @@ interface Props {
   onSubmit: (direction: TransferDirection, amount: number) => void;
 }
 
-/** Thumb diameter — needed by the geometry as well as the style. */
+/** Thumb diameter - needed by the geometry as well as the style. */
 const THUMB = scale(22);
 
 const PERCENTS = [0.1, 0.25, 0.5, 1] as const;
@@ -145,7 +145,7 @@ export default function AccountTransferPanel({
         { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 },
       ]}
     >
-      {/* 1 — direction */}
+      {/* 1 - direction */}
       <View style={[styles.segment, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
         {(['deposit', 'withdraw'] as const).map((d) => {
           const active = direction === d;
@@ -172,7 +172,7 @@ export default function AccountTransferPanel({
         })}
       </View>
 
-      {/* 2 — amount + the ceiling it is measured against */}
+      {/* 2 - amount + the ceiling it is measured against */}
       <View style={styles.readout}>
         <Text
           style={[styles.amount, { color: amount > 0 ? theme.text : theme.textMuted }]}
@@ -188,7 +188,7 @@ export default function AccountTransferPanel({
         </Text>
       </View>
 
-      {/* 3 — slider */}
+      {/* 3 - slider */}
       <View
         style={styles.trackHit}
         onLayout={onTrackLayout}
@@ -200,10 +200,10 @@ export default function AccountTransferPanel({
          * `adjustable` PROMISES assistive tech an increment/decrement
          * affordance. Declaring the role without these handlers hands a
          * screen-reader user a control announced as adjustable that cannot be
-         * adjusted — worse than announcing nothing, because it names an
+         * adjusted - worse than announcing nothing, because it names an
          * interaction that does not exist.
          *
-         * 10% per step, so ten actions traverse the range — the drag gesture's
+         * 10% per step, so ten actions traverse the range - the drag gesture's
          * precision is not reachable one step at a time and pretending otherwise
          * just makes the control tedious. Values run through the same `niceStep`
          * rounding the chips use, so a stepped amount reads as a clean figure
@@ -244,7 +244,7 @@ export default function AccountTransferPanel({
         />
       </View>
 
-      {/* 4 — proportions, which is how people actually decide */}
+      {/* 4 - proportions, which is how people actually decide */}
       <View style={styles.chipRow}>
         {PERCENTS.map((p) => {
           const value = niceStep(max * p, max);
@@ -255,7 +255,7 @@ export default function AccountTransferPanel({
               onPress={() => setAmount(value)}
               disabled={disabled}
               accessibilityRole="button"
-              accessibilityLabel={`${percentLabel(p)} — ${formatMoney(value)}`}
+              accessibilityLabel={`${percentLabel(p)} - ${formatMoney(value)}`}
               accessibilityState={{ disabled }}
               style={[
                 styles.chip,
@@ -271,7 +271,7 @@ export default function AccountTransferPanel({
         })}
       </View>
 
-      {/* 5 — one confirm */}
+      {/* 5 - one confirm */}
       <TouchableOpacity
         onPress={() => {
           if (!canSubmit) return;
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   readout: { alignItems: 'center', gap: scale(2) },
   amount: { fontSize: responsiveFontSize['3xl'], fontWeight: '800', letterSpacing: -0.5 },
   source: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  // Generous vertical hit area around a thin visual track — the bar is 6px but
+  // Generous vertical hit area around a thin visual track - the bar is 6px but
   // the finger target is not.
   trackHit: { height: scale(36), justifyContent: 'center' },
   track: { height: scale(6), borderRadius: scale(3), overflow: 'hidden' },

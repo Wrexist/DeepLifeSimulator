@@ -2,7 +2,7 @@
  * The convenience wrapper most screens should use.
  *
  * `VectorAvatar` takes a resolved `AvatarConfig`; almost every call site
- * instead has whatever the save happens to hold — a profile with an encoded
+ * instead has whatever the save happens to hold - a profile with an encoded
  * config, a legacy `avatarId`, or nothing but a name. This resolves that once
  * and renders, so a screen never has to know which of the three it got.
  *
@@ -16,7 +16,7 @@ import { resolveChildAvatar, type ParentSources } from '@/lib/avatar/family';
 import type { AvatarSex } from '@/lib/avatar/types';
 
 export interface CharacterAvatarProps {
-  /** A profile-shaped object. Prefer this — it can carry a stored config. */
+  /** A profile-shaped object. Prefer this - it can carry a stored config. */
   source?: AvatarSource | null;
   /**
    * Fallback identity for characters with no profile object (NPCs, relatives).
@@ -36,7 +36,7 @@ export interface CharacterAvatarProps {
    * each other. Ignored when `source` carries a stored config.
    */
   parents?: ParentSources;
-  /** Blink and breathe. Hero surfaces only — see VectorAvatar. */
+  /** Blink and breathe. Hero surfaces only - see VectorAvatar. */
   alive?: boolean;
 }
 
@@ -56,7 +56,7 @@ function CharacterAvatarImpl({
   const config = useMemo(() => {
     if (source?.avatar) return resolveAvatar(source, fallbackSex);
     // A child with no stored config of their own inherits, rather than being
-    // seeded independently — that is the whole point of tracking the parents.
+    // seeded independently - that is the whole point of tracking the parents.
     if (parents && seed) return resolveChildAvatar(seed, drawnSex, parents);
     if (source) return resolveAvatar(source, fallbackSex);
     return resolveNpcAvatar(seed, sex, fallbackSex);

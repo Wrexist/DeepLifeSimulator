@@ -58,7 +58,7 @@ export function createPatent(
 
 export function calculatePatentIncome(patents: Patent[] | undefined | null): number {
   // BUGFIX: callers sometimes pass `company.patents` which is undefined on
-  // fresh companies before any R&D — `.reduce` of undefined crashes.
+  // fresh companies before any R&D - `.reduce` of undefined crashes.
   if (!Array.isArray(patents)) return 0;
   return patents.reduce((sum, patent) => {
     if (!patent || typeof patent.duration !== 'number') return sum;

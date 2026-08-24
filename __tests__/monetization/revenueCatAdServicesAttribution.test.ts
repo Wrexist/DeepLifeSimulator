@@ -70,7 +70,7 @@ afterEach(() => {
   process.env = { ...ORIGINAL_ENV };
 });
 
-describe('RevenueCatService — AdServices attribution', () => {
+describe('RevenueCatService - AdServices attribution', () => {
   it('enables AdServices token collection on iOS after configure', async () => {
     const P = mockPurchases();
     const service = await freshService('ios');

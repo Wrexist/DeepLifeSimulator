@@ -39,7 +39,7 @@ function banking(over: Partial<BankingState> = {}): BankingState {
   };
 }
 
-describe('accrueAccountInterest — depositMult', () => {
+describe('accrueAccountInterest - depositMult', () => {
   it('recession lowers and boom raises accrued interest vs neutral', () => {
     const neutral = accrueAccountInterest(banking(), 1).totalInterest;
     const recession = accrueAccountInterest(banking(), RATE_ENVIRONMENT_TABLE.recession.depositMult).totalInterest;
@@ -65,7 +65,7 @@ describe('accrueAccountInterest — depositMult', () => {
   });
 });
 
-describe('quoteLoan — loanDelta', () => {
+describe('quoteLoan - loanDelta', () => {
   const req = { principal: 10000, termWeeks: 104, type: 'personal' as const, weeklyIncome: 2000 };
 
   it('recession raises and boom cheapens the offered APR', () => {
@@ -84,7 +84,7 @@ describe('quoteLoan — loanDelta', () => {
   });
 });
 
-describe('runWeeklyBankingTick — rate environment', () => {
+describe('runWeeklyBankingTick - rate environment', () => {
   it('persists banking.rateEnvironment from economyState', () => {
     const res = runWeeklyBankingTick({
       banking: banking(), prevLoans: [], processedLoans: [],

@@ -1,5 +1,5 @@
 /**
- * Sprint 2 — selector channel.
+ * Sprint 2 - selector channel.
  *
  * Proves `useGameSelector` re-renders a component ONLY when its selected slice
  * changes, while the existing full-state consumers (`useGameState`) keep working.
@@ -71,7 +71,7 @@ describe('useGameSelector', () => {
     const renders = jest.fn();
 
     function LoanIdsReader() {
-      // Returns a brand-new array every call — without an equality fn this would
+      // Returns a brand-new array every call - without an equality fn this would
       // re-render on every state change; shallowEqual keeps it stable.
       const ids = useGameSelector((s) => (s.loans ?? []).map((l) => l.id), shallowEqual);
       renders(ids.length);
@@ -108,7 +108,7 @@ describe('useGameSelector', () => {
     act(() => root.unmount());
   });
 
-  it('useSetGameState writes without subscribing — caller never re-renders on state changes', () => {
+  it('useSetGameState writes without subscribing - caller never re-renders on state changes', () => {
     const renders = jest.fn();
     const setters: unknown[] = [];
     let writerSet: ReturnType<typeof useSetGameState> | null = null;

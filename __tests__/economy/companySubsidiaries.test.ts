@@ -194,7 +194,7 @@ describe('the action and the UI quote the same price', () => {
   });
 });
 
-describe('the prestige gate — the first answer to "why prestige again?"', () => {
+describe('the prestige gate - the first answer to "why prestige again?"', () => {
   // Before this, a repo-wide grep for `prestigeLevel >=` found only cosmetic UI
   // checks: NOTHING was gated on having prestiged, so prestige #5 was
   // mechanically identical to prestige #2.

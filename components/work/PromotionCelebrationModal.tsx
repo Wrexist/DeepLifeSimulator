@@ -1,5 +1,5 @@
 /**
- * PromotionCelebrationModal — the payoff moment for a career promotion.
+ * PromotionCelebrationModal - the payoff moment for a career promotion.
  *
  * A promotion is the single biggest recurring beat in the career loop: it is
  * the thing every week of grinding progress was FOR. It used to resolve into a
@@ -14,7 +14,7 @@
  *   250ms  "PROMOTED" kicker fades up
  *   450ms  old title strikes through, new title slides in
  *   700ms  salary counts UP from the old number to the new one, ticking
- *          haptics as it climbs — the number the player actually cares about
+ *          haptics as it climbs - the number the player actually cares about
  *          is watched moving, not just read
  *   1500ms rank pips light up one by one; top rank gets its own reveal
  *
@@ -113,7 +113,7 @@ export default function PromotionCelebrationModal({
 
   // Keep the review prompt out of the way. Without this the "afterglow" timer
   // would elapse while this modal is still on screen and the store sheet would
-  // slam up on top of the celebration — the exact interruption that timing
+  // slam up on top of the celebration - the exact interruption that timing
   // work exists to prevent.
   useEffect(() => {
     if (!visible) return;
@@ -166,7 +166,7 @@ export default function PromotionCelebrationModal({
       Animated.timing(salaryBlock, { toValue: 1, duration: 260, useNativeDriver: true }),
     ]).start();
 
-    // Slow continuous ray rotation behind the crest — the "something is
+    // Slow continuous ray rotation behind the crest - the "something is
     // happening" bed the staged text lands on top of.
     const rays = Animated.loop(
       Animated.timing(rayspin, {
@@ -209,7 +209,7 @@ export default function PromotionCelebrationModal({
     let lastTickBucket = -1;
     const sub = counter.addListener(({ value }) => {
       setDisplaySalary(Math.round(fromSalary + (toSalary - fromSalary) * value));
-      // Ticking haptics as the number climbs — 6 evenly spaced taps, so the
+      // Ticking haptics as the number climbs - 6 evenly spaced taps, so the
       // raise is FELT accelerating rather than just observed.
       const bucket = Math.floor(value * 6);
       if (bucket !== lastTickBucket && value < 1) {
@@ -279,7 +279,7 @@ export default function PromotionCelebrationModal({
             style={StyleSheet.absoluteFill}
           />
 
-          {/* Shine sweep — a skewed translucent bar crossing the card face. */}
+          {/* Shine sweep - a skewed translucent bar crossing the card face. */}
           {animate ? (
             <Animated.View
               pointerEvents="none"
@@ -393,7 +393,7 @@ export default function PromotionCelebrationModal({
               ) : null}
             </View>
             {fromSalary > 0 ? (
-              // Naming the old number makes the jump concrete — "+59%" is
+              // Naming the old number makes the jump concrete - "+59%" is
               // abstract, "was $1,450" is the thing they lived with for weeks.
               <Text style={styles.wasLine}>was {formatMoney(fromSalary)}/wk</Text>
             ) : null}

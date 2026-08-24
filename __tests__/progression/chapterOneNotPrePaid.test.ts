@@ -67,7 +67,7 @@ describe('a brand-new life starts chapter 1 at zero', () => {
     expect(done(freshLife(25, 5_000))).toEqual([]);
   });
 
-  it('the age-18 case still works — it is the one that was always right', () => {
+  it('the age-18 case still works - it is the one that was always right', () => {
     expect(computeWeeksLived(18)).toBe(0);
     expect(done(freshLife(18, 0))).toEqual([]);
   });
@@ -154,7 +154,7 @@ describe('a prestige heir starts a life, not mid-one', () => {
     }
   });
 
-  it('an age-20 heir is 104 weeks in, not 0 — the pair that failed the check', () => {
+  it('an age-20 heir is 104 weeks in, not 0 - the pair that failed the check', () => {
     expect(computeWeeksLived(20)).toBe(104);
     // The old behaviour, shown failing the same bound, so the regression is
     // legible rather than implied.

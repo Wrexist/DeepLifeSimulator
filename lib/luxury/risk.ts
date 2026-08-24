@@ -284,7 +284,7 @@ export function applyLuxuryRiskForWeek(
         conditionLost: 0,
         cost: deductible,
         insured: true,
-        message: `${item.name}: ${risk.label}. Insurance covered it — you paid $${deductible.toLocaleString()}.`,
+        message: `${item.name}: ${risk.label}. Insurance covered it - you paid $${deductible.toLocaleString()}.`,
       });
       continue;
     }
@@ -300,7 +300,7 @@ export function applyLuxuryRiskForWeek(
       conditionLost: before - after,
       cost: 0,
       insured: false,
-      message: `${item.name}: ${risk.label}. It was not insured — condition is down to ${after}%.`,
+      message: `${item.name}: ${risk.label}. It was not insured - condition is down to ${after}%.`,
     });
   }
 

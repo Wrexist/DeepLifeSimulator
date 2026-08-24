@@ -183,7 +183,7 @@ export function aggregateContacts(
     }
   }
 
-  // 5) Company employees — collapsed to one row per company.
+  // 5) Company employees - collapsed to one row per company.
   for (const c of state.companies ?? []) {
     const headcount = safe(c.employees, 0);
     if (headcount <= 0) continue;
@@ -245,7 +245,7 @@ export interface AttentionOptions {
 }
 
 /**
- * Identify contacts at risk of decay — not contacted in N weeks AND strength below threshold.
+ * Identify contacts at risk of decay - not contacted in N weeks AND strength below threshold.
  */
 export function contactsNeedingAttention(
   contacts: ContactView[],
@@ -253,7 +253,7 @@ export function contactsNeedingAttention(
 ): ContactView[] {
   // Validated and clamped: a NaN threshold makes every `<` comparison false and
   // silently empties the Attention tab, which reads as "nothing needs attention"
-  // — the most misleading possible failure for a warning surface.
+  // - the most misleading possible failure for a warning surface.
   const staleInput = opts.staleWeeks ?? DEFAULT_ATTENTION_STALE_WEEKS;
   const strengthInput = opts.strengthThreshold ?? DEFAULT_ATTENTION_STRENGTH_THRESHOLD;
   const stale =

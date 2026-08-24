@@ -40,7 +40,7 @@ function loadFlags(env: ProfileEnv) {
 const profiles = (easJson as { build: Record<string, { env?: ProfileEnv }> }).build;
 
 describe('native SDK feature flag defaults', () => {
-  it('production turns IAP, ATT and AdMob on — explicitly, not by default', () => {
+  it('production turns IAP, ATT and AdMob on - explicitly, not by default', () => {
     const env = profiles.production.env ?? {};
     // The explicit "true" is the load-bearing part: with the opt-in form, an
     // absent var means OFF, so production must never rely on a default.
@@ -125,7 +125,7 @@ describe('native SDK feature flag defaults', () => {
     expect(loadFlags({ ...ON, EXPO_PUBLIC_CLOUD_AUTH_TOKEN: '   ' }).cloudSave).toBe(false);
   });
 
-  it('drops the notifications flag — expo-notifications is a no-op stub', () => {
+  it('drops the notifications flag - expo-notifications is a no-op stub', () => {
     const flags = loadFlags({ EXPO_PUBLIC_BORING_BUILD: 'false' });
     expect('notifications' in flags).toBe(false);
   });

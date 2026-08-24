@@ -100,7 +100,7 @@ describe('a challenge that is already satisfied is not a payday', () => {
     expect(anyOpen).toBe(true);
   });
 
-  it('always mints SOMETHING — walking the rotation must not return undefined', () => {
+  it('always mints SOMETHING - walking the rotation must not return undefined', () => {
     // The walk introduces a loop that could fall off the end of the catalogue.
     // A player with no challenge at all loses the whole feature silently, which
     // is how this system spent its life before GP-1.
@@ -116,7 +116,7 @@ describe('a challenge that is already satisfied is not a payday', () => {
     const minted = getOrRotateWeeklyChallenge(beginner);
 
     expect(minted).toBeDefined();
-    // A real challenge must still be winnable — the fix must not make every
+    // A real challenge must still be winnable - the fix must not make every
     // challenge arrive pre-claimed.
     expect(minted!.rewardClaimed).toBe(false);
   });
@@ -180,7 +180,7 @@ describe('every objective in the catalogue is reachable', () => {
 
   it('has no objective that is impossible for a maxed-out player', () => {
     // The strongest form of the GP-2 check: for a player who has everything,
-    // no objective may report 0 progress — that is the fingerprint of reading a
+    // no objective may report 0 progress - that is the fingerprint of reading a
     // field the game never writes.
     const maxed = established(2000);
     const unreachable: string[] = [];
@@ -210,7 +210,7 @@ describe('net worth is the canonical figure', () => {
     const objective = def!.objectives.find((o) => o.id.startsWith('net_worth'))!;
     const rich = established(400);
 
-    // Exact parity with the canonical figure, not merely "> 0" — the old partial
+    // Exact parity with the canonical figure, not merely "> 0" - the old partial
     // sum also cleared zero for this fixture, so the weaker assertion did not
     // discriminate between the two implementations at all. (Review catch.)
     const expected = netWorth(rich) >= 1 ? 1 : 0;

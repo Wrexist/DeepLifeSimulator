@@ -55,7 +55,7 @@ describe('a brand-new player sees a first session, not the whole game', () => {
     }
   });
 
-  it('the MARKET is available too — food and the gym live there', () => {
+  it('the MARKET is available too - food and the gym live there', () => {
     // The one genuinely unsafe gate. Health decays from week 1, so locking
     // the only source of food could strand a player with no way to recover.
     expect(isFeatureUnlocked(fresh(), 'tab:market')).toBe(true);
@@ -95,7 +95,7 @@ describe('finishing a chapter opens the next layer', () => {
     }
   });
 
-  it('chapter 2 brings investing — chapter 3 is what investing is FOR', () => {
+  it('chapter 2 brings investing - chapter 3 is what investing is FOR', () => {
     // Stocks and Real Estate deliberately open one tier below the chapter
     // whose goal requires them. See "no chapter needs an app it unlocks".
     expect(isFeatureUnlocked(withChapters(1), 'app:stocks')).toBe(false);
@@ -120,7 +120,7 @@ describe('finishing a chapter opens the next layer', () => {
   });
 
   it('out-of-order chapter flags cannot skip a tier', () => {
-    // Completing chapter 3 without 1 and 2 must not jump to tier 3 — the
+    // Completing chapter 3 without 1 and 2 must not jump to tier 3 - the
     // chapter count is read IN ORDER.
     const skipped = createTestGameState({
       ...fresh(),
@@ -187,7 +187,7 @@ describe('NO EXISTING PLAYER LOSES ANYTHING', () => {
     expect(unlockTier(saver)).toBeGreaterThanOrEqual(3);
   });
 
-  it('the tier is the MAX of the signals — a rich player with no chapters keeps it', () => {
+  it('the tier is the MAX of the signals - a rich player with no chapters keeps it', () => {
     const rich = createTestGameState({
       ...fresh(), weeksLived: 30, stats: { ...createTestGameState().stats, money: 250_000 },
     });
@@ -268,7 +268,7 @@ describe('the table itself', () => {
  * most of the phone and PC grid padlocked with no route to open it.
  *
  * Chapter 3's goal is "buy your first stock or property" and chapter 4's is
- * "own a company" — but Stocks, Real Estate and Company were gated on
+ * "own a company" - but Stocks, Real Estate and Company were gated on
  * FINISHING those very chapters. The chapter spine could not advance through
  * its own gate. The only way past was the cash milestone, which is why the
  * non-monotonic balance read below mattered so much: it was carrying the
@@ -278,7 +278,7 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
   /**
    * Which app a goal cannot be completed without. Hand-authored, because the
    * dependency lives in `checkComplete`'s closure and cannot be read off the
-   * table — which is exactly how it went unnoticed.
+   * table - which is exactly how it went unnoticed.
    *
    * Only goals with a HARD single-surface dependency are listed. `ch2_save_2k`
    * is not here: cash counts as well as bank savings, so the Bank app is not
@@ -300,7 +300,7 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
    *
    *   - a renamed GOAL id stops matching, and the walk simply skips it;
    *   - a renamed APP id stops resolving, and an unresolved id would otherwise
-   *     read as tier 0 — permanently "reachable".
+   *     read as tier 0 - permanently "reachable".
    *
    * A guard that quietly stops guarding is worse than no guard, so both are
    * asserted before the walk runs.
@@ -329,7 +329,7 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
         // own completion tier, minus one.
         const workingTier = tierOfChapter(chapter.id) - 1;
         // A goal satisfiable by any ONE of several apps only needs one of them.
-        // An id that does not resolve is NOT treated as tier 0 — that would let
+        // An id that does not resolve is NOT treated as tier 0 - that would let
         // a typo pass as reachable. The test above proves they all resolve; this
         // keeps the property local so the two cannot drift apart.
         const reachable = needed.filter((id) => {
@@ -343,7 +343,7 @@ describe('no chapter goal needs an app that chapter unlocks', () => {
     }
   });
 
-  it('the reported save can actually finish chapter 3 — the regression', () => {
+  it('the reported save can actually finish chapter 3 - the regression', () => {
     // Week 52, $3,000, employed, no chapter flags past 2. Before the fix this
     // save sat at tier 2 with Stocks and Real Estate padlocked, so `ch3_invest`
     // was unsatisfiable and tier 2 was terminal short of saving $10,000.
@@ -399,7 +399,7 @@ describe('spending money never takes an app away', () => {
     expect(unlockTier(wasRich)).toBe(5);
   });
 
-  it('the peak is only a FLOOR — it never outranks live wealth (the control)', () => {
+  it('the peak is only a FLOOR - it never outranks live wealth (the control)', () => {
     const climbing = at(250_000, {
       lifetimeStatistics: {
         ...createTestGameState().lifetimeStatistics!,
@@ -428,8 +428,8 @@ describe('spending money never takes an app away', () => {
     // a different week and completes the chapter in none of them.
     //
     // The goal now reads `totalMoneyEarned` rather than the `peakNetWorth`
-    // high-water mark. Same property — it only ever increases, so spending
-    // cannot un-complete it — and it is monotonic by construction rather than
+    // high-water mark. Same property - it only ever increases, so spending
+    // cannot un-complete it - and it is monotonic by construction rather than
     // by being a computed maximum. It also fixes what the balance read got
     // wrong in the other direction: STARTING cash used to satisfy it, so the
     // goal was complete before the player earned anything.
@@ -490,7 +490,7 @@ describe('the grid shows locked apps rather than hiding them', () => {
  * Chapter completion used to live ONLY in `LifeChapterCard`, behind a Claim
  * button. Since `completedChapters` is what `unlockTier` reads, that meant the
  * whole progressive-disclosure system depended on a screen the player might
- * never open — and the milestone fallbacks were quietly carrying it.
+ * never open - and the milestone fallbacks were quietly carrying it.
  */
 describe('the week tick completes chapters, not a button', () => {
   const { applyChapterProgress, unlockAnnouncement } =
@@ -501,7 +501,7 @@ describe('the week tick completes chapters, not a button', () => {
    *
    * `totalMoneyEarned` rather than a balance, and an explicit `lifeStartWeek`:
    * chapter 1 now measures money EARNED and weeks lived IN THIS LIFE, because
-   * both of the old readings were already true for a brand-new character —
+   * both of the old readings were already true for a brand-new character -
    * every scenario starts with cash, and `weeksLived` is seeded from the
    * starting age. See `__tests__/progression/chapterOneNotPrePaid.test.ts`.
    */
@@ -591,7 +591,7 @@ describe('the tick owns completion, and the card no longer does', () => {
     fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
   it('the week loop calls it, inside a try/catch', () => {
-    // CLAUDE.md §4.3 — an unguarded subsystem turns one throw into a lost week.
+    // CLAUDE.md §4.3 - an unguarded subsystem turns one throw into a lost week.
     const loop = read('contexts/game/GameActionsContext.tsx');
 
     expect(loop).toMatch(/try \{\s*\n\s*const chapterResult = applyChapterProgress\(\{/);
@@ -646,7 +646,7 @@ describe('the phone grid gates too, not just the computer', () => {
 
 describe('the device surfaces are gated on OWNERSHIP, not on a chapter', () => {
   // These three shipped in the first pass at tiers 1/1/2, which was a trap.
-  // Nothing read them, so no player was ever affected — but the moment
+  // Nothing read them, so no player was ever affected - but the moment
   // anything did, a player who bought a phone in week 2 would have been locked
   // out of the device they had just paid for. Chapter 1 is "earn $500, get
   // hired, survive 4 weeks"; none of that is buying a phone.
@@ -662,7 +662,7 @@ describe('the device surfaces are gated on OWNERSHIP, not on a chapter', () => {
     }
   });
 
-  it('and the table says so — tier 0, no requirement text', () => {
+  it('and the table says so - tier 0, no requirement text', () => {
     for (const id of ['tab:apps', 'tab:mobile', 'tab:computer']) {
       const row = FEATURE_UNLOCKS.find((f) => f.id === id);
       expect(`${id}: ${row?.tier} ${JSON.stringify(row?.requirement)}`).toBe(`${id}: 0 ""`);
@@ -713,7 +713,7 @@ describe("Life's Stats segment is the one gated surface outside the grids", () =
       stats: { ...createTestGameState().stats, money: 0 },
       bankSavings: 0,
     });
-    // Deliberately identical to `fresh` EXCEPT the chapter flag — otherwise a
+    // Deliberately identical to `fresh` EXCEPT the chapter flag - otherwise a
     // weeksLived of 6 alone clears the milestone fallback and this would pass
     // without the chapter signal ever being read.
     const settled = createTestGameState({
@@ -729,7 +729,7 @@ describe("Life's Stats segment is the one gated surface outside the grids", () =
 
   it('Health and Market are NEVER gated (the control)', () => {
     // Health decays from week 1 and food is in Market. Locking either could
-    // strand a player with no way to recover — the one unsafe gate here.
+    // strand a player with no way to recover - the one unsafe gate here.
     expect(LIFE).not.toMatch(/key: 'health'[^}]*locked/);
     expect(LIFE).not.toMatch(/key: 'shop'[^}]*locked/);
 
@@ -746,8 +746,8 @@ describe("Life's Stats segment is the one gated surface outside the grids", () =
  * (`computeWeeksLived` = `(age - 18) * 52`), so an age-25 scenario begins at
  * 364 and the age-40 one at 1,144. `unlockTier` compared that raw counter to
  * 120 ("this save is past the chapter arc") and to 4 ("this player has lived a
- * month"), so EVERY scenario that does not start at 18 — and the shipped set
- * starts at 19, 20, 22, 25, 28, 30 and 40 — opened tier 5 on frame one: every
+ * month"), so EVERY scenario that does not start at 18 - and the shipped set
+ * starts at 19, 20, 22, 25, 28, 30 and 40 - opened tier 5 on frame one: every
  * app unlocked, the padlocks gone, and the whole chapter onboarding ladder
  * skipped for a character who had not lived a week.
  *
@@ -781,7 +781,7 @@ describe('a fresh life is tier 0 whatever age it starts at', () => {
       .toBe('Finish Chapter 1: Fresh Start');
   });
 
-  it('the age-40 start — 1,144 absolute weeks — is not a veteran either', () => {
+  it('the age-40 start - 1,144 absolute weeks - is not a veteran either', () => {
     const state = freshAtAge(40);
     expect(state.weeksLived).toBe(1144);
     expect(unlockTier(state)).toBe(0);
@@ -804,7 +804,7 @@ describe('a fresh life is tier 0 whatever age it starts at', () => {
     expect(isFeatureUnlocked(week4, 'app:bank')).toBe(true);
   });
 
-  it('and the veteran hatch still opens — 120 weeks INTO the life', () => {
+  it('and the veteran hatch still opens - 120 weeks INTO the life', () => {
     const start = (25 - 18) * 52;
     const justShort = createTestGameState({
       ...fresh(), weeksLived: start + 119, lifeStartWeek: start,
@@ -831,7 +831,7 @@ describe('a fresh life is tier 0 whatever age it starts at', () => {
     expect(unlockTier(legacyVeteran)).toBe(5);
   });
 
-  it('an age-18 start is unchanged — the baseline is 0', () => {
+  it('an age-18 start is unchanged - the baseline is 0', () => {
     const state = freshAtAge(18);
     expect(state.lifeStartWeek).toBe(0);
     expect(unlockTier(state)).toBe(0);

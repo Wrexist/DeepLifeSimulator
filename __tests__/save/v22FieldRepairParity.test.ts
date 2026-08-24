@@ -289,7 +289,7 @@ describe('repairGameState backfills the fields that had no mirror at all', () =>
     expect(state.pets[0].name).toBe('Rex');
   });
 
-  it('is idempotent — a second repair pass finds nothing left to collapse', () => {
+  it('is idempotent - a second repair pass finds nothing left to collapse', () => {
     const state = partialSave();
     state.pets = [{ id: 'p1', toys: [], ownedToys: ['rope'] }];
 

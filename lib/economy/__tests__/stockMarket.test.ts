@@ -32,7 +32,7 @@ describe('energy + healthcare listings (content is data)', () => {
   });
 });
 
-describe('adjustStockPrice — clamps that keep tilt/drift persistence honest', () => {
+describe('adjustStockPrice - clamps that keep tilt/drift persistence honest', () => {
   it('scales the price by the factor', () => {
     const before = getStockInfo('AAPL').price;
     adjustStockPrice('AAPL', 1.008);

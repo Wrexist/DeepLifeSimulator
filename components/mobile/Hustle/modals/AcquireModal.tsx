@@ -1,5 +1,5 @@
 /**
- * AcquireModal — list pending acquisition offers + accept/decline.
+ * AcquireModal - list pending acquisition offers + accept/decline.
  */
 import React, { useCallback } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -111,7 +111,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                         * `synergyBonusPercent`.
                         *
                         * This used to render `+{offer.synergyBonusPercent}%` under
-                        * the bare label "Synergy" — no unit, no target. The field
+                        * the bare label "Synergy" - no unit, no target. The field
                         * is 8–30, but only a QUARTER of it reaches market share
                         * (`+synergyBonusPercent / 4`), so a headline "+24%"
                         * described a +6-point share move. A 4× overstatement on a
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
   // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // button lands off the bottom of the SCREEN - and the sheet itself does not
   // scroll, so nothing can reach it. Bounding the sheet is what gives the list
   // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {

@@ -29,7 +29,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
     queueLength: 0,
   });
   const [showDetails, setShowDetails] = useState(false);
-  // NOISE: the indicator is transient — visible while a save is in flight (or
+  // NOISE: the indicator is transient - visible while a save is in flight (or
   // errored) plus a short "Saved" confirmation, then it disappears instead of
   // sitting on the HUD forever.
   const [visible, setVisible] = useState(false);
@@ -47,7 +47,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
         const lastSaveTime = lastSaveStr ? parseInt(lastSaveStr, 10) : null;
         const queueStatus = saveQueue.getStatus();
         const status: SaveStatus['status'] = queueStatus.isProcessing ? 'saving' : queueStatus.queueLength > 0 ? 'pending' : 'saved';
-        // PERF: only commit when something actually changed — the old
+        // PERF: only commit when something actually changed - the old
         // unconditional setState re-rendered the HUD card every 2s forever.
         setSaveStatus(prev =>
           prev.status === status && prev.lastSaveTime === lastSaveTime && prev.queueLength === queueStatus.queueLength
@@ -68,7 +68,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
       isMountedRef.current = false;
       clearInterval(interval);
     };
-    // P1-4: empty deps — `updateSaveStatus` reads from `saveQueue.getStatus()`
+    // P1-4: empty deps - `updateSaveStatus` reads from `saveQueue.getStatus()`
     // and AsyncStorage, neither of which depends on `gameState`. Re-installing
     // the interval on every state change tore down + recreated the timer plus
     // hammered AsyncStorage on the hot path.
@@ -159,7 +159,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
     }
   };
 
-  // R2-A: AutoSaveIndicator mounts globally — a missing settings would crash
+  // R2-A: AutoSaveIndicator mounts globally - a missing settings would crash
   // the entire layout. Use safe accessor with autoSave/darkMode defaults.
   const safeAutoSaveSettings = settings;
   if (!safeAutoSaveSettings.autoSave || !visible) {

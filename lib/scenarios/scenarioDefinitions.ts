@@ -297,7 +297,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'criminal_empire',
     name: 'Criminal Empire',
-    description: 'Rise from petty crime to kingpin. Build a criminal empire worth millions — but watch your back.',
+    description: 'Rise from petty crime to kingpin. Build a criminal empire worth millions - but watch your back.',
     icon: '🔫',
     difficulty: 'expert',
     startingConditions: {
@@ -513,7 +513,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'debt_escape',
     name: 'Debt Escape',
-    description: 'You\'re drowning in debt. Claw your way back to zero — and then beyond.',
+    description: 'You\'re drowning in debt. Claw your way back to zero - and then beyond.',
     icon: '💸',
     difficulty: 'hard',
     startingConditions: {

@@ -2,18 +2,24 @@
  * Career salary + per-week penalty — R7 Phase 2 step 2.5b-i.
  *
  * Scope: when the player has an accepted career, compute the weekly salary
- * (with Work Pay Boost stacking) and apply the standard career penalty
- * (-3 happiness, -2 health). Previously inline in
- * `GameActionsContext.tsx:476-534` (~58 lines).
+ * (with Work Pay Boost stacking) and apply the career's weekly toll.
+ * Previously inline in `GameActionsContext.tsx:476-534` (~58 lines).
+ *
+ * The toll comes from the career's authored profile
+ * (`lib/careers/jobMarket.ts` `weeklyToll`) when one exists — energy, health
+ * and happiness, the same numbers the work-tab job card shows — scaled down
+ * with seniority for its negative components. Careers without a profile keep
+ * the historical uniform toll (-3 happiness / -2 health, no energy).
  *
  * Side effects (mutations of `ctx`):
  *   - `ctx.newStats.happiness` — `+ careerHappinessPenalty` (clamped 0-100)
  *   - `ctx.newStats.health`    — `+ careerHealthPenalty`    (clamped 0-100)
+ *   - `ctx.newStats.energy`    — `+ careerEnergyPenalty`    (clamped 0-100)
  *
- * Returns the three scalars the downstream blocks consume:
+ * Returns the scalars the downstream blocks consume:
  *   - `careerSalary`            — weekly $ flowing into income aggregation
- *   - `careerHappinessPenalty`  — -3 when employed, 0 otherwise
- *   - `careerHealthPenalty`     — -2 when employed, 0 otherwise
+ *   - `careerHappinessPenalty` / `careerHealthPenalty` / `careerEnergyPenalty`
+ *     — the applied toll (0 when unemployed; energy 0 for unprofiled careers)
  *
  * Logger calls (info + warn paths) are preserved verbatim and run inside
  * the helper. Same pattern as `preTick.calculateNetWorth` — keeping the
@@ -27,6 +33,7 @@
 
 import type { GameState } from '@/contexts/game/types';
 import { paidWeeklySalaryForLevel } from '@/lib/careers/weeklySalary';
+import { getEntryJobProfile } from '@/lib/careers/jobMarket';
 import { logger } from '@/utils/logger';
 import type { WeekContext } from './weekContext';
 
@@ -34,6 +41,8 @@ export interface CareerSalaryAndPenaltyResult {
   careerSalary: number;
   careerHappinessPenalty: number;
   careerHealthPenalty: number;
+  /** Weekly energy cost of the job — 0 for careers without an authored profile. */
+  careerEnergyPenalty: number;
 }
 
 export function applyCareerSalaryAndPenalty(
@@ -43,6 +52,7 @@ export function applyCareerSalaryAndPenalty(
   let careerSalary = 0;
   let careerHappinessPenalty = 0;
   let careerHealthPenalty = 0;
+  let careerEnergyPenalty = 0;
 
   // A jailed player draws no paycheck this week. The role is still held (so the
   // stat toll below still applies), but there is no earned income while
@@ -110,7 +120,7 @@ export function applyCareerSalaryAndPenalty(
         // The career stat toll below still applies (the role is held, not worked).
         if (isJailed) {
           careerSalary = 0;
-          logger.info('[WEEK PROGRESSION] Career salary withheld this week — incarcerated');
+          logger.info('[WEEK PROGRESSION] Career salary withheld this week - incarcerated');
         } else {
           logger.info(`[WEEK PROGRESSION] Career salary: $${careerSalary}/week from ${levelData.name} (level ${safeLevel + 1})`);
         }
@@ -119,16 +129,49 @@ export function applyCareerSalaryAndPenalty(
       }
 
       // Apply career job stat penalties. BALANCE: scale the weekly toll DOWN by
-      // seniority — an entry role grinds (-3 happiness / -2 health) but a top-of-
-      // ladder role is far lighter (down to -1/-1). This rewards career
-      // progression and makes holding a career more attractive than perpetually
-      // grinding street jobs (which pay an unemployed bonus).
+      // seniority - an entry role grinds but a top-of-ladder role is far
+      // lighter. This rewards career progression and makes holding a career
+      // more attractive than perpetually grinding street jobs (which pay an
+      // unemployed bonus).
       const levelCount = currentCareer.levels.length;
       const levelProgress = levelCount > 1 ? Math.min(1, Math.max(0, safeLevel / (levelCount - 1))) : 0;
       const penaltyFactor = 1 - 0.7 * levelProgress; // 1.0 at entry → 0.3 at the top
-      careerHappinessPenalty = -Math.max(1, Math.round(3 * penaltyFactor));
-      careerHealthPenalty = -Math.max(1, Math.round(2 * penaltyFactor));
-      logger.info(`[WEEK PROGRESSION] Career penalties (level ${safeLevel + 1}/${levelCount}): ${careerHappinessPenalty} happiness, ${careerHealthPenalty} health`);
+
+      // ADVERTISED VS ACTUAL (2026-08-24 audit): `lib/careers/jobMarket.ts`
+      // authors a per-career `weeklyToll` (energy, health, happiness) and the
+      // work-tab job card RENDERS it - "-8 energy/wk" on the musician - but the
+      // tick applied the same uniform -3 happiness / -2 health to every career
+      // and no energy cost at all. So the one mechanism that could make a
+      // low-paying job a real choice (musician: light, happy, fast ladder vs
+      // farmer: heavy grind) was dead data, and the highest-salary job strictly
+      // dominated. The authored toll is now charged for the entry-tier careers
+      // that declare one:
+      //   - NEGATIVE components scale down with seniority exactly like the old
+      //     uniform toll (the grind lightens as you climb; floor -1),
+      //   - POSITIVE components (the musician's +4 happiness) apply as
+      //     authored at every rung - the joy of the craft is not a grind,
+      //   - components a profile leaves unstated fall back to the uniform
+      //     figures (-3 happiness / -2 health), so a partial profile is not a
+      //     stealth buff.
+      // Careers WITHOUT a profile (advanced tier, political, legacy saves'
+      // customs) keep exactly the old numbers - pinned by the equivalence
+      // snapshots. The card shows the entry-level toll, which is exactly what
+      // a new hire is charged (penaltyFactor = 1 at level 0).
+      const profile = getEntryJobProfile(currentCareer.id);
+      const scaledToll = (authored: number): number =>
+        authored >= 0
+          ? Math.round(authored)
+          : -Math.max(1, Math.round(-authored * penaltyFactor));
+      if (profile) {
+        careerHappinessPenalty = scaledToll(profile.weeklyToll.happiness ?? -3);
+        careerHealthPenalty = scaledToll(profile.weeklyToll.health ?? -2);
+        careerEnergyPenalty = scaledToll(profile.weeklyToll.energy);
+      } else {
+        careerHappinessPenalty = -Math.max(1, Math.round(3 * penaltyFactor));
+        careerHealthPenalty = -Math.max(1, Math.round(2 * penaltyFactor));
+        careerEnergyPenalty = 0;
+      }
+      logger.info(`[WEEK PROGRESSION] Career toll (level ${safeLevel + 1}/${levelCount}): ${careerHappinessPenalty} happiness, ${careerHealthPenalty} health, ${careerEnergyPenalty} energy`);
     } else {
       if (!currentCareer) {
         logger.warn(`[WEEK PROGRESSION] Career ${prevState.currentJob} not found in careers list`);
@@ -142,13 +185,18 @@ export function applyCareerSalaryAndPenalty(
     logger.info(`[WEEK PROGRESSION] No current job (currentJob: ${prevState.currentJob})`);
   }
 
-  // Apply career job penalties to stats (in addition to natural decay).
-  if (careerHappinessPenalty < 0) {
+  // Apply the career toll to stats (in addition to natural decay). Positive
+  // components (a profiled career whose work is itself a lift, e.g. the
+  // musician's +4 happiness) apply through the same clamp.
+  if (careerHappinessPenalty !== 0) {
     ctx.newStats.happiness = Math.max(0, Math.min(100, ctx.newStats.happiness + careerHappinessPenalty));
   }
-  if (careerHealthPenalty < 0) {
+  if (careerHealthPenalty !== 0) {
     ctx.newStats.health = Math.max(0, Math.min(100, ctx.newStats.health + careerHealthPenalty));
   }
+  if (careerEnergyPenalty !== 0) {
+    ctx.newStats.energy = Math.max(0, Math.min(100, ctx.newStats.energy + careerEnergyPenalty));
+  }
 
-  return { careerSalary, careerHappinessPenalty, careerHealthPenalty };
+  return { careerSalary, careerHappinessPenalty, careerHealthPenalty, careerEnergyPenalty };
 }

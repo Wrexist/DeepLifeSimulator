@@ -29,7 +29,7 @@ function withUltra(s: GameState): GameState {
   return s;
 }
 
-describe('processSparkWeeklyTick — liked-you determinism', () => {
+describe('processSparkWeeklyTick - liked-you determinism', () => {
   it('produces byte-identical likedYou entries across re-runs (Ultra)', () => {
     const r1 = processSparkWeeklyTick(withUltra(freshState({ weeksLived: 12 })), 13);
     const r2 = processSparkWeeklyTick(withUltra(freshState({ weeksLived: 12 })), 13);

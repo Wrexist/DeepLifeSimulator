@@ -164,7 +164,7 @@ describe('State Growth Audit', () => {
     // Write-site cap invariants (Round 11 §0.6). These arrays append during the
     // real tick / event resolution; the caps live in GameActionsContext
     // (memories) and SparkActions (jealousyHistory). Asserting on the organic
-    // post-loop state guards against the caps being removed — unbounded growth
+    // post-loop state guards against the caps being removed - unbounded growth
     // here was a primary driver of long-session heap growth.
     expect((captured!.state.memories || []).length).toBeLessThanOrEqual(200);
     expect((captured!.state.sparkApp?.jealousyHistory || []).length).toBeLessThanOrEqual(50);
@@ -189,7 +189,7 @@ describe('State Growth Audit', () => {
     })));
     expect(captured!.state.pendingEvents).toHaveLength(200);
 
-    // Run one tick — the cap must kick in.
+    // Run one tick - the cap must kick in.
     await tick();
     expect((captured!.state.pendingEvents || []).length).toBeLessThanOrEqual(100);
   });

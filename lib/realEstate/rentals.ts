@@ -234,7 +234,7 @@ export function applyTenancyArrears(input: TenancyArrearsInput): TenancyArrearsR
 
   const weeksLeft = EVICTION_AFTER_WEEKS - missed;
   const notice = missed >= EVICTION_FIRST_WARNING_WEEK
-    // Named, specific, and counted down — an eviction that arrives unannounced
+    // Named, specific, and counted down - an eviction that arrives unannounced
     // is a punishment, one the player watched approaching is a decision.
     ? `Your landlord has sent a notice: ${missed} weeks behind on the ${tier.name}. ${weeksLeft} more and you are out.`
     : '';
@@ -246,7 +246,7 @@ export function applyTenancyArrears(input: TenancyArrearsInput): TenancyArrearsR
  * One week of the tenancy, including the case where there should not be one.
  *
  * Buying a home ENDS the lease instead of advancing its eviction clock.
- * Ownership wins in `computeHousingWellbeing`, so an owner is charged no rent —
+ * Ownership wins in `computeHousingWellbeing`, so an owner is charged no rent -
  * and running the countdown against arrears from other bills would evict
  * someone out of a tenancy they are not paying for, while they sit in a house
  * they own. The Rent screen also hides "Move out" once you own, so a dangling
@@ -312,7 +312,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
   // Re-entry gate: a landlord will not take on a tenant who is currently in
   // default. This is what makes "the eviction counter resets only when the
   // balance clears" literally true. `missedWeeks` lives on the `rental` record,
-  // and moving out (`resolveEndRental`) discards that record wholesale — so
+  // and moving out (`resolveEndRental`) discards that record wholesale - so
   // without this, a tenant a week from eviction could move out (free) and
   // immediately re-sign to a clean four-week clock while `overdueBalance` stood
   // untouched, the same "buy back the full four weeks" hole the tier-swap path
@@ -341,7 +341,7 @@ export function canRent(state: GameState, tier: RentalTier): LettingVerdict {
   if (income < tier.incomeRequirement) {
     return {
       allowed: false,
-      reason: `Needs proof of $${tier.incomeRequirement.toLocaleString()}/wk income — you earn $${income.toLocaleString()}/wk.`,
+      reason: `Needs proof of $${tier.incomeRequirement.toLocaleString()}/wk income - you earn $${income.toLocaleString()}/wk.`,
     };
   }
   const cash = state.stats?.money;
@@ -361,13 +361,13 @@ export interface HousingWellbeing {
   energy: number;
   /** Weekly rent owed for a tenancy (0 when the player owns or is homeless). */
   rent: number;
-  /** True when the player has no home at all — the penalty case. */
+  /** True when the player has no home at all - the penalty case. */
   homeless: boolean;
   /**
    * True when the residence is OWNED.
    *
    * Carried rather than inferred from `rent === 0`, which is also 0 while
-   * homeless and would be 0 for a free or promotional tier — and a renter read
+   * homeless and would be 0 for a free or promotional tier - and a renter read
    * as an owner has their lease ended on the next tick.
    */
   owned: boolean;
@@ -389,7 +389,7 @@ export interface HousingWellbeing {
 /**
  * The slice this needs. Narrow on purpose: the HUD subscribes through
  * `useGameSelector` and must not pull the whole state in to ask what its home
- * is worth (a documented perf regression class — `tasks/lessons.md`, 2026-06-09).
+ * is worth (a documented perf regression class - `tasks/lessons.md`, 2026-06-09).
  */
 export type HousingStateSlice = Pick<GameState, 'realEstate' | 'rental'>;
 

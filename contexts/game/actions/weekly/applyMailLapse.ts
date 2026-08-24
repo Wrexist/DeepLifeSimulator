@@ -130,7 +130,7 @@ export function applyMailLapse(input: ApplyMailLapseInput): ApplyMailLapseResult
         outcome = applied.outcome;
         break;
       }
-      // `event` is filtered out above — it is settled by pass 1.
+      // `event` is filtered out above - it is settled by pass 1.
       default:
         outcome = '';
     }

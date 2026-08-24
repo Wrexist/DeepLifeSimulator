@@ -71,7 +71,7 @@ function marriedState(over: Partial<GameState> = {}): GameState {
   };
 }
 
-describe('R3-F1 — a second divorce tap cannot charge again', () => {
+describe('R3-F1 - a second divorce tap cannot charge again', () => {
   it('debits the settlement once, not twice', () => {
     // The core property. An earlier version of this case asserted on the count
     // of `divorce_loan_` entries, but the fixture had $5M in cash so the
@@ -153,7 +153,7 @@ describe('R3-F1 — a second divorce tap cannot charge again', () => {
   });
 });
 
-describe('R3-F2 — a second wedding-plan tap cannot charge the deposit again', () => {
+describe('R3-F2 - a second wedding-plan tap cannot charge the deposit again', () => {
   function engagedState(): GameState {
     const base = createTestGameState();
     return {

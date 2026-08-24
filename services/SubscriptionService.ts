@@ -356,7 +356,7 @@ class SubscriptionService {
         return {
           success: true,
           message: lifetime
-            ? 'Premium unlocked forever — thank you!'
+            ? 'Premium unlocked forever - thank you!'
             : 'Subscription activated successfully!',
         };
       }

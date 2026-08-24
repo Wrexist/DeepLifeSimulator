@@ -68,10 +68,12 @@ function LastWeekRecap() {
   const pendingEvents = data?.pendingEventCount ?? 0;
 
   // Only go silent when there is truly NOTHING to say. Previously any
-  // money-flat week returned null — which also swallowed career progress and
+  // money-flat week returned null - which also swallowed career progress and
   // even the "decisions waiting" badge, making those weeks feel dead.
+  // A cliffhanger teaser counts as something to say: it is the "tune in next
+  // week" hook, and a money-flat week is exactly when it matters most.
   const moneyMoved = income !== 0 || expenses !== 0 || net !== 0 || lucky !== 0;
-  if (!moneyMoved && careerProgress === 0 && pendingEvents === 0) return null;
+  if (!moneyMoved && careerProgress === 0 && pendingEvents === 0 && !wr.cliffhangerTeaser) return null;
 
   const positive = net >= 0;
   const netColor = positive ? '#34D399' : '#F87171';
@@ -145,6 +147,18 @@ function LastWeekRecap() {
           </View>
         )}
       </View>
+
+      {/* The cliffhanger teaser - the game's one "tune in next week" beat.
+          It used to render only inside WeeklyResultSheet, which is gated
+          three ways (meaningful-week check, the weeklySummaryEnabled setting,
+          lowest modal priority), so the hook that exists to pull the player
+          into the next tap was usually invisible. This strip is the surface
+          that is ALWAYS seen after a tick. */}
+      {!!wr.cliffhangerTeaser && (
+        <Text style={[styles.teaser, { color: isDark ? '#C4B5FD' : '#6D28D9' }]} numberOfLines={2}>
+          {wr.cliffhangerTeaser}
+        </Text>
+      )}
     </Animated.View>
   );
 }
@@ -228,6 +242,11 @@ const styles = StyleSheet.create({
     fontSize: fontScale(11),
     fontWeight: '700',
     color: '#F59E0B',
+  },
+  teaser: {
+    fontSize: fontScale(11.5),
+    fontWeight: '600',
+    fontStyle: 'italic',
   },
 });
 

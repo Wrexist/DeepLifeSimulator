@@ -32,14 +32,14 @@ import { createWeddingPlan } from '@/lib/dating/weddingVenues';
 const read = (rel: string): string =>
   fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
-describe('R3-F4 — lifetime relationships are counted', () => {
+describe('R3-F4 - lifetime relationships are counted', () => {
   const source = read('contexts/game/actions/weekly/applyLifetimeStatistics.ts');
 
   it('accumulates the weekly growth', () => {
     expect(source).toMatch(/totalRelationships:\s*\n?\s*\(ls\.totalRelationships \?\? 0\) \+ Math\.max\(0, relationshipGrowth\)/);
   });
 
-  it('is monotonic — losing a relationship never decreases the lifetime total', () => {
+  it('is monotonic - losing a relationship never decreases the lifetime total', () => {
     // `Math.max(0, …)` is what makes it a LIFETIME count rather than a current
     // headcount, which is what the achievement text promises.
     expect(source).toMatch(/Math\.max\(0, relationshipGrowth\)/);
@@ -59,7 +59,7 @@ describe('R3-F4 — lifetime relationships are counted', () => {
   });
 });
 
-describe('R3-F5 — parenting Bond actually moves', () => {
+describe('R3-F5 - parenting Bond actually moves', () => {
   it('a newborn starts below the clamp ceiling', () => {
     // The whole reason the +1/+3 actions were no-ops.
     expect(NEWBORN_BOND).toBeLessThan(NURTURE_MAX);
@@ -95,7 +95,7 @@ describe('R3-F5 — parenting Bond actually moves', () => {
   });
 });
 
-describe('R3-F6 — the wedding plan can expire', () => {
+describe('R3-F6 - the wedding plan can expire', () => {
   it('records the original scheduled week at plan time', () => {
     const plan = createWeddingPlan('local_church', 'p1', 50, 300, {});
 
@@ -131,7 +131,7 @@ describe('R3-F6 — the wedding plan can expire', () => {
   });
 });
 
-describe('R3-F8 — Family Happiness reads the stat that is written', () => {
+describe('R3-F8 - Family Happiness reads the stat that is written', () => {
   it('prefers child.happiness over the writerless familyHappiness', () => {
     expect(read('components/FamilyTab.tsx')).toMatch(
       /child\.happiness \?\? child\.familyHappiness \?\? 50/,

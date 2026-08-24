@@ -48,7 +48,7 @@ describe('the company ceiling is what this test thinks it is', () => {
     const table = src.slice(from, to);
 
     // EXACT set, both directions. Only checking that the five expected keys are
-    // present would accept a sixth type being added — at which point
+    // present would accept a sixth type being added - at which point
     // MAX_COMPANIES silently understates the real ceiling and the achievement
     // this file guards becomes reachable-but-wrong instead of unreachable.
     const declared = [...table.matchAll(/^\s{4}(\w+):\s*\d/gm)].map((m) => m[1]).sort();
@@ -64,7 +64,7 @@ describe('the company ceiling is what this test thinks it is', () => {
  * A `progressSpec` that carries a numeric target.
  *
  * The spec is a union, and the other members have no `goal`. Reading it through
- * an inline `as { goal: number }` bypasses that union — the cast asserts the
+ * an inline `as { goal: number }` bypasses that union - the cast asserts the
  * member rather than checking it, so a spec shape change would compile and this
  * whole file would quietly test nothing. CLAUDE.md Hard Rule #2: access union
  * members via a guard, never a cast.
@@ -94,7 +94,7 @@ describe('every company achievement is reachable', () => {
 
   it('no goal exceeds the number of companies the game can hold', () => {
     // `flatMap` rather than filter-then-map: a filter on a property does not
-    // narrow the element type, so the map would still need a cast — which is the
+    // narrow the element type, so the map would still need a cast - which is the
     // thing the guard exists to remove.
     const impossible = companyCountGoals.flatMap((a) => {
       const spec = a.progressSpec;
@@ -107,7 +107,7 @@ describe('every company achievement is reachable', () => {
 
   it('the description matches the goal it actually checks', () => {
     // The description is what the player reads; the goal is what pays out.
-    // `company_emperor` said "Own 20" while awarding at 20 — consistent, and
+    // `company_emperor` said "Own 20" while awarding at 20 - consistent, and
     // consistently impossible. This catches the other failure: fixing one and
     // not the other.
     const mismatched = companyCountGoals

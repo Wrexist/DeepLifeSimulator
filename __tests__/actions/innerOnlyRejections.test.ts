@@ -54,7 +54,7 @@ function batched(initial: GameState) {
   return { setState, get: () => state };
 }
 
-describe('C-9 — upgrading to the energy type you already have', () => {
+describe('C-9 - upgrading to the energy type you already have', () => {
   function withWarehouse(energyType: string, money = 10_000_000): GameState {
     const base = createTestGameState();
     return createTestGameState({
@@ -97,7 +97,7 @@ describe('C-9 — upgrading to the energy type you already have', () => {
   });
 });
 
-describe('C-9 — building the R&D lab tier you already have', () => {
+describe('C-9 - building the R&D lab tier you already have', () => {
   const TIERS = Object.keys(LAB_TYPES) as (keyof typeof LAB_TYPES)[];
   const COMPANY_ID = 'co-1';
 
@@ -149,7 +149,7 @@ describe('C-9 — building the R&D lab tier you already have', () => {
   });
 });
 
-describe('C-9 — the survey behind "62 is not 62 bugs"', () => {
+describe('C-9 - the survey behind "62 is not 62 bugs"', () => {
   /**
    * Pins the claim in this file's header, so a future reader does not have to
    * take it on trust — and so that if one of these outer guards is ever

@@ -47,7 +47,7 @@ beforeEach(() => {
   mockSetItemAsync.mockReset().mockResolvedValue(undefined);
 });
 
-describe('resolveDeviceId — secure store present', () => {
+describe('resolveDeviceId - secure store present', () => {
   it('returns the secure-store id and mirrors it back into AsyncStorage', async () => {
     // The post-reinstall shape on iOS: the keychain kept the id, app storage did
     // not. The fallback tier should be repopulated so it can answer next time.
@@ -67,7 +67,7 @@ describe('resolveDeviceId — secure store present', () => {
   });
 });
 
-describe('resolveDeviceId — migrating an existing install', () => {
+describe('resolveDeviceId - migrating an existing install', () => {
   it('PROMOTES a legacy AsyncStorage id instead of minting a new one', async () => {
     mockGetItemAsync.mockResolvedValue(null); // nothing in secure store yet
     mockStorage.set(KEY, 'player_existing_install');
@@ -103,7 +103,7 @@ describe('resolveDeviceId — migrating an existing install', () => {
   });
 });
 
-describe('resolveDeviceId — first run', () => {
+describe('resolveDeviceId - first run', () => {
   it('mints an id the server will accept and persists it to both stores', async () => {
     const id = await loadModule().resolveDeviceId();
 
@@ -130,7 +130,7 @@ describe('resolveDeviceId — first run', () => {
   });
 });
 
-describe('resolveDeviceId — secure store unavailable', () => {
+describe('resolveDeviceId - secure store unavailable', () => {
   it('falls back to AsyncStorage when every secure-store call throws', async () => {
     mockGetItemAsync.mockRejectedValue(new Error('no hardware keystore'));
     mockSetItemAsync.mockRejectedValue(new Error('no hardware keystore'));

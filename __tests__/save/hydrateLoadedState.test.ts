@@ -118,7 +118,7 @@ describe('hydrateLoadedState', () => {
       expect(state.family.children.map(c => c.id)).toContain('kid-2');
     });
 
-    it('keeps the reconciled arrays — the spread must not overwrite them', () => {
+    it('keeps the reconciled arrays - the spread must not overwrite them', () => {
       // The order hazard the extracted function documents: `family` and
       // `relationships` are assigned AFTER `{ ...initialGameState, ...parsed }`.
       // Reorder those two lines and this is the test that fails.

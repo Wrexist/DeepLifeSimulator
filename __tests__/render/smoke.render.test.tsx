@@ -9,7 +9,7 @@ import { View, Text } from 'react-native';
  * environment, where `react-native` is mocked to string-tag host components
  * (see jest.setup.js). This is the foundation the screen render tests build on.
  */
-describe('render harness — smoke', () => {
+describe('render harness - smoke', () => {
   it('mounts a trivial RN tree without throwing', () => {
     let tree: TestRenderer.ReactTestRenderer | undefined;
     act(() => {

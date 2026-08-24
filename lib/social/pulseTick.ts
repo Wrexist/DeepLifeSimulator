@@ -225,7 +225,7 @@ export function processPulseWeeklyTick(
   for (const tag of organicTags) {
     if (!trending.find(t => t.tag === tag)) {
       // Deterministic from (week, tag) via hashRoll so re-runs / reloads are
-      // stable — the comment above promised "deterministic from week" but the
+      // stable - the comment above promised "deterministic from week" but the
       // body used Math.random(). Distinct seed suffixes keep postCount and
       // velocity independent.
       trending.push({
@@ -272,7 +272,7 @@ export function processPulseWeeklyTick(
     followers = Math.max(0, followers - follLoss);
 
     if (newSeverity === 0) {
-      // Survived — fold to history.
+      // Survived - fold to history.
       scandalHistory.push({
         id: activeScandal.id,
         type: activeScandal.type,
@@ -394,7 +394,7 @@ export function processPulseWeeklyTick(
         notifications = pushNotification(
           notifications,
           'brand_offer',
-          `${o.brandName} offered you a deal — $${o.payment.toLocaleString()}`,
+          `${o.brandName} offered you a deal - $${o.payment.toLocaleString()}`,
           nextWeeksLived,
           { refDealId: o.id, fromHandle: o.brandName },
         );
@@ -429,7 +429,7 @@ export function processPulseWeeklyTick(
       notifications = pushNotification(
         notifications,
         'brand_offer',
-        `Auto-breached ${deal.brandName} — scandal triggered. -$${penalty}`,
+        `Auto-breached ${deal.brandName} - scandal triggered. -$${penalty}`,
         nextWeeksLived,
       );
       continue;
@@ -448,7 +448,7 @@ export function processPulseWeeklyTick(
         notifications = pushNotification(
           notifications,
           'brand_offer',
-          `✅ ${deal.brandName} deal complete — $${(deal.payment || 0).toLocaleString()}`,
+          `✅ ${deal.brandName} deal complete - $${(deal.payment || 0).toLocaleString()}`,
           nextWeeksLived,
         );
       } else {
@@ -462,7 +462,7 @@ export function processPulseWeeklyTick(
       }
       continue;
     }
-    // Still active — pay weekly installment.
+    // Still active - pay weekly installment.
     const weekly = deal.weeklyPayment ?? Math.floor((deal.payment || 0) / Math.max(1, deal.expiresIn || 1));
     pulseEarnings += weekly;
     activeDeals.push({ ...deal, expiresIn: Math.max(0, deal.expiresIn - 1) });
@@ -475,7 +475,7 @@ export function processPulseWeeklyTick(
       sm.influenceLevel || influenceLevelForFollowers(followers),
       sm.totalPosts || 0,
       sm.viralPosts || 0,
-      // Seeded ±20% variation — deterministic from week + follower count.
+      // Seeded ±20% variation - deterministic from week + follower count.
       hashRoll('impressionVariation', nextWeeksLived, followers),
     ) * proMultiplier,
   );
@@ -485,7 +485,7 @@ export function processPulseWeeklyTick(
   // In-game weekly cash billing + lapse (on insufficient funds) is handled by
   // applySubscriptionsForWeek in the nextWeek orchestrator, which bills real
   // post-income cash. Here we only tally a week while the subscription is
-  // active. (Legacy wall-clock `expiresTimestamp` expiry removed — Verified Pro
+  // active. (Legacy wall-clock `expiresTimestamp` expiry removed - Verified Pro
   // is now an in-game cash subscription, not a real App Store IAP.)
   const verifiedPro = sm.verifiedPro;
   const verifiedProWeeksDelta = verifiedProActive ? 1 : 0;

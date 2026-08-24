@@ -225,7 +225,7 @@ export const goOnDate = (
     },
     relationships: (prev.relationships || []).map(r => {
       if (r.id !== partnerId) return r;
-      // A date is quality time — if they'd been wanting time together (or a real
+      // A date is quality time - if they'd been wanting time together (or a real
       // talk / to meet your friends), it satisfies that want for a diminishing
       // bonus (additive; only when a matching want is present).
       const wp = applyWantProgress(r.npcWant, 'date', prev.weeksLived || 0);
@@ -238,7 +238,7 @@ export const goOnDate = (
       const relCommitment = getCommitmentModifiers(prev, 'relationships');
       // Prestige social_master / reputation_gain_multiplier. The
       // applyRelationshipGain funnel folds these in for the Contacts-app path,
-      // but dating gains never went through it — so the two HIGHEST-volume
+      // but dating gains never went through it - so the two HIGHEST-volume
       // relationship-gain paths (dates and gifts) paid none of the 23,500
       // points' worth of purchased multiplier. Same guard shape as the funnel:
       // gains only, and a corrupt bonus list degrades to 1.
@@ -257,7 +257,7 @@ export const goOnDate = (
             lastDateWeek: prev.weeksLived || 0,
             // ANTI-EXPLOIT: Track dates this week to prevent spam (especially free chat dates)
             datesThisWeek: (r.lastDateWeek === (prev.weeksLived || 0) ? (r.datesThisWeek || 0) : 0) + 1,
-            // A date is a real contact — stamp recency so the Contacts recency
+            // A date is a real contact - stamp recency so the Contacts recency
             // dot warms and the Attention tab clears (weeklyInteractions resets
             // when the last interaction was in an earlier week).
             lastInteractionWeek: prev.weeksLived || 0,
@@ -271,7 +271,7 @@ export const goOnDate = (
             ),
             npcMemories: addMemory(r.npcMemories ?? [], {
               type: 'date',
-              description: `You took them on a ${dateType} date${wp.satisfied ? ' — exactly the time together they wanted' : ''}`,
+              description: `You took them on a ${dateType} date${wp.satisfied ? ' - exactly the time together they wanted' : ''}`,
               weeksLived: prev.weeksLived || 0,
               sentiment: 'positive',
             }),
@@ -309,8 +309,8 @@ export const giveGift = (
   /**
    * Unused, and optional so callers need not fake it.
    *
-   * The charge flows through `applyMoneyDelta` inside the updater — the atomic
-   * gate→debit→grant of §4.4 — so the injected `updateMoney`/`updateStats` have
+   * The charge flows through `applyMoneyDelta` inside the updater - the atomic
+   * gate→debit→grant of §4.4 - so the injected `updateMoney`/`updateStats` have
    * had no reader since that migration. Kept in position (not deleted) because
    * production passes it and the sibling DatingActions that DO use their deps
    * take it here; see Hard Rule #5 for why that call shape matters.
@@ -374,7 +374,7 @@ export const giveGift = (
         // they actually remember it. Previously every gift was identical.
         const mult = getGiftMultiplier(r, giftType);
         // Life Skills: Charisma / Social Master boost positive relationship gains
-        // — and the prestige relationship bonuses, which the gift path skipped
+        // - and the prestige relationship bonuses, which the gift path skipped
         // (see the date-boost comment above).
         const giftGainMult = getLifeSkillModifiers(prev).relationshipGainMult;
         const giftPrestigeMult = getRelationshipGainMultiplier(prev.prestige?.unlockedBonuses || []);
@@ -384,7 +384,7 @@ export const giveGift = (
         ));
         const disliked = mult < 1.0;
         // If they'd been WANTING a gift, satisfying that want adds a diminishing
-        // bonus on top (additive — only fires when a matching want is present).
+        // bonus on top (additive - only fires when a matching want is present).
         const wp = applyWantProgress(r.npcWant, 'gift', prevWeek);
         return {
           ...r,
@@ -392,7 +392,7 @@ export const giveGift = (
           giftsReceived: (r.giftsReceived || 0) + 1,
           giftsThisWeek: prevGiftsThisWeek + 1,
           lastGiftWeek: prevWeek,
-          // A gift is a real contact — stamp recency (see goOnDate above).
+          // A gift is a real contact - stamp recency (see goOnDate above).
           lastInteractionWeek: prevWeek,
           weeklyInteractions:
             (r.lastInteractionWeek === prevWeek ? (r.weeklyInteractions || 0) : 0) + 1,
@@ -403,7 +403,7 @@ export const giveGift = (
           ),
           npcMemories: addMemory(r.npcMemories ?? [], {
             type: 'gift',
-            description: `You gave them ${config.message}${wp.satisfied ? ' — just what they wanted' : mult > 1 ? ' — a favorite' : disliked ? " — not their taste" : ''}`,
+            description: `You gave them ${config.message}${wp.satisfied ? ' - just what they wanted' : mult > 1 ? ' - a favorite' : disliked ? " - not their taste" : ''}`,
             weeksLived: prevWeek,
             sentiment: disliked ? 'negative' : 'positive',
           }),
@@ -412,13 +412,13 @@ export const giveGift = (
     };
   });
 
-  // Message reflects the NPC's actual taste — and whether it answered a want.
+  // Message reflects the NPC's actual taste - and whether it answered a want.
   const reactMult = getGiftMultiplier(partner, giftType);
   const wantedGift = applyWantProgress(partner.npcWant, 'gift', currentWeeksLived).satisfied;
   const reaction = reactMult > 1 ? `${partner.name} adored ${config.message}!`
     : reactMult < 1 ? `${partner.name} accepted ${config.message}, but it wasn't quite their taste.`
     : `${partner.name} appreciated ${config.message}.`;
-  const finalReaction = wantedGift ? `${reaction} They'd been hoping for a gift — it really landed.` : reaction;
+  const finalReaction = wantedGift ? `${reaction} They'd been hoping for a gift - it really landed.` : reaction;
   log.info(`Gift to ${partner.name} - type: ${giftType}`);
   return { success: true, message: finalReaction };
 };
@@ -463,7 +463,7 @@ export const proposeMarriage = (
   if (gameState.stats.money < ring.price) {
     return {
       success: false,
-      message: `This ring costs ${formatMoney(ring.price)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(ring.price - gameState.stats.money)} short).`,
+      message: `This ring costs ${formatMoney(ring.price)} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(ring.price - gameState.stats.money)} short).`,
       accepted: false,
     };
   }
@@ -501,7 +501,7 @@ export const proposeMarriage = (
       if (!prevPartner || prevPartner.type !== 'partner' || prevPartner.engagementWeek != null) {
         return prev;
       }
-      // ANTI-BIGAMY recheck — a same-batch propose to a second partner must
+      // ANTI-BIGAMY recheck - a same-batch propose to a second partner must
       // not go through (or charge for the ring) once the first is engaged.
       if (findCommittedPartner(prev.relationships, partnerId)) {
         return prev;
@@ -529,7 +529,7 @@ export const proposeMarriage = (
               }
             : r
         ),
-        // R2-B: cap to 200 milestones — pruned at save time, but the
+        // R2-B: cap to 200 milestones - pruned at save time, but the
         // in-memory cap stops the per-action O(N) spread from dominating.
         lifeMilestones: [
           ...(prev.lifeMilestones || []),
@@ -657,13 +657,13 @@ export const planWedding = (
   if (gameState.stats.money < deposit) {
     return {
       success: false,
-      message: `Wedding deposit is ${formatMoney(deposit)} (25% of budget) — you have ${formatMoney(gameState.stats.money)} (${formatMoney(deposit - gameState.stats.money)} short).`,
+      message: `Wedding deposit is ${formatMoney(deposit)} (25% of budget) - you have ${formatMoney(gameState.stats.money)} (${formatMoney(deposit - gameState.stats.money)} short).`,
     };
   }
 
   // Save wedding plan
   setGameState(prev => {
-    // ANTI-BIGAMY recheck — a same-batch double-plan must not schedule two.
+    // ANTI-BIGAMY recheck - a same-batch double-plan must not schedule two.
     const prevOtherCommitted = (prev.relationships || []).some(
       r => r.id !== partnerId && (r.type === 'spouse' || r.weddingPlanned)
     );
@@ -676,7 +676,7 @@ export const planWedding = (
      * `if (partner.weddingPlanned) return …` runs against the render-time
      * `gameState`. So the one case neither covered was a double-tap on the SAME
      * partner: both updaters passed, the deposit was charged twice, and the
-     * second write overwrote `weddingPlanned` with an identical plan — one
+     * second write overwrote `weddingPlanned` with an identical plan - one
      * wedding, two deposits, silently. On the Tropical Island Resort that is
      * ~$25k charged twice. The modal's button is gated only on
      * `!selectedVenueId || !canAfford`, with `canAfford` derived from the stale
@@ -739,7 +739,7 @@ export const executeWedding = (
   if (gameState.stats.money < remainingBalance) {
     return {
       success: false,
-      message: `Wedding balance is ${formatMoney(remainingBalance)} (the remaining 75%) — you have ${formatMoney(gameState.stats.money)} (${formatMoney(remainingBalance - gameState.stats.money)} short).`,
+      message: `Wedding balance is ${formatMoney(remainingBalance)} (the remaining 75%) - you have ${formatMoney(gameState.stats.money)} (${formatMoney(remainingBalance - gameState.stats.money)} short).`,
     };
   }
 
@@ -749,7 +749,7 @@ export const executeWedding = (
 
   // Atomic update: pay remaining balance + update stats + convert partner to spouse.
   // R4-D: re-check affordability inside the updater and bail if the partner is
-  // already a spouse — a same-batch double-tap can't double-charge the wedding.
+  // already a spouse - a same-batch double-tap can't double-charge the wedding.
   setGameState(prev => {
     const prevPartner = (prev.relationships || []).find(r => r.id === partnerId);
     if (!prevPartner || prevPartner.type === 'spouse') return prev;
@@ -765,7 +765,7 @@ export const executeWedding = (
     const updatedRelationships = relationships.map(r =>
       r.id === partnerId
         ? {
-            // Shared spouse-record factory — keeps this manual path identical to
+            // Shared spouse-record factory - keeps this manual path identical to
             // the weekly-tick auto path (applyScheduledWedding). Sets type,
             // marriageWeek/anniversaryWeek, clears engagement fields, and sets
             // livingTogether.
@@ -943,7 +943,7 @@ export const fileDivorce = (
   // tick firing between this action's snapshot and the actual setGameState
   // apply, modifying money/loans/relationships):
   //
-  // Phase 1 (eager, against gameState): compute the SETTLEMENT terms — the
+  // Phase 1 (eager, against gameState): compute the SETTLEMENT terms - the
   //   numbers the user just agreed to via the confirmation modal. These are
   //   stable across re-renders and feed both the log and the return message.
   //   We also compute the resulting portfolio (updatedHoldings, updatedRealEstate)
@@ -1046,7 +1046,7 @@ export const fileDivorce = (
     }
   }
 
-  // Audit estimates against the snapshot — these are what the modal/log show.
+  // Audit estimates against the snapshot - these are what the modal/log show.
   // The actual amounts applied to state are recomputed below against `prev`
   // and will match these in the common case (no concurrent state change in
   // the gap between snapshot and commit).
@@ -1074,14 +1074,14 @@ export const fileDivorce = (
     /**
      * R3-F1: re-check the gates against `prev`, INSIDE the updater.
      *
-     * Everything above — the spouse lookup and the 26-week cooldown — runs
+     * Everything above - the spouse lookup and the 26-week cooldown - runs
      * against the render-time `gameState`. The updater derived money from
      * `prev` but never re-checked either gate, so two taps in one React batch
      * both applied the FULL settlement: `remaining = totalObligation` drained
      * from money then savings then debt twice over, the lawyer fee landed
      * twice, -40 happiness / -10 reputation landed twice, and the divorce loan
      * id embeds `newLoans.length` so the second one got a different id and
-     * escaped dedupe — two "Divorce Settlement Debt" loans for one divorce.
+     * escaped dedupe - two "Divorce Settlement Debt" loans for one divorce.
      * The confirm button has no in-flight guard, and the action reads
      * `gameStateRef.current`, which is stale within a batch.
      *
@@ -1269,7 +1269,7 @@ export const fileDivorce = (
  *
  * Wired into the Family screen's partner card (`components/FamilyTab.tsx`,
  * "Call off the engagement", behind a destructive confirm) on 2026-08-16. For
- * most of its life it had NO caller in `components/` or `app/` — the engagement
+ * most of its life it had NO caller in `components/` or `app/` - the engagement
  * screens offered only propose / plan / execute, so an engaged player's only
  * exit was "Break up", which ends the relationship outright. This is the softer
  * one it was designed for: the ring comes off, the partner stays.
@@ -1311,7 +1311,7 @@ export const cancelEngagement = (
  * Check if it's the anniversary week (imperative helper).
  *
  * NOTE: the LIVE anniversary grant now runs in the weekly tick via
- * `contexts/game/actions/weekly/applyAnniversaries.ts` — that is the single
+ * `contexts/game/actions/weekly/applyAnniversaries.ts` - that is the single
  * runtime code path, and it fires for every married player regardless of which
  * screen is open. This function is retained only for its existing unit/stress
  * tests (anniversaryIdempotence, marriageFlow.stress) which pin its signature and
@@ -1335,7 +1335,7 @@ export const checkAnniversary = (
   }
   // P0-12: legacy saves stored marriageWeek as the cyclic 1-4 value. We can't
   // reconstruct the original absolute week reliably, so skip the anniversary
-  // check for those saves — better than firing a wrong-week anniversary every
+  // check for those saves - better than firing a wrong-week anniversary every
   // week or so once `weeksMarried % WEEKS_PER_YEAR === 0` accidentally hits.
   if (marriageWeek <= 4 && absoluteWeek > 4) {
     return { isAnniversary: false };

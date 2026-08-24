@@ -14,7 +14,7 @@ interface Props {
   darkMode: boolean;
   onContribute?: () => void;
   /**
-   * R3-M5: contributing used to be a one-way door — the cash left `stats.money`
+   * R3-M5: contributing used to be a one-way door - the cash left `stats.money`
    * and nothing could get it back. The withdraw affordance has to be visible on
    * a COMPLETED goal too, which is where the money is most likely to be sitting.
    */
@@ -27,7 +27,7 @@ const BTN_SIZE = scale(28);
 /**
  * The two circles are adjacent and only `responsiveSpacing.sm` apart, so the
  * SYMMETRIC slop `hitSlopToMinTarget` returns would make their hit rectangles
- * OVERLAP — and RN hit-tests the last-rendered child first, so a tap just right
+ * OVERLAP - and RN hit-tests the last-rendered child first, so a tap just right
  * of the minus would deposit instead of withdraw. These move real money in
  * opposite directions, which makes the overlap the one thing worth avoiding.
  *
@@ -61,7 +61,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   other: '#64748b',
 };
 
-// RGB triplets that mirror CATEGORY_COLOR — used for the Recipe C tinted bubble
+// RGB triplets that mirror CATEGORY_COLOR - used for the Recipe C tinted bubble
 // (15% fill / 30% rim) so the categorical hue survives while its volume drops.
 const CATEGORY_RGB: Record<string, string> = {
   emergency: '239, 68, 68',

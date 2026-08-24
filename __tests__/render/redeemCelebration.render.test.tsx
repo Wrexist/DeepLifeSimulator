@@ -91,7 +91,7 @@ describe('ConfettiBurst', () => {
     unmount();
   });
 
-  it('scatters deterministically — no Math.random', () => {
+  it('scatters deterministically - no Math.random', () => {
     // A random scatter re-rolls on every parent render and makes the flakes
     // jump. Two independent mounts must produce identical geometry.
     const geometry = () => {
@@ -122,7 +122,7 @@ describe('ConfettiBurst', () => {
   });
 });
 
-describe('the success state — source contract', () => {
+describe('the success state - source contract', () => {
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const SRC = fs.readFileSync(
@@ -143,7 +143,7 @@ describe('the success state — source contract', () => {
   });
 
   it('holds the celebration gate so the review prompt waits its turn', () => {
-    // Without this the store sheet can slam up mid-celebration — the exact
+    // Without this the store sheet can slam up mid-celebration - the exact
     // interruption utils/celebrationGate exists to prevent.
     expect(CODE).toMatch(/beginCelebration\(\)/);
     expect(CODE).toMatch(/return \(\) => endCelebration\(\)/);
@@ -172,7 +172,7 @@ describe('the success state — source contract', () => {
     // begin → one grant → entitlements → yield → force-save → finalize.
     //
     // Scoped to handleRedeem's BODY. Searching the whole file finds the import
-    // block first, where these names are listed in a different order — the same
+    // block first, where these names are listed in a different order - the same
     // `indexOf` trap that makes a position check quietly meaningless.
     const body = CODE.slice(CODE.indexOf('const handleRedeem'), CODE.indexOf('const message ='));
     expect(body.length).toBeGreaterThan(500); // the slice actually found the function

@@ -1,11 +1,11 @@
 /**
- * ProfileCard — single swipeable dating profile card.
+ * ProfileCard - single swipeable dating profile card.
  *
  * Used inside SwipeScreen's card stack. Renders one DatingProfile with photo,
  * name + age, distance, bio, interests pills, and "LIKE" / "NOPE" / "SUPER"
  * watermark stamps that fade in as the user drags.
  *
- * The drag/swipe gesture is handled by the parent (SwipeScreen) — this card
+ * The drag/swipe gesture is handled by the parent (SwipeScreen) - this card
  * just renders.
  */
 import React from 'react';
@@ -72,7 +72,7 @@ export default function ProfileCard({
       <View style={styles.cardInner}>
         {/* The card used to be a full-bleed portrait. A vector face is square
             and circular, so it is centred on the card's own field instead of
-            stretched to fill — and sits high enough to clear the text scrim. */}
+            stretched to fill - and sits high enough to clear the text scrim. */}
         <View style={styles.photo}>
           <CharacterAvatar
             seed={profile.id}
@@ -84,7 +84,7 @@ export default function ProfileCard({
 
         {/* Bottom scrim so identity text stays legible on any photo. The gradient
             fallback only renders colors[0], so the fade is faked with stacked
-            translucent steps — gentle alpha jumps up top (over the face),
+            translucent steps - gentle alpha jumps up top (over the face),
             heavier ones only near the text so no single edge reads as a band. */}
         {SCRIM_STEPS.map((s) => (
           <View
@@ -101,7 +101,7 @@ export default function ProfileCard({
           style={styles.scrimStrong}
         />
 
-        {/* Lit top edge — hero-only highlight (dark mode). */}
+        {/* Lit top edge - hero-only highlight (dark mode). */}
         {isDark ? <View pointerEvents="none" style={styles.topHairline} /> : null}
 
         {/* Catfish suspicion chip */}

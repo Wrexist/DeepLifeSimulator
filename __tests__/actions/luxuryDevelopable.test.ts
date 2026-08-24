@@ -127,7 +127,7 @@ describe('buying a developable luxury item', () => {
 });
 
 describe('selling a developable luxury item', () => {
-  it('removes the property with the item — no orphan left billing upkeep', () => {
+  it('removes the property with the item - no orphan left billing upkeep', () => {
     const { state: bought } = run(richState(), (s, set) => purchaseLuxuryItem(s, set, ISLAND_ID));
     const { result, state: sold } = run(bought, (s, set) => sellLuxuryItem(s, set, ISLAND_ID));
 

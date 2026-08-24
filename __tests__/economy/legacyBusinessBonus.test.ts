@@ -102,7 +102,7 @@ describe('with the bonus, generations compound', () => {
   });
 });
 
-describe('the payout actually applies it — measured, not grepped', () => {
+describe('the payout actually applies it - measured, not grepped', () => {
   /*
    * This block originally asserted only that `passiveIncome.ts` CONTAINED the
    * call. That passed even when the call was dead-coded behind `if (false &&

@@ -78,7 +78,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
   }
 
   // Luxury-house offers. A brand does not approach an influencer purely on
-  // reach — it approaches the one whose life already looks like the campaign.
+  // reach - it approaches the one whose life already looks like the campaign.
   // Owning the hypercar, the watch collection or the jet is what makes the
   // player that person, so the collection RAISES both eligibility and rate.
   //
@@ -97,7 +97,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
         minFollowers: 40_000,
         minEngagementRate: 12,
       },
-      description: `${luxuryPull.hook} — $${payment.toLocaleString()}`,
+      description: `${luxuryPull.hook} - $${payment.toLocaleString()}`,
       expiresIn: 6,
     });
   }
@@ -108,7 +108,7 @@ export function generateBrandOffers(state: GameState): BrandPartnershipOffer[] {
 /**
  * What the player's collection is worth to a luxury house.
  *
- * Reads ownership only — no follower maths — so it stays a pure statement about
+ * Reads ownership only - no follower maths - so it stays a pure statement about
  * the collection and the caller decides how to combine it with reach.
  */
 export function getLuxuryBrandPull(state: GameState): {
@@ -233,7 +233,7 @@ function seedFrom(handle: string, week: number, slot: number): number {
  * and engagement. Each offer carries deliverable count, duration, category,
  * and brand-specific colors so the UI can render a real-looking inbox.
  *
- * Deterministic seed per (handle, weeksLived, tierSlot) — re-running the same
+ * Deterministic seed per (handle, weeksLived, tierSlot) - re-running the same
  * tick yields the same offers, which keeps things stable across StrictMode
  * double-renders.
  */
@@ -241,7 +241,7 @@ export function generateBrandOffersExtended(
   state: GameState,
   weeksLived: number,
 ): PulseBrandOffer[] {
-  // Read from state directly — the Pulse tick keeps `engagementRate` current,
+  // Read from state directly - the Pulse tick keeps `engagementRate` current,
   // and `getSocialMediaData` would silently re-derive it from posting cadence
   // which would diverge from what the tick just wrote.
   const followers = getSocialMediaData(state).followers; // keeps politics-perk bonus
@@ -250,7 +250,7 @@ export function generateBrandOffersExtended(
   const handle = state.userProfile?.handle || 'player';
   const offers: PulseBrandOffer[] = [];
 
-  // Tier 1 — Sponsored post (10K+ followers, modest engagement)
+  // Tier 1 - Sponsored post (10K+ followers, modest engagement)
   if (followers >= 10_000 && engagement >= 10) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 1));
     const payment = Math.floor(followers * 0.10);
@@ -260,7 +260,7 @@ export function generateBrandOffersExtended(
       type: 'sponsored_post',
       payment,
       // P0-1: 25% is paid as a signing bonus on accept; the remaining 75% is
-      // streamed. Total payout = 100% of `payment` (was 125% — bonus on top of
+      // streamed. Total payout = 100% of `payment` (was 125% - bonus on top of
       // a full 100% stream).
       weeklyPayment: Math.floor(payment * 0.75),
       postsRequired: 1,
@@ -275,7 +275,7 @@ export function generateBrandOffersExtended(
     });
   }
 
-  // Tier 2 — Brand deal (50K+ followers, healthy engagement)
+  // Tier 2 - Brand deal (50K+ followers, healthy engagement)
   if (followers >= 50_000 && engagement >= 15) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 2));
     const payment = Math.floor(followers * 2.0);
@@ -298,7 +298,7 @@ export function generateBrandOffersExtended(
     });
   }
 
-  // Tier 3 — Premium long campaign (100K+ followers, strong engagement)
+  // Tier 3 - Premium long campaign (100K+ followers, strong engagement)
   if (followers >= 100_000 && engagement >= 20) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 3));
     const payment = Math.floor(followers * 5.0);
@@ -322,7 +322,7 @@ export function generateBrandOffersExtended(
     });
   }
 
-  // Tier 4 — Ambassador exclusive (1M+ followers, reputable)
+  // Tier 4 - Ambassador exclusive (1M+ followers, reputable)
   if (followers >= 1_000_000 && engagement >= 18 && reputation >= 30) {
     const brand = pickBrand(seedFrom(handle, weeksLived, 4));
     const payment = Math.floor(followers * 10.0);
@@ -337,7 +337,7 @@ export function generateBrandOffersExtended(
       duration,
       category: brand.category,
       requirements: { minFollowers: 1_000_000, minEngagementRate: 18, minReputation: 30 },
-      description: `Exclusive ${duration}-week ambassadorship — one brand only.`,
+      description: `Exclusive ${duration}-week ambassadorship - one brand only.`,
       expiresInWeeks: 4,
       offeredWeek: weeksLived,
       prestigeImpact: 8,

@@ -94,7 +94,7 @@ describe('pack payloads are a pure function of the save', () => {
     it(`${id}: the payload still moves across weeks`, () => {
       const seen = new Set<string>();
       for (let week = 200; week < 320; week++) seen.add(JSON.stringify(template.generate(state(week))));
-      // A coin-flip payload only has two outcomes, so two is the real bar — it
+      // A coin-flip payload only has two outcomes, so two is the real bar - it
       // is what proves the roll was not pinned to a constant.
       expect(seen.size).toBeGreaterThanOrEqual(2);
     });
@@ -117,7 +117,7 @@ describe('pack payloads are a pure function of the save', () => {
 
 describe('salts are independent, not welded together', () => {
   it('surprise_raise: the cash and the reputation halves can disagree', () => {
-    // They were two separate `Math.random()` draws — you could win the bigger
+    // They were two separate `Math.random()` draws - you could win the bigger
     // cheque and still annoy management. Sharing one salt would have made the
     // two always agree: deterministic, but a different game.
     let disagreements = 0;

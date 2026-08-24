@@ -94,7 +94,7 @@ export const buyStockMarket = (
       log.warn(`Buy failed: ${result.error}`);
       return prev;
     }
-    // NaN GUARD: a non-finite fill (bad midPrice upstream) would poison money —
+    // NaN GUARD: a non-finite fill (bad midPrice upstream) would poison money -
     // Math.max(0, NaN) is NaN. Reject the whole trade rather than fill it.
     if (!isFinite(result.notionalUSD) || !isFinite(result.shares) || !isFinite(result.order.filledPrice ?? NaN)) {
       log.warn(`Buy rejected: non-finite fill for ${symbol}`);
@@ -140,7 +140,7 @@ export const sellStockMarket = (
       log.warn(`Sell failed: ${result.error}`);
       return prev;
     }
-    // NaN GUARD: mirror the buy path — a non-finite fill would write NaN money.
+    // NaN GUARD: mirror the buy path - a non-finite fill would write NaN money.
     if (!isFinite(result.notionalUSD) || !isFinite(result.order.filledPrice ?? NaN)) {
       log.warn(`Sell rejected: non-finite fill for ${symbol}`);
       return prev;
@@ -154,13 +154,13 @@ export const sellStockMarket = (
      *
      * The weekly tick withholds 25% at realization on every fill produced by
      * `processOpenOrders`, documented as "parity with the crypto tick". But
-     * `realizedGains` there counts ONLY those fills — this market-sell path
+     * `realizedGains` there counts ONLY those fills - this market-sell path
      * credited the full proceeds and merely accumulated `stocks.realizedGains`,
      * a field whose every other reader is display code. So selling a position
      * with the instant Sell button kept 100% of the gain while selling the
      * identical position at the identical price via a limit order lost 25%: a
      * $250,000 swing on a $1M gain, decided purely by which button was used,
-     * and trivially avoidable in full. Crypto has no such hole — both of its
+     * and trivially avoidable in full. Crypto has no such hole - both of its
      * sell paths feed the taxed accumulator.
      *
      * Same rule as the tick: positive gains only, losses never generate a
@@ -198,7 +198,7 @@ export const sellStockMarket = (
 };
 
 // ---------------------------------------------------------------------------
-// Limit / stop orders — placed in the book; weekly tick fills them
+// Limit / stop orders - placed in the book; weekly tick fills them
 // ---------------------------------------------------------------------------
 
 /**
@@ -232,7 +232,7 @@ function canPlaceStockOrder(
     }
     return true;
   }
-  // SELL — must own enough shares, net of shares already committed to open sells.
+  // SELL - must own enough shares, net of shares already committed to open sells.
   const sym = symbol.toUpperCase();
   const owned = (stocks.holdings ?? []).find((h) => h.symbol.toUpperCase() === sym)?.shares ?? 0;
   const committed = (stocks.openOrders ?? [])

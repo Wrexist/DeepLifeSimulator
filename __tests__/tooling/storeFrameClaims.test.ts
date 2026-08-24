@@ -98,7 +98,7 @@ const { frames, captures: CAPTURES, art: ART, props: PROPS, acts: ACTS, minScree
 
 /**
  * Collapse whitespace, normalise the dashes/quotes the UI renders, and fold
- * case — several headers ("CURRENT JOB", "EMPIRE SNAPSHOT") are uppercased in
+ * case - several headers ("CURRENT JOB", "EMPIRE SNAPSHOT") are uppercased in
  * CSS, so the DOM text and the pixels disagree on case and a caption is not
  * wrong for picking one.
  */
@@ -112,7 +112,7 @@ const norm = (s: string) =>
  * chip that reads `$11M` on screen comes back as two nodes and joins as
  * `"$ 11M"`. Matching only the spaced form would fail a caption that is
  * verbatim correct, and "loosen the claim until it passes" is the move this
- * whole file exists to prevent — so the comparison absorbs the split instead.
+ * whole file exists to prevent - so the comparison absorbs the split instead.
  */
 const tight = (s: string) => norm(s).replace(/\s+/g, '');
 
@@ -155,7 +155,7 @@ describe('store frames only claim what their screenshot shows', () => {
       if (!existsSync(txt)) {
         throw new Error(
           `No captured text for ${base} in ${set.kind} captures. Re-run `
-          + `scripts/capture-rich-state.mjs — it writes a .txt of the VISIBLE text `
+          + `scripts/capture-rich-state.mjs - it writes a .txt of the VISIBLE text `
           + `beside every .png. Without it this frame's caption is unverifiable, which `
           + `is the state the whole check exists to end.`,
         );
@@ -173,7 +173,7 @@ describe('store frames only claim what their screenshot shows', () => {
 
       if (pill.items) {
         // A count of things in the picture. Nothing prints "6", so checking for
-        // the digit would be checking nothing — instead every counted thing has
+        // the digit would be checking nothing - instead every counted thing has
         // to be visible, and there have to be exactly as many as the pill says.
         for (const item of pill.items) {
           assertClaim(screen, item, `${frame.id} [${set.kind}] counted item`);
@@ -207,8 +207,8 @@ describe('store frames only claim what their screenshot shows', () => {
   });
 
   it('gives every frame a scene that ships in the app', () => {
-    // The art is read out of `assets/images/` — the same plates the game
-    // renders — so a frame cannot advertise art the product does not contain.
+    // The art is read out of `assets/images/` - the same plates the game
+    // renders - so a frame cannot advertise art the product does not contain.
     // A missing file means a plate was moved or deleted in the app, and the
     // right fix is to update ART, never to let the generator fall back to
     // nothing.
@@ -223,7 +223,7 @@ describe('store frames only claim what their screenshot shows', () => {
 
   it('only composites objects the app actually ships, lit the way the blend needs', () => {
     // A prop is a picture of a thing the player owns, so it is a claim like any
-    // other — frame 03 shows the two collectibles its capture bought, and a
+    // other - frame 03 shows the two collectibles its capture bought, and a
     // third would be inventing a purchase. Two things have to hold: the render
     // is in the repo, and it is registered with a blend. `lighten` is what
     // knocks the black background out of a subject-on-black render for free;
@@ -264,7 +264,7 @@ describe('store frames only claim what their screenshot shows', () => {
 
   it('runs three acts whose sizes match the frame list', () => {
     // The acts are not decoration: the panorama is continuous WITHIN an act and
-    // cut between them, so a mismatch here does not fail loudly — it produces a
+    // cut between them, so a mismatch here does not fail loudly - it produces a
     // carousel whose background sweep lands in the wrong place.
     expect(ACTS.reduce((n, a) => n + a.size, 0)).toBe(frames.length);
     for (const act of ACTS) {

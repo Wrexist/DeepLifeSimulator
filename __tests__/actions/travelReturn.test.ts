@@ -46,7 +46,7 @@ function stateOnTrip(over: {
 
 const deps = { updateStats, updateMoney };
 
-describe('returnFromTrip — dropped benefits', () => {
+describe('returnFromTrip - dropped benefits', () => {
   it('applies stat benefits on a ready return (happiness rises)', () => {
     const snap = stateOnTrip({ destinationId: 'tokyo', visited: ['tokyo'], happiness: 30 });
     const { setState, get } = makeBatchedSetState(snap);
@@ -68,7 +68,7 @@ describe('returnFromTrip — dropped benefits', () => {
   });
 });
 
-describe('returnFromTrip — passport milestones', () => {
+describe('returnFromTrip - passport milestones', () => {
   it('grants a tier and records its id when the return crosses a threshold', () => {
     // 2 distinct visited + a NEW 3rd destination → crosses the "jetsetter" (3) tier.
     const snap = stateOnTrip({ destinationId: 'tokyo', visited: ['paris', 'bali'], passportMilestones: [] });
@@ -95,7 +95,7 @@ describe('returnFromTrip — passport milestones', () => {
     expect(get().travel!.passportMilestones).toEqual(['jetsetter']);
   });
 
-  it('is same-batch double-tap safe — the second return changes nothing', () => {
+  it('is same-batch double-tap safe - the second return changes nothing', () => {
     /**
      * The STATE is the property that matters, and it is unchanged: the tier is
      * recorded once, the stats and event money are applied once.

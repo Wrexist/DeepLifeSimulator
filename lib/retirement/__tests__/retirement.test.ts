@@ -341,7 +341,7 @@ describe('elder activities', () => {
 
 // ── 5. Anti-farm guards ──────────────────────────────────────────────────────
 describe('anti-farm guards', () => {
-  it('retire is a one-way latch — cannot re-retire', () => {
+  it('retire is a one-way latch - cannot re-retire', () => {
     const retired = retirePlayer(
       makeState({ age: 66, currentJob: 'x', highestSalary: 900, totalWeeksWorked: 30 * YEAR }),
     ).state;

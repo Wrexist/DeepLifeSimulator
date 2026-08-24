@@ -1,5 +1,5 @@
 /**
- * BoostModal — gem-spend confirmation for activating profile boost.
+ * BoostModal - gem-spend confirmation for activating profile boost.
  *
  * 50 gems → 1 in-game week of boosted visibility / match-rate.
  */

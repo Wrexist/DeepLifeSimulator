@@ -119,7 +119,7 @@ describe('racing', () => {
     expect(outcome.holdingPatch).toEqual({ runs: 1, wins: 0 });
   });
 
-  it('places in the middle — the prize softens the entry but does not cover it', () => {
+  it('places in the middle - the prize softens the entry but does not cover it', () => {
     // A place must return LESS than the entry. If it returns more (the old $30k
     // place vs $25k entry), then win AND place both profit — 2 of 3 outcomes —
     // and racing is a money printer (weekly audit 2026-07-28).
@@ -129,7 +129,7 @@ describe('racing', () => {
     expect(outcome.money).toBeLessThan(RACE.cost);
   });
 
-  it('is negative-EV at base form — racing is a cost, not an income stream', () => {
+  it('is negative-EV at base form - racing is a cost, not an income stream', () => {
     // The whole verb must not be a printer. Over the base outcome distribution
     // (25% win, 25% place, 50% unplaced), the expected NET return after the
     // entry must be <= 0, so an unproven horse loses money on average. resolveRace

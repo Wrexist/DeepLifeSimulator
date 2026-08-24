@@ -1,11 +1,11 @@
 /**
- * NextGoalsCard — "what should I be working toward?"
+ * NextGoalsCard - "what should I be working toward?"
  *
  * The game answers "what happened" (LastWeekRecap), "what is the ladder"
  * (LifeChapterCard) and "what is the lifelong aim" (AmbitionCard), but nothing
  * read the player's actual situation and answered the question they ask on
  * opening the app. The one system that tried was deleted as unreachable, and
- * nothing replaced it — see `lib/goals/engine.ts`.
+ * nothing replaced it - see `lib/goals/engine.ts`.
  *
  * Read-only by construction. It recommends and routes; it never grants, and
  * there is nothing here to claim twice. The recommendation is derived on
@@ -75,7 +75,7 @@ function GoalRow({ goal, onPress }: { goal: RecommendedGoal; onPress: () => void
 function NextGoalsCard() {
   const router = useRouter();
   // The catalogue reads across careers, education, property, family and
-  // banking, so this card selects the whole snapshot — the same trade-off
+  // banking, so this card selects the whole snapshot - the same trade-off
   // WeeklyChallengeCard documents for the same reason.
   const state = useGameSelector((s) => s) as GameState;
 
@@ -90,7 +90,7 @@ function NextGoalsCard() {
   // Deliberately IN-CARD and not a toast. `showAchievementToast` is hard-gated
   // to genuine rewarded achievements (see `utils/achievementToast.ts`) and
   // hijacking it here would be exactly the dilution that gate exists to
-  // prevent — and a popup for every savings rung is the modal spam the design
+  // prevent - and a popup for every savings rung is the modal spam the design
   // rules out. The moment belongs where the goal was.
   //
   // Ephemeral by design: the ref lives for the session, so a reach that
@@ -120,7 +120,7 @@ function NextGoalsCard() {
     return undefined;
   }, [state]);
 
-  // Clearing on unmount only — the timer above is intentionally re-armed rather
+  // Clearing on unmount only - the timer above is intentionally re-armed rather
   // than torn down between renders, so a second reach extends the banner
   // instead of cancelling it mid-read.
   useEffect(
@@ -131,7 +131,7 @@ function NextGoalsCard() {
   );
 
   // A player with nothing eligible in any horizon sees nothing, rather than a
-  // card apologising for being empty — unless there is something to
+  // card apologising for being empty - unless there is something to
   // acknowledge, which is worth a card on its own.
   if (goals.length === 0 && !reached) return null;
 

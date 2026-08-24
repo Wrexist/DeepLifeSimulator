@@ -74,14 +74,14 @@ class SaveQueue {
     //
     // This used to return as soon as the operation was pushed. `saveGame` holds
     // the save/load mutex across its `await queueSave(...)` and releases it in a
-    // `finally` — so the mutex came off while `performSave` was still writing
+    // `finally` - so the mutex came off while `performSave` was still writing
     // the slot, and a `loadGame` that acquired next read the slot mid-write.
     // The lock protected the ENQUEUE, which needs no protection at all.
     //
     // Why this shape rather than having `performSave` acquire the mutex itself:
     // the enqueuer is normally still holding it, and the mutex is not reentrant,
     // so the drain would block on a lock only the (now blocked) enqueuer can
-    // release — a hard deadlock on every autosave. Making the enqueuer's own
+    // release - a hard deadlock on every autosave. Making the enqueuer's own
     // await span the write keeps the single existing holder and needs no lock
     // inside the queue. Nothing on the `performSave` path acquires the mutex,
     // so the drain can never wait on the enqueuer.
@@ -121,7 +121,7 @@ class SaveQueue {
     // gets the old drain back from `kickProcessing()`. That old drain resolves
     // without ever touching this operation (the `finally` re-kick processes it
     // on a NEW drain), and racing it resolved this await while the slot write
-    // was still in flight — reopening the exact mid-write window the await
+    // was still in flight - reopening the exact mid-write window the await
     // above exists to close. Looping on `settled` keeps both properties:
     // completion is the only success exit, and a drain that rejects outright
     // still propagates instead of hanging the caller (and, with it, the
@@ -129,7 +129,7 @@ class SaveQueue {
     while (!settled) {
       await Promise.race([completed, this.kickProcessing()]);
       if (!settled) {
-        // A drain finished without settling us — yield one microtask so the
+        // A drain finished without settling us - yield one microtask so the
         // finally's re-kick (or `processingPromise = null`) lands before we
         // fetch the live drain.
         await Promise.resolve();
@@ -230,7 +230,7 @@ class SaveQueue {
    * already owns the user-facing failure report (the error toast above), and
    * rejecting would make `saveGame` raise a SECOND "Save Error" dialog for the
    * same write. The contract `addToQueue` keeps is "your operation is no longer
-   * pending" — which is exactly what the mutex holder needs to know.
+   * pending" - which is exactly what the mutex holder needs to know.
    */
   private settleOperation(operation: SaveOperation): void {
     const settle = operation.onSettled;
@@ -247,7 +247,7 @@ class SaveQueue {
   // pre-game menus (MainMenu "Continue", SaveSlots) render instantly without
   // ever re-parsing the multi-MB save blob. AWAITED by callers (the write is a
   // few hundred bytes) so an earlier save's still-pending cache write can never
-  // land after — and overwrite — a later save's summary. Errors stay swallowed:
+  // land after - and overwrite - a later save's summary. Errors stay swallowed:
   // the cache is non-critical and must never affect save success/failure
   // semantics (writeSaveSlotMeta never throws anyway).
   private async refreshSlotMeta(slot: number, data: unknown): Promise<void> {
@@ -260,17 +260,17 @@ class SaveQueue {
 
   // ANTI-EXPLOIT (H8, 2026-08-16): embed the critical protected state INSIDE the
   // save blob, so deleting the AsyncStorage `protected_state` keys does not erase
-  // the death/jail/wanted high-water marks — `loadGame` restores from the embed
+  // the death/jail/wanted high-water marks - `loadGame` restores from the embed
   // when the standalone keys are missing.
   //
   // Extracted from `performSave` because `forceSave` never did it, and `forceSave`
   // is the app-background/app-kill, IAP-grant, redeem-code, death-popup and
-  // onboarding path — i.e. the most recent blob on disk frequently had no embed
+  // onboarding path - i.e. the most recent blob on disk frequently had no embed
   // at all, leaving the restore with nothing to restore from.
   //
   // Best-effort by contract: a failure here must NEVER fail the save, which is why
   // it returns the un-embedded copy rather than throwing. The `await import` stays
-  // lazy — `saveBackup` pulls in the storage layer and must not be on this
+  // lazy - `saveBackup` pulls in the storage layer and must not be on this
   // module's static graph.
   private async embedProtectedState(slot: number, data: unknown): Promise<Record<string, unknown>> {
     const dataWithProtection: Record<string, unknown> = { ...(data as Record<string, unknown>) };
@@ -289,12 +289,12 @@ class SaveQueue {
   // BRC-7 / H8 / L10: advance the protected-state high-water marks. Called ONLY
   // after a write actually succeeded, so a failed save cannot ratchet them.
   // Awaited, not fire-and-forget: a dangling dynamic import can resolve after the
-  // surrounding context is gone. Errors are swallowed — this is bookkeeping and
+  // surrounding context is gone. Errors are swallowed - this is bookkeeping and
   // must never change the save's success/failure semantics.
   //
   // Extracted so all three success paths share it: `performSave`, `forceSave`
-  // (which never called it — H8) and the quota-cleanup retry branches (which
-  // returned success while skipping it — L10).
+  // (which never called it - H8) and the quota-cleanup retry branches (which
+  // returned success while skipping it - L10).
   private async advanceProtectedState(slot: number, data: unknown): Promise<void> {
     try {
       const { updateProtectedState } = await import('./saveBackup');
@@ -311,7 +311,7 @@ class SaveQueue {
     const saveStartTime = Date.now();
 
     // Validate slot before proceeding
-    // processQueue already drops invalid operations, so this is unreachable —
+    // processQueue already drops invalid operations, so this is unreachable -
     // but if it ever is reached, refusing is the only safe answer.
     if (!isWritableSlot(operation.slot)) {
       this.log.error(`Refusing to write an operation with an invalid slot: ${String(operation.slot)}`);
@@ -333,7 +333,7 @@ class SaveQueue {
     // late-game state (5000+ weeks, full event log + journal + memories) can
     // block the JS thread for 500ms–2s; without the yield, the autosave that
     // runs every 2 minutes janks the UI mid-interaction. The serialization
-    // itself is still synchronous — this only moves WHEN it blocks.
+    // itself is still synchronous - this only moves WHEN it blocks.
     await new Promise<void>(resolve => {
       if (typeof setImmediate === 'function') {
         setImmediate(() => resolve());
@@ -372,7 +372,7 @@ class SaveQueue {
       if (serializedData.length > MAX_SAVE_SIZE) {
         this.log.warn(`Save data is large: ${(serializedData.length / 1024 / 1024).toFixed(2)}MB`);
         // P1-8: actually prune MORE aggressively (halved caps) this pass. The
-        // previous code re-ran pruneSaveData with the same caps — a no-op — so an
+        // previous code re-ran pruneSaveData with the same caps - a no-op - so an
         // over-size save still threw and the player could never save again.
         const morePruned = this.pruneSaveData(prunedData, true);
         try {
@@ -398,7 +398,7 @@ class SaveQueue {
       }
 
       // BRC-7: bootstrap the protected-state keys. Nothing wrote them, so
-      // `getProtectedState` returned null for the whole lifetime of the app —
+      // `getProtectedState` returned null for the whole lifetime of the app -
       // which made the embed above a closed loop (nothing to embed, so nothing
       // ever got written) and left the anti-exploit layer inert.
       await this.advanceProtectedState(operation.slot, operation.data);
@@ -442,7 +442,7 @@ class SaveQueue {
             const retrySaveResult = await doubleBufferSave(key, retryEnvelope);
             if (retrySaveResult.success) {
               // L10: this branch returns SUCCESS, so it owes the same post-success
-              // bookkeeping as the happy path — it used to skip it entirely.
+              // bookkeeping as the happy path - it used to skip it entirely.
               await this.advanceProtectedState(operation.slot, operation.data);
               const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
@@ -520,7 +520,7 @@ class SaveQueue {
     });
 
     // ANTI-EXPLOIT (H8): embed the protected state here too. `performSave` always
-    // did; `forceSave` did not — and `forceSave` is the app-kill / IAP / redeem /
+    // did; `forceSave` did not - and `forceSave` is the app-kill / IAP / redeem /
     // death / onboarding path, so the newest blob on disk routinely carried no
     // embed for `loadGame`'s anti-exploit restore to read.
     const dataWithProtection = await this.embedProtectedState(slot, data);
@@ -559,7 +559,7 @@ class SaveQueue {
       if (serializedData.length > MAX_SAVE_SIZE) {
         this.log.warn(`Save data is large: ${(serializedData.length / 1024 / 1024).toFixed(2)}MB`);
         // P1-8: actually prune MORE aggressively (halved caps) this pass. The
-        // previous code re-ran pruneSaveData with the same caps — a no-op — so an
+        // previous code re-ran pruneSaveData with the same caps - a no-op - so an
         // over-size save still threw and the player could never save again.
         const morePruned = this.pruneSaveData(prunedData, true);
         try {
@@ -626,7 +626,7 @@ class SaveQueue {
             const retryEnvelope = createSaveEnvelope(serializedData);
             const retrySaveResult = await doubleBufferSave(key, retryEnvelope);
             if (retrySaveResult.success) {
-              // L10: same as the `performSave` retry — a branch that reports
+              // L10: same as the `performSave` retry - a branch that reports
               // success owes the same post-success bookkeeping.
               await this.advanceProtectedState(slot, data);
               const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
@@ -665,7 +665,7 @@ class SaveQueue {
     }
     } finally {
       // P1-11: always release the mutex, even on error (only if we acquired it).
-      // C-1 (R8): skip release when manageMutex=false — saveGame owns the lock.
+      // C-1 (R8): skip release when manageMutex=false - saveGame owns the lock.
       if (manageMutex) saveLoadMutex.release(mutexToken);
     }
   }
@@ -688,7 +688,7 @@ class SaveQueue {
     // itself kept going (nothing cancels an in-flight `performSave`), but it was
     // no longer OBSERVED: the very next `addToQueue` saw a null promise, started
     // a SECOND concurrent `processQueue`, and `forceSave`'s "wait for the queue
-    // to finish first" guard awaited only the new one — so a force-save could
+    // to finish first" guard awaited only the new one - so a force-save could
     // overwrite the slot while the original drain's `doubleBufferSave` was still
     // writing it, which is the concurrent-write case that guard exists to
     // prevent. `kickProcessing`'s `finally` clears the handle when the drain
@@ -697,7 +697,7 @@ class SaveQueue {
     // emptied queue makes `processQueue`'s loop exit on its next pass.
     //
     // Anything waiting on a dropped operation must still be told it is no longer
-    // pending, or it waits forever — and, since F-9, holds the save/load mutex
+    // pending, or it waits forever - and, since F-9, holds the save/load mutex
     // while it does.
     for (const operation of dropped) this.settleOperation(operation);
   }
@@ -718,21 +718,21 @@ class SaveQueue {
       // F-11: SIGN THE PERSISTED QUEUE.
       //
       // Each entry carries a WHOLE GameState that `restoreQueue` replays
-      // through `performSave` — which wraps it in a canonical envelope and
+      // through `performSave` - which wraps it in a canonical envelope and
       // SIGNS it. Persisted as plain JSON, this key was therefore a laundry for
       // arbitrary state: edit `save_queue_persisted` (unsigned, no checksum),
       // relaunch, and the next save turns the edit into a validly-signed save
       // file. That defeats the entire HMAC layer protecting `save_slot_N`.
       //
-      // The queue blob now goes through the same envelope as a save — CRC32 for
-      // corruption, HMAC-SHA256 for tampering — and `restoreQueue` refuses
+      // The queue blob now goes through the same envelope as a save - CRC32 for
+      // corruption, HMAC-SHA256 for tampering - and `restoreQueue` refuses
       // anything that does not verify. `createSaveEnvelope` throws on a build
       // that requires signing but cannot sign; the catch below then leaves the
       // queue unpersisted, which is the right way to fail: a blob we could not
       // sign is a blob we would have to refuse on the way back in anyway.
       //
       // Cost: one extra HMAC-SHA256 pass over the serialized queue, on a path
-      // that already pays a full `JSON.stringify` of the same state — the same
+      // that already pays a full `JSON.stringify` of the same state - the same
       // order of magnitude as work this path already does, and it stays off the
       // awaited save path (this whole method is fire-and-forget from
       // `addToQueue`).
@@ -764,7 +764,7 @@ class SaveQueue {
       }
 
       // F-11: verify before trusting a single byte of it. `allowLegacy: false`
-      // is explicit — the unsigned raw-JSON form this key used to hold is
+      // is explicit - the unsigned raw-JSON form this key used to hold is
       // exactly the shape an attacker (or an older build) leaves behind, and
       // replaying it would sign whatever it says. A blob that does not verify
       // is dropped, not replayed: at worst a device upgrading across this
@@ -774,7 +774,7 @@ class SaveQueue {
       const { decodePersistedSaveEnvelope } = await import('@/utils/saveValidation');
       const decodedQueue = decodePersistedSaveEnvelope(queueData, { allowLegacy: false });
       if (!decodedQueue.valid || typeof decodedQueue.data !== 'string') {
-        this.log.error('[SAVE_SECURITY] Persisted save queue failed verification — discarding', {
+        this.log.error('[SAVE_SECURITY] Persisted save queue failed verification - discarding', {
           error: decodedQueue.error,
         });
         await safeRemoveItem('save_queue_persisted');
@@ -786,7 +786,7 @@ class SaveQueue {
         // A persisted operation is a WHOLE GameState from a previous session,
         // replayed on the next launch. The only thing checked was the slot
         // number, so a write queued before the app died was committed later
-        // regardless of how old it was or what had happened to the slot since —
+        // regardless of how old it was or what had happened to the slot since -
         // and any guard that lives in `saveGame` is bypassed entirely, because
         // the replay does not go through it. That is what carried the pristine
         // boot state across an app kill on <=2.5.6, and it still would today
@@ -820,7 +820,7 @@ class SaveQueue {
               continue;
             }
           } catch {
-            // Guard threw on a malformed payload — drop it rather than write it.
+            // Guard threw on a malformed payload - drop it rather than write it.
             continue;
           }
 
@@ -869,13 +869,13 @@ class SaveQueue {
         // acquires the mutex: the normal enqueuer is already holding it across
         // its `await`, and the mutex is not reentrant, so a lock taken by
         // `performSave` would deadlock every autosave. That design assumes the
-        // enqueuer is the holder — and this path has no enqueuer. It was kicked
+        // enqueuer is the holder - and this path has no enqueuer. It was kicked
         // fire-and-forget from `restoreQueue`, so a startup `loadGame` could read
         // a slot while the replay was writing it.
         //
         // Fixed at the only place that can fix it without touching the normal
         // path: the restore acquires the 'save' lock ITSELF and awaits the drain
-        // inside it, exactly as `saveGame` does. No deadlock is possible —
+        // inside it, exactly as `saveGame` does. No deadlock is possible -
         // nothing on the `performSave` path acquires the mutex.
         //
         // Best-effort: if the lock cannot be had within the watchdog window we
@@ -885,7 +885,7 @@ class SaveQueue {
         try {
           token = await saveLoadMutex.acquire('save');
         } catch (lockError) {
-          this.log.warn('Could not acquire save lock for queue replay — draining unlocked', {
+          this.log.warn('Could not acquire save lock for queue replay - draining unlocked', {
             error: lockError instanceof Error ? lockError.message : String(lockError),
           });
         }
@@ -1011,7 +1011,7 @@ class SaveQueue {
           ...pruned.sparkApp,
           jealousyHistory: tail(pruned.sparkApp.jealousyHistory, cap(50)),
           // swipes is a ring buffer (doc cap 200) but nothing trimmed it on the
-          // save path — a daily swiper accumulated thousands over a long life.
+          // save path - a daily swiper accumulated thousands over a long life.
           swipes: tail(pruned.sparkApp.swipes, cap(200)),
         };
       }
@@ -1051,10 +1051,10 @@ class SaveQueue {
           sm.commentThreads = prunedThreads;
         }
         // notifications is a runtime ring buffer (cap 100) but was never pruned
-        // on the save path — add a defensive cap here too.
+        // on the save path - add a defensive cap here too.
         sm.notifications = tail(sm.notifications, cap(100));
         // pendingBoosts is append-only (one entry per gem-boosted post) and was
-        // never drained or capped anywhere — cap it so it can't march the save
+        // never drained or capped anywhere - cap it so it can't march the save
         // toward MAX_SAVE_SIZE on a heavy-boost life.
         sm.pendingBoosts = tail(sm.pendingBoosts, cap(100));
         // brandInbox.history / .declined accumulate one entry per resolved brand
@@ -1087,7 +1087,7 @@ class SaveQueue {
 
       // Relationships accumulate over a long life with no in-game cap, growing the
       // save and the per-tick relationship passes. Trim ONLY casual `friend`
-      // entries (keeping the highest-scored) — never a parent/partner/spouse/child,
+      // entries (keeping the highest-scored) - never a parent/partner/spouse/child,
       // so no meaningful relationship is ever dropped.
       if (Array.isArray(pruned.relationships) && pruned.relationships.length > cap(150)) {
         const keep: any[] = [];
@@ -1137,14 +1137,14 @@ class SaveQueue {
       }
       
       // Checkpoints were the ONE sub-tree pruning never touched, and each one
-      // carries a whole (slimmed) game snapshot — so on a long save they are
+      // carries a whole (slimmed) game snapshot - so on a long save they are
       // typically the largest thing in the payload, and the over-size retry
       // provably could not shrink them. 2026-07-28 audit save-4.
       //
       // Each snapshot is run through THIS SAME function rather than a parallel
       // list of caps, so the checkpoint path and the top-level path cannot drift
       // apart as new arrays are added. Any nested `checkpoints` key is dropped
-      // before recursing — a snapshot should never contain snapshots, and that
+      // before recursing - a snapshot should never contain snapshots, and that
       // also bounds the recursion at one level.
       if (Array.isArray(pruned.checkpoints) && pruned.checkpoints.length > 0) {
         // Dropping checkpoints entirely is reserved for the aggressive retry:

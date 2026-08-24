@@ -64,7 +64,7 @@ const parkingFine: EventTemplate = {
       },
       {
         id: 'appeal',
-        text: 'Appeal it — you were loading ($0 now, $120 if refused)',
+        text: 'Appeal it - you were loading ($0 now, $120 if refused)',
         effects: { money: -120, stats: { happiness: -2 } },
       },
       {
@@ -97,7 +97,7 @@ const speedingNotice: EventTemplate = {
       },
       {
         id: 'court',
-        text: 'Elect court — you say the limit was unposted ($400 if it goes badly)',
+        text: 'Elect court - you say the limit was unposted ($400 if it goes badly)',
         effects: { money: -400, stats: { happiness: -6 } },
       },
       {
@@ -134,7 +134,7 @@ const smallClaim: EventTemplate = {
       },
       {
         id: 'ignore',
-        text: 'Do not respond — judgment in default',
+        text: 'Do not respond - judgment in default',
         effects: {
           money: -1200,
           stats: { reputation: -6, happiness: -6 },

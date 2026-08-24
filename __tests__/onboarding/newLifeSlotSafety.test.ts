@@ -152,7 +152,7 @@ describe('reading a slot before writing over it', () => {
 });
 
 describe('resolving the slot for a new life', () => {
-  it('REFUSES when no slot was chosen — it does not fall back to slot 1', async () => {
+  it('REFUSES when no slot was chosen - it does not fall back to slot 1', async () => {
     slotMeta.probeSaveSlotBlob.mockResolvedValue('empty');
     // This single assertion is the whole incident: the old code turned "no
     // choice" into slot 1 and destroyed whatever lived there.
@@ -192,7 +192,7 @@ describe('describing the occupant', () => {
     expect(describeOccupant(PRESTIGED_SAVE)).toBe('Mara Okonkwo (age 61, generation 4, prestige 3)');
   });
 
-  it('omits generation 1 and prestige 0 — they say nothing', () => {
+  it('omits generation 1 and prestige 0 - they say nothing', () => {
     expect(
       describeOccupant({
         userProfile: { firstName: 'Sam', lastName: 'Vale' },
@@ -210,7 +210,7 @@ describe('describing the occupant', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('the write itself refuses — not just the screen four steps earlier', () => {
+describe('the write itself refuses - not just the screen four steps earlier', () => {
   function deps(overrides: Partial<InitializeGameDeps> = {}): InitializeGameDeps {
     return {
       validateOnboardingState: () => ({ valid: true, errors: [], warnings: [] }),

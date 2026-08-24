@@ -32,7 +32,7 @@ function localRefs(html: string): string[] {
   return out.filter(Boolean);
 }
 
-describe('Beta Hub — pages exist and are wired up', () => {
+describe('Beta Hub - pages exist and are wired up', () => {
   it.each(PAGES)('%s exists', (page) => {
     expect(fs.existsSync(path.join(HUB, page))).toBe(true);
   });
@@ -62,7 +62,7 @@ describe('Beta Hub — pages exist and are wired up', () => {
   });
 });
 
-describe('Beta Hub — no third-party scripts and no leaked secrets', () => {
+describe('Beta Hub - no third-party scripts and no leaked secrets', () => {
   const sources = fs.readdirSync(HUB).filter((f) => /\.(html|js|css)$/.test(f));
 
   it('loads no external script, only self-hosted files and Google Fonts CSS', () => {
@@ -91,7 +91,7 @@ describe('Beta Hub — no third-party scripts and no leaked secrets', () => {
     });
   });
 
-  it('keeps the admin token out of localStorage — sessionStorage only', () => {
+  it('keeps the admin token out of localStorage - sessionStorage only', () => {
     const admin = fs.readFileSync(path.join(HUB, 'beta-api.js'), 'utf8');
     const adminBlock = admin.slice(admin.indexOf('adminToken'));
     expect(adminBlock).toContain('sessionStorage');
@@ -104,7 +104,7 @@ describe('Beta Hub — no third-party scripts and no leaked secrets', () => {
   });
 });
 
-describe('Beta Hub — SEO and social preview', () => {
+describe('Beta Hub - SEO and social preview', () => {
   it('the landing page carries a title, description, OG and Twitter cards', () => {
     const html = read('index.html');
     expect(html).toMatch(/<title>[^<]{20,}<\/title>/);
@@ -136,7 +136,7 @@ describe('Beta Hub — SEO and social preview', () => {
   });
 });
 
-describe('Beta Hub — mobile and accessibility basics', () => {
+describe('Beta Hub - mobile and accessibility basics', () => {
   it.each(PAGES)('%s declares a language and a responsive viewport', (page) => {
     const html = read(page);
     expect(html).toContain('<html lang="en">');
@@ -181,7 +181,7 @@ describe('Beta Hub — mobile and accessibility basics', () => {
   });
 });
 
-describe('Beta Hub — house style', () => {
+describe('Beta Hub - house style', () => {
   it('uses no one-sided decorative card borders (CLAUDE.md Hard Rule #7)', () => {
     // The app bans colored accent stripes app-wide; the hub is meant to read as
     // the same product, so the same rule holds here. Structural hairlines
@@ -214,7 +214,7 @@ describe('Beta Hub — house style', () => {
   });
 });
 
-describe('Beta Hub — tab widgets are wired for assistive tech', () => {
+describe('Beta Hub - tab widgets are wired for assistive tech', () => {
   const tabbed = ['admin.html', 'community.html', 'ideas.html'];
 
   it.each(tabbed)('%s pairs every tab with the panel it controls', (page) => {

@@ -1,5 +1,5 @@
 /**
- * MessagesScreen — Pulse DMs.
+ * MessagesScreen - Pulse DMs.
  *
  * Wraps the existing DMSystem component (with its mystery-clue mechanics)
  * rather than rewriting 1,188 lines of working code. The wrapping lets us

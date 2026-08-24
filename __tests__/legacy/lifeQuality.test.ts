@@ -155,7 +155,7 @@ describe('money is worth a fifth, not the whole thing', () => {
   });
 
   it('values a property at its live value, not zero', () => {
-    // `RealEstate` has no `value` field — reading one scored every property at
+    // `RealEstate` has no `value` field - reading one scored every property at
     // nothing, which is a bug this repo has already shipped once in the ribbon
     // system's own net-worth helper.
     const s = emptyLife();
@@ -231,7 +231,7 @@ describe('the verdict and the face', () => {
     }
   });
 
-  it('is deterministic — the same state always scores the same', () => {
+  it('is deterministic - the same state always scores the same', () => {
     const s = fullLife();
     expect(lifeQuality(s)).toEqual(lifeQuality(s));
   });

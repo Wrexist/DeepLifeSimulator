@@ -108,8 +108,8 @@ describe('the HUD money/savings/gems figures are readable', () => {
  * The same defect, hunted repo-wide.
  *
  * The TopStatsBar fix above was found by eye, four times in one file. The
- * pairing it names — a `fontScale()`d fontSize sitting in a line box written as
- * a RAW literal — is mechanical enough to scan for, so this walks every style
+ * pairing it names - a `fontScale()`d fontSize sitting in a line box written as
+ * a RAW literal - is mechanical enough to scan for, so this walks every style
  * object in `components/` and `app/` and fails on any survivor.
  *
  * What is IN scope: scaled font + literal `lineHeight`. `fontScale` clamps at
@@ -117,7 +117,7 @@ describe('the HUD money/savings/gems figures are readable', () => {
  * stays where it was written and the descenders clip on a tablet.
  *
  * What is deliberately NOT in scope: a RAW fontSize with a RAW lineHeight. That
- * is merely unscaled — the pair keeps its ratio at every device size, so the
+ * is merely unscaled - the pair keeps its ratio at every device size, so the
  * text never clips. It is a separate (and much larger) debt, and converting
  * those fontSizes would move layout app-wide.
  */
@@ -126,7 +126,7 @@ describe('no style anywhere pairs a scaled font with a raw line box', () => {
 
   /**
    * Justified survivors, `'<relative path>': '<why>'`. Empty, and it should
-   * stay that way — a scaled font in a fixed box has no good reason to exist.
+   * stay that way - a scaled font in a fixed box has no good reason to exist.
    */
   const ALLOWLIST: Record<string, string> = {};
 
@@ -190,7 +190,7 @@ describe('no style anywhere pairs a scaled font with a raw line box', () => {
         const font = body.match(SCALED_FONT);
         const line = body.match(RAW_LINE_HEIGHT);
         if (font && line) {
-          found.add(`${rel} — fontSize: ${font[1]}… paired with lineHeight: ${line[1]}`);
+          found.add(`${rel} - fontSize: ${font[1]}… paired with lineHeight: ${line[1]}`);
         }
       }
     }
