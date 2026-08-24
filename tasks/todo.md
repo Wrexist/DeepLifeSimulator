@@ -113,10 +113,10 @@ load-bearing claim re-verified against source before any change (lessons.md rule
 
 ### G. Verify + ship
 
-- [ ] G1. Tests for every change; type-check both trees; lint:errors; routes.
-- [ ] G2. Full Jest suite.
-- [ ] G3. Commit + push to `claude/deep-life-gameplay-redesign-1lcoa4`.
-- [ ] G4. Final report per brief S77 (core fantasy, loop, scores, top-10).
+- [x] G1. Tests for every change; type-check both trees; lint:errors; routes.
+- [x] G2. Full Jest suite.
+- [x] G3. Commit + push to `claude/deep-life-gameplay-redesign-1lcoa4`.
+- [x] G4. Final report per brief S77 (core fantasy, loop, scores, top-10).
 
 ## Deliberately NOT doing (S70 - and flagged in the final report)
 
