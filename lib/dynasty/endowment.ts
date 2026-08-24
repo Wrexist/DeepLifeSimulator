@@ -193,7 +193,7 @@ export function claimEndowment(
   if (cash < tranche.cost) {
     return {
       success: false,
-      message: `${tranche.name} costs $${tranche.cost.toLocaleString()} — you have $${Math.floor(cash).toLocaleString()}.`,
+      message: `${tranche.name} costs $${tranche.cost.toLocaleString()} - you have $${Math.floor(cash).toLocaleString()}.`,
       cost: 0,
       points: 0,
     };
@@ -202,7 +202,7 @@ export function claimEndowment(
   const points = tranchePayout(state, tranche);
   return {
     success: true,
-    message: `${tranche.name} endowed — ${points.toLocaleString()} legacy points.`,
+    message: `${tranche.name} endowed - ${points.toLocaleString()} legacy points.`,
     cost: tranche.cost,
     points,
     dynasty: withDynasty(state, { endowments: [...taken, trancheId] }),

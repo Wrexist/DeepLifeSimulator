@@ -75,7 +75,7 @@ describe('recordSession', () => {
     expect(d7.snapshot.daysSeen).toBe(3);
   });
 
-  it('is MONOTONIC — a rewound clock cannot walk the cohort backwards', () => {
+  it('is MONOTONIC - a rewound clock cannot walk the cohort backwards', () => {
     // The one real data-quality threat here. Nothing is paid out, so there is
     // no incentive to move the clock; the risk is an accidental change (device
     // reset, timezone) manufacturing a second "day 3" and double-counting the
@@ -136,7 +136,7 @@ describe('parseCohortRecord', () => {
     }
   });
 
-  it('treats a record with no flag as estimated — the conservative direction', () => {
+  it('treats a record with no flag as estimated - the conservative direction', () => {
     const parsed = parseCohortRecord(
       '{"firstSeenMs":1,"lastDayIndex":2,"daysSeen":2,"sessions":3}',
     );

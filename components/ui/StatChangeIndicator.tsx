@@ -76,7 +76,7 @@ function FloatingText({ change, index, onComplete }: FloatingTextProps) {
             ]),
             // Hold for a moment
             Animated.delay(800),
-            // Fade out — and, unless reduced motion is on, float up as it goes.
+            // Fade out - and, unless reduced motion is on, float up as it goes.
             // Reduced motion keeps the fade but drops the upward drift.
             Animated.parallel([
                 Animated.timing(opacity, {

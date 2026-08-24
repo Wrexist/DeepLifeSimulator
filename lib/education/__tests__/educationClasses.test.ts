@@ -54,7 +54,7 @@ describe('mapClassIdsToEnrolled', () => {
     expect(mapClassIdsToEnrolled('not_a_program', ['intro_writing'])).toEqual([]);
   });
 
-  it('is deterministic — same input yields identical output (StrictMode-safe)', () => {
+  it('is deterministic - same input yields identical output (StrictMode-safe)', () => {
     const a = mapClassIdsToEnrolled('law_school', ['constitutional_law', 'moot_court']);
     const b = mapClassIdsToEnrolled('law_school', ['constitutional_law', 'moot_court']);
     expect(a).toEqual(b);
@@ -78,7 +78,7 @@ describe('computeSemesterNumber', () => {
     expect(computeSemesterNumber(104, 0)).toBe(4);
   });
 
-  it('is idempotent — the SAME weeksRemaining always yields the SAME semester', () => {
+  it('is idempotent - the SAME weeksRemaining always yields the SAME semester', () => {
     const w = 50;
     expect(computeSemesterNumber(104, w)).toBe(computeSemesterNumber(104, w));
   });

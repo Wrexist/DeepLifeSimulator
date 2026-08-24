@@ -39,7 +39,7 @@ import { getInflatedPrice } from '@/lib/economy/inflation';
 const ROOT = path.join(__dirname, '..', '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-describe('F5 — food is priced like everything else', () => {
+describe('F5 - food is priced like everything else', () => {
   it('inflation actually moves a price (the premise)', () => {
     // If getInflatedPrice were a no-op, none of this would be observable.
     expect(getInflatedPrice(100, 1.5)).toBeGreaterThan(100);
@@ -91,7 +91,7 @@ describe('F5 — food is priced like everything else', () => {
   });
 });
 
-describe('F6 — the Help describes the dark web that shipped', () => {
+describe('F6 - the Help describes the dark web that shipped', () => {
   // Comments stripped for the same reason as F7 below.
   const HELP = read('components/HelpModal.tsx')
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -133,7 +133,7 @@ describe('F6 — the Help describes the dark web that shipped', () => {
     expect(uiCallersOf(/\b(performHack|buyHack)\s*\(/)).toEqual([]);
   });
 
-  it('but buyDarkWebItem DOES — the gear store is wired', () => {
+  it('but buyDarkWebItem DOES - the gear store is wired', () => {
     // The inverse of the original assertion, and the reason the Help answers
     // below were rewritten to describe the Gear tab again.
     expect(uiCallersOf(/\bbuyDarkWebItem\s*\(/)).toContain('components/computer/OnionApp.tsx');
@@ -174,7 +174,7 @@ describe('F6 — the Help describes the dark web that shipped', () => {
   });
 });
 
-describe('F7 — Verified Pro only advertises what it delivers', () => {
+describe('F7 - Verified Pro only advertises what it delivers', () => {
   const RAW = read('components/mobile/Pulse/modals/VerifiedProUpsellModal.tsx');
   /**
    * Comments STRIPPED. The first version of this test asserted against the raw
@@ -215,13 +215,13 @@ describe('F7 — Verified Pro only advertises what it delivers', () => {
       .toMatch(/verifiedProActive \? 0\.0095 : 0\.01/);
   });
 
-  it('the rewarded-ad perk is untouched — it was never the false one', () => {
+  it('the rewarded-ad perk is untouched - it was never the false one', () => {
     expect(read('components/mobile/Pulse/modals/RewardedAdModal.tsx'))
       .toMatch(/Verified Pro: ×3 reward/);
   });
 });
 
-describe('F8 — eviction asks first', () => {
+describe('F8 - eviction asks first', () => {
   const APP = read('components/computer/RealEstateApp.tsx');
 
   it('eviction is irreversible (the premise)', () => {

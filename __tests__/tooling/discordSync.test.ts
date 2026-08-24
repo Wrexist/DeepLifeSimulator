@@ -87,7 +87,7 @@ const planBase = () => ({
  * Turn a plan's create bodies into the channels Discord would then be holding.
  *
  * Crucially it applies Discord's own name rewriting (text-like names are
- * lowercased) — a simulation that echoed the requested name back would make the
+ * lowercased) - a simulation that echoed the requested name back would make the
  * duplicate-creating bug invisible, which is the single bug this whole matching
  * layer exists to prevent.
  */
@@ -235,7 +235,7 @@ describe('renames and moves', () => {
     // The category has no id at plan time, so the PATCH cannot carry a
     // parent_id. The bulk layout write is what actually moves the channel, and
     // it only works because the CLI back-fills `parentId` on the operation once
-    // the category exists — a quiet dependency worth pinning.
+    // the category exists - a quiet dependency worth pinning.
     const live = [{ id: 'c2', name: '💡・ideas', type: 0, parent_id: 'somewhere-else', position: 0, permission_overwrites: [] }];
     const plan = P.planChannels({ ...planBase(), live });
     const op = opFor(plan, 'ideas');
@@ -511,7 +511,7 @@ describe('documents', () => {
 describe('official links', () => {
   it('match the ones the app itself uses', () => {
     // A support channel handing out a URL the app does not use is the shape of
-    // a phishing tell — the reasoning already written beside
+    // a phishing tell - the reasoning already written beside
     // DISCORD_INVITE_LABEL in appConfig.
     const source = fs.readFileSync(path.join(__dirname, '../../lib/config/appConfig.ts'), 'utf8');
     const read = (name: string) => source.match(new RegExp(`export const ${name} = '([^']+)'`))?.[1];

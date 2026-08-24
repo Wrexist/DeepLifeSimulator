@@ -1,12 +1,12 @@
 /**
- * StatisticsApp — Apple Health DNA pass (on top of Slate Glass).
+ * StatisticsApp - Apple Health DNA pass (on top of Slate Glass).
  *
  * Previous remake unified tokens but read as the generic "eyebrow hero +
- * uniform rows" template. This pass gives Statistics its own body — an Apple
- * Health / Fitness silhouette — while keeping the Slate Glass token language,
+ * uniform rows" template. This pass gives Statistics its own body - an Apple
+ * Health / Fitness silhouette - while keeping the Slate Glass token language,
  * crash-safety, and (critically) ZERO removal of existing data:
  *
- *   - Vitals activity-ring cluster (Health / Mood / Fitness) — NEW surfacing of
+ *   - Vitals activity-ring cluster (Health / Mood / Fitness) - NEW surfacing of
  *     stats.health/happiness/fitness the old dashboard ignored.
  *   - Per-metric TREND CARDS with real SVG sparklines drawn from the statistics
  *     tracker's history arrays (netWorthHistory / weeklyEarningsHistory).
@@ -17,7 +17,7 @@
  *   - Systems / Planning keep every readout, now tappable into detail pages.
  *
  * Sub-view routing is local useState (list -> detail); no new game mechanics,
- * no economy changes — presentation of existing state only.
+ * no economy changes - presentation of existing state only.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -261,7 +261,7 @@ export default function StatisticsApp({ onBack }: Props) {
   // =====================================================================
   const renderOverview = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {/* Vitals ring cluster — the signature silhouette */}
+      {/* Vitals ring cluster - the signature silhouette */}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => setDetail({ kind: 'vitals' })}
@@ -555,7 +555,7 @@ export default function StatisticsApp({ onBack }: Props) {
           </ProgressRing>
           <View style={styles.fireStats}>
             <MiniStat label="FIRE number" value={formatStatMoney(fire.fireNumber)} theme={theme} />
-            <MiniStat label="Years to FIRE" value={fire.yearsToFIRE >= 999 ? '—' : `${Math.max(0, fire.yearsToFIRE)}y`} theme={theme} />
+            <MiniStat label="Years to FIRE" value={fire.yearsToFIRE >= 999 ? '-' : `${Math.max(0, fire.yearsToFIRE)}y`} theme={theme} />
             <MiniStat label="Savings rate" value={`${Math.round(fire.savingsRate)}%`} theme={theme} />
             <MiniStat label="Coast FIRE" value={`${Math.round(fire.coastFIREProgress)}%`} theme={theme} />
           </View>
@@ -1343,7 +1343,7 @@ function prettyJob(id: string): string {
 /** Low / Avg / High footer for a metric sparkline. */
 function metricRange(series: number[]): { label: string; value: string }[] {
   const clean = series.filter((v) => typeof v === 'number' && isFinite(v));
-  if (clean.length === 0) return [{ label: 'Low', value: '—' }, { label: 'Avg', value: '—' }, { label: 'High', value: '—' }];
+  if (clean.length === 0) return [{ label: 'Low', value: '-' }, { label: 'Avg', value: '-' }, { label: 'High', value: '-' }];
   const min = Math.min(...clean);
   const max = Math.max(...clean);
   const avg = clean.reduce((a, b) => a + b, 0) / clean.length;

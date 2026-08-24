@@ -206,7 +206,7 @@ export function getRentalAdvice(state: GameState | null | undefined): string | n
   if (!active) return null;
   const tier = getTransportTier(state);
   if (TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf(active.plan.tier)) {
-    return `You've outgrown this — ${TRANSPORT_PROFILES[tier].label.toLowerCase()} beats it. End the rental to stop paying $${active.plan.weeklyPrice}/wk.`;
+    return `You've outgrown this - ${TRANSPORT_PROFILES[tier].label.toLowerCase()} beats it. End the rental to stop paying $${active.plan.weeklyPrice}/wk.`;
   }
   return null;
 }

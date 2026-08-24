@@ -16,7 +16,7 @@ import { createTestGameState } from '../helpers/createTestGameState';
 // ---------------------------------------------------------------------------
 // Logger — BUGFIX #31
 // ---------------------------------------------------------------------------
-describe('Logger error metadata — BUGFIX #31', () => {
+describe('Logger error metadata - BUGFIX #31', () => {
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe('Logger error metadata — BUGFIX #31', () => {
 // ---------------------------------------------------------------------------
 // Disease generator — BUGFIX #32
 // ---------------------------------------------------------------------------
-describe('Disease generator — BUGFIX #32', () => {
+describe('Disease generator - BUGFIX #32', () => {
   it('treats health=0 as worst case (high disease chance) NOT as full health', () => {
     // The actual generateEventDisease may return null randomly — but we can
     // at least verify it doesn't crash on health=0 and doesn't silently
@@ -96,7 +96,7 @@ describe('Disease generator — BUGFIX #32', () => {
 // ---------------------------------------------------------------------------
 // Personal crises — BUGFIX #33
 // ---------------------------------------------------------------------------
-describe('Personal crises medical risk — BUGFIX #33', () => {
+describe('Personal crises medical risk - BUGFIX #33', () => {
   // We exercise the medical_emergency event indirectly by importing the
   // module and calling its weight/generate functions through the registry.
   // eslint-disable-next-line @typescript-eslint/no-require-imports

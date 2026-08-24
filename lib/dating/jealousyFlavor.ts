@@ -32,7 +32,7 @@ const FLAVOR: Record<TriggerType, JealousyFlavor> = {
   },
   multiple_dating: {
     title: 'Are you dating around?',
-    accusation: '"Be honest with me — am I the only one you\'re seeing right now?"',
+    accusation: '"Be honest with me - am I the only one you\'re seeing right now?"',
   },
   flirty_dm: {
     title: 'They read your DMs',
@@ -66,7 +66,7 @@ const ACCUSATIONS: Record<TriggerType, AccusationVariants> = {
   spotted_swiping: {
     mild: [
       '"A friend swears they saw you on Spark last night. Are you seeing other people?"',
-      '"Someone showed me your profile — still active. Want to explain that to {partner}?"',
+      '"Someone showed me your profile - still active. Want to explain that to {partner}?"',
       '"I didn\'t want to believe it, but they saw you swiping. Is it true?"',
     ],
     severe: [
@@ -84,12 +84,12 @@ const ACCUSATIONS: Record<TriggerType, AccusationVariants> = {
     severe: [
       '"Everyone but {partner} seems to know what you\'ve been doing. Am I a fool for trusting you?"',
       '"The whole friend group is whispering. Were you ever going to tell me?"',
-      '"I\'m done hearing it secondhand. Is there someone else — yes or no?"',
+      '"I\'m done hearing it secondhand. Is there someone else - yes or no?"',
     ],
   },
   multiple_dating: {
     mild: [
-      '"Be honest with me — am I the only one you\'re seeing right now?"',
+      '"Be honest with me - am I the only one you\'re seeing right now?"',
       '"I need to hear it from you. Is there someone else in the picture?"',
       '"Is {partner} the only person on your mind, or not?"',
     ],
@@ -106,7 +106,7 @@ const ACCUSATIONS: Record<TriggerType, AccusationVariants> = {
       '"I read the thread. Friends don\'t talk like that. What\'s going on?"',
     ],
     severe: [
-      '"I read every word. Is this who you are now — someone who lies to {partner}\'s face?"',
+      '"I read every word. Is this who you are now - someone who lies to {partner}\'s face?"',
       '"Don\'t play dumb. Those messages were an affair in slow motion."',
       '"I know what I saw. Do not gaslight me about those DMs."',
     ],
@@ -167,7 +167,7 @@ export function getJealousyChoices(severity: number): JealousyChoice[] {
     choices.push({
       outcome: 'caught_cheating',
       label: 'Confess the affair',
-      hint: 'Devastating — may end things',
+      hint: 'Devastating - may end things',
       tone: 'destructive',
     });
   }

@@ -645,7 +645,7 @@ export const initialGameState: GameState = {
     {
       id: 'escape_attempt',
       name: 'Escape Attempt',
-      description: 'Try to break out of prison. High risk — failure extends your sentence.',
+      description: 'Try to break out of prison. High risk - failure extends your sentence.',
       energyCost: 30,
       successRate: 0.2,
       sentenceReduction: 99,
@@ -703,7 +703,7 @@ export const initialGameState: GameState = {
       happinessGain: -5,
       criminalXpGain: 20,
       failurePenalty: 15,
-      risk: 'Rejected by the gang — you lose respect and face consequences.',
+      risk: 'Rejected by the gang - you lose respect and face consequences.',
     },
     {
       id: 'prison_cooking',

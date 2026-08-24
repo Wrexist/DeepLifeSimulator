@@ -130,7 +130,7 @@ const vehicle = (id: string, name: string): Vehicle => ({
 
 /**
  * A state rich enough that every converted template has something to pick FROM
- * — several friends, children, pets, vehicles and enacted policies. A one-item
+ * - several friends, children, pets, vehicles and enacted policies. A one-item
  * list would make a "picks the same one twice" assertion vacuous.
  */
 function richState(weeksLived: number): GameState {
@@ -170,7 +170,7 @@ function richState(weeksLived: number): GameState {
 
 // ── 1. Same state → identical payload ──────────────────────────────────────
 
-describe('event payloads — deterministic in (week, event, salt)', () => {
+describe('event payloads - deterministic in (week, event, salt)', () => {
   it('generates a byte-identical event twice from the same state', () => {
     const state = richState(400);
     for (const id of CONVERTED_EVENT_IDS) {
@@ -201,7 +201,7 @@ describe('event payloads — deterministic in (week, event, salt)', () => {
 
 // ── 2. Different week → different payload ──────────────────────────────────
 
-describe('event payloads — the week is what varies them', () => {
+describe('event payloads - the week is what varies them', () => {
   /**
    * Each entry pulls the varying part out of the generated event. Asserting on
    * the whole JSON would let a template pass by varying only its description
@@ -231,8 +231,8 @@ describe('event payloads — the week is what varies them', () => {
     it(`${id}: the payload moves across weeks`, () => {
       const seen = new Set<string>();
       for (let week = 100; week < 160; week++) seen.add(extract(richState(week)));
-      // Two distinct outcomes is the real bar — a coin-flip payload only has
-      // two — and it is what proves the roll is not pinned to a constant.
+      // Two distinct outcomes is the real bar - a coin-flip payload only has
+      // two - and it is what proves the roll is not pinned to a constant.
       expect(seen.size).toBeGreaterThanOrEqual(2);
     });
   }
@@ -240,7 +240,7 @@ describe('event payloads — the week is what varies them', () => {
   it('investment_tip: the big and small bets are INDEPENDENT decisions', () => {
     // Both signs came from separate `Math.random()` calls before; both now come
     // from separate salts. Sharing one salt would make the two bets always agree
-    // — deterministic, but a different (and worse) game.
+    // - deterministic, but a different (and worse) game.
     let disagreements = 0;
     for (let week = 100; week < 200; week++) {
       const ev = templateById('investment_tip').generate(richState(week));
@@ -263,7 +263,7 @@ describe('event payloads — the week is what varies them', () => {
 
 // ── 3. End-to-end through rollWeeklyEvents ─────────────────────────────────
 
-describe('rollWeeklyEvents — repeated calls agree on the payload', () => {
+describe('rollWeeklyEvents - repeated calls agree on the payload', () => {
   /**
    * The tick's own selection roll was already seeded (H7a / the Math.sin fix),
    * so re-running a week must now reproduce the payloads too.

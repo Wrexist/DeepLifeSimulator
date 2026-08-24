@@ -1,5 +1,5 @@
 /**
- * InfluenceMeter — tier progress pill (Novice → Celebrity).
+ * InfluenceMeter - tier progress pill (Novice → Celebrity).
  *
  * Renders the current tier name + a magenta-indigo gradient fill bar that
  * shows progress to the next tier. Animates the fill width on mount.

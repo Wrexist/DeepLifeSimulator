@@ -32,7 +32,7 @@ import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { Company, GameState } from '@/contexts/game/types';
 
-describe('C-2 — the brand curve', () => {
+describe('C-2 - the brand curve', () => {
   it('an untouched business is EXACTLY neutral', () => {
     // createFamilyBusiness seeds brandValue: 0. Nothing may move for a save
     // that has never bought marketing.
@@ -64,7 +64,7 @@ describe('C-2 — the brand curve', () => {
   });
 });
 
-describe('C-2 — the reputation curve', () => {
+describe('C-2 - the reputation curve', () => {
   it('the SEEDED reputation of 50 is exactly neutral', () => {
     expect(familyReputationScandalMultiplier(50)).toBe(1);
   });
@@ -75,8 +75,8 @@ describe('C-2 — the reputation curve', () => {
   });
 
   it('but reputation never buys immunity', () => {
-    // A multiplier at or near zero would delete the scandal system — and the
-    // whole resolution UI built for it — for anyone who invests.
+    // A multiplier at or near zero would delete the scandal system - and the
+    // whole resolution UI built for it - for anyone who invests.
     expect(familyReputationScandalMultiplier(100)).toBeGreaterThan(0.5);
   });
 
@@ -92,7 +92,7 @@ describe('C-2 — the reputation curve', () => {
   });
 });
 
-describe('C-2 — brand reaches the weekly income', () => {
+describe('C-2 - brand reaches the weekly income', () => {
   function withCompany(brandValue: number | null): GameState {
     const base = createTestGameState();
     return createTestGameState({
@@ -142,7 +142,7 @@ describe('C-2 — brand reaches the weekly income', () => {
   });
 });
 
-describe('C-2 — reputation reaches the scandal roll', () => {
+describe('C-2 - reputation reaches the scandal roll', () => {
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const read = (rel: string) =>
@@ -166,7 +166,7 @@ describe('C-2 — reputation reaches the scandal roll', () => {
   });
 });
 
-describe('C-2 — the lookup helper', () => {
+describe('C-2 - the lookup helper', () => {
   const rows = [{ companyId: 'a', brandValue: 10, reputation: 60 }];
 
   it('finds a family business by company id', () => {

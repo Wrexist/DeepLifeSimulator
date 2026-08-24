@@ -134,8 +134,8 @@ const CLUE_REWARD_CASH: Record<ClueType, number> = {
 };
 
 // Clue templates by type. Every clue references a mechanic that actually exists
-// in this week-based sim — no intraday stock timing, casino, or calendar-day
-// drops — so acting on a tip always leads somewhere real.
+// in this week-based sim - no intraday stock timing, casino, or calendar-day
+// drops - so acting on a tip always leads somewhere real.
 const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: string; action: string }[]> = {
  money: [
  {
@@ -149,19 +149,19 @@ const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: 
  reward: "Weekly rental income",
  action: "Buy a rental in the Real Estate app"},
  {
- message:"Park spare cash in a Bank savings account — the interest compounds every week while you get on with your life.",
+ message:"Park spare cash in a Bank savings account - the interest compounds every week while you get on with your life.",
  hint: "Savings interest compounds weekly",
  reward: "Compounding interest",
  action: "Deposit savings in the Bank app"},
  {
- message:"Want real leverage? Finish the Entrepreneurship course, then found your own company — it turns your skills into weekly revenue.",
+ message:"Want real leverage? Finish the Entrepreneurship course, then found your own company - it turns your skills into weekly revenue.",
  hint: "Companies pay weekly revenue",
  reward: "Business income",
  action: "Study Entrepreneurship, then found a company"},
  ],
  career: [
  {
- message:"Promotions aren't luck. Keep working your job each week and your promotion progress fills — the next level is just persistence.",
+ message:"Promotions aren't luck. Keep working your job each week and your promotion progress fills - the next level is just persistence.",
  hint: "Work fills promotion progress",
  reward: "A higher salary",
  action: "Work your job in the Work tab"},
@@ -188,7 +188,7 @@ const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: 
  reward: "Happiness from new places",
  action: "Book a trip in the Travel app"},
  {
- message:"Feeling burnt out? A change of scenery is a real stat boost — don't let your passport gather dust.",
+ message:"Feeling burnt out? A change of scenery is a real stat boost - don't let your passport gather dust.",
  hint: "New destinations lift your stats",
  reward: "+Happiness",
  action: "Travel somewhere new in the Travel app"},
@@ -227,7 +227,7 @@ const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: 
  reward: "Asset value",
  action: "Buy a vehicle you can afford"},
  {
- message:"A pet is more than company — caring for one lifts your happiness every week. Adopt when you're ready.",
+ message:"A pet is more than company - caring for one lifts your happiness every week. Adopt when you're ready.",
  hint: "Pets boost happiness weekly",
  reward: "Weekly happiness",
  action: "Adopt a pet in the Pet app"},
@@ -256,7 +256,7 @@ const CLUE_TEMPLATES: Record<ClueType, { message: string; hint: string; reward: 
  reward: "Bragging rights",
  action: "Grow your net worth early"},
  {
- message:"Try to visit every country in a single lifetime. Few manage it — and the journey itself keeps your happiness high.",
+ message:"Try to visit every country in a single lifetime. Few manage it - and the journey itself keeps your happiness high.",
  hint: "A world-traveler goal",
  reward: "Happiness along the way",
  action: "Keep exploring the Travel app"},
@@ -291,8 +291,8 @@ export default function DMSystem({ onBack }: DMSystemProps) {
 
  // Initialize conversations from game state.
  // The inbox is generated ONCE, persisted, and read back from game state on
- // every later mount. We only ever TOP UP (append) when there are too few —
- // never regenerate or replace — so senders/badges stay stable.
+ // every later mount. We only ever TOP UP (append) when there are too few -
+ // never regenerate or replace - so senders/badges stay stable.
  useEffect(() => {
  const savedConversations = gameState.dmConversations || [];
  const savedRevealedClues = gameState.revealedDMClues || [];
@@ -319,7 +319,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  }, [gameState.dmConversations]);
 
  // Generate new mysterious conversations. Ids are derived from the sender
- // handle so they are STABLE across remounts — this keeps persisted clue-reveal
+ // handle so they are STABLE across remounts - this keeps persisted clue-reveal
  // flags and message threads matched to their conversation. `existing` is the
  // set we exclude (and never discard) so top-ups append rather than replace.
  const generateNewConversations = useCallback((count: number, existing: DMConversation[]): DMConversation[] => {
@@ -432,7 +432,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  setRevealedClues(prev => (prev.includes(clueId) ? prev: [...prev, clueId]));
 
  // Gate and grant in ONE updater, keyed on the PERSISTED flag. It used to be
- // two dispatches — a flag write, then a separate updateMoney — so the gate
+ // two dispatches - a flag write, then a separate updateMoney - so the gate
  // was component state while the payout was its own transaction, and the
  // money could land twice for one reveal. Now the persisted list is both the
  // gate and the record, re-checked against `prev` inside the updater, and the
@@ -463,7 +463,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  });
  setShowClueModal(true);
 
- // Update message as revealed — locally AND in the persisted thread so the
+ // Update message as revealed - locally AND in the persisted thread so the
  // "Clue Revealed" state sticks after the DM is closed and reopened.
  setMessages(prev => prev.map(m =>
  m.id === message.id ? {...m, clueRevealed: true }: m
@@ -485,7 +485,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  }, [selectedConversation, revealedClues, setGameState, saveGame]);
 
  // Persist a message into a conversation's stored thread (game state) so the
- // full exchange is durable — this is what stops sent replies from vanishing.
+ // full exchange is durable - this is what stops sent replies from vanishing.
  const persistMessageToConversation = useCallback((conversationId: string, message: DMMessage) => {
  setConversations(prev => prev.map(c =>
  c.id === conversationId ? {...c, messages: [...(c.messages || []), message] }: c

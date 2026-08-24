@@ -179,7 +179,7 @@ describe('a throwing education record does not cost the player the week', () => 
     expect(Number.isFinite(captured!.state.stats.money)).toBe(true);
   });
 
-  it('the education is left exactly as it was — skipped, not half-applied', async () => {
+  it('the education is left exactly as it was - skipped, not half-applied', async () => {
     mounted = mountGame();
     await installState(
       createTestGameState({

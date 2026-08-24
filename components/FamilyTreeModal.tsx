@@ -64,7 +64,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
       >
         <View style={styles.avatarContainer}>
           {/* A dead ancestor is drawn at the age they died; the living at a
-              default adult age. One component either way — the branch is only
+              default adult age. One component either way - the branch is only
               about which age to pass. */}
           <CharacterAvatar
             seed={member.id}

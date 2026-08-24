@@ -313,7 +313,7 @@ export const AIRCRAFT_TEMPLATES: VehicleTemplate[] = [
     maxSpeed: 160,
     fuelEfficiency: 4,
     fuelCapacity: 110,
-    description: 'A light twin. Lands where roads do not go — if you have a pad for it.',
+    description: 'A light twin. Lands where roads do not go - if you have a pad for it.',
   },
   {
     id: 'light_jet',

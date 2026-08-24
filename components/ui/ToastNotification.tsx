@@ -34,7 +34,7 @@ interface ToastNotificationProps {
   hapticEnabled?: boolean;
   action?: { label: string; onPress: () => void };
   persistent?: boolean;
-  /** Index in the visible stack — offsets each toast so they don't overlap. */
+  /** Index in the visible stack - offsets each toast so they don't overlap. */
   stackIndex?: number;
 }
 
@@ -57,8 +57,8 @@ export default function ToastNotification({
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
 
-  // The toast paints its OWN surface — a saturated accent gradient with white
-  // content on top — so it reads identically in light and dark mode and takes
+  // The toast paints its OWN surface - a saturated accent gradient with white
+  // content on top - so it reads identically in light and dark mode and takes
   // no `darkMode` dependency. The second stop of each gradient is the darker
   // shade of the same hue; the theme has no token for those, so they stay as
   // literals here rather than inventing one.
@@ -102,7 +102,7 @@ export default function ToastNotification({
   const IconComponent = typeStyles.icon;
 
   const dismiss = useCallback(() => {
-    // Reduced motion: fade out in place — no slide/scale movement.
+    // Reduced motion: fade out in place - no slide/scale movement.
     if (reducedMotion) {
       Animated.timing(opacityAnim, {
         toValue: 0,
@@ -139,7 +139,7 @@ export default function ToastNotification({
   useEffect(() => {
     // Animate in
     if (reducedMotion) {
-      // Reduced motion: opacity only — snap slide/scale to their settled values
+      // Reduced motion: opacity only - snap slide/scale to their settled values
       // so the toast appears in place without sliding or scaling.
       slideAnim.setValue(0);
       scaleAnim.setValue(1);
@@ -165,7 +165,7 @@ export default function ToastNotification({
           toValue: 1,
           duration: 200,
           useNativeDriver: true,
-          // Ease-out settle instead of elastic overshoot — a utility surface
+          // Ease-out settle instead of elastic overshoot - a utility surface
           // shouldn't bounce.
           easing: Easing.out(Easing.cubic),
         }),
@@ -188,7 +188,7 @@ export default function ToastNotification({
     dismiss();
   };
 
-  // Nothing to say — an empty toast renders as a bare icon-only pill.
+  // Nothing to say - an empty toast renders as a bare icon-only pill.
   // (After the hooks so hook order stays stable.)
   if (!message?.trim()) return null;
 
@@ -199,7 +199,7 @@ export default function ToastNotification({
       // notch instead of overlapping the clock and battery (the old flat 50px
       // landed right in the notch on modern phones). stackIndex offsets each
       // toast so multiple don't pile on top of each other.
-      // The stack step tracks the toast HEIGHT — it was 72 for a toast whose
+      // The stack step tracks the toast HEIGHT - it was 72 for a toast whose
       // padding, icon and font were each a step larger. Left at 72 the denser
       // toasts would sit in a column with a visible gap between them.
       top: position === 'top' ? insets.top + scale(8) + stackIndex * scale(TOAST_STACK_STEP) : undefined,
@@ -234,7 +234,12 @@ export default function ToastNotification({
           </View>
           <Text
             style={styles.message}
-            numberOfLines={2}
+            // 3, not 2: game copy regularly runs to two full lines, and a
+            // 2-line clamp cut mid-sentence with an ellipsis (the satiety
+            // toast screenshot, 2026-08-24). Three lines fits every current
+            // message; the clamp stays so a runaway string cannot fill the
+            // screen.
+            numberOfLines={3}
             accessibilityLabel={message}
           >
             {message}
@@ -284,8 +289,8 @@ const TOAST_STACK_STEP = 56;
  * A toast is a glance, not a paragraph.
  *
  * Everything here is one step down from where it was: the surface used to be a
- * `md`-padded card with `base` type and a 12pt radius, which — with two lines
- * of text — was a ~90pt block covering the bottom of the screen for three
+ * `md`-padded card with `base` type and a 12pt radius, which - with two lines
+ * of text - was a ~90pt block covering the bottom of the screen for three
  * seconds. The information is unchanged; the furniture around it is not.
  */
 const styles = StyleSheet.create({
@@ -313,8 +318,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: responsiveFontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
-    fontWeight: typography.weight.medium,
-    // 1.4x the font size — kept as a ratio so it tracks the scaled font size.
+    // Bold, matching the card typography the rest of the HUD uses ('700'
+    // everywhere on home) - toasts read thin at medium next to them.
+    fontWeight: typography.weight.bold,
+    // 1.4x the font size - kept as a ratio so it tracks the scaled font size.
     lineHeight: Math.round(responsiveFontSize.sm * 1.4),
   },
   actionButton: {

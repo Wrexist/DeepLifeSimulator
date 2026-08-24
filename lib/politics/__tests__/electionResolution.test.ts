@@ -26,7 +26,7 @@ const tickInput = (politics: PoliticsState, currentWeek: number, roll: number) =
   politics, currentWeek, rollFor: (_: string) => roll,
 });
 
-describe('runPoliticsWeeklyTick — re-election', () => {
+describe('runPoliticsWeeklyTick - re-election', () => {
   it('does nothing before the term ends', () => {
     const r = runPoliticsWeeklyTick(tickInput(basePolitics({ nextElectionWeek: 100 }), 40, 0.99));
     expect(r.lostOffice).toBe(false);
@@ -53,14 +53,14 @@ describe('runPoliticsWeeklyTick — re-election', () => {
     expect(r.notifications.some(n => /Voted Out/i.test(n.title))).toBe(true);
   });
 
-  it('a citizen (careerLevel 0) gets a quiet tick — no election', () => {
+  it('a citizen (careerLevel 0) gets a quiet tick - no election', () => {
     const r = runPoliticsWeeklyTick(tickInput(basePolitics({ careerLevel: 0, nextElectionWeek: 10 }), 52, 0.01));
     expect(r.lostOffice).toBe(false);
     expect(r.politics.careerLevel).toBe(0);
   });
 });
 
-describe('runForOffice — office rank semantics', () => {
+describe('runForOffice - office rank semantics', () => {
   function makeState(): GameState {
     return createTestGameState({
       weeksLived: 200,

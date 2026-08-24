@@ -155,8 +155,8 @@ describe('the floor is passed at every quote site', () => {
    * DISCOVERED, not enumerated.
    *
    * The first version of this test hardcoded the two files the fix had touched,
-   * so it passed while `VehicleActions.ts` and `EducationActions.ts` — both of
-   * which call `politicsAprReduction` and neither of which floored the result —
+   * so it passed while `VehicleActions.ts` and `EducationActions.ts` - both of
+   * which call `politicsAprReduction` and neither of which floored the result -
    * financed at the 2.5% hard minimum against a 5.5% CD. A completeness check
    * that lists its own subjects proves nothing about completeness.
    */
@@ -195,14 +195,14 @@ describe('the floor is passed at every quote site', () => {
     expect(floors).toBe(reductions);
   });
 
-  it('refinance applies the floor too — it recomputes APR without quoteLoan', () => {
+  it('refinance applies the floor too - it recomputes APR without quoteLoan', () => {
     const source = read('contexts/game/actions/LoanActions.ts');
     expect(source).toMatch(/const floor = politicsReduction > 0 \? POLITICS_LOAN_APR_FLOOR : 0\.025;/);
     expect(source).toMatch(/newAPR = Math\.max\(\s*floor,/);
   });
 });
 
-describe('R4 — the floor reaches the vehicle and education quote sites', () => {
+describe('R4 - the floor reaches the vehicle and education quote sites', () => {
   /** `atOffice` leaves the starting cash, which is under the down payment. */
   const funded = (level: number): GameState => {
     const s = atOffice(level);
@@ -247,7 +247,7 @@ describe('R4 — the floor reaches the vehicle and education quote sites', () =>
     );
 
     const loan = (state.loans ?? []).find((l) => l.name.startsWith('Student Loan'));
-    if (!loan) throw new Error('enrollInProgram created no student loan — nothing to assert on');
+    if (!loan) throw new Error('enrollInProgram created no student loan - nothing to assert on');
     expect(loan.rateAPR).toBeGreaterThanOrEqual(POLITICS_LOAN_APR_FLOOR);
     expect(loan.rateAPR).toBeGreaterThan(SAVINGS_APR_HARD_CAP);
   });

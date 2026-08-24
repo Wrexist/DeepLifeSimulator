@@ -78,7 +78,7 @@ describe('eligibility', () => {
   });
 });
 
-describe('determinism — a reload cannot reroll a birth', () => {
+describe('determinism - a reload cannot reroll a birth', () => {
   it('the same child on the same week always gives the same answer', () => {
     const c = child();
     for (const week of [100, 137, 512, 900]) {
@@ -143,7 +143,7 @@ describe('births', () => {
   });
 
   it('returns the SAME object when nothing happened, so the tick does not churn', () => {
-    const c = child({ age: 10 }); // too young — can never give birth
+    const c = child({ age: 10 }); // too young - can never give birth
     expect(applyGrandchildWeek(c, 500)).toBe(c);
   });
 });
@@ -173,7 +173,7 @@ describe('the weekly tick wiring', () => {
     expect(after.age).toBeGreaterThan(30);
   });
 
-  it('rolls no birth when no clock is supplied — every legacy caller is safe', () => {
+  it('rolls no birth when no clock is supplied - every legacy caller is safe', () => {
     // The optional parameter is what let this land without touching existing
     // callers or their tests.
     const week = firstBirthWeek(child({ age: 30 }))!;

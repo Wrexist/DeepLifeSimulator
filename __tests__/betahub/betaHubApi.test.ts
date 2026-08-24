@@ -62,7 +62,7 @@ describe('Beta Hub API contract', () => {
   });
 });
 
-describe('Beta Hub API — security posture', () => {
+describe('Beta Hub API - security posture', () => {
   it('enables row-level security on every table it creates', () => {
     const created = (SCHEMA.match(/create table if not exists public\.(beta_[a-z_]+)/g) ?? [])
       .map((line) => line.replace(/.*public\./, ''));
@@ -118,10 +118,10 @@ describe('Beta Hub API — security posture', () => {
   });
 });
 
-describe('Beta Hub API — no fake engagement', () => {
+describe('Beta Hub API - no fake engagement', () => {
   it('reads nothing from Google Play and claims nothing about it', () => {
     // Every funnel flag is the tester's own confirmation. Nothing here polls,
-    // scrapes or infers Play Store state — the whole system would be
+    // scrapes or infers Play Store state - the whole system would be
     // untrustworthy the moment it pretended otherwise.
     [SERVER, CLIENT, ADMIN].forEach((source) => {
       expect(/googleapis|androidpublisher|play\.google\.com\/apps\/testing\/api/i.test(source))
@@ -145,7 +145,7 @@ describe('Beta Hub API — no fake engagement', () => {
   });
 });
 
-describe('Beta Hub client — degrades instead of breaking', () => {
+describe('Beta Hub client - degrades instead of breaking', () => {
   it('guards every storage access against a browser that throws', () => {
     // Private-mode Safari and locked-down Android browsers throw on
     // localStorage rather than returning null.

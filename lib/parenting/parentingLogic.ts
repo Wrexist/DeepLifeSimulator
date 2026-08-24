@@ -232,8 +232,8 @@ export function describeRejectReason(
           ? Math.max(1, ctx.cooldownUntilWeek - ctx.weeksLived)
           : null;
       return wait != null
-        ? `You did this recently — try again in ${wait} week${wait === 1 ? '' : 's'}.`
-        : 'You did this recently — give it some time.';
+        ? `You did this recently - try again in ${wait} week${wait === 1 ? '' : 's'}.`
+        : 'You did this recently - give it some time.';
     }
     case 'weekly-cap':
       return 'You have spent enough quality time this week. Try again next week.';

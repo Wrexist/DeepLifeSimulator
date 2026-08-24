@@ -105,7 +105,7 @@ export function canFoundAnother(
 }
 
 /**
- * Display name for the nth company of a type — "My Bank", then "My Bank II".
+ * Display name for the nth company of a type - "My Bank", then "My Bank II".
  * Roman numerals stop at III because MAX_PER_COMPANY_TYPE is 3.
  */
 export function subsidiaryName(baseName: string, ownedOfType: number): string {

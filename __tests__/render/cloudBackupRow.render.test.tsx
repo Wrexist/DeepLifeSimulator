@@ -40,7 +40,7 @@ const CLOUD_ENV = {
   EXPO_PUBLIC_CLOUD_AUTH_TOKEN: 'test-token',
 };
 
-describe('render — Settings cloud backup row', () => {
+describe('render - Settings cloud backup row', () => {
   it('renders nothing while the cloudSave flag is off', () => {
     // `json` is the serialized PROVIDER tree, so it is never empty — what must
     // be absent is anything this row would draw.

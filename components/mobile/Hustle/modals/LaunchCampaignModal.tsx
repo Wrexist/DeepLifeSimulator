@@ -1,5 +1,5 @@
 /**
- * LaunchCampaignModal — pick campaign kind + spend + duration.
+ * LaunchCampaignModal - pick campaign kind + spend + duration.
  *
  * Five campaign kinds with different ROI / brand-lift / cost-floor profiles.
  * Live ROI preview updates as the player edits spend.
@@ -52,7 +52,7 @@ export default function LaunchCampaignModal({ visible, companyId, onDismiss }: L
     ? projectCampaignROI(selectedKind, spendNum, company?.weeklyIncome ?? 0)
     : 0;
   const floor = selectedKind ? campaignCostFloor(selectedKind) : 0;
-  // Energy gates alongside cash (2026-08-24) — the disabled button and the
+  // Energy gates alongside cash (2026-08-24) - the disabled button and the
   // action's own refusal must agree on both.
   const canLaunch =
     selectedKind != null &&

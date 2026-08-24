@@ -64,7 +64,7 @@ const SURVIVING_WEEKS = [101, 105, 107, 109];
 const FIRED_WEEKS = [100, 110, 122, 139, 140];
 
 describe('company_layoffs resolves to ONE consistent outcome', () => {
-  it('never calls Math.random — the outcome comes from the save, not the render', () => {
+  it('never calls Math.random - the outcome comes from the save, not the render', () => {
     const spy = jest.spyOn(Math, 'random');
     try {
       for (let week = 100; week < 140; week++) stayCalmChoice(employedState(week));
@@ -108,7 +108,7 @@ describe('company_layoffs resolves to ONE consistent outcome', () => {
     expect(outcomes.size).toBe(2);
   });
 
-  it('the roll still matters — performance shifts the outcome on a fixed week', () => {
+  it('the roll still matters - performance shifts the outcome on a fixed week', () => {
     // A week in the 0.6–0.85 band: fired at the mid performance band
     // (surviveChance 0.6), survives as a high performer (0.85). Same week, so
     // only the band moved — proof the seeding did not pin the result.

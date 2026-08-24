@@ -1,20 +1,20 @@
 /**
- * GamingApp (YouVideo) — YouTube DNA pass (Remake 13).
+ * GamingApp (YouVideo) - YouTube DNA pass (Remake 13).
  *
  * Was "eyebrow hero + uniform rows". Now reads like a creator channel:
- *   • Channel tab   — YouTube channel header (avatar + subs · videos · watch-time),
+ *   • Channel tab   - YouTube channel header (avatar + subs · videos · watch-time),
  *                     a big FEATURED thumbnail, monetization + analytics grids,
  *                     recent-video thumbnail rows.
- *   • Record tab    — an upload composer with a live thumbnail PREVIEW, projected
+ *   • Record tab    - an upload composer with a live thumbnail PREVIEW, projected
  *                     reach, weekly-upload meter and energy readout.
- *   • Videos tab    — thumbnail-led video cards (Games art) with sort chips; each
+ *   • Videos tab    - thumbnail-led video cards (Games art) with sort chips; each
  *                     card opens a video DETAIL sub-page (list → detail routing).
- *   • Studio tab    — a gear score ring + an owned/next-tier upgrade GRID using
+ *   • Studio tab    - a gear score ring + an owned/next-tier upgrade GRID using
  *                     the YouVideo/Upgrades art.
  *
  * Still Slate Glass: gradients via the SVG-backed `Gradient`, elevation via
  * getGlass* / getPlatformShadows, no expo-blur, no raw boxShadow, no `as any`.
- * ZERO REMOVAL — every prior action/stat is re-homed and still reachable.
+ * ZERO REMOVAL - every prior action/stat is re-homed and still reachable.
  *
  * Tabs: Channel / Record / Videos / Studio
  */
@@ -138,7 +138,7 @@ const PC_LABELS: Record<keyof GamingStreamingState['pcUpgradeLevels'], string> =
   network: 'Network',
 };
 
-// Gear icons — always crisp + correct even where a photo stand-in is used.
+// Gear icons - always crisp + correct even where a photo stand-in is used.
 const ACCESSORY_ICON: Record<keyof GamingStreamingState['equipment'], IconType> = {
   microphone: Mic,
   webcam: Camera,
@@ -159,7 +159,7 @@ const PC_ICON: Record<keyof GamingStreamingState['pcUpgradeLevels'], IconType> =
 };
 
 // Real gear art (require needs static literals). Keys without a clean photo
-// fall through to a tinted icon panel — no misleading stand-ins.
+// fall through to a tinted icon panel - no misleading stand-ins.
 const ACCESSORY_ART: Partial<Record<keyof GamingStreamingState['equipment'], ImageSourcePropType>> = {
   microphone: require('@/assets/images/YouVideo/Upgrades/microphone.webp'),
   webcam: require('@/assets/images/YouVideo/Upgrades/webcam.webp'),
@@ -176,7 +176,7 @@ const PC_ART: Partial<Record<keyof GamingStreamingState['pcUpgradeLevels'], Imag
   network: require('@/assets/images/YouVideo/Upgrades/seo.webp'),
 };
 
-// Thumbnail art pool — matched by keyword, else a stable per-video hash so each
+// Thumbnail art pool - matched by keyword, else a stable per-video hash so each
 // video keeps ONE consistent cover (presentational, like an avatar color).
 const GAME_THUMBS: { keys: string[]; src: ImageSourcePropType; label: string }[] = [
   { keys: ['fortnite'], src: require('@/assets/images/Games/Fortnite.webp'), label: 'Fortnite' },
@@ -258,7 +258,7 @@ export default function GamingApp({ onBack }: Props) {
   const money = gameState.stats?.money ?? 0;
   const energy = gameState.stats?.energy ?? 0;
 
-  // Previously-hidden channel aggregates — now surfaced.
+  // Previously-hidden channel aggregates - now surfaced.
   const subscribers = channel?.subscribers ?? 0;
   const totalViews = channel?.totalViews ?? 0;
   const followers = channel?.followers ?? 0;
@@ -296,7 +296,7 @@ export default function GamingApp({ onBack }: Props) {
     () => trendBonusForTopic(selectedGame, week, GAME_OPTIONS),
     [selectedGame, week]
   );
-  // Neutral (organic 1.0×, non-viral) baseline — the CENTRE of the estimate.
+  // Neutral (organic 1.0×, non-viral) baseline - the CENTRE of the estimate.
   const projected = useMemo(
     () => projectVideoOutcome({ quality, subscribers, rollViral: 1, trendBonus: selectedTrendBonus }),
     [quality, subscribers, selectedTrendBonus]
@@ -394,7 +394,7 @@ export default function GamingApp({ onBack }: Props) {
   // ── Channel tab (YouTube channel page) ─────────────────────────────────────
   const renderChannel = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {/* Recipe B hero — the channel header. */}
+      {/* Recipe B hero - the channel header. */}
       <View
         style={[
           getGlassCard(darkMode, 12),
@@ -453,7 +453,7 @@ export default function GamingApp({ onBack }: Props) {
             </View>
           </View>
 
-          {/* Gear/quality bar — re-homed unchanged. */}
+          {/* Gear/quality bar - re-homed unchanged. */}
           <View style={[styles.qualityBar, { backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.08)' : theme.surfaceElevated }]}>
             <View style={[styles.qualityFill, { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) }]} />
           </View>
@@ -463,7 +463,7 @@ export default function GamingApp({ onBack }: Props) {
         </View>
       </View>
 
-      {/* Featured video — the big YouTube cover slot. */}
+      {/* Featured video - the big YouTube cover slot. */}
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Featured</Text>
         <QuietChip label="All videos" Icon={ChevronRight} onPress={() => goTab('videos')} />
@@ -499,7 +499,7 @@ export default function GamingApp({ onBack }: Props) {
         </TouchableOpacity>
       )}
 
-      {/* Monetization — KEEP RPM / Members / Total, densified with more rates. */}
+      {/* Monetization - KEEP RPM / Members / Total, densified with more rates. */}
       <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Monetization</Text>
         <View style={styles.statsRow}>
@@ -512,7 +512,7 @@ export default function GamingApp({ onBack }: Props) {
         </View>
       </View>
 
-      {/* Channel analytics — previously-hidden aggregates. */}
+      {/* Channel analytics - previously-hidden aggregates. */}
       <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Channel analytics</Text>
         <View style={styles.aGrid}>
@@ -525,7 +525,7 @@ export default function GamingApp({ onBack }: Props) {
         </View>
       </View>
 
-      {/* Recent videos — KEEP (up to 5), now thumbnail rows → detail. */}
+      {/* Recent videos - KEEP (up to 5), now thumbnail rows → detail. */}
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent videos</Text>
         {videos.length > 0 ? (
@@ -535,7 +535,7 @@ export default function GamingApp({ onBack }: Props) {
       {videos.length === 0 ? (
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.emptySub, { color: theme.textMuted, textAlign: 'left' }]}>
-            No videos yet — record one in the Record tab.
+            No videos yet - record one in the Record tab.
           </Text>
         </View>
       ) : (
@@ -556,7 +556,7 @@ export default function GamingApp({ onBack }: Props) {
     const previewVideo: Video = { id: `preview_${selectedGame}`, title: title.trim() || 'Untitled video', game: selectedGame, views: projected.views, earnings: 0 };
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        {/* Recipe B hero — the composer. */}
+        {/* Recipe B hero - the composer. */}
         <View
           style={[
             getGlassCard(darkMode, 12),
@@ -579,7 +579,7 @@ export default function GamingApp({ onBack }: Props) {
               </View>
             </View>
 
-            {/* Thumbnail preview — updates live from title + topic. */}
+            {/* Thumbnail preview - updates live from title + topic. */}
             <VideoThumb v={previewVideo} style={styles.previewThumb} scrim showPlay overlayTitle badge="PREVIEW" />
 
             <TextInput
@@ -642,7 +642,7 @@ export default function GamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Projected performance — real algorithm baseline (non-viral). */}
+        {/* Projected performance - real algorithm baseline (non-viral). */}
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Projected reach</Text>
           <View style={styles.aGrid}>
@@ -651,11 +651,11 @@ export default function GamingApp({ onBack }: Props) {
             <AnalyticStat Icon={TrendingUp} label="At tier" value={quality.tier.toUpperCase()} valueColor={qualityColor(quality.tier)} theme={theme} darkMode={darkMode} />
           </View>
           <Text style={[styles.recordHint, { color: theme.textMuted }]}>
-            Recording costs 15 energy. Every upload performs a little differently — most land in this range, a lucky few go viral. Revenue scales with your {quality.tier.toUpperCase()} gear.
+            Recording costs 15 energy. Every upload performs a little differently - most land in this range, a lucky few go viral. Revenue scales with your {quality.tier.toUpperCase()} gear.
           </Text>
         </View>
 
-        {/* Weekly upload meter + energy — anti-exploit cap made visible. */}
+        {/* Weekly upload meter + energy - anti-exploit cap made visible. */}
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.meterHeadRow}>
             <Text style={[styles.meterLabel, { color: theme.textSecondary }]}>Uploads this week</Text>
@@ -691,7 +691,7 @@ export default function GamingApp({ onBack }: Props) {
         </View>
       ) : (
         <>
-          {/* Recipe B hero — catalog summary. */}
+          {/* Recipe B hero - catalog summary. */}
           <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
             <View style={[styles.heroInner, { gap: sp.md }]}>
               <View pointerEvents="none" style={styles.heroBlob} />
@@ -757,7 +757,7 @@ export default function GamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Full per-video readout — surfaces fields the list never showed. */}
+        {/* Full per-video readout - surfaces fields the list never showed. */}
         <View style={[getGlassCard(darkMode, 6), styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Performance</Text>
           <View style={styles.aGrid}>
@@ -784,7 +784,7 @@ export default function GamingApp({ onBack }: Props) {
   // ── Studio tab (gear grid) ─────────────────────────────────────────────────
   const renderStudio = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {/* Recipe B hero — gear score ring + breakdown. */}
+      {/* Recipe B hero - gear score ring + breakdown. */}
       <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
         <View style={[styles.heroInner, styles.studioHeroInner]}>
           <View pointerEvents="none" style={styles.heroBlob} />
@@ -847,7 +847,7 @@ export default function GamingApp({ onBack }: Props) {
       {/* PC components grid. */}
       <View style={[styles.sectionHeadGroup, { marginTop: sp.sm }]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>PC components</Text>
-        <Text style={[styles.sectionCaption, { color: theme.textMuted }]}>Upgrade tiers up to T{MAX_PC_TIER} — each tier adds gear score.</Text>
+        <Text style={[styles.sectionCaption, { color: theme.textMuted }]}>Upgrade tiers up to T{MAX_PC_TIER} - each tier adds gear score.</Text>
       </View>
       <View style={styles.gearGrid}>
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
   // Thumbnail primitive.
   thumbBase: { backgroundColor: '#0B1220', justifyContent: 'flex-end' },
   thumbImg: { borderRadius: 0 },
-  // (the flat `thumbScrim` band is gone — VideoThumb renders ImageScrim)
+  // (the flat `thumbScrim` band is gone - VideoThumb renders ImageScrim)
   thumbPlayWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   thumbPlayBtn: {
     width: scale(44), height: scale(44), borderRadius: scale(22),

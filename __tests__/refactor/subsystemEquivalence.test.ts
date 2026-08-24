@@ -183,7 +183,7 @@ const SEEDS: Record<FixtureName, number> = {
 
 const FIXTURE_NAMES = Object.keys(fixtures) as FixtureName[];
 
-describe('subsystem tick equivalence — runWeeklyBankingTick', () => {
+describe('subsystem tick equivalence - runWeeklyBankingTick', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     const currentWeek = (state.weeksLived ?? 0) + 1;
@@ -192,7 +192,7 @@ describe('subsystem tick equivalence — runWeeklyBankingTick', () => {
   });
 });
 
-describe('subsystem tick equivalence — runCryptoWeeklyTick', () => {
+describe('subsystem tick equivalence - runCryptoWeeklyTick', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     const currentWeek = (state.weeksLived ?? 0) + 1;
@@ -201,7 +201,7 @@ describe('subsystem tick equivalence — runCryptoWeeklyTick', () => {
   });
 });
 
-describe('subsystem tick equivalence — runDarkWebWeeklyTick', () => {
+describe('subsystem tick equivalence - runDarkWebWeeklyTick', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     const currentWeek = (state.weeksLived ?? 0) + 1;
@@ -210,7 +210,7 @@ describe('subsystem tick equivalence — runDarkWebWeeklyTick', () => {
   });
 });
 
-describe('subsystem tick equivalence — runPoliticsWeeklyTick', () => {
+describe('subsystem tick equivalence - runPoliticsWeeklyTick', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     const currentWeek = (state.weeksLived ?? 0) + 1;
@@ -219,7 +219,7 @@ describe('subsystem tick equivalence — runPoliticsWeeklyTick', () => {
   });
 });
 
-describe('subsystem tick equivalence — runRealEstateWeeklyTick', () => {
+describe('subsystem tick equivalence - runRealEstateWeeklyTick', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     const currentWeek = (state.weeksLived ?? 0) + 1;
@@ -233,7 +233,7 @@ describe('subsystem tick equivalence — runRealEstateWeeklyTick', () => {
 // GameActionsContext (swap inline code for the new module's exports)
 // produces zero diff.
 
-describe('pre-tick equivalence — calculateNetWorth', () => {
+describe('pre-tick equivalence - calculateNetWorth', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     const result = calculateNetWorth(state);
@@ -241,7 +241,7 @@ describe('pre-tick equivalence — calculateNetWorth', () => {
   });
 });
 
-describe('pre-tick equivalence — computeDecayInputs', () => {
+describe('pre-tick equivalence - computeDecayInputs', () => {
   it.each(FIXTURE_NAMES)('%s', (name) => {
     const state = fixtures[name];
     // Use the same base-rate the inline code uses (4) and a stable
@@ -260,7 +260,7 @@ describe('pre-tick equivalence — computeDecayInputs', () => {
 // rather than the fixture battery because initialGameState has no pets and
 // we want explicit coverage of each code path (healthy / hungry / sick /
 // dying / dead / elderly). Same seeded-roll philosophy as the rest of this file.
-describe('pre-tick equivalence — tickPetsForWeek', () => {
+describe('pre-tick equivalence - tickPetsForWeek', () => {
   const rollFor = deterministicRoll(7);
   const rolls = {
     petSickness: Array.from({ length: 20 }, (_, i) => rollFor(`pet-sick-${i}`)),
@@ -283,24 +283,24 @@ describe('pre-tick equivalence — tickPetsForWeek', () => {
     const pets = [
       // healthy dog, low hunger, high happiness/health
       { id: 'p1', name: 'Rex', type: 'dog', age: 50, hunger: 20, happiness: 80, health: 90 },
-      // hungry cat — triggers happiness decay (hunger > 60)
+      // hungry cat - triggers happiness decay (hunger > 60)
       { id: 'p2', name: 'Whiskers', type: 'cat', age: 100, hunger: 70, happiness: 60, health: 70 },
-      // starving fish — triggers both happiness AND health decay (hunger > 80)
+      // starving fish - triggers both happiness AND health decay (hunger > 80)
       { id: 'p3', name: 'Goldie', type: 'fish', age: 30, hunger: 85, happiness: 40, health: 60 },
-      // already sick bird — health decays
+      // already sick bird - health decays
       { id: 'p4', name: 'Tweety', type: 'bird', age: 80, hunger: 30, happiness: 50, health: 50, isSick: true, sickness: 'cold' },
-      // dying turtle — at zero health for 2 weeks; this tick crosses the 3-week threshold
+      // dying turtle - at zero health for 2 weeks; this tick crosses the 3-week threshold
       { id: 'p5', name: 'Slow', type: 'turtle', age: 200, hunger: 50, happiness: 50, health: 0, weeksAtZeroHealth: 2 },
-      // already-dead dog — should be returned unchanged
+      // already-dead dog - should be returned unchanged
       { id: 'p6', name: 'Ghost', type: 'dog', age: 1000, hunger: 0, happiness: 0, health: 0, isDead: true },
-      // elderly hamster — age far exceeds lifespan, triggers natural death
+      // elderly hamster - age far exceeds lifespan, triggers natural death
       { id: 'p7', name: 'Methuselah', type: 'hamster', age: 5000, hunger: 0, happiness: 100, health: 100 },
     ];
     expect(tickPetsForWeek(pets, rolls)).toMatchSnapshot();
   });
 });
 
-// R7 Phase 2 step 2.2c — pet side-effect helpers (death + living). Both
+// R7 Phase 2 step 2.2c - pet side-effect helpers (death + living). Both
 // mutate ctx; snapshots capture `{ newStats, notifications }` after the call.
 // `applyPetDeathSideEffects` also depends on the prev vs updated diff, so
 // test cases exercise the newly-dead-vs-already-dead distinction.
@@ -327,7 +327,7 @@ function petStubCtx(stats: GameStats): WeekContext {
   };
 }
 
-describe('pre-tick equivalence — applyPetDeathSideEffects', () => {
+describe('pre-tick equivalence - applyPetDeathSideEffects', () => {
   it('no-op when no pets', () => {
     const ctx = petStubCtx(petStubStats());
     applyPetDeathSideEffects([], [], ctx);
@@ -397,7 +397,7 @@ describe('pre-tick equivalence — applyPetDeathSideEffects', () => {
   });
 });
 
-describe('pre-tick equivalence — applyPetLivingSideEffects', () => {
+describe('pre-tick equivalence - applyPetLivingSideEffects', () => {
   it('no-op when no pets', () => {
     const ctx = petStubCtx(petStubStats());
     applyPetLivingSideEffects([], ctx);
@@ -457,7 +457,7 @@ describe('pre-tick equivalence — applyPetLivingSideEffects', () => {
   });
 });
 
-// R7 Phase 2 step 2.3 — diseases extracted via WeekContext + DiseaseTickResult.
+// R7 Phase 2 step 2.3 - diseases extracted via WeekContext + DiseaseTickResult.
 // Each test builds a fresh ctx with a known stats baseline and a single
 // disease scenario, then snapshots `{ result, newStats }`. The result
 // includes the post-tick disease state + the deathTriggered flag.
@@ -500,7 +500,7 @@ function emptyHistory(): DiseaseHistory {
   };
 }
 
-// R7 Phase 2 step 2.4b — auto-reinvest extracted. The helper calls
+// R7 Phase 2 step 2.4b - auto-reinvest extracted. The helper calls
 // `getStockInfo` and `getAllStocks` which read a module-level mutable
 // price cache. To make snapshots fully deterministic regardless of test
 // order, the stock module is mocked here with a fixed price set covering
@@ -516,7 +516,7 @@ jest.mock('@/lib/economy/stockMarket', () => {
   return {
     getStockInfo: (id: string) => fixedStocks[id?.toUpperCase() ?? ''] || { price: 0, dividendYield: 0 },
     getAllStocks: () => ({ ...fixedStocks }),
-    // Pass-through stubs for other exports — the real ones get used elsewhere.
+    // Pass-through stubs for other exports - the real ones get used elsewhere.
     simulateWeek: jest.fn(),
     getStockPricesSnapshot: jest.fn(() => ({})),
     restoreStockPrices: jest.fn(),
@@ -524,7 +524,7 @@ jest.mock('@/lib/economy/stockMarket', () => {
   };
 });
 
-// R7 Phase 2 step 2.5c-ii — per-education progression map. Mocks the
+// R7 Phase 2 step 2.5c-ii - per-education progression map. Mocks the
 // educationSystem module because `runExam` and `shouldTriggerCampusEvent`
 // use Math.random. Mock behavior is keyed off the education's `id` prefix:
 //   - id starting with `exam-`   → isExamWeek returns true
@@ -616,7 +616,7 @@ jest.mock('@/lib/timeMachine/checkpointSystem', () => ({
   addCheckpoint: jest.fn((existing, cp) => [...(existing || []), cp]),
 }));
 
-describe('pre-tick equivalence — applyEducationProgression', () => {
+describe('pre-tick equivalence - applyEducationProgression', () => {
   function progStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 70, happiness: 70, energy: 70, fitness: 60,
@@ -684,8 +684,8 @@ describe('pre-tick equivalence — applyEducationProgression', () => {
 
   it('weeksRemaining = 0 (not yet completed): tick finalizes graduation', () => {
     // M6: the guard is `weeksRemaining >= 0` (not `> 0`) so a program the Study
-    // button already drove to 0 is finalized here — `completed` flips true and
-    // semesterNumber caps — instead of falling through untouched.
+    // button already drove to 0 is finalized here - `completed` flips true and
+    // semesterNumber caps - instead of falling through untouched.
     const ctx = progStubCtx(progStubStats());
     const result = applyEducationProgression({
       prevEducations: [anEduP({ weeksRemaining: 0 })],
@@ -870,8 +870,8 @@ describe('pre-tick equivalence — applyEducationProgression', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-ii-B — warehouse weekly update.
-describe('pre-tick equivalence — applyMiningWarehouse', () => {
+// R7 Phase 2 step 2.6-ii-B - warehouse weekly update.
+describe('pre-tick equivalence - applyMiningWarehouse', () => {
   /**
    * Return-typed as `Crypto` on purpose: it was inferred before, so the two
    * fields it omits (`change`, `changePercent`) went unnoticed at all five call
@@ -884,7 +884,7 @@ describe('pre-tick equivalence — applyMiningWarehouse', () => {
       symbol: id.toUpperCase(),
       price: 1000,
       owned,
-      // No `weeklyRate` — it was in this literal but exists nowhere on Crypto
+      // No `weeklyRate` - it was in this literal but exists nowhere on Crypto
       // (or in any production reader), so it was inert padding.
       change: 0,
       changePercent: 0,
@@ -1132,8 +1132,8 @@ describe('pre-tick equivalence — applyMiningWarehouse', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-ii-A — mining crypto tick.
-describe('pre-tick equivalence — applyMiningCryptos', () => {
+// R7 Phase 2 step 2.6-ii-A - mining crypto tick.
+describe('pre-tick equivalence - applyMiningCryptos', () => {
   function aCrypto(overrides: any = {}) {
     return {
       id: 'btc', name: 'Bitcoin', symbol: 'BTC', price: 50000,
@@ -1304,8 +1304,8 @@ describe('pre-tick equivalence — applyMiningCryptos', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-i — crime tick. Decay + police encounter.
-describe('pre-tick equivalence — applyCrimeTick', () => {
+// R7 Phase 2 step 2.6-i - crime tick. Decay + police encounter.
+describe('pre-tick equivalence - applyCrimeTick', () => {
   function crimeStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 80, happiness: 80, energy: 80, fitness: 60,
@@ -1368,7 +1368,7 @@ describe('pre-tick equivalence — applyCrimeTick', () => {
     const result = applyCrimeTick({
       prevWantedLevel: 5, prevJailWeeks: 0, policeEncounterRoll: 0.001,
     }, ctx);
-    // Decay to 4, then encounter check uses 4 — no encounter (need >= 5).
+    // Decay to 4, then encounter check uses 4 - no encounter (need >= 5).
     expect({ result, newStats: ctx.newStats, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
@@ -1432,9 +1432,9 @@ describe('pre-tick equivalence — applyCrimeTick', () => {
   });
 });
 
-// R7 Phase 2 step 2.5c-i — education stress penalties. Mutates ctx.newStats
+// R7 Phase 2 step 2.5c-i - education stress penalties. Mutates ctx.newStats
 // (happiness/health/energy). Returns count + log message for caller.
-describe('pre-tick equivalence — applyEducationStress', () => {
+describe('pre-tick equivalence - applyEducationStress', () => {
   function eduStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 80, happiness: 80, energy: 80, fitness: 60,
@@ -1536,7 +1536,7 @@ describe('pre-tick equivalence — applyEducationStress', () => {
   it('energy clamped at 0, like its happiness/health neighbours', () => {
     // energy = 5, penalty = -7 → 0, not -2. This write used to be the one stat
     // write in the weekly modules with no clamp ("the final 0-100 cap happens
-    // later in the updater") — but the intermediate value is read before that
+    // later in the updater") - but the intermediate value is read before that
     // cap, so it could hand the rest of the tick a negative energy.
     const ctx = eduStubCtx(eduStubStats({ energy: 5 }));
     const result = applyEducationStress([anEdu()], ctx);
@@ -1557,9 +1557,9 @@ describe('pre-tick equivalence — applyEducationStress', () => {
   });
 });
 
-// R7 Phase 2 step 2.5b-iii — career progress increment. Pure, no side
+// R7 Phase 2 step 2.5b-iii - career progress increment. Pure, no side
 // effects. Returns updated careers array with bumped progress.
-describe('pre-tick equivalence — applyCareerProgress', () => {
+describe('pre-tick equivalence - applyCareerProgress', () => {
   function aCareerForProgress(overrides: Partial<Career> = {}): Career {
     return {
       id: 'engineer',
@@ -1807,9 +1807,9 @@ describe('pre-tick equivalence — applyCareerProgress', () => {
   });
 });
 
-// R7 Phase 2 step 2.5b-ii — pending career application processing. Pure
+// R7 Phase 2 step 2.5b-ii - pending career application processing. Pure
 // helper, returns updated careers + currentJob + log message (or null).
-describe('pre-tick equivalence — applyCareerApplications', () => {
+describe('pre-tick equivalence - applyCareerApplications', () => {
   function aPendingCareer(overrides: Partial<Career> = {}): Career {
     return {
       id: 'engineer',
@@ -1933,10 +1933,10 @@ describe('pre-tick equivalence — applyCareerApplications', () => {
   });
 });
 
-// R7 Phase 2 step 2.5b-i — career salary + penalty. Mutates ctx.newStats
+// R7 Phase 2 step 2.5b-i - career salary + penalty. Mutates ctx.newStats
 // (happiness, health). Returns { careerSalary, careerHappinessPenalty,
 // careerHealthPenalty }.
-describe('pre-tick equivalence — applyCareerSalaryAndPenalty', () => {
+describe('pre-tick equivalence - applyCareerSalaryAndPenalty', () => {
   function careerStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 80, happiness: 80, energy: 80, fitness: 60,
@@ -2104,9 +2104,9 @@ describe('pre-tick equivalence — applyCareerSalaryAndPenalty', () => {
   });
 });
 
-// R7 Phase 2 step 2.5a — diet-plan effects. Mutates ctx.newStats, returns
+// R7 Phase 2 step 2.5a - diet-plan effects. Mutates ctx.newStats, returns
 // log message (or null). Same shape as summarizeWeeklyFinance returns.
-describe('pre-tick equivalence — applyDietPlanForWeek', () => {
+describe('pre-tick equivalence - applyDietPlanForWeek', () => {
   function dietStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 60, happiness: 60, energy: 60, fitness: 50,
@@ -2217,10 +2217,10 @@ describe('pre-tick equivalence — applyDietPlanForWeek', () => {
   });
 });
 
-// R7 Phase 2 step 2.4f — finance summary log line. Pure helper, returns
+// R7 Phase 2 step 2.4f - finance summary log line. Pure helper, returns
 // the formatted string or null when nothing notable happened. Snapshots
 // capture the exact log format so any future change surfaces immediately.
-describe('pre-tick equivalence — summarizeWeeklyFinance', () => {
+describe('pre-tick equivalence - summarizeWeeklyFinance', () => {
   function zeroInput(): WeeklyFinanceSummaryInput {
     return {
       careerSalary: 0, partnerIncome: 0, passiveIncome: 0, totalIncome: 0,
@@ -2301,10 +2301,10 @@ describe('pre-tick equivalence — summarizeWeeklyFinance', () => {
   });
 });
 
-// R7 Phase 2 step 2.4e — per-loan autopay. Pure helper, returns
+// R7 Phase 2 step 2.4e - per-loan autopay. Pure helper, returns
 // cashAfter + totals. Already-tested loan calling pattern used in
 // `lib/banking/__tests__/weeklyTick.test.ts` informs the test shape.
-describe('pre-tick equivalence — applyLoanAutopay', () => {
+describe('pre-tick equivalence - applyLoanAutopay', () => {
   function aLoan(overrides: Partial<Loan> = {}): Loan {
     return {
       id: 'L1',
@@ -2438,8 +2438,8 @@ describe('pre-tick equivalence — applyLoanAutopay', () => {
   });
 });
 
-// R7 Phase 2 step 2.4d — savings interest. Pure helper, no ctx mutations.
-describe('pre-tick equivalence — computeSavingsInterest', () => {
+// R7 Phase 2 step 2.4d - savings interest. Pure helper, no ctx mutations.
+describe('pre-tick equivalence - computeSavingsInterest', () => {
   it('zero savings: no interest', () => {
     const result = computeSavingsInterest({
       prevBankSavings: 0,
@@ -2595,12 +2595,12 @@ describe('pre-tick equivalence — computeSavingsInterest', () => {
   });
 });
 
-// R7 Phase 2 step 2.4c — rent + housing module + real-estate tick.
+// R7 Phase 2 step 2.4c - rent + housing module + real-estate tick.
 // Same WeekContext-mutation pattern as vehicles. Tests build a fresh ctx
-// and snapshot `{ result, notifications }` — the latter captures the side
+// and snapshot `{ result, notifications }` - the latter captures the side
 // effects pushed during the call. Uses a deterministic seeded `rollFor`
 // for the realEstate weeklyTick so snapshots are stable.
-describe('pre-tick equivalence — applyRentAndHousing', () => {
+describe('pre-tick equivalence - applyRentAndHousing', () => {
   function makeCtx(): WeekContext {
     return {
       newStats: {
@@ -2709,7 +2709,7 @@ describe('pre-tick equivalence — applyRentAndHousing', () => {
   });
 });
 
-describe('pre-tick equivalence — applyAutoReinvest', () => {
+describe('pre-tick equivalence - applyAutoReinvest', () => {
   it('no reinvest when amount is 0', () => {
     const result = applyAutoReinvest({
       prevHoldings: [],
@@ -2749,7 +2749,7 @@ describe('pre-tick equivalence — applyAutoReinvest', () => {
         { symbol: 'MSFT', shares: 3, averagePrice: 280, currentPrice: 300 },
       ],
       reinvestedAmount: 500,
-      stockPickRoll: 0.999, // shouldn\'t matter — existing-holdings path picks GOOGL
+      stockPickRoll: 0.999, // shouldn\'t matter - existing-holdings path picks GOOGL
     });
     expect(result).toMatchSnapshot();
   });
@@ -2778,7 +2778,7 @@ describe('pre-tick equivalence — applyAutoReinvest', () => {
     // Largest is AAPL, but if AAPL is found in `holdings.find()` … wait,
     // existingHolding for AAPL exists. So this test exercises the MERGE path.
     // To exercise the APPEND path, we need the existingHolding check to miss.
-    // That happens when the picked stock's symbol isn't in holdings — which
+    // That happens when the picked stock's symbol isn't in holdings - which
     // the legacy code's logic can't produce because it picks FROM holdings.
     // So the append path only fires for the empty-holdings → random pick case.
     expect(result).toMatchSnapshot();
@@ -2790,7 +2790,7 @@ describe('pre-tick equivalence — applyAutoReinvest', () => {
   // Both the helper and the inline code assume `prevState.stocks?.holdings`
   // is well-formed (no nulls). The `validHoldings` filter only protects
   // the "largest holding" search, not the existing-holding find. Preserving
-  // the original behavior — not introducing new null guards in this step.
+  // the original behavior - not introducing new null guards in this step.
 
   it('no purchase when sharesToBuy floors to 0 (reinvest < price)', () => {
     const result = applyAutoReinvest({
@@ -2815,11 +2815,11 @@ describe('pre-tick equivalence — applyAutoReinvest', () => {
   });
 });
 
-// R7 Phase 2 step 2.4a — weekly income aggregation extracted.
+// R7 Phase 2 step 2.4a - weekly income aggregation extracted.
 // `computeWeeklyIncome` is pure (no ctx mutations). Tests use the fixture
 // battery for the prevState slot, plus synthetic per-test inputs for the
 // non-state args (careerSalary, passiveIncome, pulseEarnings).
-describe('pre-tick equivalence — computeWeeklyIncome', () => {
+describe('pre-tick equivalence - computeWeeklyIncome', () => {
   it('zero income with no relationships, no perks, no luck phase', () => {
     const result = computeWeeklyIncome({
       prevState: fixtures.midGame, // weeksLived=250 → past beginner-luck window
@@ -2987,7 +2987,7 @@ describe('pre-tick equivalence — computeWeeklyIncome', () => {
   });
 });
 
-describe('pre-tick equivalence — applyDiseasesForWeek', () => {
+describe('pre-tick equivalence - applyDiseasesForWeek', () => {
   it('no diseases + no admission: pure pass-through', () => {
     const input: DiseaseTickInput = {
       prevDiseases: [],
@@ -3207,12 +3207,12 @@ describe('pre-tick equivalence — applyDiseasesForWeek', () => {
   });
 });
 
-// R7 Phase 2 step 2.2b — vehicle weekly tick extracted via WeekContext.
+// R7 Phase 2 step 2.2b - vehicle weekly tick extracted via WeekContext.
 // Each test case builds a fresh ctx, calls the helper, then snapshots the
 // returned vehicles + ctx mutations (newStats + notifications). The
 // snapshot captures both outputs in one structure so the test asserts the
 // full "what this reducer does" surface.
-describe('pre-tick equivalence — applyVehiclesForWeek', () => {
+describe('pre-tick equivalence - applyVehiclesForWeek', () => {
   const rollFor = deterministicRoll(8);
 
   function makeRolls(): PreRolls {
@@ -3373,13 +3373,13 @@ describe('pre-tick equivalence — applyVehiclesForWeek', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-iii-A — NPC depth tick. Calls processWeeklyNPCDepth
+// R7 Phase 2 step 2.6-iii-A - NPC depth tick. Calls processWeeklyNPCDepth
 // from @/lib/social/npcDepth (mocked above for determinism), replaces the
 // relationships array in place, and pushes at most ONE uniquely-id'd
-// 'npc-life-event' notification — and only on even weeks (SMOOTHNESS cadence
+// 'npc-life-event' notification - and only on even weeks (SMOOTHNESS cadence
 // gate). Try/catch swallows module-load failures so tests without the module
 // can still run.
-describe('pre-tick equivalence — applyNPCDepthTick', () => {
+describe('pre-tick equivalence - applyNPCDepthTick', () => {
 
   const npcDepth = require('@/lib/social/npcDepth') as {
     processWeeklyNPCDepth: jest.Mock;
@@ -3510,10 +3510,10 @@ describe('pre-tick equivalence — applyNPCDepthTick', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-iii-B — child aging. Tiny per-rel helper that
+// R7 Phase 2 step 2.6-iii-B - child aging. Tiny per-rel helper that
 // increments `age` by 1/52 and re-clamps relationshipScore. Caller only
 // invokes when rel.type === 'child'.
-describe('pre-tick equivalence — applyChildAging', () => {
+describe('pre-tick equivalence - applyChildAging', () => {
   it('age 0 → 1/52', () => {
     const rel = { id: 'c1', name: 'Tim', type: 'child', age: 0, relationshipScore: 80 } as any;
     expect(applyChildAging(rel)).toMatchSnapshot();
@@ -3567,10 +3567,10 @@ describe('pre-tick equivalence — applyChildAging', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-iii-C — scheduled wedding. Three anti-exploit gates:
+// R7 Phase 2 step 2.6-iii-C - scheduled wedding. Three anti-exploit gates:
 // execute-this-week (afford → marry, can't afford → postpone or expire) +
 // stale cleanup of year-old plans. Mutates ctx.newStats.money on execute.
-describe('pre-tick equivalence — applyScheduledWedding', () => {
+describe('pre-tick equivalence - applyScheduledWedding', () => {
   function wedStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 80, happiness: 80, energy: 80, fitness: 60,
@@ -3668,7 +3668,7 @@ describe('pre-tick equivalence — applyScheduledWedding', () => {
     // To get weddingAge >= 52, originalScheduled must be <= nextWeeksLived - 52.
     // But the outer if requires scheduledWeek === nextWeeksLived. So this can
     // only fire if scheduledWeek has been postponed to land on this week BUT
-    // the ORIGINAL was 52+ weeks ago — but the inline code uses the CURRENT
+    // the ORIGINAL was 52+ weeks ago - but the inline code uses the CURRENT
     // scheduledWeek (which equals nextWeeksLived) as the originalScheduled.
     // So weddingAge ALWAYS = 0 here. The legacy code's expire branch is
     // effectively dead code under the always-equal scheduledWeek == nextWeeksLived
@@ -3744,10 +3744,10 @@ describe('pre-tick equivalence — applyScheduledWedding', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-iii-D — pregnancy progression + birth. Three internal
+// R7 Phase 2 step 2.6-iii-D - pregnancy progression + birth. Three internal
 // gates: birth (>= PREGNANCY_DURATION_WEEKS = 10), late-pregnancy energy drain
 // (>= 7), mid-pregnancy happiness bump (== 5). Mutates ctx.newStats.
-describe('pre-tick equivalence — applyPregnancyProgression', () => {
+describe('pre-tick equivalence - applyPregnancyProgression', () => {
   function pregStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 80, happiness: 50, energy: 80, fitness: 60,
@@ -4027,11 +4027,11 @@ describe('pre-tick equivalence — applyPregnancyProgression', () => {
   });
 });
 
-// R7 Phase 2 step 2.6-iii-E — relationship health. Three internal branches
+// R7 Phase 2 step 2.6-iii-E - relationship health. Three internal branches
 // (low rel partner/spouse → breakup roll | disappointed roll | track-low;
 // healthy partner/spouse reset; fall-through clamp-only). Uses relIdx into
 // preRolls.relBreakup[20] and preRolls.relDisappointed[20].
-describe('pre-tick equivalence — applyRelationshipHealth', () => {
+describe('pre-tick equivalence - applyRelationshipHealth', () => {
   function relhStubStats(overrides: Partial<GameStats> = {}): GameStats {
     return {
       health: 80, happiness: 60, energy: 80, fitness: 60,
@@ -4084,7 +4084,7 @@ describe('pre-tick equivalence — applyRelationshipHealth', () => {
     expect({ result, notifications: ctx.notifications }).toMatchSnapshot();
   });
 
-  it('healthy spouse (score 30 — boundary, NOT < 30): treated as healthy', () => {
+  it('healthy spouse (score 30 - boundary, NOT < 30): treated as healthy', () => {
     const ctx = relhStubCtx(relhStubStats());
     const rel = {
       id: 'r1', name: 'Sp30', type: 'spouse', relationshipScore: 30,
@@ -4215,7 +4215,7 @@ describe('pre-tick equivalence — applyRelationshipHealth', () => {
     expect(rel.weeksAtLowRelationship).toBe(1);
   });
 
-  it('does NOT touch ctx.newStats — happinessPenalty applied by caller', () => {
+  it('does NOT touch ctx.newStats - happinessPenalty applied by caller', () => {
     const ctx = relhStubCtx(relhStubStats({ happiness: 42 }), [0.001]);
     const rel = {
       id: 'r1', name: 'StatCheck', type: 'partner', relationshipScore: 5,
@@ -4226,9 +4226,9 @@ describe('pre-tick equivalence — applyRelationshipHealth', () => {
   });
 });
 
-// R7 Phase 2 step 2.7-A — economic event roll. shouldTrigger gate + generate
+// R7 Phase 2 step 2.7-A - economic event roll. shouldTrigger gate + generate
 // + try/catch swallow. Mocked for determinism.
-describe('pre-tick equivalence — applyEconomicEvent', () => {
+describe('pre-tick equivalence - applyEconomicEvent', () => {
 
   const econMod = require('@/lib/events/economyEvents') as {
     shouldTriggerEconomicEvent: jest.Mock;
@@ -4302,8 +4302,8 @@ describe('pre-tick equivalence — applyEconomicEvent', () => {
   });
 });
 
-// R7 Phase 2 step 2.7-B — weekly events generation + pending cap.
-describe('pre-tick equivalence — applyWeeklyEvents', () => {
+// R7 Phase 2 step 2.7-B - weekly events generation + pending cap.
+describe('pre-tick equivalence - applyWeeklyEvents', () => {
 
   const engineMod = require('@/lib/events/engine') as { rollWeeklyEvents: jest.Mock };
 
@@ -4446,9 +4446,9 @@ describe('pre-tick equivalence — applyWeeklyEvents', () => {
   });
 });
 
-// R7 Phase 2 step 2.7-C — cliffhanger resolution. If pendingCliffhanger,
+// R7 Phase 2 step 2.7-C - cliffhanger resolution. If pendingCliffhanger,
 // look up the resolveEvent + append to pendingEvents (uncapped).
-describe('pre-tick equivalence — applyCliffhangerResolution', () => {
+describe('pre-tick equivalence - applyCliffhangerResolution', () => {
 
   const cliffMod = require('@/lib/events/cliffhangerEvents') as {
     resolveCliffhanger: jest.Mock;
@@ -4519,7 +4519,7 @@ describe('pre-tick equivalence — applyCliffhangerResolution', () => {
     );
   });
 
-  it('appends are uncapped — even when input is already 100+ long', () => {
+  it('appends are uncapped - even when input is already 100+ long', () => {
     cliffMod.resolveCliffhanger.mockReturnValue({ id: 'cliff' });
     const input = Array.from({ length: 100 }, (_, i) => ({ id: `e${i}` }));
     const result = applyCliffhangerResolution({
@@ -4532,9 +4532,9 @@ describe('pre-tick equivalence — applyCliffhangerResolution', () => {
   });
 });
 
-// R7 Phase 2 step 2.7-D — life moment generation. Generate + merge into
+// R7 Phase 2 step 2.7-D - life moment generation. Generate + merge into
 // lifeMoments slice; preserve existing or initialize when none.
-describe('pre-tick equivalence — applyLifeMoment', () => {
+describe('pre-tick equivalence - applyLifeMoment', () => {
 
   const momentMod = require('@/lib/lifeMoments/lifeMomentGenerator') as {
     generateLifeMoment: jest.Mock;
@@ -4607,9 +4607,9 @@ describe('pre-tick equivalence — applyLifeMoment', () => {
   });
 });
 
-// R7 Phase 2 step 2.8-A — consequence progression. processConsequenceProgression
+// R7 Phase 2 step 2.8-A - consequence progression. processConsequenceProgression
 // + initializeConsequenceState merge + try/catch fallback.
-describe('pre-tick equivalence — applyConsequenceProgression', () => {
+describe('pre-tick equivalence - applyConsequenceProgression', () => {
 
   const consMod = require('@/lib/lifeMoments/consequenceTracker') as {
     processConsequenceProgression: jest.Mock;
@@ -4630,7 +4630,7 @@ describe('pre-tick equivalence — applyConsequenceProgression', () => {
 
   it('progression result overrides initialize fields on conflict (spread order)', () => {
     // Probed via `hiddenTraits`, a field ConsequenceState actually has. This
-    // used to use `karma`, which is not on the type at all — so the assertion
+    // used to use `karma`, which is not on the type at all - so the assertion
     // read `undefined` off a mocked object and could only ever have compared
     // undefined to undefined had the mock not returned the same made-up key.
     consMod.initializeConsequenceState.mockReturnValue({ hiddenTraits: ['from-init'], consequences: [] });
@@ -4660,10 +4660,10 @@ describe('pre-tick equivalence — applyConsequenceProgression', () => {
   });
 });
 
-// R7 Phase 2 step 2.8-B — death ribbon. Fires only on the death-popup
+// R7 Phase 2 step 2.8-B - death ribbon. Fires only on the death-popup
 // edge (newShowDeathPopup && !prevState.showDeathPopup). Returns partial
 // state fragment for the merge.
-describe('pre-tick equivalence — applyDeathRibbon', () => {
+describe('pre-tick equivalence - applyDeathRibbon', () => {
 
   const ribMod = require('@/lib/legacy/ribbonSystem') as {
     classifyLife: jest.Mock;
@@ -4762,10 +4762,10 @@ describe('pre-tick equivalence — applyDeathRibbon', () => {
   });
 });
 
-// R7 Phase 2 step 2.8-C — auto checkpoint. Year boundary + before-death,
+// R7 Phase 2 step 2.8-C - auto checkpoint. Year boundary + before-death,
 // both independently firing. Always returns checkpoints partial (even
 // when neither fires; `?? []` means undefined slice becomes []).
-describe('pre-tick equivalence — applyAutoCheckpoint', () => {
+describe('pre-tick equivalence - applyAutoCheckpoint', () => {
 
   const cpMod = require('@/lib/timeMachine/checkpointSystem') as {
     shouldAutoCheckpoint: jest.Mock;
@@ -4828,7 +4828,7 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
 
   // These three used to pin the OPPOSITE behaviour: a "Before Death" snapshot
   // taken on the tick that killed you. It is gone, and they now guard against
-  // it coming back — a 500-gem rewind to it returned a living character one
+  // it coming back - a 500-gem rewind to it returned a living character one
   // week older, which is what Revive charges thousands for and what the $2.99
   // Revival Pack sells.
   it('takes NO checkpoint on the tick that kills the player', () => {
@@ -4858,7 +4858,7 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       newStats: cpStubStats(),
       nextWeeksLived: 52,
     });
-    // The second mock return is never consumed — one call, one checkpoint.
+    // The second mock return is never consumed - one call, one checkpoint.
     expect(cpMod.createCheckpoint).toHaveBeenCalledTimes(1);
     expect(result.partial.checkpoints).toEqual([{ id: 'cp_year', label: 'Age 20' }]);
   });
@@ -4922,7 +4922,7 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
       newStats: cpStubStats(),
       nextWeeksLived: 100,
     });
-    // Focus area (career) intact; the three neglected axes decay by 1 — this is
+    // Focus area (career) intact; the three neglected axes decay by 1 - this is
     // what makes the ActivityCommitmentModal bars move once per tick.
     expect(result.partial.activityCommitments?.commitmentLevels).toEqual({
       career: 50, hobbies: 39, relationships: 29, health: 19,
@@ -4940,9 +4940,9 @@ describe('pre-tick equivalence — applyAutoCheckpoint', () => {
   });
 });
 
-// R7 Phase 2 step 2.9 — lifetimeStatistics accumulator. Eight accumulator
+// R7 Phase 2 step 2.9 - lifetimeStatistics accumulator. Eight accumulator
 // fields previously frozen inline in a 53-line ternary. Pure helper.
-describe('pre-tick equivalence — applyLifetimeStatistics', () => {
+describe('pre-tick equivalence - applyLifetimeStatistics', () => {
   function lsStubLs(overrides: any = {}): any {
     return {
       totalJailTime: 5,
@@ -5206,9 +5206,9 @@ describe('pre-tick equivalence — applyLifetimeStatistics', () => {
   });
 });
 
-// R7 Phase 2 step 2.10 — cliffhanger roll. End-of-week ~12% chance to SET
+// R7 Phase 2 step 2.10 - cliffhanger roll. End-of-week ~12% chance to SET
 // a teaser that resolves next week. Symmetric to applyCliffhangerResolution.
-describe('pre-tick equivalence — applyCliffhangerRoll', () => {
+describe('pre-tick equivalence - applyCliffhangerRoll', () => {
 
   const cliffMod = require('@/lib/events/cliffhangerEvents') as {
     rollCliffhanger: jest.Mock;
@@ -5284,8 +5284,8 @@ describe('pre-tick equivalence — applyCliffhangerRoll', () => {
   });
 });
 
-describe('pre-tick — buildPreRolls', () => {
-  // buildPreRolls uses Math.random() and Date.now() — its values are
+describe('pre-tick - buildPreRolls', () => {
+  // buildPreRolls uses Math.random() and Date.now() - its values are
   // intentionally non-deterministic. Only shape + value-range checks here;
   // determinism guarantees belong in the StrictMode-double-invoke harness,
   // which happens at the React layer (not in this pure-function test).

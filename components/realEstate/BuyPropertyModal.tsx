@@ -42,7 +42,7 @@ const TERM_LABEL: Record<MortgageTerm, string> = {
 };
 
 export default function BuyPropertyModal({ visible, property, gameState, weeklyIncome, darkMode, onClose, onConfirm }: Props) {
-  // Commercial listings (office tower, warehouse) can't be a home — the rest
+  // Commercial listings (office tower, warehouse) can't be a home - the rest
   // of the app gates comfort/energy off for them, so offering the residence
   // toggle here produced a dead "living in a warehouse" outcome.
   const commercial = property ? isCommercialCatalogId(property.id) : false;

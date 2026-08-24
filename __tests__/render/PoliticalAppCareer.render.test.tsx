@@ -30,7 +30,7 @@ jest.mock('lucide-react-native', () => {
  * mounts is precisely the one every real player hits first: a citizen with no
  * party, no appointment, no war chest and no retirement record.
  */
-describe('render — PoliticalApp Career tab', () => {
+describe('render - PoliticalApp Career tab', () => {
   it('mounts for a player with none of the v47 fields set', () => {
     const { renderer, json, unmount } = renderWithProviders(<PoliticalApp onBack={() => {}} />);
     expect(renderer.toJSON()).not.toBeNull();

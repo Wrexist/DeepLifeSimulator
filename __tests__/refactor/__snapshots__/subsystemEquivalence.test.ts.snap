@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`pre-tick equivalence — applyAutoCheckpoint year boundary fires: creates checkpoint with label \`Age <yearAge>\` 1`] = `
+exports[`pre-tick equivalence - applyAutoCheckpoint year boundary fires: creates checkpoint with label \`Age <yearAge>\` 1`] = `
 {
   "partial": {
     "checkpoints": [
@@ -13,7 +13,7 @@ exports[`pre-tick equivalence — applyAutoCheckpoint year boundary fires: creat
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest appends new holding when target symbol not yet in holdings 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest appends new holding when target symbol not yet in holdings 1`] = `
 {
   "reinvestedStocks": [
     {
@@ -27,7 +27,7 @@ exports[`pre-tick equivalence — applyAutoReinvest appends new holding when tar
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest handles unknown symbol on largest-holding (getStockInfo returns price 0 → falls to random) 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest handles unknown symbol on largest-holding (getStockInfo returns price 0 → falls to random) 1`] = `
 {
   "reinvestedStocks": [
     {
@@ -47,7 +47,7 @@ exports[`pre-tick equivalence — applyAutoReinvest handles unknown symbol on la
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest merges shares + recomputes average price when reinvesting into existing holding 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest merges shares + recomputes average price when reinvesting into existing holding 1`] = `
 {
   "reinvestedStocks": [
     {
@@ -61,28 +61,28 @@ exports[`pre-tick equivalence — applyAutoReinvest merges shares + recomputes a
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest no purchase when sharesToBuy floors to 0 (reinvest < price) 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest no purchase when sharesToBuy floors to 0 (reinvest < price) 1`] = `
 {
   "reinvestedStocks": [],
   "spentUSD": 0,
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest no reinvest when amount is 0 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest no reinvest when amount is 0 1`] = `
 {
   "reinvestedStocks": [],
   "spentUSD": 0,
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest no reinvest when amount is negative 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest no reinvest when amount is negative 1`] = `
 {
   "reinvestedStocks": [],
   "spentUSD": 0,
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest picks random stock when holdings are empty (stockPickRoll selects index) 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest picks random stock when holdings are empty (stockPickRoll selects index) 1`] = `
 {
   "reinvestedStocks": [
     {
@@ -96,7 +96,7 @@ exports[`pre-tick equivalence — applyAutoReinvest picks random stock when hold
 }
 `;
 
-exports[`pre-tick equivalence — applyAutoReinvest picks the holding with the most shares when holdings exist 1`] = `
+exports[`pre-tick equivalence - applyAutoReinvest picks the holding with the most shares when holdings exist 1`] = `
 {
   "reinvestedStocks": [
     {
@@ -122,7 +122,7 @@ exports[`pre-tick equivalence — applyAutoReinvest picks the holding with the m
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications careers array reference is preserved when nothing changes 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications careers array reference is preserved when nothing changes 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": undefined,
@@ -146,7 +146,7 @@ exports[`pre-tick equivalence — applyCareerApplications careers array referenc
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications mix accepted + pending: pending is processed when no currentJob 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications mix accepted + pending: pending is processed when no currentJob 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Career application accepted: new after 1 weeks",
   "newCurrentJob": "new",
@@ -186,7 +186,7 @@ exports[`pre-tick equivalence — applyCareerApplications mix accepted + pending
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications multiple pending: only the FIRST is processed (legacy .find) 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications multiple pending: only the FIRST is processed (legacy .find) 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Career application accepted: firstP after 1 weeks",
   "newCurrentJob": "firstP",
@@ -227,7 +227,7 @@ exports[`pre-tick equivalence — applyCareerApplications multiple pending: only
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications no careers: returns prevCareers (same reference) + undefined job 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications no careers: returns prevCareers (same reference) + undefined job 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": undefined,
@@ -235,7 +235,7 @@ exports[`pre-tick equivalence — applyCareerApplications no careers: returns pr
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications no pending application (all accepted): no change 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications no pending application (all accepted): no change 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": "engineer",
@@ -259,7 +259,7 @@ exports[`pre-tick equivalence — applyCareerApplications no pending application
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications pending application BUT player has currentJob: no acceptance 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications pending application BUT player has currentJob: no acceptance 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": "engineer",
@@ -283,7 +283,7 @@ exports[`pre-tick equivalence — applyCareerApplications pending application BU
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications pending, no current job, delay=1, weeksPending=0: weeks=1 >= 1 → ACCEPT 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications pending, no current job, delay=1, weeksPending=0: weeks=1 >= 1 → ACCEPT 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Career application accepted: engineer after 1 weeks",
   "newCurrentJob": "engineer",
@@ -308,7 +308,7 @@ exports[`pre-tick equivalence — applyCareerApplications pending, no current jo
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications pending, no current job, delay=2, weeksPending=0: weeks=1 < 2 → DEFER 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications pending, no current job, delay=2, weeksPending=0: weeks=1 < 2 → DEFER 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": undefined,
@@ -333,7 +333,7 @@ exports[`pre-tick equivalence — applyCareerApplications pending, no current jo
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications pending, no current job, delay=2, weeksPending=1: weeks=2 >= 2 → ACCEPT 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications pending, no current job, delay=2, weeksPending=1: weeks=2 >= 2 → ACCEPT 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Career application accepted: engineer after 2 weeks",
   "newCurrentJob": "engineer",
@@ -358,7 +358,7 @@ exports[`pre-tick equivalence — applyCareerApplications pending, no current jo
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications pending, weeksPending=undefined treated as 0 (defaults via || 0) 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications pending, weeksPending=undefined treated as 0 (defaults via || 0) 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": undefined,
@@ -383,7 +383,7 @@ exports[`pre-tick equivalence — applyCareerApplications pending, weeksPending=
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerApplications undefined careers: handled gracefully 1`] = `
+exports[`pre-tick equivalence - applyCareerApplications undefined careers: handled gracefully 1`] = `
 {
   "logMessage": null,
   "newCurrentJob": undefined,
@@ -391,7 +391,7 @@ exports[`pre-tick equivalence — applyCareerApplications undefined careers: han
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress active mentor buff: +50% progress 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress active mentor buff: +50% progress 1`] = `
 {
   "updatedCareers": [
     {
@@ -415,7 +415,7 @@ exports[`pre-tick equivalence — applyCareerProgress active mentor buff: +50% p
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress both mindset flags: 2.25× multiplier (multiplicative) 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress both mindset flags: 2.25× multiplier (multiplicative) 1`] = `
 {
   "updatedCareers": [
     {
@@ -439,7 +439,7 @@ exports[`pre-tick equivalence — applyCareerProgress both mindset flags: 2.25×
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress current job set but no matching accepted career: prevCareers unchanged 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress current job set but no matching accepted career: prevCareers unchanged 1`] = `
 {
   "updatedCareers": [
     {
@@ -461,7 +461,7 @@ exports[`pre-tick equivalence — applyCareerProgress current job set but no mat
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress early-career boost tier 1 (<20 weeks): 2.5× progress 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress early-career boost tier 1 (<20 weeks): 2.5× progress 1`] = `
 {
   "updatedCareers": [
     {
@@ -485,7 +485,7 @@ exports[`pre-tick equivalence — applyCareerProgress early-career boost tier 1 
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress early-career boost tier 2 (20-39 weeks): 1.5× progress 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress early-career boost tier 2 (20-39 weeks): 1.5× progress 1`] = `
 {
   "updatedCareers": [
     {
@@ -509,7 +509,7 @@ exports[`pre-tick equivalence — applyCareerProgress early-career boost tier 2 
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress expired mentor buff: no bonus 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress expired mentor buff: no bonus 1`] = `
 {
   "updatedCareers": [
     {
@@ -533,7 +533,7 @@ exports[`pre-tick equivalence — applyCareerProgress expired mentor buff: no bo
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress gold mindset only: 1.5× multiplier 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress gold mindset only: 1.5× multiplier 1`] = `
 {
   "updatedCareers": [
     {
@@ -557,7 +557,7 @@ exports[`pre-tick equivalence — applyCareerProgress gold mindset only: 1.5× m
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress happy path: progress bumps + startedWeeksLived initialized + performance stored 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress happy path: progress bumps + startedWeeksLived initialized + performance stored 1`] = `
 {
   "updatedCareers": [
     {
@@ -581,7 +581,7 @@ exports[`pre-tick equivalence — applyCareerProgress happy path: progress bumps
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress no current job: returns prevCareers (same reference) 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress no current job: returns prevCareers (same reference) 1`] = `
 {
   "updatedCareers": [
     {
@@ -603,7 +603,7 @@ exports[`pre-tick equivalence — applyCareerProgress no current job: returns pr
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress no early boost (40+ weeks): 1.0× progress 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress no early boost (40+ weeks): 1.0× progress 1`] = `
 {
   "updatedCareers": [
     {
@@ -627,7 +627,7 @@ exports[`pre-tick equivalence — applyCareerProgress no early boost (40+ weeks)
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress other careers in the array are returned untouched 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress other careers in the array are returned untouched 1`] = `
 {
   "updatedCareers": [
     {
@@ -681,7 +681,7 @@ exports[`pre-tick equivalence — applyCareerProgress other careers in the array
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress perf tier high (>= 80): 1.3× modifier 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress perf tier high (>= 80): 1.3× modifier 1`] = `
 {
   "updatedCareers": [
     {
@@ -705,7 +705,7 @@ exports[`pre-tick equivalence — applyCareerProgress perf tier high (>= 80): 1.
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress perf tier low (30-49): 0.7× modifier 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress perf tier low (30-49): 0.7× modifier 1`] = `
 {
   "updatedCareers": [
     {
@@ -729,7 +729,7 @@ exports[`pre-tick equivalence — applyCareerProgress perf tier low (30-49): 0.7
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress perf tier mid (50-79): 1.0× modifier 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress perf tier mid (50-79): 1.0× modifier 1`] = `
 {
   "updatedCareers": [
     {
@@ -753,7 +753,7 @@ exports[`pre-tick equivalence — applyCareerProgress perf tier mid (50-79): 1.0
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress perf tier very low (< 30): 0.3× modifier 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress perf tier very low (< 30): 0.3× modifier 1`] = `
 {
   "updatedCareers": [
     {
@@ -777,7 +777,7 @@ exports[`pre-tick equivalence — applyCareerProgress perf tier very low (< 30):
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress perk mindset only: 1.5× multiplier 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress perk mindset only: 1.5× multiplier 1`] = `
 {
   "updatedCareers": [
     {
@@ -801,7 +801,7 @@ exports[`pre-tick equivalence — applyCareerProgress perk mindset only: 1.5× m
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress preserves startedWeeksLived if already set 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress preserves startedWeeksLived if already set 1`] = `
 {
   "updatedCareers": [
     {
@@ -825,7 +825,7 @@ exports[`pre-tick equivalence — applyCareerProgress preserves startedWeeksLive
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerProgress progress caps at 100 1`] = `
+exports[`pre-tick equivalence - applyCareerProgress progress caps at 100 1`] = `
 {
   "updatedCareers": [
     {
@@ -849,7 +849,7 @@ exports[`pre-tick equivalence — applyCareerProgress progress caps at 100 1`] =
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty both gold + perk: 2.25× salary, multiplicative stack 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty both gold + perk: 2.25× salary, multiplicative stack 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -869,7 +869,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty both gold + perk: 
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty career found but ID mismatch in array: returns zeros, warn logged 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty career found but ID mismatch in array: returns zeros, warn logged 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -889,7 +889,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty career found but I
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job accepted, level 0, no perks: salary + penalty applied 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty current job accepted, level 0, no perks: salary + penalty applied 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -909,7 +909,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job accept
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job accepted, no levels array: returns zeros 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty current job accepted, no levels array: returns zeros 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -929,7 +929,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job accept
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job at negative level: clamped to 0 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty current job at negative level: clamped to 0 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -949,7 +949,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job at neg
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job at out-of-bounds level: clamped to last index 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty current job at out-of-bounds level: clamped to last index 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -969,7 +969,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job at out
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job set but careers array is empty: returns zeros, warn logged 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty current job set but careers array is empty: returns zeros, warn logged 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -989,7 +989,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job set bu
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job set but not accepted: returns zeros, warn logged 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty current job set but not accepted: returns zeros, warn logged 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1009,7 +1009,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty current job set bu
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty gold upgrade work_boost only: 1.5× salary 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty gold upgrade work_boost only: 1.5× salary 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1029,7 +1029,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty gold upgrade work_
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty level data has salary = 0: warn logged, no salary, no penalty 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty level data has salary = 0: warn logged, no salary, no penalty 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1049,7 +1049,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty level data has sal
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty no current job: returns all zeros, no stat mutation 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty no current job: returns all zeros, no stat mutation 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1069,7 +1069,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty no current job: re
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty penalty floor at 0: low happiness/health does not go negative 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty penalty floor at 0: low happiness/health does not go negative 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1089,7 +1089,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty penalty floor at 0
 }
 `;
 
-exports[`pre-tick equivalence — applyCareerSalaryAndPenalty perk workBoost only: 1.5× salary 1`] = `
+exports[`pre-tick equivalence - applyCareerSalaryAndPenalty perk workBoost only: 1.5× salary 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1109,7 +1109,7 @@ exports[`pre-tick equivalence — applyCareerSalaryAndPenalty perk workBoost onl
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging age 0 → 1/52 1`] = `
+exports[`pre-tick equivalence - applyChildAging age 0 → 1/52 1`] = `
 {
   "age": 0.019230769230769232,
   "id": "c1",
@@ -1119,7 +1119,7 @@ exports[`pre-tick equivalence — applyChildAging age 0 → 1/52 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging age 5 → 5 + 1/52 (fractional accumulation) 1`] = `
+exports[`pre-tick equivalence - applyChildAging age 5 → 5 + 1/52 (fractional accumulation) 1`] = `
 {
   "age": 5.019230769230769,
   "id": "c3",
@@ -1129,7 +1129,7 @@ exports[`pre-tick equivalence — applyChildAging age 5 → 5 + 1/52 (fractional
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging age 17.98 → 17.98 + 1/52 (close to adulthood) 1`] = `
+exports[`pre-tick equivalence - applyChildAging age 17.98 → 17.98 + 1/52 (close to adulthood) 1`] = `
 {
   "age": 17.99923076923077,
   "id": "c4",
@@ -1139,7 +1139,7 @@ exports[`pre-tick equivalence — applyChildAging age 17.98 → 17.98 + 1/52 (cl
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging age undefined → treated as 0, becomes 1/52 1`] = `
+exports[`pre-tick equivalence - applyChildAging age undefined → treated as 0, becomes 1/52 1`] = `
 {
   "age": 0.019230769230769232,
   "id": "c2",
@@ -1149,7 +1149,7 @@ exports[`pre-tick equivalence — applyChildAging age undefined → treated as 0
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging preserves all other fields 1`] = `
+exports[`pre-tick equivalence - applyChildAging preserves all other fields 1`] = `
 {
   "age": 2.019230769230769,
   "birthWeeksLived": 50,
@@ -1163,7 +1163,7 @@ exports[`pre-tick equivalence — applyChildAging preserves all other fields 1`]
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging relationshipScore < 0 gets clamped to 0 1`] = `
+exports[`pre-tick equivalence - applyChildAging relationshipScore < 0 gets clamped to 0 1`] = `
 {
   "age": 3.019230769230769,
   "id": "c5",
@@ -1173,7 +1173,7 @@ exports[`pre-tick equivalence — applyChildAging relationshipScore < 0 gets cla
 }
 `;
 
-exports[`pre-tick equivalence — applyChildAging relationshipScore > 100 gets clamped to 100 1`] = `
+exports[`pre-tick equivalence - applyChildAging relationshipScore > 100 gets clamped to 100 1`] = `
 {
   "age": 3.019230769230769,
   "id": "c6",
@@ -1183,7 +1183,7 @@ exports[`pre-tick equivalence — applyChildAging relationshipScore > 100 gets c
 }
 `;
 
-exports[`pre-tick equivalence — applyCliffhangerResolution cliffhanger resolves to an event: appends stamped event 1`] = `
+exports[`pre-tick equivalence - applyCliffhangerResolution cliffhanger resolves to an event: appends stamped event 1`] = `
 {
   "updatedPendingEvents": [
     {
@@ -1198,7 +1198,7 @@ exports[`pre-tick equivalence — applyCliffhangerResolution cliffhanger resolve
 }
 `;
 
-exports[`pre-tick equivalence — applyCliffhangerRoll roll fires: returns pendingCliffhanger with setWeeksLived = nextWeeksLived + 1 1`] = `
+exports[`pre-tick equivalence - applyCliffhangerRoll roll fires: returns pendingCliffhanger with setWeeksLived = nextWeeksLived + 1 1`] = `
 {
   "pendingCliffhanger": {
     "resolveEventId": "evt_dark_figure",
@@ -1209,7 +1209,7 @@ exports[`pre-tick equivalence — applyCliffhangerRoll roll fires: returns pendi
 }
 `;
 
-exports[`pre-tick equivalence — applyConsequenceProgression merges initialize result with progression diff 1`] = `
+exports[`pre-tick equivalence - applyConsequenceProgression merges initialize result with progression diff 1`] = `
 {
   "mergedConsequenceState": {
     "consequences": [
@@ -1222,7 +1222,7 @@ exports[`pre-tick equivalence — applyConsequenceProgression merges initialize 
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick encounter with low money: fine capped at current cash 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick encounter with low money: fine capped at current cash 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1247,7 +1247,7 @@ exports[`pre-tick equivalence — applyCrimeTick encounter with low money: fine 
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick encounter with zero money: fine = 0 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick encounter with zero money: fine = 0 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1272,7 +1272,7 @@ exports[`pre-tick equivalence — applyCrimeTick encounter with zero money: fine
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick happiness floored at 0 when below 15 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick happiness floored at 0 when below 15 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1297,7 +1297,7 @@ exports[`pre-tick equivalence — applyCrimeTick happiness floored at 0 when bel
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 0, no jail: no decay, no encounter 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 0, no jail: no decay, no encounter 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1316,7 +1316,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 0, no jail: no deca
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 3, IN jail: NO decay (frozen while incarcerated) 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 3, IN jail: NO decay (frozen while incarcerated) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1335,7 +1335,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 3, IN jail: NO deca
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 3, not in jail: decay to 2, no encounter (< 5) 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 3, not in jail: decay to 2, no encounter (< 5) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1354,7 +1354,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 3, not in jail: dec
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 5 BEFORE decay → 4 AFTER, no encounter (post-decay < 5) 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 5 BEFORE decay → 4 AFTER, no encounter (post-decay < 5) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1373,7 +1373,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 5 BEFORE decay → 
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 5, in jail: NO encounter check (frozen) 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 5, in jail: NO encounter check (frozen) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1392,7 +1392,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 5, in jail: NO enco
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 6 → 5, encounter chance = 5%, roll 0.01: ENCOUNTER fires 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 6 → 5, encounter chance = 5%, roll 0.01: ENCOUNTER fires 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1417,7 +1417,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 6 → 5, encounter 
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel 6 → 5, roll 0.10: encounter chance 5% < roll, no fire 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel 6 → 5, roll 0.10: encounter chance 5% < roll, no fire 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1436,7 +1436,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel 6 → 5, roll 0.10:
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel extremely high (15 → 14): jailWeeks = min(4, ceil(14/3)) = 4 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel extremely high (15 → 14): jailWeeks = min(4, ceil(14/3)) = 4 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1461,7 +1461,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel extremely high (15 
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel high (10 → 9), encounter cap at 30%, jailWeeks capped at 4 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel high (10 → 9), encounter cap at 30%, jailWeeks capped at 4 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1486,7 +1486,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel high (10 → 9), en
 }
 `;
 
-exports[`pre-tick equivalence — applyCrimeTick wantedLevel undefined: treated as 0 1`] = `
+exports[`pre-tick equivalence - applyCrimeTick wantedLevel undefined: treated as 0 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1505,7 +1505,7 @@ exports[`pre-tick equivalence — applyCrimeTick wantedLevel undefined: treated 
 }
 `;
 
-exports[`pre-tick equivalence — applyDeathRibbon edge case (death first fire): classifies + adds to collection 1`] = `
+exports[`pre-tick equivalence - applyDeathRibbon edge case (death first fire): classifies + adds to collection 1`] = `
 {
   "partial": {
     "ribbonCollection": [
@@ -1519,7 +1519,7 @@ exports[`pre-tick equivalence — applyDeathRibbon edge case (death first fire):
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek NaN money: sanitized to 0, treated as unaffordable (no gains, no charge) 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek NaN money: sanitized to 0, treated as unaffordable (no gains, no charge) 1`] = `
 {
   "newStats": {
     "energy": 60,
@@ -1531,12 +1531,12 @@ exports[`pre-tick equivalence — applyDietPlanForWeek NaN money: sanitized to 0
     "reputation": 50,
   },
   "result": {
-    "logMessage": "[WEEK PROGRESSION] Diet plan X skipped — insufficient funds (need $35, have $0).",
+    "logMessage": "[WEEK PROGRESSION] Diet plan X skipped - insufficient funds (need $35, have $0).",
   },
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek all diet plans inactive: returns null 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek all diet plans inactive: returns null 1`] = `
 {
   "newStats": {
     "energy": 60,
@@ -1553,7 +1553,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek all diet plans inactive: 
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek basic active diet: applies health + energy gains, deducts cost 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek basic active diet: applies health + energy gains, deducts cost 1`] = `
 {
   "newStats": {
     "energy": 61,
@@ -1570,7 +1570,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek basic active diet: applie
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek cost > money: skips gains and charges nothing (anti free-gain when broke) 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek cost > money: skips gains and charges nothing (anti free-gain when broke) 1`] = `
 {
   "newStats": {
     "energy": 60,
@@ -1582,12 +1582,12 @@ exports[`pre-tick equivalence — applyDietPlanForWeek cost > money: skips gains
     "reputation": 50,
   },
   "result": {
-    "logMessage": "[WEEK PROGRESSION] Diet plan Expensive skipped — insufficient funds (need $700, have $200).",
+    "logMessage": "[WEEK PROGRESSION] Diet plan Expensive skipped - insufficient funds (need $700, have $200).",
   },
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek diet with happinessGain = 0: skips happiness mutation but log still shows +0 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek diet with happinessGain = 0: skips happiness mutation but log still shows +0 1`] = `
 {
   "newStats": {
     "energy": 61,
@@ -1604,7 +1604,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek diet with happinessGain =
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek diet with happinessGain: applies all three stats 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek diet with happinessGain: applies all three stats 1`] = `
 {
   "newStats": {
     "energy": 63,
@@ -1621,7 +1621,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek diet with happinessGain: 
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek gains cap stats at 100 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek gains cap stats at 100 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -1638,7 +1638,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek gains cap stats at 100 1`
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek multiple active plans: only the FIRST one is applied (legacy .find behavior) 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek multiple active plans: only the FIRST one is applied (legacy .find behavior) 1`] = `
 {
   "newStats": {
     "energy": 61,
@@ -1655,7 +1655,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek multiple active plans: on
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek no diet plans: returns null, ctx untouched 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek no diet plans: returns null, ctx untouched 1`] = `
 {
   "newStats": {
     "energy": 60,
@@ -1672,7 +1672,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek no diet plans: returns nu
 }
 `;
 
-exports[`pre-tick equivalence — applyDietPlanForWeek undefined diet plans: handled gracefully 1`] = `
+exports[`pre-tick equivalence - applyDietPlanForWeek undefined diet plans: handled gracefully 1`] = `
 {
   "newStats": {
     "energy": 60,
@@ -1689,7 +1689,7 @@ exports[`pre-tick equivalence — applyDietPlanForWeek undefined diet plans: han
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek admits a new mild disease + appends to history 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek admits a new mild disease + appends to history 1`] = `
 {
   "newStats": {
     "energy": 75,
@@ -1737,7 +1737,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek admits a new mild disease
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek applies stat penalties to ctx.newStats with 0/100 clamping 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek applies stat penalties to ctx.newStats with 0/100 clamping 1`] = `
 {
   "newStats": {
     "energy": 0,
@@ -1785,7 +1785,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek applies stat penalties to
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek chronic untreated disease worsens by 10% with floor cap (3× baseEffects) 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek chronic untreated disease worsens by 10% with floor cap (3× baseEffects) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1826,7 +1826,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek chronic untreated disease
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek curable disease (mild) progresses to serious when roll hits both gates 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek curable disease (mild) progresses to serious when roll hits both gates 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1868,7 +1868,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek curable disease (mild) pr
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek death countdown reaches zero: deathTriggered true + history bumps 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek death countdown reaches zero: deathTriggered true + history bumps 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1906,7 +1906,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek death countdown reaches z
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek drops malformed existing disease (missing id) from updatedDiseases 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek drops malformed existing disease (missing id) from updatedDiseases 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -1933,7 +1933,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek drops malformed existing 
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek high health/fitness accelerates natural recovery (2 weeks subtracted) 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek high health/fitness accelerates natural recovery (2 weeks subtracted) 1`] = `
 {
   "newStats": {
     "energy": 77,
@@ -1960,7 +1960,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek high health/fitness accel
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek natural recovery removes disease + bumps totalCured + sets curedWeek 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek natural recovery removes disease + bumps totalCured + sets curedWeek 1`] = `
 {
   "newStats": {
     "energy": 77,
@@ -1995,7 +1995,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek natural recovery removes 
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek no diseases + no admission: pure pass-through 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek no diseases + no admission: pure pass-through 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2022,7 +2022,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek no diseases + no admissio
 }
 `;
 
-exports[`pre-tick equivalence — applyDiseasesForWeek rejects malformed new disease (missing id) and logs warn 1`] = `
+exports[`pre-tick equivalence - applyDiseasesForWeek rejects malformed new disease (missing id) and logs warn 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2049,7 +2049,7 @@ exports[`pre-tick equivalence — applyDiseasesForWeek rejects malformed new dis
 }
 `;
 
-exports[`pre-tick equivalence — applyEconomicEvent preserves existing economy fields, only overwrites economyEvents 1`] = `
+exports[`pre-tick equivalence - applyEconomicEvent preserves existing economy fields, only overwrites economyEvents 1`] = `
 {
   "updatedEconomy": {
     "economyEvents": {
@@ -2063,7 +2063,7 @@ exports[`pre-tick equivalence — applyEconomicEvent preserves existing economy 
 }
 `;
 
-exports[`pre-tick equivalence — applyEconomicEvent shouldTrigger=true: merges new event into economyEvents 1`] = `
+exports[`pre-tick equivalence - applyEconomicEvent shouldTrigger=true: merges new event into economyEvents 1`] = `
 {
   "updatedEconomy": {
     "economyEvents": {
@@ -2076,7 +2076,7 @@ exports[`pre-tick equivalence — applyEconomicEvent shouldTrigger=true: merges 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression 1 active education: decrements weeksRemaining by 1 (no Fast Learner) 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression 1 active education: decrements weeksRemaining by 1 (no Fast Learner) 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2108,7 +2108,7 @@ exports[`pre-tick equivalence — applyEducationProgression 1 active education: 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression Both Fast Learner: decrement = 3 (ceil(2.25)) 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression Both Fast Learner: decrement = 3 (ceil(2.25)) 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2140,7 +2140,7 @@ exports[`pre-tick equivalence — applyEducationProgression Both Fast Learner: d
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression Fast Learner gold only: decrement = 2 (ceil(1.5)) 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression Fast Learner gold only: decrement = 2 (ceil(1.5)) 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2172,7 +2172,7 @@ exports[`pre-tick equivalence — applyEducationProgression Fast Learner gold on
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression Fast Learner perk only: decrement = 2 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression Fast Learner perk only: decrement = 2 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2204,7 +2204,7 @@ exports[`pre-tick equivalence — applyEducationProgression Fast Learner perk on
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression campus event triggers: pendingCampusEvent set to edu.id 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression campus event triggers: pendingCampusEvent set to edu.id 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2237,7 +2237,7 @@ exports[`pre-tick equivalence — applyEducationProgression campus event trigger
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression completed education is untouched 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression completed education is untouched 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2268,7 +2268,7 @@ exports[`pre-tick equivalence — applyEducationProgression completed education 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression completion with class statBonuses: applies all 5 stats + completion notification 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression completion with class statBonuses: applies all 5 stats + completion notification 1`] = `
 {
   "newStats": {
     "energy": 53,
@@ -2282,7 +2282,7 @@ exports[`pre-tick equivalence — applyEducationProgression completion with clas
   "notifications": [
     {
       "id": "education-complete",
-      "message": "GPA: 2.5 — Class bonuses applied!",
+      "message": "GPA: 2.5 - Class bonuses applied!",
       "title": "🎓 CS 101 Completed!",
     },
   ],
@@ -2320,7 +2320,7 @@ exports[`pre-tick equivalence — applyEducationProgression completion with clas
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression education completes this tick (weeksRemaining=1 → 0) 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression education completes this tick (weeksRemaining=1 → 0) 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2352,7 +2352,7 @@ exports[`pre-tick equivalence — applyEducationProgression education completes 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression empty array: no changes, no campus event 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression empty array: no changes, no campus event 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2371,7 +2371,7 @@ exports[`pre-tick equivalence — applyEducationProgression empty array: no chan
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression exam week FAIL (no study group): stats dropped, fail counter bumped 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression exam week FAIL (no study group): stats dropped, fail counter bumped 1`] = `
 {
   "newStats": {
     "energy": 68,
@@ -2385,7 +2385,7 @@ exports[`pre-tick equivalence — applyEducationProgression exam week FAIL (no s
   "notifications": [
     {
       "id": "education-exam",
-      "message": "D — Needs improvement.",
+      "message": "D - Needs improvement.",
       "title": "📝 Exam in CS 101",
     },
   ],
@@ -2413,7 +2413,7 @@ exports[`pre-tick equivalence — applyEducationProgression exam week FAIL (no s
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression exam week PASS (study group): stats bumped, notification pushed 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression exam week PASS (study group): stats bumped, notification pushed 1`] = `
 {
   "newStats": {
     "energy": 65,
@@ -2427,7 +2427,7 @@ exports[`pre-tick equivalence — applyEducationProgression exam week PASS (stud
   "notifications": [
     {
       "id": "education-exam",
-      "message": "B — Solid effort!",
+      "message": "B - Solid effort!",
       "title": "📝 Exam in CS 101",
     },
   ],
@@ -2456,7 +2456,7 @@ exports[`pre-tick equivalence — applyEducationProgression exam week PASS (stud
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression mixed bag: active + paused + completed 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression mixed bag: active + paused + completed 1`] = `
 {
   "newStats": {
     "energy": 67,
@@ -2523,7 +2523,7 @@ exports[`pre-tick equivalence — applyEducationProgression mixed bag: active + 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression multiple educations: only last campus event wins (legacy let-reassignment) 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression multiple educations: only last campus event wins (legacy let-reassignment) 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2581,7 +2581,7 @@ exports[`pre-tick equivalence — applyEducationProgression multiple educations:
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression paused education is untouched 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression paused education is untouched 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2612,7 +2612,7 @@ exports[`pre-tick equivalence — applyEducationProgression paused education is 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression student loan: deducts payment, reduces remaining 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression student loan: deducts payment, reduces remaining 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2650,7 +2650,7 @@ exports[`pre-tick equivalence — applyEducationProgression student loan: deduct
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression study group bonus: +2 happiness, -3 energy 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression study group bonus: +2 happiness, -3 energy 1`] = `
 {
   "newStats": {
     "energy": 77,
@@ -2683,7 +2683,7 @@ exports[`pre-tick equivalence — applyEducationProgression study group bonus: +
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationProgression weeksRemaining = 0 (not yet completed): tick finalizes graduation 1`] = `
+exports[`pre-tick equivalence - applyEducationProgression weeksRemaining = 0 (not yet completed): tick finalizes graduation 1`] = `
 {
   "newStats": {
     "energy": 70,
@@ -2715,7 +2715,7 @@ exports[`pre-tick equivalence — applyEducationProgression weeksRemaining = 0 (
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress 1 active: 1.0× multiplier, base penalties 1`] = `
+exports[`pre-tick equivalence - applyEducationStress 1 active: 1.0× multiplier, base penalties 1`] = `
 {
   "newStats": {
     "energy": 73,
@@ -2733,7 +2733,7 @@ exports[`pre-tick equivalence — applyEducationStress 1 active: 1.0× multiplie
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress 2 active: 1.3× multiplier 1`] = `
+exports[`pre-tick equivalence - applyEducationStress 2 active: 1.3× multiplier 1`] = `
 {
   "newStats": {
     "energy": 62,
@@ -2751,7 +2751,7 @@ exports[`pre-tick equivalence — applyEducationStress 2 active: 1.3× multiplie
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress 3+ active: 1.6× multiplier 1`] = `
+exports[`pre-tick equivalence - applyEducationStress 3+ active: 1.6× multiplier 1`] = `
 {
   "newStats": {
     "energy": 55,
@@ -2769,7 +2769,7 @@ exports[`pre-tick equivalence — applyEducationStress 3+ active: 1.6× multipli
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress all educations completed: 0 active, no penalty 1`] = `
+exports[`pre-tick equivalence - applyEducationStress all educations completed: 0 active, no penalty 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2787,7 +2787,7 @@ exports[`pre-tick equivalence — applyEducationStress all educations completed:
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress all educations paused: 0 active, no penalty 1`] = `
+exports[`pre-tick equivalence - applyEducationStress all educations paused: 0 active, no penalty 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2805,7 +2805,7 @@ exports[`pre-tick equivalence — applyEducationStress all educations paused: 0 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress empty educations: 0 count, null log, ctx untouched 1`] = `
+exports[`pre-tick equivalence - applyEducationStress empty educations: 0 count, null log, ctx untouched 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2823,7 +2823,7 @@ exports[`pre-tick equivalence — applyEducationStress empty educations: 0 count
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress energy clamped at 0, like its happiness/health neighbours 1`] = `
+exports[`pre-tick equivalence - applyEducationStress energy clamped at 0, like its happiness/health neighbours 1`] = `
 {
   "newStats": {
     "energy": 0,
@@ -2841,7 +2841,7 @@ exports[`pre-tick equivalence — applyEducationStress energy clamped at 0, like
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress happiness clamped at 0 when current is near floor 1`] = `
+exports[`pre-tick equivalence - applyEducationStress happiness clamped at 0 when current is near floor 1`] = `
 {
   "newStats": {
     "energy": 73,
@@ -2859,7 +2859,7 @@ exports[`pre-tick equivalence — applyEducationStress happiness clamped at 0 wh
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress mix of active + paused + completed: only active count toward penalties 1`] = `
+exports[`pre-tick equivalence - applyEducationStress mix of active + paused + completed: only active count toward penalties 1`] = `
 {
   "newStats": {
     "energy": 62,
@@ -2877,7 +2877,7 @@ exports[`pre-tick equivalence — applyEducationStress mix of active + paused + 
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress penalties cap at -20/-10/-25 (death-spiral protection) 1`] = `
+exports[`pre-tick equivalence - applyEducationStress penalties cap at -20/-10/-25 (death-spiral protection) 1`] = `
 {
   "newStats": {
     "energy": 55,
@@ -2895,7 +2895,7 @@ exports[`pre-tick equivalence — applyEducationStress penalties cap at -20/-10/
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress undefined educations: handled gracefully 1`] = `
+exports[`pre-tick equivalence - applyEducationStress undefined educations: handled gracefully 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2913,7 +2913,7 @@ exports[`pre-tick equivalence — applyEducationStress undefined educations: han
 }
 `;
 
-exports[`pre-tick equivalence — applyEducationStress weeksRemaining = 0: 0 active, no penalty 1`] = `
+exports[`pre-tick equivalence - applyEducationStress weeksRemaining = 0: 0 active, no penalty 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -2931,7 +2931,7 @@ exports[`pre-tick equivalence — applyEducationStress weeksRemaining = 0: 0 act
 }
 `;
 
-exports[`pre-tick equivalence — applyLifeMoment moment generated: merges pendingMoment + bumps counters + updates lastMomentWeek 1`] = `
+exports[`pre-tick equivalence - applyLifeMoment moment generated: merges pendingMoment + bumps counters + updates lastMomentWeek 1`] = `
 {
   "updatedLifeMoments": {
     "lastMomentWeek": 100,
@@ -2946,7 +2946,7 @@ exports[`pre-tick equivalence — applyLifeMoment moment generated: merges pendi
 }
 `;
 
-exports[`pre-tick equivalence — applyLifeMoment no moment generated, no existing lifeMoments: returns init-empty 1`] = `
+exports[`pre-tick equivalence - applyLifeMoment no moment generated, no existing lifeMoments: returns init-empty 1`] = `
 {
   "updatedLifeMoments": {
     "lastMomentWeek": 0,
@@ -2957,7 +2957,7 @@ exports[`pre-tick equivalence — applyLifeMoment no moment generated, no existi
 }
 `;
 
-exports[`pre-tick equivalence — applyLifetimeStatistics all undefined accumulators (?? 0): treats them as 0 and adds delta 1`] = `
+exports[`pre-tick equivalence - applyLifetimeStatistics all undefined accumulators (?? 0): treats them as 0 and adds delta 1`] = `
 {
   "updatedLifetimeStatistics": {
     "careerHistory": [],
@@ -2985,7 +2985,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics all undefined accumula
 }
 `;
 
-exports[`pre-tick equivalence — applyLifetimeStatistics full state: everything at once (composite snapshot) 1`] = `
+exports[`pre-tick equivalence - applyLifetimeStatistics full state: everything at once (composite snapshot) 1`] = `
 {
   "updatedLifetimeStatistics": {
     "careerHistory": [
@@ -3029,7 +3029,7 @@ exports[`pre-tick equivalence — applyLifetimeStatistics full state: everything
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay APR as percentage (rateAPR > 1, e.g. 10 instead of 0.10) is /100 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay APR as percentage (rateAPR > 1, e.g. 10 instead of 0.10) is /100 1`] = `
 {
   "cashAfter": 9900,
   "processedLoans": [
@@ -3054,7 +3054,7 @@ exports[`pre-tick equivalence — applyLoanAutopay APR as percentage (rateAPR > 
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay high-APR missed payment compounds via LOAN_MISSED_PAYMENT_PENALTY 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay high-APR missed payment compounds via LOAN_MISSED_PAYMENT_PENALTY 1`] = `
 {
   "cashAfter": 100,
   "processedLoans": [
@@ -3079,7 +3079,7 @@ exports[`pre-tick equivalence — applyLoanAutopay high-APR missed payment compo
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay loan paid off this week (remainingWithInterest <= paymentDue) is filtered out 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay loan paid off this week (remainingWithInterest <= paymentDue) is filtered out 1`] = `
 {
   "cashAfter": 9909.826923076924,
   "processedLoans": [],
@@ -3089,7 +3089,7 @@ exports[`pre-tick equivalence — applyLoanAutopay loan paid off this week (rema
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay loan with NaN remaining is treated as 0 and filtered 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay loan with NaN remaining is treated as 0 and filtered 1`] = `
 {
   "cashAfter": 1000,
   "processedLoans": [],
@@ -3099,7 +3099,7 @@ exports[`pre-tick equivalence — applyLoanAutopay loan with NaN remaining is tr
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay loan with zero remaining is filtered out 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay loan with zero remaining is filtered out 1`] = `
 {
   "cashAfter": 1000,
   "processedLoans": [],
@@ -3109,7 +3109,7 @@ exports[`pre-tick equivalence — applyLoanAutopay loan with zero remaining is f
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay multiple loans, mixed afford/miss: cash drains across iterations 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay multiple loans, mixed afford/miss: cash drains across iterations 1`] = `
 {
   "cashAfter": 200,
   "processedLoans": [
@@ -3162,7 +3162,7 @@ exports[`pre-tick equivalence — applyLoanAutopay multiple loans, mixed afford/
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay no loans: returns empty + zero totals + cash untouched 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay no loans: returns empty + zero totals + cash untouched 1`] = `
 {
   "cashAfter": 1000,
   "processedLoans": [],
@@ -3172,7 +3172,7 @@ exports[`pre-tick equivalence — applyLoanAutopay no loans: returns empty + zer
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay single loan, affordable, normal autopay 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay single loan, affordable, normal autopay 1`] = `
 {
   "cashAfter": 4900,
   "processedLoans": [
@@ -3197,7 +3197,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, affordable, norm
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay single loan, can NOT afford (cash below paymentDue) 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay single loan, can NOT afford (cash below paymentDue) 1`] = `
 {
   "cashAfter": 50,
   "processedLoans": [
@@ -3222,7 +3222,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, can NOT afford (
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay single loan, cash >= payment but bankruptcy floor blocks (and no breathing-room) 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay single loan, cash >= payment but bankruptcy floor blocks (and no breathing-room) 1`] = `
 {
   "cashAfter": 150,
   "processedLoans": [
@@ -3247,7 +3247,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, cash >= payment 
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay single loan, forcePayment kicks in (cash >= payment * 2) 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay single loan, forcePayment kicks in (cash >= payment * 2) 1`] = `
 {
   "cashAfter": 100,
   "processedLoans": [
@@ -3272,7 +3272,7 @@ exports[`pre-tick equivalence — applyLoanAutopay single loan, forcePayment kic
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay undefined loans: handled gracefully 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay undefined loans: handled gracefully 1`] = `
 {
   "cashAfter": 1000,
   "processedLoans": [],
@@ -3282,7 +3282,7 @@ exports[`pre-tick equivalence — applyLoanAutopay undefined loans: handled grac
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay weeksRemaining > 0 with no configured weeklyPayment → fallback (remainingWithInterest / weeksRemaining) 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay weeksRemaining > 0 with no configured weeklyPayment → fallback (remainingWithInterest / weeksRemaining) 1`] = `
 {
   "cashAfter": 9899.807692307691,
   "processedLoans": [
@@ -3307,7 +3307,7 @@ exports[`pre-tick equivalence — applyLoanAutopay weeksRemaining > 0 with no co
 }
 `;
 
-exports[`pre-tick equivalence — applyLoanAutopay weeksRemaining=0 → fallback payment is the full remainingWithInterest 1`] = `
+exports[`pre-tick equivalence - applyLoanAutopay weeksRemaining=0 → fallback payment is the full remainingWithInterest 1`] = `
 {
   "cashAfter": 9499.038461538461,
   "processedLoans": [],
@@ -3317,7 +3317,7 @@ exports[`pre-tick equivalence — applyLoanAutopay weeksRemaining=0 → fallback
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos auto-repair cost exceeds owned: floored at 0 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos auto-repair cost exceeds owned: floored at 0 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3340,7 +3340,7 @@ exports[`pre-tick equivalence — applyMiningCryptos auto-repair cost exceeds ow
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos auto-repair enabled but NO earnings: still deducts cost 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos auto-repair enabled but NO earnings: still deducts cost 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3363,7 +3363,7 @@ exports[`pre-tick equivalence — applyMiningCryptos auto-repair enabled but NO 
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos auto-repair enabled with earnings: deducts cost from autoRepairCryptoId 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos auto-repair enabled with earnings: deducts cost from autoRepairCryptoId 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3386,7 +3386,7 @@ exports[`pre-tick equivalence — applyMiningCryptos auto-repair enabled with ea
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos halving 1: cryptoEarned cut in half 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos halving 1: cryptoEarned cut in half 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3401,7 +3401,7 @@ exports[`pre-tick equivalence — applyMiningCryptos halving 1: cryptoEarned cut
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos halving 4: cryptoEarned reduced by 16× (1/16) 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos halving 4: cryptoEarned reduced by 16× (1/16) 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3416,7 +3416,7 @@ exports[`pre-tick equivalence — applyMiningCryptos halving 4: cryptoEarned red
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos mining ETH (lower multiplier in calculateMiningEarnings) 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos mining ETH (lower multiplier in calculateMiningEarnings) 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3439,7 +3439,7 @@ exports[`pre-tick equivalence — applyMiningCryptos mining ETH (lower multiplie
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos no warehouse: returns prevCryptos unchanged (same reference) 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos no warehouse: returns prevCryptos unchanged (same reference) 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3454,7 +3454,7 @@ exports[`pre-tick equivalence — applyMiningCryptos no warehouse: returns prevC
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos warehouse with basic miners: BTC owned bumps up 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos warehouse with basic miners: BTC owned bumps up 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3469,7 +3469,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with basic miners
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos warehouse with industrial miners: significant BTC bump 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos warehouse with industrial miners: significant BTC bump 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3484,7 +3484,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with industrial m
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos warehouse with selected crypto but NO miners: cryptoEarned = 0, returns prev 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos warehouse with selected crypto but NO miners: cryptoEarned = 0, returns prev 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3499,7 +3499,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse with selected cry
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningCryptos warehouse without selectedCrypto: returns prevCryptos unchanged 1`] = `
+exports[`pre-tick equivalence - applyMiningCryptos warehouse without selectedCrypto: returns prevCryptos unchanged 1`] = `
 {
   "updatedCryptos": [
     {
@@ -3514,7 +3514,7 @@ exports[`pre-tick equivalence — applyMiningCryptos warehouse without selectedC
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse auto-repair with no miners needing repair (totalRepairCost = 0): fallthrough to no-repair return 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse auto-repair with no miners needing repair (totalRepairCost = 0): fallthrough to no-repair return 1`] = `
 {
   "updatedWarehouse": {
     "autoRepairCryptoId": "btc",
@@ -3534,7 +3534,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse auto-repair with no miner
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: degradation drops basic to 47, still triggers repair (< 50 AFTER decay) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse auto-repair: degradation drops basic to 47, still triggers repair (< 50 AFTER decay) 1`] = `
 {
   "updatedWarehouse": {
     "autoRepairCryptoId": "btc",
@@ -3554,7 +3554,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: degradation 
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: degradation drops basic to 53, NO repair (>= 50 AFTER decay) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse auto-repair: degradation drops basic to 53, NO repair (>= 50 AFTER decay) 1`] = `
 {
   "updatedWarehouse": {
     "autoRepairCryptoId": "btc",
@@ -3574,7 +3574,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: degradation 
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: funding coin budget below fleet cost → partial restore, not a free full repair (exploit fix) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse auto-repair: funding coin budget below fleet cost → partial restore, not a free full repair (exploit fix) 1`] = `
 {
   "updatedWarehouse": {
     "autoRepairCryptoId": "btc",
@@ -3594,7 +3594,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: funding coin
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: only miners under 50% are repaired to 100% 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse auto-repair: only miners under 50% are repaired to 100% 1`] = `
 {
   "updatedWarehouse": {
     "autoRepairCryptoId": "btc",
@@ -3616,7 +3616,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse auto-repair: only miners 
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse degradation floors at 0 (low durability + high roll) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse degradation floors at 0 (low durability + high roll) 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1,
@@ -3633,7 +3633,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse degradation floors at 0 (
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse difficulty cap at 2.0× (already high) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse difficulty cap at 2.0× (already high) 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 2,
@@ -3650,7 +3650,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse difficulty cap at 2.0× (
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse difficulty update does NOT fire at 9 weeks (boundary) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse difficulty update does NOT fire at 9 weeks (boundary) 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1,
@@ -3667,7 +3667,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse difficulty update does NO
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse difficulty update fires at exactly 10 weeks: multiplier × 1.1 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse difficulty update fires at exactly 10 weeks: multiplier × 1.1 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1.1,
@@ -3684,7 +3684,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse difficulty update fires a
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse explicit lastDifficultyUpdateAbsoluteWeek takes precedence over legacy field 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse explicit lastDifficultyUpdateAbsoluteWeek takes precedence over legacy field 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1,
@@ -3701,7 +3701,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse explicit lastDifficultyUp
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse lastDifficultyUpdate is corrupted (cyclic value larger than current week): migrated 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse lastDifficultyUpdate is corrupted (cyclic value larger than current week): migrated 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1,
@@ -3718,7 +3718,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse lastDifficultyUpdate is c
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse miners with full durability: drops by degradationRoll 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse miners with full durability: drops by degradationRoll 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1,
@@ -3735,13 +3735,13 @@ exports[`pre-tick equivalence — applyMiningWarehouse miners with full durabili
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse no warehouse: returns input warehouse (undefined) 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse no warehouse: returns input warehouse (undefined) 1`] = `
 {
   "updatedWarehouse": undefined,
 }
 `;
 
-exports[`pre-tick equivalence — applyMiningWarehouse warehouse with no miners: returns warehouse unchanged 1`] = `
+exports[`pre-tick equivalence - applyMiningWarehouse warehouse with no miners: returns warehouse unchanged 1`] = `
 {
   "updatedWarehouse": {
     "difficultyMultiplier": 1,
@@ -3751,7 +3751,7 @@ exports[`pre-tick equivalence — applyMiningWarehouse warehouse with no miners:
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick 1 notification on an even week: pushed with a unique id 1`] = `
+exports[`pre-tick equivalence - applyNPCDepthTick 1 notification on an even week: pushed with a unique id 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3782,7 +3782,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick 1 notification on an even we
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick 2 notifications offered: only the first is pushed (cap 1) 1`] = `
+exports[`pre-tick equivalence - applyNPCDepthTick 2 notifications offered: only the first is pushed (cap 1) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3813,7 +3813,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick 2 notifications offered: onl
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick 5 notifications offered: only the first is pushed (cap 1) 1`] = `
+exports[`pre-tick equivalence - applyNPCDepthTick 5 notifications offered: only the first is pushed (cap 1) 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3844,7 +3844,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick 5 notifications offered: onl
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick empty relationships in: empty out, no notifications 1`] = `
+exports[`pre-tick equivalence - applyNPCDepthTick empty relationships in: empty out, no notifications 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3862,7 +3862,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick empty relationships in: empt
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick processWeeklyNPCDepth throws: returns input unchanged, no notif push, ctx.newStats untouched 1`] = `
+exports[`pre-tick equivalence - applyNPCDepthTick processWeeklyNPCDepth throws: returns input unchanged, no notif push, ctx.newStats untouched 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3878,7 +3878,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick processWeeklyNPCDepth throws
 }
 `;
 
-exports[`pre-tick equivalence — applyNPCDepthTick relationships pass-through with 0 notifications: array swapped, no notif push 1`] = `
+exports[`pre-tick equivalence - applyNPCDepthTick relationships pass-through with 0 notifications: array swapped, no notif push 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -3903,7 +3903,7 @@ exports[`pre-tick equivalence — applyNPCDepthTick relationships pass-through w
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects already-dead pets are NOT re-mourned 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects already-dead pets are NOT re-mourned 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -3918,7 +3918,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects already-dead pets are
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects happiness floor at 0 (does not go negative) 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects happiness floor at 0 (does not go negative) 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -3944,7 +3944,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects happiness floor at 0 
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects mix of newly-dead and already-dead: only newly-dead counted 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects mix of newly-dead and already-dead: only newly-dead counted 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -3965,7 +3965,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects mix of newly-dead and
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects no-op when no newly-dead pets 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects no-op when no newly-dead pets 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -3980,7 +3980,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects no-op when no newly-d
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects no-op when no pets 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects no-op when no pets 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -3995,7 +3995,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects no-op when no pets 1`
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects one newly-dead pet: -20 happiness + 1 notification 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects one newly-dead pet: -20 happiness + 1 notification 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4016,7 +4016,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects one newly-dead pet: -
 }
 `;
 
-exports[`pre-tick equivalence — applyPetDeathSideEffects two newly-dead pets: -40 happiness + 2 notifications 1`] = `
+exports[`pre-tick equivalence - applyPetDeathSideEffects two newly-dead pets: -40 happiness + 2 notifications 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4042,7 +4042,7 @@ exports[`pre-tick equivalence — applyPetDeathSideEffects two newly-dead pets: 
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects alive but unhappy pets: small bonding delta, food cost still deducts 1`] = `
+exports[`pre-tick equivalence - applyPetLivingSideEffects alive but unhappy pets: small bonding delta, food cost still deducts 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4057,7 +4057,7 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects alive but unhappy pe
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects alive happy & healthy pets: capped bonding happiness + health, food cost deducts 1`] = `
+exports[`pre-tick equivalence - applyPetLivingSideEffects alive happy & healthy pets: capped bonding happiness + health, food cost deducts 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4072,7 +4072,7 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects alive happy & health
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects all alive pets dead: no bonus, no food cost 1`] = `
+exports[`pre-tick equivalence - applyPetLivingSideEffects all alive pets dead: no bonus, no food cost 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4087,7 +4087,7 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects all alive pets dead:
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects food cost floor at 0 when broke 1`] = `
+exports[`pre-tick equivalence - applyPetLivingSideEffects food cost floor at 0 when broke 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4102,7 +4102,7 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects food cost floor at 0
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects happiness cap at 100 1`] = `
+exports[`pre-tick equivalence - applyPetLivingSideEffects happiness cap at 100 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4117,7 +4117,7 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects happiness cap at 100
 }
 `;
 
-exports[`pre-tick equivalence — applyPetLivingSideEffects no-op when no pets 1`] = `
+exports[`pre-tick equivalence - applyPetLivingSideEffects no-op when no pets 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4132,7 +4132,7 @@ exports[`pre-tick equivalence — applyPetLivingSideEffects no-op when no pets 1
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped at 0 when below $5000 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression birth: money clamped at 0 when below $5000 1`] = `
 {
   "birthMessage": "BrokeBeth gave birth to a beautiful baby boy named Kai!",
   "newborn": {
@@ -4159,7 +4159,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: money clamped
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChildGender override wins over preRolls.childGender 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyChildGender override wins over preRolls.childGender 1`] = `
 {
   "birthMessage": "Beth gave birth to a beautiful baby boy named Kai!",
   "newborn": {
@@ -4186,7 +4186,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChil
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChildName override wins over default "Baby" 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyChildName override wins over default "Baby" 1`] = `
 {
   "birthMessage": "Carol gave birth to a beautiful baby boy named Alex!",
   "newborn": {
@@ -4213,7 +4213,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyChil
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeeks === PREGNANCY_DURATION_WEEKS (10) triggers birth 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression birth: pregnancyWeeks === PREGNANCY_DURATION_WEEKS (10) triggers birth 1`] = `
 {
   "newStats": {
     "energy": 80,
@@ -4251,7 +4251,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: pregnancyWeek
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression birth: spouse (not just partner) fires the same path 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression birth: spouse (not just partner) fires the same path 1`] = `
 {
   "birthMessage": "Diane gave birth to a beautiful baby boy named Kai!",
   "newborn": {
@@ -4278,7 +4278,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression birth: spouse (not j
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression late preg: pregnancyWeeks 7: energy -= 3 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression late preg: pregnancyWeeks 7: energy -= 3 1`] = `
 {
   "newStats": {
     "energy": 77,
@@ -4304,7 +4304,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression late preg: pregnancy
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression late preg: pregnancyWeeks 8: still drains energy 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression late preg: pregnancyWeeks 8: still drains energy 1`] = `
 {
   "birthMessage": null,
   "newborn": null,
@@ -4319,7 +4319,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression late preg: pregnancy
 }
 `;
 
-exports[`pre-tick equivalence — applyPregnancyProgression mid preg: pregnancyWeeks === 5: happiness += 2 1`] = `
+exports[`pre-tick equivalence - applyPregnancyProgression mid preg: pregnancyWeeks === 5: happiness += 2 1`] = `
 {
   "birthMessage": null,
   "newborn": null,
@@ -4334,7 +4334,7 @@ exports[`pre-tick equivalence — applyPregnancyProgression mid preg: pregnancyW
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth family type: just clamps score (-50 -> 0) 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth family type: just clamps score (-50 -> 0) 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4349,7 +4349,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth family type: just clam
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth friend type: just clamps score, no penalty, no notif 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth friend type: just clamps score, no penalty, no notif 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4364,7 +4364,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth friend type: just clam
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth healthy partner (score 50): resets weeksAtLow to 0 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth healthy partner (score 50): resets weeksAtLow to 0 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4380,7 +4380,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth healthy partner (score
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth low rel (score 20), weeksAtLow=2, breakup roll fires: rel=null, -25 penalty, breakup notif 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth low rel (score 20), weeksAtLow=2, breakup roll fires: rel=null, -25 penalty, breakup notif 1`] = `
 {
   "notifications": [
     {
@@ -4396,7 +4396,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth low rel (score 20), we
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth low rel, FIRST week at low (weeksAtLow becomes 1): no roll, no penalty 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth low rel, FIRST week at low (weeksAtLow becomes 1): no roll, no penalty 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4412,7 +4412,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth low rel, FIRST week at
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth low rel, breakup miss + disappointed hit: -10 penalty, score-5, notif 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth low rel, breakup miss + disappointed hit: -10 penalty, score-5, notif 1`] = `
 {
   "notifications": [
     {
@@ -4434,7 +4434,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth low rel, breakup miss 
 }
 `;
 
-exports[`pre-tick equivalence — applyRelationshipHealth low rel, weeksAtLow=2, both rolls miss: just track weeksAtLow, no penalty 1`] = `
+exports[`pre-tick equivalence - applyRelationshipHealth low rel, weeksAtLow=2, both rolls miss: just track weeksAtLow, no penalty 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4450,7 +4450,7 @@ exports[`pre-tick equivalence — applyRelationshipHealth low rel, weeksAtLow=2,
 }
 `;
 
-exports[`pre-tick equivalence — applyRentAndHousing empty real-estate: no rent, no housing effects 1`] = `
+exports[`pre-tick equivalence - applyRentAndHousing empty real-estate: no rent, no housing effects 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4464,7 +4464,7 @@ exports[`pre-tick equivalence — applyRentAndHousing empty real-estate: no rent
 }
 `;
 
-exports[`pre-tick equivalence — applyRentAndHousing multiple rented properties: sums rent 1`] = `
+exports[`pre-tick equivalence - applyRentAndHousing multiple rented properties: sums rent 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4512,7 +4512,7 @@ exports[`pre-tick equivalence — applyRentAndHousing multiple rented properties
 }
 `;
 
-exports[`pre-tick equivalence — applyRentAndHousing rented (not owned) property: pays weekly rent 1`] = `
+exports[`pre-tick equivalence - applyRentAndHousing rented (not owned) property: pays weekly rent 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4538,7 +4538,7 @@ exports[`pre-tick equivalence — applyRentAndHousing rented (not owned) propert
 }
 `;
 
-exports[`pre-tick equivalence — applyRentAndHousing rented but owned: no rent paid (owners do not pay themselves) 1`] = `
+exports[`pre-tick equivalence - applyRentAndHousing rented but owned: no rent paid (owners do not pay themselves) 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4569,7 +4569,7 @@ exports[`pre-tick equivalence — applyRentAndHousing rented but owned: no rent 
 }
 `;
 
-exports[`pre-tick equivalence — applyRentAndHousing undefined real-estate: handled gracefully 1`] = `
+exports[`pre-tick equivalence - applyRentAndHousing undefined real-estate: handled gracefully 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4583,7 +4583,7 @@ exports[`pre-tick equivalence — applyRentAndHousing undefined real-estate: han
 }
 `;
 
-exports[`pre-tick equivalence — applyRentAndHousing vacant status (no status field or owned without status=rented): no rent 1`] = `
+exports[`pre-tick equivalence - applyRentAndHousing vacant status (no status field or owned without status=rented): no rent 1`] = `
 {
   "notifications": [],
   "result": {
@@ -4613,7 +4613,7 @@ exports[`pre-tick equivalence — applyRentAndHousing vacant status (no status f
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding boundary: scheduledWeek 47 (1 below threshold) IS stale 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding boundary: scheduledWeek 47 (1 below threshold) IS stale 1`] = `
 {
   "familySpouse": null,
   "rel": {
@@ -4627,7 +4627,7 @@ exports[`pre-tick equivalence — applyScheduledWedding boundary: scheduledWeek 
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → marry, +20 score, charge 75% balance 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding execute: can afford → marry, +20 score, charge 75% balance 1`] = `
 {
   "money": 35000,
   "result": {
@@ -4664,7 +4664,7 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: can afford → 
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipScore clamped at 100 even with +20 bonus 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding execute: relationshipScore clamped at 100 even with +20 bonus 1`] = `
 {
   "familySpouse": {
     "anniversaryWeek": 100,
@@ -4698,7 +4698,7 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: relationshipSco
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding execute: weeksAtLowRelationship reset to 0 even if it was high 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding execute: weeksAtLowRelationship reset to 0 even if it was high 1`] = `
 {
   "familySpouse": {
     "anniversaryWeek": 100,
@@ -4732,7 +4732,7 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: weeksAtLowRelat
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding execute: zero budget → marries free (floor(0 * 0.75) = 0) 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding execute: zero budget → marries free (floor(0 * 0.75) = 0) 1`] = `
 {
   "money": 0,
   "result": {
@@ -4769,7 +4769,7 @@ exports[`pre-tick equivalence — applyScheduledWedding execute: zero budget →
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding expire: cant afford AND weddingAge >= 52 → expire, -15 score 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding expire: cant afford AND weddingAge >= 52 → expire, -15 score 1`] = `
 {
   "familySpouse": null,
   "rel": {
@@ -4787,7 +4787,7 @@ exports[`pre-tick equivalence — applyScheduledWedding expire: cant afford AND 
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding postpone: cant afford, weddingAge < 1yr → postpone +4 weeks 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding postpone: cant afford, weddingAge < 1yr → postpone +4 weeks 1`] = `
 {
   "moneyUnchanged": 100,
   "result": {
@@ -4809,7 +4809,7 @@ exports[`pre-tick equivalence — applyScheduledWedding postpone: cant afford, w
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding stale: relationshipScore floored at 0 after -10 penalty when starting < 10 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding stale: relationshipScore floored at 0 after -10 penalty when starting < 10 1`] = `
 {
   "familySpouse": null,
   "rel": {
@@ -4823,7 +4823,7 @@ exports[`pre-tick equivalence — applyScheduledWedding stale: relationshipScore
 }
 `;
 
-exports[`pre-tick equivalence — applyScheduledWedding stale: scheduledWeek 1 year+ in past → cleanup, -10 score 1`] = `
+exports[`pre-tick equivalence - applyScheduledWedding stale: scheduledWeek 1 year+ in past → cleanup, -10 score 1`] = `
 {
   "moneyUnchanged": 100000,
   "result": {
@@ -4840,7 +4840,7 @@ exports[`pre-tick equivalence — applyScheduledWedding stale: scheduledWeek 1 y
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek applies reputation nudge when owned vehicle has rep bonus and player below threshold 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek applies reputation nudge when owned vehicle has rep bonus and player below threshold 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4877,7 +4877,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek applies reputation nudge 
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek handles a single owned car with normal maintenance 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek handles a single owned car with normal maintenance 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4914,7 +4914,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles a single owned ca
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek handles empty array 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek handles empty array 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4930,7 +4930,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles empty array 1`] =
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek handles insured vehicle accident (out-of-pocket reduced by coverage) 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek handles insured vehicle accident (out-of-pocket reduced by coverage) 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -4980,7 +4980,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles insured vehicle a
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek handles low-condition vehicle (higher accident chance) 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek handles low-condition vehicle (higher accident chance) 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -5017,7 +5017,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles low-condition veh
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek handles undefined input 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek handles undefined input 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -5033,7 +5033,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles undefined input 1
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek handles unowned vehicle (untouched) 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek handles unowned vehicle (untouched) 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -5070,7 +5070,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek handles unowned vehicle (
 }
 `;
 
-exports[`pre-tick equivalence — applyVehiclesForWeek skips reputation nudge when player already above threshold 1`] = `
+exports[`pre-tick equivalence - applyVehiclesForWeek skips reputation nudge when player already above threshold 1`] = `
 {
   "newStats": {
     "energy": 100,
@@ -5107,7 +5107,7 @@ exports[`pre-tick equivalence — applyVehiclesForWeek skips reputation nudge wh
 }
 `;
 
-exports[`pre-tick equivalence — applyWeeklyEvents new events are stamped with generatedAtWeeksLived = nextWeeksLived 1`] = `
+exports[`pre-tick equivalence - applyWeeklyEvents new events are stamped with generatedAtWeeksLived = nextWeeksLived 1`] = `
 {
   "newEventCount": 2,
   "updatedPendingEvents": [
@@ -5125,26 +5125,26 @@ exports[`pre-tick equivalence — applyWeeklyEvents new events are stamped with 
 }
 `;
 
-exports[`pre-tick equivalence — applyWeeklyEvents no new events, empty pendingEvents: returns empty array 1`] = `
+exports[`pre-tick equivalence - applyWeeklyEvents no new events, empty pendingEvents: returns empty array 1`] = `
 {
   "newEventCount": 0,
   "updatedPendingEvents": [],
 }
 `;
 
-exports[`pre-tick equivalence — calculateNetWorth earlyCareer 1`] = `10500`;
+exports[`pre-tick equivalence - calculateNetWorth earlyCareer 1`] = `10500`;
 
-exports[`pre-tick equivalence — calculateNetWorth freshGame 1`] = `1000`;
+exports[`pre-tick equivalence - calculateNetWorth freshGame 1`] = `1000`;
 
-exports[`pre-tick equivalence — calculateNetWorth inPrison 1`] = `0`;
+exports[`pre-tick equivalence - calculateNetWorth inPrison 1`] = `0`;
 
-exports[`pre-tick equivalence — calculateNetWorth midGame 1`] = `53000`;
+exports[`pre-tick equivalence - calculateNetWorth midGame 1`] = `53000`;
 
-exports[`pre-tick equivalence — calculateNetWorth nearDeath 1`] = `50`;
+exports[`pre-tick equivalence - calculateNetWorth nearDeath 1`] = `50`;
 
-exports[`pre-tick equivalence — calculateNetWorth wealthyGame 1`] = `730000`;
+exports[`pre-tick equivalence - calculateNetWorth wealthyGame 1`] = `730000`;
 
-exports[`pre-tick equivalence — computeDecayInputs earlyCareer 1`] = `
+exports[`pre-tick equivalence - computeDecayInputs earlyCareer 1`] = `
 {
   "effectiveDecayRate": 8,
   "graceFactor": 1,
@@ -5154,7 +5154,7 @@ exports[`pre-tick equivalence — computeDecayInputs earlyCareer 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — computeDecayInputs freshGame 1`] = `
+exports[`pre-tick equivalence - computeDecayInputs freshGame 1`] = `
 {
   "effectiveDecayRate": 2,
   "graceFactor": 0,
@@ -5164,7 +5164,7 @@ exports[`pre-tick equivalence — computeDecayInputs freshGame 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — computeDecayInputs inPrison 1`] = `
+exports[`pre-tick equivalence - computeDecayInputs inPrison 1`] = `
 {
   "effectiveDecayRate": 8,
   "graceFactor": 1,
@@ -5174,7 +5174,7 @@ exports[`pre-tick equivalence — computeDecayInputs inPrison 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — computeDecayInputs midGame 1`] = `
+exports[`pre-tick equivalence - computeDecayInputs midGame 1`] = `
 {
   "effectiveDecayRate": 7.547169811320755,
   "graceFactor": 1,
@@ -5184,7 +5184,7 @@ exports[`pre-tick equivalence — computeDecayInputs midGame 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — computeDecayInputs nearDeath 1`] = `
+exports[`pre-tick equivalence - computeDecayInputs nearDeath 1`] = `
 {
   "effectiveDecayRate": 8,
   "graceFactor": 1,
@@ -5194,7 +5194,7 @@ exports[`pre-tick equivalence — computeDecayInputs nearDeath 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — computeDecayInputs wealthyGame 1`] = `
+exports[`pre-tick equivalence - computeDecayInputs wealthyGame 1`] = `
 {
   "effectiveDecayRate": 2,
   "graceFactor": 1,
@@ -5204,105 +5204,105 @@ exports[`pre-tick equivalence — computeDecayInputs wealthyGame 1`] = `
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest NaN savings: clamped to 0 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest NaN savings: clamped to 0 1`] = `
 {
   "newBankSavings": 0,
   "savingsInterest": 0,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest all perks + high-yield + above soft cap (max-stack scenario) 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest all perks + high-yield + above soft cap (max-stack scenario) 1`] = `
 {
   "newBankSavings": 250264.42307692306,
   "savingsInterest": 264.4230769230769,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest base APR, below soft cap, no perks 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest base APR, below soft cap, no perks 1`] = `
 {
   "newBankSavings": 5002.884615384615,
   "savingsInterest": 2.8846153846153846,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest base APR, exactly at soft cap 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest base APR, exactly at soft cap 1`] = `
 {
   "newBankSavings": 50028.846153846156,
   "savingsInterest": 28.846153846153847,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest base APR, well above soft cap (diminishing returns kick in) 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest base APR, well above soft cap (diminishing returns kick in) 1`] = `
 {
   "newBankSavings": 200115.38461538462,
   "savingsInterest": 115.38461538461539,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest both gold + perk: 2.25× (1.5 × 1.5) interest, multiplicative stack 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest both gold + perk: 2.25× (1.5 × 1.5) interest, multiplicative stack 1`] = `
 {
   "newBankSavings": 10010.576923076924,
   "savingsInterest": 10.576923076923077,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest goldUpgrade only: 1.5× interest 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest goldUpgrade only: 1.5× interest 1`] = `
 {
   "newBankSavings": 10008.653846153846,
   "savingsInterest": 8.653846153846153,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest goodCredit perk only: 1.5× interest 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest goodCredit perk only: 1.5× interest 1`] = `
 {
   "newBankSavings": 10008.653846153846,
   "savingsInterest": 8.653846153846153,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest high-yield via creditScore 739 NOT unlocked (off-by-one check) 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest high-yield via creditScore 739 NOT unlocked (off-by-one check) 1`] = `
 {
   "newBankSavings": 10005.76923076923,
   "savingsInterest": 5.769230769230769,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest high-yield via creditScore 740 unlock 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest high-yield via creditScore 740 unlock 1`] = `
 {
   "newBankSavings": 10009.615384615385,
   "savingsInterest": 9.615384615384615,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest high-yield via financialPlanning setting (low credit OK) 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest high-yield via financialPlanning setting (low credit OK) 1`] = `
 {
   "newBankSavings": 10009.615384615385,
   "savingsInterest": 9.615384615384615,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest negative savings: clamped to 0, no interest 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest negative savings: clamped to 0, no interest 1`] = `
 {
   "newBankSavings": 0,
   "savingsInterest": 0,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest undefined savings: handled gracefully 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest undefined savings: handled gracefully 1`] = `
 {
   "newBankSavings": 0,
   "savingsInterest": 0,
 }
 `;
 
-exports[`pre-tick equivalence — computeSavingsInterest zero savings: no interest 1`] = `
+exports[`pre-tick equivalence - computeSavingsInterest zero savings: no interest 1`] = `
 {
   "newBankSavings": 0,
   "savingsInterest": 0,
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome Money Multiplier gold upgrade applies 1.5× 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome Money Multiplier gold upgrade applies 1.5× 1`] = `
 {
   "baseTotalIncome": 1000,
   "partnerIncome": 0,
@@ -5310,7 +5310,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome Money Multiplier gold upgr
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome all income sources during beginner luck phase (deterministic seeded roll) 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome all income sources during beginner luck phase (deterministic seeded roll) 1`] = `
 {
   "baseTotalIncome": 298,
   "partnerIncome": 0,
@@ -5318,7 +5318,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome all income sources during 
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome beginner luck final week (weeksLivedNow=19, still in window) 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome beginner luck final week (weeksLivedNow=19, still in window) 1`] = `
 {
   "baseTotalIncome": 119,
   "partnerIncome": 0,
@@ -5326,7 +5326,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome beginner luck final week (
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome beginner luck week 0 (makeWeeklyRoll(0) deterministic roll) 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome beginner luck week 0 (makeWeeklyRoll(0) deterministic roll) 1`] = `
 {
   "baseTotalIncome": 122,
   "partnerIncome": 0,
@@ -5334,7 +5334,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome beginner luck week 0 (make
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome career salary only, past beginner-luck phase 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome career salary only, past beginner-luck phase 1`] = `
 {
   "baseTotalIncome": 500,
   "partnerIncome": 0,
@@ -5342,7 +5342,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome career salary only, past b
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome handles negative or non-finite partner income gracefully (clamps to 0) 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome handles negative or non-finite partner income gracefully (clamps to 0) 1`] = `
 {
   "baseTotalIncome": 0,
   "partnerIncome": 0,
@@ -5350,7 +5350,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome handles negative or non-fi
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome non-partner relationships are ignored even with income 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome non-partner relationships are ignored even with income 1`] = `
 {
   "baseTotalIncome": 0,
   "partnerIncome": 0,
@@ -5358,7 +5358,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome non-partner relationships 
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome partner with relationshipScore < 50 contributes nothing 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome partner with relationshipScore < 50 contributes nothing 1`] = `
 {
   "baseTotalIncome": 0,
   "partnerIncome": 0,
@@ -5366,7 +5366,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome partner with relationshipS
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome partner with relationshipScore >= 50 contributes 25% of income 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome partner with relationshipScore >= 50 contributes 25% of income 1`] = `
 {
   "baseTotalIncome": 250,
   "partnerIncome": 250,
@@ -5374,7 +5374,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome partner with relationshipS
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome spouse + partner: only the HIGHEST earner contributes (no stacking) 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome spouse + partner: only the HIGHEST earner contributes (no stacking) 1`] = `
 {
   "baseTotalIncome": 650,
   "partnerIncome": 500,
@@ -5382,7 +5382,7 @@ exports[`pre-tick equivalence — computeWeeklyIncome spouse + partner: only the
 }
 `;
 
-exports[`pre-tick equivalence — computeWeeklyIncome zero income with no relationships, no perks, no luck phase 1`] = `
+exports[`pre-tick equivalence - computeWeeklyIncome zero income with no relationships, no perks, no luck phase 1`] = `
 {
   "baseTotalIncome": 0,
   "partnerIncome": 0,
@@ -5390,61 +5390,61 @@ exports[`pre-tick equivalence — computeWeeklyIncome zero income with no relati
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance all positive contributions: full breakdown line 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance all positive contributions: full breakdown line 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $1000 + Partner $250 + Passive $75 + Tax -$200 + Rent -$50 + Loans -$100 + Loan penalty +$15 + Savings interest +$10. Money: $5000 -> $5970",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance all zero: returns null (no log) 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance all zero: returns null (no log) 1`] = `
 {
   "logMessage": null,
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance career income only: minimal happy path 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance career income only: minimal happy path 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $500 + Passive $0. Money: $1000 -> $1500",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance careerSalary = 0 but totalIncome > 0 (passive only) 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance careerSalary = 0 but totalIncome > 0 (passive only) 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $0 + Passive $100. Money: $1000 -> $1100",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance large rounding: 99.4 rounds down, 99.6 rounds up 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance large rounding: 99.4 rounds down, 99.6 rounds up 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $0 + Passive $0 + Loans -$99 + Loan penalty +$100 + Savings interest +$101. Money: $1000 -> $1000",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance loan-penalty-only: logs without auto-paid 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance loan-penalty-only: logs without auto-paid 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $0 + Passive $0 + Loan penalty +$26. Money: $500 -> $500",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance partnerIncome = 0 omits the Partner row 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance partnerIncome = 0 omits the Partner row 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $500 + Passive $0. Money: $1000 -> $1500",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance rent only (no income): still logs 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance rent only (no income): still logs 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $0 + Passive $0 + Rent -$200. Money: $500 -> $300",
 }
 `;
 
-exports[`pre-tick equivalence — summarizeWeeklyFinance savings interest only: logs the savings row 1`] = `
+exports[`pre-tick equivalence - summarizeWeeklyFinance savings interest only: logs the savings row 1`] = `
 {
   "logMessage": "[WEEK PROGRESSION] Weekly economy: Career $0 + Passive $0 + Savings interest +$13. Money: $5000 -> $5000",
 }
 `;
 
-exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving/sick/dying/dead/elderly cases 1`] = `
+exports[`pre-tick equivalence - tickPetsForWeek covers healthy/hungry/starving/sick/dying/dead/elderly cases 1`] = `
 [
   {
     "age": 51,
@@ -5543,13 +5543,13 @@ exports[`pre-tick equivalence — tickPetsForWeek covers healthy/hungry/starving
 ]
 `;
 
-exports[`pre-tick equivalence — tickPetsForWeek handles empty array 1`] = `[]`;
+exports[`pre-tick equivalence - tickPetsForWeek handles empty array 1`] = `[]`;
 
-exports[`pre-tick equivalence — tickPetsForWeek handles null input 1`] = `[]`;
+exports[`pre-tick equivalence - tickPetsForWeek handles null input 1`] = `[]`;
 
-exports[`pre-tick equivalence — tickPetsForWeek handles undefined input 1`] = `[]`;
+exports[`pre-tick equivalence - tickPetsForWeek handles undefined input 1`] = `[]`;
 
-exports[`subsystem tick equivalence — runCryptoWeeklyTick earlyCareer 1`] = `
+exports[`subsystem tick equivalence - runCryptoWeeklyTick earlyCareer 1`] = `
 {
   "banking": {
     "accounts": [
@@ -5816,7 +5816,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick earlyCareer 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runCryptoWeeklyTick freshGame 1`] = `
+exports[`subsystem tick equivalence - runCryptoWeeklyTick freshGame 1`] = `
 {
   "banking": {
     "accounts": [
@@ -6083,7 +6083,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick freshGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runCryptoWeeklyTick inPrison 1`] = `
+exports[`subsystem tick equivalence - runCryptoWeeklyTick inPrison 1`] = `
 {
   "banking": {
     "accounts": [
@@ -6350,7 +6350,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick inPrison 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runCryptoWeeklyTick midGame 1`] = `
+exports[`subsystem tick equivalence - runCryptoWeeklyTick midGame 1`] = `
 {
   "banking": {
     "accounts": [
@@ -6625,7 +6625,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick midGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runCryptoWeeklyTick nearDeath 1`] = `
+exports[`subsystem tick equivalence - runCryptoWeeklyTick nearDeath 1`] = `
 {
   "banking": {
     "accounts": [
@@ -6900,7 +6900,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick nearDeath 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runCryptoWeeklyTick wealthyGame 1`] = `
+exports[`subsystem tick equivalence - runCryptoWeeklyTick wealthyGame 1`] = `
 {
   "banking": {
     "accounts": [
@@ -7175,7 +7175,7 @@ exports[`subsystem tick equivalence — runCryptoWeeklyTick wealthyGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runDarkWebWeeklyTick earlyCareer 1`] = `
+exports[`subsystem tick equivalence - runDarkWebWeeklyTick earlyCareer 1`] = `
 {
   "darkWeb": {
     "activeJobs": [],
@@ -7425,7 +7425,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick earlyCareer 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runDarkWebWeeklyTick freshGame 1`] = `
+exports[`subsystem tick equivalence - runDarkWebWeeklyTick freshGame 1`] = `
 {
   "darkWeb": {
     "activeJobs": [],
@@ -7684,7 +7684,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick freshGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runDarkWebWeeklyTick inPrison 1`] = `
+exports[`subsystem tick equivalence - runDarkWebWeeklyTick inPrison 1`] = `
 {
   "darkWeb": {
     "activeJobs": [],
@@ -7928,7 +7928,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick inPrison 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runDarkWebWeeklyTick midGame 1`] = `
+exports[`subsystem tick equivalence - runDarkWebWeeklyTick midGame 1`] = `
 {
   "darkWeb": {
     "activeJobs": [],
@@ -8187,7 +8187,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick midGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runDarkWebWeeklyTick nearDeath 1`] = `
+exports[`subsystem tick equivalence - runDarkWebWeeklyTick nearDeath 1`] = `
 {
   "darkWeb": {
     "activeJobs": [],
@@ -8434,7 +8434,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick nearDeath 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runDarkWebWeeklyTick wealthyGame 1`] = `
+exports[`subsystem tick equivalence - runDarkWebWeeklyTick wealthyGame 1`] = `
 {
   "darkWeb": {
     "activeJobs": [],
@@ -8690,7 +8690,7 @@ exports[`subsystem tick equivalence — runDarkWebWeeklyTick wealthyGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runPoliticsWeeklyTick earlyCareer 1`] = `
+exports[`subsystem tick equivalence - runPoliticsWeeklyTick earlyCareer 1`] = `
 {
   "forcedResignation": false,
   "lostOffice": false,
@@ -8709,7 +8709,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick earlyCareer 1`] = 
 }
 `;
 
-exports[`subsystem tick equivalence — runPoliticsWeeklyTick freshGame 1`] = `
+exports[`subsystem tick equivalence - runPoliticsWeeklyTick freshGame 1`] = `
 {
   "forcedResignation": false,
   "lostOffice": false,
@@ -8728,7 +8728,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick freshGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runPoliticsWeeklyTick inPrison 1`] = `
+exports[`subsystem tick equivalence - runPoliticsWeeklyTick inPrison 1`] = `
 {
   "forcedResignation": false,
   "lostOffice": false,
@@ -8747,7 +8747,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick inPrison 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runPoliticsWeeklyTick midGame 1`] = `
+exports[`subsystem tick equivalence - runPoliticsWeeklyTick midGame 1`] = `
 {
   "forcedResignation": false,
   "lostOffice": false,
@@ -8766,7 +8766,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick midGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runPoliticsWeeklyTick nearDeath 1`] = `
+exports[`subsystem tick equivalence - runPoliticsWeeklyTick nearDeath 1`] = `
 {
   "forcedResignation": false,
   "lostOffice": false,
@@ -8785,7 +8785,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick nearDeath 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runPoliticsWeeklyTick wealthyGame 1`] = `
+exports[`subsystem tick equivalence - runPoliticsWeeklyTick wealthyGame 1`] = `
 {
   "forcedResignation": false,
   "lostOffice": false,
@@ -8804,7 +8804,7 @@ exports[`subsystem tick equivalence — runPoliticsWeeklyTick wealthyGame 1`] = 
 }
 `;
 
-exports[`subsystem tick equivalence — runRealEstateWeeklyTick earlyCareer 1`] = `
+exports[`subsystem tick equivalence - runRealEstateWeeklyTick earlyCareer 1`] = `
 {
   "notifications": [],
   "properties": [],
@@ -8812,7 +8812,7 @@ exports[`subsystem tick equivalence — runRealEstateWeeklyTick earlyCareer 1`] 
 }
 `;
 
-exports[`subsystem tick equivalence — runRealEstateWeeklyTick freshGame 1`] = `
+exports[`subsystem tick equivalence - runRealEstateWeeklyTick freshGame 1`] = `
 {
   "notifications": [],
   "properties": [],
@@ -8820,7 +8820,7 @@ exports[`subsystem tick equivalence — runRealEstateWeeklyTick freshGame 1`] = 
 }
 `;
 
-exports[`subsystem tick equivalence — runRealEstateWeeklyTick inPrison 1`] = `
+exports[`subsystem tick equivalence - runRealEstateWeeklyTick inPrison 1`] = `
 {
   "notifications": [],
   "properties": [],
@@ -8828,7 +8828,7 @@ exports[`subsystem tick equivalence — runRealEstateWeeklyTick inPrison 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runRealEstateWeeklyTick midGame 1`] = `
+exports[`subsystem tick equivalence - runRealEstateWeeklyTick midGame 1`] = `
 {
   "notifications": [],
   "properties": [],
@@ -8836,7 +8836,7 @@ exports[`subsystem tick equivalence — runRealEstateWeeklyTick midGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runRealEstateWeeklyTick nearDeath 1`] = `
+exports[`subsystem tick equivalence - runRealEstateWeeklyTick nearDeath 1`] = `
 {
   "notifications": [],
   "properties": [],
@@ -8844,7 +8844,7 @@ exports[`subsystem tick equivalence — runRealEstateWeeklyTick nearDeath 1`] = 
 }
 `;
 
-exports[`subsystem tick equivalence — runRealEstateWeeklyTick wealthyGame 1`] = `
+exports[`subsystem tick equivalence - runRealEstateWeeklyTick wealthyGame 1`] = `
 {
   "notifications": [],
   "properties": [],
@@ -8852,7 +8852,7 @@ exports[`subsystem tick equivalence — runRealEstateWeeklyTick wealthyGame 1`] 
 }
 `;
 
-exports[`subsystem tick equivalence — runWeeklyBankingTick earlyCareer 1`] = `
+exports[`subsystem tick equivalence - runWeeklyBankingTick earlyCareer 1`] = `
 {
   "banking": {
     "accounts": [
@@ -8913,7 +8913,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick earlyCareer 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runWeeklyBankingTick freshGame 1`] = `
+exports[`subsystem tick equivalence - runWeeklyBankingTick freshGame 1`] = `
 {
   "banking": {
     "accounts": [
@@ -8974,7 +8974,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick freshGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runWeeklyBankingTick inPrison 1`] = `
+exports[`subsystem tick equivalence - runWeeklyBankingTick inPrison 1`] = `
 {
   "banking": {
     "accounts": [
@@ -9035,7 +9035,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick inPrison 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runWeeklyBankingTick midGame 1`] = `
+exports[`subsystem tick equivalence - runWeeklyBankingTick midGame 1`] = `
 {
   "banking": {
     "accounts": [
@@ -9096,7 +9096,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick midGame 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runWeeklyBankingTick nearDeath 1`] = `
+exports[`subsystem tick equivalence - runWeeklyBankingTick nearDeath 1`] = `
 {
   "banking": {
     "accounts": [
@@ -9157,7 +9157,7 @@ exports[`subsystem tick equivalence — runWeeklyBankingTick nearDeath 1`] = `
 }
 `;
 
-exports[`subsystem tick equivalence — runWeeklyBankingTick wealthyGame 1`] = `
+exports[`subsystem tick equivalence - runWeeklyBankingTick wealthyGame 1`] = `
 {
   "banking": {
     "accounts": [

@@ -32,7 +32,7 @@ const baseStats = (): GameStats => ({
   gems: 900,
 });
 
-describe('applyEventStatDeltas — the currency fence', () => {
+describe('applyEventStatDeltas - the currency fence', () => {
   it('never touches money: a mis-filed stats.money cannot overwrite the balance', () => {
     const stats = baseStats();
     applyEventStatDeltas(stats, { money: 200 } as Partial<GameStats>);

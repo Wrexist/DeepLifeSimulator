@@ -448,21 +448,21 @@ describe('a full save → envelope → load → migrate → repair round trip', 
     return loadMerge(migrated.state as Record<string, unknown>);
   };
 
-  it('keeps settings.lastNoFillGrantWeek (v28) — the marker that closes the restart farm', async () => {
+  it('keeps settings.lastNoFillGrantWeek (v28) - the marker that closes the restart farm', async () => {
     const out = await roundTrip(
       createTestGameState({ settings: { lastNoFillGrantWeek: 3_777 }, version: STATE_VERSION }),
     );
     expect(out.settings.lastNoFillGrantWeek).toBe(3_777);
   });
 
-  it('keeps lifeStartWeek (v43) — the baseline `weeksInThisLife` reads', async () => {
+  it('keeps lifeStartWeek (v43) - the baseline `weeksInThisLife` reads', async () => {
     const out = await roundTrip(
       createTestGameState({ lifeStartWeek: 364, weeksLived: 3_000, version: STATE_VERSION }),
     );
     expect(out.lifeStartWeek).toBe(364);
   });
 
-  it('keeps grandchildren (v34) — a carve-out nested inside an array element', async () => {
+  it('keeps grandchildren (v34) - a carve-out nested inside an array element', async () => {
     const s = createTestGameState({ version: STATE_VERSION });
     const withHeir: GameState = {
       ...s,

@@ -1,12 +1,12 @@
 /**
- * Family Tab — spouse / partner, children, pregnancy and the parenting loop.
+ * Family Tab - spouse / partner, children, pregnancy and the parenting loop.
  *
  * Opened as a `presentationStyle="fullScreen"` Modal from `app/(tabs)/life.tsx`,
  * which is the whole reason this file has to think about safe areas at all:
  *
  * PLAYER REPORT (2026-08-05, with screenshot): "it's too far up, can't press
  * close". A full-screen RN Modal is not inset by the tab navigator, so the old
- * `paddingTop: scale(16)` drew the header from y=0 — the title under the clock
+ * `paddingTop: scale(16)` drew the header from y=0 - the title under the clock
  * and the close button under the battery indicator / Dynamic Island. The
  * control itself was already the right SIZE (the 2026-08-01 accessibility pass
  * gave it `minTouchTargetStyle` + `hitSlopToMinTarget`); it was in the wrong
@@ -134,7 +134,7 @@ const NURTURE_LABEL_BY_KEY = NURTURE_DISPLAY.reduce(
  {} as Record<NurtureStatKey, string>,
 );
 
-// "+2 Intellect, +1 Bond" — compact effect summary for an action button.
+// "+2 Intellect, +1 Bond" - compact effect summary for an action button.
 function formatParentingEffects(action: ParentingAction): string {
  return (Object.entries(action.effects) as [NurtureStatKey, number][])
  .filter(([, v]) => typeof v === 'number' && v !== 0)
@@ -160,7 +160,7 @@ interface FamilyTabProps {
  * (`canMoveIn`, `canTryForBaby` were plain `&&` guards) and drew "Propose" at
  * half opacity with no explanation. Neither shape tells the player what to do
  * next. Every action is now drawn, and a locked one states its own requirement
- * — the pattern the parenting list further down this file already used.
+ * - the pattern the parenting list further down this file already used.
  */
 function ActionRow({
  icon: Icon,
@@ -257,11 +257,11 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  /**
   * Derived from age, NOT read from `gameState.lifeStage`.
   *
-  * That field is written exactly once — `initialState.ts` sets it to
-  * `getLifeStage(18)` = 'teen' — and nothing ever updates it: no birthday
+  * That field is written exactly once - `initialState.ts` sets it to
+  * `getLifeStage(18)` = 'teen' - and nothing ever updates it: no birthday
   * handler, no weekly subsystem, no scenario override. This header was its
   * only product consumer (the other reader is `src/debug/aiDebugSnapshot`),
-  * which is why the screen said "Teen · Age 21" on a fresh Trust Fund Baby —
+  * which is why the screen said "Teen · Age 21" on a fresh Trust Fund Baby -
   * and would still have said Teen at 70.
   */
  const lifeStage = useMemo(() => getLifeStage(age), [age]);
@@ -270,7 +270,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
   * Household mood, 0-100.
   *
   * This used to render as "+{n} Family Happiness", a small integer with a plus
-  * sign — which reads as a weekly happiness bonus. There is no such bonus:
+  * sign - which reads as a weekly happiness bonus. There is no such bonus:
   * nothing in `contexts/game/actions/weekly/` reads it, and `familyHappiness`
   * on a child has no writer anywhere in the repo. It is a readout of how the
   * household is doing, so it is now labelled and scaled as one: the average of
@@ -291,7 +291,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
   * What the household ACTUALLY contributes per week.
   *
   * Player report (1.4 bug-reports): a spouse rendered "$65000/week" on the card
-  * directly below this headline, while the headline read "$455000" — because it
+  * directly below this headline, while the headline read "$455000" - because it
   * multiplied an already-weekly figure by 7. The player was receiving $16,250.
   *
   * Two separate errors, both closed by reading the tick's own function:
@@ -300,7 +300,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
   *   - the missing 25% household share, so even the un-multiplied figure was 4x
   *     what arrives.
   *
-  * The invented "1% of each adult child's savings" term is dropped too — no
+  * The invented "1% of each adult child's savings" term is dropped too - no
   * child contributes income anywhere in the weekly tick.
   */
  const familyIncome = useMemo(
@@ -331,7 +331,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  );
 
  // `?app=tinder` opens the dating app itself. Without it this lands on the
- // launcher grid — and on a computer-owning save the grid opens on "Desktop
+ // launcher grid - and on a computer-owning save the grid opens on "Desktop
  // Apps", where Dating is not even in the visible category.
  const handleFindPartner = useCallback(() => {
  onClose?.();
@@ -372,7 +372,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  }, [partner, gameState, setGameState, saveGame]);
 
  /**
- * Call off an engagement — the other half of the propose → plan → wed flow.
+ * Call off an engagement - the other half of the propose → plan → wed flow.
  *
  * `DatingActions.cancelEngagement` shipped fully written and fully tested
  * (`__tests__/stress/marriageFlow.stress.test.ts`) with no caller anywhere in
@@ -380,7 +380,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  * which ends the relationship entirely. This is the softer exit the action was
  * designed for: the ring comes off, the partner stays.
  *
- * Destructive, so it confirms first — the same Alert shape as Move In and Try
+ * Destructive, so it confirms first - the same Alert shape as Move In and Try
  * for Baby above, with `style: 'destructive'` on the action. The cost is stated
  * in the prompt rather than discovered afterwards: the action itself applies
  * -15 happiness and -20 bond.
@@ -390,7 +390,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  Alert.alert(
  'Call Off the Engagement',
- `Call off your engagement to ${partner.name}?\n\nYou stay together — the wedding is off, not the relationship. It will cost you 15 happiness and 20% of your bond.`,
+ `Call off your engagement to ${partner.name}?\n\nYou stay together - the wedding is off, not the relationship. It will cost you 15 happiness and 20% of your bond.`,
  [
  { text: 'Stay Engaged', style: 'cancel' },
  {
@@ -485,7 +485,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const babyLockReason = useCallback((target: Relationship, committed: boolean): string | null => {
  if (age < AGE_TO_TRY_FOR_BABY) return `You must be at least ${AGE_TO_TRY_FOR_BABY} to start a family`;
  if (target.relationshipScore < SCORE_TO_TRY_FOR_BABY) {
- return `Needs ${SCORE_TO_TRY_FOR_BABY}% bond — you're at ${target.relationshipScore}%`;
+ return `Needs ${SCORE_TO_TRY_FOR_BABY}% bond - you're at ${target.relationshipScore}%`;
  }
  if (!committed) return 'Move in together or get engaged first';
  return null;
@@ -602,10 +602,10 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <ActionRow
  icon={Home}
  label="Move in together"
- hint="Share a home — and the rent"
+ hint="Share a home - and the rent"
  tone="secondary"
  onPress={handleMoveIn}
- lockedReason={score < SCORE_TO_MOVE_IN ? `Needs ${SCORE_TO_MOVE_IN}% bond — you're at ${score}%` : null}
+ lockedReason={score < SCORE_TO_MOVE_IN ? `Needs ${SCORE_TO_MOVE_IN}% bond - you're at ${score}%` : null}
  />
  )}
 
@@ -616,7 +616,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  hint="Pick a ring and pop the question"
  tone="primary"
  onPress={handlePropose}
- lockedReason={score < SCORE_TO_PROPOSE ? `Needs ${SCORE_TO_PROPOSE}% bond — you're at ${score}%` : null}
+ lockedReason={score < SCORE_TO_PROPOSE ? `Needs ${SCORE_TO_PROPOSE}% bond - you're at ${score}%` : null}
  />
  )}
 
@@ -634,7 +634,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  {isEngaged && hasWeddingPlan && (
  <View style={styles.scheduledBanner}>
  <Heart size={scale(16)} color={accent.success} />
- <Text style={styles.scheduledBannerText}>Wedding scheduled — it happens on its week</Text>
+ <Text style={styles.scheduledBannerText}>Wedding scheduled - it happens on its week</Text>
  </View>
  )}
 
@@ -664,7 +664,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  // Perform a parenting action on a child. Costs (money/energy) are charged
  // through the canonical mirror-safe paths and the child's nurture stats +
- // cooldown/weekly-cap bookkeeping are updated — all in ONE atomic setGameState
+ // cooldown/weekly-cap bookkeeping are updated - all in ONE atomic setGameState
  // so rapid double-taps can neither double-charge nor double-apply.
  const handleParentingAction = useCallback((childId: string, actionId: string) => {
  const action = getActionById(actionId);
@@ -706,7 +706,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  dailySummary = spend.dailySummary;
  }
 
- // Energy via stats — never below 0 (eligibility already guaranteed enough).
+ // Energy via stats - never below 0 (eligibility already guaranteed enough).
  const energyDelta = outcome.energyDelta || 0;
  if (energyDelta !== 0) {
  stats = { ...stats, energy: Math.max(0, (stats.energy || 0) + energyDelta) };
@@ -808,7 +808,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  </View>
 
- {/* Nurture stat readout — reflects the child's growing stats */}
+ {/* Nurture stat readout - reflects the child's growing stats */}
  <View style={styles.nurtureRow}>
  {NURTURE_DISPLAY.map(({ key, label, icon: Icon, color }) => (
  <View key={key} style={styles.nurtureChip}>
@@ -979,7 +979,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return (
  <View style={styles.container}>
  {/*
-   * SAFE AREA — the fix for "it's too far up, can't press close".
+   * SAFE AREA - the fix for "it's too far up, can't press close".
    * This screen is hosted in a full-screen Modal, which sits OUTSIDE the tab
    * navigator's safe-area padding, so the inset has to be applied here or the
    * header is drawn under the status bar / Dynamic Island.
@@ -1015,7 +1015,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <View style={styles.statsCard}>
  <View style={styles.statsItem}>
  <Heart size={scale(18)} color={householdMood == null ? c.textMuted : bondColor(householdMood)} />
- <Text style={styles.statsValue}>{householdMood == null ? '—' : `${householdMood}%`}</Text>
+ <Text style={styles.statsValue}>{householdMood == null ? '-' : `${householdMood}%`}</Text>
  <Text style={styles.statsLabel}>Household Mood</Text>
  </View>
  <View style={styles.statsDivider} />
@@ -1048,7 +1048,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  </View>
  )}
 
- {/* No Relationship State — an actionable dead end instead of a sentence
+ {/* No Relationship State - an actionable dead end instead of a sentence
      telling the player where to go. */}
  {!partner && !spouse && (
  <View style={styles.emptyState}>
@@ -1059,7 +1059,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  <Text style={styles.emptyStateText}>
  {ownsDevice
  ? 'Match on the dating app, go on dates to build the bond, then move in, propose and start a family.'
- : 'Buy a smartphone from the Market to unlock the dating app — that is where every relationship starts.'}
+ : 'Buy a smartphone from the Market to unlock the dating app - that is where every relationship starts.'}
  </Text>
  {ownsDevice && (
  <TouchableOpacity
@@ -1151,7 +1151,7 @@ const styles = StyleSheet.create({
  alignItems: 'center',
  paddingHorizontal: scale(16),
  paddingBottom: scale(12),
- // Structural divider, not a decorative accent bar — allowed by Hard Rule #7.
+ // Structural divider, not a decorative accent bar - allowed by Hard Rule #7.
  borderBottomWidth: StyleSheet.hairlineWidth,
  borderBottomColor: c.border,
  },
@@ -1569,7 +1569,7 @@ const styles = StyleSheet.create({
  flexGrow: 0,
  // `flexShrink: 1` is the half that makes the sheet's `maxHeight` bite. RN
  // defaults flexShrink to 0, so without it this list keeps its full content
- // height and overflows the sheet — which is `overflow: 'hidden'`, so the
+ // height and overflows the sheet - which is `overflow: 'hidden'`, so the
  // tail of a long child's parenting actions is clipped with nothing to
  // scroll. See __tests__/render/modalListsShrink.test.ts.
  flexShrink: 1,

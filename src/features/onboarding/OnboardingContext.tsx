@@ -7,7 +7,7 @@ import { NEW_LIFE_SLOT_UNSET } from './slotSafety';
 interface OnboardingState {
   /**
    * Target save slot, 1-3. `NEW_LIFE_SLOT_UNSET` (0) means the player has not
-   * chosen one — which is NOT a licence to pick one for them. This used to
+   * chosen one - which is NOT a licence to pick one for them. This used to
    * default to 1, and every route that reached onboarding without visiting the
    * slot picker quietly inherited it and overwrote slot 1. See `slotSafety.ts`.
    */
@@ -19,9 +19,9 @@ interface OnboardingState {
   sex: 'male' | 'female' | 'random';
   sexuality: 'straight' | 'gay' | 'bi';
   avatarId?: string; // Legacy starter-face pick (utils/facePool). New lives leave this unset.
-  avatar?: string; // Encoded AvatarConfig (lib/avatar/encode) — the customized face.
+  avatar?: string; // Encoded AvatarConfig (lib/avatar/encode) - the customized face.
   perks: string[];
-  ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional — skippable.
+  ambitionId?: string; // Chosen Life Ambition (lib/ambitions catalogue id). Optional - skippable.
 }
 
 interface OnboardingContextType {
@@ -52,7 +52,7 @@ interface PersistedDraft {
 
 /**
  * A draft carrying no real user choices (default sex/sexuality/slot don't
- * count). We never persist a pristine draft — that keeps the debounced writer
+ * count). We never persist a pristine draft - that keeps the debounced writer
  * from resurrecting the key right after clearDraft() resets state on
  * completion, and stops a brand-new session from writing an empty draft.
  */
@@ -73,8 +73,8 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
   const hasHydratedRef = useRef(false);
   // Set the moment any screen writes to the draft. The hydration below reads
   // AsyncStorage asynchronously and lands with a WHOLE-OBJECT replace; on a
-  // cold start with contended storage a player can tap New Game — which picks
-  // and writes the target slot — before that read resolves. The hydration then
+  // cold start with contended storage a player can tap New Game - which picks
+  // and writes the target slot - before that read resolves. The hydration then
   // landed second and replaced the deliberately-chosen slot with the draft's
   // stale one. 2026-07-29 audit PIPE-9.
   const hasLiveChoiceRef = useRef(false);
@@ -105,7 +105,7 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
                 : { ...defaultState, ...persisted.state },
             );
           } else if (persisted.savedAt) {
-            // Stale draft — clean up.
+            // Stale draft - clean up.
             void safeAsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
           }
         }
@@ -165,7 +165,7 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
   }, []);
 
   // Wrap setState so any screen writing to the draft marks the session as
-  // having a live choice — that is what stops a late hydration overwriting it.
+  // having a live choice - that is what stops a late hydration overwriting it.
   const setStateTracked = React.useCallback<React.Dispatch<React.SetStateAction<OnboardingState>>>(
     (update) => {
       hasLiveChoiceRef.current = true;

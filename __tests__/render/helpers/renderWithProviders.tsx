@@ -37,7 +37,7 @@ function throwIfBoundaryCaught(json: string): void {
   const failed = /"Failed component: ","([^"]+)"/.exec(json)?.[1] ?? 'unknown provider';
   const message = /"(Element type is invalid[^"]*|[^"]*is not a function[^"]*)"/.exec(json)?.[1] ?? '';
   throw new Error(
-    `renderWithProviders: the tree crashed and a ProviderBoundary caught it — ` +
+    `renderWithProviders: the tree crashed and a ProviderBoundary caught it - ` +
       `nothing under ${failed} actually rendered.\n${message}`
   );
 }

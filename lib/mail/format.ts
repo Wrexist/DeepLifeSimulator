@@ -21,7 +21,7 @@ export function docMoney(amount: number): string {
   return `${sign}$${carried.toLocaleString('en-US')}.${String(shownCents).padStart(2, '0')}`;
 }
 
-/** `$1,234` — whole dollars, for figures where cents are noise. */
+/** `$1,234` - whole dollars, for figures where cents are noise. */
 export function docWhole(amount: number): string {
   const n = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
   const sign = n < 0 ? '-' : '';

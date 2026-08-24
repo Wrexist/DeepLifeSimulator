@@ -82,7 +82,7 @@ describe('a quick action is once per game week', () => {
     expect(tryAction(s, 'social').allowed).toBe(false);
   });
 
-  it('gates each action independently — using rest does not block exercise', () => {
+  it('gates each action independently - using rest does not block exercise', () => {
     const s = tryAction(at(40), 'rest').state;
 
     expect(tryAction(s, 'exercise').allowed).toBe(true);

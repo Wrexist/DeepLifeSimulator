@@ -1,5 +1,5 @@
 /**
- * CommentItem — single comment row.
+ * CommentItem - single comment row.
  *
  * Renders a `PulseComment` (avatar + handle + text + like count). Player
  * comments get a subtle accent dot on the avatar; hostile-sentiment

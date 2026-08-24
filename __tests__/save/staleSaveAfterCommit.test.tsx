@@ -86,7 +86,7 @@ function makeTree(strategy: 'synchronous' | 'deferred'): Harness {
   return { bump, savedValue: () => saved };
 }
 
-describe('stale-save-after-commit — deferred persist observes committed state', () => {
+describe('stale-save-after-commit - deferred persist observes committed state', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 

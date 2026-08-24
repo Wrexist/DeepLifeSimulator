@@ -1,16 +1,16 @@
 /**
- * SubscriptionModal — the DeepLife+ premium paywall.
+ * SubscriptionModal - the DeepLife+ premium paywall.
  *
  * A high-intent, conversion-optimized paywall: golden-crown hero, a truthful
  * value stack, an annual-default plan selector with per-week price framing, and
  * a free-trial-led CTA. Drives the purchase via `subscriptionService` and
  * applies in-game benefits via `applyDeepLifePlusBenefits` on success.
  *
- * Marketing choices (all App Store compliant — NO countdown timers, fake
+ * Marketing choices (all App Store compliant - NO countdown timers, fake
  * scarcity, or strike-through "was" prices, per the app's review notes):
  *   • Annual plan pre-selected (higher LTV; users anchor to the default).
  *   • Free trial is the primary hook, but only where it is TRUE (see below).
- *   • Yearly framed per-week — the strongest value cue.
+ *   • Yearly framed per-week - the strongest value cue.
  *   • Every listed benefit is one the game actually grants (kept truthful).
  *
  * ── TWO THINGS THIS SCREEN IS NOT ALLOWED TO GUESS ──────────────────────────
@@ -24,7 +24,7 @@
  * CTA rather than printing a number it cannot stand behind.
  *
  * THE TRIAL. The trial claim was shown whenever eligibility was not a definite
- * 'ineligible' — which is every Android user, every build without RevenueCat
+ * 'ineligible' - which is every Android user, every build without RevenueCat
  * keys, and every failed lookup. So a returning subscriber who had already spent
  * their trial was shown "Start for $0.00 Today" and charged in full on tap.
  * `resolveTrialClaim` now separates a hard promise (store confirms the offer AND
@@ -80,7 +80,7 @@ interface Props {
 }
 
 // Luxe dark + gold palette. Fixed (not theme-driven) so the paywall keeps its
-// premium look in every theme. Flat colors only — the app's LinearGradient
+// premium look in every theme. Flat colors only - the app's LinearGradient
 // fallback renders just the first color, so we never rely on gradients.
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
@@ -104,7 +104,7 @@ const BENEFIT_ICON: Record<string, React.ComponentType<{ size?: number; color?: 
   vip_support: Headphones,
 };
 
-// The DeepLife+ crest — the illustrated gold crown on its dark gold-framed
+// The DeepLife+ crest - the illustrated gold crown on its dark gold-framed
 // plate. The same file backs the avatar badge in `DeepLifePlusUpsell`, so the
 // mark a player taps on the player card is the mark that greets them here.
 const CREST_ART: ImageSourcePropType = require('@/assets/images/deeplife-plus-crest.webp');
@@ -139,7 +139,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     () => DEEP_LIFE_PLUS_PLANS.find((p) => p.period === 'monthly'),
     [],
   );
-  // Annual pre-selected — the higher-LTV default that users anchor to.
+  // Annual pre-selected - the higher-LTV default that users anchor to.
   const [selected, setSelected] = useState<DeepLifePlusPlan>(yearlyPlan);
   const [lifetime, setLifetime] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -171,7 +171,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
    *
    * `store-disabled` is the ONLY state that falls back to the config price: no
    * store exists in that build, so nothing can be charged and no wrong number
-   * can lead to a wrong payment — it keeps the layout reviewable in Expo Go and
+   * can lead to a wrong payment - it keeps the layout reviewable in Expo Go and
    * the web preview, with the CTA disabled (the same way GemShopModal degrades).
    * Every other state shows a placeholder, because there a purchase COULD still
    * be attempted and a stale USD figure would be a false price.
@@ -179,12 +179,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const priceLabel = useCallback(
     (resolved: PlanPrice, configPrice: string): string => {
       if (resolved.fromStore) return resolved.displayPrice;
-      return prices.state === 'store-disabled' ? configPrice : '—';
+      return prices.state === 'store-disabled' ? configPrice : '-';
     },
     [prices.state],
   );
 
-  // Derived value framing — silent unless it can be computed from real,
+  // Derived value framing - silent unless it can be computed from real,
   // same-currency store prices (see lib/subscription/planPricing.ts).
   const perWeek = useMemo(() => perWeekPrice(yearlyPrice), [yearlyPrice]);
   const savingsPct = useMemo(
@@ -211,7 +211,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   const trialMentioned = trial.claim !== 'none';
 
   // Can the player actually buy right now? Gated on having a real price to show
-  // them — presenting a purchase button beside a price we could not load is the
+  // them - presenting a purchase button beside a price we could not load is the
   // failure this whole screen was rebuilt to prevent.
   const canPurchase = selectedPrice.fromStore;
 
@@ -340,7 +340,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
   // A REF, not the `busy` state, is what actually closes the double-tap window.
   // `setBusy(true)` does not update `busy` until React re-renders, so two taps
   // landing in one batch would both read `busy === false` and both open a store
-  // sheet — the same gate-then-act shape that has produced double-grant bugs in
+  // sheet - the same gate-then-act shape that has produced double-grant bugs in
   // this repo (CLAUDE.md §4.4). The ref flips synchronously, so the second tap
   // is refused before it can reach the store. `busy` is kept for the UI.
   const purchaseInFlight = useRef(false);
@@ -356,7 +356,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         surface: 'deeplife_plus',
         productId,
         trialClaim: trial.claim,
-        // The price the player was actually looking at when they committed —
+        // The price the player was actually looking at when they committed -
         // the only way to reconcile the funnel against a storefront's real tiers.
         displayPrice: selectedPrice.displayPrice,
         currency: selectedPrice.currency,
@@ -404,8 +404,8 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         setMessage('Subscription restored.');
       } else {
         // Not an error: a player with nothing to restore is the common case.
-        // Tracked apart from a failure so a spike in genuine restore FAILURES —
-        // the ones that cost a paying player their entitlement — stays visible.
+        // Tracked apart from a failure so a spike in genuine restore FAILURES -
+        // the ones that cost a paying player their entitlement - stays visible.
         track('restore_failed', { surface: 'deeplife_plus', reason: 'nothing_to_restore' });
         setMessage('No active subscription found to restore.');
       }
@@ -529,7 +529,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
         : ctaMode === 'disabled'
           ? 'Purchases are not available in this build'
           : ctaMode === 'retry'
-            ? "We couldn't reach the store — tap to try again"
+            ? "We couldn't reach the store - tap to try again"
             : lifetime
               ? 'One-time payment · yours forever, never renews'
               : trialPromised
@@ -574,7 +574,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                   <Sparkles size={scale(11)} color={GOLD_SOFT} fill={GOLD_SOFT} />
                 </Animated.View>
                 {/* The crest is illustrated art with its own gold frame and
-                    plate, so it is rendered bare — the chip that used to draw a
+                    plate, so it is rendered bare - the chip that used to draw a
                     tinted background and a 1.5pt gold border around a flat
                     lucide glyph would now frame an already-framed badge. The
                     glow and sparkles behind it are unchanged. */}
@@ -587,7 +587,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                 {purchased
                   ? "You're in. Here's everything you just unlocked."
                   : active
-                    ? 'Your membership is active — thank you!'
+                    ? 'Your membership is active - thank you!'
                     : 'Your best life, unlocked.'}
               </Text>
             </View>
@@ -622,7 +622,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
             {!active && !purchased && (
               <>
-                {/* Free-trial banner — the hook, in whichever form is TRUE.
+                {/* Free-trial banner - the hook, in whichever form is TRUE.
                     A promise ("no charge") is only made when the store has
                     confirmed both that the offer exists and that this player is
                     eligible for it; otherwise the copy describes the offer
@@ -635,12 +635,12 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                       </Text>
                       <Text style={styles.trialBannerSub}>
                         {trialPromised
-                          ? 'Try every perk. Love it or cancel — no charge.'
-                          : 'New subscribers start with a free trial — the store confirms your terms at checkout.'}
+                          ? 'Try every perk. Love it or cancel - no charge.'
+                          : 'New subscribers start with a free trial - the store confirms your terms at checkout.'}
                       </Text>
                     </View>
                     {/* The "100% RISK-FREE" seal is an absolute claim, so it
-                        rides only on a confirmed promise — never on the
+                        rides only on a confirmed promise - never on the
                         conditional wording. */}
                     {trialPromised ? (
                       <View style={styles.riskSeal}>
@@ -655,7 +655,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                   </View>
                 ) : null}
 
-                {/* Plan selector — annual default */}
+                {/* Plan selector - annual default */}
                 <View style={styles.plansRow}>
                   {/* Annual */}
                   <TouchableOpacity
@@ -666,7 +666,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
                     accessibilityLabel={`Annual plan, ${priceLabel(yearlyPrice, yearlyPlan.price)} per year${savingsPct ? `, save ${savingsPct} percent` : ''}`}
                   >
                     {/* Only rendered when the saving is provable from two real,
-                        same-currency store prices — never from config USD. */}
+                        same-currency store prices - never from config USD. */}
                     {savingsPct ? (
                       <View style={styles.saveBadge}>
                         <Text style={styles.saveBadgeText}>SAVE {savingsPct}%</Text>
@@ -717,19 +717,19 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
 
             {/* ── The activation moment ──────────────────────────────────
                 A purchase used to end with a one-line string under the plan
-                selector the player had just accepted — no acknowledgement, no
+                selector the player had just accepted - no acknowledgement, no
                 statement of what they now have, and nothing to do next. That is
                 the moment a subscriber decides whether the charge was a good
                 idea, and the first premium perk they actually USE is the best
                 predictor of whether they renew.
 
                 So: name what they unlocked, and point them at the fastest one to
-                feel — the welcome gems are already in their balance, granted by
+                feel - the welcome gems are already in their balance, granted by
                 `applyDeepLifePlusBenefits` in the same handler. */}
             {purchased ? (
               <View style={styles.welcome}>
                 <Text style={styles.welcomeTitle}>
-                  {purchased.lifetime ? 'Premium unlocked — forever' : 'Welcome to DeepLife+'}
+                  {purchased.lifetime ? 'Premium unlocked - forever' : 'Welcome to DeepLife+'}
                 </Text>
                 <Text style={styles.welcomeSub}>
                   Every perk below is live right now. Your welcome gems are already in your
@@ -747,7 +747,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
             {message ? <Text style={styles.message}>{message}</Text> : null}
           </ScrollView>
 
-          {/* Primary CTA — after a purchase it becomes the way OUT of the
+          {/* Primary CTA - after a purchase it becomes the way OUT of the
               sheet, so a new subscriber is never left tapping a buy button for
               something they already own. */}
           <TouchableOpacity
@@ -819,7 +819,7 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           {/* ── Compliant legal disclosure ───────────────────────────────────
               Apple requires the recurring nature, the price and the billing
               period to be clear before purchase. The price quoted here is the
-              SAME resolved store price shown on the plan card and the CTA —
+              SAME resolved store price shown on the plan card and the CTA -
               they read from one value, so the disclosure and the button can
               never quote different figures. When no price could be loaded the
               disclosure says so plainly instead of inventing one; the CTA is a
@@ -827,23 +827,23 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
           <Text style={styles.legal}>
             {purchased
               ? purchased.lifetime
-                ? 'One-time purchase — no subscription, nothing renews.'
+                ? 'One-time purchase - no subscription, nothing renews.'
                 : 'Your subscription renews automatically until cancelled. Manage or cancel anytime in your store account.'
               : active
                 ? 'Manage or cancel anytime in your store account.'
                 : lifetime
-                  ? 'One-time purchase. Yours forever — no subscription, never renews.'
+                  ? 'One-time purchase. Yours forever - no subscription, never renews.'
                   : prices.state === 'store-disabled'
                     // Prices ARE on screen in this state (the config fallback,
                     // shown only where nothing can be purchased), so claiming
                     // none loaded would contradict the cards right above.
-                    ? 'Purchases are unavailable in this build. Prices shown are indicative — the store always shows your exact price and renewal terms before any charge.'
+                    ? 'Purchases are unavailable in this build. Prices shown are indicative - the store always shows your exact price and renewal terms before any charge.'
                     : !canPurchase
                       ? 'Prices could not be loaded from the store. Your exact price and renewal terms are always shown by the store before any charge.'
                       : trialPromised
                         ? `${trialDays}-day free trial, then ${selectedLabel} ${selected.unit}. Auto-renews until cancelled; cancel at least 24 hours before it renews to avoid charges. Manage in your store account.`
                         : trialMentioned
-                          ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial — the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
+                          ? `${selectedLabel} ${selected.unit}, auto-renewing until cancelled. New subscribers may be eligible for a ${trialDays}-day free trial - the store confirms your exact terms before you are charged. Cancel at least 24 hours before renewal to avoid charges.`
                           : `${selectedLabel} ${selected.unit}. Auto-renews until cancelled. Manage or cancel anytime in your store account.`}
           </Text>
         </View>
@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
 
   message: { fontSize: fontScale(13), fontWeight: '700', color: TEXT, textAlign: 'center', marginTop: scale(12) },
 
-  // Activation moment. Full four-sided border (Hard Rule #7 — no one-sided
+  // Activation moment. Full four-sided border (Hard Rule #7 - no one-sided
   // accent stripes anywhere in the app).
   welcome: {
     marginTop: scale(4),
@@ -1105,7 +1105,7 @@ const styles = StyleSheet.create({
   trustText: { fontSize: fontScale(11.5), fontWeight: '600', color: TEXT_MUTED },
   // flexWrap + horizontal padding: on narrow phones the four links ("Restore ·
   // Manage · Terms of Use · Privacy") overflow a single 390pt row and clip at
-  // the sheet edges — wrapping to a second centred line keeps every link
+  // the sheet edges - wrapping to a second centred line keeps every link
   // reachable (Apple reviewers tap these).
   footerRow: {
     flexDirection: 'row',

@@ -67,7 +67,7 @@ describe('a recovery restore is not treated as an exploit', () => {
     const dead = alive({ showDeathPopup: true, deathReason: 'old age' });
 
     expect((await canRestoreBackup(SLOT, alive(), dead, 'recovery')).allowed).toBe(true);
-    // The in-run rewind still refuses it — that is what the check is for.
+    // The in-run rewind still refuses it - that is what the check is for.
     expect((await canRestoreBackup(SLOT, alive(), dead, 'rewind')).allowed).toBe(false);
   });
 
@@ -94,7 +94,7 @@ describe('a recovery restore is not treated as an exploit', () => {
     expect((await canRestoreBackup(SLOT, clean, heavy, 'recovery')).allowed).toBe(true);
   });
 
-  it('still refuses an age regression, in either mode — that check is not about the exploit', async () => {
+  it('still refuses an age regression, in either mode - that check is not about the exploit', async () => {
     const older = alive({ date: { age: 70 } });
     const younger = alive({ date: { age: 30 } });
 
@@ -129,7 +129,7 @@ describe('a restore keeps a way back', () => {
     const undo = after.find((b) => b.reason === 'before_restore');
     expect(undo).toBeDefined();
     // `gameInfo` is optional on a backup entry, so assert it survived the
-    // round-trip before reading through it — otherwise an undo point written
+    // round-trip before reading through it - otherwise an undo point written
     // WITHOUT its metadata would fail here as a TypeError rather than as the
     // missing-metadata assertion it actually is.
     expect(undo!.gameInfo).toBeDefined();
@@ -154,19 +154,19 @@ describe('a restore keeps a way back', () => {
 
 describe('the pre-prestige snapshot exists at all', () => {
   it('is a reason rotation will never evict', async () => {
-    // Prestige rebuilds the entire state — the single most destructive thing a
-    // player can do on purpose — and it was the one destructive path with no
+    // Prestige rebuilds the entire state - the single most destructive thing a
+    // player can do on purpose - and it was the one destructive path with no
     // backup call whatsoever, so a mis-tapped prestige was unrecoverable.
     // `before_prestige` was declared, protected and shown in the restore UI,
     // and nothing ever wrote one. 2026-07-29 audit BRC-4.
     // FREEZE the clock so EVERY backup here shares a millisecond. The id was
     // `save_backup_${slot}_${Date.now()}`, so same-millisecond writes collided
-    // and the second silently overwrote the first — including its
+    // and the second silently overwrote the first - including its
     // rotation-exempt `reason`. In CI this surfaced as a flaky assertion; the
     // flake was the bug. Freezing makes it deterministic instead of a race.
     //
     // Restored in a `finally`: a bare reassignment after the assertions leaves
-    // every later test in this file — and every file sharing the worker — with
+    // every later test in this file - and every file sharing the worker - with
     // a stubbed clock if anything above it throws.
     const realNow = Date.now;
     Date.now = () => 1_800_000_000_000;
@@ -199,7 +199,7 @@ describe('the pre-prestige snapshot exists at all', () => {
 
   it('gives the QUOTA-RETRY path its own id too', async () => {
     // The retry after a QuotaExceededError built its id from slot+timestamp
-    // directly, bypassing the sequence entirely — and it is the likeliest
+    // directly, bypassing the sequence entirely - and it is the likeliest
     // collision of all, because it runs in the same millisecond as the write
     // that just failed. The uniqueness test above passes without covering it,
     // which is exactly how the first collision survived review.
@@ -220,7 +220,7 @@ describe('the pre-prestige snapshot exists at all', () => {
       // TWO failures per createBackup, not one. `safeSetItem` catches a quota
       // error and retries once itself after clearing caches, so a single
       // failure is absorbed there and `createBackup`'s own retry branch is
-      // never reached — which is how this path stayed untested. Failing both
+      // never reached - which is how this path stayed untested. Failing both
       // makes safeSetItem return false, which createBackup turns into the
       // quota error its cleanup + retry block is written for. The third write
       // (the retry's own) is allowed to land.
@@ -258,11 +258,11 @@ describe('the pre-prestige snapshot exists at all', () => {
     }
   });
 
-  it('does not claim a backup that storage refused — or evict one to make room for it', async () => {
+  it('does not claim a backup that storage refused - or evict one to make room for it', async () => {
     // `safeSetItem` does NOT throw when the device is full: it catches the
     // quota error, tries its own cleanup, and returns `false`. `createBackup`
     // ignored that boolean, so on a full device it logged "Created backup",
-    // ROTATED — evicting a real recovery point — and returned an id for a key
+    // ROTATED - evicting a real recovery point - and returned an id for a key
     // that was never written. The recovery tier destroyed recovery points and
     // reported success. Found while covering the quota-retry id path.
     const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
@@ -305,7 +305,7 @@ describe('the pre-prestige snapshot exists at all', () => {
     // The retry path returned the id and stopped: no `recordBackupTime`, no
     // `rotateBackups`. So a backup that only landed on the second attempt left
     // the throttle stamp stale (pushing `isAutoBackupThrottled` back onto
-    // parsing every backup blob — on a device that has just proved it is short
+    // parsing every backup blob - on a device that has just proved it is short
     // on storage) and never rotated, growing the ring past its cap on exactly
     // the device that cannot afford it.
     const AsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
@@ -349,7 +349,7 @@ describe('the pre-prestige snapshot exists at all', () => {
     expect(id).not.toBeNull();
     // The throttle stamp is maintained. This is the half that discriminates:
     // the quota branch's own aggressive cleanup already trims the ring to one
-    // entry per slot, so rotation has little left to do HERE — but it is the
+    // entry per slot, so rotation has little left to do HERE - but it is the
     // same unconditional post-write step, and skipping it was the same bug.
     expect(store.get(`last_backup_time_${SLOT}`)).toBeTruthy();
     const after = await listBackups(SLOT);

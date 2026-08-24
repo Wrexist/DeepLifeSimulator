@@ -59,7 +59,7 @@ function withCommitments(
   } as never);
 }
 
-describe('C-1 — the resolver reports what the modal shows', () => {
+describe('C-1 - the resolver reports what the modal shows', () => {
   it('a primary focus gets a progress bonus and an energy discount', () => {
     const m = getCommitmentModifiers(withCommitments('career'), 'career');
 
@@ -119,7 +119,7 @@ describe('C-1 — the resolver reports what the modal shows', () => {
   });
 });
 
-describe('C-1 — career progress responds to the focus', () => {
+describe('C-1 - career progress responds to the focus', () => {
   const career = {
     id: 'c1', name: 'Dev', accepted: true, level: 0, progress: 0, performance: 80,
     levels: [{ name: 'Junior', salary: 1000 }, { name: 'Senior', salary: 2000 }],
@@ -164,7 +164,7 @@ describe('C-1 — career progress responds to the focus', () => {
   });
 });
 
-describe('C-1 — practising a hobby costs what the focus says', () => {
+describe('C-1 - practising a hobby costs what the focus says', () => {
   function pursuitState(primary?: string, secondary?: string): GameState {
     const s = withCommitments(primary, secondary);
     return createTestGameState({ ...s, pursuits: {}, weeklyPursuitPractice: {} } as never);
@@ -237,7 +237,7 @@ describe('C-1 — practising a hobby costs what the focus says', () => {
   });
 });
 
-describe('C-1 — every area is wired, not just the one that already was', () => {
+describe('C-1 - every area is wired, not just the one that already was', () => {
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const read = (rel: string) =>

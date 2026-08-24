@@ -284,7 +284,7 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
         marketRent,
         mode
       );
-      // Roll for move-out — churn scales UP with an above-market ask (on top of
+      // Roll for move-out - churn scales UP with an above-market ask (on top of
       // the satisfaction hit), so a greedy ask is paid for in higher turnover.
       const churnProb = Math.min(1, moveOutProbability(newSat, mode) * askChurnMultiplier(askRent, marketRent));
       const movesOut = input.rollFor(`re.move.${updated.tenant.id}`) < churnProb;
@@ -307,7 +307,7 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
         };
       }
     } else {
-      // No tenant — try to find one. Fill odds shift with the ask: below market
+      // No tenant - try to find one. Fill odds shift with the ask: below market
       // fills faster, above market fills slower.
       const weeksVacant = safe(updated.weeksVacant, 0) + 1;
       const findProb = Math.min(
@@ -325,7 +325,7 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
           message: `${newTenant.name} moved into ${updated.name} at $${Math.round(newTenant.weeklyRent)}/wk.`,
         });
         updated = { ...updated, tenant: newTenant, weeksVacant: 0 };
-        // Tenant won't pay for the partial week — we count starting next week.
+        // Tenant won't pay for the partial week - we count starting next week.
       } else {
         updated = { ...updated, weeksVacant };
       }
@@ -336,7 +336,7 @@ export function tickProperty(input: PropertyTickInput): PropertyTickOutput {
 }
 
 // ---------------------------------------------------------------------------
-// Improvements — decor / rooms / upgrade tier (Wave A "Improve" flow)
+// Improvements - decor / rooms / upgrade tier (Wave A "Improve" flow)
 // ---------------------------------------------------------------------------
 //
 // Pure list transforms mirroring performMaintenance: the React-aware wrappers in

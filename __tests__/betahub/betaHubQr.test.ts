@@ -154,7 +154,7 @@ describe('Beta Hub QR encoder', () => {
       'https://wrexist.github.io/DeepLifeSimulator/android/?source=discord&campaign=android-beta-wave-1'],
     ['a referral link',
       'https://wrexist.github.io/DeepLifeSimulator/android/?source=friend&ref=M6JF3D'],
-    ['non-ASCII text', 'åäö — Deep Life ✓'],
+    ['non-ASCII text', 'åäö - Deep Life ✓'],
   ];
 
   it.each(cases)('round-trips %s', (_label, payload) => {

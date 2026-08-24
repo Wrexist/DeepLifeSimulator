@@ -261,7 +261,7 @@ describe('Disease lifecycle audit', () => {
     expect(updated.diseaseImmunities || []).not.toContain('heart_disease');
   });
 
-  it('addDiseaseImmunity: idempotent — does not double-add', () => {
+  it('addDiseaseImmunity: idempotent - does not double-add', () => {
     let state = freshState();
     state = addDiseaseImmunity(state, 'flu');
     state = addDiseaseImmunity(state, 'flu');

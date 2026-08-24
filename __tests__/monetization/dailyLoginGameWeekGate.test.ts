@@ -24,7 +24,7 @@ import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionAction
 const DAY = 24 * 60 * 60 * 1000;
 const dayKey = (n: number) => new Date(n * DAY).toISOString().split('T')[0];
 
-describe('daily login reward — game-week gate', () => {
+describe('daily login reward - game-week gate', () => {
   it('lets a first-time player claim', () => {
     expect(
       canClaimDailyGemsFor(undefined, undefined, dayKey(100), 100 * DAY, {
@@ -64,7 +64,7 @@ describe('daily login reward — game-week gate', () => {
     ).toBe(true);
   });
 
-  it('still requires a new calendar day — playing ten weeks in one sitting pays once', () => {
+  it('still requires a new calendar day - playing ten weeks in one sitting pays once', () => {
     // The week gate is an ADDITIONAL condition, not a replacement. A player who
     // burns through ten weeks in an afternoon does not get ten daily rewards.
     expect(

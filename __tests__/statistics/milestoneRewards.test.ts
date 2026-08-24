@@ -52,7 +52,7 @@ describe('claimMilestoneReward', () => {
     expect(isMilestoneClaimable(res.state, 'first-million')).toBe(false);
   });
 
-  it('is once-ever — a second claim is a no-op (no double-grant)', () => {
+  it('is once-ever - a second claim is a no-op (no double-grant)', () => {
     const s = millionaireState(0);
     const once = claimMilestoneReward(s, 'first-million');
     const twice = claimMilestoneReward(once.state, 'first-million');

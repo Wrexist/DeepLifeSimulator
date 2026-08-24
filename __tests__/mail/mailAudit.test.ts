@@ -221,7 +221,7 @@ describe('the safe reader passes through fields it does not know about', () => {
     expect(protections(state, 120).some((p) => /rotat|credential/i.test(p))).toBe(true);
   });
 
-  it('preserves a field it has never heard of — the property, not the two symptoms', () => {
+  it('preserves a field it has never heard of - the property, not the two symptoms', () => {
     // The version above only pins the two fields that were dropped, and both
     // are now named in the reader. Deleting the spread would still pass it,
     // which makes it a test of the fix rather than of the bug: the NEXT field

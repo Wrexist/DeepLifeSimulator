@@ -172,7 +172,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     }
   }, [gameState?.weeksLived, preventDrain, setGameState, gameState]);
 
-  // Time-travel driver — one real nextWeek() per step.
+  // Time-travel driver - one real nextWeek() per step.
   useEffect(() => {
     if (targetWeek === null || !gameState) return;
     const currentTotal = gameState.weeksLived || 0;
@@ -200,7 +200,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
 
   const isSkipping = targetWeek !== null;
 
-  // Simulation summary — declared BEFORE the early `return null` below so this
+  // Simulation summary - declared BEFORE the early `return null` below so this
   // hook is never called conditionally (Rules of Hooks). Depends only on state.
   const simSummary = useMemo(() => {
     const done = Object.values(simResults);
@@ -294,7 +294,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
    * synthetic one.
    *
    * This used to build a ladder called `Dev Career` whose six levels were
-   * literally named `Level 1` … `Level 6`, topping out at $13,000/wk — about
+   * literally named `Level 1` … `Level 6`, topping out at $13,000/wk - about
    * 4× the highest salary the real data pays anywhere. Two things followed
    * from that, and the second is why it is fixed here rather than worked
    * around downstream:
@@ -302,7 +302,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
    * - the Job field on the home identity card reads `currentCareer.levels[level].name`,
    *   so a granted career made the card say **"Job: Level 6"**;
    * - the store-screenshot pipeline builds its save through these very grants,
-   *   so that placeholder went out on App Store product pages —
+   *   so that placeholder went out on App Store product pages -
    *   `screenshots/appstore-2026/` is composed from captures of this state.
    *
    * Using the real ladder makes the same grant read "Engineering Manager" at
@@ -435,7 +435,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     );
 
   // -------------------------------------------------------------------------
-  // SECTION 2 — One-tap feature setups (seed a ready-to-test scenario)
+  // SECTION 2 - One-tap feature setups (seed a ready-to-test scenario)
   // -------------------------------------------------------------------------
   const setupLuxury = () => {
     addMoney(1_000_000_000);
@@ -533,7 +533,7 @@ export default function DevToolsModal({ visible, onClose }: DevToolsModalProps) 
     );
 
   // -------------------------------------------------------------------------
-  // SECTION 3 — Simulations
+  // SECTION 3 - Simulations
   // -------------------------------------------------------------------------
   const simBase = (): GameState => gameState ?? getBaseSimState();
   const runOne = (id: string) => {

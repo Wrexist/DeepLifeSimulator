@@ -322,7 +322,7 @@ export const jobOffer: EventTemplate = {
       // job" hook, so accepting pays a one-time signing bonus (≈ its first
       // paycheck) instead of silently promising an ongoing salary that never
       // applied. The happiness/reputation still land.
-      description: `You receive a strong job offer — accepting comes with a $${newSalary.toLocaleString()} signing bonus${currentSalary > 0 ? ' and a real step up from your current pay' : ''}.`,
+      description: `You receive a strong job offer - accepting comes with a $${newSalary.toLocaleString()} signing bonus${currentSalary > 0 ? ' and a real step up from your current pay' : ''}.`,
       choices: [
         {
           id: 'accept',

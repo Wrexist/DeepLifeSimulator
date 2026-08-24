@@ -103,7 +103,7 @@ describe('CloudSyncService import-time side effects', () => {
     expect(mockAddNetworkListener).not.toHaveBeenCalled();
   });
 
-  it('getting the singleton still starts nothing — construction is inert', () => {
+  it('getting the singleton still starts nothing - construction is inert', () => {
     jest.isolateModules(() => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { getCloudSyncService } = require('@/services/CloudSyncService');

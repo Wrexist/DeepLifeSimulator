@@ -87,7 +87,7 @@ describe('and it does not invent rent for anyone else', () => {
     expect(Number.isFinite(total)).toBe(true);
   });
 
-  it('an owner is charged upkeep, not rent — no double count', () => {
+  it('an owner is charged upkeep, not rent - no double count', () => {
     // `computeHousingWellbeing` returns rent 0 when the residence is owned, so
     // adding it cannot double up with the upkeep line this function already had.
     const owner = createTestGameState({

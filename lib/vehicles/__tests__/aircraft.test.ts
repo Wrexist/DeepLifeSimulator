@@ -185,7 +185,7 @@ describe('getAirTravelStatus', () => {
 });
 
 describe('transportationMods integration', () => {
-  it('the jet actually shortens trips — the whole point', () => {
+  it('the jet actually shortens trips - the whole point', () => {
     const without = transportationMods(makeState());
     const with_ = transportationMods(
       makeState({ luxuryItems: [PRIVATE_JET_LUXURY_ID], realEstate: [propertyWith([AIRSTRIP_ROOM_ID])] }),
@@ -196,7 +196,7 @@ describe('transportationMods integration', () => {
     expect(with_.breakdown.aircraftSummary).toContain('Private Jet');
   });
 
-  it('does not make travel cheaper — fuel and crew are expensive', () => {
+  it('does not make travel cheaper - fuel and crew are expensive', () => {
     const without = transportationMods(makeState());
     const with_ = transportationMods(makeState({ luxuryItems: [PRIVATE_JET_LUXURY_ID] }));
     expect(with_.costMultiplier).toBe(without.costMultiplier);

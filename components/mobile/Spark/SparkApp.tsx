@@ -1,5 +1,5 @@
 /**
- * SparkApp — root shell for the in-game Spark dating platform.
+ * SparkApp - root shell for the in-game Spark dating platform.
  *
  * Mounts when the player taps the dating tile from the phone shell. Owns:
  *   - Internal nav state machine (no React Navigation nested container)
@@ -9,7 +9,7 @@
  *   - Chat overlay route (full-screen above the tab bar)
  *
  * The existing DatingActions (goOnDate, giveGift, proposeMarriage, planWedding,
- * fileDivorce) remain canonical for relationship progression — Spark surfaces
+ * fileDivorce) remain canonical for relationship progression - Spark surfaces
  * a match → promotes it to a Relationship → and the rest of the dating flow
  * uses DatingActions via the existing WeddingPlanningModal etc.
  */
@@ -77,7 +77,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   }, []);
 
   // Partner profile overlay intercepts the entire body when active (sits
-  // above chat — opened FROM chat via the header avatar button).
+  // above chat - opened FROM chat via the header avatar button).
   if (openProfileId) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -85,7 +85,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
           matchId={openProfileId}
           onBack={() => setOpenProfileId(null)}
           onClosed={() => {
-            // After unmatch/report the match is gone — return to matches tab.
+            // After unmatch/report the match is gone - return to matches tab.
             setOpenProfileId(null);
             setOpenChatId(null);
             setActiveTab('matches');
@@ -110,7 +110,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      {/* Header — borderless; the hero surface on each tab anchors the screen. */}
+      {/* Header - borderless; the hero surface on each tab anchors the screen. */}
       <View style={styles.header}>
         <Pressable
           onPress={onBack}
@@ -173,7 +173,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
         {activeTab === 'profile' && <ProfileTab onEditProfile={() => setShowProfileEdit(true)} />}
       </View>
 
-      {/* Bottom tab bar — padded so it clears the floating phone tab bar. */}
+      {/* Bottom tab bar - padded so it clears the floating phone tab bar. */}
       <View style={[styles.tabBar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         <TabBtn
           icon={Flame}

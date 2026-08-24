@@ -1,21 +1,21 @@
 /**
- * AmbitionPickerCard — a way into the ambition system for lives that skipped it.
+ * AmbitionPickerCard - a way into the ambition system for lives that skipped it.
  *
  * `ambitionId` was written in exactly two places outside tests: the onboarding
  * draft, and the dev tools. The onboarding screen offers an explicit skip whose
  * own copy says the choice is optional, and `getAmbitionCompletion` returns
- * `null` for an absent id — so `AmbitionCard` renders nothing, permanently.
+ * `null` for an absent id - so `AmbitionCard` renders nothing, permanently.
  *
  * The result: an entire progression system (8 ambitions × 4 milestones, payoffs
  * up to $300,000 + 260 gems + 900 prestige points + a badge) was invisible and
  * unobtainable for any player who took the optional skip, and for EVERY save
- * predating the feature — with no in-game affordance to pick one later.
+ * predating the feature - with no in-game affordance to pick one later.
  * 2026-07-30 audit GP-9.
  *
  * Picking later is not a farm: `getAmbitionCompletion` reports `alreadyClaimed`
  * when either the per-life `ambitionRewardClaimed` flag or
  * `prestige.claimedAmbitions` contains the id, and `grantAmbitionPayout` sets
- * that flag on payout — so a life that has claimed once cannot claim again by
+ * that flag on payout - so a life that has claimed once cannot claim again by
  * switching. Milestone ids are ambition-prefixed and unique, so stale progress
  * cannot cross-satisfy a different ambition either.
  */
@@ -62,7 +62,7 @@ function AmbitionPickerCard() {
     setExpanded(false);
     // Deferred to a macrotask, not called inline. `saveGame` reads
     // `gameStateRef.current`, which is synced to state in a POST-COMMIT effect,
-    // so a synchronous call here persists the snapshot from BEFORE the pick —
+    // so a synchronous call here persists the snapshot from BEFORE the pick -
     // the ambition would be silently lost on reload. Same pattern as
     // BrandDealsScreen's `persist`.
     setTimeout(() => { void saveGame?.(false); }, 0);

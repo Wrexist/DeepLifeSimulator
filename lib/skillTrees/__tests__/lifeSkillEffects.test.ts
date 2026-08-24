@@ -19,7 +19,7 @@ import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
 const withSkills = (ids: string[]): GameState =>
   createTestGameState({ unlockedLifeSkills: ids });
 
-describe('getLifeSkillModifiers — accessor', () => {
+describe('getLifeSkillModifiers - accessor', () => {
   it('returns the neutral set when nothing is unlocked', () => {
     expect(getLifeSkillModifiers(withSkills([]))).toEqual(NEUTRAL_LIFE_SKILL_MODIFIERS);
   });
@@ -85,7 +85,7 @@ describe('getLifeSkillModifiers — accessor', () => {
   });
 });
 
-describe('purchaseLifeSkill — buying (cost + persist + guards)', () => {
+describe('purchaseLifeSkill - buying (cost + persist + guards)', () => {
   const base = () => createTestGameState({
     stats: { money: 5000 },
     date: { age: 40 },

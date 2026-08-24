@@ -11,7 +11,7 @@ import { useGameState } from '@/contexts/game';
 import { safeSettings } from "@/utils/safeGameState";
 import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, responsiveSpacing } from '@/utils/scaling';
 // Static import (2026-08-16 audit L2). This was a `require()` INSIDE the render
-// body — re-resolved on every render, and typed `any`, so `DAILY_LOGIN_REWARDS`
+// body - re-resolved on every render, and typed `any`, so `DAILY_LOGIN_REWARDS`
 // could have been renamed away and the `|| 50` fallback would have hidden it.
 // `gameConstants` is a pure data module already imported statically all over the
 // app, so there is nothing to defer.
@@ -110,7 +110,7 @@ export default function DailyRewardPopup({ visible, rewardAmount, onClose }: Dai
 
  <Text style={[styles.title, { color: palette.title }]}>Daily Reward</Text>
  <Text style={[styles.subtitle, { color: palette.subtitle }]}>
- Day {loginStreak} streak — keep it going!
+ Day {loginStreak} streak - keep it going!
  </Text>
 
  <View style={styles.rewards}>

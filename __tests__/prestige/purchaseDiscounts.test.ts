@@ -47,14 +47,14 @@ describe('the multipliers', () => {
     expect(rentalIncomeMultiplier(undefined)).toBe(1);
   });
 
-  it('the three ids are purchasable again — no longer refused as inert', () => {
+  it('the three ids are purchasable again - no longer refused as inert', () => {
     for (const id of ['early_item_access', 'early_real_estate', 'auto_manage_properties']) {
       expect(isInertBonus(id)).toBe(false);
     }
   });
 });
 
-describe('Premium Access — items 15% cheaper, charged and displayed alike', () => {
+describe('Premium Access - items 15% cheaper, charged and displayed alike', () => {
   it('the shared price helper applies the discount', () => {
     const full = getItemPurchasePrice(1000, 1, []);
     const cut = getItemPurchasePrice(1000, 1, ['early_item_access']);
@@ -87,7 +87,7 @@ describe('Premium Access — items 15% cheaper, charged and displayed alike', ()
   });
 });
 
-describe('Real Estate Mogul — properties 10% cheaper, basis at the paid price', () => {
+describe('Real Estate Mogul - properties 10% cheaper, basis at the paid price', () => {
   const studio = RESIDENTIAL_CATALOG[0];
 
   it('the quote prices from the discounted figure', () => {
@@ -102,7 +102,7 @@ describe('Real Estate Mogul — properties 10% cheaper, basis at the paid price'
   });
 });
 
-describe('Property Manager — +15% tenant rent, inside the cap', () => {
+describe('Property Manager - +15% tenant rent, inside the cap', () => {
   const rentedProperty = {
     ...RESIDENTIAL_CATALOG[0],
     owned: true,

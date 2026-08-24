@@ -249,7 +249,7 @@ export function transferBetweenAccounts(
   // R6-C: defend against duplicate IDs in `banking.accounts` (legacy migration
   // bugs created `checking-default` twice). `findIndex` returns the first
   // match for `fromId`, so a `withdraw` succeeds on account[0], but a `deposit`
-  // to a colliding `toId` could land on account[1] — leaving the first account
+  // to a colliding `toId` could land on account[1] - leaving the first account
   // silently overdrawn.
   const fromMatches = banking.accounts.filter((a) => a.id === fromId).length;
   const toMatches = banking.accounts.filter((a) => a.id === toId).length;
@@ -257,7 +257,7 @@ export function transferBetweenAccounts(
     return {
       banking,
       ok: false,
-      reason: 'Account IDs collide — please reload your save or contact support.',
+      reason: 'Account IDs collide - please reload your save or contact support.',
     };
   }
   const withdrawn = withdrawFromAccount(banking, fromId, amount, currentWeek);
@@ -294,11 +294,11 @@ export function openAccount(
 /**
  * Accrue one week of interest on every self-opened account.
  *
- * The two mirrored legacy accounts are skipped — `savings-default` is paid by
+ * The two mirrored legacy accounts are skipped - `savings-default` is paid by
  * the legacy applySavingsInterest path and `checking-default` mirrors cash.
  * Uses the same soft-cap diminishing-returns curve as the legacy path so a
  * parked fortune doesn't compound at full rate. Locked accounts (CDs) still
- * accrue — that's the point of a CD.
+ * accrue - that's the point of a CD.
  */
 export function accrueAccountInterest(
   banking: BankingState,
@@ -320,7 +320,7 @@ export function accrueAccountInterest(
    * as an anti-exploit diminishing-returns curve, and `applySavingsInterest`
    * applies it to the single legacy pool exactly that way. Here it was applied
    * inside the per-account map, so every account got its own full $500k of
-   * uncapped balance — and `openNewAccount` deliberately exempts CDs from the
+   * uncapped balance - and `openNewAccount` deliberately exempts CDs from the
    * one-per-type rule, because laddering CDs is a real strategy. So $10M split
    * across 20 x $500k 52-week CDs earned the full 5.5% on every dollar
    * (~$550k/yr) instead of the intended ~$194k, and the curve the constant
@@ -429,7 +429,7 @@ export function applyForCreditCard(
     creditCards: [...banking.creditCards, card],
     creditScore: {
       ...banking.creditScore,
-      // R3-E: cap at 50 — the regular `updateCreditScore` filter only runs
+      // R3-E: cap at 50 - the regular `updateCreditScore` filter only runs
       // after weekly tick, so spammed credit-card applications could grow
       // this unbounded inside a single week.
       inquiries: [...banking.creditScore.inquiries, { weeksLived: openedWeek, type: 'card' as const }].slice(-50),
@@ -466,7 +466,7 @@ export function chargeCreditCard(
   }
   // ANTI-EXPLOIT: cashback is accrued on SETTLEMENT (when the balance is paid
   // down in payCreditCard), NOT at charge time. Crediting rewards the instant a
-  // charge posts — before any cash leaves the player — made cashback riskless
+  // charge posts - before any cash leaves the player - made cashback riskless
   // free money: charge to the limit, redeem the rewards, then pay the balance
   // later from the same cash. Charging now only increases the (interest-bearing)
   // balance; the player only earns rewards on money they actually repay.
@@ -528,7 +528,7 @@ export function payCreditCard(
  * since `BankingState` doesn't own the money slice).
  *
  * R5-F: previously `pendingRewards` accumulated on charge but there was no
- * way to redeem them — so they sat on the card forever. Worse, `pendingRewards`
+ * way to redeem them - so they sat on the card forever. Worse, `pendingRewards`
  * also had no cap, so an exploit-chasing player could rack up huge values
  * that bloated the save.
  */
@@ -683,7 +683,7 @@ export function trackBudgetSpend(
 }
 
 /**
- * v22 Wave A (computer-only): set — or clear — a weekly budget cap for a category.
+ * v22 Wave A (computer-only): set - or clear - a weekly budget cap for a category.
  * A non-positive / non-finite amount clears the target. Informational only: no
  * money moves, so this carries zero economy risk (audit AdvancedBankApp proposal).
  */
@@ -704,7 +704,7 @@ export function setBudgetTarget(
 
 /**
  * Detect categories whose spend in `currentWeek` exceeds their configured budget
- * target. Pure read — returns the list of `{ category, spent, target }` overruns
+ * target. Pure read - returns the list of `{ category, spent, target }` overruns
  * (empty when no targets are set or nothing is over). Used by the weekly tick to
  * raise a single overspend notification.
  */
@@ -751,7 +751,7 @@ export const GOAL_COMPLETION_HAPPINESS = 4;
  * bumped `currentAmount`, minting a free cosmetic bar. Now:
  *   - the amount is clamped to what remains before the target (a goal can never
  *     exceed `targetAmount`);
- *   - money is pulled from a real source — the goal's `linkedAccountId` balance
+ *   - money is pulled from a real source - the goal's `linkedAccountId` balance
  *     if set (assets conserved, handled here), otherwise the returned `cashDebit`
  *     tells the action layer how much to debit from `stats.money`;
  *   - reaching the target marks `completedWeek` exactly once and returns a bounded
@@ -759,7 +759,7 @@ export const GOAL_COMPLETION_HAPPINESS = 4;
  *     action to credit via the money helper.
  *
  * Returns `contributed` (actually moved into the goal) and `cashDebit` (the slice
- * of that funded from cash — 0 when funded from a linked account).
+ * of that funded from cash - 0 when funded from a linked account).
  */
 export function contributeToGoal(
   banking: BankingState,
@@ -803,7 +803,7 @@ export function contributeToGoal(
   let cashDebit = 0;
 
   // Prefer pulling from a real linked account (assets conserved here). Mirrored
-  // accounts are read-only cash mirrors — never fund from them (that would print).
+  // accounts are read-only cash mirrors - never fund from them (that would print).
   const linkedIdx = goal.linkedAccountId
     ? accounts.findIndex((a) => a.id === goal.linkedAccountId && !MIRRORED_ACCOUNT_IDS.has(a.id))
     : -1;
@@ -813,7 +813,7 @@ export function contributeToGoal(
     if (contributed <= 0) return reject('Linked account has no funds');
     accounts[linkedIdx] = { ...accounts[linkedIdx], balance: available - contributed };
   } else {
-    // Fund from cash — the action layer debits `cashDebit` from stats.money.
+    // Fund from cash - the action layer debits `cashDebit` from stats.money.
     contributed = Math.min(requested, remainingToTarget);
     cashDebit = contributed;
   }
@@ -860,11 +860,11 @@ export function quoteLoan(
      * Callers applying an `aprReduction` that could otherwise cross the deposit
      * hard cap pass this. `SAVINGS_APR_HARD_CAP` is 5.5% and the anti-arbitrage
      * contract (rateEnvironment.ts:12-21) requires the cheapest loan to stay
-     * strictly above it — the 0.025 default does not, so any large reduction
+     * strictly above it - the 0.025 default does not, so any large reduction
      * opens a risk-free borrow-low/save-high carry. R3-M2.
      */
     aprFloor?: number;
-    /** Hard APR cap (decimal) from the Private Banking IAP — caps the offered rate (e.g. 0.03 = "VIP 3% APR"). */
+    /** Hard APR cap (decimal) from the Private Banking IAP - caps the offered rate (e.g. 0.03 = "VIP 3% APR"). */
     aprCap?: number;
     /**
      * Live-rate-environment additive loan delta (decimal APR; +raises, −cheapens).
@@ -987,7 +987,7 @@ export function recomputeCreditScore(
   loans: Loan[],
   currentWeek: number,
   /**
-   * Standing arrears (v31 `overdueBalance`) — mandatory weekly bills the player
+   * Standing arrears (v31 `overdueBalance`) - mandatory weekly bills the player
    * could not cover. Optional so the three other call sites keep their exact
    * behaviour; the weekly tick passes it.
    */
@@ -1000,7 +1000,7 @@ export function recomputeCreditScore(
   // DERIVED from the standing balance rather than accumulated in a counter, so
   // it is self-correcting: the drag grows as the debt grows and disappears the
   // week it is cleared, with no separate state to drift out of sync. Capped so a
-  // large one-off shortfall cannot floor the component on its own — arrears
+  // large one-off shortfall cannot floor the component on its own - arrears
   // should press on the player, not brick their credit.
   const arrearsLate = Math.min(6, Math.floor(Math.max(0, safe(overdueBalance)) / 500));
   const late = loanLate + arrearsLate;
@@ -1054,7 +1054,7 @@ export function recomputeCreditScore(
  * Take money back out of a savings goal.
  *
  * The counterpart `contributeToGoal` never had. Contributing debits real money
- * — from the goal's linked account, or from `stats.money` via `cashDebit` — into
+ * - from the goal's linked account, or from `stats.money` via `cashDebit` - into
  * `goal.currentAmount`, and there was no withdraw path, no delete-goal path, and
  * no refund on completion beyond the bounded reward. Every reader of
  * `currentAmount` outside the writers was display code, and `netWorth` did not
@@ -1068,8 +1068,8 @@ export function recomputeCreditScore(
  * one (assets conserved here), otherwise as `cashCredit` for the action layer
  * to credit through the money helper.
  *
- * A COMPLETED goal can still be withdrawn from — the money is the player's, and
- * refusing would recreate the trap in a narrower form — and `completedWeek`
+ * A COMPLETED goal can still be withdrawn from - the money is the player's, and
+ * refusing would recreate the trap in a narrower form - and `completedWeek`
  * SURVIVES the withdrawal, so the bounded completion reward cannot be farmed by
  * withdrawing and re-contributing. See the comment at the assignment.
  */
@@ -1128,13 +1128,13 @@ export function withdrawFromGoal(
     // `completedWeek` is a number (line 726), and `applySavingsGoals`'s weekly
     // auto-contribute gates on the same flag. Clearing it RE-ARMS both. So:
     // fund a $25,000 goal (+$250 reward), withdraw the whole $25,000 back,
-    // contribute it again (+$250) — an unbounded printer at
+    // contribute it again (+$250) - an unbounded printer at
     // GOAL_COMPLETION_REWARD_CAP per cycle, on money that never leaves the
     // player's hands, plus GOAL_COMPLETION_HAPPINESS each time.
     //
     // `completedWeek` records that the reward was PAID, which withdrawing does
-    // not undo. It is now permanent. Withdrawal itself stays allowed — the
-    // money is the player's — and refusing a re-contribution to a completed
+    // not undo. It is now permanent. Withdrawal itself stays allowed - the
+    // money is the player's - and refusing a re-contribution to a completed
     // goal is the behaviour that already shipped, so this adds no new trap.
     completedWeek: goal.completedWeek,
   };
@@ -1153,7 +1153,7 @@ export function withdrawFromGoal(
  * R3-M8: `CreditCard.baseAPR` was an inert definition. `chargeCreditCard` only
  * ever incremented `balance`; the advertised 17%-25% rates were rendered by
  * `ApplyCardModal` and `CreditCardRow`, and `AdvancedBankApp` even told the
- * player a charge "grows the (interest-bearing) balance now" — but no weekly
+ * player a charge "grows the (interest-bearing) balance now" - but no weekly
  * tick, action module or helper ever applied a card's APR to its balance. A
  * maxed-out $25,000 platinum card at a stated 17% APR (~$4,250/yr) cost exactly
  * $0 forever, so the only consequence of carrying a permanent balance was the

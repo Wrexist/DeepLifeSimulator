@@ -169,7 +169,7 @@ describe('Vehicle system deep audit', () => {
 
   it("purchaseVehicle: insufficient money → rejected", async () => {
     mounted = mountGame();
-    seedDriver(10); // $10 — way under any template
+    seedDriver(10); // $10 - way under any template
     const { purchaseVehicle } = await import('@/contexts/game/actions/VehicleActions');
     const deps = await libDeps();
     let result: { success: boolean; message: string } = { success: false, message: '' };
@@ -186,7 +186,7 @@ describe('Vehicle system deep audit', () => {
     const { purchaseVehicle } = await import('@/contexts/game/actions/VehicleActions');
     const { VEHICLE_TEMPLATES } = await import('@/lib/vehicles/vehicles');
     const repGated = VEHICLE_TEMPLATES.find(t => (t.requiredReputation ?? 0) > 0);
-    if (!repGated) return; // No reputation-gated vehicles defined — skip cleanly.
+    if (!repGated) return; // No reputation-gated vehicles defined - skip cleanly.
 
     const deps = await libDeps();
     let result: { success: boolean; message: string } = { success: false, message: '' };
@@ -225,7 +225,7 @@ describe('Vehicle system deep audit', () => {
     const autoLoan = (captured!.state.loans ?? []).find(l => l.type === 'auto');
     expect(vehicle).toBeDefined();
     expect(autoLoan).toBeDefined();
-    // The loan must carry the vehicle's id — the UI links them by this, not by name.
+    // The loan must carry the vehicle's id - the UI links them by this, not by name.
     expect(autoLoan!.vehicleId).toBe(vehicle!.id);
   });
 
@@ -364,7 +364,7 @@ describe('Vehicle system deep audit', () => {
 
     // Worst case for the old bug: cancel immediately after purchase, when
     // weeksRemaining is at its max (26). Every plan must net <= 0 (only the
-    // $25 admin fee is lost) — a buy-then-cancel must never print money.
+    // $25 admin fee is lost) - a buy-then-cancel must never print money.
     for (const plan of ['basic', 'comprehensive', 'premium'] as const) {
       const before = captured!.state.stats.money;
       act(() => { purchaseInsurance(captured!.state, captured!.setGameState, vid, plan, deps); });
@@ -381,7 +381,7 @@ describe('Vehicle system deep audit', () => {
       const afterCancel = captured!.state.stats.money;
       const netDelta = afterCancel - before;
 
-      // The cancel must actually have run (not silently no-op'd) — otherwise the
+      // The cancel must actually have run (not silently no-op'd) - otherwise the
       // delta assertions are vacuously satisfied even if the refund path broke.
       expect(cancelResult.success).toBe(true);
       expect(captured!.state.vehicles?.find(v => v.id === vid)?.insurance).toBeFalsy();
@@ -545,7 +545,7 @@ describe('Vehicle system deep audit', () => {
     const deps = await libDeps();
     act(() => { purchaseVehicle(captured!.state, captured!.setGameState, 'economy_sedan', deps); });
     const vid = captured!.state.vehicles![0].id;
-    // Force condition to 0 — simulating a totaled vehicle.
+    // Force condition to 0 - simulating a totaled vehicle.
     act(() => captured!.setGameState(prev => ({
       ...prev,
       vehicles: prev.vehicles?.map(v => v.id === vid ? { ...v, condition: 0 } : v),

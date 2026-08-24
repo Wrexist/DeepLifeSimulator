@@ -109,7 +109,7 @@ export function scamWindowOpen(week: number): boolean {
 export interface ScamRisk {
   /** Probability a scam arrives this week, 0..1. */
   chance: number;
-  /** Why the risk is what it is — surfaced in the app so it is never opaque. */
+  /** Why the risk is what it is - surfaced in the app so it is never opaque. */
   reasons: string[];
 }
 
@@ -118,24 +118,24 @@ export interface ScamRisk {
  *
  * ## Every signal here is one only the PLAYER can produce
  *
- * The obvious model — "count the low-reputation vendors in the directory" — is
+ * The obvious model - "count the low-reputation vendors in the directory" - is
  * wrong, and the test that says so caught it. `initialGameState` ships the
  * marketplace already populated, including `b4n3_drop` at reputation 15 with 3
  * reviews. Those reviews are the community's, not the player's, so that model
  * opened every brand-new save at four times the base risk for something the
  * player had not done, could not see, and could not undo. It would have read as
- * the game being arbitrary — which is exactly what the "why am I exposed?"
+ * the game being arbitrary - which is exactly what the "why am I exposed?"
  * panel exists to prevent.
  *
  * So exposure is measured only from things the player caused:
  *
- *  - `flaggedScam` — set by `updateVendorAfterPurchase(v, 'scam')` and nowhere
+ *  - `flaggedScam` - set by `updateVendorAfterPurchase(v, 'scam')` and nowhere
  *    else, so it means "this vendor burned ME". The strongest signal there is,
  *    and the most thematically honest: the address that got sold on is yours.
- *  - `jobHistory` — dark-web jobs actually run.
- *  - `dirtyBtc` / `cleanBtc` — proceeds actually earned.
- *  - `playerReputation` above its starting zero — purchases actually made.
- *  - `heat` — the composite the dark-web systems already maintain.
+ *  - `jobHistory` - dark-web jobs actually run.
+ *  - `dirtyBtc` / `cleanBtc` - proceeds actually earned.
+ *  - `playerReputation` above its starting zero - purchases actually made.
+ *  - `heat` - the composite the dark-web systems already maintain.
  *  - visible wealth, which attracts targeting regardless of conduct.
  */
 export function scamRisk(
@@ -152,7 +152,7 @@ export function scamRisk(
   if (burnedBy > 0) {
     chance += Math.min(0.12, 0.06 * burnedBy);
     reasons.push(
-      `${burnedBy} vendor${burnedBy === 1 ? ' has' : 's have'} already scammed you — ` +
+      `${burnedBy} vendor${burnedBy === 1 ? ' has' : 's have'} already scammed you - ` +
         'that address gets sold on.'
     );
   }
@@ -183,7 +183,7 @@ export function scamRisk(
 
   // Defences come off the total, and they are the only inputs that push DOWN.
   // Applied last so the reasons above still explain the exposure that was
-  // earned — the player should see both halves, not a single netted number.
+  // earned - the player should see both halves, not a single netted number.
   const defended = Math.min(MAX_RISK, chance) * riskMultiplier(state, atWeek ?? state?.weeksLived ?? 0);
 
   return { chance: Math.max(0, defended), reasons };
@@ -209,14 +209,14 @@ interface ScamBlueprint {
  *
  * Each one impersonates a sender the player has genuinely been receiving mail
  * from, because that is what makes the lookalike domain a tell rather than a
- * trivia question — the real address is two messages up the list.
+ * trivia question - the real address is two messages up the list.
  */
 const BLUEPRINTS: ScamBlueprint[] = [
   {
     key: 'bank-verify',
     senderName: 'DeepLife Bank Security',
     senderEmail: 'security@deeplifebank-verify.com',
-    subject: 'Unusual activity — confirm your account within 24 hours',
+    subject: 'Unusual activity - confirm your account within 24 hours',
     preview: 'Your account will be restricted unless it is confirmed.',
     body:
       'Dear Customer,\n\n' +
@@ -229,7 +229,7 @@ const BLUEPRINTS: ScamBlueprint[] = [
     lossFraction: 0.18,
     tells: [
       'The address is deeplifebank-verify.com. Your bank writes from deeplifebank.com.',
-      '"Dear Customer" — your bank has your name and uses it.',
+      '"Dear Customer" - your bank has your name and uses it.',
       'A 24-hour deadline exists to stop you checking.',
       'No verified badge. Your real bank has one on every message.',
     ],
@@ -253,7 +253,7 @@ const BLUEPRINTS: ScamBlueprint[] = [
     lossFraction: 0.12,
     tells: [
       'revenue-gov-claims.net is not a government domain. The real one is revenue.gov.',
-      'Tax in this game is withheld at source — there is no refund to claim.',
+      'Tax in this game is withheld at source - there is no refund to claim.',
       'A refund that charges a fee to release is not a refund.',
       'No verified badge.',
     ],
@@ -263,7 +263,7 @@ const BLUEPRINTS: ScamBlueprint[] = [
     key: 'vendor-escrow',
     senderName: 'Escrow Release',
     senderEmail: 'escrow@market-release.onion.to',
-    subject: 'Your order is held — release the escrow',
+    subject: 'Your order is held - release the escrow',
     preview: 'Vendor has shipped. Escrow requires manual release.',
     body:
       'Order status: SHIPPED\n' +
@@ -387,7 +387,7 @@ export function generateScam(ctx: MailContext): MailMessage | null {
     id: `mail-scam-${bp.key}-${ctx.week}`,
     senderName: bp.senderName,
     senderEmail: bp.senderEmail,
-    // Never verified. Enforced by test — the badge has to stay trustworthy.
+    // Never verified. Enforced by test - the badge has to stay trustworthy.
     subject: bp.subject,
     preview: bp.preview,
     body: bp.body,
@@ -420,5 +420,5 @@ export function scamLossFor(state: GameState, message: MailMessage): number {
 export function scamLossSummary(amount: number): string {
   return amount > 0
     ? `${docMoney(amount)} left your account.`
-    : 'Nothing was taken — there was nothing to take.';
+    : 'Nothing was taken - there was nothing to take.';
 }

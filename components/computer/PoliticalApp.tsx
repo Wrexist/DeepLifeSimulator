@@ -1,5 +1,5 @@
 /**
- * PoliticalApp — Remake 5 · Campaign-HQ DNA pass.
+ * PoliticalApp - Remake 5 · Campaign-HQ DNA pass.
  *
  * Same 3-tab loop + mechanics as before, re-skinned into a campaign
  * headquarters rather than a generic "eyebrow hero + rows" template:
@@ -13,7 +13,7 @@
  *   - Influence: PAC pool + LOBBYIST & ALLIANCE ROSTER rows with influence
  *     meters + the scandal list (the Remake 5 mechanics).
  *
- * All game mechanics are unchanged — this pass only re-presents existing
+ * All game mechanics are unchanged - this pass only re-presents existing
  * PoliticsState data more densely and adds local list→detail sub-views.
  * Weekly tick still lives in lib/politics/weeklyTick.ts.
  */
@@ -111,7 +111,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 
 const LinearGradient = Gradient;
 
-// Identity accent — sky #60A5FA. Solid only on small CTAs / badges / dots;
+// Identity accent - sky #60A5FA. Solid only on small CTAs / badges / dots;
 // everywhere else it appears as a translucent tint (fills 0.12–0.18, rims
 // 0.28–0.36, hero wash 0.10–0.16 flat). rgb = 96,165,250.
 const SKY = '#60A5FA';
@@ -162,7 +162,7 @@ type SubView =
 
 // Alliance targets the formAlliance action supports (it accepts any
 // characterId + name and grants a fixed +10 influence + a small approval bump).
-// Defined locally like PARTIES — political blocs/figures the player can court.
+// Defined locally like PARTIES - political blocs/figures the player can court.
 const ALLIANCE_TARGETS: { id: string; name: string; role: string; description: string }[] = [
   { id: 'labor_union_coalition', name: 'Labor Union Coalition', role: 'Grassroots bloc', description: 'Organized labor turns out voters and volunteers for allied candidates.' },
   { id: 'business_roundtable', name: 'Business Roundtable', role: 'Corporate bloc', description: 'A coalition of major employers with deep campaign-finance reach.' },
@@ -174,7 +174,7 @@ const ALLIANCE_TARGETS: { id: string; name: string; role: string; description: s
   { id: 'farmers_federation', name: 'Farmers Federation', role: 'Rural bloc', description: 'Agricultural interests that anchor support across rural districts.' },
 ];
 
-// Fixed alliance influence — mirrors the value formAlliance stamps on each ally.
+// Fixed alliance influence - mirrors the value formAlliance stamps on each ally.
 const ALLIANCE_INFLUENCE = 10;
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
@@ -194,7 +194,7 @@ const OFFICE_NAME: Record<number, string> = {
   6: 'President',
 };
 
-// Rung of the career ladder — one office, its status relative to the player,
+// Rung of the career ladder - one office, its status relative to the player,
 // its weekly salary, and the cost + requirement key to run for it.
 interface Rung {
   index: number;
@@ -238,11 +238,11 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
   const push = (label: string, value: string, tone: 'pos' | 'neg' | 'neutral' = 'neutral') => out.push({ label, value, tone });
 
   // R4-X7: the rows below deliberately omit `INERT_POLICY_KEYS`
-  // (lib/politics/policies.ts) — effects that are declared and priced but have
+  // (lib/politics/policies.ts) - effects that are declared and priced but have
   // no system behind them. See that constant's note for the list and reasoning.
   //
   // effects.money is a ONE-TIME treasury delta applied at enactment
-  // (PoliticalActions enactPolicy), never a weekly stream — label it honestly.
+  // (PoliticalActions enactPolicy), never a weekly stream - label it honestly.
   if (e.money) push('One-time cash', `${sign(e.money)}${formatMoney(e.money)}`, e.money > 0 ? 'pos' : 'neg');
   if (e.happiness) push('Happiness', `${sign(e.happiness)}${e.happiness}`, e.happiness > 0 ? 'pos' : 'neg');
   if (e.health) push('Health', `${sign(e.health)}${e.health}`, e.health > 0 ? 'pos' : 'neg');
@@ -259,7 +259,7 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
 
   const re = e.realEstate;
   // `rentModifier` is live (lib/economy/passiveIncome.ts). `priceModifier` and
-  // `propertyTaxRate` are NOT rendered — see the note above `INERT_POLICY_KEYS`.
+  // `propertyTaxRate` are NOT rendered - see the note above `INERT_POLICY_KEYS`.
   if (re?.rentModifier) push('Rental income', `×${re.rentModifier}`, re.rentModifier >= 1 ? 'pos' : 'neg');
 
   const ed = e.education;
@@ -269,10 +269,10 @@ function describeEffects(policy: Policy): { label: string; value: string; tone: 
 
   const c = e.crypto;
   // `miningBonus` is live (lib/economy/passiveIncome.ts). `priceStability` and
-  // `regulationLevel` are NOT rendered — see `INERT_POLICY_KEYS`.
+  // `regulationLevel` are NOT rendered - see `INERT_POLICY_KEYS`.
   if (c?.miningBonus) push('Mining rate', `+${c.miningBonus}%`, 'pos');
 
-  // The whole `technology` block is NOT rendered — see `INERT_POLICY_KEYS`.
+  // The whole `technology` block is NOT rendered - see `INERT_POLICY_KEYS`.
 
   const h = e.healthcare;
   if (h?.healthBonus) push('Health / week', `+${h.healthBonus}`, 'pos');
@@ -328,8 +328,8 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   const careerLevel = politics.careerLevel ?? 0;
   const officeName = OFFICE_NAME[careerLevel] ?? `Office Lv ${careerLevel}`;
-  // `POLITICAL_CAREER.levels[].salary` is ANNUAL — 800 for a Local Council
-  // Member up to 100,000 for a President — while every figure on this screen is
+  // `POLITICAL_CAREER.levels[].salary` is ANNUAL - 800 for a Local Council
+  // Member up to 100,000 for a President - while every figure on this screen is
   // labelled "/wk". Reading it raw put "In office · $100K/wk" in front of a
   // President the tick actually pays $1,923, and it did the same to every rung
   // of the ladder below, which is the screen a player uses to decide whether an
@@ -339,7 +339,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   // four loan/DTI gates (2026-07-31) and `paidWeeklyCareerSalary` closed it for
   // the home tab's Cash Flow panel; both went looking for callers of the bug
   // rather than readers of the field. `paidWeeklySalaryForLevel` owns the
-  // conversion — and deliberately applies no boosts to political pay, because
+  // conversion - and deliberately applies no boosts to political pay, because
   // office money is credited by `calcWeeklyPassiveIncome`, which applies none.
   //
   // The `>= 1` guards stay: `careerLevel` is the 1-based office RANK (0 =
@@ -414,8 +414,8 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   }, [gameState, setGameState, queueSave]);
 
   /**
-   * Retiring is irreversible — the seat is gone and only a new election gets it
-   * back — so it asks first, with the pension named in the prompt.
+   * Retiring is irreversible - the seat is gone and only a new election gets it
+   * back - so it asks first, with the pension named in the prompt.
    */
   const handleRetire = useCallback(() => {
     const politicalCareer = (gameState.careers ?? []).find((c) => c.id === 'political');
@@ -464,7 +464,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     }
   }, [gameState, setGameState, queueSave]);
 
-  // Hire a lobbyist from the 15-strong catalog — the action charges the retainer
+  // Hire a lobbyist from the 15-strong catalog - the action charges the retainer
   // and raises policy influence by the lobbyist's rating (atomic, in one updater).
   const handleHireLobbyist = useCallback((lobbyistId: string) => {
     const result = hireLobbyist(gameState, setGameState, lobbyistId, { updateMoney });
@@ -475,7 +475,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     }
   }, [gameState, setGameState, queueSave]);
 
-  // Form a political alliance — grants a fixed +10 influence ally + a small
+  // Form a political alliance - grants a fixed +10 influence ally + a small
   // approval bump (formAlliance). Targets come from the local ALLIANCE_TARGETS bloc.
   const handleFormAlliance = useCallback((characterId: string, characterName: string) => {
     const result = formAlliance(gameState, setGameState, characterId, characterName);
@@ -491,7 +491,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     <View style={{ gap: responsiveSpacing.lg }}>
       <EconomyEventBanner context="generic" />
 
-      {/* Recipe B hero — the campaign-HQ masthead: approval gauge RING beside
+      {/* Recipe B hero - the campaign-HQ masthead: approval gauge RING beside
           the current-office identity. This is the app's signature surface. */}
       <View
         style={[
@@ -582,7 +582,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Term stat cluster — 2×2, densified with the alliance count. */}
+      {/* Term stat cluster - 2×2, densified with the alliance count. */}
       <View style={styles.statGrid}>
         <StatCard theme={theme} darkMode={darkMode} icon={Handshake} label="Lobbyists" value={String(lobbyists.length)} />
         <StatCard theme={theme} darkMode={darkMode} icon={Users} label="Alliances" value={String(alliances.length)} />
@@ -622,7 +622,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         </View>
       )}
 
-      {/* Campaign: spend cash to lift approval between elections — the lever that
+      {/* Campaign: spend cash to lift approval between elections - the lever that
           protects your seat when re-election comes around. */}
       <TouchableOpacity
         onPress={() => setShowCampaign(true)}
@@ -636,7 +636,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       </TouchableOpacity>
 
       {/* Party, appointments, the war chest and retirement all live on the
-          Career tab — this tab is the seat you hold right now. */}
+          Career tab - this tab is the seat you hold right now. */}
       <TouchableOpacity
         onPress={() => setActiveTab('career')}
         activeOpacity={0.85}
@@ -698,7 +698,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                 <>
                   <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
                     Standing {support}/100 · {endorsed
-                      ? 'endorsed — the machine is behind you'
+                      ? 'endorsed - the machine is behind you'
                       : challenged
                         ? 'the party is shopping for another candidate'
                         : `${ENDORSEMENT_THRESHOLD - support} more for an endorsement`}
@@ -748,7 +748,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           </View>
           {party ? (
             <Text style={[styles.helperText, { color: theme.textMuted }]}>
-              Crossing the floor costs public approval — more every time — and drops you to the bottom of
+              Crossing the floor costs public approval - more every time - and drops you to the bottom of
               the new party&apos;s pecking order.
             </Text>
           ) : null}
@@ -828,7 +828,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             </Text>
             {embezzlement.totalUSD > 0 ? (
               <Text style={[styles.helperText, { color: theme.textMuted }]}>
-                {formatMoney(embezzlement.totalUSD)} diverted so far. Exposure feeds the scandal that ends careers —
+                {formatMoney(embezzlement.totalUSD)} diverted so far. Exposure feeds the scandal that ends careers -
                 it only cools in a week you keep your hands out.
               </Text>
             ) : null}
@@ -898,7 +898,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     const agg = calculatePolicyEffects(enacted);
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        {/* Recipe B hero — legislative record with aggregate policy effects. */}
+        {/* Recipe B hero - legislative record with aggregate policy effects. */}
         <View
           style={[
             getGlassCard(darkMode, 12),
@@ -1140,7 +1140,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     const effects = describeEffects(policy);
 
     // The price the player will actually be charged, from the SAME helper
-    // `enactPolicy` prices with — quoting the sticker cost here while charging a
+    // `enactPolicy` prices with - quoting the sticker cost here while charging a
     // discounted one is how a targeted discount stays invisible, which is the
     // defect this whole change is undoing. Now that a matching lobbyist is worth
     // a further 15%, the roster the player hired has to be legible on the screen
@@ -1194,7 +1194,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           </Text>
           {discount > 0 && (
             <Text style={[styles.cardSubText, { color: accent.success }]}>
-              {Math.round(discount * 100)}% off {formatMoney(sticker)} — your influence and lobbyists
+              {Math.round(discount * 100)}% off {formatMoney(sticker)} - your influence and lobbyists
             </Text>
           )}
         </View>
@@ -1259,7 +1259,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     );
   };
 
-  // Hire-lobbyist picker — the full catalog minus already-hired, each with cost,
+  // Hire-lobbyist picker - the full catalog minus already-hired, each with cost,
   // specialty, effect, and affordability-gated Hire. Delegates to hireLobbyist.
   const renderHireLobbyist = () => {
     const hiredIds = lobbyists.map((l) => l.id);
@@ -1314,7 +1314,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     );
   };
 
-  // Form-alliance picker — political blocs the player can court (ALLIANCE_TARGETS),
+  // Form-alliance picker - political blocs the player can court (ALLIANCE_TARGETS),
   // minus any already allied. No cash cost; grants a fixed influence ally.
   const renderFormAlliance = () => {
     const alliedIds = new Set(alliances.map((a) => a.characterId));
@@ -1536,7 +1536,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         visible={showEmbezzle}
         title="Divert campaign funds"
         subtitle={
-          `Move money out of the war chest and into your own accounts. Auditors notice — every dollar `
+          `Move money out of the war chest and into your own accounts. Auditors notice - every dollar `
           + `raises your exposure, and exposure is what turns into the scandal that ends careers. `
           + `Available this week: ${formatMoney(maxWeeklySkim(skimmablePot({ campaignFunds: politics.campaignFunds, pacCleanUSD: politics.pac?.cleanUSD })))}`
         }
@@ -1570,7 +1570,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 // Presentational sub-components
 // ---------------------------------------------------------------------------
 
-// Approval gauge RING — the signature campaign-HQ metric. Uses the shared
+// Approval gauge RING - the signature campaign-HQ metric. Uses the shared
 // ProgressRing (react-native-svg), color-banded by approval level, with the
 // band label in the center and the NN% pill on the ring's edge.
 function ApprovalRing({ approval, theme, darkMode }: { approval: number; theme: ReturnType<typeof getThemeColors>; darkMode: boolean }) {
@@ -2011,7 +2011,7 @@ const styles = StyleSheet.create({
   linkBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
 
   partyRow: { flexDirection: 'row', gap: responsiveSpacing.sm },
-  // Career-tab cards. Full four-sided hairline (Hard Rule #7 — no one-sided
+  // Career-tab cards. Full four-sided hairline (Hard Rule #7 - no one-sided
   // decorative accent bars anywhere in the app).
   lifeCard: {
     borderWidth: 1,

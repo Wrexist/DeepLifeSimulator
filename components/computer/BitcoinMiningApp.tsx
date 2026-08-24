@@ -1,5 +1,5 @@
 /**
- * BitcoinMiningApp — desktop crypto trading + mining dashboard.
+ * BitcoinMiningApp - desktop crypto trading + mining dashboard.
  *
  * Mining-dashboard DNA (Slate Glass tokens intact):
  *   - Trade: market regime banner + per-coin sparkline rows + a coin DETAIL page
@@ -94,11 +94,11 @@ import { formatMoneyCompact } from '@/utils/moneyFormatting';
 
 const LinearGradient = Gradient;
 
-// Identity accent for the Crypto app — amber #F59E0B (rgb 245,158,11).
+// Identity accent for the Crypto app - amber #F59E0B (rgb 245,158,11).
 // Solid (accent.warning === #F59E0B) is reserved for small CTAs / badges /
 // glyphs; every larger surface gets a translucent amber tint (Slate Glass).
 const amber = {
-  solid: accent.warning,               // #F59E0B — small CTAs / badges / glyphs
+  solid: accent.warning,               // #F59E0B - small CTAs / badges / glyphs
   wash: 'rgba(245,158,11,0.14)',       // hero tint wash (renders flat)
   washFade: 'rgba(245,158,11,0.03)',   // trailing stop (future-proofing)
   blob: 'rgba(245,158,11,0.10)',       // hero glow blob
@@ -126,15 +126,15 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
 ];
 
-// Weekly staking reward rates by lock period — mirror stakeCrypto in MiningActions
+// Weekly staking reward rates by lock period - mirror stakeCrypto in MiningActions
 // so the APY readout matches what the action actually stamps on a position.
 const STAKING_RATES: Record<number, number> = { 1: 0.001, 2: 0.0015, 3: 0.002, 4: 0.0025 };
 
 // Values mirror warehouseMinerEarnings in lib/economy/passiveIncome.ts so the
-// "estimated weekly yield" is accurate — and all 8 economy tiers are buyable
+// "estimated weekly yield" is accurate - and all 8 economy tiers are buyable
 // (the top 3 were defined in the economy but missing from this UI).
 // `hashrate` (TH/s) is a fixed per-model hardware spec used only for display
-// (a mining rig's headline number) — it is NOT game state and drives nothing.
+// (a mining rig's headline number) - it is NOT game state and drives nothing.
 const MINER_TIERS: { id: string; label: string; weeklyEarnings: number; hashrate: number }[] = [
   { id: 'basic',      label: 'Basic Miner',      weeklyEarnings: 22,     hashrate: 95 },
   { id: 'advanced',   label: 'Advanced Miner',   weeklyEarnings: 105,    hashrate: 420 },
@@ -147,7 +147,7 @@ const MINER_TIERS: { id: string; label: string; weeklyEarnings: number; hashrate
 ];
 
 function formatPrice(n: number): string {
-  if (!isFinite(n) || n <= 0) return '—';
+  if (!isFinite(n) || n <= 0) return '-';
   if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   if (n >= 1) return `$${n.toFixed(2)}`;
   return `$${n.toFixed(4)}`;
@@ -193,10 +193,10 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const [stakeLockWeeks, setStakeLockWeeks] = useState<number>(1);
 
   const cash = gameState.stats?.money ?? 0;
-  // Old/migrated saves can lack the cryptos array — guard every read.
+  // Old/migrated saves can lack the cryptos array - guard every read.
   const cryptos = gameState.cryptos ?? [];
   const selectedCoinMarket = market.coinMarkets[selectedCoinId];
-  // Inflation index — the enhanced-mining actions charge getInflatedPrice(cost),
+  // Inflation index - the enhanced-mining actions charge getInflatedPrice(cost),
   // so the Upgrades tab reads the same index to show/gate against the real price.
   const priceIndex =
     typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0
@@ -271,7 +271,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     () => estimateWeeklyMining(warehouseForEstimate, cryptos, mineTargetId, halvingCount),
     [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount]
   );
-  // Gross USD/wk the fleet would earn if it mined BTC instead — powers the
+  // Gross USD/wk the fleet would earn if it mined BTC instead - powers the
   // "vs BTC" hint so the player can see how much yield the target coin trades away.
   const btcEstimateUsd = useMemo(
     () => estimateWeeklyMining(warehouseForEstimate, cryptos, 'btc', halvingCount).usdPerWeek,
@@ -291,7 +291,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     },
     [warehouseForEstimate, gameState.cryptos, mineTargetId, halvingCount]
   );
-  // Actual-fleet gross USD/wk for one tier (rig detail) — applies the $100K cap.
+  // Actual-fleet gross USD/wk for one tier (rig detail) - applies the $100K cap.
   const fleetYieldForTier = useCallback(
     (tierId: string, count: number): number => {
       if (count <= 0) return 0;
@@ -305,7 +305,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   // drain (price + electricity) but ZERO extra yield, so Buy must be disabled and
   // the marginal yield shown honestly (≈$0), not the uncapped per-unit figure.
   const fleetAtCap = mineEstimate.grossUsd >= MINING_USD_CAP;
-  // Honest marginal USD/wk of adding ONE more of a tier to the CURRENT fleet —
+  // Honest marginal USD/wk of adding ONE more of a tier to the CURRENT fleet -
   // below the cap this equals the linear per-unit yield; at the cap it collapses
   // to ~0 because the whole-fleet gross is already clamped.
   const marginalYield = useCallback(
@@ -368,7 +368,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     setGameState((prev) => {
       // Atomic gate: re-check affordability against prev. The old
       // Math.max(0, money - price) clamp let a same-batch double-tap grant a
-      // second miner while only clamping money to 0 — a discounted-to-free
+      // second miner while only clamping money to 0 - a discounted-to-free
       // income asset.
       if ((prev.stats?.money ?? 0) < price) return prev;
       const w = prev.warehouse ?? {
@@ -378,7 +378,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       };
       const miners = { ...(w.miners ?? {}) };
       miners[tierId] = (miners[tierId] ?? 0) + 1;
-      // Canonical debit (same guards the trading side uses — see
+      // Canonical debit (same guards the trading side uses - see
       // CryptoTradingActions applyMoneyDelta note).
       const minerPatch = applyMoneyDelta(prev, -price, 'Buy miner');
       if (!minerPatch) return prev;
@@ -392,7 +392,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   };
 
   // PLAYER REPORT (BBQ, 2026-08-21): "Crypto: unable to remove/sell purchased
-  // mines." The action layer had `sellMiner` all along — no screen ever called
+  // mines." The action layer had `sellMiner` all along - no screen ever called
   // it, so a rig could only ever be bought. Sell at half the CURRENT catalog
   // price (the same number the Buy button shows), confirmed before it fires.
   const handleSellMiner = (tierId: string, label: string) => {
@@ -428,7 +428,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     queueSave();
   };
 
-  // Manual repair — restores one rig tier to 100% and debits the displayed USD
+  // Manual repair - restores one rig tier to 100% and debits the displayed USD
   // cost. The action re-checks affordability atomically (double-tap safe).
   const handleRepairRig = (tierId: string) => {
     const res = repairRig(gameState, setGameState, tierId);
@@ -439,7 +439,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     queueSave();
   };
 
-  // Auto-repair toggle — arms the already-implemented tick that repairs sub-50%
+  // Auto-repair toggle - arms the already-implemented tick that repairs sub-50%
   // rigs each week, paid from the chosen crypto. Enabling needs a funding coin
   // (defaults to the current mining target).
   const autoRepairEnabled = !!gameState.warehouse?.autoRepairEnabled;
@@ -460,7 +460,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     if (eligible.length === 0) {
       return {
         ok: true,
-        message: `Nothing to repair — no rig is under 50% health yet. Fleet is at ${fleetHealth}%.`,
+        message: `Nothing to repair - no rig is under 50% health yet. Fleet is at ${fleetHealth}%.`,
       };
     }
     const bill = eligible.reduce((sum, t) => {
@@ -533,8 +533,8 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     queueSave();
   };
   // Takes the coin id from the caller: the Staking panel renders (and labels
-  // the buttons with) `effectiveStakeCoinId` — which falls back to the first
-  // coin the player actually owns — so staking must use that same id. Reading
+  // the buttons with) `effectiveStakeCoinId` - which falls back to the first
+  // coin the player actually owns - so staking must use that same id. Reading
   // the raw `stakeCoinId` state here staked its 'btc' default even when the
   // panel showed a different coin, failing with "Invalid stake amount" for
   // players who hold no BTC.
@@ -651,7 +651,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   // --- Render: MINE --------------------------------------------------------
   const renderMine = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
-      {/* Recipe B hero — the RIG CONSOLE: a hashrate gauge ring (fill = fleet
+      {/* Recipe B hero - the RIG CONSOLE: a hashrate gauge ring (fill = fleet
           health) beside the weekly-yield readout (ONE focal amber surface). */}
       <HeroCard darkMode={darkMode} theme={theme}>
         <View style={styles.heroContent}>
@@ -697,7 +697,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
               <StatPill icon={Zap} label="Power" value={`${formatMoneyCompact(mineEstimate.electricityUsd)}/wk`} theme={theme} />
               <StatPill
                 label={totalMiners > 0 ? fleetBand.label : 'No rigs'}
-                value={totalMiners > 0 ? `${Math.round(fleetHealth)}%` : '—'}
+                value={totalMiners > 0 ? `${Math.round(fleetHealth)}%` : '-'}
                 valueColor={totalMiners > 0 ? fleetBand.color : theme.textMuted}
                 theme={theme}
               />
@@ -706,7 +706,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </View>
       </HeroCard>
 
-      {/* Mining target picker — keeps the existing selectedCrypto radio, now with
+      {/* Mining target picker - keeps the existing selectedCrypto radio, now with
           a live readout of the coin miners are minting. */}
       <View style={{ gap: responsiveSpacing.sm }}>
         <SectionTitle theme={theme}>Mining Target</SectionTitle>
@@ -740,7 +740,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </View>
       </View>
 
-      {/* Auto-repair — arms the weekly tick that restores sub-50% rigs to 100%,
+      {/* Auto-repair - arms the weekly tick that restores sub-50% rigs to 100%,
           paid from the chosen crypto. Turns durability from one-way decay into a
           managed resource. */}
       <View style={{ gap: responsiveSpacing.sm }}>
@@ -767,7 +767,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         </View>
         <Text style={[styles.mineCaption, { color: theme.textMuted }]}>
           {autoRepairEnabled
-            ? `Each week, rigs below 50% health are repaired — cheapest first — for as much as your ${autoRepairCryptoId.toUpperCase()} balance covers.`
+            ? `Each week, rigs below 50% health are repaired - cheapest first - for as much as your ${autoRepairCryptoId.toUpperCase()} balance covers.`
             : 'Rigs degrade 2–5% per week. Enable to auto-restore worn rigs from a crypto of your choice.'}
         </Text>
         {/*
@@ -778,7 +778,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                that is 10-25 weeks of arming the toggle and watching nothing
                happen.
             2. It is BUDGETED by the funding coin. With a zero balance of the
-               selected crypto it silently repairs nothing — no message, no
+               selected crypto it silently repairs nothing - no message, no
                log, no difference from the feature being broken.
 
           The caption above also used to promise rigs were "restored to 100%",
@@ -819,7 +819,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
         )}
       </View>
 
-      {/* Rig hardware cards — status LED + spec chips + durability bar. The card
+      {/* Rig hardware cards - status LED + spec chips + durability bar. The card
           opens a rig DETAIL page; the Buy button keeps its exact handler. */}
       <View style={{ gap: responsiveSpacing.sm }}>
         <View style={styles.headerRow}>
@@ -832,7 +832,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           const owned = ownedMiners[tier.id] ?? 0;
           const price = MINER_PRICES[tier.id];
           const buyDisabled = cash < price || fleetAtCap;
-          // Honest marginal yield for this tier — collapses to ~$0 at the cap.
+          // Honest marginal yield for this tier - collapses to ~$0 at the cap.
           const tierMarginal = marginalYield(tier.id);
           const dur = owned > 0 ? (minerDurability[tier.id] ?? 100) : 0;
           const band = healthBand(dur);
@@ -869,7 +869,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
               <View style={styles.specRow}>
                 <StatPill icon={Zap} label="Hashrate" value={formatHashrate(tier.hashrate)} theme={theme} />
-                {/* Marginal yield for the SELECTED mining coin (honest — reflects
+                {/* Marginal yield for the SELECTED mining coin (honest - reflects
                     the coin's difficulty multiplier, halving, price, and the
                     $100K/wk fleet cap, so it reads ~$0 once the fleet is capped). */}
                 <StatPill label={`${mineTargetId.toUpperCase()}/unit`} value={`${formatMoneyCompact(tierMarginal)}/wk`} theme={theme} />
@@ -887,7 +887,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 accessibilityRole="button"
                 accessibilityLabel={
                   fleetAtCap
-                    ? 'Fleet at $100K per week cap — buying adds no yield'
+                    ? 'Fleet at $100K per week cap - buying adds no yield'
                     : `Buy ${tier.label} miner for ${formatMoneyCompact(price)}`
                 }
                 accessibilityState={{ disabled: buyDisabled }}
@@ -898,7 +898,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                 </Text>
               </TouchableOpacity>
 
-              {/* Sell — the removal half of rig ownership (BBQ report). Only for
+              {/* Sell - the removal half of rig ownership (BBQ report). Only for
                   owned tiers; half of the current catalog price, confirmed. */}
               {owned > 0 ? (
                 <TouchableOpacity
@@ -936,7 +936,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     const warehouse = gameState.warehouse;
     const ownedTiers = MINER_TIERS.filter((t) => (ownedMiners[t.id] ?? 0) > 0);
     const hasRigs = ownedTiers.length > 0;
-    // Effective upgrade target tier — fall back to the first owned rig so the
+    // Effective upgrade target tier - fall back to the first owned rig so the
     // picker never points at a tier the player doesn't own.
     const effectiveTierId = ownedTiers.some((t) => t.id === upgradeTierId)
       ? upgradeTierId
@@ -969,7 +969,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        {/* Miner upgrades — per owned tier (efficiency / power / durability / cooling). */}
+        {/* Miner upgrades - per owned tier (efficiency / power / durability / cooling). */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <View style={styles.headerRow}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Miner Upgrades</Text>
@@ -977,7 +977,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           </View>
           {!hasRigs ? (
             <EmptyText theme={theme} darkMode={darkMode}>
-              Deploy a rig in the Mine tab first — upgrades boost the rigs you own.
+              Deploy a rig in the Mine tab first - upgrades boost the rigs you own.
             </EmptyText>
           ) : (
             <>
@@ -1040,7 +1040,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           )}
         </View>
 
-        {/* Mining pools — join/leave, with bonus/fee/net shown honestly. */}
+        {/* Mining pools - join/leave, with bonus/fee/net shown honestly. */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <View style={styles.headerRow}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Mining Pools</Text>
@@ -1091,7 +1091,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           })}
         </View>
 
-        {/* Staking — lock crypto for weekly rewards; claim on maturity. */}
+        {/* Staking - lock crypto for weekly rewards; claim on maturity. */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <View style={styles.headerRow}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Staking</Text>
@@ -1193,7 +1193,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           )}
         </View>
 
-        {/* Energy system — one-time install cuts weekly power cost. */}
+        {/* Energy system - one-time install cuts weekly power cost. */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Energy System</Text>
           <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Cleaner energy cuts weekly power costs. One-time install.</Text>
@@ -1233,7 +1233,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           })}
         </View>
 
-        {/* Automation — +2% fleet yield per level, up to 5. */}
+        {/* Automation - +2% fleet yield per level, up to 5. */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Automation</Text>
           <Text style={[styles.mineCaption, { color: theme.textMuted }]}>Each level adds +2% mining yield across the whole fleet.</Text>
@@ -1272,7 +1272,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     // Halving countdown: BTC halves every ~208 weeks (4 game years) of game time.
     // The halving is fully wired: the crypto weekly tick fires it at 208w
     // (lib/crypto/weeklyTick.ts) and applyMiningCryptos scales the mined reward by
-    // 0.5^halvingCount — this UI lights up the countdown to that event.
+    // 0.5^halvingCount - this UI lights up the countdown to that event.
     const HALVING_INTERVAL_WEEKS = 208;
     const lastHalving = market.lastHalvingWeek ?? 0;
     const nextHalvingWeek = lastHalving + HALVING_INTERVAL_WEEKS;
@@ -1290,7 +1290,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
     return (
     <View style={{ gap: responsiveSpacing.lg }}>
-      {/* Recipe B hero — WALLET: portfolio value headline + BTC balance + a
+      {/* Recipe B hero - WALLET: portfolio value headline + BTC balance + a
           BTC price sparkline (ONE focal amber surface). */}
       <HeroCard darkMode={darkMode} theme={theme}>
         <View style={styles.heroContent}>
@@ -1335,7 +1335,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       {dirtyBtc > 0 && (
         // Hard Rule #7: the caution accent was a scale(4) amber bar down the
         // left edge, clipped by borderRadius.xl + overflow:hidden. Its comment
-        // argued it was fine because it was thin — the rule bans the shape, not
+        // argued it was fine because it was thin - the rule bans the shape, not
         // the thickness. Amber moves onto the full border, and the warning
         // headline inside is already amber.
         <View style={[getGlassCard(darkMode, 6), styles.noticeCard, { backgroundColor: theme.surface, borderColor: amber.solid }]}>
@@ -1451,7 +1451,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     const dur = owned > 0 ? (minerDurability[tier.id] ?? 100) : 0;
     const band = healthBand(dur);
     const ledColor = owned > 0 ? band.color : theme.textMuted;
-    // Fleet + per-unit yields now reflect the SELECTED mining coin (honest —
+    // Fleet + per-unit yields now reflect the SELECTED mining coin (honest -
     // difficulty × halving × coin price × electricity), not the old BTC-at-1.0 static.
     const fleetYield = fleetYieldForTier(tier.id, owned);
     const unitYield = perUnitYield(tier.id);
@@ -1463,7 +1463,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        {/* Recipe B hero — the rig console for THIS model (durability ring). */}
+        {/* Recipe B hero - the rig console for THIS model (durability ring). */}
         <HeroCard darkMode={darkMode} theme={theme}>
           <View style={styles.heroContent}>
             <ProgressRing
@@ -1523,7 +1523,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
                   </View>
                   <Text style={[styles.conditionValue, { color: theme.text }]}>{difficultyMultiplier.toFixed(1)}×</Text>
                 </View>
-                {/* Repair CTA — the old "$X" readout is now an actionable inset
+                {/* Repair CTA - the old "$X" readout is now an actionable inset
                     chip (single loud CTA reserved for Buy). Restores durability to
                     100% and debits the displayed cost. Disabled at full health. */}
                 <TouchableOpacity
@@ -1568,7 +1568,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
           }
           accessibilityLabel={
             fleetAtCap
-              ? 'Fleet at $100K per week cap — buying adds no yield'
+              ? 'Fleet at $100K per week cap - buying adds no yield'
               : `Buy ${tier.label} miner for ${formatMoneyCompact(price)}`
           }
           onPress={() => handleBuyMiner(tier.id)}
@@ -1596,7 +1596,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        {/* Recipe B hero — the MARKET panel: price + full history line. */}
+        {/* Recipe B hero - the MARKET panel: price + full history line. */}
         <HeroCard darkMode={darkMode} theme={theme}>
           <View style={styles.coinHeroTop}>
             <View style={{ flex: 1 }}>
@@ -1631,7 +1631,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             theme={theme}
             darkMode={darkMode}
             label="Bid/ask spread"
-            value={cm ? `${(cm.bidAskSpread * 100).toFixed(2)}%` : '—'}
+            value={cm ? `${(cm.bidAskSpread * 100).toFixed(2)}%` : '-'}
           />
           <StatCard
             theme={theme}
@@ -1640,12 +1640,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
             value={`${formatCoin(coin.owned)} ${coin.symbol}`}
           />
           <StatCard theme={theme} darkMode={darkMode} label="Position value" value={formatMoneyCompact(ownedUsd)} />
-          <StatCard theme={theme} darkMode={darkMode} label="Avg cost" value={avgCost > 0 ? formatPrice(avgCost) : '—'} />
+          <StatCard theme={theme} darkMode={darkMode} label="Avg cost" value={avgCost > 0 ? formatPrice(avgCost) : '-'} />
           <StatCard
             theme={theme}
             darkMode={darkMode}
             label="Unrealized P/L"
-            value={cb ? `${unrealized >= 0 ? '+' : ''}${formatMoneyCompact(unrealized)}` : '—'}
+            value={cb ? `${unrealized >= 0 ? '+' : ''}${formatMoneyCompact(unrealized)}` : '-'}
             negative={!!cb && unrealized < 0}
           />
         </View>
@@ -1755,7 +1755,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
 // Presentational building blocks (composed locally; Slate Glass recipes).
 // ---------------------------------------------------------------------------
 
-/** Recipe B shell — outer carries shadow/radius/fill/border (no clip); inner
+/** Recipe B shell - outer carries shadow/radius/fill/border (no clip); inner
  *  clips the amber tint wash + glow blob + dark-only lit hairline. */
 function HeroCard({ darkMode, theme, children }: { darkMode: boolean; theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
   return (
@@ -1786,7 +1786,7 @@ function HeroCard({ darkMode, theme, children }: { darkMode: boolean; theme: Ret
   );
 }
 
-/** Status LED — filled+glowing when the rig is online, hollow ring when off. */
+/** Status LED - filled+glowing when the rig is online, hollow ring when off. */
 function LedDot({ color, on }: { color: string; on: boolean }) {
   return (
     <View style={styles.ledWrap}>
@@ -1796,7 +1796,7 @@ function LedDot({ color, on }: { color: string; on: boolean }) {
   );
 }
 
-/** Inset spec chip — surfaceElevated micro-surface (never a card fill). */
+/** Inset spec chip - surfaceElevated micro-surface (never a card fill). */
 function StatPill({
   icon: Icon,
   label,
@@ -1819,7 +1819,7 @@ function StatPill({
   );
 }
 
-/** Signed change pill — semantic green/red (Apple-Stocks style). */
+/** Signed change pill - semantic green/red (Apple-Stocks style). */
 function ChangeChip({ change }: { change: number }) {
   const up = change >= 0;
   const color = up ? accent.success : accent.danger;
@@ -1835,7 +1835,7 @@ function ChangeChip({ change }: { change: number }) {
   );
 }
 
-/** Thin durability bar — band-coloured fill (≤6px, semantic). */
+/** Thin durability bar - band-coloured fill (≤6px, semantic). */
 function DurabilityBar({ value, theme }: { value: number; theme: ReturnType<typeof getThemeColors> }) {
   const band = healthBand(value);
   const pct = Math.max(0, Math.min(100, value));
@@ -1874,7 +1874,7 @@ function Sparkline({
   let body: React.ReactNode = null;
   if (w > 0) {
     if (prices.length < 2 || max === min) {
-      // Real history has <2 points or no variation yet — a flat baseline
+      // Real history has <2 points or no variation yet - a flat baseline
       // (never a fabricated history array).
       const y = (h / 2).toFixed(1);
       body = (
@@ -1908,7 +1908,7 @@ function Sparkline({
   );
 }
 
-/** The screen's single loud CTA (Recipe D) — flat solid amber, dark ink. */
+/** The screen's single loud CTA (Recipe D) - flat solid amber, dark ink. */
 function PrimaryCTA({
   label,
   onPress,
@@ -1993,7 +1993,7 @@ export default function BitcoinMiningApp(props: BitcoinMiningAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  // Top bar drops its bottom border — the glass tab strip below anchors the
+  // Top bar drops its bottom border - the glass tab strip below anchors the
   // screen (Slate Glass §6).
   topBar: {
     flexDirection: 'row',
@@ -2244,7 +2244,7 @@ const styles = StyleSheet.create({
     backgroundColor: amber.chipSoft,
   },
   addChipText: { color: amber.solid, fontSize: responsiveFontSize.xs, fontWeight: '700' },
-  // Notice cards (tainted BTC / halving) — Recipe A. Outer carries shadow +
+  // Notice cards (tainted BTC / halving) - Recipe A. Outer carries shadow +
   // radius + fill + border; noticeInner clips the caution stripe to the radius.
   noticeCard: {
     borderRadius: responsiveBorderRadius.xl,

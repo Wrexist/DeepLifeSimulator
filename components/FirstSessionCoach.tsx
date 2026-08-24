@@ -1,16 +1,16 @@
 /**
- * First-session coach — one action at a time, driven by what the life IS.
+ * First-session coach - one action at a time, driven by what the life IS.
  *
  * ── What a new player used to meet ────────────────────────────────────────
  * Driven end to end against the shipped web build, a brand-new player's first
  * screen was a profile card (avatar, name, "Unemployed") and their first three
  * taps produced: health 100 → 93 → 86 → 80, happiness 100 → 90 → 79 → 69, and
  * money unchanged at $1,500. Nothing else. No income, no event, no reward, no
- * recap — the weekly summary sheet is gated on something "meaningful" having
+ * recap - the weekly summary sheet is gated on something "meaningful" having
  * happened, and for an unemployed week nothing does.
  *
  * So the core loop, as first presented, was "tap to watch numbers fall". The
- * one hint that would have fixed it — "You don't have a job! Visit Work tab" —
+ * one hint that would have fixed it - "You don't have a job! Visit Work tab" -
  * sat below the fold, and `FirstWeekGuide` never rendered at all.
  *
  * ── What this does instead ────────────────────────────────────────────────
@@ -35,7 +35,7 @@
  * on opacity and transform ONLY, so `useNativeDriver` holds and the card cannot
  * stutter behind the JS work a week tick does on the same frame.
  *
- * Reduced motion is a hard branch to the end state — not a shorter duration.
+ * Reduced motion is a hard branch to the end state - not a shorter duration.
  * A vestibular trigger is not fixed by making it faster.
  */
 
@@ -73,11 +73,11 @@ export default function FirstSessionCoach() {
    *
    * An existing save carries NEITHER coach key, so without this gate every
    * established player who simply updates the app is handed first-session
-   * guidance — "Find your first job" to someone with a career, for eight weeks.
+   * guidance - "Find your first job" to someone with a career, for eight weeks.
    *
    * Snapshotted at mount via a lazy initializer rather than read live, because
    * `totalWeeksWorked` flips from 0 the instant a new player receives their
-   * first wage — and that is precisely the moment the `paid` payoff has to
+   * first wage - and that is precisely the moment the `paid` payoff has to
    * render. Reading it live would delete the reward for reaching the goal.
    */
   const [establishedLife] = useState(() => weeksWorked > 0);
@@ -88,14 +88,14 @@ export default function FirstSessionCoach() {
    * The first version started at `null` ("unknown") and rendered nothing until
    * storage answered. That is backwards, and it shipped broken: the coach was
    * invisible in the running app because any hitch in resolving the storage
-   * promise left the state at `null` forever — and `null` meant hide. A gate
+   * promise left the state at `null` forever - and `null` meant hide. A gate
    * whose failure mode is "the new-player guidance never appears" is the wrong
    * way round, whatever the comment above it claims.
    *
    * Optimistic is safe here because the step logic below ALSO requires
    * `weeksLived <= MAX_COACH_WEEKS`, so a long-running save can never show this
    * regardless of what storage says. The only exposure is a brief card on a
-   * save under eight weeks old whose flag has not loaded yet — a far better
+   * save under eight weeks old whose flag has not loaded yet - a far better
    * failure than never guiding anyone.
    */
   const [dismissed, setDismissed] = useState(false);
@@ -107,7 +107,7 @@ export default function FirstSessionCoach() {
     AsyncStorage.getItem(COACH_DONE_KEY)
       .then((v) => { if (alive && v === 'true') setDismissed(true); })
       // A storage failure must not hide the one thing telling a new player what
-      // to do, so this deliberately does NOT hide on error — but it is logged
+      // to do, so this deliberately does NOT hide on error - but it is logged
       // rather than swallowed, because a coach that silently reappears every
       // launch is otherwise indistinguishable from one that was never dismissed.
       .catch((error) => log.warn('Could not read the dismissal flag; showing the coach', { error }));
@@ -181,7 +181,7 @@ export default function FirstSessionCoach() {
 
   // ── Attention pulse on the call to action ───────────────────────────────
   // A slow 1.0 → 1.04 breath, not a bounce. The point is to be findable in
-  // peripheral vision, not to demand a tap — a card that jumps reads as an ad.
+  // peripheral vision, not to demand a tap - a card that jumps reads as an ad.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!step || step === 'paid' || reduced) { pulse.setValue(0); return; }
@@ -205,7 +205,7 @@ export default function FirstSessionCoach() {
       haptic.success();
       retire();
     }
-    // 'advance' has no action of its own — the advance button is the action,
+    // 'advance' has no action of its own - the advance button is the action,
     // and pointing at it is the whole job. Tapping the card just acknowledges.
     if (step === 'advance') retire();
   }, [step, router, retire]);
@@ -274,7 +274,7 @@ export default function FirstSessionCoach() {
 
 const styles = StyleSheet.create({
   // In-flow, not absolute. Pinned to `bottom: 0` it rendered behind the tab
-  // bar and was invisible to the player it exists for — found by screenshot,
+  // bar and was invisible to the player it exists for - found by screenshot,
   // not by reasoning about the layout.
   wrap: {
     marginBottom: responsiveSpacing.md,

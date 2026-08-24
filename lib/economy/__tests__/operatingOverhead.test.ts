@@ -57,7 +57,7 @@ describe('efficiency curve', () => {
     }
   });
 
-  it('reproduces the ORIGINAL inline math exactly — the refactor is behaviour-preserving', () => {
+  it('reproduces the ORIGINAL inline math exactly - the refactor is behaviour-preserving', () => {
     // This is the assertion that made the refactor safe to land: the helper the
     // readout uses and the multiplier that is charged are now one function, and
     // that function still does what the inline code did.
@@ -120,7 +120,7 @@ describe('reporting the drag as a weekly cost', () => {
   });
 });
 
-describe('the management ladder — the drag becomes a decision', () => {
+describe('the management ladder - the drag becomes a decision', () => {
   it('changes nothing for a player who has bought none', () => {
     // The property that made this safe to land: default 0 managers reproduces
     // the previous curve exactly.
@@ -132,7 +132,7 @@ describe('the management ladder — the drag becomes a decision', () => {
 
   it('raises the floor, not the whole curve', () => {
     // Just above the threshold the decay has not reached the floor, so
-    // management must NOT help there — otherwise it is a flat income buff.
+    // management must NOT help there - otherwise it is a flat income buff.
     expect(passiveIncomeEfficiency(20_000_000, 10)).toBeCloseTo(
       passiveIncomeEfficiency(20_000_000, 0), 5
     );
@@ -142,14 +142,14 @@ describe('the management ladder — the drag becomes a decision', () => {
     );
   });
 
-  it('is bounded — full management never removes the cap', () => {
+  it('is bounded - full management never removes the cap', () => {
     const best = passiveIncomeEfficiency(1e12, 999);
     expect(best).toBe(PASSIVE_SOFT_CAP_FLOOR + MAX_MANAGEMENT_FLOOR_GAIN);
     // A whale with everything still loses more than half their passive income.
     expect(best).toBeLessThan(0.5);
   });
 
-  it('reads levels off the existing upgrades array — no new stored field', () => {
+  it('reads levels off the existing upgrades array - no new stored field', () => {
     const companies = [
       { upgrades: [{ id: 'ops_management', level: 3 }, { id: 'machinery', level: 5 }] },
       { upgrades: [{ id: 'ops_management', level: 2 }] },

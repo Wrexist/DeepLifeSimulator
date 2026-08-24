@@ -78,7 +78,7 @@ function HomeScreen() {
 }
 
 /**
- * Hero strip — small, refined status line at the very top of the home tab.
+ * Hero strip - small, refined status line at the very top of the home tab.
  *   MARCH  •  WEEK 3  •  AGE 23
  * The dot before WEEK breathes (opacity 0.45 ↔ 1) to signal "live" without
  * adding visual noise to the rest of the screen.
@@ -89,7 +89,7 @@ function HeroStrip({ month, week, age }: { month: string; week: number; age: num
 
   useEffect(() => {
     if (reduced) {
-      // Reduced motion: hold the "live" dot at full opacity — no breathing loop.
+      // Reduced motion: hold the "live" dot at full opacity - no breathing loop.
       pulse.setValue(1);
       return;
     }
@@ -130,7 +130,7 @@ function HeroStrip({ month, week, age }: { month: string; week: number; age: num
 function HomeScreenContent() {
   const insets = useSafeAreaInsets();
   // Sprint 2 perf: subscribe only to the slices this screen (and its goal /
-  // tip / discovery / stat-change consumers) read — not the whole gameState —
+  // tip / discovery / stat-change consumers) read - not the whole gameState -
   // so the dashboard subtree stops re-rendering on every decay tick. Actions
   // come from the action contexts, whose values are stable (no state sub).
   const gameState = useGameSelector(
@@ -164,7 +164,7 @@ function HomeScreenContent() {
       // Required by unlockTier() for the Progress card's gate. Without these
       // the chapter path scores 0 and only the money/weeks fallback applies,
       // so a chapter-completing player would see a lock the Life tab does not
-      // — the same inconsistency this gate exists to remove, inverted.
+      // - the same inconsistency this gate exists to remove, inverted.
       completedChapters: s?.completedChapters,
       generationNumber: s?.generationNumber,
     }),
@@ -186,18 +186,18 @@ function HomeScreenContent() {
   // Collapses the secondary tail of the home feed so it doesn't grow unbounded.
   const [showMore, setShowMore] = useState(false);
 
-  // Root-level blocking modals (death/wedding) own the screen — every
+  // Root-level blocking modals (death/wedding) own the screen - every
   // celebration/reward popup below defers to them.
   const blockingModalUp = !!(gameState.showDeathPopup || gameState.showWeddingPopup);
 
   // The Progress screen is `href: null` (never a tab button), so this card is
-  // its front door — and must apply the same tier gate the Life tab's Stats
+  // its front door - and must apply the same tier gate the Life tab's Stats
   // segment does. See the card below.
   const progressLocked = !isFeatureUnlocked(gameState, 'tab:progression');
   const progressLockReason = unlockRequirement(gameState, 'tab:progression');
 
   // Interruption slots. These popups used to gate on a hand-rolled chain of
-  // `&&` terms that grew with every popup added — and could not see the weekly
+  // `&&` terms that grew with every popup added - and could not see the weekly
   // result sheet, the premium promo or the ad orb, which live in other files.
   // Now every interrupting surface in the app competes in ONE priority queue and
   // exactly one wins. Death/wedding still short-circuit locally: they are
@@ -251,7 +251,7 @@ function HomeScreenContent() {
   // never fire: in `getNextGoal` each goal's `shouldShow` predicate was the exact
   // negation of its completion predicate, so a goal was only ever OFFERED while
   // it was incomplete and vanished the instant it completed. All six were
-  // affected — e.g. `earn_100` showed only while `money < 200` but completed at
+  // affected - e.g. `earn_100` showed only while `money < 200` but completed at
   // `money >= 200`; `get_job` was offered only while `!currentJob`, which pinned
   // its `current` at 0. Zero states in the whole predicate space were completable,
   // so the popup, the rewards and `completedGoals` were unreachable code.
@@ -277,7 +277,7 @@ function HomeScreenContent() {
 
     // FARMABLE ON THE DEVICE CLOCK. The only gate here was
     // `lastRewardDate === today`, a raw string compare against a device-clock
-    // day key — so moving the date to ANY other day, forward or back, re-armed
+    // day key - so moving the date to ANY other day, forward or back, re-armed
     // the claim. Repeat indefinitely: DAILY_LOGIN_REWARDS cycles 25→500 and the
     // 48h streak grace keeps the streak climbing, so ~157 gems per clock change
     // on the premium currency that is otherwise sold as an IAP.
@@ -293,7 +293,7 @@ function HomeScreenContent() {
     // only refuse a REWOUND clock; advancing the device date a day at a time
     // passed both, and the 48h streak grace kept the streak climbing, so the
     // 25→500 cycle was farmable forever on premium currency. `weeksLived` is
-    // the one clock a scrubber cannot move — it advances only by playing.
+    // the one clock a scrubber cannot move - it advances only by playing.
     const weekGate = {
       current: gameState.weeksLived,
       lastClaim: gameState.lastLoginRewardWeek,
@@ -322,7 +322,7 @@ function HomeScreenContent() {
       setGameState(prev => {
         // Re-check against `prev`, not the effect's captured snapshot. The gate
         // above ran at render time; without this, two effect runs in one React
-        // batch would both pass it and both credit gems — the gate-then-grant
+        // batch would both pass it and both credit gems - the gate-then-grant
         // shape CLAUDE.md 4.4 exists to stop.
         if (!canClaimDailyGemsFor(prev.lastLoginRewardDate, prev.lastLoginRewardAt, today, nowMs, {
           current: prev.weeksLived,
@@ -348,7 +348,7 @@ function HomeScreenContent() {
         }, LEGACY_PASS_XP.dailyChallenge);
       });
       track('daily_reward_claimed', { streak: newStreak, gems: gemReward });
-      // The persist happens in the committed-marker effect below — NOT here.
+      // The persist happens in the committed-marker effect below - NOT here.
       // saveGame reads gameStateRef.current, which is synced to state in a
       // POST-COMMIT effect (in GameActionsProvider), so calling saveGame() in
       // this same tick would persist the PRE-grant state and let a force-kill
@@ -372,12 +372,12 @@ function HomeScreenContent() {
 
   // Persist AFTER the daily-reward grant commits. This effect fires only when
   // `lastLoginRewardDate` actually transitions to a new value (the grant above
-  // stamps today's date), never on initial mount — the ref is seeded with the
+  // stamps today's date), never on initial mount - the ref is seeded with the
   // value from first render, so mount sees `ref === current` and no-ops.
   //
   // The save is deferred to a macrotask: gameStateRef is synced in a
   // post-commit effect that lives in the *parent* GameActionsProvider, and
-  // React fires passive effects child-before-parent — so at the instant this
+  // React fires passive effects child-before-parent - so at the instant this
   // (child) effect runs, the parent's ref sync for this commit has NOT run yet.
   // setTimeout(0) lets the whole passive-effect flush (including that ref sync)
   // complete first, so saveGame reads the committed post-grant state.
@@ -406,7 +406,7 @@ function HomeScreenContent() {
       const hoursAway = (Date.now() - lastLogin) / (1000 * 60 * 60);
 
       // Only after a genuine day-plus away. `lastLogin` is reset to now on
-      // close, so this naturally fires at most once per ~24h absence — which
+      // close, so this naturally fires at most once per ~24h absence - which
       // also gates the cash bonus granted on close (no grindable faucet).
       //
       // `welcomeBackClaimed` mirrors the inner rejection in
@@ -430,7 +430,7 @@ function HomeScreenContent() {
   }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
 
   // ENGAGEMENT: one-time, low-key invite to join the Discord for a cash reward.
-  // Subtle by design — only once the player is settled in (tutorial done + a few
+  // Subtle by design - only once the player is settled in (tutorial done + a few
   // weeks lived), never stacked on the daily-reward / welcome-back popups, and
   // suppressed forever once claimed (shared `discord_reward_claimed` flag) or
   // dismissed (`discord_popup_seen`). The Settings entry stays as the fallback.
@@ -447,7 +447,7 @@ function HomeScreenContent() {
           readDiscordClaim(),
           safeGetItem('discord_popup_seen'),
         ]);
-        // Treat BOTH 'finalized' AND a pending (in-flight) claim as claimed — a
+        // Treat BOTH 'finalized' AND a pending (in-flight) claim as claimed - a
         // claim already begun must never re-surface the invite.
         if (cancelled || claim !== 'unclaimed' || seen === 'true') return;
         // Brief delay so it eases in after the screen settles, not on load.
@@ -466,7 +466,7 @@ function HomeScreenContent() {
 
   // FINDING 1: derive the reward from the FULL state's net worth, not home's
   // PROJECTED selector slice (which omits properties, companies, stocks, vehicles
-  // & crypto, so it understates net worth for wealthy players — home would grant
+  // & crypto, so it understates net worth for wealthy players - home would grant
   // LESS than Settings for the identical reward). Select the scalar so the screen
   // re-renders only when the amount actually changes.
   const communityNetWorth = useGameSelector((s) => calculateNetWorth(s as GameState));
@@ -491,7 +491,7 @@ function HomeScreenContent() {
   const redeemedCodeHashesRef = useRef(redeemedCodeHashes);
   redeemedCodeHashesRef.current = redeemedCodeHashes;
 
-  // Discord reward reconciler — SINGLE OWNER (home is the always-mounted tab;
+  // Discord reward reconciler - SINGLE OWNER (home is the always-mounted tab;
   // Settings is transient and can unmount mid-claim, so it cannot own recovery).
   // Completes, exactly once, any claim a force-kill interrupted. Ungated by
   // tutorial / weeksLived: a Settings claim can begin at any point, so recovery
@@ -511,7 +511,7 @@ function HomeScreenContent() {
         if (cancelled || typeof claim !== 'object') return;
         const pendingAmount = claim.pendingAmount;
         if (communityRewardGrantedRef.current) {
-          // Grant already landed AND saved before the crash — just finalize;
+          // Grant already landed AND saved before the crash - just finalize;
           // re-granting would duplicate the money.
           await finalizeDiscordClaim();
           return;
@@ -521,13 +521,13 @@ function HomeScreenContent() {
         // Let the commit + GameActions ref-sync flush before saving: saveGame
         // reads gameStateRef.current, which lags the setGameState commit by one
         // passive-effect cycle (the same lag the daily-reward persist defers
-        // around) — without this yield saveGame would persist the PRE-grant state.
+        // around) - without this yield saveGame would persist the PRE-grant state.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         if (cancelled) return;
         try {
           await saveGame();
         } catch (err) {
-          // Save failed — leave the pending marker; the next launch's reconciler
+          // Save failed - leave the pending marker; the next launch's reconciler
           // completes it. DO NOT finalize (the designed recovery).
           logger.warn('Discord reward reconcile save failed; will retry next launch', { error: err });
           return;
@@ -538,7 +538,7 @@ function HomeScreenContent() {
       }
     })();
 
-    // Redeem-code reconciler — same single-owner, always-mounted recovery as the
+    // Redeem-code reconciler - same single-owner, always-mounted recovery as the
     // Discord one above. Completes, exactly once, any redeem claim a force-kill
     // interrupted: grant-not-saved -> grant+save+finalize; saved-not-finalized
     // -> finalize only (no dupe); nothing pending / malformed -> no-op.
@@ -559,7 +559,7 @@ function HomeScreenContent() {
     return () => {
       cancelled = true;
     };
-    // Runs once on mount — a launch-time recovery. setGameState/saveGame are
+    // Runs once on mount - a launch-time recovery. setGameState/saveGame are
     // stable and the grant flag is read via a ref, so no reactive deps apply.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -569,7 +569,7 @@ function HomeScreenContent() {
     // popup display can never drift (shown == granted).
     const amount = communityRewardAmount;
     // EXACTLY-ONCE: durably record the pending marker BEFORE minting any cash.
-    // On failure, grant nothing and stay claimable — never mint uncommitted cash.
+    // On failure, grant nothing and stay claimable - never mint uncommitted cash.
     const begun = await beginDiscordClaim(amount);
     if (!begun) {
       logger.warn('Could not persist Discord reward claim; granting nothing');
@@ -588,7 +588,7 @@ function HomeScreenContent() {
       await saveGame();
       await finalizeDiscordClaim();
     } catch (err) {
-      // saveGame rejected — DO NOT finalize. The pending marker + the home
+      // saveGame rejected - DO NOT finalize. The pending marker + the home
       // reconciler complete the grant on next launch (the designed recovery).
       logger.warn('Discord reward claim save failed; will reconcile next launch', { error: err });
     }
@@ -603,7 +603,7 @@ function HomeScreenContent() {
       const canOpen = await Linking.canOpenURL(DISCORD_URL);
       if (canOpen) await Linking.openURL(DISCORD_URL);
     } catch {
-      // Ignore — the reward has already been handled regardless of the link.
+      // Ignore - the reward has already been handled regardless of the link.
     }
   }, [setGameState, saveGame, communityRewardAmount]);
 
@@ -641,7 +641,7 @@ function HomeScreenContent() {
           absolutely positioned at `bottom: 0` it rendered BEHIND the tab bar
           and a new player never saw it at all.
 
-          The second is the better argument anyway — this is the one thing on
+          The second is the better argument anyway - this is the one thing on
           screen telling a new player what to do, and it belongs where the eye
           lands. The card a player used to meet first was a passive profile
           (name, age, "Unemployed") with nothing actionable on it.
@@ -650,7 +650,7 @@ function HomeScreenContent() {
           so it cannot ask for something already done and retires itself once
           the player has been paid. `FirstWeekGuide` below is gated on
           `hasCompletedTutorial`, and driving the shipped build showed it never
-          rendered — the coach must not inherit that dependency.
+          rendered - the coach must not inherit that dependency.
         */}
         <FirstSessionCoach />
 
@@ -660,7 +660,7 @@ function HomeScreenContent() {
           <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
         </FadeInUp>
 
-        {/* DeepLife+ upsell — a golden crown entry to the premium paywall.
+        {/* DeepLife+ upsell - a golden crown entry to the premium paywall.
             Self-contained (owns its modal) and hides itself for members. */}
         <FadeInUp delay={10}>
           <View style={styles.premiumCrownRow}>
@@ -668,7 +668,7 @@ function HomeScreenContent() {
           </View>
         </FadeInUp>
 
-        {/* Non-blocking weekly recap — restores the sense of progress that the
+        {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
         <FadeInUp delay={20}>
           <LastWeekRecap />
@@ -724,7 +724,7 @@ function HomeScreenContent() {
           />
         )}
 
-        {/* Prestige Preview Card — held back until the player is actually
+        {/* Prestige Preview Card - held back until the player is actually
             established (week 20+ AND some net worth), so early game isn't
             upsold a system it can't use yet. */}
         {(!gameState.prestige || gameState.prestige.prestigeLevel === 0) &&
@@ -733,7 +733,7 @@ function HomeScreenContent() {
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
-        {/* What next / what is coming — the two derived surfaces.
+        {/* What next / what is coming - the two derived surfaces.
             They sit ABOVE the fixed ladders on purpose: Life Chapters and the
             Ambition are the same for everyone at the same point, while these
             two read the player's own situation, so they are the lines most
@@ -744,12 +744,12 @@ function HomeScreenContent() {
           <WeekAheadCard />
         </FadeInUp>
 
-        {/* Life Chapter — the chunked-goal spine (was built but had no UI). */}
+        {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
         <FadeInUp delay={50}>
           <LifeChapterCard />
         </FadeInUp>
 
-        {/* Life Ambition — the lifelong goal chosen at character creation.
+        {/* Life Ambition - the lifelong goal chosen at character creation.
             Renders only when an ambition was picked (freeform lives skip it). */}
         <FadeInUp delay={55}>
           <AmbitionCard />
@@ -757,7 +757,7 @@ function HomeScreenContent() {
           <WeeklyChallengeCard />
         </FadeInUp>
 
-        {/* Retirement / Elder chapter — retire, pension, elder activities, legacy.
+        {/* Retirement / Elder chapter - retire, pension, elder activities, legacy.
             Renders only when eligible to retire, elderly, or retired. */}
         <FadeInUp delay={57}>
           <ElderCard />
@@ -765,14 +765,14 @@ function HomeScreenContent() {
 
         {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
             skill tree, lifetime stats) was hidden from the tab bar with no
-            other entry point — this card is its front door. Always visible. */}
+            other entry point - this card is its front door. Always visible. */}
         <FadeInUp delay={110}>
           <TouchableOpacity
             onPress={() => {
               // Respect the SAME gate the Life tab enforces on its Stats
               // segment. This card used to push straight through, so a week-1
               // player was told "locked" in one place and handed the whole
-              // screen in another — which reads as a broken gate and silently
+              // screen in another - which reads as a broken gate and silently
               // defeated progressive disclosure for its one tier-gated surface.
               // Shown-but-locked rather than hidden: the destination stays
               // discoverable, and the requirement is stated.
@@ -835,19 +835,19 @@ function HomeScreenContent() {
             : <ChevronDown size={scale(15)} color="#94A3B8" />}
         </TouchableOpacity>
 
-        {/* Banner ad at the end of the scroll content — non-obscuring (scrolls
+        {/* Banner ad at the end of the scroll content - non-obscuring (scrolls
             with content, never overlaps the tab bar). Self-gating: BannerAd
             renders nothing unless the AdMob SDK is configured and the player
             hasn't bought Remove Ads / Lifetime Premium. */}
         <BannerAd style={{ marginTop: scale(12) }} />
       </ScrollView>
 
-      {/* First Week Guide — presents its own Modal, so it sits above the HUD
+      {/* First Week Guide - presents its own Modal, so it sits above the HUD
           and the tab bar rather than under them. No spacer is reserved in the
           feed for it any more; it no longer occupies feed space.
 
           `shouldShowFirstWeekGuide` owns the game-state half of the gate: first
-          life only, and a pre-v43 save (no `lifeStartWeek`) still qualifies —
+          life only, and a pre-v43 save (no `lifeStartWeek`) still qualifies -
           the bare `weeksThisLife <= 3` this replaces could never pass in life 1
           of those saves (the baseline is absent, so the counter falls back to
           the absolute one) and first passed right after the FIRST prestige,
@@ -858,7 +858,7 @@ function HomeScreenContent() {
       )}
 
       {/* NOISE: light popup coordination. The root layout owns blocking modals
-          (death/wedding) — no celebration/reward popup may present on top of
+          (death/wedding) - no celebration/reward popup may present on top of
           them. Within this screen, popups present strictly one at a time in
           priority order (daily reward > welcome back > community) instead of
           whichever setTimeout won the race.
@@ -869,12 +869,12 @@ function HomeScreenContent() {
           the weekly sheet). This screen was the outlier: it mounted all three
           unconditionally and passed `visible={false}`, so every Home mount fired
           three dynamic `import()`s for modals the player almost never sees on
-          that render — defeating the point of `lazy()`, which is to keep those
+          that render - defeating the point of `lazy()`, which is to keep those
           graphs out of the screen's work, not merely out of its first paint.
 
           It also livelocked `__tests__/render/screens.render.test.tsx`. Under
           ts-jest an `import()` compiles to `Promise.resolve().then(() =>
-          require(…))`, so it can only settle on a microtask — and the harness's
+          require(…))`, so it can only settle on a microtask - and the harness's
           synchronous `act()` never yields one. React kept restarting the render
           from the shell to retry the pending lazy: ~1.4M `beginWork` calls per
           pass, forever, with `scheduleUpdateOnFiber` never firing (so it was not
@@ -908,7 +908,7 @@ function HomeScreenContent() {
             // Both rejections live inside `applyWelcomeBackBonus` and are read
             // off `prev`, not off an outer flag: the daysAway<1 re-entry guard
             // (a second onClose in the same React batch), and the v44
-            // forward-clock gate on `settings.lastWelcomeBackWeek` — the v35
+            // forward-clock gate on `settings.lastWelcomeBackWeek` - the v35
             // `lastAdCashGrantWeek` pattern, since the day count alone only
             // refuses a REWOUND clock and a forward scrub farmed the bonus with
             // no game weeks played. Rejection is `prev` returned unchanged.
@@ -1033,7 +1033,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#34D399',
   },
 
-  // Find-job CTA — premium glass, neutral border, accent only on the icon
+  // Find-job CTA - premium glass, neutral border, accent only on the icon
   findJobCta: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -444,7 +444,7 @@ export function listDateVenues(
  *
  * Deliberately built from stats that ACTUALLY exist on `GameStats`
  * (health/happiness/energy/fitness/money/reputation/gems) rather than an
- * invented "charisma" field — an invented name compiles, reads `undefined` and
+ * invented "charisma" field - an invented name compiles, reads `undefined` and
  * silently disables half the formula, which is the exact bug class CLAUDE.md §5
  * describes. Happiness carries the most weight (you are better company when you
  * are not miserable), then reputation, then fitness.
@@ -490,14 +490,14 @@ export interface SparkConversationResolution {
   energyCost: number;
   cashCost: number;
   happinessDelta: number;
-  /** True for a completed date — drives `lifetimeStats.totalDatesGoneOn`. */
+  /** True for a completed date - drives `lifetimeStats.totalDatesGoneOn`. */
   countsAsDate: boolean;
 }
 
 /**
  * Chance the move lands.
  *
- *   0.35 + 0.40 x (rapport/100)   the dominant term — rapport IS the game
+ *   0.35 + 0.40 x (rapport/100)   the dominant term - rapport IS the game
  * + 0.15 x (appeal - 0.5) x 2     the player's own state, worth +/-0.15
  * + personality fit               -0.09 … +0.14, and +/- again for the venue
  * + the option's own base bonus
@@ -531,8 +531,8 @@ export function successChanceFor(input: {
  * Resolve one played option into everything that should happen.
  *
  * Called OUTSIDE the `setGameState` updater (the updater must stay pure and may
- * run twice), then committed inside it. A resolution whose commit is rejected —
- * a same-batch double tap hitting the cooldown re-check — is simply discarded.
+ * run twice), then committed inside it. A resolution whose commit is rejected -
+ * a same-batch double tap hitting the cooldown re-check - is simply discarded.
  */
 export function resolveConversationOption(
   input: ConversationResolveInput,
@@ -600,7 +600,7 @@ export function resolveConversationOption(
     energyCost: option.energyCost + (venue?.energyCost ?? 0),
     cashCost: venue?.cashCost ?? 0,
     happinessDelta: venue ? (success ? venue.happinessOnSuccess : venue.happinessOnMiss) : 0,
-    // The date HAPPENED either way — you paid, you went, it went badly. That is
+    // The date HAPPENED either way - you paid, you went, it went badly. That is
     // still a date for `totalDatesGoneOn`.
     countsAsDate: Boolean(venue),
   };

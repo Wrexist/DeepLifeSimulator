@@ -134,7 +134,7 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
 
   // 4) Re-election when the term ends. Previously the UI counted down to a date
   // that nothing resolved. Now the incumbent faces the voters: heavily favored,
-  // but a low approval rating can cost the seat — which is what finally gives
+  // but a low approval rating can cost the seat - which is what finally gives
   // approval (and campaign spending / scandals) real stakes.
   let lostOffice = tick.forcedResignation;
   const currentCareerLevel = safe(politics.careerLevel, 0);
@@ -150,7 +150,7 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
     // Incumbent advantage: base 45 + approval weight + small tenure bonus, clamped.
     // The party's endorsement (or its absence) moves the race. Bounded to
     // ±12 points by `electionSupportModifier`, so it tilts a close election
-    // without ever deciding one on its own — and the whole expression is still
+    // without ever deciding one on its own - and the whole expression is still
     // clamped to [25, 92], so no combination guarantees a seat.
     const partyModifier = electionSupportModifier(politics.party, politics.partySupport);
     const successChance = Math.max(
@@ -175,8 +175,8 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
         message: `Voters returned you to office as ${officeTitle}. Approval +5.`,
       });
     } else {
-      // Voted out. Everything that belonged to the office is settled here —
-      // active scandals leave the news cycle and lobbyists are deactivated —
+      // Voted out. Everything that belonged to the office is settled here -
+      // active scandals leave the news cycle and lobbyists are deactivated -
       // via `applyOfficeExit`. Without it both froze forever: the citizen
       // early-return at the top of this tick stops processing them, so the
       // Politics app showed a permanent "active" scandal and the Contacts app
@@ -191,7 +191,7 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
       notifications.push({
         id: `politics-reelect-loss-${input.currentWeek}`,
         title: '🗳️ Voted Out of Office',
-        message: `You lost the ${officeTitle} election. Your term is over — win back the seat by running again.`,
+        message: `You lost the ${officeTitle} election. Your term is over - win back the seat by running again.`,
       });
     }
   }
@@ -204,7 +204,7 @@ export function runPoliticsWeeklyTick(input: PoliticsWeeklyTickInput): PoliticsW
  *
  * Pure bookkeeping, shared by the in-office and out-of-office paths so the two
  * cannot drift apart. Every read degrades a missing or malformed value to the
- * empty answer rather than throwing — this runs inside the week loop, where a
+ * empty answer rather than throwing - this runs inside the week loop, where a
  * throw costs the whole week (§4.3).
  */
 function tickPoliticalLife(politics: PoliticsState, currentWeek: number): PoliticsState {
@@ -224,14 +224,14 @@ function tickPoliticalLife(politics: PoliticsState, currentWeek: number): Politi
   }
 
   // Embezzlement heat only cools in a week the player kept their hands out of
-  // the pot — `decayHeat` enforces that against `lastWeek`.
+  // the pot - `decayHeat` enforces that against `lastWeek`.
   if (next.embezzlement) {
     const cooled = decayHeat(readEmbezzlement(next.embezzlement), currentWeek);
     next = { ...next, embezzlement: cooled };
   }
 
   // The machine's weekly contribution. Lands in `campaignFunds`, not cash, so
-  // it can only be spent on politics — or skimmed, which is the point.
+  // it can only be spent on politics - or skimmed, which is the point.
   const funding = weeklyPartyFunding({
     party: next.party,
     support: next.partySupport,
@@ -248,7 +248,7 @@ function tickPoliticalLife(politics: PoliticsState, currentWeek: number): Politi
  * The tick for someone who holds no elected seat.
  *
  * Before the Political Life expansion this was a hard early return: no office,
- * nothing to do. That is no longer true — an appointed Ambassador, a retired
+ * nothing to do. That is no longer true - an appointed Ambassador, a retired
  * Senator drawing a pension and a rank-and-file party member all carry state
  * that has to keep moving between offices. What stays behind the office gate is
  * what genuinely belongs to office-holders: scandal rolls and approval drift.

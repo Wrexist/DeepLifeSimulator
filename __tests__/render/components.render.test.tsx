@@ -10,7 +10,7 @@ import LastWeekRecap from '@/components/LastWeekRecap';
  * components that the audit flagged as render-crash risks. Mounted inside the
  * real provider tree with the default GameState.
  */
-describe('render — high-traffic components', () => {
+describe('render - high-traffic components', () => {
   it('TopStatsBar mounts without throwing', () => {
     const { json, unmount } = renderWithProviders(<TopStatsBar />);
     expect(json.length).toBeGreaterThan(0);

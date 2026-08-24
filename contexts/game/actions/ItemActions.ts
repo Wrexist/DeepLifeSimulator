@@ -38,7 +38,7 @@ export const buyItem = (
   const basePrice = typeof item.price === 'number' && isFinite(item.price) && item.price >= 0 ? item.price : 0;
   const priceIndex = typeof gameState.economy?.priceIndex === 'number' && isFinite(gameState.economy.priceIndex) && gameState.economy.priceIndex > 0 ? gameState.economy.priceIndex : 1;
   
-  // Inflation × the prestige Premium Access discount — the SAME helper the
+  // Inflation × the prestige Premium Access discount - the SAME helper the
   // market screen displays, so the price shown is the price charged (§4.4).
   const price = getItemPurchasePrice(
     basePrice,
@@ -59,7 +59,7 @@ export const buyItem = (
     const shortfall = price - currentMoney;
     return {
       success: false,
-      message: `Need ${formatMoney(price)} — you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
+      message: `Need ${formatMoney(price)} - you have ${formatMoney(currentMoney)} (${formatMoney(shortfall)} short).`,
     };
   }
 
@@ -125,7 +125,7 @@ export const buyItem = (
       // Sticky "has owned a computer at some point" flag.
       //
       // `lib/depth/discoverySystem.ts:431` reads this to keep a computer-gated
-      // discovery unlocked for a player who bought one and later sold it — but
+      // discovery unlocked for a player who bought one and later sold it - but
       // NOTHING had ever written it, so that branch always saw `undefined` and
       // behaved exactly as if the special case were absent. Set on purchase and
       // deliberately NEVER cleared on sale: "previously owned" is the whole
@@ -241,7 +241,7 @@ export const sellItem = (
   setGameState(prev => {
     // ANTI-EXPLOIT (H-9): re-check ownership INSIDE the updater. Without this,
     // two rapid same-batch Sell taps both read owned:true from the stale outer
-    // snapshot and both credit sellPrice while the item flips to unowned once —
+    // snapshot and both credit sellPrice while the item flips to unowned once -
     // a repeatable money printer. Mirror the buyItem ownership re-check.
     const prevItem = (prev.items || []).find(i => i.id === itemId);
     if (!prevItem?.owned) {
@@ -265,7 +265,7 @@ export const sellItem = (
       dailySummary = {
         ...dailySummary,
         moneyChange: (dailySummary.moneyChange || 0) + moneyChange,
-        // P1-4: selling an item converts an asset to cash — NOT income — so it
+        // P1-4: selling an item converts an asset to cash - NOT income - so it
         // must not count toward the daily "earn $X" gem challenges.
         totalMoneyEarned: (dailySummary.totalMoneyEarned || 0),
         statsChange: { ...(dailySummary.statsChange || {}) },

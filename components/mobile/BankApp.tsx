@@ -1,15 +1,15 @@
 /**
- * BankApp — mobile (phone-style) banking screen.
+ * BankApp - mobile (phone-style) banking screen.
  *
  * Remake (STATE_VERSION 14). Slim mobile counterpart to AdvancedBankApp.
  *
  * Apple-Wallet DNA: accounts render as a stacked deck of full-width card faces
- * (per-type flat tint) instead of uniform rows, and tapping a card — or the
- * credit gauge — pushes a presentational detail page (local useState routing,
+ * (per-type flat tint) instead of uniform rows, and tapping a card - or the
+ * credit gauge - pushes a presentational detail page (local useState routing,
  * no new game mechanics) that surfaces state the flat list never showed
  * (account age, min balance, autopay draws, credit-score breakdown + trend +
  * inquiries). All banking flows still run through the shared `components/banking/*`
- * + `lib/banking/*` primitives and modals — no logic duplication.
+ * + `lib/banking/*` primitives and modals - no logic duplication.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -92,7 +92,7 @@ interface BankAppProps {
   onBack: () => void;
 }
 
-/** Local list→detail routing (presentational only — reads existing state). */
+/** Local list→detail routing (presentational only - reads existing state). */
 type BankSubView = { kind: 'account'; id: string } | { kind: 'credit' } | { kind: 'tax' } | null;
 
 function formatMoneyExact(n: number): string {
@@ -141,13 +141,13 @@ function BankAppInner({ onBack }: BankAppProps) {
   const [addGoalPick, setAddGoalPick] = useState<{ name: string; category: SavingsGoalCategory } | null>(null);
   // Second step of goal creation: the weekly auto-contribution. `applySavingsGoals`
   // has swept `goal.autoContribute` every week since it shipped, with tests
-  // proving asset conservation — but nothing could ever SET it, so the sweep ran
+  // proving asset conservation - but nothing could ever SET it, so the sweep ran
   // over `undefined` forever. Mirrors the desktop Bank Pro flow.
   const [autoGoalPick, setAutoGoalPick] = useState<
     { name: string; category: SavingsGoalCategory; targetAmount: number } | null
   >(null);
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
-  // R3-M5: goal money used to be unrecoverable — contributing was a one-way door.
+  // R3-M5: goal money used to be unrecoverable - contributing was a one-way door.
   const [withdrawGoalId, setWithdrawGoalId] = useState<string | null>(null);
   const [prepayLoanId, setPrepayLoanId] = useState<string | null>(null);
   const [payCardId, setPayCardId] = useState<string | null>(null);
@@ -242,7 +242,7 @@ function BankAppInner({ onBack }: BankAppProps) {
    * Stable transfer handler for the account the detail view currently has open.
    *
    * `AccountTransferPanel` is a child component, so an inline arrow was a fresh
-   * prop identity on every render — exactly what the panel's own memo work
+   * prop identity on every render - exactly what the panel's own memo work
    * exists to avoid. Keyed on the OPEN account id rather than curried by id: a
    * curried factory would still allocate per render and change nothing.
    */
@@ -260,7 +260,7 @@ function BankAppInner({ onBack }: BankAppProps) {
   const renderAccountDetail = (account: BankAccount) => {
     const pal = accountPalette(account.type);
     // Only `checking-default` is read-only now. `savings-default` deposits and
-    // withdraws through `bankSavings` — see LEGACY_SAVINGS_ACCOUNT_ID.
+    // withdraws through `bankSavings` - see LEGACY_SAVINGS_ACCOUNT_ID.
     const isMirrored =
       isReadOnlyMirror(account.id);
     const isLocked = account.lockUntilWeek != null && gameState.weeksLived < account.lockUntilWeek;
@@ -327,12 +327,12 @@ function BankAppInner({ onBack }: BankAppProps) {
             </View>
           </View>
 
-          {/* Actions — one loud CTA (Deposit) for non-mirrored accounts */}
+          {/* Actions - one loud CTA (Deposit) for non-mirrored accounts */}
           {isMirrored ? (
             <View style={[getGlassCard(darkMode, 6), styles.roCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Lock size={scale(14)} color={theme.textMuted} />
               <Text style={[styles.roCardText, { color: theme.textMuted }]}>
-                This is a primary account that mirrors your cash — deposits, withdrawals and closing are handled automatically.
+                This is a primary account that mirrors your cash - deposits, withdrawals and closing are handled automatically.
               </Text>
             </View>
           ) : (
@@ -391,7 +391,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             </View>
           </View>
 
-          {/* Autopay drawing from this account — activity-style rows */}
+          {/* Autopay drawing from this account - activity-style rows */}
           <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>Auto-pay from this account</Text>
           {relatedBills.length === 0 ? (
             <EmptyText theme={theme} darkMode={darkMode}>No auto-pay rules draw from this account.</EmptyText>
@@ -426,9 +426,9 @@ function BankAppInner({ onBack }: BankAppProps) {
   // ───────────────────────────── Credit report page ────────────────────────
   // ─────────────────────────────── Tax page ──────────────────────────────────
   //
-  // The tax surface shipped on the DESKTOP bank app only, so the whole system —
+  // The tax surface shipped on the DESKTOP bank app only, so the whole system -
   // brackets, the year-to-date total, the four other taxes, the Tax Strategy
-  // discount — was behind a $5,000 computer. A player crosses their first
+  // discount - was behind a $5,000 computer. A player crosses their first
   // bracket around week 10, long before they can buy one. Same trap renting was
   // in, same fix: put it where the early player already is.
   //
@@ -485,7 +485,7 @@ function BankAppInner({ onBack }: BankAppProps) {
         >
           <CreditScoreGauge score={cs.score} band={cs.band} darkMode={darkMode} />
 
-          {/* Score trend (real history — no fabricated arrays) */}
+          {/* Score trend (real history - no fabricated arrays) */}
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Score trend</Text>
             {hasTrend && (
@@ -534,7 +534,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             )}
           </View>
 
-          {/* Component breakdown — surfaces all five weighted factors */}
+          {/* Component breakdown - surfaces all five weighted factors */}
           <Text style={[styles.sectionTitle, styles.detailSectionTitle, { color: theme.text }]}>What&apos;s driving your score</Text>
           <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {BREAKDOWN_META.map((m, i) => {
@@ -633,7 +633,7 @@ function BankAppInner({ onBack }: BankAppProps) {
               <Stat theme={theme} icon={LineChart} label="Invested" value={formatMoney(investedValue)} />
               <Stat theme={theme} icon={TrendingUp} label="Debt" value={formatMoney(totalDebt)} negative={totalDebt > 0} />
             </View>
-            {/* Dense ledger strip — fields the flat overview never surfaced */}
+            {/* Dense ledger strip - fields the flat overview never surfaced */}
             <View style={styles.ledgerRow}>
               <LedgerChip theme={theme} icon={Coins} label="Income" value={`${formatMoney(weeklyIncome)}/wk`} color={accent.success} />
               <LedgerChip theme={theme} icon={TrendingUp} label="Earned" value={formatMoney(banking.totalInterestEarned)} color={accent.success} />
@@ -650,7 +650,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           </View>
         </View>
 
-        {/* Tax breakdown — always offered, not gated on having paid any yet.
+        {/* Tax breakdown - always offered, not gated on having paid any yet.
             A week-1 player who has paid nothing is exactly the one who benefits
             from seeing the bands before they cross one. */}
         <TouchableOpacity
@@ -667,7 +667,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           <ChevronRight size={scale(15)} color={accent.warning} />
         </TouchableOpacity>
 
-        {/* Credit summary — whole block taps to the report (visible affordance) */}
+        {/* Credit summary - whole block taps to the report (visible affordance) */}
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => setSubView({ kind: 'credit' })}
@@ -700,7 +700,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           disabled={!adBonusReady}
           disabledLabel="Available next week"
           // No modal on success: the pill flips to its claimed state, the button
-          // fires its own success haptic, and the wallet updates in place — a
+          // fires its own success haptic, and the wallet updates in place - a
           // confirmation dialog for a small bonus is interruption, not feedback.
           onReward={() => { claimAdCashBonus(setGameState, gameState); }}
           onGranted={queueSave}
@@ -933,7 +933,7 @@ function BankAppInner({ onBack }: BankAppProps) {
       />
 
       {/* Auto-contribute step. Closing without confirming creates the goal with
-          no sweep — manual-only is a legitimate choice, so it must not require
+          no sweep - manual-only is a legitimate choice, so it must not require
           typing 0. */}
       <AmountInputModal
         visible={!!autoGoalPick}
@@ -1030,7 +1030,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             prepayLoan(setGameState, prepayLoanId, checking.id, amt);
             queueSave();
           } else if (prepayLoanId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first — loan payments are drawn from checking.');
+            Alert.alert('No checking account', 'Open a checking account first - loan payments are drawn from checking.');
           }
           setPrepayLoanId(null);
         }}
@@ -1051,7 +1051,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             payDownCard(setGameState, payCardId, checking.id, amt);
             queueSave();
           } else if (payCardId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first — card payments are drawn from checking.');
+            Alert.alert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
           }
           setPayCardId(null);
         }}

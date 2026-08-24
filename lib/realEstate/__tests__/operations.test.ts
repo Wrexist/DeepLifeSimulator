@@ -235,7 +235,7 @@ describe('tickProperty', () => {
   });
 });
 
-describe('tickProperty — asked rent is realized (Fix 1)', () => {
+describe('tickProperty - asked rent is realized (Fix 1)', () => {
   // A satisfied long-term tenant, move-out suppressed via a high roll.
   const suppressMoveOut = () => 0.99;
 

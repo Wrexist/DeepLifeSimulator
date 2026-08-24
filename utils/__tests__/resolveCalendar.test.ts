@@ -52,7 +52,7 @@ describe('resolveCalendar', () => {
     expect(resolveCalendar(Math.ceil(WEEKS_PER_MONTH_EXACT), 12).monthNumber).toBe(1);
   });
 
-  it('is a pure function of the absolute week — no tick-over-tick drift', () => {
+  it('is a pure function of the absolute week - no tick-over-tick drift', () => {
     // The tick recomputes from `weeksLived` every week rather than incrementing
     // a stored value, so the same input must always give the same calendar.
     for (const week of [0, 1, 4, 5, 13, 51, 52, 999]) {

@@ -88,7 +88,7 @@ describe('mood ladder + drift', () => {
   });
 });
 
-describe('wants — rotation, satisfy-boost, diminishing returns', () => {
+describe('wants - rotation, satisfy-boost, diminishing returns', () => {
   it('wantBonus diminishes: 4, 2, 1, then 0', () => {
     expect(wantBonus(0)).toBe(4);
     expect(wantBonus(1)).toBe(2);
@@ -202,7 +202,7 @@ describe('wants — rotation, satisfy-boost, diminishing returns', () => {
   });
 });
 
-describe('memory — record, bounded length, age-decay', () => {
+describe('memory - record, bounded length, age-decay', () => {
   function mem(weeksLived: number, sentiment: NPCMemory['sentiment'] = 'positive'): NPCMemory {
     return { id: `m${weeksLived}`, type: 'kindness', description: `d${weeksLived}`, weeksLived, sentiment };
   }
@@ -234,7 +234,7 @@ describe('memory — record, bounded length, age-decay', () => {
   });
 });
 
-describe('interaction variation — deterministic, varies by mood + want', () => {
+describe('interaction variation - deterministic, varies by mood + want', () => {
   it('collapses to the flat base bonus when no depth fields are present', () => {
     const out = resolveInteraction(makeRel(), 'call', 3, 10);
     expect(out.scoreDelta).toBe(3);
@@ -242,7 +242,7 @@ describe('interaction variation — deterministic, varies by mood + want', () =>
     expect(out.message).toContain('(+3)');
   });
 
-  it('is deterministic — same inputs yield the same delta AND copy', () => {
+  it('is deterministic - same inputs yield the same delta AND copy', () => {
     const rel = makeRel({ npcMood: 'happy' });
     const a = resolveInteraction(rel, 'call', 3, 42);
     const b = resolveInteraction(rel, 'call', 3, 42);
@@ -256,7 +256,7 @@ describe('interaction variation — deterministic, varies by mood + want', () =>
     expect(happy.tone).toBe('warm');
     expect(upset.tone).toBe('cool');
     expect(happy.message).not.toBe(upset.message);
-    // Never punitive for a friendly reach-out — floored at 1.
+    // Never punitive for a friendly reach-out - floored at 1.
     expect(upset.scoreDelta).toBeGreaterThanOrEqual(1);
   });
 

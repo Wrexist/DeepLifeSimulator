@@ -165,14 +165,14 @@ class CloudSyncService {
    * `userProfile.username = 'player'`, which passed the validity check, so
    * EVERY install would have uploaded to the single cloud key `player` and
    * restored whichever device wrote last. The fallback was unreachable for the
-   * same reason. A display name is not an identity — it is player-editable and
-   * not unique — so the device id is now the only answer, which also makes the
+   * same reason. A display name is not an identity - it is player-editable and
+   * not unique - so the device id is now the only answer, which also makes the
    * id stable across the pre-game menus, where no life is loaded and the
    * profile fields are still the defaults. Nothing was wired before this
    * change, so there is no installed base of `player`-keyed cloud saves to
    * migrate. Cross-device identity (sign-in) is the future work in the header.
    *
-   * Returns null when there is no identity this device could use AGAIN — every
+   * Returns null when there is no identity this device could use AGAIN - every
    * caller already treats null as "skip this operation" (`performUpload` throws,
    * `downloadState` / `checkConflict` warn and return null).
    *
@@ -191,7 +191,7 @@ class CloudSyncService {
    *
    * `updatedAt` is stamped on EVERY committed mutation by
    * `GameStateContext.wrappedSetGameState`, which takes
-   * `Math.max(now, prev.updatedAt + 1)` — so it strictly increases per save and
+   * `Math.max(now, prev.updatedAt + 1)` - so it strictly increases per save and
    * is the only field that answers "has anything changed since the last
    * upload?". A state without it cannot be compared, and an unknown state must
    * upload rather than be assumed synced.
@@ -204,7 +204,7 @@ class CloudSyncService {
   /**
    * The revision to send: strictly increasing PER SAVE and inside the backend's
    * `revision integer CHECK (revision >= 1)` column, which also refuses any
-   * value at or below the one it already stores (`409 Stale revision` — see
+   * value at or below the one it already stores (`409 Stale revision` - see
    * `docs/CLOUD-SAVE-BACKEND.md`).
    *
    * It used to be `state.weeksLived`, which only moves once per PLAYED GAME
@@ -221,7 +221,7 @@ class CloudSyncService {
    * that day into a loud, explained failure instead of silent corruption.
    *
    * Why the `lastSynced + 1` floor: two saves inside the same wall-clock second
-   * would otherwise share a number — the original bug in miniature. The floor
+   * would otherwise share a number - the original bug in miniature. The floor
    * makes the sequence strictly increasing per upload whatever the clock's
    * resolution, and keeps it from ever decreasing for a slot when the device
    * clock is rewound. Drift above wall-clock is bounded by the number of
@@ -281,8 +281,8 @@ class CloudSyncService {
    * Upload ONE state. Throws on failure so the caller decides about retries.
    *
    * Extracted from the `sync` drain so the user-initiated "Back up now" button
-   * can run exactly the same upload — identity, slot, revision, integrity
-   * proof and the unchanged-state guard — and still learn whether it worked.
+   * can run exactly the same upload - identity, slot, revision, integrity
+   * proof and the unchanged-state guard - and still learn whether it worked.
    * Duplicating any of that for the manual path is how the two drift.
    */
   private async performUpload(state: GameState, timestamp: number): Promise<'uploaded' | 'stale'> {
@@ -299,7 +299,7 @@ class CloudSyncService {
     const marker = this.stateMarker(state);
     const lastUploadedStateAt = this.lastUploadedStateAtBySlot.get(slotId);
     if (marker !== null && lastUploadedStateAt !== undefined && marker <= lastUploadedStateAt) {
-      logger.debug('[CloudSync] Cloud already holds this state — nothing to upload', {
+      logger.debug('[CloudSync] Cloud already holds this state - nothing to upload', {
         slotId,
         stateUpdatedAt: marker,
         lastUploadedStateAt,
@@ -447,7 +447,7 @@ class CloudSyncService {
     options?: { slot?: number; detectConflicts?: boolean }
   ): Promise<GameState | null> {
     try {
-      // Identity no longer depends on `localState` — it is the device id (see
+      // Identity no longer depends on `localState` - it is the device id (see
       // `resolveUserId`), which is what lets the pre-game SaveSlots screen read
       // a slot's cloud save with no life loaded.
       const userId = await this.resolveUserId();
@@ -475,7 +475,7 @@ class CloudSyncService {
         const serialized = JSON.stringify(cloudSave.state);
         const actualHash = calculateChecksum(serialized);
         if (actualHash !== cloudSave.hash) {
-          logger.warn('[CloudSync] Downloaded state failed integrity check — hash mismatch', {
+          logger.warn('[CloudSync] Downloaded state failed integrity check - hash mismatch', {
             expected: cloudSave.hash,
             actual: actualHash,
           });
@@ -510,7 +510,7 @@ class CloudSyncService {
             remoteState,
             localState,
           });
-          // Don't auto-overwrite — let UI decide
+          // Don't auto-overwrite - let UI decide
           return null;
         }
       }
@@ -561,7 +561,7 @@ class CloudSyncService {
         // M6: the union above merges `relationships` by id but takes
         // `family.children` from whichever side won on TIMESTAMP, so a child
         // present in the loser's relationships arrived with no matching
-        // `family.children` entry — the exact family↔relationships split that
+        // `family.children` entry - the exact family↔relationships split that
         // `loadGame` reconciles on every load and that the relationship
         // validator reports as corruption. Hand-merging the two arrays here
         // would be a third copy of that reconciliation; run the shared
@@ -689,7 +689,7 @@ class CloudSyncService {
   // Resumes only what `start()` armed. Without the `started` gate this would
   // become a second, accidental start(): the AppState listener calls it on every
   // foreground, so a service nobody ever started would end up running a timer
-  // anyway — exactly the import-time side effect this change removes.
+  // anyway - exactly the import-time side effect this change removes.
   resumeSync(): void {
     if (!this.started) return;
     if (!this.syncTimer) {
@@ -728,7 +728,7 @@ export interface SyncStatus {
 /**
  * The singleton, constructed on FIRST USE.
  *
- * This was `export const cloudSyncService = CloudSyncService.getInstance()` —
+ * This was `export const cloudSyncService = CloudSyncService.getInstance()` -
  * evaluated at module load, and the constructor armed a network listener and a
  * 30-second timer. Importing the file was therefore enough to start background
  * work for a feature with no call sites. Accessing the service still costs

@@ -1,5 +1,5 @@
 /**
- * SectionHeader — reusable header row (title + optional right-aligned action).
+ * SectionHeader - reusable header row (title + optional right-aligned action).
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';

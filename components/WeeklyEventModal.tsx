@@ -19,7 +19,7 @@ import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalSc
 
 /**
  * What each `special` effect actually does to the player, in one badge. These
- * were completely invisible in the preview — a choice that fires the player
+ * were completely invisible in the preview - a choice that fires the player
  * from their job read as a bare stat change (2026-08-24 audit).
  */
 const SPECIAL_EFFECT_LABELS: Record<EventSpecial | '', { text: string; positive: boolean } | undefined> = {
@@ -65,7 +65,7 @@ export default function WeeklyEventModal() {
  log.warn('Emergency dismiss triggered for event:', { eventId: event?.id });
  // Remove BY ID, not by index. `slice(1)` assumed the visible event was
  // always `pendingEvents[0]`, which stopped being true the moment some events
- // were routed elsewhere — it would have dismissed a mail letter instead.
+ // were routed elsewhere - it would have dismissed a mail letter instead.
  setGameState(prev => ({
 ...prev,
  pendingEvents: (prev.pendingEvents ?? []).filter(e => e?.id !== event?.id),
@@ -203,7 +203,7 @@ export default function WeeklyEventModal() {
 
  // Liquid-glass palette per event type. The accent color carries the MEANING
  // (green=good, amber=heads-up, red=bad) and appears only on the border, icon
- // chip and a soft top glow — never as a side stripe (DEV.md Hard Rule 7). The
+ // chip and a soft top glow - never as a side stripe (DEV.md Hard Rule 7). The
  // card body is the game's dark frosted glass so it reads as one family with
  // the rest of the UI.
  const getNotificationStyle = () => {
@@ -219,7 +219,7 @@ export default function WeeklyEventModal() {
  return {
  accent: '#FBBF24',
  accentDeep: '#D97706',
- // Friendly rounded icon — these are gameplay life events, not errors,
+ // Friendly rounded icon - these are gameplay life events, not errors,
  // so no alarming warning triangle.
  icon: AlertCircle,
  title: isPersonalCrisisEvent ? 'Personal Crisis': 'Heads Up',
@@ -248,7 +248,7 @@ export default function WeeklyEventModal() {
  tint="dark"
  style={[styles.card, { borderColor: `${accent}66`, shadowColor: accent }]}
  >
- {/* Soft accent glow bleeding down from the top edge — the "light through
+ {/* Soft accent glow bleeding down from the top edge - the "light through
  glass" cue. Low alpha over the dark frosted body so it reads as a glow,
  not a band. */}
  <View style={[styles.accentGlow, { backgroundColor: `${accentDeep}1A` }]} pointerEvents="none" />
@@ -345,14 +345,14 @@ export default function WeeklyEventModal() {
  {pet && (
  <View style={styles.petInfo}>
  <Text style={styles.petText}>
- {pet.name} — Hunger {pet.hunger} • Happiness {pet.happiness}
+ {pet.name} - Hunger {pet.hunger} • Happiness {pet.happiness}
  </Text>
  </View>
  )}
 
  {/* Show choice effects preview.
      HONESTY (2026-08-24 audit): this panel used to spoil every money and
-     stat delta while HIDING the effects that actually carry weight —
+     stat delta while HIDING the effects that actually carry weight -
      relationship swings, karma, and the four `special` effects (a choice
      that ends the player's career previewed as a bare stat change). The
      consequential effects now show; the money figure also runs through
@@ -464,7 +464,7 @@ export default function WeeklyEventModal() {
 }
 
 /**
- * Choice button inner content — icon + label, plus the optional tradeoff and
+ * Choice button inner content - icon + label, plus the optional tradeoff and
  * emotional-impact readouts. Split out so the primary (gradient) and secondary
  * (glass) buttons share identical inner markup.
  */

@@ -159,7 +159,7 @@ describe('and it names a job they no longer held when they died', () => {
     expect(asText(generateObituary(state)).text).toContain('Surgeon');
   });
 
-  it('uses the RECORDED title over the live career — the political case', () => {
+  it('uses the RECORDED title over the live career - the political case', () => {
     /**
      * The one exit path that resets `level`. A forced resignation or lost
      * election sets `careers.political.level = 0` on purpose, so lifestyle

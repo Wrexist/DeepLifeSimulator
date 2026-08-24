@@ -68,11 +68,11 @@ export default function SimpleTutorialModal({
           {/* ── The scroll surface ───────────────────────────────────────
               The card is capped at `maxHeight: '80%'`, and the step body is
               free-form copy: a long `step.description` (or a large system font
-              scale) pushes the footer — Skip Tour and Next, the two controls
-              that move the tour along — past that cap. Only the header X would
+              scale) pushes the footer - Skip Tour and Next, the two controls
+              that move the tour along - past that cap. Only the header X would
               be left, which quits the tour rather than continuing it.
 
-              `flexShrink: 1` against the cap, not `flex: 1` — see the note in
+              `flexShrink: 1` against the cap, not `flex: 1` - see the note in
               `WeddingPopup`/`ApplyCardModal`. */}
           <ScrollView
             style={styles.scrollArea}
@@ -91,7 +91,7 @@ export default function SimpleTutorialModal({
             </Text>
           </ScrollView>
 
-          {/* Footer — pinned outside the scroller so Next is on screen from
+          {/* Footer - pinned outside the scroller so Next is on screen from
               the moment the step opens. */}
           <View style={styles.footer}>
             <TouchableOpacity onPress={onSkip} style={styles.skipButton}>

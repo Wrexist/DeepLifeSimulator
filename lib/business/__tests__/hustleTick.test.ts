@@ -51,9 +51,9 @@ function stateWith(companies: Company[], overlays: Record<string, HustleCompanyO
   });
 }
 
-describe('processHustleWeeklyTick — organic scandal roll', () => {
+describe('processHustleWeeklyTick - organic scandal roll', () => {
   it('spawns a scandal for a company whose seeded roll clears the chance', () => {
-    // co-56 wk3 rolls ~0.005 — below the neutral-brand chance (~0.026).
+    // co-56 wk3 rolls ~0.005 - below the neutral-brand chance (~0.026).
     const overlay = createDefaultCompanyOverlay('co-56', 0);
     const state = stateWith([company('co-56', 10_000)], { 'co-56': overlay });
 
@@ -90,7 +90,7 @@ describe('processHustleWeeklyTick — organic scandal roll', () => {
   });
 });
 
-describe('processHustleWeeklyTick — scandal ledger real values', () => {
+describe('processHustleWeeklyTick - scandal ledger real values', () => {
   it('writes non-zero totalRevenueLoss + finalReputationLoss on natural resolution', () => {
     const overlay: HustleCompanyOverlay = {
       ...createDefaultCompanyOverlay('bigco', 0),
@@ -118,7 +118,7 @@ describe('processHustleWeeklyTick — scandal ledger real values', () => {
   });
 });
 
-describe('processHustleWeeklyTick — named-hire payroll', () => {
+describe('processHustleWeeklyTick - named-hire payroll', () => {
   it('deducts each named hire\'s weekly salary from cashDelta', () => {
     const overlay: HustleCompanyOverlay = {
       // income 2_000 is below the scandal size-gate, so cashDelta is payroll-only.
@@ -147,7 +147,7 @@ describe('processHustleWeeklyTick — named-hire payroll', () => {
   });
 });
 
-describe('processHustleWeeklyTick — marketing campaign is a real gamble', () => {
+describe('processHustleWeeklyTick - marketing campaign is a real gamble', () => {
   function withGuerrillaCampaign(): GameState {
     const overlay: HustleCompanyOverlay = {
       // income below the scandal gate → cashDelta reflects campaign net ONLY.
@@ -185,7 +185,7 @@ describe('processHustleWeeklyTick — marketing campaign is a real gamble', () =
     expect(losing).toBeGreaterThanOrEqual(5);
     // …and real upside on good weeks (kept fun), so it's a genuine gamble.
     expect(winning).toBeGreaterThanOrEqual(5);
-    // Expected net over the range is ≈0-or-negative — not a guaranteed gain.
+    // Expected net over the range is ≈0-or-negative - not a guaranteed gain.
     expect(total).toBeLessThanOrEqual(0);
   });
 
@@ -197,7 +197,7 @@ describe('processHustleWeeklyTick — marketing campaign is a real gamble', () =
   });
 });
 
-describe('processHustleWeeklyTick — preserved behaviour', () => {
+describe('processHustleWeeklyTick - preserved behaviour', () => {
   it('skips companies with no overlay without throwing', () => {
     const state = stateWith([company('no-overlay', 10_000)], {});
     const res = processHustleWeeklyTick(state, 5);

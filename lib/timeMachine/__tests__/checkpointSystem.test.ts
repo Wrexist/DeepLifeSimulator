@@ -61,7 +61,7 @@ function heavyState(): GameState {
   return base;
 }
 
-describe('checkpointSystem — slimCheckpointSnapshot', () => {
+describe('checkpointSystem - slimCheckpointSnapshot', () => {
   it('drops heavy re-derivable collections, keeps gameplay-critical fields', () => {
     const snap = {
       stats: { money: 100 },
@@ -89,7 +89,7 @@ describe('checkpointSystem — slimCheckpointSnapshot', () => {
   });
 });
 
-describe('checkpointSystem — createCheckpoint', () => {
+describe('checkpointSystem - createCheckpoint', () => {
   it('strips heavy collections from the snapshot but keeps gameplay-critical data', () => {
     const state = heavyState();
     const cp = createCheckpoint(state, 'Age 19');
@@ -116,7 +116,7 @@ describe('checkpointSystem — createCheckpoint', () => {
     const cp = createCheckpoint(state, 'Age 19');
     const slimSize = JSON.stringify(cp.snapshot).length;
     expect(slimSize).toBeLessThan(fullSize);
-    // The dropped event log alone is tens of KB — assert a real, large saving
+    // The dropped event log alone is tens of KB - assert a real, large saving
     // rather than an exact byte count.
     expect(fullSize - slimSize).toBeGreaterThan(10_000);
   });
@@ -130,7 +130,7 @@ describe('checkpointSystem — createCheckpoint', () => {
   });
 });
 
-describe('checkpointSystem — create → rewind round-trip', () => {
+describe('checkpointSystem - create → rewind round-trip', () => {
   it('preserves gameplay-critical fields and re-defaults the stripped ones', () => {
     const captured = heavyState();
     const cp = createCheckpoint(captured, 'Age 19');
@@ -155,7 +155,7 @@ describe('checkpointSystem — create → rewind round-trip', () => {
     // Stripped collections safely re-defaulted by the repair pass on rewind.
     expect(Array.isArray(r.eventLog)).toBe(true);
     expect(r.eventLog).toHaveLength(0);
-    // Assert the repaired shapes strictly — a `?? []` fallback would pass even
+    // Assert the repaired shapes strictly - a `?? []` fallback would pass even
     // if the repair pass never re-defaulted the field (undefined ≠ restored).
     const rsm = r.socialMedia as unknown as Record<string, unknown>;
     expect(Array.isArray(rsm.notifications)).toBe(true);
@@ -175,7 +175,7 @@ describe('checkpointSystem — create → rewind round-trip', () => {
   });
 });
 
-describe('checkpointSystem — getRewindCost tiers', () => {
+describe('checkpointSystem - getRewindCost tiers', () => {
   it('Time Machine upgrade halves the cost', () => {
     const full = getRewindCost(0, false);
     expect(getRewindCost(0, true)).toBe(Math.floor(full / 2));
@@ -200,16 +200,16 @@ describe('checkpointSystem — getRewindCost tiers', () => {
  * What a snapshot must NOT carry.
  *
  * Measured on a five-year save: a snapshot is ~170 KB, five of them are 81% of
- * the whole file, and `cryptoMarket` is ~37 KB of every one — almost all of it
+ * the whole file, and `cryptoMarket` is ~37 KB of every one - almost all of it
  * `coinMarkets[*].priceHistory`, a 100-week chart series per coin.
  *
  * Dropping it is not only a saving. `cryptoMarket` is MARKET simulation, and
  * restoring it rolled the market back along with the player: rewind to before
  * the crash, then trade a window you have already watched play out. The
- * player's actual position is `cryptos[].owned` and must survive untouched —
+ * player's actual position is `cryptos[].owned` and must survive untouched -
  * which is the half of this that a size-only fix would have got wrong.
  */
-describe('checkpointSystem — the market is not part of the rewind', () => {
+describe('checkpointSystem - the market is not part of the rewind', () => {
   const withMarket = () => {
     const state = createTestGameState({});
     (state as unknown as Record<string, unknown>).cryptoMarket = {
@@ -245,7 +245,7 @@ describe('checkpointSystem — the market is not part of the rewind', () => {
 
   it('does not mutate the live state it snapshots', () => {
     // `slimCheckpointSnapshot` deletes keys, and it runs on a shallow copy for
-    // exactly this reason — a miss here would wipe the live market mid-tick.
+    // exactly this reason - a miss here would wipe the live market mid-tick.
     const state = withMarket();
     createCheckpoint(state, 'Age 20');
     expect((state as unknown as Record<string, unknown>).cryptoMarket).toBeDefined();
@@ -259,7 +259,7 @@ describe('checkpointSystem — the market is not part of the rewind', () => {
     ];
     const a = JSON.stringify(createCheckpoint(state, 'Age 20').snapshot).length;
     const b = JSON.stringify(createCheckpoint(withoutMarket, 'Age 20').snapshot).length;
-    // Same size either way — the market never makes it in.
+    // Same size either way - the market never makes it in.
     expect(Math.abs(a - b)).toBeLessThan(50);
   });
 });
@@ -269,12 +269,12 @@ describe('checkpointSystem — the market is not part of the rewind', () => {
  *
  * Mail is ~39 KB of a 170 KB snapshot, the largest single field, and it is a
  * paper trail about weeks the rewind is undoing anyway. But it also carries
- * DECISIONS with deadlines, and `pendingEvents` is NOT stripped — so a routed
+ * DECISIONS with deadlines, and `pendingEvents` is NOT stripped - so a routed
  * letter-event would come back with no inbox to render it in, invisible in
  * both surfaces until it lapsed. Stripping mail without handing those events
  * back would have traded 39 KB for a decision the player can never make.
  */
-describe('checkpointSystem — stripping mail must not strand its decisions', () => {
+describe('checkpointSystem - stripping mail must not strand its decisions', () => {
   const routed = () => {
     const state = createTestGameState({});
     (state as unknown as Record<string, unknown>).mail = {
@@ -325,7 +325,7 @@ describe('checkpointSystem — stripping mail must not strand its decisions', ()
 
     const summons = restored.pendingEvents!.find((e) => e.id === 'jury_duty')!;
     expect(summons.channel).toBe('modal');
-    // The deadline goes too — a letter's expiry is meaningless with no letter,
+    // The deadline goes too - a letter's expiry is meaningless with no letter,
     // and leaving it would let the lapse pass re-settle a visible decision.
     expect(summons.expiresAtWeek).toBeUndefined();
   });
@@ -348,9 +348,9 @@ describe('checkpointSystem — stripping mail must not strand its decisions', ()
  * list, which restores them WHOLESALE from defaults when absent. They read as
  * static catalogues. They are not: one carries rank `progress`, the other
  * carries `owned`. Stripping either would reset the player's crime progress or
- * repossess their purchases on every rewind — and report it as a repair.
+ * repossess their purchases on every rewind - and report it as a repair.
  */
-describe('checkpointSystem — player state survives the snapshot', () => {
+describe('checkpointSystem - player state survives the snapshot', () => {
   it('keeps street-job progress and dark-web purchases', () => {
     const state = createTestGameState({});
     (state as unknown as Record<string, unknown>).streetJobs = [

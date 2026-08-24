@@ -118,7 +118,7 @@ function eventHighlights(events: GameState['eventLog']): string[] {
 function journalHighlights(journal: JournalEntry[]): string[] {
  return journal.slice(-8).map(entry => {
  const age = weeksToAge(entry.atWeek || 0);
- return `At ${age}: ${entry.title}${entry.details ? ' — ' + entry.details : ''}`;
+ return `At ${age}: ${entry.title}${entry.details ? ' - ' + entry.details : ''}`;
  });
 }
 
@@ -241,7 +241,7 @@ export function generateShareableStory(state: GameState): string {
  ];
 
  for (const ch of story.chapters) {
- lines.push(`— ${ch.title} (${ch.ageRange}) —`);
+ lines.push(`- ${ch.title} (${ch.ageRange}) -`);
  for (const p of ch.paragraphs.slice(0, 4)) {
  lines.push(p);
  }

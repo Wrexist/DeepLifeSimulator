@@ -157,7 +157,7 @@ export function decisionDeadline(
  * convenience: this app's stated reason for having search at all is that "did
  * my bank really write from that address?" should be answerable inside it. A
  * folder-scoped search told a player who had archived the message "No matches",
- * which does not fail to answer that question — it answers it incorrectly, and
+ * which does not fail to answer that question - it answers it incorrectly, and
  * being trusted about sender addresses is the one thing the fraud mechanic
  * needs from this screen.
  *

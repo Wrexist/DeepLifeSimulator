@@ -27,7 +27,7 @@ jest.mock('lucide-react-native', () => {
  * proves the Browse tab commits without throwing and surfaces a known catalog
  * item name (a card rendered from LUXURY_CATALOG).
  */
-describe('render — LuxuryApp', () => {
+describe('render - LuxuryApp', () => {
   it('mounts the Browse tab and shows a known catalog item', () => {
     const { renderer, json, unmount } = renderWithProviders(<LuxuryApp onBack={() => {}} />);
     expect(renderer.toJSON()).not.toBeNull();

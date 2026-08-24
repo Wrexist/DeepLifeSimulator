@@ -21,7 +21,7 @@ describe('resolveEvent handles effects.policy', () => {
     expect(src).toMatch(/activePolicyEffects: calculateActivePolicyEffects\(enacted\)/);
   });
 
-  it('dedups — a bill cannot be enacted twice by the same event', () => {
+  it('dedups - a bill cannot be enacted twice by the same event', () => {
     expect(src).toMatch(/!\(politicsBase\.policiesEnacted \|\| \[\]\)\.includes\(effects\.policy\)/);
   });
 });

@@ -50,7 +50,7 @@ describe('the Family header clears the status bar', () => {
   });
 });
 
-describe('render — FamilyTab', () => {
+describe('render - FamilyTab', () => {
   it('mounts in the real provider tree without throwing', () => {
     const { renderer, unmount } = renderWithProviders(<FamilyTab onClose={() => {}} />);
     expect(renderer).toBeTruthy();

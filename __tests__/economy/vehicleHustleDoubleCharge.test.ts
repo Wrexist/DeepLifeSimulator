@@ -64,7 +64,7 @@ function withCar(money: number, over: Partial<Vehicle> = {}): GameState {
 
 const deps = { updateMoney };
 
-describe('R4-X5 — vehicle upkeep charges once per tap-burst', () => {
+describe('R4-X5 - vehicle upkeep charges once per tap-burst', () => {
   it('refuel: two taps in one batch fill the tank once and charge once', () => {
     const snapshot = withCar(100_000);
     const { setState, get } = batched(snapshot);
@@ -144,7 +144,7 @@ describe('R4-X5 — vehicle upkeep charges once per tap-burst', () => {
   });
 });
 
-describe('R4-X8 — an acquisition closes once per tap-burst', () => {
+describe('R4-X8 - an acquisition closes once per tap-burst', () => {
   const COMPANY_ID = 'co-1';
   const ASKING = 250_000;
 

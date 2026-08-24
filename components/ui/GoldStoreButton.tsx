@@ -1,5 +1,5 @@
 /**
- * GoldStoreButton — the HUD shop entry, in gold, with a periodic shine.
+ * GoldStoreButton - the HUD shop entry, in gold, with a periodic shine.
  *
  * WHY IT LOOKS LIKE THIS. The store button was the same quiet grey circle as
  * Help and Settings beside it, so the one button in the HUD that leads to the
@@ -7,8 +7,8 @@
  *
  * WHY IT IS STILL A CIRCLE. An earlier design used a large blue "Shop" pill and
  * the owner rejected it for dominating the HUD (the note lives in
- * `TopStatsBar.tsx` where this is mounted). This keeps that footprint exactly —
- * same diameter, same row, same spacing — and changes only the finish. Louder
+ * `TopStatsBar.tsx` where this is mounted). This keeps that footprint exactly -
+ * same diameter, same row, same spacing - and changes only the finish. Louder
  * colour, not more space.
  *
  * WHAT IT DELIBERATELY DOES NOT DO. No badge, no dot, no counter, no bounce on
@@ -19,7 +19,7 @@
  *
  * MOTION BUDGET. Two looped animations, both transform/opacity only, both on
  * the native driver, so the JS thread is untouched while they run. The shine
- * runs for ~1.1s and then rests for ~5s — a continuous sweep reads as a loading
+ * runs for ~1.1s and then rests for ~5s - a continuous sweep reads as a loading
  * spinner and stops being noticed within a minute. `useReducedMotion` disables
  * both entirely and leaves the gold, which is the part that does the work.
  */
@@ -132,7 +132,7 @@ function GoldStoreButton({
               button. */}
           <Store size={22} color="#7C2D12" />
 
-          {/* The sweep. `pointerEvents="none"` so it can never eat the tap —
+          {/* The sweep. `pointerEvents="none"` so it can never eat the tap -
               a decorative overlay that swallows presses on the shop button
               would be an expensive bug to find. */}
           {!reduceMotion && (

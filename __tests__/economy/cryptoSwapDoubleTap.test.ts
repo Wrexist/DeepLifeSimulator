@@ -97,7 +97,7 @@ function seedMarket(money = 1_000_000) {
 const owned = (id: string): number =>
   captured!.state.cryptos?.find((c) => c.id === id)?.owned ?? 0;
 
-describe('WP-E — swapCrypto', () => {
+describe('WP-E - swapCrypto', () => {
   it('a single swap moves value across at the market rate (the premise)', () => {
     mountGame();
     seedMarket();
@@ -148,7 +148,7 @@ describe('WP-E — swapCrypto', () => {
   });
 });
 
-describe('WP-E — sellCrypto respects MONEY_CEILING', () => {
+describe('WP-E - sellCrypto respects MONEY_CEILING', () => {
   it('a sale near the ceiling clamps instead of overflowing past MAX_SAFE_INTEGER', () => {
     mountGame();
     act(() =>

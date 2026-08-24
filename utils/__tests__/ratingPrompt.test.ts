@@ -102,7 +102,7 @@ describe('maybeRequestReview', () => {
     expect(StoreReview.requestReview).not.toHaveBeenCalled();
   });
 
-  it('never asks on the very first qualifying beat — it only starts the clock', async () => {
+  it('never asks on the very first qualifying beat - it only starts the clock', async () => {
     const store = installMemoryStorage();
 
     const result = await maybeRequestReview('promotion', state(200));

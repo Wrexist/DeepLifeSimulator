@@ -143,7 +143,7 @@ describe('buying the Mega Pack grants what the config promises', () => {
 
 describe('a mixed product restores its permanent half and nothing else', () => {
   it('the Mega Pack really is a consumable (the premise)', () => {
-    // This is why restore skipped it, and it must STAY a consumable — the
+    // This is why restore skipped it, and it must STAY a consumable - the
     // 40,000 gems are the reason.
     expect(isConsumableProduct(IAP_PRODUCTS.GEMS_MEGA)).toBe(true);
   });
@@ -154,7 +154,7 @@ describe('a mixed product restores its permanent half and nothing else', () => {
 
   it('a pure gem pack carries none (the control)', () => {
     // If this were true for every consumable, restore would re-credit currency
-    // — the exact thing the consumable skip exists to prevent.
+    // - the exact thing the consumable skip exists to prevent.
     for (const id of [IAP_PRODUCTS.GEMS_100, IAP_PRODUCTS.GEMS_1000, IAP_PRODUCTS.YOUTH_PILL_SINGLE]) {
       expect(`${id}: ${hasPermanentEntitlements(id)}`).toBe(`${id}: false`);
     }
@@ -174,7 +174,7 @@ describe('a mixed product restores its permanent half and nothing else', () => {
     expect(state.goldUpgrades?.chronomaster).toBe(true);
   });
 
-  it('entitlementsOnly grants NO currency — the whole reason restore skipped it', () => {
+  it('entitlementsOnly grants NO currency - the whole reason restore skipped it', () => {
     const before = createTestGameState();
     const state = createTestGameState();
     const config = getProductConfig(IAP_PRODUCTS.GEMS_MEGA)!;

@@ -1,9 +1,9 @@
 /**
- * EnactPolicyModal — pick + enact a policy from the available catalog.
+ * EnactPolicyModal - pick + enact a policy from the available catalog.
  *
  * R7 Phase 3-C: replaces the "use the legacy career flow" stub note in the
  * PoliticalApp Policies tab. Now there's an in-app surface to enact policies
- * directly. The `enactPolicy` action in PoliticalActions already exists —
+ * directly. The `enactPolicy` action in PoliticalActions already exists -
  * this modal just adds the UI that drives it.
  *
  * Filters:
@@ -171,10 +171,10 @@ function PolicyRow({
         <View style={styles.detail}>
           <Text style={[styles.desc, { color: theme.textSecondary }]}>{policy.description}</Text>
 
-          {/* Effect summary — only show effects that are non-zero. */}
+          {/* Effect summary - only show effects that are non-zero. */}
           <View style={styles.effectsBlock}>
             {policy.effects.money ? (
-              // Paid ONCE at enactment (enactPolicy), not weekly — label honestly.
+              // Paid ONCE at enactment (enactPolicy), not weekly - label honestly.
               <Effect label="One-time cash" value={`${policy.effects.money > 0 ? '+' : ''}${formatMoney(policy.effects.money)}`} theme={theme} />
             ) : null}
             {policy.effects.happiness ? (
@@ -251,8 +251,8 @@ const styles = StyleSheet.create({
     // Was `maxHeight: '90%'`. A cap on the LIST is the same defect as the fixed
     // `scale(360)` caps the banking sheets shipped: it cannot give space back,
     // so with the header and the sheet's own padding the column still exceeded
-    // the 80% sheet and the overflow — including the bottom policy's Enact
-    // button — landed outside it, unscrollable. The bound belongs on the sheet;
+    // the 80% sheet and the overflow - including the bottom policy's Enact
+    // button - landed outside it, unscrollable. The bound belongs on the sheet;
     // the list shrinks within it. See __tests__/render/modalListsShrink.test.ts.
     flexShrink: 1,
   },

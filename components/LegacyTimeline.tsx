@@ -68,7 +68,7 @@ interface PreviousLife {
   totalWeeksWorked?: number;
   spouseName?: string;
   memorableEvents?: string[];
-  // Stamped at the transition since 2026-08-24 (lib/legacy/lifeRecord.ts) —
+  // Stamped at the transition since 2026-08-24 (lib/legacy/lifeRecord.ts) -
   // the score and ribbon the death screen used to compute and throw away.
   lifeQualityScore?: number;
   lifeQualityVerdict?: string;
@@ -76,7 +76,7 @@ interface PreviousLife {
 }
 
 export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: LegacyTimelineProps) {
-  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const previousLives = useGameSelector((s) => (s.previousLives || []) as PreviousLife[], shallowEqual);
   const currentGeneration = useGameSelector((s) => s.generationNumber || 1);
   // The current life's standing, for the personal-best comparison below. A
@@ -94,7 +94,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
 
   // Lives remembered OUTSIDE this dynasty (2026-08-24, §52): death without an
   // heir used to erase the whole record; the archive keeps the memory. Loaded
-  // only when the modal is open — an async read on a modal must not run while
+  // only when the modal is open - an async read on a modal must not run while
   // it is closed, and a failed read degrades to an empty wall.
   const [archivedLives, setArchivedLives] = useState<PreviousLifeRecord[]>([]);
   useEffect(() => {
@@ -218,14 +218,14 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 </View>
               </View>
 
-              {/* Personal best — the question a returning player actually asks:
+              {/* Personal best - the question a returning player actually asks:
                   "is this life beating my last one?" bestLife was computed here
                   since the screen was built and never rendered (2026-08-24). */}
               {legacyStats.bestLife && (
                 <View style={[styles.bestBand, settings.darkMode && styles.bestBandDark]}>
                   <Text style={[styles.bestText, settings.darkMode && styles.bestTextDark]}>
                     {currentNetWorth > (legacyStats.bestLife.netWorth || 0)
-                      ? `This life has already passed your best — Gen ${legacyStats.bestLife.generation || '?'}'s ${formatMoney(legacyStats.bestLife.netWorth || 0)}.`
+                      ? `This life has already passed your best - Gen ${legacyStats.bestLife.generation || '?'}'s ${formatMoney(legacyStats.bestLife.netWorth || 0)}.`
                       : `Best life so far: Gen ${legacyStats.bestLife.generation || '?'} at ${formatMoney(legacyStats.bestLife.netWorth || 0)}. This life: ${formatMoney(currentNetWorth)}.`}
                   </Text>
                 </View>
@@ -476,7 +476,7 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 })}
               </View>
             )}
-                {/* Remembered lives (2026-08-24, §52) — earlier characters
+                {/* Remembered lives (2026-08-24, §52) - earlier characters
                 whose line ended without an heir. Memory only: nothing
                 here grants anything to this dynasty. */}
             {archivedLives.length > 0 && (

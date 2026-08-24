@@ -23,11 +23,11 @@ describe('chapters 6-7', () => {
     expect(chapter('ch7_life_sealed').weekRange[0]).toBe(250);
   });
 
-  it('no goal is complete at the start of a fresh life — any age scenario', () => {
+  it('no goal is complete at the start of a fresh life - any age scenario', () => {
     // The exact bug class ch1's "Survive 4 Weeks" shipped: weeksLived is
     // seeded from starting age, so a raw-counter or raw-age check is already
     // true at birth for older scenarios. Age goals here use getAge, which IS
-    // the character's real age — so they are only safe because 40/60 exceed
+    // the character's real age - so they are only safe because 40/60 exceed
     // every scenario's starting age. Pin that.
     for (const startAge of [18, 20, 25, 30]) {
       const s = createTestGameState({

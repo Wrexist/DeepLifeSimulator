@@ -120,7 +120,7 @@ export function applyCareerSalaryAndPenalty(
         // The career stat toll below still applies (the role is held, not worked).
         if (isJailed) {
           careerSalary = 0;
-          logger.info('[WEEK PROGRESSION] Career salary withheld this week — incarcerated');
+          logger.info('[WEEK PROGRESSION] Career salary withheld this week - incarcerated');
         } else {
           logger.info(`[WEEK PROGRESSION] Career salary: $${careerSalary}/week from ${levelData.name} (level ${safeLevel + 1})`);
         }
@@ -129,7 +129,7 @@ export function applyCareerSalaryAndPenalty(
       }
 
       // Apply career job stat penalties. BALANCE: scale the weekly toll DOWN by
-      // seniority — an entry role grinds but a top-of-ladder role is far
+      // seniority - an entry role grinds but a top-of-ladder role is far
       // lighter. This rewards career progression and makes holding a career
       // more attractive than perpetually grinding street jobs (which pay an
       // unemployed bonus).
@@ -139,7 +139,7 @@ export function applyCareerSalaryAndPenalty(
 
       // ADVERTISED VS ACTUAL (2026-08-24 audit): `lib/careers/jobMarket.ts`
       // authors a per-career `weeklyToll` (energy, health, happiness) and the
-      // work-tab job card RENDERS it — "-8 energy/wk" on the musician — but the
+      // work-tab job card RENDERS it - "-8 energy/wk" on the musician - but the
       // tick applied the same uniform -3 happiness / -2 health to every career
       // and no energy cost at all. So the one mechanism that could make a
       // low-paying job a real choice (musician: light, happy, fast ladder vs
@@ -149,12 +149,12 @@ export function applyCareerSalaryAndPenalty(
       //   - NEGATIVE components scale down with seniority exactly like the old
       //     uniform toll (the grind lightens as you climb; floor -1),
       //   - POSITIVE components (the musician's +4 happiness) apply as
-      //     authored at every rung — the joy of the craft is not a grind,
+      //     authored at every rung - the joy of the craft is not a grind,
       //   - components a profile leaves unstated fall back to the uniform
       //     figures (-3 happiness / -2 health), so a partial profile is not a
       //     stealth buff.
       // Careers WITHOUT a profile (advanced tier, political, legacy saves'
-      // customs) keep exactly the old numbers — pinned by the equivalence
+      // customs) keep exactly the old numbers - pinned by the equivalence
       // snapshots. The card shows the entry-level toll, which is exactly what
       // a new hire is charged (penaltyFactor = 1 at level 0).
       const profile = getEntryJobProfile(currentCareer.id);

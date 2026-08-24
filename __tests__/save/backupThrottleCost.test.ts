@@ -118,7 +118,7 @@ describe('the throttle stamp is maintained by the backup path itself', () => {
     await createBackup(SLOT, createSaveEnvelope(JSON.stringify(life())), 'corruption_recovery');
     store.delete(`last_backup_time_${SLOT}`);
 
-    // Still correct, just not as cheap — an old save must not get a free
+    // Still correct, just not as cheap - an old save must not get a free
     // unthrottled backup on every tick.
     expect(await createBackupFromState(SLOT, life(), 'auto_save')).toBeNull();
   });

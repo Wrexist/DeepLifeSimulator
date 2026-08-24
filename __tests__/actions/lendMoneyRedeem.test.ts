@@ -76,7 +76,7 @@ describe('lendMoney → redeemFavor round-trip', () => {
   });
 });
 
-describe('recordFavor — id idempotency', () => {
+describe('recordFavor - id idempotency', () => {
   it('does not append a duplicate row for the same favor id', () => {
     const store = makeStore(createTestGameState({ weeksLived: 3 }));
     const favor = {

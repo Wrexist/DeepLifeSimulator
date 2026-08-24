@@ -196,7 +196,7 @@ export function appointmentWeeklySalary(appointmentId: string | undefined | null
  * Does holding this appointment forbid sitting in elected office?
  *
  * Read at the point a player runs for office, so a lobbyist cannot also be a
- * senator — the conflict of interest IS the mechanic.
+ * senator - the conflict of interest IS the mechanic.
  */
 export function appointmentBarsOffice(appointmentId: string | undefined | null): boolean {
   return findAppointment(appointmentId)?.requirements.barsElectedOffice === true;

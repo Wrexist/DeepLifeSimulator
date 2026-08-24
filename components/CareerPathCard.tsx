@@ -94,14 +94,14 @@ function CareerItem({
     const nextLevel = career.levels && career.levels[career.level + 1];
     // The negotiated raise premium. `applyCareerSalaryAndPenalty` pays
     // `levelData.salary * raiseMultiplier`, but NOTHING in the UI read
-    // `raiseMultiplier` — so every salary shown here was the base, and a player
+    // `raiseMultiplier` - so every salary shown here was the base, and a player
     // who successfully asked for a raise saw the exact same number afterwards.
     // Reported as "Ask for a raise doesn't apply to the income. It stays flat
     // rate." The raise was real; it was just never displayed.
     //
     // The premium was only half of it: the paycheck also carries Work Pay Boost,
     // the salary life skills and DeepLife+, and this card carried none of them
-    // — so it still disagreed with the paycheck and with the work tab.
+    // - so it still disagreed with the paycheck and with the work tab.
     // `paidWeeklySalaryForLevel` is the whole stack, and payroll calls it too.
     const raiseMult = resolveRaisePremium(career.raiseMultiplier);
     const paidSalary = (levelIndex: number | undefined) =>
@@ -112,7 +112,7 @@ function CareerItem({
 
     const isCurrentJob = gameState.currentJob === career.id && career.accepted;
     // Promotion is offered only when progress is full AND the performance /
-    // experience gates pass (getPromotionEligibility) — same rule the Work tab uses.
+    // experience gates pass (getPromotionEligibility) - same rule the Work tab uses.
     const canPromote = !!nextLevel && getPromotionEligibility(career, gameState.weeksLived).eligible;
 
     // Check requirements met
@@ -314,7 +314,7 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
     if (compact && currentCareer) {
         const currentLevel = currentCareer.levels && (currentCareer.levels[currentCareer.level] || currentCareer.levels[0]);
         const nextLevel = currentCareer.levels && currentCareer.levels[currentCareer.level + 1];
-        // Same raise premium as the expanded card above — this compact summary
+        // Same raise premium as the expanded card above - this compact summary
         // is what the player sees first, so it must not disagree with it.
         const raiseMult = resolveRaisePremium(currentCareer.raiseMultiplier);
         const paidSalary = (levelIndex: number | undefined) =>

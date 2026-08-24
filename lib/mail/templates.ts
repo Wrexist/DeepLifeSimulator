@@ -78,24 +78,24 @@ function currentCareer(state: GameState) {
 }
 
 // ---------------------------------------------------------------------------
-// Welcome — the one message that explains the app
+// Welcome - the one message that explains the app
 // ---------------------------------------------------------------------------
 
 const welcome: MailTemplate = (ctx) => {
   // Fires on the first message the mailbox ever receives, NOT at a low absolute
-  // week — that version was a dead gate and shipped as one.
+  // week - that version was a dead gate and shipped as one.
   //
   // `weeksLived` is not 0 at the start of a game. `computeWeeksLived(age)` is
   // `(startingAge - 18) * 52`, so a scenario beginning at 20 starts at week 104
   // and one beginning at 30 starts at 624. A `week <= 2` gate therefore fired
   // only for the three scenarios that start at exactly 18, and silently never
   // fired for the other twelve. Found by opening the app and seeing an empty
-  // inbox where the welcome should have been — no test would have caught it,
+  // inbox where the welcome should have been - no test would have caught it,
   // because every test picks its own week.
   //
   // "The inbox has never run" rather than "the inbox is empty", which was the
   // first fix and was still wrong: `emptyMailBin` and the 50-message prune can
-  // both take the count back to zero, and the welcome would then arrive again —
+  // both take the count back to zero, and the welcome would then arrive again -
   // with a fresh week-keyed id, so `appendMessages` would not dedupe it. The
   // generation marker is the only thing that says "this mailbox is new".
   if (getMailState(ctx.state).lastGeneratedWeek !== undefined) return null;
@@ -106,7 +106,7 @@ const welcome: MailTemplate = (ctx) => {
     preview: 'Your statements, payslips and receipts all arrive here.',
     body:
       `Hi ${name},\n\n` +
-      'Your mailbox is set up. From now on this is where your paperwork lands — ' +
+      'Your mailbox is set up. From now on this is where your paperwork lands - ' +
       'payslips from work, statements from the bank, invoices for rent and ' +
       'tuition, confirmations from your broker.\n\n' +
       'One thing worth knowing before it happens to you: not everything that ' +
@@ -130,26 +130,26 @@ const payslip: MailTemplate = (ctx) => {
   const job = currentCareer(ctx.state);
   const gross = weekly * PERIOD;
   // Withholding is the tick's own figure, scaled to the period the same way the
-  // gross is — so the two halves of the document agree with each other.
+  // gross is - so the two halves of the document agree with each other.
   const tax = Math.round((ctx.facts.incomeTax ?? 0) * PERIOD);
   const net = Math.max(0, gross - tax);
   const periodsThisYear = Math.floor((ctx.week % WEEKS_PER_YEAR) / PERIOD) + 1;
 
   return compose(ctx, SENDERS.payroll, {
     idSuffix: 'payslip',
-    subject: `Payslip — period ending ${docDate(ctx.week)}`,
+    subject: `Payslip - period ending ${docDate(ctx.week)}`,
     preview: `Net pay ${docMoney(net)} has been deposited.`,
     body:
       `Your pay for the period ending ${docDate(ctx.week)} has been processed ` +
       `and deposited.\n\n` +
       `Role: ${job?.title ?? 'Staff'}\n` +
       `Payment method: direct deposit\n\n` +
-      'A full breakdown is attached. Keep it for your records — you will want ' +
+      'A full breakdown is attached. Keep it for your records - you will want ' +
       'it if you ever apply for credit.',
     category: 'finance',
     attachment: {
       kind: 'payslip',
-      title: `Payslip — period ending ${docDate(ctx.week)}`,
+      title: `Payslip - period ending ${docDate(ctx.week)}`,
       issuer: `${job?.title ?? 'Employment'} · Payroll Services`,
       reference: docReference('PAY', ctx.week),
       rows: [
@@ -192,7 +192,7 @@ const bankStatement: MailTemplate = (ctx) => {
   ];
 
   // Where the money came from. The HUD shows one "Cash Flow" number and the
-  // player has no way to see its composition anywhere else — a statement that
+  // player has no way to see its composition anywhere else - a statement that
   // splits earned from passive is the whole reason banks send them.
   const total = Math.round((ctx.facts.totalIncome ?? 0) * LONG_PERIOD);
   const passive = Math.round((ctx.facts.passiveIncome ?? 0) * LONG_PERIOD);
@@ -209,7 +209,7 @@ const bankStatement: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.bank, {
     idSuffix: 'statement',
-    subject: `Your statement is ready — ${docDate(ctx.week)}`,
+    subject: `Your statement is ready - ${docDate(ctx.week)}`,
     preview: `Closing balance ${docMoney(cash + savings)}.`,
     body:
       'Your statement for this period is attached.\n\n' +
@@ -223,7 +223,7 @@ const bankStatement: MailTemplate = (ctx) => {
     category: 'finance',
     attachment: {
       kind: 'statement',
-      title: `Account statement — ${docDate(ctx.week)}`,
+      title: `Account statement - ${docDate(ctx.week)}`,
       issuer: 'DeepLife Bank · Personal Banking',
       reference: docReference('STM', ctx.week, 3),
       rows,
@@ -246,20 +246,20 @@ const rentInvoice: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.landlord, {
     idSuffix: 'rent',
-    subject: `Rent due — ${docDate(ctx.week)}`,
+    subject: `Rent due - ${docDate(ctx.week)}`,
     preview: `${docMoney(period)} for the coming period.`,
     body:
       'Your rent invoice for the coming period is attached.\n\n' +
       (arrears > 0
         ? `Our records show ${arrears} week${arrears === 1 ? '' : 's'} in arrears. ` +
-          'Please bring the account up to date — four consecutive weeks begins ' +
+          'Please bring the account up to date - four consecutive weeks begins ' +
           'the eviction process.\n\n'
         : 'Payment is collected automatically each week.\n\n') +
       'Thank you for being a tenant with Meridian.',
     category: 'finance',
     attachment: {
       kind: 'invoice',
-      title: `Rent invoice — ${docDate(ctx.week)}`,
+      title: `Rent invoice - ${docDate(ctx.week)}`,
       issuer: 'Meridian Property Management',
       reference: docReference('INV', ctx.week, 5),
       rows: [
@@ -295,11 +295,11 @@ const taxNotice: MailTemplate = (ctx) => {
           'file.\n\n'
         : 'No taxable income was recorded for you this year.\n\n') +
       'Rent collected and luxury-asset yields count as income. Keep your ' +
-      'statements — they are the only record of what was withheld.',
+      'statements - they are the only record of what was withheld.',
     category: 'finance',
     attachment: {
       kind: 'notice',
-      title: `Tax year ${taxYear} — closing notice`,
+      title: `Tax year ${taxYear} - closing notice`,
       issuer: 'Revenue Service',
       reference: docReference('TAX', ctx.week, 7),
       rows: [
@@ -331,7 +331,7 @@ const overdueNotice: MailTemplate = (ctx) => {
       'else reaches you, and your credit score stays depressed while a balance ' +
       'stands. Clearing it early costs nothing extra; leaving it there costs you ' +
       'the rate on everything you borrow.\n\n' +
-      'No action is required — the collection is automatic.',
+      'No action is required - the collection is automatic.',
     category: 'finance',
     attachment: {
       kind: 'notice',
@@ -357,7 +357,7 @@ const tuitionInvoice: MailTemplate = (ctx) => {
   const termCost = Math.max(0, Math.round((active.cost ?? 0) / 4));
   return compose(ctx, SENDERS.registrar, {
     idSuffix: 'tuition',
-    subject: `Tuition statement — ${active.name}`,
+    subject: `Tuition statement - ${active.name}`,
     preview: `${docMoney(termCost)} for the current term.`,
     body:
       `Your tuition statement for ${active.name} is attached.\n\n` +
@@ -367,7 +367,7 @@ const tuitionInvoice: MailTemplate = (ctx) => {
     category: 'finance',
     attachment: {
       kind: 'invoice',
-      title: `Tuition — ${active.name}`,
+      title: `Tuition - ${active.name}`,
       issuer: 'Registrar Office · Student Accounts',
       reference: docReference('TUI', ctx.week, 13),
       rows: [
@@ -385,7 +385,7 @@ const tuitionInvoice: MailTemplate = (ctx) => {
 // ---------------------------------------------------------------------------
 
 /**
- * The game has loans — principal, APR, term, autopay, penalties — and produced
+ * The game has loans - principal, APR, term, autopay, penalties - and produced
  * no paperwork for any of it. The only place a balance appeared was inside the
  * bank app, and the only signal that a payment had been missed was a penalty
  * quietly leaving the weekly cash line.
@@ -411,13 +411,13 @@ const loanStatement: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.bank, {
     idSuffix: 'loans',
-    subject: `Loan statement — ${open.length} facilit${open.length === 1 ? 'y' : 'ies'}`,
+    subject: `Loan statement - ${open.length} facilit${open.length === 1 ? 'y' : 'ies'}`,
     preview: `${docMoney(outstanding)} outstanding.`,
     body:
       'Your loan statement for this period is attached.\n\n' +
       (penalty > 0
         ? 'A late-payment charge was applied. Charges are avoided entirely by ' +
-          'keeping enough cash to cover the weekly instalment — autopay skips ' +
+          'keeping enough cash to cover the weekly instalment - autopay skips ' +
           'rather than overdrawing you, and a skipped payment is what draws the ' +
           'charge.\n\n'
         : 'Payments are collected automatically each week.\n\n') +
@@ -443,7 +443,7 @@ const loanStatement: MailTemplate = (ctx) => {
  * A real receipt, which the app could render and never produced.
  *
  * `MailDocument` has always had a RECEIPT layout and no template emitted one,
- * so that branch was unreachable — the same dead-branch pattern this codebase
+ * so that branch was unreachable - the same dead-branch pattern this codebase
  * keeps growing. It is also the one document type the original brief asked for
  * by name.
  *
@@ -474,7 +474,7 @@ const chargesReceipt: MailTemplate = (ctx) => {
 
   // `DietPlan` stores a DAILY cost, not a weekly one. Reading `weeklyCost`
   // type-checked (optional chaining on a cast) and would have silently omitted
-  // every diet from the receipt — a dead branch inside the fix for dead
+  // every diet from the receipt - a dead branch inside the fix for dead
   // branches. Checked against the interface rather than assumed.
   const diet = (Array.isArray(ctx.state.dietPlans) ? ctx.state.dietPlans : []).find(
     (d) => d?.active
@@ -511,7 +511,7 @@ const chargesReceipt: MailTemplate = (ctx) => {
       reference: docReference('RCT', ctx.week, 43),
       rows,
       total: { label: 'Charged this period', value: docMoney(total) },
-      note: 'Paid automatically. Cancel any time — no notice period.',
+      note: 'Paid automatically. Cancel any time - no notice period.',
     },
   });
 };
@@ -528,7 +528,7 @@ const brokerageStatement: MailTemplate = (ctx) => {
   const positions = holdings.slice(0, 6);
   const rows = positions.map((h) => {
     const shares = Math.max(0, Math.round((h as { shares?: number }).shares ?? 0));
-    const symbol = String((h as { symbol?: string }).symbol ?? '—');
+    const symbol = String((h as { symbol?: string }).symbol ?? '-');
     return { label: `${symbol} · ${shares} share${shares === 1 ? '' : 's'}`, value: `${shares}` };
   });
 
@@ -572,7 +572,7 @@ const vehicleService: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.service, {
     idSuffix: 'service',
-    subject: `Service due — ${v.name ?? 'your vehicle'}`,
+    subject: `Service due - ${v.name ?? 'your vehicle'}`,
     preview: `Inspection and parts, ${docMoney(labour + parts)}.`,
     body:
       `${v.name ?? 'Your vehicle'} is due its scheduled service.\n\n` +
@@ -605,7 +605,7 @@ const vehicleService: MailTemplate = (ctx) => {
 const insuranceRenewal: MailTemplate = (ctx) => {
   if (ctx.week % 26 !== 15) return null;
   const vehicles = Array.isArray(ctx.state.vehicles) ? ctx.state.vehicles : [];
-  // Insurance lives per-vehicle, so the renewal is for the first ACTIVE policy —
+  // Insurance lives per-vehicle, so the renewal is for the first ACTIVE policy -
   // a lapsed one has nothing to renew and a vehicle with none was never covered.
   const insured = vehicles.find((v) => v?.insurance?.active);
   const policy = insured?.insurance;
@@ -622,7 +622,7 @@ const insuranceRenewal: MailTemplate = (ctx) => {
     body:
       `Your motor policy on ${insured?.name ?? 'your vehicle'} is due to renew.\n\n` +
       `Cover: ${policy.type} · ${Math.round(policy.coveragePercent ?? 0)}% of repair costs.\n\n` +
-      'Renewal is automatic. Cancel any time from the vehicle app — but an ' +
+      'Renewal is automatic. Cancel any time from the vehicle app - but an ' +
       'uninsured accident is paid from your own pocket, in full.',
     category: 'finance',
     attachment: {
@@ -665,7 +665,7 @@ const recruiterApproach: MailTemplate = (ctx) => {
     body:
       `I came across your profile and thought of a ${job.title} opening I am ` +
       'working on.\n\n' +
-      `The range lands around ${docWhole(offer)} a week — a step up on where ` +
+      `The range lands around ${docWhole(offer)} a week - a step up on where ` +
       'most people at your level sit. No obligation.\n\n' +
       'Plenty of people never move on one of these. They take it to their ' +
       'manager instead, and find out what they are worth without changing ' +
@@ -676,7 +676,7 @@ const recruiterApproach: MailTemplate = (ctx) => {
         {
           id: 'leverage',
           label: 'Take it to your manager',
-          detail: 'A guaranteed step up if they want to keep you — and it spends your raise window.',
+          detail: 'A guaranteed step up if they want to keep you - and it spends your raise window.',
           kind: 'primary',
         },
         {
@@ -694,7 +694,7 @@ const recruiterApproach: MailTemplate = (ctx) => {
 };
 
 // ---------------------------------------------------------------------------
-// Concierge — wealth flavour that also teaches a real mechanic
+// Concierge - wealth flavour that also teaches a real mechanic
 // ---------------------------------------------------------------------------
 
 const conciergeInvite: MailTemplate = (ctx) => {
@@ -704,7 +704,7 @@ const conciergeInvite: MailTemplate = (ctx) => {
 
   return compose(ctx, SENDERS.concierge, {
     idSuffix: 'concierge',
-    subject: 'Your collection — a note from Aurum',
+    subject: 'Your collection - a note from Aurum',
     preview: `${owned} pieces on file. Completing a set is worth more than adding one.`,
     body:
       `We hold ${owned} pieces on your file.\n\n` +
@@ -718,7 +718,7 @@ const conciergeInvite: MailTemplate = (ctx) => {
 };
 
 // ---------------------------------------------------------------------------
-// Marketing — the promotions tab needs something in it
+// Marketing - the promotions tab needs something in it
 // ---------------------------------------------------------------------------
 
 const PROMOS: { subject: string; preview: string; body: string }[] = [
@@ -737,15 +737,15 @@ const PROMOS: { subject: string; preview: string; body: string }[] = [
     body:
       'Cash sitting in your current account earns nothing at all.\n\n' +
       'Moving it to savings earns interest every week, and a savings goal with ' +
-      'an automatic weekly contribution does the moving for you — which is the ' +
+      'an automatic weekly contribution does the moving for you - which is the ' +
       'only version of this that survives contact with a busy life.',
   },
   {
-    subject: 'Upgrade week — hardware offers',
+    subject: 'Upgrade week - hardware offers',
     preview: 'A better machine pays for itself.',
     body:
       'Hardware offers are running this week.\n\n' +
-      'A computer is not a luxury purchase in the way it looks — it opens the ' +
+      'A computer is not a luxury purchase in the way it looks - it opens the ' +
       'specialist half of your app launcher, and several of those apps are ' +
       'where the money actually is.',
   },
@@ -767,7 +767,7 @@ const promotion: MailTemplate = (ctx) => {
 
 /**
  * Registry order is display order for messages landing in the same week.
- * Documents first, marketing last — the same instinct the category tabs encode.
+ * Documents first, marketing last - the same instinct the category tabs encode.
  */
 export const MAIL_TEMPLATES: MailTemplate[] = [
   welcome,

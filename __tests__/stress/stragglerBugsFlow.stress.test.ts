@@ -43,7 +43,7 @@ import type { RealEstate } from '@/contexts/game/types';
 // ---------------------------------------------------------------------------
 // Life expectancy — BUGFIX #28
 // ---------------------------------------------------------------------------
-describe('Life expectancy — BUGFIX #28', () => {
+describe('Life expectancy - BUGFIX #28', () => {
   it('correctly treats health=0 as worst case (NOT as 100 via || fallback)', () => {
     const dying = createTestGameState({
       stats: { ...createTestGameState().stats, health: 0, happiness: 0 },
@@ -105,7 +105,7 @@ describe('Life expectancy — BUGFIX #28', () => {
 // ---------------------------------------------------------------------------
 // Patent income — BUGFIX #29
 // ---------------------------------------------------------------------------
-describe('Patent income — BUGFIX #29', () => {
+describe('Patent income - BUGFIX #29', () => {
   it('calculatePatentIncome: returns 0 for undefined patents (legacy company)', () => {
     expect(calculatePatentIncome(undefined as any)).toBe(0);
     expect(calculatePatentIncome(null as any)).toBe(0);
@@ -162,7 +162,7 @@ describe('Patent income — BUGFIX #29', () => {
 // ---------------------------------------------------------------------------
 // Retirement calculator — BUGFIX #30
 // ---------------------------------------------------------------------------
-describe('Retirement calculator — BUGFIX #30', () => {
+describe('Retirement calculator - BUGFIX #30', () => {
   it('does not produce Infinity when withdrawalRate is 0', () => {
     const state = createTestGameState();
     const r = calculateRetirementPlanning(state, 65, 7, 3, 0);

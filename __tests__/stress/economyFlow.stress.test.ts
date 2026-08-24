@@ -120,7 +120,7 @@ function seedWealthy() {
 
 // ──────────────────── Tests ────────────────────────────────────────────────
 
-describe('Economy flow — stocks + crypto + real estate', () => {
+describe('Economy flow - stocks + crypto + real estate', () => {
   jest.setTimeout(180_000);
   let mounted: { root: any } | null = null;
 
@@ -197,7 +197,7 @@ describe('Economy flow — stocks + crypto + real estate', () => {
     assertClean('stocks buy');
   });
 
-  it('Stocks: dollar-cost averaging — second buy at higher price raises averagePrice', () => {
+  it('Stocks: dollar-cost averaging - second buy at higher price raises averagePrice', () => {
     mounted = mountGame();
     seedWealthy();
 

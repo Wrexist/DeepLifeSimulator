@@ -73,7 +73,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   // Only ONE boundary presents the full-screen crash UI at a time. The app
   // nests boundaries (screen + modal + provider), and a cascading failure put
-  // TWO full fallbacks on screen at once — overlapping, semi-transparent,
+  // TWO full fallbacks on screen at once - overlapping, semi-transparent,
   // unreadable. Non-presenting erroring boundaries render null; when the
   // presenter recovers/unmounts, the next erroring boundary is promoted.
   private static erroringInstances = new Set<ErrorBoundary>();
@@ -84,7 +84,7 @@ class ErrorBoundary extends Component<Props, State> {
     if (ErrorBoundary.presentingInstance === null) {
       ErrorBoundary.presentingInstance = instance;
     } else if (ErrorBoundary.presentingInstance !== instance) {
-      // A presenter already exists — repaint this one to null right away.
+      // A presenter already exists - repaint this one to null right away.
       // componentDidCatch runs in the commit phase (before the frame paints),
       // so the user never sees the second screen.
       instance.forceUpdate();
@@ -209,7 +209,7 @@ class ErrorBoundary extends Component<Props, State> {
         const savedData = await readSaveSlot(slotNumber);
         if (savedData) {
           // R2-H: prune old error_backup_* keys BEFORE writing the new one.
-          // Previously cleanup only fired on QuotaExceededError — so under
+          // Previously cleanup only fired on QuotaExceededError - so under
           // normal conditions every crash wrote another 1-4MB blob that
           // never got cleaned up, filling storage fast for crash-prone users.
           try {
@@ -744,7 +744,7 @@ Discord: ${DISCORD_URL}`;
         return this.props.fallback;
       }
 
-      // Another boundary already presents the full crash screen — stay quiet.
+      // Another boundary already presents the full crash screen - stay quiet.
       // (Claims happen in componentDidCatch, which only runs for COMMITTED
       // instances; claiming during render broke when React discarded and
       // re-instantiated throwing trees, leaving a stale claim.) This subtree
@@ -879,8 +879,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    // flexGrow (not flex) so tall content — dev stack traces, the report
-    // cards — scrolls instead of overflowing off-screen.
+    // flexGrow (not flex) so tall content - dev stack traces, the report
+    // cards - scrolls instead of overflowing off-screen.
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',

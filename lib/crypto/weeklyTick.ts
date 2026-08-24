@@ -162,7 +162,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
 
   // SMOOTHNESS: the market evolves for every coin each week, so a regime flip
   // happens almost weekly. That's pure ambient flavor for someone who doesn't
-  // trade crypto — surfacing it as a top-of-screen toast every "Next Week" is
+  // trade crypto - surfacing it as a top-of-screen toast every "Next Week" is
   // noise. Only notify players who actually hold a position (or have automation
   // riding on prices); for everyone else the market still moves silently.
   const playerEngagedWithCrypto =
@@ -200,7 +200,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       };
       btcBullApplied = true;
     }
-    // Only announce the bull regime if it was actually applied — on a malformed /
+    // Only announce the bull regime if it was actually applied - on a malformed /
     // partial market (`coinMarkets` absent) the halving still cuts mining rewards,
     // but BTC's regime was not changed, so don't claim it was.
     notifications.push({
@@ -220,7 +220,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
         c.id === fill.order.cryptoId ? { ...c, owned: safe(c.owned) + fill.coinAmount } : c
       );
     } else {
-      // Sell — credit cash ONLY for coins actually held. R10-1: clamp to owned
+      // Sell - credit cash ONLY for coins actually held. R10-1: clamp to owned
       // so an order for more coins than the player holds can't print cash for
       // phantom coins (the authoritative safety net behind placement validation).
       const held = safe(cryptos.find((c) => c.id === fill.order.cryptoId)?.owned);
@@ -263,7 +263,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     // charge cashDelta; mirror the balance too for same-tick UI consistency.
     const availableCashForDca = safe(input.cashIn, 0) + cashDelta;
     if (availableCashForDca < rule.amount) {
-      // Insufficient funds — skip this execution but bump nextExecutionWeek so we retry.
+      // Insufficient funds - skip this execution but bump nextExecutionWeek so we retry.
       market = recordDCAExecution(market, rule.id, 0, 0, input.currentWeek);
       continue;
     }
@@ -306,7 +306,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
     });
   }
 
-  // --- 4) Yearly capital-gains tax — debit from checking on the year boundary.
+  // --- 4) Yearly capital-gains tax - debit from checking on the year boundary.
   // 52-week game year. Tax rate: 25% of realized gains, scaled by the Tax
   // Strategy life skill. Losses don't generate a refund here.
   let capitalGainsTaxUSD = 0;
@@ -343,7 +343,7 @@ export function runCryptoWeeklyTick(input: CryptoWeeklyTickInput): CryptoWeeklyT
       });
     }
     // Reduce YTD realized gains only by the fraction actually taxed this year.
-    // Divide by the EFFECTIVE rate, not the headline 25% — otherwise a player
+    // Divide by the EFFECTIVE rate, not the headline 25% - otherwise a player
     // with Tax Strategy clears less gain than they actually paid tax on and the
     // remainder is taxed a second time next year.
     const taxedGains = effectiveRate > 0 ? collected / effectiveRate : 0;

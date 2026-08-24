@@ -31,7 +31,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 
-// REVERTED R6 lazy-loading: see comment in computer.tsx — same regression.
+// REVERTED R6 lazy-loading: see comment in computer.tsx - same regression.
 import DatingApp from '@/components/mobile/Spark/SparkApp';
 import ContactsApp from '@/components/mobile/ContactsApp';
 import MailApp from '@/components/mobile/Mail/MailApp';
@@ -83,7 +83,7 @@ export function MobileScreenContent({
   onInitialAppConsumed,
 }: {
   embedded?: boolean;
-  /** App id to open straight away — see the Apps tab's `?app=` deep link. */
+  /** App id to open straight away - see the Apps tab's `?app=` deep link. */
   initialApp?: string;
   onInitialAppConsumed?: () => void;
 }) {
@@ -99,7 +99,7 @@ export function MobileScreenContent({
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
 
-  // Deep link — see the same block in computer.tsx. Clearing the param after
+  // Deep link - see the same block in computer.tsx. Clearing the param after
   // consuming it is what stops the app re-opening every time this tab regains
   // focus.
   useEffect(() => {
@@ -118,7 +118,7 @@ export function MobileScreenContent({
     return () => setFullscreenApp(false);
   }, [isFocused, activeApp]);
 
-  // P3-3: dead scroll state — same pattern as work.tsx / market.tsx (P1-8).
+  // P3-3: dead scroll state - same pattern as work.tsx / market.tsx (P1-8).
 
   // Prevent staying on mobile screen when in prison - redirect to work tab.
   // Embedded (inside the Apps tab) the layout owns the jail redirect, so skip it.
@@ -131,10 +131,10 @@ export function MobileScreenContent({
 
   // R10-UX: once a computer is owned the layout hides the Mobile tab
   // (showMobileTab = ownsSmartphone && !ownsComputer), but expo-router keeps this
-  // screen mounted until the user navigates — leaving them stranded on a tab
+  // screen mounted until the user navigates - leaving them stranded on a tab
   // that's no longer in the bar. Mirror computer.tsx and redirect to home.
   // Embedded, the Apps tab chooses Computer-vs-Mobile by ownership, so this
-  // stranding can't happen — skip the redirect to avoid fighting the parent.
+  // stranding can't happen - skip the redirect to avoid fighting the parent.
   useEffect(() => {
     if (embedded || !navReady) return;
     const ownsComputer = (gameState.items || []).find(item => item.id === 'computer')?.owned;
@@ -149,7 +149,7 @@ export function MobileScreenContent({
   const { logRender } = usePerformanceMonitor();
 
   // Android hardware back exits the open sub-app rather than popping the tab
-  // stack — see the matching comment in computer.tsx. Consumes the press only
+  // stack - see the matching comment in computer.tsx. Consumes the press only
   // while an app is open, so the grid keeps default navigator behaviour.
   useHardwareBack(
     useCallback(() => {
@@ -175,7 +175,7 @@ export function MobileScreenContent({
       name: 'Spark',
       description: 'Find your match',
       icon: Flame,
-      gradient: ['#F43F5E', '#FB923C'], // Rose → orange — Spark brand gradient
+      gradient: ['#F43F5E', '#FB923C'], // Rose → orange - Spark brand gradient
       iconGradient: ['#F43F5E', '#FB923C'],
       available: true,
     },
@@ -202,7 +202,7 @@ export function MobileScreenContent({
       name: 'Pulse',
       description: 'Feel the room',
       icon: Activity,
-      gradient: ['#EC4899', '#6366F1'], // Magenta → indigo — Pulse brand gradient
+      gradient: ['#EC4899', '#6366F1'], // Magenta → indigo - Pulse brand gradient
       iconGradient: ['#EC4899', '#6366F1'],
       available: true,
     },
@@ -238,7 +238,7 @@ export function MobileScreenContent({
       name: 'Hustle',
       description: 'Build something',
       icon: Building,
-      gradient: ['#6366F1', '#06B6D4'], // Indigo → cyan — Hustle brand gradient
+      gradient: ['#6366F1', '#06B6D4'], // Indigo → cyan - Hustle brand gradient
       iconGradient: ['#6366F1', '#06B6D4'],
       available: true,
     },
@@ -254,7 +254,7 @@ export function MobileScreenContent({
   ], [t]);
 
   // Per-app "needs attention" badge counts (unread matches, scandals, critical
-  // pets, company alerts) — computed before any early return (Rules of Hooks).
+  // pets, company alerts) - computed before any early return (Rules of Hooks).
   const appBadges = useMemo(
     () => getAppBadgeCounts(gameState),
     [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies],
@@ -291,7 +291,7 @@ export function MobileScreenContent({
       bank: BankApp,
       education: EducationApp,
       company: CompanyApp,
-      // Alias — see the matching comment in computer.tsx. `paw` is the id the
+      // Alias - see the matching comment in computer.tsx. `paw` is the id the
       // desktop grid and MOBILE_APP_IDS use; both must resolve here too.
       pet: PetApp,
       paw: PetApp,
@@ -318,7 +318,7 @@ export function MobileScreenContent({
   }
 
   const columns = isTablet() ? 3 : 2;
-  // Must match the appsGrid style's `gap` (sm) — sizing cards for a larger gap
+  // Must match the appsGrid style's `gap` (sm) - sizing cards for a larger gap
   // than the layout renders makes space-evenly redistribute the leftovers into
   // uneven, header-misaligned columns (computer.tsx already uses sm for both).
   const cardGap = responsiveSpacing.sm;
@@ -342,10 +342,10 @@ export function MobileScreenContent({
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
-        {/* Macro economy strip — null in normal times. */}
+        {/* Macro economy strip - null in normal times. */}
         <EconomyEventBanner context="generic" />
         <View style={styles.appsGrid}>
-          {/* PROGRESSIVE DISCLOSURE — mirrors the computer grid. A locked app
+          {/* PROGRESSIVE DISCLOSURE - mirrors the computer grid. A locked app
               stays visible, dimmed with a padlock, so the shape of the game is
               legible from week 1 and the grid does not reshuffle as things
               unlock. Tapping one explains itself; a dead tap reads as a bug. */}
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Custom PNG icon — same footprint as the gradient circle, but a rounded
+  // Custom PNG icon - same footprint as the gradient circle, but a rounded
   // square (iOS-style squircle) since the assets are full-bleed app icons.
   appIconImage: {
     width: responsiveIconSize['2xl'] + scale(8),

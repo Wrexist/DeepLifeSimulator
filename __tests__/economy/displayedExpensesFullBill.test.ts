@@ -41,7 +41,7 @@ describe('income tax appears on the card', () => {
     expect(withTax.total - without.total).toBe(withTax.breakdown.incomeTax);
   });
 
-  it('stays 0 when no income is supplied — every existing caller', () => {
+  it('stays 0 when no income is supplied - every existing caller', () => {
     // The parameter is optional so the change is additive; a caller that does
     // not know the income must not be handed a guess.
     expect(calcWeeklyExpenses(plain()).breakdown.incomeTax).toBe(0);

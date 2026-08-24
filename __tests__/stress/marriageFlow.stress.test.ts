@@ -152,7 +152,7 @@ function seedPartner(id = 'lover_alex', score = 80) {
 
 // ──────────────────── Tests ────────────────────────────────────────────────
 
-describe('Marriage Lifecycle — full dating → wedding → divorce flow', () => {
+describe('Marriage Lifecycle - full dating → wedding → divorce flow', () => {
   jest.setTimeout(120_000);
   let mounted: { root: any } | null = null;
 
@@ -193,11 +193,11 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     act(() => { r3 = giveGift(captured!.state, captured!.setGameState, 'lover_alex', 'flowers'); });
     expect(r1.success).toBe(true);
     expect(r2.success).toBe(true);
-    expect(r3.success).toBe(false); // 3rd gift this week — rejected
+    expect(r3.success).toBe(false); // 3rd gift this week - rejected
     assertClean('giveGift cap');
   });
 
-  it('Engagement: propose with ring — accepts at high score', async () => {
+  it('Engagement: propose with ring - accepts at high score', async () => {
     mounted = mountGame();
     seedPartner('lover_alex', 95); // high score → guaranteed success
     const { proposeMarriage } = await import('@/contexts/game/actions/DatingActions');
@@ -275,7 +275,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')?.weddingPlanned).toBeDefined();
     assertClean('after planWedding');
 
-    // 3. Try to execute before scheduled week — must reject.
+    // 3. Try to execute before scheduled week - must reject.
     let earlyResult: { success: boolean; message: string } = { success: false, message: '' };
     act(() => { earlyResult = executeWedding(captured!.state, captured!.setGameState, 'lover_alex', deps); });
     expect(earlyResult.success).toBe(false);
@@ -398,7 +398,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     act(() => { executeWedding(captured!.state, captured!.setGameState, 'lover_alex', deps); });
     act(() => { fileDivorce(captured!.state, captured!.setGameState, 'lover_alex', deps); });
 
-    // Manually re-add a spouse — would only happen via remarry in real gameplay.
+    // Manually re-add a spouse - would only happen via remarry in real gameplay.
     act(() => {
       captured!.setGameState(prev => ({
         ...prev,
@@ -499,7 +499,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     act(() => { captured!.social.haveChild('lover_alex'); });
     expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')?.isPregnant).toBe(true);
 
-    // Try again immediately — must not start a second pregnancy.
+    // Try again immediately - must not start a second pregnancy.
     const beforeCount = captured!.state.relationships?.find(r => r.id === 'lover_alex')?.pregnancyStartWeek;
     act(() => { captured!.social.haveChild('lover_alex'); });
     const afterCount = captured!.state.relationships?.find(r => r.id === 'lover_alex')?.pregnancyStartWeek;
@@ -518,7 +518,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     const { updateStats: libUpdateStats } = await import('@/contexts/game/actions/StatsActions');
     const deps = { updateStats: libUpdateStats };
 
-    // Mark partner as married 52 weeks ago — exact 1-year anniversary.
+    // Mark partner as married 52 weeks ago - exact 1-year anniversary.
     act(() => captured!.setGameState(prev => ({
       ...prev,
       weeksLived: 252,
@@ -537,7 +537,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     expect(result!.yearsMarried).toBe(1);
     assertClean('checkAnniversary anniversary week');
 
-    // Move 1 week off the anniversary — must NOT fire.
+    // Move 1 week off the anniversary - must NOT fire.
     act(() => captured!.setGameState(prev => ({ ...prev, weeksLived: (prev.weeksLived || 0) + 1 })));
     let nonResult: { isAnniversary: boolean; yearsMarried?: number } | undefined;
     act(() => { nonResult = checkAnniversary(captured!.state, captured!.setGameState, deps); });
@@ -566,7 +566,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     act(() => { proposeMarriage(captured!.state, captured!.setGameState, 'lover_alex', 'classic_solitaire', deps); });
     expect(captured!.state.relationships?.find(r => r.id === 'lover_alex')?.engagementWeek).toBeDefined();
 
-    // Try to also engage Bob — the anti-bigamy guard must reject the second
+    // Try to also engage Bob - the anti-bigamy guard must reject the second
     // proposal outright: no engagement, no ring charge.
     const moneyBefore = captured!.state.stats.money;
     let second: { success: boolean; message: string; accepted: boolean } | undefined;
@@ -597,11 +597,11 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
     })));
 
     // `!` because the assignment happens inside an `act()` callback, which
-    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // TypeScript's control-flow analysis cannot see through - `act` runs its
     // callback synchronously, so the variable really is assigned before it is
     // read, and the `expect(...).toBeDefined()` below is the runtime proof.
     // (Initialising to `undefined` instead narrows the variable to `void` and
-    // breaks every downstream cast — measured, not guessed.)
+    // breaks every downstream cast - measured, not guessed.)
     let result!: { success: boolean; message: string } | void;
     act(() => { result = captured!.game.moveInTogether('lover_bob'); });
     expect(result).toBeDefined();
@@ -618,7 +618,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
 
     const { promoteMatchToRelationship } = await import('@/contexts/game/actions/SparkActions');
     // The exclusivity guard fires before the profile lookup, so a minimal
-    // match stub is enough — state is never mutated on the refusal path.
+    // match stub is enough - state is never mutated on the refusal path.
     const stateWithMatch = {
       ...captured!.state,
       sparkApp: {
@@ -626,7 +626,7 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
         // A COMPLETE SparkMatch. The literal used to carry 3 of its 5 required
         // fields behind an `as GameState['sparkApp']`; the guard under test
         // fires before the profile lookup, so the missing fields never
-        // mattered — but the cast is what made that invisible.
+        // mattered - but the cast is what made that invisible.
         matches: [{
           id: 'match_1', profileId: 'profile_x', promoted: false,
           matchedWeek: 0, superLiked: false,
@@ -663,8 +663,8 @@ describe('Marriage Lifecycle — full dating → wedding → divorce flow', () =
   //
   // `breakUpWithPartner` and `moveInTogether` each applied their relationship
   // change in one updater and then fired `updateStats({ happiness: ±N })` as a
-  // SECOND, unconditional dispatch. The relationship write is idempotent — the
-  // partner is already gone / already moved in on the second pass — but the
+  // SECOND, unconditional dispatch. The relationship write is idempotent - the
+  // partner is already gone / already moved in on the second pass - but the
   // stat dispatch is not, and the outer guard reads `gameStateRef`, which lags
   // by one commit. So a double-tap inside one React batch moved happiness twice
   // for one breakup / one move-in. Both stat deltas now live inside the same

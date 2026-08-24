@@ -156,11 +156,11 @@ describe('contactsNeedingAttention', () => {
   it('flags stale and weak contacts only', () => {
     const s = base({
       relationships: [
-        // Stale + weak — should flag
+        // Stale + weak - should flag
         { id: 'r1', name: 'NeglectedPal', type: 'friend', relationshipScore: 30, lastInteractionWeek: 30, personality: 'f', gender: 'male', age: 30 },
-        // Stale but strong — should NOT flag
+        // Stale but strong - should NOT flag
         { id: 'r2', name: 'OldDad', type: 'parent', relationshipScore: 80, lastInteractionWeek: 30, personality: 'f', gender: 'male', age: 60 },
-        // Recent — should NOT flag
+        // Recent - should NOT flag
         { id: 'r3', name: 'RecentFriend', type: 'friend', relationshipScore: 20, lastInteractionWeek: 49, personality: 'f', gender: 'male', age: 28 },
       ],
     });
@@ -173,7 +173,7 @@ describe('contactsNeedingAttention', () => {
     const s = base({
       weeksLived: 50,
       relationships: [
-        // Only the dead `lastCall` is set — recency must now be undefined so the
+        // Only the dead `lastCall` is set - recency must now be undefined so the
         // recency dot reads "No recent contact" rather than a stale value.
         { id: 'r1', name: 'LegacyCall', type: 'friend', relationshipScore: 40, lastCall: 30, personality: 'f', gender: 'male', age: 30 },
         // lastInteractionWeek IS the source of truth.

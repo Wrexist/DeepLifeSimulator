@@ -157,7 +157,7 @@ export function applyPetDeathSideEffects(
  * first, then food cost.
  *
  * Previously this applied a cruder flat +2 happiness per happy&healthy pet, no
- * player-health effect, and no downside for neglected pets — so the advertised
+ * player-health effect, and no downside for neglected pets - so the advertised
  * "pets keep you healthy" and "a miserable pet drags you down" were never real.
  * Now the tick honors `bondingSummary`: well-cared pets grant happiness AND a
  * small health boost; neglected pets sap happiness.

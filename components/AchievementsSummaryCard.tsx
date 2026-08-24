@@ -1,5 +1,5 @@
 /**
- * AchievementsSummaryCard — compact Home summary of achievements.
+ * AchievementsSummaryCard - compact Home summary of achievements.
  *
  * A completion ring plus the next 2-3 claimable / in-progress achievements,
  * tapping through to the full AchievementsProgress list ("View all"). Keeps the
@@ -8,15 +8,15 @@
  * ## Reading the same numbers twice
  *
  * The first version said "7 / 158 completed · 151 in progress" in the subtitle
- * and "7 of 158" again inside the ring — the same fact, rendered twice, one of
+ * and "7 of 158" again inside the ring - the same fact, rendered twice, one of
  * them truncating ("151 in…") because the row could not hold it. And "in
  * progress" was not a number worth the space it took: it is just total minus
  * completed, so it moves only when the other number moves.
  *
  * So the three surfaces now say three different things. The ring is the share
  * of the catalogue, as a percentage. The subtitle is the count. The chip is the
- * only ACTIONABLE fact on the card — how many are sitting there ready to claim
- * — and it is styled to be the thing the eye lands on, because it is the only
+ * only ACTIONABLE fact on the card - how many are sitting there ready to claim
+ * - and it is styled to be the thing the eye lands on, because it is the only
  * reason to tap through right now.
  *
  * Surface tokens are lifted from the Home feed's own cards (`progressLinkCard`
@@ -100,7 +100,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
 
         <View style={styles.list}>
           {highlights.length === 0 ? (
-            <Text style={styles.empty}>All caught up — nothing in progress right now.</Text>
+            <Text style={styles.empty}>All caught up - nothing in progress right now.</Text>
           ) : (
             highlights.map(a => {
               const claimable = (a.progress ?? 0) >= 0.9999 && !a.claimed;
@@ -123,7 +123,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
                     {claimable ? (
                       <Text style={styles.rowClaim}>Ready to claim</Text>
                     ) : (
-                      // The bar carries the number too — an unlabelled 8%-filled
+                      // The bar carries the number too - an unlabelled 8%-filled
                       // sliver is indistinguishable from an empty one.
                       <View style={styles.rowBarRow}>
                         <View style={styles.rowBar}>
@@ -144,7 +144,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
 }
 
 const styles = StyleSheet.create({
-  // Matches `progressLinkCard` in app/(tabs)/home.tsx exactly — same inset,
+  // Matches `progressLinkCard` in app/(tabs)/home.tsx exactly - same inset,
   // radius, surface, hairline and shadow. They are neighbours in the feed.
   card: {
     marginHorizontal: responsivePadding.horizontal,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   // Circular, like every other icon bubble in the feed. It was a rounded
-  // square with a gold outline — the only one of its shape on the screen.
+  // square with a gold outline - the only one of its shape on the screen.
   trophyBubble: {
     width: scale(38), height: scale(38), borderRadius: scale(19),
     backgroundColor: 'rgba(245, 158, 11, 0.15)',

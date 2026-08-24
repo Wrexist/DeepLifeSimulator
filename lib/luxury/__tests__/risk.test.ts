@@ -52,7 +52,7 @@ describe('risk profiles', () => {
 });
 
 describe('condition', () => {
-  it('treats an absent condition as pristine — old saves are undamaged', () => {
+  it('treats an absent condition as pristine - old saves are undamaged', () => {
     expect(getCondition(undefined)).toBe(100);
     expect(getCondition({ acquiredWeek: 0 })).toBe(100);
   });
@@ -233,7 +233,7 @@ describe('a week of risk', () => {
  * than replacing"), which a 100× error passes comfortably. These pin the
  * MAGNITUDE against the module's own stated design. 2026-07-31 audit round 4.
  */
-describe('R4-X4 — the insurance decision is actually a decision', () => {
+describe('R4-X4 - the insurance decision is actually a decision', () => {
   const PRISTINE: LuxuryHolding = { acquiredWeek: 0 };
 
   it('restoring costs what the repair is WORTH, on the same basis net worth uses', () => {
@@ -264,7 +264,7 @@ describe('R4-X4 — the insurance decision is actually a decision', () => {
 
   it('restoring is never a net loss the UI invites the player into', () => {
     /**
-     * The player-facing form. `LuxuryApp` renders a "Restore — $X" button; if X
+     * The player-facing form. `LuxuryApp` renders a "Restore - $X" button; if X
      * exceeds the net worth the restore returns, that button is a trap, and it
      * was one for every item: restore a damaged private island for $18,000,000
      * and gain $9,900,000.
@@ -284,7 +284,7 @@ describe('R4-X4 — the insurance decision is actually a decision', () => {
 
   it('a lifetime of premiums is the same order as the loss they cover', () => {
     // Premiums over one expected incident interval (1/weeklyChance weeks)
-    // should sit near INSURANCE_MARGIN × the loss — that IS the margin's
+    // should sit near INSURANCE_MARGIN × the loss - that IS the margin's
     // definition. At the old scale this held, which is why the bug survived:
     // the premium side was always right. It is the restore side that decides
     // whether paying those premiums is ever rational.
@@ -304,7 +304,7 @@ describe('R4-X4 — the insurance decision is actually a decision', () => {
 
   it('the deductible is a real share of the repair, not a rounding error', () => {
     // Insured, the owner pays INSURANCE_DEDUCTIBLE_FRACTION of the repair. At
-    // the old scale that was ~0.015% of item value — indistinguishable from
+    // the old scale that was ~0.015% of item value - indistinguishable from
     // free, which is the other half of why the decision was not a decision.
     const risk = getLuxuryRisk(ISLAND.id)!;
     const insured: LuxuryHolding = { acquiredWeek: 0, insured: true };
@@ -317,7 +317,7 @@ describe('R4-X4 — the insurance decision is actually a decision', () => {
   });
 
   it('skipping insurance is not free money', () => {
-    // Passes at the old scale too — both sides were small, so the inequality
+    // Passes at the old scale too - both sides were small, so the inequality
     // held while being economically meaningless. Kept as the shape the fix must
     // preserve; the two magnitude assertions above are the discriminators.
     const risk = getLuxuryRisk(ISLAND.id)!;

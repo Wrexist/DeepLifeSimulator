@@ -69,7 +69,7 @@ describe('the surface is not gated', () => {
 });
 
 describe('the Real Estate app keeps its own rent surface', () => {
-  it('is not removed — buying property is still an investment flow', () => {
+  it('is not removed - buying property is still an investment flow', () => {
     // This adds a path, it does not take one away. A player who found rent in
     // the Real Estate app should keep finding it there.
     const app = read('components/computer/RealEstateApp.tsx');

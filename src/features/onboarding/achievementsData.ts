@@ -319,7 +319,7 @@ export const achievements: Achievement[] = [
      * `companyGoalsAreReachable.test.ts` pins the relationship so the two cannot
      * drift apart again.
      */
-    description: 'Own 15 companies — every type, maxed out.',
+    description: 'Own 15 companies - every type, maxed out.',
     progressSpec: { kind: 'counter', current: (gs: GameState): number => gs.companies?.length ?? 0, goal: 15 },
     goldReward: 300,
     group: 'company',
@@ -645,7 +645,7 @@ export const achievements: Achievement[] = [
   {
     id: 'luxury_life',
     title: 'Luxury Life',
-    description: 'Build a luxury collection — own 3 collectibles or $25M in trophies.',
+    description: 'Build a luxury collection - own 3 collectibles or $25M in trophies.',
     progressSpec: { kind: 'boolean', met: gs => isLuxuryLifeComplete(gs.luxuryItems) },
     goldReward: 200,
     group: 'luxury',

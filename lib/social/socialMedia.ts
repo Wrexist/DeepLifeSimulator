@@ -369,7 +369,7 @@ export function calculateFollowerDecay(
 }
 
 /**
- * Pulse Verified Pro — in-game (cash) subscription pricing. The player pays
+ * Pulse Verified Pro - in-game (cash) subscription pricing. The player pays
  * from stats.money and the fee auto-renews weekly on the tick (see
  * applySubscriptionsForWeek). Priced against the game's WEEKLY job income
  * (entry jobs ~$50-65/wk, professionals ~$220-600/wk) so it reads like a real

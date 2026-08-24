@@ -34,7 +34,7 @@ const read = (rel: string): string =>
 /** The gift ids ContactsApp actually renders a button for. */
 const PURCHASABLE_GIFTS = ['flowers', 'jewelry'];
 
-describe('R3-M9 — the economy modifiers reach the systems they name', () => {
+describe('R3-M9 - the economy modifiers reach the systems they name', () => {
   it('stock volatility is folded into the market simulation', () => {
     const source = read('contexts/game/GameActionsContext.tsx');
 
@@ -70,7 +70,7 @@ describe('R3-M9 — the economy modifiers reach the systems they name', () => {
   });
 });
 
-describe('R3-F7 — the default gift preference is one the player can give', () => {
+describe('R3-F7 - the default gift preference is one the player can give', () => {
   it('falls back to a purchasable gift', () => {
     const fallback = getGiftPreferences('a-personality-that-is-not-in-the-map');
 
@@ -109,7 +109,7 @@ describe('R3-F7 — the default gift preference is one the player can give', () 
   });
 });
 
-describe('R3-M10 — the dev crypto path rejects instead of flooring', () => {
+describe('R3-M10 - the dev crypto path rejects instead of flooring', () => {
   const source = read('contexts/game/MoneyActionsContext.tsx');
 
   it('buyCrypto returns prev when the player cannot afford it', () => {

@@ -70,8 +70,8 @@ const reunionInvite: EventTemplate = {
   generate: () => ({
     id: 'inbox_reunion_invite',
     description:
-      'The organising committee — which is to say one relentlessly cheerful ' +
-      'former classmate — is holding a reunion. There is a venue, a fixed menu, ' +
+      'The organising committee - which is to say one relentlessly cheerful ' +
+      'former classmate - is holding a reunion. There is a venue, a fixed menu, ' +
       'and a form asking what you are doing now.\n\n' +
       'Everyone you have not thought about in years will be there, having ' +
       'thought about you exactly as little.',
@@ -263,7 +263,7 @@ const walletReturned: EventTemplate = {
       },
       {
         id: 'nothing',
-        text: 'Say nothing — you got it back, after all',
+        text: 'Say nothing - you got it back, after all',
         effects: { stats: { happiness: -2 } },
       },
     ],
@@ -293,7 +293,7 @@ const gameShowCasting: EventTemplate = {
     choices: [
       {
         id: 'audition',
-        text: 'Go for it — a full day, and you might actually win',
+        text: 'Go for it - a full day, and you might actually win',
         // Being on television is the biggest single thing that happens in this
         // pack, and it costs most of a week's energy to collect.
         effects: { money: 1200, stats: { energy: -18, happiness: 20, reputation: 8 } },
@@ -333,7 +333,7 @@ const neighbourPetition: EventTemplate = {
     choices: [
       {
         id: 'sign',
-        text: 'Sign it — the extension really is too big',
+        text: 'Sign it - the extension really is too big',
         effects: { stats: { reputation: 2, happiness: -2 } },
       },
       {

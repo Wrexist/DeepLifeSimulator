@@ -1,11 +1,11 @@
 /**
- * EconomyEventBanner — shared in-app banner that surfaces the current
+ * EconomyEventBanner - shared in-app banner that surfaces the current
  * macro-economy state (recession, boom, crash, normal).
  *
  * Reads from `gameState.economy.economyEvents.currentState`, which is driven by
  * `lib/events/economyEvents.ts` and ticked in GameActionsContext.nextWeek.
  *
- * Returns null when the state is `normal` or `undefined` — no banner needed.
+ * Returns null when the state is `normal` or `undefined` - no banner needed.
  * Used by AdvancedBankApp (rate context), BitcoinMiningApp (regime context),
  * and OnionApp (general macro framing for heat / job timing).
  */
@@ -38,7 +38,7 @@ function contextCopy(state: EconomyState, ctx: Props['context']): string {
   switch (ctx) {
     case 'banking':
       switch (state) {
-        case 'recession': return 'Lenders tighten — loan APRs are higher; savings yields drift down.';
+        case 'recession': return 'Lenders tighten - loan APRs are higher; savings yields drift down.';
         case 'crash':     return 'Credit freezes. Premium products are pulled. APRs spike across the board.';
         case 'boom':      return 'Cheap money. Loan offers improve; savings yields tick up.';
         case 'normal':    return 'Rates back to baseline.';
@@ -59,7 +59,7 @@ function contextCopy(state: EconomyState, ctx: Props['context']): string {
        * The copy told the player that a recession made heat decay faster, a
        * crash raised police-event risk, and a boom lifted marketplace traffic.
        * `DarkWebWeeklyTickInput` takes only `{ darkWeb, currentWeek,
-       * relationships, rollFor, inJail }` — no economy state — and the call site
+       * relationships, rollFor, inJail }` - no economy state - and the call site
        * passes nothing economic; `grep economy lib/darkweb/` returns zero hits.
        * `decayHeat` and `policeEventProbability` take only heat and opsec, and
        * `refreshMarketplace` has a fixed per-vendor listing cap. So during a
@@ -97,7 +97,7 @@ export default function EconomyEventBanner({ context = 'generic' }: Props) {
   const theme = getThemeColors(darkMode);
   const state = useGameSelector((s) => (s.economy?.economyEvents?.currentState ?? 'normal') as EconomyState);
 
-  // Don't show a banner during normal conditions — keeps the UI quiet.
+  // Don't show a banner during normal conditions - keeps the UI quiet.
   if (state === 'normal') return null;
 
   const meta = META[state];

@@ -32,7 +32,7 @@ function makeStore(initial: GameState) {
   return { get: () => current, setGameState };
 }
 
-describe('redeemFavor — same-batch double-credit guard', () => {
+describe('redeemFavor - same-batch double-credit guard', () => {
   it('credits a money IOU exactly once even when redeemed twice from stale state', () => {
     const base = createTestGameState({ stats: { money: 1000 } });
     const store = makeStore(base);

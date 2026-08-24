@@ -90,7 +90,7 @@ describe('search spans folders', () => {
     expect(found).toContain('spam-1');
   });
 
-  it('excludes Trash, as Gmail does — a deleted message must stay deleted', () => {
+  it('excludes Trash, as Gmail does - a deleted message must stay deleted', () => {
     expect(searchMessages(mailbox(), 'payslip').map((m) => m.id)).not.toContain('gone');
   });
 
@@ -207,7 +207,7 @@ describe('the filters', () => {
 // ---------------------------------------------------------------------------
 
 describe('what is waiting on an answer', () => {
-  it('looks in every folder — archiving a summons does not stop it lapsing', () => {
+  it('looks in every folder - archiving a summons does not stop it lapsing', () => {
     const state = withMessages([
       message({ id: 'in', decision: decision(110) }),
       message({ id: 'arch', folder: 'archive', decision: decision(106) }),

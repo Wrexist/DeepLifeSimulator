@@ -31,7 +31,7 @@ const overlay = (over: Partial<HustleCompanyOverlay> = {}) => ({
 }) as HustleCompanyOverlay;
 
 describe('the company income multiplier is one shared definition', () => {
-  it('a neutral company is exactly 1.0 — no free lift', () => {
+  it('a neutral company is exactly 1.0 - no free lift', () => {
     expect(companyIncomeFactors(overlay()).multiplier).toBe(1);
   });
 
@@ -42,7 +42,7 @@ describe('the company income multiplier is one shared definition', () => {
       .toBeLessThan(1);
   });
 
-  it('market share lifts income — the reported "shares do not effect anything"', () => {
+  it('market share lifts income - the reported "shares do not effect anything"', () => {
     // The player's evidence was two restaurants at 10.8% and 32.9% share
     // showing identical revenue. With the shared helper they cannot.
     const low = effectiveWeeklyIncome(100_000, overlay({ marketSharePercent: 10.8 }));
@@ -59,7 +59,7 @@ describe('the company income multiplier is one shared definition', () => {
     expect(after).toBeGreaterThan(before);
   });
 
-  it('named hires move it too — the reported "key hires do not effect anything"', () => {
+  it('named hires move it too - the reported "key hires do not effect anything"', () => {
     const none = companyIncomeFactors(overlay()).multiplier;
     const strong = companyIncomeFactors(overlay({
       hiringPipeline: {

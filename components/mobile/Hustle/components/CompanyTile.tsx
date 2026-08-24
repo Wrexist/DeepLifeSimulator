@@ -1,5 +1,5 @@
 /**
- * CompanyTile — dashboard card for a single company.
+ * CompanyTile - dashboard card for a single company.
  *
  * Business-dashboard DNA: a revenue BAR (this company's weekly income vs the
  * portfolio leader) headlines the tile, with a lift chip over its base income,
@@ -28,7 +28,7 @@ interface CompanyTileProps {
   company: Company;
   overlay: HustleCompanyOverlay | undefined;
   onPress: () => void;
-  /** Highest weekly income across the portfolio — scales the revenue bar. */
+  /** Highest weekly income across the portfolio - scales the revenue bar. */
   maxWeekly?: number;
   /**
    * This company's contribution to the paycheck, from the tick's own
@@ -47,16 +47,16 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
   const scandal = overlay?.activeScandal;
   const isPublic = overlay?.ipo?.status === 'public';
 
-  // EFFECTIVE weekly income — what the player is actually paid — not the raw
+  // EFFECTIVE weekly income - what the player is actually paid - not the raw
   // stored `weeklyIncome`.
   //
   // Three separate player reports (brand/share do nothing, key hires do
   // nothing, acquisitions change nothing) were all this one line. Those four
   // features feed `companyIncomeFactors`, which `calcWeeklyPassiveIncome`
   // applies at PAYOUT; none of them writes `company.weeklyIncome`. So the card
-  // showed a number that could not move no matter what the player did — two
+  // showed a number that could not move no matter what the player did - two
   // restaurants at 10.8% and 32.9% share rendered identically.
-  // `companyIncomeFactors` is only ONE step of that chain, though — the family
+  // `companyIncomeFactors` is only ONE step of that chain, though - the family
   // brand and legacy multipliers, the political business perk and government
   // contracts also land at payout. `weeklyProp` carries the tick's own answer
   // (`companyWeeklyIncomeFor`); the local expression is the fallback for callers
@@ -73,7 +73,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
   const share = overlay?.marketSharePercent ?? 5;
   const campaigns = overlay?.activeCampaigns?.filter((c) => c.active).length ?? 0;
   // Weekly payroll for the named-hire roster. Replaces the old "Cash" metric,
-  // which read `company.money` — a field `createCompany` never sets and nothing
+  // which read `company.money` - a field `createCompany` never sets and nothing
   // ever writes, so every company displayed CASH $0 for its entire life.
   const payroll = (overlay?.hiringPipeline?.namedHires ?? []).reduce(
     (sum, h) => sum + (typeof h.salary === 'number' && isFinite(h.salary) && h.salary > 0 ? h.salary : 0),
@@ -112,7 +112,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
         <ChevronRight size={fontScale(18)} color={theme.textMuted} />
       </View>
 
-      {/* Revenue bar — weekly income vs the portfolio leader */}
+      {/* Revenue bar - weekly income vs the portfolio leader */}
       <View style={styles.revBlock}>
         <View style={styles.revTopRow}>
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Weekly revenue</Text>
@@ -149,12 +149,12 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
         <View style={styles.metric}>
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Payroll</Text>
           <Text style={[styles.metricValue, { color: theme.text }]}>
-            {payroll > 0 ? `-$${payroll >= 1000 ? `${Math.round(payroll / 1000)}K` : Math.round(payroll)}` : '—'}
+            {payroll > 0 ? `-$${payroll >= 1000 ? `${Math.round(payroll / 1000)}K` : Math.round(payroll)}` : '-'}
           </Text>
         </View>
       </View>
 
-      {/* Chips — marketing tier + running campaigns (surfaced from overlay) */}
+      {/* Chips - marketing tier + running campaigns (surfaced from overlay) */}
       <View style={styles.chipRow}>
         <View style={[styles.infoChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
           <DollarSign size={fontScale(10)} color={theme.textSecondary} strokeWidth={2.4} />

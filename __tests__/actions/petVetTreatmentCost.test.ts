@@ -66,7 +66,7 @@ describe('vetServicePrice (pure)', () => {
   });
 });
 
-describe('payForVet — charges the effective (treatmentCost) price', () => {
+describe('payForVet - charges the effective (treatmentCost) price', () => {
   it('a sick pet pays its sickness treatmentCost, not the flat service price', () => {
     const cold = findSickness('cold')!;
     const treatment = findVetService('treatment')!;

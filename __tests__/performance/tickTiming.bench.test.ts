@@ -146,7 +146,7 @@ describe('Tick timing benchmark (Year Mode sizing)', () => {
       weeksLived: captured!.state.weeksLived,
     };
 
-    process.stdout.write('\n\n===== TICK TIMING (Node/test-renderer — pessimistic) =====\n');
+    process.stdout.write('\n\n===== TICK TIMING (Node/test-renderer - pessimistic) =====\n');
     process.stdout.write(`early  mean=${report.earlyMean.toFixed(2)}ms p50=${report.earlyP50.toFixed(2)}ms p95=${report.earlyP95.toFixed(2)}ms\n`);
     process.stdout.write(`late   mean=${report.lateMean.toFixed(2)}ms p50=${report.lateP50.toFixed(2)}ms p95=${report.lateP95.toFixed(2)}ms\n`);
     process.stdout.write(`state  ${report.stateBytes}B at week ${report.weeksLived}\n`);

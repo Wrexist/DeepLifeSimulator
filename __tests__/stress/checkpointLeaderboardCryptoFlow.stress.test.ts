@@ -103,7 +103,7 @@ describe('Checkpoint snapshot pruning', () => {
       list = addCheckpoint(list, cp);
     }
     expect(list.length).toBe(MAX_CHECKPOINTS);
-    // Oldest must have been evicted — first remaining is the (3N - MAX) entry
+    // Oldest must have been evicted - first remaining is the (3N - MAX) entry
     expect(list[0].id).toBe(`cp_${MAX_CHECKPOINTS * 3 - MAX_CHECKPOINTS}`);
     // Newest preserved
     expect(list[list.length - 1].id).toBe(`cp_${MAX_CHECKPOINTS * 3 - 1}`);
@@ -196,7 +196,7 @@ describe('Checkpoint snapshot pruning', () => {
 
 
 // ---------------------------------------------------------------------------
-// Statistics tracker — BUGFIX #21: weeksLived not week
+// Statistics tracker - BUGFIX #21: weeksLived not week
 // ---------------------------------------------------------------------------
 describe('Statistics tracker week-index fix', () => {
   it('addNetWorthSnapshot: fires on multiples of 10 (the interval), no-op otherwise', () => {

@@ -1,12 +1,12 @@
 /**
- * HustleApp — root shell for the in-game business platform.
+ * HustleApp - root shell for the in-game business platform.
  *
  * Mounts when the player taps the Company tile. Owns the internal nav state
  * machine (no React Navigation nested container) and the modal host. Three
  * routes:
- *   - dashboard (default) — multi-company overview
- *   - detail (companyId)  — single-company deep view
- *   - create              — found a new company
+ *   - dashboard (default) - multi-company overview
+ *   - detail (companyId)  - single-company deep view
+ *   - create              - found a new company
  *
  * Modals route through PulseApp-style state machine in this component:
  * hire, campaign, scandal, IPO, acquisition.

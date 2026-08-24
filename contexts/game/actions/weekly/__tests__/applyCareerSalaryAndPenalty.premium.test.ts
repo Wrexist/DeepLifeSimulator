@@ -46,7 +46,7 @@ function employedState(over: TestGameStateOverrides = {}): GameState {
   });
 }
 
-describe('applyCareerSalaryAndPenalty — DeepLife+ income boost', () => {
+describe('applyCareerSalaryAndPenalty - DeepLife+ income boost', () => {
   it('pays the base salary for a non-member', () => {
     expect(applyCareerSalaryAndPenalty(employedState(), ctx()).careerSalary).toBe(1000);
   });

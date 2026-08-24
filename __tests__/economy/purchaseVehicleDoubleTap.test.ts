@@ -55,7 +55,7 @@ const licensed = (money: number): GameState =>
     vehicles: [],
   });
 
-describe('WP-E — purchaseVehicle premise', () => {
+describe('WP-E - purchaseVehicle premise', () => {
   it('the template is real, priced, and needs no reputation', () => {
     expect(TEMPLATE.price).toBeGreaterThan(0);
     expect(TEMPLATE.requiredReputation ?? 0).toBeLessThanOrEqual(50);
@@ -73,7 +73,7 @@ describe('WP-E — purchaseVehicle premise', () => {
   });
 });
 
-describe('WP-E — purchaseVehicle same-batch double-tap', () => {
+describe('WP-E - purchaseVehicle same-batch double-tap', () => {
   it('two taps on the same snapshot buy ONE vehicle and charge ONE price', () => {
     const snapshot = licensed(TEMPLATE.price * 3);
     const store = makeStore(snapshot);
@@ -121,7 +121,7 @@ describe('WP-E — purchaseVehicle same-batch double-tap', () => {
   });
 });
 
-describe('WP-E — purchaseVehicle refuses instead of clamping', () => {
+describe('WP-E - purchaseVehicle refuses instead of clamping', () => {
   it('funds that ran out between the check and the updater buy nothing', () => {
     // The snapshot can afford it; `prev` cannot. Only the inner check sees this.
     // The old `Math.max(0, …)` handed over the car and forgave the shortfall.

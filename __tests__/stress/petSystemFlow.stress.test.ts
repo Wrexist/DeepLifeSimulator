@@ -222,7 +222,7 @@ describe('Pet system lifecycle', () => {
     await tick();
     // Real engine (decay.ts:82-83) drains per the sickness catalog's healthDrain
     // (per-illness, not a flat 5). Fullness stays > 0 so there's no starvation
-    // drain on top — the drop is exactly the sickness cost.
+    // drain on top - the drop is exactly the sickness cost.
     const after = getPet('sick_pet')!.health;
     expect(after).toBeLessThan(healthBefore);
     expect(after).toBeGreaterThanOrEqual(0);
@@ -316,7 +316,7 @@ describe('Pet system lifecycle', () => {
     seedPet({ id: 'old_rip', name: 'OldRip', type: 'dog', age: 100, hunger: 50, health: 50, isDead: true });
     const before = captured!.state.stats.happiness;
 
-    // Tick a few times — happiness may decay from other sources but pet death should NOT contribute -20 again.
+    // Tick a few times - happiness may decay from other sources but pet death should NOT contribute -20 again.
     await tick();
     const after = captured!.state.stats.happiness;
     // At most natural weekly decay (~2), not -20.
@@ -347,8 +347,8 @@ describe('Pet system lifecycle', () => {
     // 'alien' isn't in the breed catalog. The real engine (decay.ts:57-58) skips
     // pets with no matching breed rather than applying a default lifespan, so a
     // corrupted / unknown-type pet is left untouched instead of decaying or
-    // dying. Unreachable in normal play — every pet is adopted from the 7-breed
-    // catalog — but this guards against a bad save crashing the tick.
+    // dying. Unreachable in normal play - every pet is adopted from the 7-breed
+    // catalog - but this guards against a bad save crashing the tick.
     seedPet({ id: 'alien_pet', name: 'Zorp', type: 'alien' as never, age: 200, hunger: 30, health: 100 });
     await tick();
     const p = getPet('alien_pet')!;
@@ -388,7 +388,7 @@ describe('Pet system lifecycle', () => {
     expect(b!.hunger).toBeGreaterThanOrEqual(40);
     expect(b!.happiness).toBe(70);
 
-    // C: dead — unchanged.
+    // C: dead - unchanged.
     expect(c!.age).toBe(50);
     expect(c!.hunger).toBe(30);
     expect(c!.isDead).toBe(true);

@@ -77,7 +77,7 @@ describe('createLuxuryProperty', () => {
     expect(property.status).toBe('owner');
   });
 
-  it('charges no property upkeep — the luxury item already bills weekly', () => {
+  it('charges no property upkeep - the luxury item already bills weekly', () => {
     // The island's $60,000/wk lives on the luxury item. A property upkeep on top
     // would bill the player twice for one asset.
     expect(createLuxuryProperty(ISLAND, 0)!.upkeep).toBe(0);
@@ -123,7 +123,7 @@ describe('estate-scale room additions', () => {
     expect(byId.get('airstrip')).toBeTruthy();
   });
 
-  it('prices an airstrip above a helipad — a jet needs far more runway', () => {
+  it('prices an airstrip above a helipad - a jet needs far more runway', () => {
     expect(byId.get('airstrip')!.cost).toBeGreaterThan(byId.get('helipad')!.cost);
   });
 

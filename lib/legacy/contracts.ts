@@ -254,7 +254,7 @@ export function claimContract(
 
   return {
     success: true,
-    message: `${contract.name} complete — ${contract.reward.toLocaleString()} legacy points.`,
+    message: `${contract.name} complete - ${contract.reward.toLocaleString()} legacy points.`,
     reward: contract.reward,
     claimedIds: [...claimedIds, contractId],
   };

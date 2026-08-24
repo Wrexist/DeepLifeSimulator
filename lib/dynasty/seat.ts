@@ -88,7 +88,7 @@ export const SEAT_WINGS: SeatWing[] = [
     id: 'seat_archive',
     name: 'The Archive',
     blurb: 'Every ledger the family has ever kept, in one cold room.',
-    effect: 'Opens the Archive Contracts — the longest goals in the game.',
+    effect: 'Opens the Archive Contracts - the longest goals in the game.',
     cost: 5_000_000_000,
     requires: 'seat_chapter_house',
   },
@@ -159,7 +159,7 @@ export function buySeatWing(
   if (cash < wing.cost) {
     return {
       success: false,
-      message: `${wing.name} costs $${wing.cost.toLocaleString()} — you have $${Math.floor(cash).toLocaleString()}.`,
+      message: `${wing.name} costs $${wing.cost.toLocaleString()} - you have $${Math.floor(cash).toLocaleString()}.`,
       cost: 0,
     };
   }

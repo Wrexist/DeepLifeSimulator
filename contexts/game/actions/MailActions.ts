@@ -196,7 +196,7 @@ export function actOnScamMail(
       lostAmount: amount,
     };
 
-    logger.info(`[MAIL] Scam acted on (${message.id}) — ${amount} taken`);
+    logger.info(`[MAIL] Scam acted on (${message.id}) - ${amount} taken`);
 
     return {
       ...prev,
@@ -217,7 +217,7 @@ export interface DisputeResult {
 /**
  * Dispute a scam charge with the bank.
  *
- * Being scammed should be a setback with an answer, not a dead loss — but a
+ * Being scammed should be a setback with an answer, not a dead loss - but a
  * full refund would make the whole mechanic free, so half comes back and only
  * once per incident. `disputed` is set in the same updater that pays, for the
  * same double-tap reason as above.
@@ -255,7 +255,7 @@ export function disputeMailCharge(
     const messages = [...mail.messages];
     messages[index] = { ...message, disputed: true };
 
-    logger.info(`[MAIL] Dispute settled (${message.id}) — ${freshRecovered} recovered`);
+    logger.info(`[MAIL] Dispute settled (${message.id}) - ${freshRecovered} recovered`);
 
     return {
       ...prev,
@@ -271,7 +271,7 @@ export interface DecisionResult {
   /** Copy to show the player. Empty when the call was a no-op. */
   outcome: string;
   /**
-   * Set when the resolver is `event` — the caller must forward this to
+   * Set when the resolver is `event` - the caller must forward this to
    * `resolveEvent(eventId, choiceId)`, which owns effect application. Mail
    * deliberately does NOT reimplement it: money, karma, follow-ups, chains and
    * affordability all live in one place and must keep living there.
@@ -305,7 +305,7 @@ function resolveDecisionOn(
  * Take a choice on a mail decision.
  *
  * ONE updater does everything: the effect, the stamp, and the rejection path.
- * Splitting them would be the gate→grant bug — and here the reject path is not
+ * Splitting them would be the gate→grant bug - and here the reject path is not
  * theoretical, because a decision with a visible deadline is exactly the kind
  * of button people press twice.
  *
@@ -318,7 +318,7 @@ function resolveDecisionOn(
  * One dispatcher for every non-event resolver.
  *
  * Shared by the tap path and the lapse path so "ignored it" and "chose the
- * default" cannot drift apart — the reason the appliers are pure in the first
+ * default" cannot drift apart - the reason the appliers are pure in the first
  * place. `event` never reaches here: it delegates to `resolveEvent`, which owns
  * effect application for everything the events engine can do.
  *
@@ -397,7 +397,7 @@ export function chooseMailDecision(
  *
  * The folder argument is not a convenience. This emptied Trash and Spam
  * together whichever one the player was standing in, behind a button labelled
- * just "Empty" — so clearing the bin also destroyed every message in Spam,
+ * just "Empty" - so clearing the bin also destroyed every message in Spam,
  * unasked and unannounced. Gmail keeps these separate ("Empty trash now",
  * "Delete all spam messages now") for the same reason: an irreversible delete
  * must take exactly what the player was looking at when they pressed it.

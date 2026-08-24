@@ -63,7 +63,7 @@ export function recordInteraction(
   // mood, their memory of you, and whether it satisfies their current want.
   // Deterministic (seeded on weeksLived + id + action) so a reload can't re-roll
   // the result. With no depth fields present the delta collapses to `bonus`
-  // (legacy flat behaviour) — the previewed message here matches what the
+  // (legacy flat behaviour) - the previewed message here matches what the
   // updater applies in the common (no concurrent change) case.
   const preview = resolveInteraction(rel, action, bonus, ws);
 
@@ -101,7 +101,7 @@ export function recordInteraction(
     let next: GameState = { ...prev, relationships: newRels };
     if (cost > 0) {
       const paid = applyMoneyDelta(next, -cost, `${action} with ${target.name}`);
-      if (!paid) return prev; // affordability failed inside the delta — abort
+      if (!paid) return prev; // affordability failed inside the delta - abort
       next = { ...next, ...paid };
     }
     return next;
@@ -112,7 +112,7 @@ export function recordInteraction(
 
 /**
  * Record a new IOU between the player and a contact. Caller provides the
- * Favor sans `status` — we always create with status='open'.
+ * Favor sans `status` - we always create with status='open'.
  *
  * Idempotent by `favor.id`: a same-batch double-fire (or a producer that runs
  * again on re-render with a stable per-week id) can't append a duplicate favor
@@ -131,7 +131,7 @@ export function recordFavor(
 }
 
 /**
- * Lend cash to a contact — the natural producer of an `owed-to-player` money
+ * Lend cash to a contact - the natural producer of an `owed-to-player` money
  * favor (the redeem side of the ledger, which otherwise had no producers so the
  * Redeem button never rendered). Debits the player now and books an IOU the
  * contact repays later via `redeemFavor` (which credits the cash back).
@@ -190,7 +190,7 @@ export function lendMoney(
           note: `${target.name} owes you $${amount.toLocaleString()}`,
         });
 
-    // Lending builds goodwill — small bond bump + recency stamp (mirrors the
+    // Lending builds goodwill - small bond bump + recency stamp (mirrors the
     // recency bookkeeping in recordInteraction / handleAskMoney).
     const weeklyInteractions =
       target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
@@ -218,8 +218,8 @@ export function lendMoney(
  * Why `favor` cannot be redeemed from `state`, or null when it can.
  *
  * Extracted 2026-08-15. Three of these rejections used to live ONLY inside
- * `redeemFavor`'s updater — the expiry gate, the invalid-amount gate and a
- * refused non-money payout — and were reported through a `let redeemed` flag
+ * `redeemFavor`'s updater - the expiry gate, the invalid-amount gate and a
+ * refused non-money payout - and were reported through a `let redeemed` flag
  * read after `setGameState`. That read is only reliable for the FIRST
  * functional update of a React batch (see
  * `__tests__/refactor/updaterTimingContract.test.tsx`), so a legitimate redeem
@@ -228,7 +228,7 @@ export function lendMoney(
  * player report.
  *
  * One predicate, called outside for the report and inside as the race guard,
- * so the two can never disagree — and the player now gets the REAL reason
+ * so the two can never disagree - and the player now gets the REAL reason
  * ("expired", "invalid amount") instead of a generic "could not".
  *
  * `resolveNonMoneyFavor` is pure, so calling it here as well as in the commit
@@ -250,7 +250,7 @@ export function favorRedeemBlocker(state: GameState, favor: Favor): string | nul
    * refuses): an absent week counter means the deadline cannot be evaluated,
    * and the lenient reading pays out a favour the player genuinely earned,
    * while the strict reading denies it over a field unrelated to the favour.
-   * A non-finite counter is corruption rather than absence and IS rejected —
+   * A non-finite counter is corruption rather than absence and IS rejected -
    * `nowWeek >= NaN` is false, so it would otherwise skip the gate.
    */
   const nowWeek = state.weeksLived ?? 0;
@@ -279,8 +279,8 @@ export function favorRedeemBlocker(state: GameState, favor: Favor): string | nul
    *
    * `resolveNonMoneyFavor` returns `rejected` only when the player is still
    * owed something (a discount credit that could not be applied), so the favour
-   * stays open. A `noop` — reputation already capped, no heat to clear, intro
-   * already made — still closes it: the contact HAS done the thing, and leaving
+   * stays open. A `noop` - reputation already capped, no heat to clear, intro
+   * already made - still closes it: the contact HAS done the thing, and leaving
    * it open would let the player farm the same IOU until the state moved.
    */
   if (resolveNonMoneyFavor(state, favor).outcome === 'rejected') {
@@ -303,7 +303,7 @@ export function redeemFavor(
   // H-8/H-9: fold the cash credit and the ledger flip into ONE updater that
   // re-checks the favor's status against `prev`. The previous code gated on the
   // stale `gameState`, credited money in one setGameState call, then flipped the
-  // ledger in a separate call — so two rapid taps both passed the outer gate and
+  // ledger in a separate call - so two rapid taps both passed the outer gate and
   // both paid out (a credit never overdraft-rejects) while the ledger closed
   // once: a same-batch double-credit money printer. Re-checking `prev` here makes
   // the second tap a no-op.
@@ -311,7 +311,7 @@ export function redeemFavor(
     const prevLedger = ledgerOf(prev);
     const fresh = prevLedger.favors.find((f) => f.id === favorId);
     if (!fresh) return prev;
-    // Same predicate as the outer report — here it is the same-batch race guard
+    // Same predicate as the outer report - here it is the same-batch race guard
     // (already redeemed this batch, or the state moved under us).
     if (favorRedeemBlocker(prev, fresh)) return prev;
 
@@ -353,7 +353,7 @@ export function redeemFavor(
 
 /**
  * Repay an owed-by-player money IOU. Debits the player's cash and flips the
- * favor to `redeemed`. A pure money sink — the borrowed cash was already granted
+ * favor to `redeemed`. A pure money sink - the borrowed cash was already granted
  * when the IOU was created, so repaying only returns money to zero-out the debt
  * (no printing).
  *
@@ -422,7 +422,7 @@ export function tickFavors(
 }
 
 // ---------------------------------------------------------------------------
-// X-2 — network contacts you can actually deal with
+// X-2 - network contacts you can actually deal with
 // ---------------------------------------------------------------------------
 
 /**
@@ -430,8 +430,8 @@ export function tickFavors(
  * associate with (business, political)."
  *
  * He was right, and the gap was wider than the missing button. `favors.ts`
- * declares four non-money favor kinds — `influence`, `discount`, `safety`,
- * `intro` — explicitly for political and vendor contacts, and NOTHING in the
+ * declares four non-money favor kinds - `influence`, `discount`, `safety`,
+ * `intro` - explicitly for political and vendor contacts, and NOTHING in the
  * game produced any of them. `ContactsApp` only ever created `money` favors,
  * from personal contacts. So the network half of the Contacts app was a
  * read-only directory: hero, Overview, Tags, "Back to network".
@@ -439,7 +439,7 @@ export function tickFavors(
  * The button alone would not have fixed it. `redeemFavor` handles a non-money
  * favor by flipping the ledger entry and doing nothing else, so shipping an
  * "Ask a favor" action on its own would have produced a Redeem button that
- * changes a label and no state — the same "UI names an outcome the code does
+ * changes a label and no state - the same "UI names an outcome the code does
  * not produce" defect this whole audit is about, freshly minted. So the ask and
  * the payoff land together.
  *
@@ -463,7 +463,7 @@ export const SAFETY_FAVOR_HEAT_RELIEF = 20;
 /**
  * What each kind of network contact can be asked for.
  *
- * Personal kinds (`family`, `partner`, `friend`) are absent on purpose — they
+ * Personal kinds (`family`, `partner`, `friend`) are absent on purpose - they
  * already have Call / Hang Out / lend, and `money` is their favor.
  */
 export const FAVOR_KIND_BY_CONTACT: Record<string, Favor['kind']> = {
@@ -488,7 +488,7 @@ export const networkFavorId = (contactId: string, week: number): string =>
 export interface NetworkFavorContact {
   id: string;
   name: string;
-  /** `ContactKind` from the aggregator — matched against FAVOR_KIND_BY_CONTACT. */
+  /** `ContactKind` from the aggregator - matched against FAVOR_KIND_BY_CONTACT. */
   kind: string;
   /** 0..100, derived per source system by `aggregateContacts`. */
   strength: number;
@@ -506,7 +506,7 @@ export interface AskFavorResult {
  * Scarcity without a new save field: a contact can carry only ONE open favor at
  * a time, and it expires. "You cannot call in a second favor while the first is
  * outstanding" is both the natural rule and, conveniently, already recorded in
- * the ledger — so the cooldown needs nowhere to live.
+ * the ledger - so the cooldown needs nowhere to live.
  *
  * `strength` is passed in rather than read here because it is DERIVED per
  * source system (lobbyist retainer, vendor reputation, company headcount) and
@@ -550,8 +550,8 @@ export function askNetworkFavor(
  *
  * ── Why (2026-08-15) ──────────────────────────────────────────────────────
  *
- * This used to hold a "pessimistic capture" — `let outcome` assigned inside the
- * updater and read after it — added on the advice of `updaterResultRatchet`,
+ * This used to hold a "pessimistic capture" - `let outcome` assigned inside the
+ * updater and read after it - added on the advice of `updaterResultRatchet`,
  * which at the time treated that shape as the fix. It is not: a capture is only
  * readable for the FIRST functional update of a React batch, so on any deferred
  * dispatch it reported "Could not ask right now." for a favour that HAD been
@@ -573,24 +573,24 @@ function resolveAskNetworkFavor(
      * REFUSE rather than fall back to week 0.
      *
      * Creation is the asymmetric half. `prevWeek` is written into three durable
-     * places — the id, `createdWeek` and `expiresWeek` — so a `?? 0` fallback on
+     * places - the id, `createdWeek` and `expiresWeek` - so a `?? 0` fallback on
      * a save whose real week is 500 books a favour stamped week 0 that expires
      * at week 12, i.e. one that is already dead the moment the field is
      * repaired. Refusing the ask costs the player one tap; booking that favour
      * costs them the favour, silently and unrecoverably.
      *
-     * Redemption deliberately does NOT mirror this — see the note there.
+     * Redemption deliberately does NOT mirror this - see the note there.
      */
     const prevWeek = state.weeksLived;
     if (typeof prevWeek !== 'number' || !isFinite(prevWeek) || prevWeek < 0) {
       log.warn(`Cannot ask a favor without a usable week counter`, { weeksLived: state.weeksLived });
       return {
-        result: { success: false, message: 'This save has no usable week counter — reload and try again.' },
+        result: { success: false, message: 'This save has no usable week counter - reload and try again.' },
         next: null,
       };
     }
     // The id is derived from `prev`, NOT from the snapshot read above. It encodes
-    // the week deliberately — that encoding is half the double-tap guard — so
+    // the week deliberately - that encoding is half the double-tap guard - so
     // building it from a stale snapshot would let a favor carry an id saying one
     // week while `createdWeek` and `expiresWeek` said the next, if a tick landed
     // between render and commit. Worse, the stale id could collide with a
@@ -619,7 +619,7 @@ function resolveAskNetworkFavor(
     return {
       // `favorId` is the id as of `state`. When `state` is the caller's snapshot
       // and a tick lands before the commit, the STORED id encodes the committed
-      // week instead — that encoding is half the double-tap guard and must come
+      // week instead - that encoding is half the double-tap guard and must come
       // from `prev`. No caller reads `favorId` (ContactsApp uses success/message),
       // and reporting a snapshot-derived id is honest about what is knowable
       // synchronously; the capture that used to promise the committed one was
@@ -638,13 +638,13 @@ function resolveAskNetworkFavor(
  * no-op" (reputation already at the cap, no heat to clear, an intro already
  * made) and "the payout was REFUSED". Those want opposite handling: a no-op
  * still closes the favor, because the contact has done the thing and leaving it
- * open would let the player farm the same IOU until the state moved — but a
+ * open would let the player farm the same IOU until the state moved - but a
  * refusal must leave it open, or the player loses the favor and gets nothing.
  *
  * Only the `discount` branch can refuse, and only via `applyMoneyDelta`. That
  * path is not reachable today: `favorPayout` returns a finite non-negative
  * number, and `applyMoneyDelta` refuses only a non-finite amount or an
- * overdrafting debit — at `MONEY_CEILING` it CLAMPS and succeeds. So this is a
+ * overdrafting debit - at `MONEY_CEILING` it CLAMPS and succeeds. So this is a
  * latent conflation rather than a live bug. It is separated anyway, because
  * "safe only because a helper three calls away happens to never produce NaN" is
  * exactly the kind of coupling that stops being true without anyone noticing.
@@ -657,7 +657,7 @@ export type FavorEffect =
 /**
  * The payoff for a non-money favor.
  *
- * Pure and exported so the redeem path and any preview read ONE definition —
+ * Pure and exported so the redeem path and any preview read ONE definition -
  * the thing that keeps a button's promise and its result from drifting (the
  * lesson from the acquisition modal).
  *
@@ -689,7 +689,7 @@ export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect
       // Routed through applyMoneyDelta so it respects MONEY_CEILING and lands
       // in dailySummary like every other credit.
       const payout = favorPayout(favor);
-      // A malformed stored value prices at 0 — nothing is owed, so the favor is
+      // A malformed stored value prices at 0 - nothing is owed, so the favor is
       // spent rather than refused. Refusing would leave an unredeemable entry
       // open on the board forever.
       if (payout <= 0) return { outcome: 'noop' };
@@ -704,14 +704,14 @@ export function resolveNonMoneyFavor(prev: GameState, favor: Favor): FavorEffect
       if ((prev.relationships ?? []).some((r) => r.id === id)) return { outcome: 'noop' };
       /**
        * A COMPLETE record. The first cut supplied four fields and reached for
-       * `as Relationship` to silence the rest — but `personality`, `gender` and
+       * `as Relationship` to silence the rest - but `personality`, `gender` and
        * `age` are required, and this object is persisted into `relationships`
        * where the weekly health pass, the Contacts app and the family tree all
        * read it. A cast that makes a partial record compile does not make the
        * consumers safe; it just moves the failure to whoever reads it first.
        *
        * The traits are derived from the favour rather than rolled, so the same
-       * introduction is the same person on every load — `Math.random()` here
+       * introduction is the same person on every load - `Math.random()` here
        * would re-roll them on a reload.
        */
       const seed = hashString(`${favor.contactId}:${favor.createdWeek}`);
@@ -756,7 +756,7 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-/** Cash a `discount` favor is worth — its value, validated. */
+/** Cash a `discount` favor is worth - its value, validated. */
 function favorPayout(favor: Favor): number {
   const v = Number(favor.value);
   if (!isFinite(v) || v <= 0) return 0;
@@ -808,7 +808,7 @@ export function removeContact(
   const rel = gameState.relationships?.find((r) => r.id === contactId);
   if (!rel) return { success: false, message: 'Contact not found.' };
   if (isFamilyRelationship(rel)) {
-    return { success: false, message: `${rel.name} is family — they stay in your life.` };
+    return { success: false, message: `${rel.name} is family - they stay in your life.` };
   }
   setGameState((prev) => ({
     ...prev,
@@ -818,7 +818,7 @@ export function removeContact(
   return { success: true, message: `${rel.name} is no longer part of your life.` };
 }
 
-/** Cash for one Bond attempt — grows with the current score, so late points cost real money. */
+/** Cash for one Bond attempt - grows with the current score, so late points cost real money. */
 export const RELATIONSHIP_BOND_BASE_COST = 400;
 export const RELATIONSHIP_BOND_SCORE_MULTIPLIER = 60;
 
@@ -854,7 +854,7 @@ export function raiseRelationship(
   }
   const previewCost = relationshipBondCost(rel.relationshipScore ?? 0);
   if ((gameState.stats?.money ?? 0) < previewCost) {
-    return { success: false, message: `A meaningful gesture costs $${previewCost.toLocaleString()} — you have $${Math.floor(gameState.stats?.money ?? 0).toLocaleString()}.` };
+    return { success: false, message: `A meaningful gesture costs $${previewCost.toLocaleString()} - you have $${Math.floor(gameState.stats?.money ?? 0).toLocaleString()}.` };
   }
 
   setGameState((prev) => {
@@ -863,16 +863,16 @@ export function raiseRelationship(
     if (idx === -1) return prev;
     const target = rels[idx];
     const prevWs = prev.weeksLived ?? 0;
-    // Authoritative gates against `prev` — a second tap in the same React
+    // Authoritative gates against `prev` - a second tap in the same React
     // batch lands here with the week marker already stamped and no-ops.
     if (target.actions?.[actionKey] === prevWs) return prev;
     const score = target.relationshipScore ?? 0;
     if (score >= 100) return prev;
     const freshCost = relationshipBondCost(score);
     // applyMoneyDelta is the PURE charge (§4.4): it debits inside THIS updater
-    // and returns null when prev can't afford it — the atomic reject.
+    // and returns null when prev can't afford it - the atomic reject.
     const charge = applyMoneyDelta(prev, -freshCost, `Quality time with ${target.name}`);
-    if (!charge) return prev; // could not afford — reject atomically
+    if (!charge) return prev; // could not afford - reject atomically
     // Diminishing returns: gain shrinks as the bond strengthens (8 → 2).
     const gain = Math.max(2, Math.round((100 - score) / 12));
     const weeklyInteractions =

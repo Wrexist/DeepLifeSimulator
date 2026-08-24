@@ -60,7 +60,7 @@ describe('every app is on screen at once', () => {
     expect(code).toMatch(/apps: decorate\(desktopApps\)/);
   });
 
-  it('phone apps come first — they are the everyday ones', () => {
+  it('phone apps come first - they are the everyday ones', () => {
     expect(code.indexOf("title: 'Phone'")).toBeLessThan(code.indexOf("title: 'Computer'"));
   });
 

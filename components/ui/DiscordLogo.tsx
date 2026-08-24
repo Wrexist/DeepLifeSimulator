@@ -1,5 +1,5 @@
 /**
- * DiscordLogo — Discord's official "Clyde" mark as an inline SVG path.
+ * DiscordLogo - Discord's official "Clyde" mark as an inline SVG path.
  *
  * lucide-react-native ships no brand icons, and the invite surfaces were using
  * a generic `MessageCircle` instead, which reads as "chat" rather than "this
@@ -14,7 +14,7 @@
 import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 
-/** Discord brand blurple — the one colour the mark may sit on besides white. */
+/** Discord brand blurple - the one colour the mark may sit on besides white. */
 export const DISCORD_BLURPLE = '#5865F2';
 
 interface DiscordLogoProps {

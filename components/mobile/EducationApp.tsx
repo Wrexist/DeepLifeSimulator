@@ -1,5 +1,5 @@
 /**
- * EducationApp — mobile education screen.
+ * EducationApp - mobile education screen.
  *
  * Remake 7 + Course-app DNA pass. A 3-tab learning loop wired to:
  *   - lib/education/operations (pure transformers)
@@ -19,7 +19,7 @@
  *     enrolled classes, the linked student loan (routed through the bank),
  *     scholarship standing, exam pass-rate, study-session budget.
  *
- * Mechanics are unchanged — this pass only presents existing state more richly.
+ * Mechanics are unchanged - this pass only presents existing state more richly.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -68,7 +68,7 @@ import { formatMoney } from '@/utils/moneyFormatting';
 
 const LinearGradient = Gradient;
 
-// Education identity accent — cyan. Solid only on small CTAs/badges (≤44pt);
+// Education identity accent - cyan. Solid only on small CTAs/badges (≤44pt);
 // everywhere else it appears as translucent tints per the Slate Glass system.
 const CYAN = '#06B6D4';
 const CYAN_PAIR = '#0891B2'; // CTA gradient pair (fallback renders CYAN flat)
@@ -101,10 +101,10 @@ type CatalogEntry = EnrollTemplate & { tier: TierId };
 
 const CATALOG: CatalogEntry[] = EDUCATION_PROGRAMS;
 
-// --- Subject identity — a glyph + tint per program, so each course reads as a
+// --- Subject identity - a glyph + tint per program, so each course reads as a
 // distinct "subject" (directory silhouette), not a uniform row. Tints are only
 // ever used as Recipe-C tinted bubbles (15% fill / 30% rim / saturated glyph),
-// never as large fills — matching the categorical-icon rule in the design system.
+// never as large fills - matching the categorical-icon rule in the design system.
 const SUBJECTS: Record<string, { Icon: IconType; tint: string }> = {
   high_school:      { Icon: GraduationCap, tint: '#06B6D4' },
   police_academy:   { Icon: Shield,        tint: '#3B82F6' },
@@ -295,7 +295,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   // Campus events: the weekly tick flags `pendingCampusEventEducationId` when
   // one fires. The flag only carries the education id, so the UI draws the
   // concrete event ONCE when the flag appears (stable across re-renders) and
-  // presents its real choices — each applies stat/money effects via
+  // presents its real choices - each applies stat/money effects via
   // resolveCampusEventChoice, restoring the decision mechanic instead of the
   // old consequence-free "something happened" dismiss banner.
   const pendingCampusEventId = gameState.pendingCampusEventEducationId;
@@ -371,7 +371,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   const renderEnrolled = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
       {bestGpa > 0 && (
-        // Recipe B hero — the ONE focal gradient surface of this tab (cyan identity).
+        // Recipe B hero - the ONE focal gradient surface of this tab (cyan identity).
         <HeroCard theme={theme} darkMode={darkMode}>
           <View style={styles.heroTopRow}>
             <View
@@ -656,7 +656,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
 // Signature components
 // ---------------------------------------------------------------------------
 
-/** Recipe B hero shell — cyan identity wash + one glow blob + lit hairline. */
+/** Recipe B hero shell - cyan identity wash + one glow blob + lit hairline. */
 function HeroCard({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
   return (
     <View
@@ -698,7 +698,7 @@ function StatTile({ theme, icon: Icon, tint, label, value }: {
   );
 }
 
-/** Small labelled chip — the reusable readout/affordance unit. */
+/** Small labelled chip - the reusable readout/affordance unit. */
 function Chip({ theme, icon: Icon, label, tint }: {
   theme: ReturnType<typeof getThemeColors>;
   icon?: IconType;
@@ -734,7 +734,7 @@ function SubjectBubble({ id, darkMode, size = 44 }: { id: string; darkMode: bool
   );
 }
 
-/** Join / leave a study group — the missing writer for `studyGroupActive`.
+/** Join / leave a study group - the missing writer for `studyGroupActive`.
  *  Active: leave (free). Inactive: join for a one-time cost, gated on affordability. */
 function StudyGroupButton({ ed, theme, canAfford, onPress }: {
   ed: Education;
@@ -771,7 +771,7 @@ function StudyGroupButton({ ed, theme, canAfford, onPress }: {
   );
 }
 
-/** Enrolled course — wide signature card: ProgressRing + info + action buttons. */
+/** Enrolled course - wide signature card: ProgressRing + info + action buttons. */
 function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onTogglePause, onToggleStudyGroup, onWithdraw, canAffordStudyGroup }: {
   ed: Education;
   theme: ReturnType<typeof getThemeColors>;
@@ -843,7 +843,7 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
           <ChevronRight size={scale(18)} color={theme.textMuted} />
         </TouchableOpacity>
 
-        {/* Actions — always visible & tappable. Study spans a full row so its
+        {/* Actions - always visible & tappable. Study spans a full row so its
             gated label (sessions / energy / reason) stays legible. */}
         <TouchableOpacity
           disabled={study.disabled}
@@ -900,7 +900,7 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
   );
 }
 
-/** Catalog directory row — subject glyph, tuition + duration chips, Enroll button. */
+/** Catalog directory row - subject glyph, tuition + duration chips, Enroll button. */
 function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
   entry: CatalogEntry;
   theme: ReturnType<typeof getThemeColors>;
@@ -943,7 +943,7 @@ function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
   );
 }
 
-/** Completed credential — transcript row: subject, GPA, band + credential badge. */
+/** Completed credential - transcript row: subject, GPA, band + credential badge. */
 function TranscriptRow({ ed, theme, darkMode, onOpen }: {
   ed: Education;
   theme: ReturnType<typeof getThemeColors>;
@@ -1014,7 +1014,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
 
   return (
     <View style={{ gap: responsiveSpacing.lg }}>
-      {/* Recipe B hero — the ONE gradient surface on this screen. */}
+      {/* Recipe B hero - the ONE gradient surface on this screen. */}
       <HeroCard theme={theme} darkMode={darkMode}>
         <View style={styles.detailHeroRow}>
           <ProgressRing
@@ -1056,10 +1056,10 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
         </View>
       </HeroCard>
 
-      {/* Stat grid — surfaces record fields the list rows can't fit. */}
+      {/* Stat grid - surfaces record fields the list rows can't fit. */}
       <View style={styles.detailGrid}>
         <DetailStat theme={theme} darkMode={darkMode} icon={Percent} tint={CYAN} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${weeksLeft}w of ${ed.duration}w`} />
-        <DetailStat theme={theme} darkMode={darkMode} icon={Target} tint={grade.color} label="GPA" value={grade.noRecord ? '—' : grade.gpa.toFixed(2)} sub={grade.noRecord ? 'no grade on file' : `${grade.letter} · ${grade.label}`} />
+        <DetailStat theme={theme} darkMode={darkMode} icon={Target} tint={grade.color} label="GPA" value={grade.noRecord ? '-' : grade.gpa.toFixed(2)} sub={grade.noRecord ? 'no grade on file' : `${grade.letter} · ${grade.label}`} />
         <DetailStat theme={theme} darkMode={darkMode} icon={BadgeCheck} tint={accent.info} label="Exams" value={exams > 0 ? `${passed}✓ / ${failed}✗` : 'None yet'} sub={passRate != null ? `${passRate}% pass rate` : 'no exams taken'} />
         <DetailStat theme={theme} darkMode={darkMode} icon={CalendarDays} tint={accent.purple} label="Semester" value={String(ed.semesterNumber ?? 1)} sub={ed.studyGroupActive ? 'study group active' : 'solo study'} />
         {!ed.completed && (
@@ -1068,7 +1068,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
         <DetailStat theme={theme} darkMode={darkMode} icon={Percent} tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best GPA" />
       </View>
 
-      {/* Enrolled classes — richest previously-hidden data. */}
+      {/* Enrolled classes - richest previously-hidden data. */}
       {classes.length > 0 && (
         <View style={{ gap: responsiveSpacing.sm }}>
           <SectionTitle theme={theme}>Classes ({classes.length})</SectionTitle>
@@ -1100,7 +1100,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
         </View>
       )}
 
-      {/* Linked student loan — cross-system readout (routed through the bank). */}
+      {/* Linked student loan - cross-system readout (routed through the bank). */}
       {loan && (
         <View style={{ gap: responsiveSpacing.sm }}>
           <SectionTitle theme={theme}>Student loan</SectionTitle>
@@ -1146,7 +1146,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
         </View>
       </View>
 
-      {/* Actions — only for in-progress programmes. */}
+      {/* Actions - only for in-progress programmes. */}
       {!ed.completed && (
         <View style={{ gap: responsiveSpacing.sm }}>
           {/* Recipe D primary CTA: outer wrap carries solid fill + shadow (so
@@ -1303,7 +1303,7 @@ const styles = StyleSheet.create({
   },
   cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   // Segmented control in its own glass container directly under the top bar,
-  // which anchors the screen — so the top bar drops its bottom border.
+  // which anchors the screen - so the top bar drops its bottom border.
   tabBar: {
     flexDirection: 'row',
     gap: scale(4),

@@ -43,7 +43,7 @@ import {
 const ROOT = path.join(__dirname, '..', '..');
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-describe('R4-X2 — the premise', () => {
+describe('R4-X2 - the premise', () => {
   it('the five ids are really in the catalogue, and priced', () => {
     for (const id of INERT_BONUS_IDS) {
       const entry = PRESTIGE_BONUSES.find((b) => b.id === id);
@@ -59,13 +59,13 @@ describe('R4-X2 — the premise', () => {
 
   it('the automation engine is gone, so nothing can quietly re-arm them', () => {
     // If `lib/automation/` ever comes back it must come back WITH a state
-    // slice, a migration and a rule-builder UI — at which point INERT_BONUS_IDS
+    // slice, a migration and a rule-builder UI - at which point INERT_BONUS_IDS
     // should be emptied and this file rewritten, not silently satisfied.
     expect(fs.existsSync(path.join(ROOT, 'lib', 'automation'))).toBe(false);
   });
 });
 
-describe('R4-X2 — they are out of the shop', () => {
+describe('R4-X2 - they are out of the shop', () => {
   it('no category renders an inert bonus', () => {
     for (const category of ['starting', 'multiplier', 'unlock', 'qol', 'special'] as const) {
       for (const bonus of getBonusesByCategory(category)) {
@@ -93,7 +93,7 @@ describe('R4-X2 — they are out of the shop', () => {
   });
 });
 
-describe('R4-X2 — nothing already owned is broken (the controls)', () => {
+describe('R4-X2 - nothing already owned is broken (the controls)', () => {
   it('an already-purchased inert bonus still resolves by id', () => {
     // Anyone who bought one before this change must still see its real name
     // and description rather than a blank row.

@@ -64,8 +64,8 @@ interface SettingsModalProps {
 // On-theme action row for the Settings list. Replaces the old rainbow of fully
 // saturated gradient buttons with the game's dark-glass surface + a tinted icon
 // chip, so every row reads as one consistent family (matches the onboarding
-// GlassActionButton look). The accent only colors the icon chip — never the
-// whole button — which is what keeps the screen feeling like the rest of the game.
+// GlassActionButton look). The accent only colors the icon chip - never the
+// whole button - which is what keeps the screen feeling like the rest of the game.
 function SettingsActionButton({
   icon: Icon,
   label,
@@ -109,14 +109,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const { gameState, setGameState } = useGameState();
   const { saveGame } = useGameActions();
   const { openStore } = useGemStore();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   // Both the Remove Ads IAP and DeepLife+ set settings.adsRemoved, so this flag
   // is authoritative (lib/ads/rewardedAd.ts). Used to hide the Remove Ads row
   // once the player already owns an ad-free entitlement.
   const adsRemoved = areAdsRemoved(gameState);
   // Wealth-scaled Discord join reward, computed once so every display below AND
   // the grant in handleJoinDiscord use the identical figure (shown == granted).
-  // Memoized: calculateNetWorth walks every asset collection — too heavy to
+  // Memoized: calculateNetWorth walks every asset collection - too heavy to
   // re-run on each render of a modal that re-renders with global state.
   const discordReward = useMemo(
     () => discordJoinRewardMoney(calculateNetWorth(gameState)),
@@ -136,7 +136,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
-  // Game Dev Tools surface — only reachable when DEV_TOOLS_ENABLED (dev builds
+  // Game Dev Tools surface - only reachable when DEV_TOOLS_ENABLED (dev builds
   // or an explicit EXPO_PUBLIC_ENABLE_DEVTOOLS opt-in). Stripped from prod.
   const [showDevTools, setShowDevTools] = useState(false);
   const [showRewardPopup, setShowRewardPopup] = useState(false);
@@ -153,7 +153,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const rewardGemAnim = useRef(new Animated.Value(0)).current;
 
   // Check if Discord reward has been claimed. Treat BOTH a finalized marker AND
-  // a pending (in-flight) claim as claimed — a claim already begun must never
+  // a pending (in-flight) claim as claimed - a claim already begun must never
   // re-offer the reward (the home reconciler will complete a pending one).
   useEffect(() => {
     const checkDiscordReward = async () => {
@@ -166,7 +166,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // Animate Discord button glow
   useEffect(() => {
     if (!discordRewardClaimed) {
-      // R-perf: native driver — discordGlowAnim only drives opacity + scale
+      // R-perf: native driver - discordGlowAnim only drives opacity + scale
       // (both native-compatible), so this continuous loop no longer churns the
       // JS thread every frame while the Settings modal is open.
       const glowLoop = Animated.loop(
@@ -191,7 +191,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
   // Only toggles whose state is actually consumed somewhere remain here.
   // The previous list also included notificationsEnabled, showDecimalsInStats,
-  // autoProgression, showStatArrows, and a language picker — all of those
+  // autoProgression, showStatArrows, and a language picker - all of those
   // saved to state but had no consumers, so the UI was misleading.
   // Dark Mode toggle removed: light mode was never fully implemented (the game
   // is dark-first and immersive) and produced a broken half-themed look. Saves
@@ -265,7 +265,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         // Reload IAP state to refresh purchases
         await iapService.loadPurchases();
 
-        // Say HOW MANY — see MON-11.
+        // Say HOW MANY - see MON-11.
         Alert.alert(
           'Purchases Restored',
           `Restored ${restoredCount} purchase${restoredCount === 1 ? '' : 's'}.`,
@@ -344,13 +344,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // Modal is still on screen is the iOS stacked-modal hazard fixed elsewhere in
   // this PR (rewarded ad, LuxuryApp sheet). So a store row stashes the target
   // tab, dismisses Settings via onClose(), and opens the store only AFTER the
-  // dismiss settles — never while Settings is still presented.
+  // dismiss settles - never while Settings is still presented.
   //
   // Unlike RewardedAdModal (which stays mounted with visible=false), Settings is
   // UNMOUNTED on close by its parents (TopStatsBar / MainMenu gate it on a show
   // flag), so Modal.onDismiss can't be relied on and the deferred open MUST
   // outlive this component's unmount. openStore targets the always-mounted
-  // app-level GemStoreProvider, so firing it post-unmount is safe — hence a
+  // app-level GemStoreProvider, so firing it post-unmount is safe - hence a
   // plain, deliberately un-cleared timer (clearing it on unmount would cancel
   // the open). onDismiss is kept as an iOS fast path for any mount that DOES
   // keep Settings alive; flushPendingStore is idempotent so they can't
@@ -391,7 +391,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       // EXACTLY-ONCE: durably record the pending marker BEFORE minting any cash.
       // Shares `discord_reward_claimed` with the in-game CommunityRewardPopup so
       // the reward is claimed exactly once across both entry points. On failure,
-      // grant NOTHING and leave it claimable — never mint uncommitted cash.
+      // grant NOTHING and leave it claimable - never mint uncommitted cash.
       const begun = await beginDiscordClaim(amount);
       if (!begun) {
         logger.warn('Could not persist Discord reward claim; granting nothing');
@@ -410,7 +410,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         await saveGame();
         await finalizeDiscordClaim();
       } catch (err) {
-        // saveGame rejected — DO NOT finalize. The pending marker + the home
+        // saveGame rejected - DO NOT finalize. The pending marker + the home
         // reconciler (single owner; Settings is transient) complete the grant on
         // next launch (the designed recovery).
         logger.warn('Discord reward claim save failed; will reconcile next launch', { error: err });
@@ -423,7 +423,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       }
 
       // Show liquid glass reward popup with the amount that was ACTUALLY granted
-      // (frozen above — the live discordReward memo recomputes upward once the
+      // (frozen above - the live discordReward memo recomputes upward once the
       // grant raises net worth).
       showRewardAnimation(
         canOpen
@@ -520,7 +520,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
             {activeSettingsTab === 'settings' ? (
               <>
-                {/* Game Dev Tools — dev/QA only; gated so the simulator graph is stripped from production. */}
+                {/* Game Dev Tools - dev/QA only; gated so the simulator graph is stripped from production. */}
                 {DEV_TOOLS_ENABLED && (
                   <SettingsActionButton
                     icon={Code}
@@ -531,7 +531,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   />
                 )}
 
-                {/* What's New — player-facing update log. Opens a sheet NESTED
+                {/* What's New - player-facing update log. Opens a sheet NESTED
                     inside this Settings Modal (mirrors RedeemCodeModal). */}
                 <SettingsActionButton
                   icon={Megaphone}
@@ -689,7 +689,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Gem Shop & Offers — a first-class entry into the IAP store.
+                {/* Gem Shop & Offers - a first-class entry into the IAP store.
                     Dismiss Settings first, then open the store from onDismiss
                     (stacked-modal safety). */}
                 <SettingsActionButton
@@ -700,7 +700,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="Open the Gem Shop and offers"
                 />
 
-                {/* Redeem Code — enter an owner-issued promo code for a reward.
+                {/* Redeem Code - enter an owner-issued promo code for a reward.
                     Opens a sheet NESTED inside this Settings Modal (see below),
                     the same iOS-safe nesting DevToolsModal uses. */}
                 <SettingsActionButton
@@ -711,7 +711,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="Redeem a promo code"
                 />
 
-                {/* Remove Ads — the genre is majority ad-monetized, so this
+                {/* Remove Ads - the genre is majority ad-monetized, so this
                     deserves a first-class path. Hidden once the player already
                     owns an ad-free entitlement. */}
                 {!adsRemoved && (
@@ -745,7 +745,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   }}
                 />
 
-                {/* Cloud backup — renders nothing unless the `cloudSave` flag
+                {/* Cloud backup - renders nothing unless the `cloudSave` flag
                     is on (preview-first rollout). */}
                 <CloudBackupRow />
 
@@ -766,16 +766,16 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       <BugReportSheet visible={showBugReport} onClose={() => setShowBugReport(false)} />
 
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
-      {/* Game Dev Tools modal mount — only present in dev/QA builds (see DEV_TOOLS_ENABLED). */}
+      {/* Game Dev Tools modal mount - only present in dev/QA builds (see DEV_TOOLS_ENABLED). */}
       {DEV_TOOLS_ENABLED && DevToolsModal ? (
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}
 
-      {/* Redeem Code sheet — NESTED inside this presented Modal (mirrors the
+      {/* Redeem Code sheet - NESTED inside this presented Modal (mirrors the
           DevToolsModal nesting) so it never stacks a sibling root Modal on iOS. */}
       <RedeemCodeModal visible={showRedeemCode} onClose={() => setShowRedeemCode(false)} />
 
-      {/* What's New update log — NESTED inside this presented Modal (same
+      {/* What's New update log - NESTED inside this presented Modal (same
           iOS-safe nesting as RedeemCodeModal). */}
       <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
 

@@ -1,10 +1,10 @@
 /**
- * TaxStatement — the one tax surface, rendered by both bank apps.
+ * TaxStatement - the one tax surface, rendered by both bank apps.
  *
  * ## Why it is shared
  *
  * The Tax tab shipped in `AdvancedBankApp` only. That app is registered in the
- * DESKTOP category, so the entire tax system was behind a $5,000 computer —
+ * DESKTOP category, so the entire tax system was behind a $5,000 computer -
  * the same trap renting was in until last week, and the same one the weekly
  * audit keeps finding: the surface a player needs EARLY sitting behind a
  * late-game purchase.
@@ -19,7 +19,7 @@
  * This is a statement, not a mechanic. Every number comes from state the week
  * loop already writes: `banking.taxDueThisYear` (the year-to-date ledger),
  * `banking.budgetSpend` (last week's actual withholding), and the pure bracket
- * math in `lib/economy/taxLedger.ts` — the same module the tick charges from,
+ * math in `lib/economy/taxLedger.ts` - the same module the tick charges from,
  * so a rate quoted here is a rate actually charged.
  */
 
@@ -57,7 +57,7 @@ type Theme = ReturnType<typeof getThemeColors>;
 
 interface TaxStatementProps {
   banking: BankingState;
-  /** Absolute week (`weeksLived`) — never the 1–4 display week. */
+  /** Absolute week (`weeksLived`) - never the 1–4 display week. */
   weeksLived: number;
   /** Weekly earned income, for the band illustration. */
   weeklyIncome: number;
@@ -75,7 +75,7 @@ interface TaxStatementProps {
 /**
  * The year-to-date figure, last week's actual withholding, and the effective
  * rate. Deliberately three cells, matching every other summary strip in the two
- * bank apps — a surface that invents its own metric layout reads as bolted on.
+ * bank apps - a surface that invents its own metric layout reads as bolted on.
  */
 function SummaryCell({
   theme,
@@ -177,18 +177,18 @@ export default function TaxStatement({
       </View>
 
       {/* The answer to "how do I pay tax each year?". Stated outright, because
-          the mechanic IS the absence of one — that cannot be inferred from a
+          the mechanic IS the absence of one - that cannot be inferred from a
           number going down. */}
       {!compact && (
         <View style={[...cardStyle, styles.prose]}>
           <CardTitle theme={theme} icon={FileText}>Nothing to file</CardTitle>
           <Text style={[styles.body, { color: theme.textSecondary }]}>
-            Tax is withheld automatically every week, before the money reaches you — there is no return
+            Tax is withheld automatically every week, before the money reaches you - there is no return
             to file and no deadline to miss. You are in week {weekOfTaxYear(weeksLived)} of{' '}
             {TAX_YEAR_WEEKS} of tax year {taxYearOf(weeksLived)}.
           </Text>
           <Text style={[styles.body, { color: theme.textMuted }]}>
-            If a week&apos;s bills come to more than you have, the shortfall — tax included — becomes
+            If a week&apos;s bills come to more than you have, the shortfall - tax included - becomes
             overdue debt, paid off the top of next week&apos;s income and dragging your credit score
             while it stands.
           </Text>
@@ -251,7 +251,7 @@ export default function TaxStatement({
                 style={[styles.bandAmount, { color: band.tax > 0 ? accent.warning : theme.textMuted }]}
                 numberOfLines={1}
               >
-                {inPlay ? `-${formatMoney(band.tax)}` : '—'}
+                {inPlay ? `-${formatMoney(band.tax)}` : '-'}
               </Text>
             </View>
           );
@@ -259,7 +259,7 @@ export default function TaxStatement({
       </View>
       <Text style={[styles.footnote, { color: theme.textMuted }]}>
         Rent collected and luxury-asset yields count as income too. Crime and dark-web earnings do
-        not — nobody is reporting those.
+        not - nobody is reporting those.
       </Text>
 
       {/* The four taxes that are NOT the weekly withholding. Every one of them
@@ -293,8 +293,8 @@ export default function TaxStatement({
           <CardTitle theme={theme} icon={Sparkles}>Tax Strategy</CardTitle>
           <Text style={[styles.body, { color: discountPct > 0 ? accent.success : theme.textSecondary }]}>
             {discountPct > 0
-              ? `Active — every tax on this page is cut by ${discountPct}%, income and capital gains alike.`
-              : 'Not learned yet. It cuts every tax on this page by 10% — income tax and capital gains alike.'}
+              ? `Active - every tax on this page is cut by ${discountPct}%, income and capital gains alike.`
+              : 'Not learned yet. It cuts every tax on this page by 10% - income tax and capital gains alike.'}
           </Text>
           <Text style={[styles.body, { color: theme.textMuted }]}>
             Buy it under Financial Acumen in the Life Skills tree.
@@ -305,7 +305,7 @@ export default function TaxStatement({
   );
 }
 
-// Rows are separated by hairline DIVIDERS — a structural exception under Hard
+// Rows are separated by hairline DIVIDERS - a structural exception under Hard
 // Rule #7. No decorative one-sided colour stripe anywhere; the current band is
 // marked with a tinted background and a filled bar instead.
 const styles = StyleSheet.create({

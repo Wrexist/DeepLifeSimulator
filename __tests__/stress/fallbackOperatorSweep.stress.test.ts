@@ -71,7 +71,7 @@ async function tick() {
   });
 }
 
-describe('`||` to `??` sweep — pin every bug fix', () => {
+describe('`||` to `??` sweep - pin every bug fix', () => {
   jest.setTimeout(120_000);
   let mounted: { root: any } | null = null;
 

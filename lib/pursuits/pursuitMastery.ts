@@ -337,7 +337,7 @@ export function levelUpBonus(def: PursuitDef, newLevel: number): PursuitReward[]
 }
 
 /**
- * Bonus granted when a practice pushes a pursuit into a NEW mastery tier — the
+ * Bonus granted when a practice pushes a pursuit into a NEW mastery tier - the
  * headline benefit of each named tier. Reuses the pursuit's own reward shape so
  * the payoff stays thematically on-brand, and scales with the tier reached
  * (Amateur ×3, Skilled ×4, Expert ×5, Master ×6). Larger than a plain level-up

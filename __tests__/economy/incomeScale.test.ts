@@ -54,7 +54,7 @@ const LADDER_TOP = fastFood.levels[fastFood.levels.length - 1].salary;
 
 /**
  * The best expected street income a week's energy can buy, played greedily by
- * expected-value-per-energy — which is what an optimising player converges on.
+ * expected-value-per-energy - which is what an optimising player converges on.
  * Gated jobs (requiring an item or a dark-web purchase) are excluded: this is
  * the income available to a brand new character.
  */
@@ -128,7 +128,7 @@ afterAll(() => {
 describe('a career is worth holding', () => {
   it('pays better than grinding the street, week for week', () => {
     // Street work also costs health, happiness and carries arrest risk, so equal
-    // pay would already make it the worse deal — but it was AHEAD at every
+    // pay would already make it the worse deal - but it was AHEAD at every
     // salary level, which is why "careers should beat grinding" never held.
     expect(STREET_WEEK).toBeLessThan(ENTRY);
   });

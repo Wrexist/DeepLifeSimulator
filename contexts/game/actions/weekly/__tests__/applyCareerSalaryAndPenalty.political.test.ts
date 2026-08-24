@@ -45,7 +45,7 @@ function career(id: string, level: number, levels: Career['levels']): Career {
   };
 }
 
-describe('applyCareerSalaryAndPenalty — political office is not double-paid', () => {
+describe('applyCareerSalaryAndPenalty - political office is not double-paid', () => {
   it('pays $0 weekly salary for a sitting President (owned by passiveIncome)', () => {
     const state = createTestGameState({
       currentJob: 'political',

@@ -65,7 +65,7 @@ function tick(state: any, weeks: number) {
   return next;
 }
 
-describe('M10 — derived age agrees with the stored age on a healthy save', () => {
+describe('M10 - derived age agrees with the stored age on a healthy save', () => {
   it.each([18, 20, 25, 30])('a fresh life started at %i', (startingAge) => {
     const state = freshLife(startingAge);
 
@@ -77,7 +77,7 @@ describe('M10 — derived age agrees with the stored age on a healthy save', () 
     expect(getAge(state)).toBe(Math.floor(state.date.age));
   });
 
-  it('an aged life — every week of a decade agrees with the stored value', () => {
+  it('an aged life - every week of a decade agrees with the stored value', () => {
     let state = freshLife(25);
     for (let week = 1; week <= 10 * WEEKS_PER_YEAR; week++) {
       state = tick(state, 1);
@@ -89,7 +89,7 @@ describe('M10 — derived age agrees with the stored age on a healthy save', () 
   });
 });
 
-describe('M10 — the derivation survives the prestige paths', () => {
+describe('M10 - the derivation survives the prestige paths', () => {
   // Above the gate so `executePrestige` does not no-op.
   const richOldLife = () =>
     createTestGameState({
@@ -152,7 +152,7 @@ describe('M10 — the derivation survives the prestige paths', () => {
   });
 });
 
-describe('M10 — why the derived value is the one to trust', () => {
+describe('M10 - why the derived value is the one to trust', () => {
   it('the stored `date.age` drifts below the true age; the counter cannot', () => {
     let state: any = freshLife(18);
     state = tick(state, 40 * WEEKS_PER_YEAR);
@@ -173,7 +173,7 @@ describe('M10 — why the derived value is the one to trust', () => {
   });
 });
 
-describe('M10 — legacy saves keep their current behaviour', () => {
+describe('M10 - legacy saves keep their current behaviour', () => {
   it('no `lifeStartWeek` (pre-v43) falls back to the stored age', () => {
     // The shape the pre-v43 heir path could write: a real age with a counter
     // that never agreed with it. Deriving would report 18.
@@ -188,7 +188,7 @@ describe('M10 — legacy saves keep their current behaviour', () => {
   });
 });
 
-describe('M10 — the primitive and the state helper are the same arithmetic', () => {
+describe('M10 - the primitive and the state helper are the same arithmetic', () => {
   it('ageFromWeeksLived is floor(18 + weeks/52)', () => {
     expect(ageFromWeeksLived(0)).toBe(18);
     expect(ageFromWeeksLived(WEEKS_PER_YEAR)).toBe(19);

@@ -46,7 +46,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
         setSettings((prev) => {
             const updated = { ...prev, ...newSettings };
-            // safeAsyncStorage.setItem auto-stringifies — don't double-encode.
+            // safeAsyncStorage.setItem auto-stringifies - don't double-encode.
             void AsyncStorage.setItem('settings', updated).then((ok) => {
                 if (!ok) logger.error('Failed to save settings');
             });
@@ -58,7 +58,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         await updateSettings({ darkMode: !settings.darkMode });
     }, [settings.darkMode, updateSettings]);
 
-    // Memoize the context value — SettingsProvider is the outermost provider, so
+    // Memoize the context value - SettingsProvider is the outermost provider, so
     // a fresh value object every render cascades to the entire tree.
     const contextValue = useMemo(
         () => ({ settings, updateSettings, toggleDarkMode }),

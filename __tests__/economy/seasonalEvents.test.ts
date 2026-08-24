@@ -38,7 +38,7 @@ const weeksThatFire = (eventId: string, seasonIdx: number): number[] => {
 
 const IDS = ['spring_festival', 'summer_heatwave', 'fall_harvest', 'winter_storm'];
 
-describe('at most once per season — the property the old code never had', () => {
+describe('at most once per season - the property the old code never had', () => {
   it.each(IDS)('%s never fires twice in the same season', (id) => {
     for (let season = 0; season < 40; season += 1) {
       expect(`${id}@${season}:${weeksThatFire(id, season).length}`)
@@ -57,7 +57,7 @@ describe('at most once per season — the property the old code never had', () =
   });
 });
 
-describe('determinism — a replayed tick cannot double-fire', () => {
+describe('determinism - a replayed tick cannot double-fire', () => {
   it('the same week always gives the same answer', () => {
     for (const week of [0, 13, 57, 260, 1040]) {
       const a = shouldTriggerSeasonalEvent(at(week), 'spring_festival');
@@ -100,7 +100,7 @@ describe('it still actually happens', () => {
   it('different events keep independent schedules', () => {
     const a = weeksThatFire('spring_festival', 3);
     const b = weeksThatFire('winter_storm', 3);
-    // Not asserting they differ every season — that would be asserting on the
+    // Not asserting they differ every season - that would be asserting on the
     // hash. Over many seasons they must not move in lockstep.
     let same = 0;
     for (let s = 0; s < 40; s += 1) {
@@ -129,7 +129,7 @@ describe('the dead branch is gone', () => {
     'utf8'
   );
   // Assert on CODE, not prose. The doc comment names the removed expressions on
-  // purpose, to explain why they are gone — matching those is how a source-grep
+  // purpose, to explain why they are gone - matching those is how a source-grep
   // test lies to you.
   const src = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 

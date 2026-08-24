@@ -74,12 +74,12 @@ export function buyPet(
   setGameState((prev) => {
     /**
      * The id is built OUTSIDE this updater, so a same-batch double tap appends
-     * the SAME object twice — two roster rows sharing one id. Every later
+     * the SAME object twice - two roster rows sharing one id. Every later
      * `pets.map(p => p.id === petId ? … : p)` then matches both: one feed feeds
      * both, one vet visit heals both, and the weekly food cost is charged for
      * two pets the player paid for once.
      *
-     * `applyMoneyDelta` alone does not catch it — a player with cash for two
+     * `applyMoneyDelta` alone does not catch it - a player with cash for two
      * pets passes it twice, which is the same half of the gate-then-grant class
      * the R8 pass left open elsewhere. Rejecting on a duplicate id closes it
      * without needing the id to be regenerated per invocation.
@@ -107,10 +107,10 @@ export function feedPet(
   if (!food) return { success: false, message: 'Unknown food' };
   const inventory = gameState.petFood ?? {};
   if ((inventory[foodId] ?? 0) <= 0) {
-    return { success: false, message: 'Out of that food — buy more from the shop.' };
+    return { success: false, message: 'Out of that food - buy more from the shop.' };
   }
   // R4-C: combine inventory decrement + pet stat update in a single
-  // atomic setGameState. Previously the two separate updates raced — two
+  // atomic setGameState. Previously the two separate updates raced - two
   // rapid feeds could both pass the outer `inventory[foodId] > 0` check
   // and the second update's decrement would land at -1.
   setGameState((prev) => {
@@ -211,7 +211,7 @@ export function playWithPet(
   if (!pet) return { success: false, message: 'Pet not found' };
   if (pet.isDead) return { success: false, message: `${pet.name} has passed on.` };
   if (safe(pet.energy, 0) < 20) {
-    return { success: false, message: `${pet.name} is too tired — let them sleep.` };
+    return { success: false, message: `${pet.name} is too tired - let them sleep.` };
   }
   if (safe(gameState.stats?.energy, 0) < PLAY_PLAYER_ENERGY_COST) {
     return { success: false, message: 'You are too tired to play.' };
@@ -223,7 +223,7 @@ export function playWithPet(
     .reduce<number>((max, t) => Math.max(max, t.fun), 25);
 
   /**
-   * C-14. This used to call `updatePet`, which only touches the pets array —
+   * C-14. This used to call `updatePet`, which only touches the pets array -
    * so the "You are too tired to play" gate above tested an energy cost that
    * was never charged. The pet paid 20 energy; the player paid nothing. A
    * player sitting on exactly 10 energy could play forever without ever
@@ -269,19 +269,19 @@ export function petSleep(
   if (pet.isDead) return { success: false, message: `${pet.name} has passed on.` };
   // R5-C: rate-limit sleep to once per week per pet. Previously the player
   // could spam Sleep before any competition and keep the pet at 100/100
-  // health/energy for free — trivialized show prizes and competition value.
+  // health/energy for free - trivialized show prizes and competition value.
   const currentWeek = gameState.weeksLived ?? 0;
   if (pet.lastSleepWeek === currentWeek) {
     return {
       success: false,
-      message: `${pet.name} has already slept this week — let them play with their toys instead.`,
+      message: `${pet.name} has already slept this week - let them play with their toys instead.`,
     };
   }
   updatePet(setGameState, petId, (p) => {
     // Re-check the once-per-week gate on fresh `p`: the precondition above reads
     // the stale snapshot, so a rapid double-tap would otherwise apply the +50
     // energy / +5 health buff twice before `lastSleepWeek` was committed. This
-    // mirrors the outer guard exactly, so it protects STATE only — the report
+    // mirrors the outer guard exactly, so it protects STATE only - the report
     // is the outer guard's, which has no timing dependency.
     if (p.lastSleepWeek === currentWeek) return p;
     return {
@@ -335,12 +335,12 @@ export function payForVet(
     return { success: false, message: `Need $${price.toLocaleString()}.` };
   }
   /**
-   * The "nothing left to do" gate, checked OUTSIDE — which is where it was
+   * The "nothing left to do" gate, checked OUTSIDE - which is where it was
    * missing.
    *
    * R8 made the debit atomic; it did not stop a second tap being charged for a
    * visit that does nothing. `health` is already clamped at 100 and `isSick` is
-   * already false after the first, so the second tap buys nothing — up to
+   * already false after the first, so the second tap buys nothing - up to
    * $1,500 for Surgery, or an infection's full treatment cost. Anti-player,
    * same shape as the vehicle actions in R4-X5.
    *
@@ -349,7 +349,7 @@ export function payForVet(
    * updater. A capture is only readable for the FIRST functional update of a
    * React batch (`__tests__/refactor/updaterTimingContract.test.tsx`), so it
    * failed in both directions: a refused visit could report "is doing better",
-   * and — the 2026-08-15 player-report shape — a visit that WORKED could report
+   * and - the 2026-08-15 player-report shape - a visit that WORKED could report
    * "does not need … right now" whenever it was not first in its batch.
    *
    * `vetVisitWouldHelp` is the same predicate for both, so the outer answer and
@@ -364,7 +364,7 @@ export function payForVet(
   setGameState((prev) => {
     const prevPet = (prev.pets ?? []).find((p) => p?.id === petId);
     if (!prevPet || prevPet.isDead) return prev;
-    // Race guard on fresh state — a second same-batch tap finds nothing to do.
+    // Race guard on fresh state - a second same-batch tap finds nothing to do.
     if (!vetVisitWouldHelp(prevPet, service)) return prev;
 
     const spend = applyMoneyDelta(prev, -price, `${service.name} for ${pet.name}`);
@@ -398,11 +398,11 @@ export function enterCompetition(
   /**
    * The competition roll, injected so the outcome is testable.
    *
-   * A dead `_deps: { updateMoney }` used to sit BETWEEN this and the ids — the
+   * A dead `_deps: { updateMoney }` used to sit BETWEEN this and the ids - the
    * fee charges through applyMoneyDelta inside the updater (§4.4), so it was
    * never read. It was not harmless: `exploitFixes.test.ts` passed `0` in that
    * slot, commented "Force a win on the first entry (roll 0 < winProbability)",
-   * and the 0 landed on `_deps` while `roll` arrived undefined — so the test
+   * and the 0 landed on `_deps` while `roll` arrived undefined - so the test
    * that claimed to force a win was rolling `undefined` and forcing nothing.
    */
   roll: number
@@ -412,13 +412,13 @@ export function enterCompetition(
   if (pet.isDead) return { success: false, message: `${pet.name} has passed on.` };
   // ANTI-EXPLOIT: gate competitions to once-per-week per pet (mirrors petSleep's
   // R5-C lastSleepWeek). Each competition pays 10× the entry fee at up to 90% win
-  // odds, and the UI re-rolls `Math.random()` on every tap — without this cap a
+  // odds, and the UI re-rolls `Math.random()` on every tap - without this cap a
   // player could spam-enter for unbounded money (EV +$400–$4,000 per entry).
   const currentWeek = gameState.weeksLived ?? 0;
   if (pet.lastCompetitionWeek === currentWeek) {
     return {
       success: false,
-      message: `${pet.name} has already competed this week — come back next week.`,
+      message: `${pet.name} has already competed this week - come back next week.`,
     };
   }
   const result = resolveCompetition(pet, competitionId, roll);
@@ -431,7 +431,7 @@ export function enterCompetition(
   // AND the pet update in one atomic updater, so the entry fee can't be charged
   // without the pet result landing, and a double-tap can't re-enter for free.
   // Every rejection inside is mirrored by an outer guard above (pet missing /
-  // dead, already competed this week, entry fee) — they are the same-batch race
+  // dead, already competed this week, entry fee) - they are the same-batch race
   // protection for STATE, not the reported outcome.
   setGameState((prev) => {
     const target = (prev.pets ?? []).find((p) => p.id === petId);

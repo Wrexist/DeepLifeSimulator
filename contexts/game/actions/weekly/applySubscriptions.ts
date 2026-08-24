@@ -69,8 +69,8 @@ function canAfford(money: number, price: number): boolean {
 /** Lapse copy that distinguishes "no cash" from "would breach the floor". */
 function lapseMessage(label: string, money: number, price: number): string {
   return money >= price
-    ? `Your ${label} lapsed — renewing would have left you under $${BANKRUPTCY_FLOOR.toLocaleString()}.`
-    : `Your ${label} lapsed — not enough cash to renew.`;
+    ? `Your ${label} lapsed - renewing would have left you under $${BANKRUPTCY_FLOOR.toLocaleString()}.`
+    : `Your ${label} lapsed - not enough cash to renew.`;
 }
 
 function lapsedVerifiedPro(vp: PulseVerifiedPro): PulseVerifiedPro {

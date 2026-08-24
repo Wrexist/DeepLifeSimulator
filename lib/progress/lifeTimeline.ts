@@ -160,7 +160,7 @@ function wealthEntries(state: GameState): TimelineEntry[] {
  *
  * A standing nudge ("Nowhere to live") is re-journalled every week it is true,
  * so an unhoused stretch produced a timeline that was ten identical rows and
- * nothing else — the feature reading as a log rather than a life. Consecutive
+ * nothing else - the feature reading as a log rather than a life. Consecutive
  * entries sharing a kind and title become ONE row stamped at the most recent
  * occurrence, with the run length noted. Only CONSECUTIVE runs collapse: the
  * same beat recurring after something else happened is a real second time and

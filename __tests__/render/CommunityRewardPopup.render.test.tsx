@@ -9,7 +9,7 @@ import { DISCORD_INVITE_LABEL } from '@/lib/config/appConfig';
  * Mounts inside the real provider tree (it reads darkMode via useGameState) and
  * asserts the visible variant shows the formatted reward + the join/dismiss CTAs.
  */
-describe('render — CommunityRewardPopup', () => {
+describe('render - CommunityRewardPopup', () => {
   it('mounts (visible) and shows the cash reward + join/dismiss CTAs', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <CommunityRewardPopup

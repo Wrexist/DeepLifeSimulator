@@ -116,7 +116,7 @@ describe('upcomingEvents', () => {
     expect(upcomingEvents(far).some((e) => e.kind === 'career')).toBe(false);
   });
 
-  describe('elections (2026-08-24 — a tick-enforced date that landed as a surprise)', () => {
+  describe('elections (2026-08-24 - a tick-enforced date that landed as a surprise)', () => {
     const politician = (overrides: Record<string, unknown> = {}) =>
       createTestGameState({
         weeksLived: 200,
@@ -155,7 +155,7 @@ describe('upcomingEvents', () => {
     });
   });
 
-  describe('unanswered letters (2026-08-24 — the mail-lapse deadline made visible)', () => {
+  describe('unanswered letters (2026-08-24 - the mail-lapse deadline made visible)', () => {
     it('reports a mail-routed event by the week it lapses', () => {
       const state = createTestGameState({
         weeksLived: 100,

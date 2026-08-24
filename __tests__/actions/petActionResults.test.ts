@@ -101,7 +101,7 @@ function withPet(over: Record<string, unknown> = {}, money = 1_000_000): GameSta
   });
 }
 
-describe('C-9 — a DEFERRED updater never reports failure for work that lands', () => {
+describe('C-9 - a DEFERRED updater never reports failure for work that lands', () => {
   /**
    * The property that replaces the old swallowed-updater assertions, and the
    * one the 2026-08-15 player report was about. Each action is invoked with a
@@ -126,7 +126,7 @@ describe('C-9 — a DEFERRED updater never reports failure for work that lands',
 
       expect(`${name}: ${r.success}`).toBe(`${name}: true`);
 
-      // And it was telling the truth — flushing really does change the state.
+      // And it was telling the truth - flushing really does change the state.
       const before = JSON.stringify(d.get());
       d.flush();
       expect(`${name} changed state: ${JSON.stringify(d.get()) !== before}`)
@@ -148,7 +148,7 @@ describe('C-9 — a DEFERRED updater never reports failure for work that lands',
   });
 });
 
-describe('C-9 — payForVet no longer congratulates a refused visit', () => {
+describe('C-9 - payForVet no longer congratulates a refused visit', () => {
   it('a healthy pet is refused AND told so', () => {
     // The C-6 guard already declined to charge. It just said the opposite.
     const snapshot = withPet({ health: 100, happiness: 100, vaccinated: true });
@@ -173,7 +173,7 @@ describe('C-9 — payForVet no longer congratulates a refused visit', () => {
   });
 });
 
-describe('C-9 — enterCompetition pays once, whatever it reports', () => {
+describe('C-9 - enterCompetition pays once, whatever it reports', () => {
   it('a same-batch double tap enters ONCE and is charged/paid ONCE', () => {
     /**
      * Both calls are given the SAME stale snapshot, which is what a double tap
@@ -186,14 +186,14 @@ describe('C-9 — enterCompetition pays once, whatever it reports', () => {
      * `payout`, satisfied by a `let entered` capture read after the updater.
      * That capture is what the 2026-08-15 player report was about: it cannot
      * tell "the updater rejected" from "the updater has not run yet", and the
-     * second reading is far more common — every update that is not first in
+     * second reading is far more common - every update that is not first in
      * its React batch. A legitimate FIRST entry was being reported as "already
      * competed this week".
      *
      * With the capture gone, the report comes from the outer once-per-week
      * guard, which reads the stale snapshot and therefore passes twice. So a
-     * stale double tap now reports its result twice. The MONEY is unaffected —
-     * asserted below — and the prize really was paid, once. A duplicated
+     * stale double tap now reports its result twice. The MONEY is unaffected -
+     * asserted below - and the prize really was paid, once. A duplicated
      * message on a rare double tap is a strictly better failure than a false
      * refusal on the common path.
      */
@@ -214,7 +214,7 @@ describe('C-9 — enterCompetition pays once, whatever it reports', () => {
   });
 
   it('the once-per-week OUTER guard also still holds (the control)', () => {
-    // Passes on both trees by design — it was never the broken path, and it
+    // Passes on both trees by design - it was never the broken path, and it
     // must not have been loosened by the fix.
     const snapshot = withPet();
     const { setState, get } = batched(snapshot);
@@ -235,7 +235,7 @@ describe('C-9 — enterCompetition pays once, whatever it reports', () => {
   });
 });
 
-describe('C-9 — the once-per-week and precondition gates report honestly', () => {
+describe('C-9 - the once-per-week and precondition gates report honestly', () => {
   it('a second sleep in the same week is refused, not celebrated', () => {
     const snapshot = withPet();
     const { setState, get } = batched(snapshot);
@@ -269,7 +269,7 @@ describe('C-9 — the once-per-week and precondition gates report honestly', () 
     // A REAL food id with an empty bag, so this exercises the inventory gate
     // rather than the unknown-food early return. The first version of this file
     // used an invented id throughout, which made several assertions pass for
-    // the wrong reason — they never reached the updater at all.
+    // the wrong reason - they never reached the updater at all.
     const empty = createTestGameState({
       ...withPet(),
       petFood: {},
@@ -279,7 +279,7 @@ describe('C-9 — the once-per-week and precondition gates report honestly', () 
   });
 });
 
-describe('C-9 — the happy paths are all still happy (the controls)', () => {
+describe('C-9 - the happy paths are all still happy (the controls)', () => {
   it('buying a pet, food and a toy all still work', () => {
     const snapshot = withPet();
     const b = batched(snapshot);

@@ -50,7 +50,7 @@ function employedState(overrides: Partial<GameState> = {}): GameState {
   };
 }
 
-describe('welcomeBackClaimed — the pure gate the spawner and the updater share', () => {
+describe('welcomeBackClaimed - the pure gate the spawner and the updater share', () => {
   it('is false for a save that has never claimed (the carve-out default)', () => {
     expect(welcomeBackClaimed({ settings: {}, weeksLived: WEEK })).toBe(false);
     expect(welcomeBackClaimed(undefined)).toBe(false);
@@ -84,7 +84,7 @@ describe('applyWelcomeBackBonus', () => {
     expect(next.lastLogin).toBe(NOW);
   });
 
-  it('refuses a second grant in the same game week — the forward-clock scrub', () => {
+  it('refuses a second grant in the same game week - the forward-clock scrub', () => {
     const prev = employedState();
     const first = applyWelcomeBackBonus(prev, NOW);
     // The scrub: the device date jumps another 7 days, so lastLogin is stale

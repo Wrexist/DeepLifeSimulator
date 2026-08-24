@@ -1,13 +1,13 @@
 /**
- * WeeklyChallengeCard — the front door for a system that had none.
+ * WeeklyChallengeCard - the front door for a system that had none.
  *
  * Twelve hand-authored themed challenges (4-6 objectives each) rotate every 4
- * game weeks, are re-evaluated on every tick, and pay 125-300 gems — 2,300 gems
+ * game weeks, are re-evaluated on every tick, and pay 125-300 gems - 2,300 gems
  * and 600 Legacy-Pass XP across a full 48-week cycle. A repo-wide grep for
  * `weeklyChallenge` found hits only in the tick, the type, initialState and the
  * lib itself: NO screen or component read it. So the player was never shown
  * that a challenge existed, what its objectives were, how long was left before
- * it rotated, or that they had just earned 250 gems — the gem counter simply
+ * it rotated, or that they had just earned 250 gems - the gem counter simply
  * jumped, with a `logger.info` as the only record.
  *
  * It was the single largest built-but-invisible system in the game.
@@ -46,7 +46,7 @@ export function objectiveFraction(current: number, target: number): number {
 
 function WeeklyChallengeCard() {
   // Objectives read arbitrary state fields, so select the whole snapshot for
-  // this one card — same approach as AmbitionCard / LifeChapterCard.
+  // this one card - same approach as AmbitionCard / LifeChapterCard.
   const state = useGameSelector((s) => s) as GameState;
 
   const view = useMemo(() => {
@@ -93,7 +93,7 @@ function WeeklyChallengeCard() {
           <Text style={styles.sub}>
             {/* "Complete", not "Reward collected". `rewardClaimed` is also set
                 when a challenge is minted already-satisfied (see
-                getOrRotateWeeklyChallenge) — no gems are paid in that case, and
+                getOrRotateWeeklyChallenge) - no gems are paid in that case, and
                 claiming they were is a lie the player can check against their
                 gem balance. This wording is true either way. */}
             {claimed ? 'Complete' : `${met}/${total} objectives`}
@@ -131,7 +131,7 @@ function WeeklyChallengeCard() {
                       ]}
                     />
                   </View>
-                  {/* Show the numbers only where they mean something — a 1/1
+                  {/* Show the numbers only where they mean something - a 1/1
                       boolean objective reads as noise. */}
                   {o.target > 1 && (
                     <Text style={styles.rowDesc} numberOfLines={1}>
@@ -148,14 +148,14 @@ function WeeklyChallengeCard() {
       <View style={styles.footer}>
         <Timer size={scale(13)} color="#94A3B8" />
         <Text style={styles.footerText}>
-          {/* "Complete", not "gems collected" — same reason as the header. A
+          {/* "Complete", not "gems collected" - same reason as the header. A
               challenge minted already-satisfied carries `rewardClaimed: true`
               with no gems paid, and this is the line the player would check
               against their balance. */}
           {claimed
             ? `Complete · ${weeksLeft}`
             : allMet
-              ? `All objectives met — ${definition.reward} gems on the next week`
+              ? `All objectives met - ${definition.reward} gems on the next week`
               : weeksLeft}
         </Text>
       </View>

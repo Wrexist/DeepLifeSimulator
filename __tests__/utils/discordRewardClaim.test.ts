@@ -41,7 +41,7 @@ function stubState(money = 1000, granted?: boolean): GameState {
   });
 }
 
-describe('discordRewardClaim — exactly-once claim protocol', () => {
+describe('discordRewardClaim - exactly-once claim protocol', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Safe defaults; individual tests override as needed.

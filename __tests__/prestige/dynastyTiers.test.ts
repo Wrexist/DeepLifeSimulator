@@ -116,7 +116,7 @@ describe('the tier table itself', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('tier 2 — the Vault', () => {
+describe('tier 2 - the Vault', () => {
   const owner = (totalPrestiges = 2, money = 10_000_000) =>
     at(totalPrestiges, { luxuryItems: [WATCH.id], stats: { money } });
 
@@ -147,7 +147,7 @@ describe('tier 2 — the Vault', () => {
     expect(result.cost).toBe(0);
   });
 
-  it('is idempotent — a second run in the same batch cannot charge twice', () => {
+  it('is idempotent - a second run in the same batch cannot charge twice', () => {
     const first = storeInVault(owner(), WATCH.id);
     const after = at(2, {
       luxuryItems: [WATCH.id],
@@ -177,7 +177,7 @@ describe('tier 2 — the Vault', () => {
     expect(result.message).toMatch(/Long Gallery/);
   });
 
-  it('never vaults land — the property system owns that asset', () => {
+  it('never vaults land - the property system owns that asset', () => {
     if (!LAND) return; // catalogue has no developable item; nothing to assert
     expect(isVaultable(LAND)).toBe(false);
     const result = storeInVault(at(5, { luxuryItems: [LAND.id], stats: { money: 1e12 } }), LAND.id);
@@ -211,7 +211,7 @@ describe('tier 2 — the Vault', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('tier 3 — the Endowment', () => {
+describe('tier 3 - the Endowment', () => {
   const rich = (totalPrestiges = 3, money = 2_000_000_000, dynasty = {}) =>
     at(totalPrestiges, { stats: { money }, dynasty });
 
@@ -230,7 +230,7 @@ describe('tier 3 — the Endowment', () => {
     expect(result.dynasty?.endowments).toEqual([t.id]);
   });
 
-  it('is once per tranche, forever — the second run refuses and costs nothing', () => {
+  it('is once per tranche, forever - the second run refuses and costs nothing', () => {
     const t = ENDOWMENT_TRANCHES[0];
     const result = claimEndowment(rich(3, 2e9, { endowments: [t.id] }), t.id);
     expect(result.success).toBe(false);
@@ -267,7 +267,7 @@ describe('tier 3 — the Endowment', () => {
     expect(board.every((r) => r.affordable)).toBe(false);
   });
 
-  it('is bounded by construction — the whole board pays a finite, stated total', () => {
+  it('is bounded by construction - the whole board pays a finite, stated total', () => {
     // Deliberately smaller than the Dynasty Tree it feeds (~8,700 points), so
     // endowing cannot replace living.
     expect(totalEndowmentPoints()).toBe(4_210);
@@ -276,7 +276,7 @@ describe('tier 3 — the Endowment', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('tier 4 — Dynasty Trials', () => {
+describe('tier 4 - Dynasty Trials', () => {
   it('is refused below prestige 4', () => {
     const result = addPendingTrial(at(3), DYNASTY_TRIALS[0].id);
     expect(result.success).toBe(false);
@@ -309,7 +309,7 @@ describe('tier 4 — Dynasty Trials', () => {
     expect(result.dynasty?.trials?.pending).toEqual([]);
   });
 
-  it('every handicap is ABSOLUTE — it bites a first-timer as hard as a veteran', () => {
+  it('every handicap is ABSOLUTE - it bites a first-timer as hard as a veteran', () => {
     // The free-lunch failure mode: a trial worded "forfeit your Dynasty Tree
     // bonuses" pays a player who owns no tree nodes for suffering nothing.
     // None of these read anything the player might not have.
@@ -366,7 +366,7 @@ describe('tier 4 — Dynasty Trials', () => {
     const bearing = at(4, { dynasty: { trials: { active: [trial.id], pending: [] } } });
     expect(settleTrials(bearing)).toEqual({ points: trial.reward, settledIds: [trial.id] });
 
-    // Sworn but not yet started pays nothing — you have to live the life.
+    // Sworn but not yet started pays nothing - you have to live the life.
     const sworn = at(4, { dynasty: { trials: { pending: [trial.id] } } });
     expect(settleTrials(sworn).points).toBe(0);
 
@@ -382,7 +382,7 @@ describe('tier 4 — Dynasty Trials', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('tier 5 — the Dynasty Seat', () => {
+describe('tier 5 - the Dynasty Seat', () => {
   const seatState = (money: number, wings: string[] = [], totalPrestiges = 5) =>
     at(totalPrestiges, { stats: { money }, dynasty: { seatWings: wings } });
 
@@ -398,7 +398,7 @@ describe('tier 5 — the Dynasty Seat', () => {
     expect(result.dynasty?.seatWings).toEqual([wing.id]);
   });
 
-  it('is a CHAIN — a later wing needs the one before it', () => {
+  it('is a CHAIN - a later wing needs the one before it', () => {
     const second = SEAT_WINGS[1];
     expect(buySeatWing(seatState(1e12), second.id).success).toBe(false);
     expect(buySeatWing(seatState(1e12, [SEAT_WINGS[0].id]), second.id).success).toBe(true);
@@ -433,7 +433,7 @@ describe('tier 5 — the Dynasty Seat', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('the transition — what actually crosses a life boundary', () => {
+describe('the transition - what actually crosses a life boundary', () => {
   const oldLife = (): GameState =>
     at(4, {
       legacyPoints: 1_000,
@@ -456,7 +456,7 @@ describe('the transition — what actually crosses a life boundary', () => {
     expect(seatWingIds(out)).toEqual(['seat_long_gallery']);
   });
 
-  it('carries claimed Legacy Contracts — they were being re-armed every prestige', () => {
+  it('carries claimed Legacy Contracts - they were being re-armed every prestige', () => {
     // Regression: `legacyContracts` was never copied, so `initialGameState`'s
     // empty board came back on every single prestige and the entire ladder was
     // re-claimable. That is the whole contract board, in Legacy Points, per cycle.
@@ -487,7 +487,7 @@ describe('the transition — what actually crosses a life boundary', () => {
     expect(out.luxuryHoldings?.[WATCH.id]).toBeTruthy();
   });
 
-  it('is IDEMPOTENT — running it twice cannot pay the trial twice', () => {
+  it('is IDEMPOTENT - running it twice cannot pay the trial twice', () => {
     const once = applyDynastyTransition(oldLife(), newLife());
     const twice = applyDynastyTransition(oldLife(), newLife());
     expect(twice.legacyPoints).toBe(once.legacyPoints);
@@ -511,7 +511,7 @@ describe('the transition — what actually crosses a life boundary', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('the Archive — new contracts the Seat opens, not old ones it hides', () => {
+describe('the Archive - new contracts the Seat opens, not old ones it hides', () => {
   it('a save without the Archive sees exactly the board it always saw', () => {
     const before = visibleContracts(at(5)).map((c) => c.id);
     expect(before).toEqual(LEGACY_CONTRACTS.map((c) => c.id));
@@ -553,7 +553,7 @@ describe('the Archive — new contracts the Seat opens, not old ones it hides', 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('the save story for `dynasty` (v36 carve-out)', () => {
   // Deliberately NOT `expect(CURRENT_STATE_VERSION).toBe(36)`. That assertion
-  // was here and it failed the moment v37 landed — a test that breaks on every
+  // was here and it failed the moment v37 landed - a test that breaks on every
   // future version bump while proving nothing about `dynasty`, which is the
   // hardcoded-literal trap already recorded in `scripts/lib/coverageRatchet.js`.
   // What actually matters is that v36 is registered and that migrating ACROSS
@@ -563,7 +563,7 @@ describe('the save story for `dynasty` (v36 carve-out)', () => {
     expect(CURRENT_STATE_VERSION).toBeGreaterThanOrEqual(36);
   });
 
-  it('the migration writes NO `dynasty` key — absence already means empty', () => {
+  it('the migration writes NO `dynasty` key - absence already means empty', () => {
     // The carve-out's justification, asserted rather than only commented:
     // stamping `{}` (or worse, an item / a tranche / an active trial) onto every
     // existing save would make them all look like they had opted in.
@@ -595,8 +595,8 @@ describe('the save story for `dynasty` (v36 carve-out)', () => {
     ];
     for (const bad of junk) {
       // Typed against the accessor's OWN parameter rather than `as GameState`.
-      // The cast is legitimate here — the point is malformed input, which a
-      // factory cannot produce — but Hard Rule #3's guard rightly flags the
+      // The cast is legitimate here - the point is malformed input, which a
+      // factory cannot produce - but Hard Rule #3's guard rightly flags the
       // `as GameState` shape, and this says what we mean more precisely: these
       // functions claim to tolerate anything their signature admits.
       const s = bad as Parameters<typeof vaultItemIds>[0];
@@ -614,7 +614,7 @@ describe('the save story for `dynasty` (v36 carve-out)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('reachability — every reducer has a control a player can press', () => {
+describe('reachability - every reducer has a control a player can press', () => {
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const read = (rel: string) => fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
@@ -639,7 +639,7 @@ describe('reachability — every reducer has a control a player can press', () =
       'buyDynastySeatWing',
     ]) {
       // Declared on the interface, wired into the memo value, and listed in its
-      // deps — a missing dep silently freezes the action on a stale closure.
+      // deps - a missing dep silently freezes the action on a stale closure.
       expect(`${name} in interface: ${ACTIONS.includes(`${name}: (`)}`).toBe(`${name} in interface: true`);
       expect(`${name} in value: ${ACTIONS.includes(`${name}: ${name}Action,`)}`).toBe(`${name} in value: true`);
       expect(`${name} in deps: ${ACTIONS.includes(`${name}Action]`) || ACTIONS.includes(`${name}Action,`)}`)

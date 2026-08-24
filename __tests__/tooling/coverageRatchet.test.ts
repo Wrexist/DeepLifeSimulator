@@ -99,7 +99,7 @@ describe('evaluateCoverage', () => {
     expect(at().failures).toEqual([]);
   });
 
-  it('passes when coverage RISES — the point of a ratchet', () => {
+  it('passes when coverage RISES - the point of a ratchet', () => {
     expect(at({ branches: 45, statements: 60 }).ok).toBe(true);
   });
 

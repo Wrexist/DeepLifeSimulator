@@ -1,10 +1,10 @@
 /**
- * ConfirmDialog — the game's shared confirm/deny popup (purchases, selling,
+ * ConfirmDialog - the game's shared confirm/deny popup (purchases, selling,
  * quitting a job, deleting a save). Redesigned to match the in-game sheet
  * language: dark elevated surface, hairline border, a gradient icon badge and
  * a filled gradient primary CTA next to a quiet ghost cancel.
  *
- * The public prop API is backward-compatible with every existing call site —
+ * The public prop API is backward-compatible with every existing call site -
  * `showIcon` now defaults to showing the badge, and `icon` is an optional
  * override. The confirm accent is derived from `type` (destructive/danger force
  * red) so cautionary and destructive flows keep their visual distinction.

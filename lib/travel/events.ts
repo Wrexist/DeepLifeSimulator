@@ -62,7 +62,7 @@ export const TRAVEL_EVENTS: TravelEventDef[] = [
   { id: 'london_museum',  category: 'positive', headline: 'British Museum', description: 'A slow afternoon among the antiquities left you inspired.',            happinessDelta: 4, energyDelta: -3, minTripCost: 0, destinationId: 'london' },
   // Dubai
   { id: 'dubai_luxury',        category: 'expense',  headline: 'Gold-souk splurge', description: 'The shopping got gloriously out of hand in the Gold Souk.',        happinessDelta: 4, moneyDelta: -700, minTripCost: 0, destinationId: 'dubai' },
-  { id: 'dubai_desert_safari', category: 'positive', headline: 'Desert safari',     description: 'Dune-bashing and a starlit dinner in the dunes — unforgettable.',   happinessDelta: 7, energyDelta: -4, minTripCost: 0, destinationId: 'dubai' },
+  { id: 'dubai_desert_safari', category: 'positive', headline: 'Desert safari',     description: 'Dune-bashing and a starlit dinner in the dunes - unforgettable.',   happinessDelta: 7, energyDelta: -4, minTripCost: 0, destinationId: 'dubai' },
   // Rome
   { id: 'rome_colosseum', category: 'positive', headline: 'Colosseum tour',  description: 'Standing where gladiators once fought gave you chills.',          happinessDelta: 5, minTripCost: 0, destinationId: 'rome' },
   { id: 'rome_romance',   category: 'positive', headline: 'La dolce vita',   description: 'An unforgettable evening of gelato and the Trevi Fountain.',      happinessDelta: 6, minTripCost: 0, destinationId: 'rome' },
@@ -76,7 +76,7 @@ export const TRAVEL_EVENTS: TravelEventDef[] = [
   { id: 'iceland_northern_lights', category: 'positive', headline: 'Northern lights', description: 'The aurora blazed green across the whole sky. Speechless.',  happinessDelta: 8, minTripCost: 0, destinationId: 'iceland' },
   // Safari
   { id: 'safari_lion',   category: 'positive', headline: 'Lion pride sighting', description: 'A whole pride crossed the track metres from the jeep.',          happinessDelta: 7, minTripCost: 0, destinationId: 'safari' },
-  { id: 'safari_sunset', category: 'positive', headline: 'Savanna sunset',      description: 'Sundowners as the sun sank over the Serengeti — pure magic.',     happinessDelta: 5, minTripCost: 0, destinationId: 'safari' },
+  { id: 'safari_sunset', category: 'positive', headline: 'Savanna sunset',      description: 'Sundowners as the sun sank over the Serengeti - pure magic.',     happinessDelta: 5, minTripCost: 0, destinationId: 'safari' },
   // Maldives
   { id: 'maldives_diving', category: 'health',   headline: 'Reef dive',          description: 'A technicolor coral wall dive you\'ll never forget.',            happinessDelta: 6, healthDelta: 3, minTripCost: 0, destinationId: 'maldives' },
   { id: 'maldives_sunset', category: 'positive', headline: 'Overwater sunset',   description: 'Dinner served above a glassy, mirror-still lagoon.',              happinessDelta: 6, minTripCost: 0, destinationId: 'maldives' },

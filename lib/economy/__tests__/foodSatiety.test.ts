@@ -67,7 +67,7 @@ describe('satietyHint', () => {
   });
 });
 
-describe('resolveFoodPurchase — the C-9 pure resolution', () => {
+describe('resolveFoodPurchase - the C-9 pure resolution', () => {
   const stateWith = (money: number, eaten = 0) =>
     createTestGameState({
       stats: { money, health: 40, energy: 40, happiness: 40, fitness: 30, reputation: 0, gems: 0 },

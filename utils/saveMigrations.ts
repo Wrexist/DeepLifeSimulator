@@ -1298,7 +1298,7 @@ function healCollapsedMarket(state: any): void {
   delete state.stocks.savedMarketPrices;
   delete state.stocks.lastWeekPrices;
   logger.info(
-    `[MIGRATION v31] Persisted market was at ${(median * 100).toFixed(1)}% of catalogue — ` +
+    `[MIGRATION v31] Persisted market was at ${(median * 100).toFixed(1)}% of catalogue - ` +
       'reopening on catalogue prices (drift-bug remediation)',
   );
 }
@@ -1320,19 +1320,19 @@ export function runMigrations(state: any): { state: any; migrationsApplied: numb
 
   if (currentVersion > CURRENT_STATE_VERSION) {
     // Save is from a newer build than the running app. There's no safe way to
-    // downgrade — log loudly so the boot path / UI can surface the mismatch
+    // downgrade - log loudly so the boot path / UI can surface the mismatch
     // instead of silently loading state that may reference fields we don't know.
-    const msg = `Save version ${currentVersion} is newer than app version ${CURRENT_STATE_VERSION} — loading anyway, but unknown fields may be ignored or cause unexpected behavior.`;
+    const msg = `Save version ${currentVersion} is newer than app version ${CURRENT_STATE_VERSION} - loading anyway, but unknown fields may be ignored or cause unexpected behavior.`;
     logger.warn(`[MIGRATION] ${msg}`);
     errors.push(msg);
     // P1-7: flag the future-version case so loadGame can refuse to load (and,
-    // crucially, refuse to re-persist) — preventing an older build from
+    // crucially, refuse to re-persist) - preventing an older build from
     // overwriting a newer save with a downgraded shape.
     return { state, migrationsApplied, errors, versionFromFuture: true };
   }
 
   if (currentVersion === CURRENT_STATE_VERSION) {
-    // Already at current version — no migrations needed
+    // Already at current version - no migrations needed
     return { state, migrationsApplied, errors };
   }
 
@@ -1347,7 +1347,7 @@ export function runMigrations(state: any): { state: any; migrationsApplied: numb
         // Only bump version on successful migration. If we bumped on failure,
         // subsequent loads would skip the failed migration permanently and
         // run later migrations against state that's structurally one version
-        // behind — silent data loss.
+        // behind - silent data loss.
         state.version = targetVersion;
         logger.info(`[MIGRATION] Applied migration to v${targetVersion}`);
       } catch (error) {
@@ -1365,13 +1365,13 @@ export function runMigrations(state: any): { state: any; migrationsApplied: numb
       logger.info(`[MIGRATION] v${targetVersion} is a registered no-op version bump`);
     } else {
       // H-2 (R8): a missing migration that is NOT a registered no-op is almost
-      // certainly a forgotten registration. Do NOT stamp the version forward —
+      // certainly a forgotten registration. Do NOT stamp the version forward -
       // that would permanently skip the real migration once it's added (the
       // loader would then see version === CURRENT and never run it), shipping
       // saves with unpopulated new fields. Halt at the last good version so a
       // later build with the registered migration can finish the upgrade.
       const msg =
-        `No migration registered for v${targetVersion} and it is not a known no-op bump — ` +
+        `No migration registered for v${targetVersion} and it is not a known no-op bump - ` +
         `halting migration at v${state.version}. Add migrations[${targetVersion}] (or register ` +
         `it in NO_OP_MIGRATION_VERSIONS if the bump is intentional).`;
       logger.error(`[MIGRATION] ${msg}`);

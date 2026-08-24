@@ -57,7 +57,7 @@ const BlurView = BlurViewFallback;
 /** Sentinel for the "no ambition" (freeform) choice. */
 const FREEFORM_ID = '__freeform__';
 
-// Lucide crest per ambition — the game's crisp line-icon language (tinted by
+// Lucide crest per ambition - the game's crisp line-icon language (tinted by
 // each ambition's accent color) instead of platform emoji, which render
 // inconsistently across devices and clash with the dark design.
 const AMBITION_ICONS: Record<string, LucideIcon> = {
@@ -78,7 +78,7 @@ interface AmbitionCardViewProps {
 }
 
 // Memoized so selecting one card doesn't re-render the whole list (each card is
-// a BlurView + LinearGradient — same perf pattern as the Scenarios cards).
+// a BlurView + LinearGradient - same perf pattern as the Scenarios cards).
 const AmbitionCardView = React.memo(function AmbitionCardView({
   ambition,
   isSelected,
@@ -107,7 +107,7 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
           end={{ x: 1, y: 1 }}
           style={[styles.card, isSelected && styles.cardSelected]}
         >
-          {/* Header — tinted lucide crest + name + fantasy tagline. */}
+          {/* Header - tinted lucide crest + name + fantasy tagline. */}
           <View style={styles.cardHeader}>
             <View style={[styles.crest, { backgroundColor: `${accent}22`, borderColor: `${accent}66` }]}>
               <CrestIcon size={scale(24)} color={accent} />
@@ -127,7 +127,7 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
             ) : null}
           </View>
 
-          {/* Milestone path — a connected timeline in the ambition's accent,
+          {/* Milestone path - a connected timeline in the ambition's accent,
               capped with a trophy on the final milestone. */}
           <View style={styles.pathWrap}>
             <Text style={styles.pathHeading}>MILESTONES</Text>
@@ -160,7 +160,7 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
             ))}
           </View>
 
-          {/* Payoff — labeled reward cells, same visual as the Scenarios stat
+          {/* Payoff - labeled reward cells, same visual as the Scenarios stat
               cells, instead of the old inline chip row. */}
           <View style={styles.rewardRow}>
             {payoff.gems ? (
@@ -191,7 +191,7 @@ const AmbitionCardView = React.memo(function AmbitionCardView({
             ) : null}
           </View>
 
-          {/* Themed nudge — a direction, not a stat bonus. */}
+          {/* Themed nudge - a direction, not a stat bonus. */}
           <View style={styles.hintRow}>
             <Sparkles size={scale(12)} color="#60A5FA" />
             <Text style={styles.hintText} numberOfLines={2}>
@@ -241,7 +241,7 @@ export default function Ambitions() {
   );
 
   const continueToPerks = useCallback(() => {
-    // Ambition is optional — a life with no chosen ambition is valid, so
+    // Ambition is optional - a life with no chosen ambition is valid, so
     // Continue is always allowed (freeform if nothing was picked).
     haptic.medium();
     router.push('/(onboarding)/Perks');
@@ -265,7 +265,7 @@ export default function Ambitions() {
         onInfo={() =>
           Alert.alert(
             'Life Ambition',
-            'An ambition is a lifelong goal with staged milestones and a one-time reward when you fulfil it. It only points you in a direction — it changes no starting stats. Optional: tap "Continue" to play freeform.'
+            'An ambition is a lifelong goal with staged milestones and a one-time reward when you fulfil it. It only points you in a direction - it changes no starting stats. Optional: tap "Continue" to play freeform.'
           )
         }
       />
@@ -273,7 +273,7 @@ export default function Ambitions() {
       <OnboardingStepBar currentStep={3} totalSteps={4} />
 
       <Text style={styles.guidanceText}>
-        Pick a lifelong ambition for direction and a payoff — or skip it and play freeform.
+        Pick a lifelong ambition for direction and a payoff - or skip it and play freeform.
       </Text>
 
       <ScrollView
@@ -281,7 +281,7 @@ export default function Ambitions() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator
       >
-        {/* Freeform (skip) option — an ambition-free life is fully valid. */}
+        {/* Freeform (skip) option - an ambition-free life is fully valid. */}
         <TouchableOpacity
           activeOpacity={0.92}
           style={styles.cardContainer}
@@ -309,7 +309,7 @@ export default function Ambitions() {
                     Freeform Life
                   </Text>
                   <Text style={styles.cardTagline} numberOfLines={2}>
-                    No set ambition — write your own story with no fixed goal.
+                    No set ambition - write your own story with no fixed goal.
                   </Text>
                 </View>
                 {freeformSelected ? (

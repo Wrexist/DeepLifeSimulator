@@ -1,5 +1,5 @@
 /**
- * StocksApp — mobile stock trading, Apple Stocks DNA.
+ * StocksApp - mobile stock trading, Apple Stocks DNA.
  *
  * A 3-tab loop plus a per-symbol detail page:
  *
@@ -13,7 +13,7 @@
  *   - Detail (list -> detail sub-view): big quote + trend, your position, market
  *     data (previous close, yield, est. dividends, sector momentum), Trade CTA.
  *
- * Mechanics are unchanged — this pass only presents more of the existing state.
+ * Mechanics are unchanged - this pass only presents more of the existing state.
  * Order matching, sector rotation and dividends still run in the weekly tick.
  */
 
@@ -82,9 +82,9 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; 
   { id: 'orders', label: 'Orders', icon: Clock },
 ];
 
-/** Aggregate money — M/k abbreviations for portfolio-scale numbers. */
+/** Aggregate money - M/k abbreviations for portfolio-scale numbers. */
 
-/** Per-share price — 2 decimals under $1k, whole dollars above. */
+/** Per-share price - 2 decimals under $1k, whole dollars above. */
 function formatPrice(n: number): string {
   if (!isFinite(n)) return '$0';
   if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -186,7 +186,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     [setGameState, queueSave]
   );
 
-  // Portfolio week change (from last week's holding prices — real, not fabricated).
+  // Portfolio week change (from last week's holding prices - real, not fabricated).
   const portfolioWeekChange = useMemo(
     () =>
       holdings.reduce((s, h) => {
@@ -353,7 +353,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
   const renderPortfolio = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
-      {/* Recipe B hero — the ONE focal gradient surface of this tab (purple identity) */}
+      {/* Recipe B hero - the ONE focal gradient surface of this tab (purple identity) */}
       <HeroCard theme={theme} darkMode={darkMode}>
         <View style={styles.heroTopRow}>
           <View
@@ -574,7 +574,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
     const snap = sectorSnapshots.find((s) => s.sector === sector);
     const weeks = snap?.weeksRemaining;
     // BUG FIX: previous close was reconstructed by dividing the live price by
-    // (1 + changePct) — a lossy round-trip that drifts from the real prior price.
+    // (1 + changePct) - a lossy round-trip that drifts from the real prior price.
     // Read the authoritative value the weekly tick stored in lastWeekPrices;
     // fall back to the back-calc only when that snapshot is missing.
     const storedPrevClose = lastWeekPrices?.[symbol.toUpperCase()]?.price;
@@ -601,7 +601,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
       ...(prevClose != null ? [{ label: 'Previous close', value: formatPrice(prevClose) }] : []),
       {
         label: 'Week change',
-        value: changePct != null ? `${changePct >= 0 ? '+' : ''}${(changePct * 100).toFixed(2)}%` : '—',
+        value: changePct != null ? `${changePct >= 0 ? '+' : ''}${(changePct * 100).toFixed(2)}%` : '-',
         color: changePct != null ? (changePct > 0 ? accent.success : changePct < 0 ? accent.danger : theme.textMuted) : theme.textMuted,
       },
       { label: 'Dividend yield', value: dividendYield > 0 ? `${(dividendYield * 100).toFixed(2)}%` : 'None' },
@@ -807,7 +807,7 @@ function StatCard({
   );
 }
 
-/** Recipe B hero shell — purple identity wash + glow blob + dark-only hairline. */
+/** Recipe B hero shell - purple identity wash + glow blob + dark-only hairline. */
 function HeroCard({ theme, darkMode, children }: { theme: Theme; darkMode: boolean; children: React.ReactNode }) {
   return (
     <View
@@ -839,7 +839,7 @@ function GroupCard({ theme, darkMode, children }: { theme: Theme; darkMode: bool
   );
 }
 
-/** Label/value rows inside a grouped card — used by the detail sub-view. */
+/** Label/value rows inside a grouped card - used by the detail sub-view. */
 function InfoCard({ theme, darkMode, rows }: { theme: Theme; darkMode: boolean; rows: { label: string; value: string; color?: string }[] }) {
   return (
     <View style={[getGlassCard(darkMode, 6), styles.groupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -881,7 +881,7 @@ function SummaryStrip({ theme, darkMode, items }: { theme: Theme; darkMode: bool
   );
 }
 
-/** Tappable sector-momentum tile — filters the market list by sector. */
+/** Tappable sector-momentum tile - filters the market list by sector. */
 function SectorTile({
   theme,
   darkMode,
@@ -936,12 +936,12 @@ function OrderRow({ theme, order, isLast, onCancel }: { theme: Theme; order: Ord
   const statusColor = o.status === 'filled' ? accent.success : o.status === 'open' ? accent.purple : theme.textMuted;
   return (
     // Hard Rule #7: this row carried the buy/sell side as a scale(3) bar down
-    // its left edge — a side accent bar, banned by name even though it is a
+    // its left edge - a side accent bar, banned by name even though it is a
     // View rather than a border. The colour moves onto a faint row tint.
     //
     // Kept weak on purpose: the title below already reads "BUY AAPL" /
     // "SELL AAPL" in plain text, so the side is stated, not merely coloured.
-    // The borderBottom stays — a neutral hairline row divider is one of the
+    // The borderBottom stays - a neutral hairline row divider is one of the
     // rule's explicit structural exceptions.
     <View style={[
       styles.orderRow,
@@ -1013,7 +1013,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  // Segmented control directly under the top bar — it anchors the screen, so the top bar drops its bottom border.
+  // Segmented control directly under the top bar - it anchors the screen, so the top bar drops its bottom border.
   tabBar: {
     flexDirection: 'row',
     gap: scale(4),
@@ -1142,7 +1142,7 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: responsiveFontSize.sm, flexShrink: 0 },
   infoValue: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
 
-  // Order rows. (The scale(3) `stripe` that lived here is gone — Hard Rule #7;
+  // Order rows. (The scale(3) `stripe` that lived here is gone - Hard Rule #7;
   // the side now shows as a faint row tint plus the existing BUY/SELL title.)
   orderRow: { flexDirection: 'row', alignItems: 'stretch' },
   orderContent: {

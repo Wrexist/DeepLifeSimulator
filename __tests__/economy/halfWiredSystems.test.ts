@@ -70,7 +70,7 @@ function enrolled(studyGroup: boolean, energy = 100): GameState {
 
 const weeksDone = (s: GameState): number => 100 - (s.educations?.[0].weeksRemaining ?? 100);
 
-describe('C-12 — the study group actually speeds up studying', () => {
+describe('C-12 - the study group actually speeds up studying', () => {
   it('a solo study session advances one week', () => {
     const { setState, get } = batched(enrolled(false));
 
@@ -148,7 +148,7 @@ function withPet(playerEnergy: number, petEnergy = 100): GameState {
   });
 }
 
-describe('C-14 — playing with a pet costs the player the energy it checks for', () => {
+describe('C-14 - playing with a pet costs the player the energy it checks for', () => {
   it('the gate is no longer free: the player pays', () => {
     const snapshot = withPet(100);
     const { setState, get } = batched(snapshot);
@@ -219,7 +219,7 @@ describe('C-14 — playing with a pet costs the player the energy it checks for'
 
 // ───────────────────────────── C-13 ─────────────────────────────
 
-describe('C-13 — the membership rate was weekly all along', () => {
+describe('C-13 - the membership rate was weekly all along', () => {
   /**
    * These are premise tests, not fix tests. They exist so that the next reader
    * who sees "4.99 sounds monthly" has the evidence in front of them before

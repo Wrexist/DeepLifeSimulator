@@ -70,7 +70,7 @@ const summarise = (s: GameState) => ({
   history: (s.companies ?? []).map((c) => c.competitionHistory),
 });
 
-describe('WP-E — processCompetitionResults is invocation-stable', () => {
+describe('WP-E - processCompetitionResults is invocation-stable', () => {
   it('the fixture really resolves something (the premise)', () => {
     const prev = stateWithPendingEntries();
     const next = captureUpdater()(prev);
@@ -85,7 +85,7 @@ describe('WP-E — processCompetitionResults is invocation-stable', () => {
     const updater = captureUpdater();
 
     // StrictMode: pass one is discarded, pass two is committed. They must agree
-    // — including on the prize money, which is what reached the player's bank.
+    // - including on the prize money, which is what reached the player's bank.
     const discarded = updater(prev);
     const committed = updater(prev);
 
@@ -101,7 +101,7 @@ describe('WP-E — processCompetitionResults is invocation-stable', () => {
     }
   });
 
-  it('but separate calls still roll fresh — the randomness was hoisted, not removed', () => {
+  it('but separate calls still roll fresh - the randomness was hoisted, not removed', () => {
     const prev = stateWithPendingEntries();
     const outcomes = new Set<string>();
     for (let i = 0; i < 40; i++) {

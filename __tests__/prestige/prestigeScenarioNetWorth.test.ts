@@ -76,9 +76,9 @@ function withoutMirrors(state: GameState): GameState {
 
 const gemsFrom = (state: GameState): number => executePrestige(state, 'reset').stats.gems ?? 0;
 
-describe('R4 — the first-prestige scenario award does not double-count mirrored cash', () => {
+describe('R4 - the first-prestige scenario award does not double-count mirrored cash', () => {
   it('the discriminating scenario exists and is worth gems (the premise)', () => {
-    if (!WORLD_TRAVELER) throw new Error('world_traveler scenario is gone — this test needs rewriting');
+    if (!WORLD_TRAVELER) throw new Error('world_traveler scenario is gone - this test needs rewriting');
 
     expect(WORLD_TRAVELER.winConditions).toContainEqual(
       expect.objectContaining({ type: 'netWorth', value: 100_000 }),

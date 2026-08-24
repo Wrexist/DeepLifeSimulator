@@ -132,7 +132,7 @@ export function quoteTrip(
     return {
       ok: false,
       reason: 'needs-money',
-      message: `Trip costs $${adjustedCost.toLocaleString()} — you have $${safe(state.stats?.money, 0).toLocaleString()}.`,
+      message: `Trip costs $${adjustedCost.toLocaleString()} - you have $${safe(state.stats?.money, 0).toLocaleString()}.`,
       needed: adjustedCost,
       have: safe(state.stats?.money, 0),
     };

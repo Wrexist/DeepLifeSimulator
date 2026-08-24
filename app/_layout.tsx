@@ -91,7 +91,7 @@ interface ErrorUtilsBridge {
 // H5: the capture below runs at module-eval time, long before RootLayout mounts,
 // and every handler in this file writes to it asynchronously. A snapshot taken at
 // module scope is therefore frozen at `null` forever, which made the fatal-error
-// screen dead code. The listener set makes the value OBSERVABLE after mount —
+// screen dead code. The listener set makes the value OBSERVABLE after mount -
 // capture semantics are unchanged; this only adds a read path.
 let layoutEarlyError: EarlyError | null = null;
 const earlyErrorListeners = new Set<(error: EarlyError | null) => void>();
@@ -196,7 +196,7 @@ try {
 
 // H5: the PHASE 5.2 "Metro bundler connection health check" lived here. It was
 // assigned inside a `setTimeout`, and its only reader was a `useState` initializer
-// that had already run — so the MetroConnectionError fatal screen could never
+// that had already run - so the MetroConnectionError fatal screen could never
 // fire. The check itself could only ever return `false` when `require` is not a
 // function, i.e. in a bundle that could not have executed this file. Deleted
 // rather than repaired: it was ~60 lines of unreachable dev-only diagnostic.
@@ -317,7 +317,7 @@ if (typeof global !== 'undefined') {
   global.RCTFatal = () => { };
 }
 
-// 3) Defer ExceptionsManager interception — single setup with bridge wait
+// 3) Defer ExceptionsManager interception - single setup with bridge wait
 // Consolidated: was previously set twice (immediate + async), causing overwrites.
 // Now uses a single async handler that waits for bridge readiness.
 setTimeout(async () => {
@@ -363,7 +363,7 @@ setTimeout(async () => {
       NativeModules.ExceptionsManager.reportFatal = () => { };
     }
   } catch {
-    // ignore — ExceptionsManager interception is non-critical
+    // ignore - ExceptionsManager interception is non-critical
   }
 }, 0);
 
@@ -475,9 +475,9 @@ if (typeof global !== 'undefined' && typeof global.Promise !== 'undefined') {
 // 8) Initialize crash recovery system
 setTimeout(async () => {
   try {
-    // TYPED lazy require. The DEFERRAL is deliberate — this runs 100ms after
+    // TYPED lazy require. The DEFERRAL is deliberate - this runs 100ms after
     // module evaluation so crash-recovery's storage access never sits on the
-    // boot path — but the untyped `require()` returned `any`, so a rename of
+    // boot path - but the untyped `require()` returned `any`, so a rename of
     // `initializeCrashRecovery` would have compiled, read `undefined`, hit the
     // optional-call guard below and silently disabled crash recovery at boot
     // (2026-08-16 audit L2). `as typeof import(...)` restores the types without
@@ -501,7 +501,7 @@ setTimeout(async () => {
 // 9) Native module audit
 setTimeout(async () => {
   try {
-    // TYPED lazy require — same reasoning as the crash-recovery block above
+    // TYPED lazy require - same reasoning as the crash-recovery block above
     // (2026-08-16 audit L2). The 500ms deferral is the point: `nativeModuleAudit`
     // reads `NativeModules` at call time, which must not happen during module
     // evaluation. `as typeof import(...)` is erased by tsc, so the types come
@@ -582,14 +582,14 @@ function getEarlyInitError(): EarlyInitError | null {
   }
   return null;
 }
-// H5: deliberately NOT snapshotted into a module const here — that ran on the same
+// H5: deliberately NOT snapshotted into a module const here - that ran on the same
 // synchronous pass that installs the handlers, so it was always null and every
 // reader below was dead code. RootLayout reads it at mount and then subscribes.
 
 // P1-9: only suppress *known-benign* library warnings. Substring matches like
 // `[RootLayout]` and `[StatusBarWrapper]` hid real signals (state leaks, render
 // loops) for months. `Sending onAnimatedValueUpdate` is a real animation-loop
-// signal — leave it visible so future loop regressions are caught early.
+// signal - leave it visible so future loop regressions are caught early.
 LogBox.ignoreLogs([
   'Network monitoring disabled',
   'Require cycle:',
@@ -605,7 +605,7 @@ const SicknessModal = lazy(() => import('@/components/SicknessModal'));
 const CureSuccessModal = lazy(() => import('@/components/CureSuccessModal'));
 const DeathPopup = lazy(() => import('@/components/DeathPopup'));
 const WeddingPopup = lazy(() => import('@/components/WeddingPopup'));
-// ZeroStatPopup removed from the week-advance flow — low health/happiness is now
+// ZeroStatPopup removed from the week-advance flow - low health/happiness is now
 // surfaced passively in the player card "Health Issues" section instead of as a
 // popup, so it is no longer rendered here.
 
@@ -671,13 +671,13 @@ class SlotRenderBoundary extends Component<
   }
 }
 
-// Functional wrapper so the class boundary can report the active route path —
+// Functional wrapper so the class boundary can report the active route path -
 // which directly identifies the screen whose component resolved to undefined.
 function SlotBoundary({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const segments = useSegments();
   // Include segments (which KEEP the group, e.g. ["(tabs)"] vs
-  // ["(onboarding)","MainMenu"]) so we can pinpoint the exact route file —
+  // ["(onboarding)","MainMenu"]) so we can pinpoint the exact route file -
   // usePathname strips groups and can't disambiguate.
   const label = `${pathname}  ·  segments=[${segments.join(', ')}]`;
   return <SlotRenderBoundary pathname={label}>{children}</SlotRenderBoundary>;
@@ -757,7 +757,7 @@ if (__DEV__) {
 export default function RootLayout() {
   // Defer markBootStage to avoid blocking render
   // P2-3: moved markBootStage + debug-logging side effects out of the render
-  // body into useEffect — they used to fire on every render of RootLayout
+  // body into useEffect - they used to fire on every render of RootLayout
   // (and twice under StrictMode).
   useEffect(() => {
     markBootStage('layout_start');
@@ -891,7 +891,7 @@ export default function RootLayout() {
             }
           } catch {
             parseFailed = true;
-            logger.warn('Failed to parse last_fatal_error — keeping for next attempt');
+            logger.warn('Failed to parse last_fatal_error - keeping for next attempt');
           }
           // P2-5: only remove the persisted error when we *displayed* it.
           // Removing on parse failure threw away the breadcrumb we needed to
@@ -899,7 +899,7 @@ export default function RootLayout() {
           if (displayed) {
             await safeAsyncStorage.removeItem('last_fatal_error');
           } else if (!parseFailed) {
-            // Old (>30s) entry — archive then remove so we don't show it again
+            // Old (>30s) entry - archive then remove so we don't show it again
             // but the breadcrumb is still recoverable from device storage if needed.
             try {
               await safeAsyncStorage.setItem('last_fatal_error_archive', lastError);
@@ -949,7 +949,7 @@ export default function RootLayout() {
       }
 
       // Reset state. `earlyInitError` is now live state, so it must be cleared
-      // too — otherwise the effect above would immediately re-raise the screen
+      // too - otherwise the effect above would immediately re-raise the screen
       // the player just dismissed. The module-level capture is left intact
       // (it is the diagnostic record); only this session's surfacing is reset.
       setEarlyInitError(null);
@@ -1077,8 +1077,8 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     const appVersion = Constants.expoConfig?.version || '2.2.7';
     // `Constants.expoConfig.ios.buildNumber` is a hardcoded config placeholder
     // (EAS remote versioning owns the real store build number), so it can't
-    // identify which build is running. Pair it with the JS-baked BUILD_TAG —
-    // the marker we actually control and bump per build — for diagnostics.
+    // identify which build is running. Pair it with the JS-baked BUILD_TAG -
+    // the marker we actually control and bump per build - for diagnostics.
     const buildNumber = `${Constants.expoConfig?.ios?.buildNumber || 'dev'} (${BUILD_TAG})`;
     initializeDebugContext({
       appVersion,
@@ -1106,7 +1106,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     const enableATT = Platform.OS === 'ios' && isFeatureEnabled('att');
     const enableTelemetry = isFeatureEnabled('telemetry');
     const enableFirebase = Platform.OS !== 'web' && isFeatureEnabled('firebaseAnalytics');
-    // Cloud device backup — pure JS, no native SDK, so unlike the flags above
+    // Cloud device backup - pure JS, no native SDK, so unlike the flags above
     // it is NOT disabled by Boring Build (see featureFlags.ts) and runs in the
     // `preview` profile. Still a deferred task: nothing may touch the network
     // before the first frame.
@@ -1118,17 +1118,17 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
 
     // Add Telemetry task (Wave 0.1): pure-JS analytics, no native SDK. Consent
     // is derived from the user's tracking choice (ATT) rather than force-enabled
-    // — telemetry stays a no-op until tracking is allowed. The pipeline still
+    // - telemetry stays a no-op until tracking is allowed. The pipeline still
     // uses only an anonymous install id (never a device/advertising id).
     //
     // GATED ON EITHER SINK, not on `telemetry` alone. `AnalyticsService.track()`
-    // documents two INDEPENDENT sinks — the self-hosted HTTP queue (needs
-    // `telemetry` + an endpoint) and Firebase (needs neither) — and forwards to
+    // documents two INDEPENDENT sinks - the self-hosted HTTP queue (needs
+    // `telemetry` + an endpoint) and Firebase (needs neither) - and forwards to
     // Firebase before the queue's `active` check precisely so one cannot
     // silence the other. This call site used to defeat that: `analytics.init()`
     // and `setConsent()` ran ONLY under `enableTelemetry`, so in any profile
     // that enables Firebase without also setting EXPO_PUBLIC_ENABLE_ANALYTICS
-    // — which is exactly what `production` does — consent stayed false forever
+    // - which is exactly what `production` does - consent stayed false forever
     // and every custom event was dropped at the top of `track()`. Firebase
     // still collected its own automatic events, so the dashboard looked alive
     // while the entire product funnel (session_start, week_advanced, death,
@@ -1143,7 +1143,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
           const trackingAllowed = await isTrackingAllowed();
           analytics.setConsent(trackingAllowed);
           if (trackingAllowed) {
-            // `trackSessionStart`, not `track('session_start', …)` — it folds
+            // `trackSessionStart`, not `track('session_start', …)` - it folds
             // this launch into the install's retention cohort and attaches the
             // day index. Calling `track` directly here would emit a session
             // with no cohort, which is the state that made D1/D7/D30
@@ -1187,7 +1187,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       }
     }
 
-    // Add Firebase Analytics task (if enabled). Native SDK — opt-in only via
+    // Add Firebase Analytics task (if enabled). Native SDK - opt-in only via
     // EXPO_PUBLIC_ENABLE_FIREBASE. Collection is consent-gated inside the service.
     // Runs after ATT so the tracking choice is known; unlocks AdMob ARPU.
     if (enableFirebase) {
@@ -1222,7 +1222,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
     }
 
     // Add Cloud Backup task (if enabled). `start()` is the ONLY thing that arms
-    // the service's network listener and periodic drain — the module is inert on
+    // the service's network listener and periodic drain - the module is inert on
     // import by design (see services/CloudSyncService.ts), and the dynamic import
     // keeps it off this screen's module-init graph.
     if (enableCloudSave) {
@@ -1312,7 +1312,7 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // Add defensive check - if hook fails, ErrorBoundary will catch it
   //
   /**
-   * PERF-A1, OPEN — analysed, deliberately not changed here.
+   * PERF-A1, OPEN - analysed, deliberately not changed here.
    *
    * This subscribes to the WHOLE game state and sits at the root, so it
    * re-renders on every money change and every weekly stat decay, and its
@@ -1322,7 +1322,7 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
    * It is not a simple selector swap, for two reasons. `setGameState` is
    * needed by `dismissPopupOnError`, and taking it from `useGameState()` is
    * itself the documented full-state re-subscription (CLAUDE.md §4.1,
-   * tasks/lessons.md 2026-06-09) — so narrowing the reads alone would change
+   * tasks/lessons.md 2026-06-09) - so narrowing the reads alone would change
    * nothing. And the AI debug getter needs the whole state, via the ref below.
    * A real fix means splitting this into a narrow presentational part and a
    * render-nothing leaf that owns the writer and the debug getter.
@@ -1330,13 +1330,13 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
    * Left alone because the payoff is unmeasured and the risk is not: this is
    * `app/_layout.tsx`, the file the v2.5.0 launch crash came out of, and the
    * PR checklist requires TestFlight verification for changes to it. The
-   * round-4 audit reached the same conclusion — "needs device measurement, not
+   * round-4 audit reached the same conclusion - "needs device measurement, not
    * more static analysis". Recorded here so the next pass starts from the
    * analysis instead of re-deriving it.
    */
   const { gameState, setGameState } = useGameState();
   // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
-  // full-screen — but NOT the critical popups below, which keep `showStatsBar`.
+  // full-screen - but NOT the critical popups below, which keep `showStatsBar`.
   const fullscreenApp = useFullscreenApp();
   const showTopChrome = showStatsBar && !fullscreenApp;
 
@@ -1351,7 +1351,7 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
   // continue instead of freezing on an invisible popup.
   const dismissPopupOnError = (flag: 'showDeathPopup' | 'showZeroStatPopup' | 'showWeddingPopup' | 'showSicknessModal') =>
     (error: Error) => {
-      logger.error(`[StatusBarWrapper] ${flag} popup failed to render — auto-dismissing:`, { error: error?.message });
+      logger.error(`[StatusBarWrapper] ${flag} popup failed to render - auto-dismissing:`, { error: error?.message });
       setGameState(prev => ({ ...prev, [flag]: false }));
     };
 
@@ -1406,7 +1406,7 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       {/* Only show game-related popups when in an active game session (not in main menu/onboarding) */}
       {/* Lazy load conditional modals to reduce bundler memory pressure */}
       {/* Modal priority: DeathPopup > WeddingPopup > SicknessModal/CureSuccessModal.
-          The SicknessModal no longer auto-opens on week advance — it only shows
+          The SicknessModal no longer auto-opens on week advance - it only shows
           when the player taps the TopStatsBar disease badge. */}
       {showStatsBar && gameState?.showDeathPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showDeathPopup')}>
@@ -1431,7 +1431,7 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       )}
       {showStatsBar && !gameState?.showDeathPopup && (
         // CureSuccessModal has no show-flag (it self-gates on `cureSuccessMessage`).
-        // If it fails to render, just swallow — there's nothing to dismiss.
+        // If it fails to render, just swallow - there's nothing to dismiss.
         <ErrorBoundary fallback={null} onError={(error) => logger.error('[StatusBarWrapper] CureSuccessModal failed:', { error: error?.message })}>
           <Suspense fallback={null}>
             <CureSuccessModal />

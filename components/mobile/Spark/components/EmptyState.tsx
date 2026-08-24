@@ -1,5 +1,5 @@
 /**
- * EmptyState — illustrated empty state for Spark screens.
+ * EmptyState - illustrated empty state for Spark screens.
  *
  * Mirrors Pulse's EmptyState shape (observation + nudge + optional CTA) but
  * uses a heart pulse SVG drawn in Spark's rose→orange gradient.

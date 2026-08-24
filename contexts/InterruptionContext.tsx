@@ -1,20 +1,20 @@
 /**
- * InterruptionContext — one queue for everything that interrupts the player.
+ * InterruptionContext - one queue for everything that interrupts the player.
  *
  * ## The problem this replaces
  *
  * Before this existed there were FOUR independent popup priority chains that
  * could not see each other:
  *
- *   - `app/(tabs)/_layout.tsx`  — weekly result sheet, life moment, event inbox
- *   - `app/(tabs)/home.tsx`     — goal / daily reward / welcome back / community
- *   - `components/PremiumPassPromo.tsx` — deferred by nothing at all
- *   - `components/AdRewardOrb.tsx`      — its own blocking predicate
+ *   - `app/(tabs)/_layout.tsx`  - weekly result sheet, life moment, event inbox
+ *   - `app/(tabs)/home.tsx`     - goal / daily reward / welcome back / community
+ *   - `components/PremiumPassPromo.tsx` - deferred by nothing at all
+ *   - `components/AdRewardOrb.tsx`      - its own blocking predicate
  *
  * Each surface owned a `visible` boolean plus a hand-rolled expression like
  * `visible={showCommunityReward && !blockingModalUp && !showGoalCompletion &&
  * !gameState.showDailyRewardPopup && !showWelcomeBack}`. Every popup added a
- * term to every later popup's condition — O(n²) conditions that still could not
+ * term to every later popup's condition - O(n²) conditions that still could not
  * express "the sheet in the other file outranks me".
  *
  * The result: a single "Next Week" press could stack up to seven concurrent
@@ -25,7 +25,7 @@
  *
  * Declarative, not acquire/release. A surface says *"I want to show, at this
  * priority"* every render; the provider grants the slot to exactly one claimant
- * — the highest priority, ties broken by id so the winner is deterministic.
+ * - the highest priority, ties broken by id so the winner is deterministic.
  *
  * This shape matters for robustness: a claim is derived from the surface's own
  * `wants` flag, so a surface that unmounts, errors, or simply stops wanting to
@@ -50,7 +50,7 @@ import React, {
 
 /**
  * Higher wins. Ordered by how much the player NEEDS to deal with the surface,
- * not by how much the app wants to show it — which is why both monetization
+ * not by how much the app wants to show it - which is why both monetization
  * surfaces sit at the bottom.
  */
 export const INTERRUPTION_PRIORITY = {
@@ -131,7 +131,7 @@ export function InterruptionProvider({ children }: { children: ReactNode }) {
  *
  * Returns true only when this surface both wants to show AND currently outranks
  * every other claimant. Safe to call outside the provider (returns `wants`
- * unchanged) so a surface rendered in isolation — a test, a screenshot harness —
+ * unchanged) so a surface rendered in isolation - a test, a screenshot harness -
  * behaves exactly as it did before the queue existed.
  */
 export function useInterruptionSlot(

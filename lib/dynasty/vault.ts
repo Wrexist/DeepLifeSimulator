@@ -115,7 +115,7 @@ export function storeInVault(
   }
 
   if (!isVaultable(item)) {
-    return { success: false, message: `${item.name} is land — it cannot leave with you.`, cost: 0 };
+    return { success: false, message: `${item.name} is land - it cannot leave with you.`, cost: 0 };
   }
 
   const owned = Array.isArray(state?.luxuryItems) ? state.luxuryItems : [];
@@ -145,7 +145,7 @@ export function storeInVault(
   if (cash < fee) {
     return {
       success: false,
-      message: `Preserving ${item.name} costs $${fee.toLocaleString()} — you have $${Math.floor(cash).toLocaleString()}.`,
+      message: `Preserving ${item.name} costs $${fee.toLocaleString()} - you have $${Math.floor(cash).toLocaleString()}.`,
       cost: 0,
     };
   }
@@ -159,7 +159,7 @@ export function storeInVault(
 }
 
 /**
- * Take a piece out. Free, and NOT refunded — the fee bought preservation, not
+ * Take a piece out. Free, and NOT refunded - the fee bought preservation, not
  * an option. Refunding it would make vaulting-then-unvaulting a way to park
  * money through a prestige, which is precisely the thing the Endowment (tier 3)
  * charges for.
@@ -187,7 +187,7 @@ export function removeFromVault(
  * Mutates `newState` because it is called from inside `createResetGameState` /
  * `createChildGameState`, which are building an object nobody else can see yet.
  *
- * `acquiredWeek: 0` — the new life is at week 0, and appreciation reads the
+ * `acquiredWeek: 0` - the new life is at week 0, and appreciation reads the
  * holding's own `currentValue` (absent = catalog price), so an heirloom arrives
  * valued exactly as the catalog says rather than carrying a stale drift from a
  * life that no longer exists.

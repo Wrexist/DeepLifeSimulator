@@ -40,7 +40,7 @@ describe('a save from a newer build is refused legibly', () => {
     expect(isSaveFromFutureError('a string')).toBe(false);
   });
 
-  it('survives the dynamic-import boundary — the check is duck-typed', () => {
+  it('survives the dynamic-import boundary - the check is duck-typed', () => {
     // The load path imports saveMigrations lazily, so a class-identity check
     // could fail across a bundle split. A structurally equivalent object must
     // still be recognised.

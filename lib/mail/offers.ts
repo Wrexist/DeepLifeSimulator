@@ -101,7 +101,7 @@ export function jobOfferLetter(
     senderName: SENDERS.payroll.name,
     senderEmail: SENDERS.payroll.email,
     verified: true,
-    subject: `Offer of employment — ${pending.title}`,
+    subject: `Offer of employment - ${pending.title}`,
     preview: `${docMoney(pending.salary)} a week. Reply within ${OFFER_EXPIRY_WEEKS} weeks.`,
     body:
       `We are pleased to offer you the position of ${pending.title}.\n\n` +
@@ -117,7 +117,7 @@ export function jobOfferLetter(
     category: 'primary',
     attachment: {
       kind: 'contract',
-      title: `Offer of employment — ${pending.title}`,
+      title: `Offer of employment - ${pending.title}`,
       issuer: 'Human Resources · Offer of Employment',
       reference: docReference('OFR', week, 29),
       rows: [
@@ -142,7 +142,7 @@ export function jobOfferLetter(
 /**
  * How much of an arrears balance an early payment clears.
  *
- * All of it. The point is not a discount — it is that the balance can be
+ * All of it. The point is not a discount - it is that the balance can be
  * ATTACKED at all. `overdueBalance` has no player-facing action anywhere in the
  * game: written by the tick, collected automatically from next week's income,
  * displayed in the bank, and otherwise a spectator sport. Paying it early costs
@@ -163,7 +163,7 @@ export function arrearsInvoice(state: GameState, atWeek: number): MailMessage | 
       label: affordable ? 'Pay the balance now' : 'Pay what you can',
       detail: affordable
         ? `${docMoney(overdue)} from your cash account`
-        : `${docMoney(cash)} of ${docMoney(overdue)} — the rest keeps accruing`,
+        : `${docMoney(cash)} of ${docMoney(overdue)} - the rest keeps accruing`,
       kind: 'primary',
     },
     {
@@ -188,7 +188,7 @@ export function arrearsInvoice(state: GameState, atWeek: number): MailMessage | 
       'While a balance stands it is collected from the top of your income each ' +
       'week, before anything reaches you, and your credit score stays depressed. ' +
       'Settling it here costs the same money and stops both.\n\n' +
-      'There is no penalty for leaving it — only the interest rate on everything ' +
+      'There is no penalty for leaving it - only the interest rate on everything ' +
       'you borrow while it is outstanding.',
     atWeek: week,
     read: false,

@@ -9,7 +9,7 @@ import { smartNotificationSystem, NotificationContext } from '@/utils/smartNotif
  * Progression tab, so its authored moments were almost never seen.
  *
  * Noise discipline: only `critical` and `high` priority fire automatically
- * (health collapsing, broke, death warnings) — at most ONE per week, delayed
+ * (health collapsing, broke, death warnings) - at most ONE per week, delayed
  * past the week-advance animations. Tips/milestones stay in the manual center.
  * Renders nothing; display goes through the system's own non-blocking toast.
  */

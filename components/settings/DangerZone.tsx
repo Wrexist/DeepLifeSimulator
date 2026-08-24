@@ -1,5 +1,5 @@
 /**
- * DangerZone — Restart game and bug report buttons with confirmation modal.
+ * DangerZone - Restart game and bug report buttons with confirmation modal.
  * Extracted from SettingsModal to reduce its size.
  */
 
@@ -39,13 +39,13 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
       // do, this did not. So "Restart Game" silently destroyed Remove Ads,
       // Lifetime Premium, all nine gem-bought permanent gold upgrades, every
       // purchased perk, unspent Youth Pills, the Revival Pack and the four
-      // banking unlocks — and the 2-minute autosave then wrote the wipe to
+      // banking unlocks - and the 2-minute autosave then wrote the wipe to
       // disk. The confirm dialog only ever warned about "progress".
       // 2026-07-30 audit MON-2.
       // Deep-clone FIRST. `carryAccountLevelEntitlements` mutates its second
       // argument (its own docstring says so), so handing it the exported
       // `initialGameState` singleton would write this life's purchases onto the
-      // shared template — permanently, for the rest of the process, so every
+      // shared template - permanently, for the rest of the process, so every
       // later new game would start with them. The two prestige callers pass a
       // freshly built object; this one had the singleton itself to hand.
       setGameState((prev) =>
@@ -63,7 +63,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
        * this handler builds comes from `initialGameState`, so it has no
        * `scenarioId` and an empty `userProfile.firstName`/`lastName`, and
        * `carryAccountLevelEntitlements` copies only settings, gold upgrades,
-       * perks and youth pills — never a name or a scenario. So
+       * perks and youth pills - never a name or a scenario. So
        * `isPristineUnstartedState` returns true and `saveGame` bails before
        * writing. The 2-minute autosave bails on the same guard.
        *

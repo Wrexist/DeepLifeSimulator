@@ -1,5 +1,5 @@
 /**
- * The Dynasty board — the reachable surface for prestige tiers 2-5.
+ * The Dynasty board - the reachable surface for prestige tiers 2-5.
  *
  * ## Why it lives here
  *
@@ -14,7 +14,7 @@
  * Same rule as `FEATURE_UNLOCKS` (see `lib/progress/featureUnlocks.ts`): a
  * locked capability renders with a padlock and its requirement rather than
  * disappearing. The shape of the late game should be legible from the first
- * prestige — "there is a Vault at two, a Seat at five" is the answer to "why
+ * prestige - "there is a Vault at two, a Seat at five" is the answer to "why
  * prestige again?", and it only works if you can see it before you earn it.
  *
  * This is also the bug this codebase keeps finding: a capability with no UI.
@@ -61,7 +61,7 @@ interface RowProps {
 }
 
 /**
- * One row. Full `borderWidth: 1` on all four sides — a one-sided coloured
+ * One row. Full `borderWidth: 1` on all four sides - a one-sided coloured
  * stripe is banned app-wide (Hard Rule #7).
  */
 function Row({ title, subtitle, action, onPress, enabled, done, locked, isDark }: RowProps) {
@@ -192,8 +192,8 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
           <Row
             key="vault-empty"
             title="Nothing to preserve"
-            subtitle="Buy a luxury piece first. Land cannot be vaulted — it stays where it is."
-            action="—"
+            subtitle="Buy a luxury piece first. Land cannot be vaulted - it stays where it is."
+            action="-"
             enabled={false}
             isDark={isDark}
           />
@@ -209,7 +209,7 @@ export default function DynastyBoard({ gameState }: { gameState: GameState | und
                 title={`${item.emoji} ${item.name}`}
                 subtitle={
                   room
-                    ? `Preservation fee ${money(fee)}${affordable ? '' : ' — not enough cash'}`
+                    ? `Preservation fee ${money(fee)}${affordable ? '' : ' - not enough cash'}`
                     : 'The Vault is full.'
                 }
                 action={money(fee)}

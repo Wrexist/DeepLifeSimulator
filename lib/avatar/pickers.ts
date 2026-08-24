@@ -90,7 +90,7 @@ export const AVATAR_PICKERS: PickerCategory[] = [
  * Every field the editor can write, category or tint.
  *
  * `AVATAR_PICKERS.map(c => c.field)` no longer covers the colours, so anything
- * asking "is this field editable" has to look at both — this is that answer in
+ * asking "is this field editable" has to look at both - this is that answer in
  * one place rather than the question being got wrong somewhere.
  */
 export const EDITABLE_AVATAR_FIELDS: (keyof AvatarConfig)[] = AVATAR_PICKERS.flatMap((c) =>

@@ -59,7 +59,7 @@ function withCompany(money: number): GameState {
   });
 }
 
-describe('C-3 — an R&D lab is bought once per tap-burst', () => {
+describe('C-3 - an R&D lab is bought once per tap-burst', () => {
   const TIERS = Object.keys(LAB_TYPES) as (keyof typeof LAB_TYPES)[];
 
   it('the catalogue really has several tiers priced in six figures (the premise)', () => {
@@ -124,7 +124,7 @@ describe('C-3 — an R&D lab is bought once per tap-burst', () => {
   });
 });
 
-describe('C-7 — buying a pet adds one pet', () => {
+describe('C-7 - buying a pet adds one pet', () => {
   function petBuyer(money: number): GameState {
     const base = createTestGameState();
     return createTestGameState({ stats: { ...base.stats, money }, pets: [] });
@@ -212,7 +212,7 @@ describe('C-7 — buying a pet adds one pet', () => {
   });
 });
 
-describe('C-6 — a vet visit is charged once', () => {
+describe('C-6 - a vet visit is charged once', () => {
   function withSickPet(money: number, over: Record<string, unknown> = {}): GameState {
     const base = createTestGameState();
     return createTestGameState({

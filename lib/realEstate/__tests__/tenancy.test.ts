@@ -126,7 +126,7 @@ describe('effectiveAskRent (Fix 1)', () => {
   });
 });
 
-describe('askFillMultiplier / askChurnMultiplier (Fix 1 — direction + balance)', () => {
+describe('askFillMultiplier / askChurnMultiplier (Fix 1 - direction + balance)', () => {
   const market = 300;
 
   it('below-market ask fills FASTER (multiplier > 1)', () => {

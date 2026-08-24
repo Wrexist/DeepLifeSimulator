@@ -38,7 +38,7 @@ interface WelcomeBackPopupProps {
 
 export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupProps) {
   const { gameState } = useGameState();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const isDarkMode = settings.darkMode;
 
   // Calculate time away
@@ -215,16 +215,16 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                 Everything from the home crest down to the "what's waiting"
                 rows scrolls; the Continue button stays pinned below it.
 
-                The body here is VARIABLE height — the info block renders
+                The body here is VARIABLE height - the info block renders
                 between one and six rows depending on streak, pending events,
-                an unresolved cliffhanger and a neglected partner — on top of a
+                an unresolved cliffhanger and a neglected partner - on top of a
                 fixed crest, title, and two stat cards. A returning player who
                 triggers most of those pushes the column past the screen, and
                 Continue is the ONLY way out of this popup: it has no close X
                 and no backdrop tap, and `onRequestClose` is Android's hardware
                 back button alone. Off the bottom of the screen means stuck.
 
-                `flexShrink: 1`, not `flex: 1` — see the note in
+                `flexShrink: 1`, not `flex: 1` - see the note in
                 `WeddingPopup`/`ApplyCardModal`: grow-with-no-shrink lets a tall
                 pinned footer collapse the scroller to zero height, which is the
                 same bug wearing a different hat. */}
@@ -383,14 +383,14 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                       {/* The one FORWARD-looking line on a screen that is
                           otherwise entirely a report of the past.
                         
-                          This replaced "Continue your life journey" — a row that
+                          This replaced "Continue your life journey" - a row that
                           occupied the most valuable slot on the return screen and
                           told the player nothing they did not already know. The
                           return screen's job is to answer "what happened while I
                           was away", and then "so what do I do now"; without the
                           second half it closes on a shrug.
                         
-                          Derived, never stored, and it pays nothing — the same
+                          Derived, never stored, and it pays nothing - the same
                           read-only recommendation the home screen shows, so the
                           two surfaces cannot disagree. Falls back to the original
                           line when no goal is eligible. */}
@@ -403,7 +403,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                           numberOfLines={2}
                         >
                           {nextGoal
-                            ? `Next: ${nextGoal.title} — ${nextGoal.progressLabel}`
+                            ? `Next: ${nextGoal.title} - ${nextGoal.progressLabel}`
                             : 'Continue your life journey'}
                         </Text>
                       </View>
@@ -413,7 +413,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
               </View>
             </ScrollView>
 
-            {/* Action Button — pinned OUTSIDE the scroller, because it is the
+            {/* Action Button - pinned OUTSIDE the scroller, because it is the
                 only way to dismiss this popup. */}
             <TouchableOpacity
               style={styles.continueButton}
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     width: scale(44),
     height: scale(44),
     borderRadius: scale(22),
-    // Neutral slate chip — reads correctly behind any icon color (the previous
+    // Neutral slate chip - reads correctly behind any icon color (the previous
     // fixed green tint clashed with the red Heart in the Life Progress card).
     backgroundColor: 'rgba(148,163,184,0.12)',
     justifyContent: 'center',
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     width: scale(32),
     height: scale(32),
     borderRadius: scale(16),
-    // Neutral slate chip — reads correctly behind every icon color used in the
+    // Neutral slate chip - reads correctly behind every icon color used in the
     // info rows (green, amber, blue, purple, red) instead of a fixed purple.
     backgroundColor: 'rgba(148,163,184,0.12)',
     justifyContent: 'center',

@@ -44,7 +44,7 @@ describe('collectNewlyEarnedPrestigeAchievements', () => {
     expect(pointsAwarded).toBeGreaterThanOrEqual(3000);
   });
 
-  it('is idempotent — already-claimed achievements are never re-collected', () => {
+  it('is idempotent - already-claimed achievements are never re-collected', () => {
     const state = createTestGameState({
       prestige: {
         ...defaultPrestigeData,
@@ -128,7 +128,7 @@ describe('collectNewlyEarnedPrestigeAchievements', () => {
   });
 });
 
-describe('executePrestige — prestige-achievement award pass', () => {
+describe('executePrestige - prestige-achievement award pass', () => {
   // R3-P11: `loans: []` no longer satisfies "Clean Slate" — it means the
   // player never borrowed, not that they cleared their debt.
   const aboveThreshold = () =>

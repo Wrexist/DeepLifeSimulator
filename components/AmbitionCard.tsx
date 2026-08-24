@@ -1,5 +1,5 @@
 /**
- * AmbitionCard — the in-game front door for the Life Ambition chosen at
+ * AmbitionCard - the in-game front door for the Life Ambition chosen at
  * character creation.
  *
  * READ-ONLY. Milestone progress is evaluated from the live state on every render
@@ -7,7 +7,7 @@
  * neither persists progress nor grants the payoff.
  *
  * The week tick owns both (`contexts/game/actions/weekly/applyAmbitionPayout.ts`).
- * It used to be the other way round — this card held the ONLY call to
+ * It used to be the other way round - this card held the ONLY call to
  * `grantAmbitionPayout` anywhere in the app, behind a button, so the largest
  * reward in the game ($60k–$300k + gems + prestige points) went unpaid for any
  * player who never scrolled to it, and prestiging without tapping it burned the
@@ -16,7 +16,7 @@
  * so it is gone.
  *
  * Renders nothing when the life has no chosen ambition (old saves + freeform
- * lives) — so it is safe on every existing save.
+ * lives) - so it is safe on every existing save.
  */
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -97,14 +97,14 @@ function AmbitionCard() {
       {alreadyClaimed ? (
         <View style={styles.rewardHint}>
           <Trophy size={scale(13)} color="#FBBF24" />
-          <Text style={styles.doneText}>Ambition fulfilled — reward claimed</Text>
+          <Text style={styles.doneText}>Ambition fulfilled - reward claimed</Text>
         </View>
       ) : readyToClaim ? (
         // Every milestone is reached and the tick has not run yet. No button:
         // the payout lands on the next week advance without being asked for.
         //
         // And it must not LOOK like one either. This rendered as a full-width
-        // solid-amber bar with bold dark text — the app's primary CTA — on a
+        // solid-amber bar with bold dark text - the app's primary CTA - on a
         // `View` with no handler, which is the defect a player reported on the
         // sibling LifeChapterCard as "can't claim reward" (2026-08-14). Same
         // pattern, same screen, one card down, and this one carries the biggest
@@ -114,7 +114,7 @@ function AmbitionCard() {
         <View style={styles.completeBanner}>
           <Trophy size={scale(15)} color="#FBBF24" />
           <Text style={styles.completeText}>
-            Fulfilled — {rewardLine} arrives when you end the week.
+            Fulfilled - {rewardLine} arrives when you end the week.
           </Text>
         </View>
       ) : (
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: scale(2), backgroundColor: '#3B82F6' },
-  // Status, not a call to action — see the comment at the render site. Matches
+  // Status, not a call to action - see the comment at the render site. Matches
   // LifeChapterCard's banner exactly: the two sit together on the home screen,
   // and the amber tint is the same value `doneBadge` above already uses. Copy
   // is `title`'s `#F8FAFC` rather than amber, because this card paints its own

@@ -209,12 +209,12 @@ export const swipeOnProfile = (
   const sp = gameState.sparkApp;
   if (!sp) return { success: false, message: 'Spark not initialized' };
   if (swipesRemaining(gameState) <= 0) {
-    return { success: false, message: 'Out of swipes this week — upgrade to Plus for unlimited' };
+    return { success: false, message: 'Out of swipes this week - upgrade to Plus for unlimited' };
   }
 
   const isSuper = direction === 'super';
   if (isSuper && superLikesRemaining(gameState) <= 0) {
-    return { success: false, message: 'Out of super-likes this week — upgrade for more' };
+    return { success: false, message: 'Out of super-likes this week - upgrade for more' };
   }
 
   const weeksLived = gameState.weeksLived ?? 0;
@@ -231,7 +231,7 @@ export const swipeOnProfile = (
     }
   }
 
-  // Catfish suspicion — same deterministic seed per save/profile.
+  // Catfish suspicion - same deterministic seed per save/profile.
   const lineageSeed = gameState.lineageId ?? 'initial';
   const catfishSuspected = isCatfish(profile, lineageSeed);
 
@@ -271,7 +271,7 @@ export const swipeOnProfile = (
 
     // R10-2: also record the match in the top-level `datingMatches` ledger. The
     // "first match" / "25 matches" achievements read `gs.datingMatches?.length`,
-    // which nothing wrote to — so they were permanently stuck at 0. Append the
+    // which nothing wrote to - so they were permanently stuck at 0. Append the
     // matched profile id (deduped) so that progress actually accrues.
     const newDatingMatches =
       matched && !(prev.datingMatches ?? []).includes(profileId)
@@ -388,7 +388,7 @@ export const unmatch = (
  *
  * They are deleted rather than left exported, for two reasons beyond tidiness.
  * `sendSparkMessage` charged its energy in a SECOND `setGameState` after the
- * message updater — the gate-then-grant shape CLAUDE.md §4.4 exists to stop —
+ * message updater - the gate-then-grant shape CLAUDE.md §4.4 exists to stop -
  * and neither function touched rapport, so anything still calling them would
  * write messages into a thread the conversation engine then reasons about as
  * if they had never happened.
@@ -398,7 +398,7 @@ export const unmatch = (
  *
  * `lib/dating/npcReplyPool.ts` went with them (2026-08-17). It was the reply
  * catalog those two functions read, so once they were deleted nothing in
- * production referenced it — the only remaining importer was its own
+ * production referenced it - the only remaining importer was its own
  * coverage test, which enforced a per-personality pool for a module no screen
  * could reach and would have failed CI the next time a personality was added
  * to `DATING_PROFILES`. A gate on dead code is a trap, not protection. Its
@@ -431,7 +431,7 @@ export const markMatchRead = (
 
 /**
  * Like back a profile from the "liked you" inbox. Because they already liked
- * the player, liking back is a guaranteed instant match — mirrors
+ * the player, liking back is a guaranteed instant match - mirrors
  * `swipeOnProfile`'s match-append + `datingMatches` dedupe. Gated behind the
  * `seeWhoLikedYou` perk (Ultra): free/Plus users only see a blurred count, so
  * they can never target a specific profile to like back.
@@ -599,12 +599,12 @@ export function resolveMatchPromotion(
  *
  * NO UI CALLS THIS TODAY, deliberately. ChatScreen's header heart used to, and
  * that made it a free instant promotion sitting next to the `go_steady` chip,
- * which costs 5 energy, needs 75 rapport and can be refused — the gate was
+ * which costs 5 energy, needs 75 rapport and can be refused - the gate was
  * decoration as long as an ungated door stood beside it. The heart now plays
  * `go_steady` through `playConversationOption` like the chip does.
  *
- * This stays exported as the bare promotion API — one dispatch, no rapport
- * economy — for a future surface that legitimately has no conversation behind
+ * This stays exported as the bare promotion API - one dispatch, no rapport
+ * economy - for a future surface that legitimately has no conversation behind
  * it (a story event, a scenario setup). Anything player-facing that represents
  * "ask them out" must go through the conversation path instead, or it
  * re-creates the same bypass.
@@ -618,7 +618,7 @@ export const promoteMatchToRelationship = (
   if (!preview.ok) return { success: false, message: preview.message };
 
   setGameState((prev) => {
-    // Re-resolved against `prev`, not the snapshot above — a same-batch
+    // Re-resolved against `prev`, not the snapshot above - a same-batch
     // double-tap (or a promote racing another relationship-creating action)
     // must not append a second partner.
     const committed = resolveMatchPromotion(prev, matchId);
@@ -657,10 +657,10 @@ export const promoteMatchToRelationship = (
  * want on Spark but only the first one is a contact."
  *
  * Both halves of that were one gap. `'friend'` is a declared `Relationship`
- * type read in at least six places — `lib/contacts/aggregator.ts`,
+ * type read in at least six places - `lib/contacts/aggregator.ts`,
  * `ContactsApp`, `lib/social/npcDepth.ts` (goals, wants, gift preferences, and
  * a `meet_friends` want that lists `'friend'` among its target types),
- * `SocialActionsContext`, `prestigeExecution`'s heir cleanup — and it was
+ * `SocialActionsContext`, `prestigeExecution`'s heir cleanup - and it was
  * created by **nothing**. A repo-wide search for `type: 'friend'` in non-test
  * source returned no results. Every one of those consumers was dead code, and
  * `ContactsApp`'s empty state advertised a verb ("Date, befriend, or build
@@ -668,7 +668,7 @@ export const promoteMatchToRelationship = (
  *
  * The second half follows: `promoteMatchToRelationship` is the ONLY producer of
  * relationships anywhere, and its anti-bigamy guard correctly refuses a second
- * partner — so once one match was promoted, every other match had nowhere to
+ * partner - so once one match was promoted, every other match had nowhere to
  * go. That guard is right and stays; what was missing is the other destination.
  *
  * Deliberately NOT gated on exclusivity: a player may have any number of
@@ -676,7 +676,7 @@ export const promoteMatchToRelationship = (
  * ownership of the match, not a global count.
  *
  * The relationship's `type` is the single source of truth for what a promoted
- * match became — `SparkMatch.promoted` stays a plain boolean and the UI reads
+ * match became - `SparkMatch.promoted` stays a plain boolean and the UI reads
  * the type off `relationships`. That keeps this out of the save format
  * entirely: no new field, no migration, no STATE_VERSION bump.
  */
@@ -694,7 +694,7 @@ export const promoteMatchToFriend = (
 
   const relationshipId = match.id; // shared id, same as the partner path
 
-  // Already a contact under this id — the OUTER mirror of the updater's second
+  // Already a contact under this id - the OUTER mirror of the updater's second
   // guard. Without it the refusal could only be reported by reading a variable
   // back across the updater boundary.
   if ((gameState.relationships ?? []).some((r) => r?.id === relationshipId)) {
@@ -708,7 +708,7 @@ export const promoteMatchToFriend = (
    * that it was the fixed shape. It is not: a captured value is only readable
    * for the FIRST functional update of a React batch, so on any deferred
    * dispatch this reported "Already in your contacts" for a friendship it had
-   * just created. That ratchet's premise — and its recommendation — have since
+   * just created. That ratchet's premise - and its recommendation - have since
    * been corrected.
    *
    * Both guards below now mirror an outer one, so they are same-batch RACE
@@ -756,13 +756,13 @@ export const promoteMatchToFriend = (
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * What a promoted match became — read off the relationship it created, which is
+ * What a promoted match became - read off the relationship it created, which is
  * the single source of truth (`SparkMatch.promoted` is a plain boolean, so
  * friend and partner look identical there). A promoted match shares its id with
  * its relationship, so this is a lookup and not a search.
  *
  * `undefined` for an un-promoted match, and also for a promoted one whose
- * relationship is gone (a breakup removes it) — the caller degrades to generic
+ * relationship is gone (a breakup removes it) - the caller degrades to generic
  * copy rather than guessing.
  */
 const promotionKindOf = (
@@ -784,7 +784,7 @@ export interface SparkConversationView {
  * Assemble the conversation gate input from a `GameState`.
  *
  * Lives here rather than in the screen so the UI and the action agree on what
- * "available" means by construction — the disabled reason a chip shows is
+ * "available" means by construction - the disabled reason a chip shows is
  * produced by the same call the action re-checks against `prev`.
  */
 export const getSparkConversationView = (
@@ -818,12 +818,12 @@ export interface PlayConversationResult {
   /**
    * NO `rapport` FIELD ON PURPOSE. It used to be reported here from the
    * pre-dispatch resolution, while the value actually COMMITTED is recomputed
-   * from `prev` inside the updater — so the two could disagree on any queued
+   * from `prev` inside the updater - so the two could disagree on any queued
    * second change. Nothing read it (the screen renders rapport from
    * `getSparkConversationView`, which reads the committed state), so it was a
    * wrong number nobody was looking at. Read rapport from state, not from here.
    */
-  /** Set when a `go_steady` landed — the caller opens the partner profile. */
+  /** Set when a `go_steady` landed - the caller opens the partner profile. */
   relationshipId?: string;
 }
 
@@ -833,7 +833,7 @@ export interface PlayConversationResult {
  * ALL state movement lands in ONE `setGameState` updater (CLAUDE.md §4.4):
  * the energy charge, the cash charge for a date, the rapport change, the
  * cooldown stamp, both chat messages, the unread counters, the
- * `totalDatesGoneOn` increment and — for `go_steady` — the promotion itself.
+ * `totalDatesGoneOn` increment and - for `go_steady` - the promotion itself.
  * The updater re-resolves the gate against `prev` and returns `prev` unchanged
  * to reject, so a double tap in one React batch charges once.
  *
@@ -843,7 +843,7 @@ export interface PlayConversationResult {
  *
  * The outcome is rolled OUTSIDE the updater (`resolveConversationOption`),
  * because an updater must be pure and may run twice. A resolution whose commit
- * is rejected is simply discarded — nothing was charged and nothing was said.
+ * is rejected is simply discarded - nothing was charged and nothing was said.
  *
  * Both messages are appended together rather than paced by a timer. The UI can
  * animate the reveal if it wants; the state must not depend on a timer that a
@@ -869,7 +869,7 @@ export const playConversationOption = (
   // The generic gate below prices a date at its CHEAPEST venue, so the CHOSEN
   // venue is checked separately and FIRST. Without this, picking dinner with
   // coffee money passed the outer gate, resolved an outcome, and was then
-  // rejected inside the updater by `applyMoneyDelta` — reporting success while
+  // rejected inside the updater by `applyMoneyDelta` - reporting success while
   // nothing happened.
   if (option.requiresVenue) {
     const venue = findDateVenue(venueId);
@@ -930,7 +930,7 @@ export const playConversationOption = (
     if (!m) return prev;
 
     // Re-gate against `prev`. This is the same call the UI used to draw the
-    // chip, so the two cannot drift — and on a same-batch second tap the
+    // chip, so the two cannot drift - and on a same-batch second tap the
     // cooldown stamped by the first updater fails it here.
     const fresh = resolveOptionAvailability(option, {
       rapport: readRapport(m),
@@ -951,7 +951,7 @@ export const playConversationOption = (
     let next: GameState = prev;
     if (resolution.cashCost > 0) {
       const spend = applyMoneyDelta(next, -resolution.cashCost, `Spark date (${resolution.venueId})`);
-      if (!spend) return prev; // funds moved since the preview — reject atomically
+      if (!spend) return prev; // funds moved since the preview - reject atomically
       next = { ...next, ...spend };
     }
     next = {
@@ -999,7 +999,7 @@ export const playConversationOption = (
                   [optionId]: prev.weeksLived ?? 0,
                 },
                 lastMessageTimestamp: now,
-                // The player is looking at the thread — both sides are read.
+                // The player is looking at the thread - both sides are read.
                 unreadByPlayer: 0,
                 unreadByNpc: 0,
               }
@@ -1017,7 +1017,7 @@ export const playConversationOption = (
     // go_steady, committed in the SAME updater through the one authority.
     if (optionId === 'go_steady' && resolution.success) {
       const promo = resolveMatchPromotion(next, matchId);
-      // Refusing here rejects the whole move — no charge, no messages — rather
+      // Refusing here rejects the whole move - no charge, no messages - rather
       // than banking a proposal that was never accepted.
       if (!promo.ok) return prev;
       next = promo.next;
@@ -1036,7 +1036,7 @@ export const playConversationOption = (
     outcome: resolution.success ? 'success' : 'miss',
     // The relationship shares the match's id by construction
     // (`resolveMatchPromotion`), so this needs no value read back out of the
-    // updater — which would be unreliable for any deferred dispatch.
+    // updater - which would be unreliable for any deferred dispatch.
     relationshipId: optionId === 'go_steady' && resolution.success ? matchId : undefined,
   };
 };
@@ -1051,13 +1051,13 @@ export const subscribeSparkPremium = (
   const tierLabel = tier === 'ultra' ? 'Ultra' : 'Plus';
   // Re-entry guard: buying the tier+plan you ALREADY hold re-charges the full
   // price and (for annual) resets paidThroughWeek to now+52 rather than extending
-  // it — a pure loss. Changing tier (Plus ⇄ Ultra) or plan stays allowed. Filed
+  // it - a pure loss. Changing tier (Plus ⇄ Ultra) or plan stays allowed. Filed
   // as a non-blocking LOW by the 2026-07-16 weekly audit.
   const activePremium = gameState.sparkApp?.premium;
   if (activePremium?.active === true && activePremium.tier === tier && (activePremium.plan ?? 'weekly') === plan) {
     return {
       success: false,
-      message: `Spark ${tierLabel} is already active — no need to buy it again.`,
+      message: `Spark ${tierLabel} is already active - no need to buy it again.`,
     };
   }
   // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
@@ -1117,8 +1117,8 @@ export const subscribeSparkPremium = (
     success: true,
     message:
       plan === 'annual'
-        ? `Spark ${tierLabel} active — $${price.toLocaleString()} for 52 weeks.`
-        : `Spark ${tierLabel} active — $${price}/week.`,
+        ? `Spark ${tierLabel} active - $${price.toLocaleString()} for 52 weeks.`
+        : `Spark ${tierLabel} active - $${price}/week.`,
   };
 };
 
@@ -1158,7 +1158,7 @@ export const boostProfile = (
     // H-8 (R8): debit gems INSIDE the grant updater and reject on insufficient
     // funds. updateStats clamps gems to >=0 (it never rejects), so the prior
     // grant-then-charge let two rapid taps both grant the boost while gems
-    // floored at 0 — a gem-duplication / free-boost exploit.
+    // floored at 0 - a gem-duplication / free-boost exploit.
     if ((prev.stats?.gems ?? 0) < BOOST_GEM_COST) {
       return prev;
     }
@@ -1208,7 +1208,7 @@ export const reportProfile = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   profileId: string,
 ): { success: boolean; message: string } => {
-  // Already reported — the OUTER mirror of the updater's guard. Without one the
+  // Already reported - the OUTER mirror of the updater's guard. Without one the
   // refusal was unreportable, so a second report of the same profile said
   // "Profile reported and unmatched" and did nothing.
   if ((gameState.sparkApp?.reportedIds ?? []).includes(profileId)) {
@@ -1237,7 +1237,7 @@ export const exposeCatfish = (
   const weeksLived = gameState.weeksLived ?? 0;
   const reputationGain = 5;
 
-  // Already exposed — the OUTER mirror of the updater's dedup guard. Without
+  // Already exposed - the OUTER mirror of the updater's dedup guard. Without
   // one, the refusal could only be reported by reading a flag back across the
   // updater boundary, which is unreliable for any dispatch that is not first in
   // its React batch (2026-08-15).
@@ -1249,7 +1249,7 @@ export const exposeCatfish = (
 
   // ANTI-EXPLOIT (H-8/H-9 class): the outer call may fire twice in one React
   // batch, so the dedup is re-checked against FRESH state here. The reputation
-  // grant folds into the SAME updater — it used to be a trailing `updateStats`
+  // grant folds into the SAME updater - it used to be a trailing `updateStats`
   // gated on a flag, so a deferred dispatch recorded the exposure and granted
   // no reputation at all.
   setGameState((prev) => {
@@ -1276,7 +1276,7 @@ export const exposeCatfish = (
   });
   return {
     success: true,
-    message: `Catfish exposed — +${reputationGain} reputation`,
+    message: `Catfish exposed - +${reputationGain} reputation`,
     reputationGain,
   };
 };
@@ -1312,8 +1312,8 @@ export const fallForCatfish = (
   //
   // The debit and the reputation hit now fold into the SAME updater. They used
   // to be trailing dispatches gated on a flag read back from here, so a
-  // deferred dispatch wrote the "fell for it" record — which the Spark history
-  // and lifetime stats read — while the player was never actually charged.
+  // deferred dispatch wrote the "fell for it" record - which the Spark history
+  // and lifetime stats read - while the player was never actually charged.
   setGameState((prev) => {
     const s = ensureSpark(prev);
     if (s.catfishRecords.some((r) => r.profileId === profileId && r.outcome === 'fell_for_it' && r.exposedAtWeek === weeksLived)) {
@@ -1362,7 +1362,7 @@ export const resolveJealousy = (
   const { rep, rel, msg } = effects[outcome];
 
   // The outer `!event` check above is the reported outcome; the re-check below
-  // is the same-batch RACE guard. The reputation hit folds in here too — it was
+  // is the same-batch RACE guard. The reputation hit folds in here too - it was
   // a trailing `updateStats` gated on a flag read back after the dispatch, so a
   // deferred resolve cleared the event and skipped the reputation entirely.
   setGameState((prev) => {

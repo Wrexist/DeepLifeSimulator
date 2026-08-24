@@ -99,7 +99,7 @@ describe('planning the version record', () => {
     expect(plan.reason).toMatch(/does not beat the highest released version \(1\.5\.0\)/);
   });
 
-  it('REFUSES an equal number — climbing means strictly greater', () => {
+  it('REFUSES an equal number - climbing means strictly greater', () => {
     const plan = R.planVersionRecord({
       versions: [version('1.5.0', 'READY_FOR_SALE'), version('1.5.0', 'READY_FOR_SALE', 'dup')],
       versionString: '1.5.0',
@@ -131,7 +131,7 @@ describe('planning the version record', () => {
     expect(plan.action).toBe('refuse');
   });
 
-  it('reuses a rejected version rather than refusing — that is the resubmit path', () => {
+  it('reuses a rejected version rather than refusing - that is the resubmit path', () => {
     // METADATA_REJECTED is exactly when you need to rewrite the release notes.
     const plan = R.planVersionRecord({
       versions: [version('1.5.0', 'METADATA_REJECTED')],
@@ -167,7 +167,7 @@ describe('planning the What\'s New writes', () => {
     expect(ops[0]).toMatchObject({ op: 'update', locale: 'en-US', id: 'en-US', whatsNew: 'New notes' });
   });
 
-  it('is IDEMPOTENT — identical text produces no write at all', () => {
+  it('is IDEMPOTENT - identical text produces no write at all', () => {
     const ops = R.planLocalizations({
       existingLocalizations: [loc('en-US', 'Same notes')],
       whatsNewByLocale: { 'en-US': 'Same notes' },
@@ -199,7 +199,7 @@ describe('payload shapes match Apple\'s documented schemas', () => {
     });
   });
 
-  it('never puts release notes on the version — that attribute does not exist', () => {
+  it('never puts release notes on the version - that attribute does not exist', () => {
     const body = R.versionCreatePayload({ appId: '123', versionString: '1.5.0' });
     expect(body.data.attributes).toEqual({ versionString: '1.5.0', platform: 'IOS' });
     expect(body.data.attributes).not.toHaveProperty('releaseNotes');
@@ -250,7 +250,7 @@ describe('the client refuses to write unless told to', () => {
     ]);
   });
 
-  it('still performs GETs in dry run — reading is how it builds the plan', async () => {
+  it('still performs GETs in dry run - reading is how it builds the plan', async () => {
     const fetchImpl = jest.fn().mockResolvedValue({
       status: 200,
       ok: true,

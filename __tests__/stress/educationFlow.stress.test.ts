@@ -463,7 +463,7 @@ describe('Education flow audit', () => {
 // STRESS active count (weeksRemaining > 0), which excludes a program the Study
 // button drove to exactly 0, so it was never finalized and `completed` stayed
 // false forever — permanently locking the company-founding feature.
-describe('Education completion wiring — weekly-tick gate', () => {
+describe('Education completion wiring - weekly-tick gate', () => {
   let localMounted: { root: any } | null = null;
 
   afterEach(() => {

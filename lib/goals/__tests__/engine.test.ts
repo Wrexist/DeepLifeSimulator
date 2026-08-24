@@ -10,7 +10,7 @@ describe('recommendGoals', () => {
     expect(goals.length).toBeLessThanOrEqual(3);
   });
 
-  it('is deterministic — the same state always yields the same goals', () => {
+  it('is deterministic - the same state always yields the same goals', () => {
     const state = createTestGameState({ stats: { money: 4321 }, weeksLived: 30 });
     const first = recommendGoals(state).map((g) => g.id);
     const second = recommendGoals(state).map((g) => g.id);

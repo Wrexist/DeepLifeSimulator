@@ -48,12 +48,12 @@ function contentStyle(): string {
   return (match as RegExpExecArray)[1];
 }
 
-describe('ActivityCommitmentModal — the body has somewhere to live', () => {
+describe('ActivityCommitmentModal - the body has somewhere to live', () => {
   it('the body list shrinks rather than growing from a zero basis', () => {
     expect(contentStyle()).toMatch(/flexShrink: 1/);
   });
 
-  it('and is NOT `flex: 1` — the shape that collapsed it to zero height', () => {
+  it('and is NOT `flex: 1` - the shape that collapsed it to zero height', () => {
     expect(contentStyle()).not.toMatch(/\bflex: 1\b/);
   });
 
@@ -73,7 +73,7 @@ describe('ActivityCommitmentModal — the body has somewhere to live', () => {
   });
 });
 
-describe('ActivityCommitmentModal — render', () => {
+describe('ActivityCommitmentModal - render', () => {
   it('mounts visible and renders the body, not just header and footer', () => {
     const { json, unmount } = renderWithProviders(
       <ActivityCommitmentModal visible onClose={() => {}} />,

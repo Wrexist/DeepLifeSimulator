@@ -33,7 +33,7 @@ function incomeInput(state: GameState): Parameters<typeof computeWeeklyIncome>[0
   };
 }
 
-describe('Premium Pack money multiplier — write→read chain', () => {
+describe('Premium Pack money multiplier - write→read chain', () => {
   it('WRITE: applying the Premium Pack sets goldUpgrades.multiplier (the field income reads)', () => {
     const state = freshState();
     const applied = iapService.applyProductToState(state, IAP_PRODUCTS.GEMS_PREMIUM);

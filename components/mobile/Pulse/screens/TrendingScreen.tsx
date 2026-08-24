@@ -1,5 +1,5 @@
 /**
- * TrendingScreen — ranked hashtags with optional "why is this trending?" reasons.
+ * TrendingScreen - ranked hashtags with optional "why is this trending?" reasons.
  */
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -34,7 +34,7 @@ export default function TrendingScreen() {
       <View style={styles.empty}>
         <EmptyState
           observation="No trends yet this week."
-          nudge="Trends refresh each week — post or wait for an event to spike one."
+          nudge="Trends refresh each week - post or wait for an event to spike one."
         />
       </View>
     );

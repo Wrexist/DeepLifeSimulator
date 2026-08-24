@@ -46,7 +46,7 @@ function stateWith(co: Record<string, unknown>): GameState {
 
 const getCo = (s: GameState) => (s.companies || []).find((c) => c.id === 'co1');
 
-describe('advanceResearch — weekly R&D tick', () => {
+describe('advanceResearch - weekly R&D tick', () => {
   it('advances an in-progress project by 100/duration each week', () => {
     // duration 4 → +25%/week.
     const snapshot = stateWith(company([project({ progress: 0 })]));

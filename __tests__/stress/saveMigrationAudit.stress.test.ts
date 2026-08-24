@@ -41,7 +41,7 @@ function deepCheck(state: unknown): string[] {
   return issues;
 }
 
-/** Minimal valid v10 starting state — pretend it was saved by an old client. */
+/** Minimal valid v10 starting state - pretend it was saved by an old client. */
 function makeV10State() {
   return {
     version: 10,
@@ -191,7 +191,7 @@ describe('Save migration deep audit', () => {
     expect(result.state.playStreak.count).toBe(0);
     expect(result.state.legacyPoints).toBe(0);
     expect(result.state.completedChapters).toEqual([]);
-    // `activeChapterId` was backfilled here until 2026-08-02. It is gone —
+    // `activeChapterId` was backfilled here until 2026-08-02. It is gone -
     // `getCurrentChapter()` derives the active chapter from `completedChapters`,
     // so the stored field had no reader anywhere and the pipeline was
     // maintaining it on every load for nobody. `completedChapters`, which IS

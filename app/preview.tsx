@@ -53,7 +53,7 @@ export default function Preview() {
   // in SafeAreaProvider -> AppProviders (UIUX, Game, Toast, Onboarding, ...) and
   // renders <AchievementToast /> and <UIUXOverlay /> globally. This file used to
   // mount its own SafeAreaProvider + GameProvider + UIUXProvider +
-  // OnboardingProvider and a second toast/overlay pair on top of those — a
+  // OnboardingProvider and a second toast/overlay pair on top of those - a
   // SECOND, independent GameState living under the real one, so anything saved
   // from the previewed app wrote through a store the rest of the tree could not
   // see. Consume the ambient providers; never re-mount them.

@@ -33,7 +33,7 @@ const lowSpouse = {
   relationshipScore: 10, weeksAtLowRelationship: 1,
 };
 
-describe('applyRelationshipHealth — pre-roll index wrap', () => {
+describe('applyRelationshipHealth - pre-roll index wrap', () => {
   it('a spouse past the pre-roll length (idx 21) can still break up (not immune)', () => {
     // Buffers length 20; idx 21 wraps to [21 % 20] = [1]. Guarantee a breakup there.
     const relBreakup = Array.from({ length: 20 }, () => 0.9);

@@ -112,7 +112,7 @@ function roundTripAndAssert(state: GameState, atWeek: number) {
 describe('Long-Run Save/Load Stress (real save pipeline)', () => {
   jest.setTimeout(180_000);
 
-  it('Test 1: 520 weeks — every-week round-trip never fails', () => {
+  it('Test 1: 520 weeks - every-week round-trip never fails', () => {
     let state = freshState();
     const SAVE_EVERY = 1; // every single tick
     const TOTAL_WEEKS = 520;
@@ -174,7 +174,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     // the save pipeline: istanbul's counters accumulate in the very heap being
     // sampled, and every instrumented module loaded by a shared worker adds to
     // it. Observed 251MB in a full `jest --coverage` run against a 250 bound,
-    // while the SAME test in isolation under coverage passes comfortably — so
+    // while the SAME test in isolation under coverage passes comfortably - so
     // the failure tracked suite composition, not a leak.
     //
     // Deliberately not skipped, and the non-coverage budget is deliberately
@@ -192,7 +192,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     );
   });
 
-  it('Test 2: 1040 weeks (20y) — periodic save + load chain (load result reused)', () => {
+  it('Test 2: 1040 weeks (20y) - periodic save + load chain (load result reused)', () => {
     let state = freshState();
     const TOTAL_WEEKS = 1040;
     const SAVE_EVERY = 5;
@@ -225,13 +225,13 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     console.log(`[1040-week save-load-resume chain] OK in ${Date.now() - startTime}ms`);
   });
 
-  it('Test 3: 5200 weeks (100y / full lifespan) — numerical stability + heap bound', () => {
+  it('Test 3: 5200 weeks (100y / full lifespan) - numerical stability + heap bound', () => {
     let state = freshState();
     const TOTAL_WEEKS = 5200;
     const startMem = process.memoryUsage().heapUsed;
     const startTime = Date.now();
 
-    // Sample saves at exponentially spaced milestones — covers early/middle/late phases
+    // Sample saves at exponentially spaced milestones - covers early/middle/late phases
     // without paying for a save every week.
     const saveCheckpoints = new Set([1, 10, 100, 500, 1000, 2000, 3000, 4000, 4999, 5200]);
 
@@ -254,7 +254,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     const heapGrowthMB = (process.memoryUsage().heapUsed - startMem) / 1024 / 1024;
 
     expect(state.weeksLived).toBe(TOTAL_WEEKS);
-    // Same helper drift as Test 1 — 5200 ticks → ~0.16y drift. weeksLived is exact.
+    // Same helper drift as Test 1 - 5200 ticks → ~0.16y drift. weeksLived is exact.
     expect(Math.abs(state.date.age - (18 + TOTAL_WEEKS / 52))).toBeLessThan(0.5);
     expect(heapGrowthMB).toBeLessThan(150);
 
@@ -308,7 +308,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     state = advanceWeeks(state, 50);
     const env = createSaveData(state, STATE_VERSION);
 
-    // Cheater modifies money 10x — but cannot recompute HMAC without the key.
+    // Cheater modifies money 10x - but cannot recompute HMAC without the key.
     const cheated = JSON.parse(env.data);
     cheated.stats.money = 1_000_000_000;
     const cheatedData = JSON.stringify(cheated);
@@ -339,7 +339,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     console.log(`[100 save/load cycles] +${growthMB.toFixed(2)}MB heap`);
   });
 
-  it('Test 10: fat state — 100 relationships + 50 companies + 200 items round-trips', () => {
+  it('Test 10: fat state - 100 relationships + 50 companies + 200 items round-trips', () => {
     let state = freshState();
 
     // Build a maximally-bloated state to stress the schema breadth.
@@ -434,7 +434,7 @@ describe('Long-Run Save/Load Stress (real save pipeline)', () => {
     expect(parsed.state!.bankSavings).toBe(1e15);
   });
 
-  it('Test 12: state-version migration — older version still parses', () => {
+  it('Test 12: state-version migration - older version still parses', () => {
     let state = freshState();
     state = advanceWeeks(state, 100);
 

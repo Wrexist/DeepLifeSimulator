@@ -85,7 +85,7 @@ describe('a chain played to its end completes', () => {
   it('lets a NEW chain start once the previous one completed', () => {
     const stageCount = getEventChainStageCount('health_scare') as number;
     const { chain } = playChainThrough('health_scare', stageCount);
-    // rollEventChain is gated on activeEventChain being absent — with the latch
+    // rollEventChain is gated on activeEventChain being absent - with the latch
     // in place this returned null forever.
     const state = createTestGameState({ activeEventChain: chain, weeksLived: 400 });
     expect(() => rollEventChain(state)).not.toThrow();

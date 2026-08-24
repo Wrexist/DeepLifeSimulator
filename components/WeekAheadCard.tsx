@@ -1,9 +1,9 @@
 /**
- * WeekAheadCard — "what is coming?"
+ * WeekAheadCard - "what is coming?"
  *
  * The tick has always known that a degree finishes in six weeks, that a loan
  * clears in three, that a baby is due, that a disease turns fatal. None of it
- * was visible until the week it landed, so every one arrived as a surprise —
+ * was visible until the week it landed, so every one arrived as a surprise -
  * including the ones that take money. This is the anticipation surface: it
  * schedules nothing and changes nothing, it only shows what other systems have
  * already committed to.
@@ -54,7 +54,7 @@ const TONE_COLOR: Record<UpcomingTone, string> = {
   caution: '#FBBF24',
 };
 
-/** "Next week" / "in 3 weeks". `weeksAway: 0` means it is live right now — an
+/** "Next week" / "in 3 weeks". `weeksAway: 0` means it is live right now - an
  *  arrears balance or a promotion in reach, neither of which has a date. */
 export function horizonLabel(weeksAway: number): string {
   if (weeksAway <= 0) return 'Now';
@@ -85,7 +85,7 @@ function Row({ event }: { event: UpcomingEvent }) {
 
 function WeekAheadCard() {
   // Reads across education, relationships, loans, banking, diseases and
-  // careers, so this card selects the whole snapshot rather than a slice —
+  // careers, so this card selects the whole snapshot rather than a slice -
   // the same trade-off `WeeklyChallengeCard`, `AmbitionCard` and
   // `LifeChapterCard` document. The derivation itself is a single pass over
   // eight small collectors, so the cost is the re-render, not the compute.
@@ -93,7 +93,7 @@ function WeekAheadCard() {
   const events = useMemo(() => upcomingEvents(state, { limit: MAX_ROWS }), [state]);
 
   // One impression per GAME WEEK, not per render. Keyed on `weeksLived` because
-  // that is the only counter that advances exactly once per tick — a render
+  // that is the only counter that advances exactly once per tick - a render
   // count would report a player who scrolled the home screen twice as twice as
   // engaged. Hooks run before the early return so the order stays stable.
   const weeksLived = state?.weeksLived ?? 0;
@@ -105,7 +105,7 @@ function WeekAheadCard() {
     track('week_ahead_shown', { rows: events.length, soonest: events[0].weeksAway });
   }, [weeksLived, events]);
 
-  // A quiet life has nothing coming, and that is a legitimate state — a card
+  // A quiet life has nothing coming, and that is a legitimate state - a card
   // saying "nothing is scheduled" would be noise on every early week.
   if (events.length === 0) return null;
 

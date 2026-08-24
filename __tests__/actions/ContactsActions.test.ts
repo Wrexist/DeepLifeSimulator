@@ -49,7 +49,7 @@ function withContact(rel: Partial<Relationship>, overrides: Partial<GameState> =
   return s;
 }
 
-describe('recordInteraction — recency stamp', () => {
+describe('recordInteraction - recency stamp', () => {
   it('stamps lastInteractionWeek and bumps score + weeklyInteractions', () => {
     const store = makeStore(withContact({}, { weeksLived: 10 }));
     const r = recordInteraction(store.get(), store.setGameState, 'c1', 'call', 0, 3);
@@ -108,7 +108,7 @@ describe('recordInteraction — recency stamp', () => {
   });
 });
 
-describe('repayFavor — money sink', () => {
+describe('repayFavor - money sink', () => {
   function withDebt(value: number, money: number): ReturnType<typeof makeStore> {
     const store = makeStore(createTestGameState({ stats: { money } as any, weeksLived: 5 }));
     recordFavor(store.setGameState, {
@@ -130,7 +130,7 @@ describe('repayFavor — money sink', () => {
     expect(store.get().favorLedger?.favors.find((f) => f.id === 'debt1')?.status).toBe('redeemed');
   });
 
-  it('is double-tap safe — a stale second tap does not double-debit', () => {
+  it('is double-tap safe - a stale second tap does not double-debit', () => {
     const store = withDebt(500, 2000);
     const stale = store.get();
     repayFavor(stale, store.setGameState, 'debt1');
@@ -169,7 +169,7 @@ describe('repayFavor — money sink', () => {
   });
 });
 
-describe('tickFavors — expiry', () => {
+describe('tickFavors - expiry', () => {
   it('expires past-due open favors and leaves current ones open', () => {
     const store = makeStore(createTestGameState({ weeksLived: 1 }));
     recordFavor(store.setGameState, {

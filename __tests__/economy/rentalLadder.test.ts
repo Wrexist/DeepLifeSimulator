@@ -72,7 +72,7 @@ describe('the ladder is a decision, not a menu', () => {
   });
 
   it('makes the second rung a real commitment on a minimum wage', () => {
-    // Affordable, but most of the paycheck — so taking it costs something.
+    // Affordable, but most of the paycheck - so taking it costs something.
     const second = RENTAL_TIERS[1];
     expect(second.weeklyRent).toBeLessThan(BOTTOM_RUNG);
     expect(second.weeklyRent).toBeGreaterThan(BOTTOM_RUNG * 0.5);
@@ -179,7 +179,7 @@ describe('what your home does for you each week', () => {
 });
 
 describe('the HUD predicts what the tick actually pays', () => {
-  // The original bug ran one way — the bar promised energy the tick never paid.
+  // The original bug ran one way - the bar promised energy the tick never paid.
   // Adding rentals, a homeless penalty and a health effect opened it the other
   // way: the bar's own copy of the housing maths only knew about an OWNED
   // residence, so it under-predicted for a renter and showed nothing at all for
@@ -217,7 +217,7 @@ describe('having nowhere to live costs something', () => {
     expect(wellbeing.energy).toBe(HOMELESS_PENALTY.energy);
   });
 
-  it('is survivable — pressure, not a death sentence', () => {
+  it('is survivable - pressure, not a death sentence', () => {
     // Death from a zero stat needs four consecutive weeks. From full health this
     // penalty alone must never be able to get there, or "cannot afford rent"
     // becomes "the save is over".
@@ -241,10 +241,10 @@ describe('having nowhere to live costs something', () => {
   });
 
   it('survives a corrupt state without emitting NaN into the stats', () => {
-    // DELIBERATE-CORRUPTION — the values a truncated or partially-migrated save
+    // DELIBERATE-CORRUPTION - the values a truncated or partially-migrated save
     // actually presents. Typing them honestly is impossible; that is the test.
     for (const bad of [undefined, null, {} as GameState]) {
-      // DELIBERATE-CORRUPTION — same fixture, its own marker: the `for` line
+      // DELIBERATE-CORRUPTION - same fixture, its own marker: the `for` line
       // between this and the block above breaks the association on purpose.
       const wellbeing = computeHousingWellbeing(bad as GameState);
       expect(Number.isFinite(wellbeing.health)).toBe(true);

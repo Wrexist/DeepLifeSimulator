@@ -72,7 +72,7 @@ import { styles } from '@/components/work/workScreenStyles';
 import { CareerPathCard } from '@/components/CareerPathCard';
 // Static, not the lazy `require` this screen used inside the render callback:
 // `advancedCareers.ts` is pure data with no top-level side effects and imports
-// nothing but types, so there is no cycle to break and nothing to defer — and
+// nothing but types, so there is no cycle to break and nothing to defer - and
 // the catalog is now needed at module scope to derive `advancedIds`.
 import {
   ADVANCED_CAREERS,
@@ -86,7 +86,7 @@ const LinearGradient = Gradient;
 
 
 // Creative/hobby ids that can leak into streetJobs but must not render as street
-// work. Hoisted to module scope (and thus a stable identity) — it was a fresh
+// work. Hoisted to module scope (and thus a stable identity) - it was a fresh
 // array literal every render, which defeated the streetJobs filter memo below.
 const CREATIVE_HOBBY_JOB_IDS = ['guitar', 'music', 'art', 'football', 'basketball', 'tennis'];
 
@@ -101,21 +101,21 @@ function WorkScreen() {
 function WorkScreenContent() {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
-    // Career is the landing tab. Work opened on Street Hustle — the $20-a-tap
-    // filler — so the first thing the screen offered was the least valuable
+    // Career is the landing tab. Work opened on Street Hustle - the $20-a-tap
+    // filler - so the first thing the screen offered was the least valuable
     // thing on it, and the career ladder (the actual progression system) was one
     // tap behind a segment most players never pressed.
     const [activeTab, setActiveTab] = useState<'street' | 'career' | 'skills'>('career');
     const [workFeedback, setWorkFeedback] = useState<{ [key: string]: string }>({});
     const [selectedSkillTree, setSelectedSkillTree] = useState<CrimeSkillId | null>(null);
     const [feedbackOpacity] = useState(new Animated.Value(0));
-    // P3-2: dead state — `_showJailReleaseMessage` and `_previousJailWeeks`
+    // P3-2: dead state - `_showJailReleaseMessage` and `_previousJailWeeks`
     // were never referenced after being renamed by an unused-var lint sweep.
     const [showQuitJobConfirm, setShowQuitJobConfirm] = useState(false);
     // Career id whose in-app "Manage Job" action sheet is open (null = closed).
     const [manageJobId, setManageJobId] = useState<string | null>(null);
     // Promotion payoff. Held in local state (not GameState) because it is a
-    // one-shot presentation concern — nothing about it needs to survive a save.
+    // one-shot presentation concern - nothing about it needs to survive a save.
     const [promotionCelebration, setPromotionCelebration] = useState<PromotionDetails | null>(null);
     const { showSuccess, showError, showWarning, showInfo } = useToast();
 
@@ -166,7 +166,7 @@ function WorkScreenContent() {
     );
 
     // Criminal progression. The level GATES street jobs (`criminalLevelReq`),
-    // two ambitions and a life ribbon — but nothing displayed it, so hitting a
+    // two ambitions and a life ribbon - but nothing displayed it, so hitting a
     // requirement read as an arbitrary refusal.
     const crimeProgress = useMemo(
         () => criminalProgress(gameState.criminalLevel, gameState.criminalXp),
@@ -174,7 +174,7 @@ function WorkScreenContent() {
     );
 
     // Timed legacy buffs. `mentor` is +50% CAREER PROGRESS, which is exactly
-    // what this screen is about — and it was invisible, so a player could not
+    // what this screen is about - and it was invisible, so a player could not
     // tell it was running or when it lapsed.
     const buffs = useMemo(
         () => activeLegacyBuffs(gameState),
@@ -185,7 +185,7 @@ function WorkScreenContent() {
 
     // The one-shot "auto-switch to the career tab" effect that used to live here
     // is gone with the default above. It fired once per life, for a jobless
-    // player under $1,000, and burned its `hasSeenJobTutorial` flag doing it —
+    // player under $1,000, and burned its `hasSeenJobTutorial` flag doing it -
     // so now that Career IS the landing tab, its first (and only) firing would
     // land on the tab already shown and consume the flag for nothing. What
     // remained was a `setGameState` on every Work open for a broke player: a
@@ -235,11 +235,11 @@ function WorkScreenContent() {
         if (result) {
             // Track street-job usage for the discovery system only. The blue
             // depth "System Effects" feedback modal that used to auto-pop here
-            // (500ms after the action) was removed — it interrupted the action
+            // (500ms after the action) was removed - it interrupted the action
             // and made the result feel laggy instead of instant.
             try {
                 const { updateSystemUsage } = require('@/lib/depth/discoverySystem');
-                // CR: apply the returned state — updateSystemUsage is pure, so discarding it dropped
+                // CR: apply the returned state - updateSystemUsage is pure, so discarding it dropped
                 // the discovery timesUsed / masteryLevel increments.
                 setGameState(prev => updateSystemUsage('streetJobs', prev));
                 // Persist AFTER the commit, not in this tick. performStreetJob +
@@ -261,7 +261,7 @@ function WorkScreenContent() {
 
             // Show toast notification. SMOOTHNESS: fold the optional mindset
             // feedback into the SAME toast instead of firing a second one right
-            // after — two stacked toasts per job felt spammy.
+            // after - two stacked toasts per job felt spammy.
             if (result.success) {
                 let message = result.message ?? '';
                 let mindsetPenalty = false;
@@ -274,7 +274,7 @@ function WorkScreenContent() {
                     );
                     // R4-X1: APPLY the adjustment, don't just narrate it. This
                     // used to call `getMindsetFeedback`, which returns the
-                    // message and discards the deltas — so the toast said
+                    // message and discards the deltas - so the toast said
                     // "Frugal: You saved a bit extra (+120)" and credited
                     // nothing. This handler is the entire Mindset system's only
                     // consumer, so the choice made on the onboarding Perks
@@ -405,7 +405,7 @@ function WorkScreenContent() {
             return [];
         }
         // R10-perf: depend on the primitives that gate `getActiveSystems` (which
-        // systems are unlocked), NOT the whole `gameState` object — that changes
+        // systems are unlocked), NOT the whole `gameState` object - that changes
         // identity every decay tick, re-walking the entire interconnection graph
         // each tick while the Work tab is open. The body still reads gameState via
         // closure; only the dep list is narrowed.
@@ -481,7 +481,7 @@ function WorkScreenContent() {
 
             let lockReason: string | undefined;
             if (atLimit) {
-                lockReason = `Used ${timesDoneThisWeek}/${maxPerWeek} this week — wait for next week.`;
+                lockReason = `Used ${timesDoneThisWeek}/${maxPerWeek} this week - wait for next week.`;
             } else if (atGlobalLimit) {
                 lockReason = `Street-job limit reached (${streetJobsThisWeek}/${MAX_TOTAL_STREET_JOBS_PER_WEEK} this week).`;
             } else if (!meetsCriminalLevel) {
@@ -543,7 +543,7 @@ function WorkScreenContent() {
         const atGlobalLimit = streetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK;
         const locked = lacksEnergy || inJail || missing.length > 0 || streetAtLimit || atGlobalLimit;
         const lockReason = streetAtLimit
-            ? `Used ${streetDoneThisWeek}/${streetMaxPerWeek} this week — wait for next week.`
+            ? `Used ${streetDoneThisWeek}/${streetMaxPerWeek} this week - wait for next week.`
             : atGlobalLimit
             ? `Street-job limit reached (${streetJobsThisWeek}/${MAX_TOTAL_STREET_JOBS_PER_WEEK} this week).`
             : missing.length > 0
@@ -591,7 +591,7 @@ function WorkScreenContent() {
         // Education + fitness + items, evaluated by the SAME helper
         // `applyForJob` uses, so the button and the action can no longer
         // disagree. The `early_career_access` prestige bonus waives the whole
-        // block there — it used to waive education only, which is why a player
+        // block there - it used to waive education only, which is why a player
         // who bought "Unlock all careers from start" still could not apply to
         // the 8 education-gated careers that also want a suit, a computer or a
         // fitness score.
@@ -609,7 +609,7 @@ function WorkScreenContent() {
             !career.applied &&
             !gameState.currentJob &&
             !pendingApplication &&
-            // Retirement is a one-way latch in applyForJob — without this the
+            // Retirement is a one-way latch in applyForJob - without this the
             // button stayed enabled and every tap was silently rejected.
             // 2026-07-28 audit UX-2.
             !gameState.isRetired
@@ -636,18 +636,18 @@ function WorkScreenContent() {
                 .map((id) => (gameState.items || []).find(i => i.id === id)?.name || id)
             : [];
 
-        // Guard the level index — a stale/migrated save can carry `level` out of
+        // Guard the level index - a stale/migrated save can carry `level` out of
         // bounds for `levels`, making this undefined and crashing the card.
         const level = career.levels?.[career.level] ?? career.levels?.[0];
         const isEmployedHere = gameState.currentJob === career.id;
-        // Progress bar is full and there's a higher rung — but the promotion may
+        // Progress bar is full and there's a higher rung - but the promotion may
         // still be gated on performance / experience (getPromotionEligibility).
         const promotionReady = isEmployedHere && career.progress >= 100 && career.level < career.levels.length - 1;
         const promotionEligibility = promotionReady
             ? getPromotionEligibility(career, gameState.weeksLived)
             : null;
         const canPromote = promotionReady && !!promotionEligibility?.eligible;
-        // Full progress but blocked by a review/experience gate — surfaced in the
+        // Full progress but blocked by a review/experience gate - surfaced in the
         // footer with the reason, while "Manage Job" stays available.
         const promotionGated = promotionReady && !promotionEligibility?.eligible;
         const atMaxLevel = isEmployedHere && career.level === career.levels.length - 1 && career.progress === 100;
@@ -656,11 +656,11 @@ function WorkScreenContent() {
         // What payroll will ACTUALLY pay for this rung, not the listed base.
         // This card showed `levels[level].salary` raw while the promotion modal
         // showed the same rung with the raise premium applied and the Cash Flow
-        // panel showed a third figure — one Surgical Director reading $26K,
+        // panel showed a third figure - one Surgical Director reading $26K,
         // $13000 and $13K across three screens. `paidWeeklySalaryForLevel` is
         // the function the week loop itself pays from.
         const paidWeekly = paidWeeklySalaryForLevel(gameState, career, career.level);
-        const reward = requiresEdu && !hasEdu ? '— Locked' : `${formatMoney(paidWeekly)}/wk`;
+        const reward = requiresEdu && !hasEdu ? '- Locked' : `${formatMoney(paidWeekly)}/wk`;
         // Only entry-tier jobs have a hiring bar; everything else is governed by
         // the career's own `requirements`.
         const entryHiring = isEntryTierCareer(career.id) && !isEmployedHere && !career.accepted
@@ -682,7 +682,7 @@ function WorkScreenContent() {
                 tone: hasEdu ? 'default' : 'bad',
             });
         }
-        // Reputation gate (Politician 20+, Celebrity 30+) — enforced as of
+        // Reputation gate (Politician 20+, Celebrity 30+) - enforced as of
         // 2026-08-23, so the card must say so rather than leaving a disabled
         // Apply button unexplained.
         if (requiresReputation) {
@@ -701,7 +701,7 @@ function WorkScreenContent() {
         // climbs, and what a week of it costs you.
         const entryProfile = getEntryJobProfile(career.id);
         if (entryProfile && !isEmployedHere) {
-            // Same money as the wage above it — a ceiling in base pay next to a
+            // Same money as the wage above it - a ceiling in base pay next to a
             // boosted starting wage reads as a career that gets WORSE.
             const ceiling = paidCareerCeiling(gameState, career);
             if (ceiling > paidWeekly) {
@@ -764,7 +764,7 @@ function WorkScreenContent() {
                 }
                 // A promotion is the payoff of dozens of weeks of progress, so it
                 // gets the full celebration rather than a toast that scrolls away.
-                // `promotion` is absent only on legacy/edge paths — fall back to
+                // `promotion` is absent only on legacy/edge paths - fall back to
                 // the message so the player is never left with no feedback.
                 if (result.promotion) setPromotionCelebration(result.promotion);
                 else showSuccess(result.message);
@@ -797,12 +797,12 @@ function WorkScreenContent() {
             // an arbitrary "no".
             buttonText = 'Not hiring you yet';
             locked = true;
-            lockReason = `They want — ${entryHiring.missing.join(' · ')}`;
+            lockReason = `They want - ${entryHiring.missing.join(' · ')}`;
         } else if (!canApplyForCareer(career)) {
             buttonText = 'Unavailable';
             locked = true;
             lockReason = gameState.isRetired
-                ? "You've retired — your pension is your income now."
+                ? "You've retired - your pension is your income now."
                 : gameState.currentJob
                     ? 'Quit your current job to apply.'
                     : 'Another application is pending.';
@@ -810,7 +810,7 @@ function WorkScreenContent() {
             buttonText = t('work.apply');
             onPress = () => {
                 const r = applyForJob(career.id);
-                // A rejection used to be silent — the reducer's message was
+                // A rejection used to be silent - the reducer's message was
                 // discarded and the tap just buzzed. UX-2.
                 if (r && !r.success) showWarning(r.message);
             };
@@ -835,7 +835,7 @@ function WorkScreenContent() {
                 );
             } else if (promotionGated) {
                 // Progress is maxed but the promotion is locked behind a
-                // performance review or tenure requirement — show why.
+                // performance review or tenure requirement - show why.
                 footer = (
                     <View style={local.cardLockRow}>
                         <Lock size={scale(14)} color="rgba(251, 191, 36, 0.92)" />
@@ -890,7 +890,7 @@ function WorkScreenContent() {
     ): React.ReactElement => {
         const displayName = career.levels?.[0]?.name ?? career.id;
         // Rung 0 is the right rung for a career the player does not hold, but it
-        // has to be quoted in the same money as every other card on the screen —
+        // has to be quoted in the same money as every other card on the screen -
         // `formatMoney` of what payroll would pay, not a raw `toLocaleString` of
         // the listed base.
         const salary = paidWeeklySalaryForLevel(gameState, career, 0);
@@ -914,7 +914,7 @@ function WorkScreenContent() {
         } else if (isLocked) {
             buttonText = 'Locked';
             locked = true;
-            lockReason = lockReqs.length > 0 ? `Requires — ${lockReqs.join(' · ')}` : undefined;
+            lockReason = lockReqs.length > 0 ? `Requires - ${lockReqs.join(' · ')}` : undefined;
         } else {
             buttonText = t('work.apply');
             onPress = () => {
@@ -928,7 +928,7 @@ function WorkScreenContent() {
                 // Defer past the commit + parent ref-sync so the new application
                 // is what persists (a synchronous saveGame reads the stale ref).
                 setTimeout(() => { void saveGame(); }, 0);
-                showSuccess(`Applied for ${displayName} — your application is under review.`);
+                showSuccess(`Applied for ${displayName} - your application is under review.`);
             };
         }
 
@@ -938,7 +938,7 @@ function WorkScreenContent() {
                 accent="career"
                 title={displayName}
                 description={career.description}
-                reward={isLocked ? '— Locked' : `${formatMoney(salary)}/wk`}
+                reward={isLocked ? '- Locked' : `${formatMoney(salary)}/wk`}
                 metadata={metadata}
                 buttonText={buttonText}
                 onPress={onPress}
@@ -955,11 +955,11 @@ function WorkScreenContent() {
     // listed under "Standard Careers".
     //
     // This was hand-written as `['politician', 'celebrity', 'athlete']`, which is
-    // a DIFFERENT set from the one that section iterates — those three live in
+    // a DIFFERENT set from the one that section iterates - those three live in
     // `INITIAL_CAREERS`, and `ADVANCED_CAREERS` is ceo / research_scientist /
     // creative_director / investment_banker / surgeon. So the list did both
     // halves of its job wrong: it hid politician, celebrity and athlete from the
-    // only screen that can apply for them (all three are live content —
+    // only screen that can apply for them (all three are live content -
     // achievements read their level, two ambition lines read them, and
     // `lib/events/engine.ts` gates an event on holding one), while the five it
     // was meant to cover rendered twice over.
@@ -972,7 +972,7 @@ function WorkScreenContent() {
     // list is the gated/advanced careers you are working toward.
     //
     // A career you already work, applied to, or were accepted into is never
-    // hidden by the board — the board only curates what you can newly apply to.
+    // hidden by the board - the board only curates what you can newly apply to.
     const boardIds = new Set(getJobBoard(gameState).map(o => o.careerId));
     const boardRefreshWeeks = weeksUntilBoardRefresh(gameState);
     const visibleBasicCareers = basicCareers.filter(c => {
@@ -998,8 +998,8 @@ function WorkScreenContent() {
         : undefined;
     const currentJobLevel = currentJob ? (currentJob.levels?.[currentJob.level] ?? currentJob.levels?.[0]) : undefined;
     // The paid figure, not the ladder's listed base. This hero prints the salary
-    // and the negotiated premium on the SAME line — "$13,000/wk · Lv 5/8 · +100%"
-    // — so showing the base here states the premium and withholds it in one
+    // and the negotiated premium on the SAME line - "$13,000/wk · Lv 5/8 · +100%"
+    // - so showing the base here states the premium and withholds it in one
     // breath. It is also the most prominent income number on the screen, which
     // makes it the one a player checks their paycheck against.
     const currentJobSalary = paidWeeklyCareerSalary(gameState).total;
@@ -1113,7 +1113,7 @@ function WorkScreenContent() {
 
                                         `wantedLevel` was read in three places in
                                         JobActions and displayed in NONE. Its worst effect
-                                        is the one furthest from this screen — a
+                                        is the one furthest from this screen - a
                                         background check that quietly costs up to 30% on
                                         LEGITIMATE career applications. The dark web
                                         already shows its equivalent (`heat`), so this was
@@ -1221,7 +1221,7 @@ function WorkScreenContent() {
                                         // Render EVERY advanced career, locked ones included.
                                         //
                                         // This used to pre-filter with `getUnlockedAdvancedCareers`, which
-                                        // returns only unlocked entries — so the `isLocked` line below was
+                                        // returns only unlocked entries - so the `isLocked` line below was
                                         // always false and the whole requirement formatter was unreachable
                                         // dead code. A player who had unlocked none saw one generic
                                         // sentence, and the five best careers in the game (CEO topping out
@@ -1234,7 +1234,7 @@ function WorkScreenContent() {
                                         return (ADVANCED_CAREERS as AdvancedCareer[]).map((career: AdvancedCareer) => {
                                             // A career the player has already applied to or holds lives in
                                             // `gameState.careers` with their real level, progress and raise
-                                            // premium — so render THAT, through the same card every other
+                                            // premium - so render THAT, through the same card every other
                                             // career uses. The catalog stub below can only describe rung 0,
                                             // and rendering both put "Surgical Director $26K/wk" and
                                             // "Resident $1,150/wk" on one screen for the same job. It also
@@ -1256,7 +1256,7 @@ function WorkScreenContent() {
                                                 if ('reputation' in req && req.reputation) lockReqs.push(`Reputation: ${req.reputation}+`);
                                                 if ('netWorth' in req && req.netWorth) lockReqs.push(`Net Worth: $${req.netWorth.toLocaleString()}+`);
                                                 // Never printed before, because this whole block was
-                                                // unreachable — two of the five careers are gated on a
+                                                // unreachable - two of the five careers are gated on a
                                                 // claimed achievement and the player was never told.
                                                 if ('achievements' in req && req.achievements && req.achievements.length > 0) {
                                                     lockReqs.push(`Achievement: ${req.achievements.join(', ')}`);
@@ -1324,7 +1324,7 @@ function WorkScreenContent() {
                                     ) : (
                                         <View style={{ padding: scale(16), alignItems: 'center' }}>
                                             <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                                                No underground jobs available right now — raise your criminal level or check back later.
+                                                No underground jobs available right now - raise your criminal level or check back later.
                                             </Text>
                                         </View>
                                     )}
@@ -1359,7 +1359,7 @@ function WorkScreenContent() {
                 type="warning"
             />
 
-            {/* Manage Job — in-app action sheet (replaces the native Alert). */}
+            {/* Manage Job - in-app action sheet (replaces the native Alert). */}
             <Modal
                 visible={manageJobId !== null}
                 transparent
@@ -1508,7 +1508,7 @@ const local = StyleSheet.create({
         paddingHorizontal: scale(24),
         paddingTop: scale(8),
     },
-    // Current Job hero — reference-style ring card.
+    // Current Job hero - reference-style ring card.
     heroCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1583,7 +1583,7 @@ const local = StyleSheet.create({
         fontVariant: ['tabular-nums'],
         marginTop: scale(1),
     },
-    // Employed career card footer — mini ring + label.
+    // Employed career card footer - mini ring + label.
     cardProgressRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1606,7 +1606,7 @@ const local = StyleSheet.create({
         color: 'rgba(226, 232, 240, 0.55)',
         marginTop: scale(1),
     },
-    // Promotion-gated footer — full progress but locked on performance/experience.
+    // Promotion-gated footer - full progress but locked on performance/experience.
     cardLockRow: {
         flexDirection: 'row',
         alignItems: 'center',

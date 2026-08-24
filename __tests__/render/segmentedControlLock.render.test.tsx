@@ -104,7 +104,7 @@ describe('a locked segment routes taps to onLockedPress, not onChange', () => {
   });
 });
 
-describe('the control — an unlocked segment is exactly as it was', () => {
+describe('the control - an unlocked segment is exactly as it was', () => {
   it('tapping an unlocked segment still calls onChange', () => {
     const onChange = jest.fn();
     const onLockedPress = jest.fn();

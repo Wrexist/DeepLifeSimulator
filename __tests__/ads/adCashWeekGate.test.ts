@@ -97,13 +97,13 @@ describe('the gate exists and is on the game week', () => {
   });
 });
 
-describe('the save format (v35) — a carve-out', () => {
+describe('the save format (v35) - a carve-out', () => {
   it('the version bumped', () => {
     expect(STATE_VERSION).toBe(CURRENT_STATE_VERSION);
     expect(STATE_VERSION).toBeGreaterThanOrEqual(35);
   });
 
-  it('does NOT ship a default — an absent key means "never claimed"', () => {
+  it('does NOT ship a default - an absent key means "never claimed"', () => {
     expect(initialGameState.settings?.lastAdCashGrantWeek).toBeUndefined();
   });
 

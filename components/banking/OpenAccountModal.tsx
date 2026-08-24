@@ -40,7 +40,7 @@ const PRODUCTS: AccountProduct[] = [
   {
     type: 'cd',
     name: '52-Week CD',
-    description: 'Highest APR. Locked for one year — no withdrawals.',
+    description: 'Highest APR. Locked for one year - no withdrawals.',
     baseAPR: 0.055,
     lockWeeks: 52,
     minDeposit: 500,
@@ -70,7 +70,7 @@ interface Props {
     minBalance?: number;
   }) => void;
   onClose: () => void;
-  /** Current weeksLived — used to set lockUntilWeek when opening a CD. */
+  /** Current weeksLived - used to set lockUntilWeek when opening a CD. */
   currentWeek: number;
 }
 
@@ -174,7 +174,7 @@ export default function OpenAccountModal({ visible, availableCash, darkMode, onO
                   value={depositText}
                   onChangeText={setDepositText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
   // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // button lands off the bottom of the SCREEN - and the sheet itself does not
   // scroll, so nothing can reach it. Bounding the sheet is what gives the list
   // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {

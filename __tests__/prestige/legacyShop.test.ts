@@ -50,7 +50,7 @@ import { CURRENT_STATE_VERSION, runMigrations } from '@/utils/saveMigrations';
 import { repairGameState } from '@/utils/saveValidation';
 import { createTestGameState } from '../helpers/createTestGameState';
 
-describe('C-11 — the balance is derived, not stored', () => {
+describe('C-11 - the balance is derived, not stored', () => {
   it('a fresh save can spend everything it earned', () => {
     expect(legacyPointsAvailable(100, [])).toBe(100);
   });
@@ -86,7 +86,7 @@ describe('C-11 — the balance is derived, not stored', () => {
   });
 });
 
-describe('C-11 — buying is a pure, idempotent reducer', () => {
+describe('C-11 - buying is a pure, idempotent reducer', () => {
   const CHEAP = [...LEGACY_UPGRADES].sort((a, b) => a.cost - b.cost)[0];
 
   it('a player with enough points gets the upgrade', () => {
@@ -127,8 +127,8 @@ describe('C-11 — buying is a pure, idempotent reducer', () => {
   });
 });
 
-describe('C-11 — the upgrades are head starts, not multipliers', () => {
-  it('every upgrade grants money, a stat, reputation, or a TIMED buff — nothing compounding', () => {
+describe('C-11 - the upgrades are head starts, not multipliers', () => {
+  it('every upgrade grants money, a stat, reputation, or a TIMED buff - nothing compounding', () => {
     // A timed buff is a head start, not a permanent multiplier: it expires on
     // a weeksLived deadline, so generation N+1 is not strictly stronger than
     // generation N forever. The anti-compounding rule stays for anything that
@@ -138,7 +138,7 @@ describe('C-11 — the upgrades are head starts, not multipliers', () => {
         .toMatch(/: (money|stat|reputation|buff)$/);
       if (u.effect.kind === 'buff') {
         expect(u.effect.weeks).toBeGreaterThan(0);
-        expect(u.effect.weeks).toBeLessThanOrEqual(260); // ≤5 years — a head start, not a life
+        expect(u.effect.weeks).toBeLessThanOrEqual(260); // ≤5 years - a head start, not a life
       }
     }
   });
@@ -158,7 +158,7 @@ describe('C-11 — the upgrades are head starts, not multipliers', () => {
     // ~260 and every heir from generation 2 on started with all of it. The
     // currency was dead for three quarters of a long life.
     //
-    // What must stay true is that the tree OPENS cheaply — a player who has
+    // What must stay true is that the tree OPENS cheaply - a player who has
     // just met legacy points can afford a root. Depth beyond that is the point.
     for (const branch of LEGACY_BRANCHES) {
       const root = upgradesForBranch(branch.id).find((u) => !u.requires);
@@ -190,7 +190,7 @@ describe('C-11 — the upgrades are head starts, not multipliers', () => {
   });
 });
 
-describe('the Dynasty Tree — branches and prerequisites', () => {
+describe('the Dynasty Tree - branches and prerequisites', () => {
   it('every node sits on a declared branch', () => {
     const branchIds = LEGACY_BRANCHES.map((b) => b.id);
     for (const u of LEGACY_UPGRADES) {
@@ -198,13 +198,13 @@ describe('the Dynasty Tree — branches and prerequisites', () => {
     }
   });
 
-  it('every branch is enterable — at least one root, and no empty branch', () => {
+  it('every branch is enterable - at least one root, and no empty branch', () => {
     // Originally asserted EXACTLY one root, on the reasoning that multiple
     // roots make "the branch you invested in" meaningless. That reasoning was
     // wrong: Blood carries parallel health and fitness lines, and Craft carries
     // intelligence and happiness, which is a real tree shape and gives the
     // player a choice WITHIN a branch. The invariant that actually matters is
-    // that no branch is unreachable (zero roots) or empty — reachability of the
+    // that no branch is unreachable (zero roots) or empty - reachability of the
     // deeper nodes is covered by the cycle test below.
     for (const branch of LEGACY_BRANCHES) {
       const nodes = upgradesForBranch(branch.id);
@@ -223,7 +223,7 @@ describe('the Dynasty Tree — branches and prerequisites', () => {
     }
   });
 
-  it('has no prerequisite cycles — every node reaches a root', () => {
+  it('has no prerequisite cycles - every node reaches a root', () => {
     for (const u of LEGACY_UPGRADES) {
       const seen = new Set<string>();
       let cursor: string | undefined = u.id;
@@ -303,7 +303,7 @@ describe('the Dynasty Tree — branches and prerequisites', () => {
 describe('the shop is REACHABLE from the app, not just from tests', () => {
   // `tasks/lessons.md` records this failure mode three times now: "is it
   // called?" is a different question from "does it work?". `legacyShop` shipped
-  // fully tested, wired into MoneyActionsContext — and NO screen called
+  // fully tested, wired into MoneyActionsContext - and NO screen called
   // `purchaseLegacyUpgrade`, so the whole system was unreachable in the app.
   // The modal showed the point balance and offered nowhere to spend it.
   const shopModal = fs.readFileSync(
@@ -327,10 +327,10 @@ describe('the shop is REACHABLE from the app, not just from tests', () => {
   });
 });
 
-describe('C-11 — the save format', () => {
+describe('C-11 - the save format', () => {
   it('the field ships in initialState, and v29 is still on the ladder', () => {
     // This used to pin STATE_VERSION === 29. That made it a tripwire for every
-    // LATER bump rather than a test of C-11 — v30 (revivalPack) broke it while
+    // LATER bump rather than a test of C-11 - v30 (revivalPack) broke it while
     // changing nothing about legacyUpgrades. `luxuryHoldingsMigration.test.ts`
     // owns the current-version assertion; this file owns its own field.
     expect(CURRENT_STATE_VERSION).toBe(STATE_VERSION);
@@ -342,14 +342,14 @@ describe('C-11 — the save format', () => {
     expect(createTestGameState().legacyUpgrades).toEqual([]);
   });
 
-  it('a v28 save is backfilled — it is NOT a carve-out field', () => {
+  it('a v28 save is backfilled - it is NOT a carve-out field', () => {
     // Concrete stored default, so unlike v26/v27/v28 this one gets a real
     // backfill. Every reader guards with Array.isArray today, but the first
     // bare `.includes` would break on an absent key.
     const { state } = runMigrations({ version: 28, legacyPoints: 40 });
 
     // Runs the whole remaining ladder, so assert the CURRENT version rather
-    // than a hardcoded 29 — the point here is the backfill, not the endpoint.
+    // than a hardcoded 29 - the point here is the backfill, not the endpoint.
     expect(state.version).toBe(STATE_VERSION);
     expect(state.legacyUpgrades).toEqual([]);
     expect(state.legacyPoints).toBe(40);
@@ -364,14 +364,14 @@ describe('C-11 — the save format', () => {
   });
 
   it('repairGameState mirrors the migration for a PARTIAL save', () => {
-    // The parity CLAUDE.md §7 says the static audit does not check — a field
+    // The parity CLAUDE.md §7 says the static audit does not check - a field
     // with a migration but no repair mirror survives until a partial save
     // hits it.
     const partial = { ...createTestGameState() } as Record<string, unknown>;
     delete partial.legacyUpgrades;
 
     // repairGameState returns { repaired, repairs } and writes the repaired
-    // clone back ONTO the caller's object — it does not return the state.
+    // clone back ONTO the caller's object - it does not return the state.
     const result = repairGameState(partial as never);
 
     expect(result.repairs.join(' ')).toMatch(/legacyUpgrades/);
@@ -387,7 +387,7 @@ describe('C-11 — the save format', () => {
   });
 });
 
-describe('C-11 — the heir actually starts with what was bought', () => {
+describe('C-11 - the heir actually starts with what was bought', () => {
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const SRC = fs.readFileSync(
@@ -405,7 +405,7 @@ describe('C-11 — the heir actually starts with what was bought', () => {
 
   it('the RESET path carries them but does NOT apply the bonuses (the control)', () => {
     // Every upgrade is worded "Your heir starts with…". A prestige reset is
-    // the same character starting over, not a new generation — but the
+    // the same character starting over, not a new generation - but the
     // purchase must not be destroyed either, which is the MON-1/2/3 class.
     const reset = SRC.slice(
       SRC.indexOf('function createResetGameState'),

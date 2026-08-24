@@ -30,7 +30,7 @@ function owned(over: Partial<RealEstate> = {}): RealEstate {
 
 const tier3 = UPGRADE_TIERS.find((t) => t.level === 3)!;
 
-describe('runRealEstateWeeklyTick — upgrade rent bonus', () => {
+describe('runRealEstateWeeklyTick - upgrade rent bonus', () => {
   it('adds the tier rent bonus to income for a tenanted upgraded property', () => {
     const tenanted = owned({
       upgradeLevel: 3,
@@ -98,7 +98,7 @@ describe('runRealEstateWeeklyTick — upgrade rent bonus', () => {
   });
 });
 
-describe('runRealEstateWeeklyTick — $150k/wk per-source rent cap (Fix 2)', () => {
+describe('runRealEstateWeeklyTick - $150k/wk per-source rent cap (Fix 2)', () => {
   it('clamps aggregate realized rent to the design cap before it feeds cash', () => {
     // A giant $200M unit whose asked rent ($500k/wk, under the 0.4% ceiling of
     // $800k) realizes far above the $150k cap even after carrying costs.

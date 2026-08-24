@@ -76,7 +76,7 @@ export const buyMarketListing = (
   }
   // A listing that would deliver something you already own is refused BEFORE any
   // BTC moves. Without this the purchase succeeds, charges full price and grants
-  // nothing — which is the "piece of candy" complaint reappearing in a new place.
+  // nothing - which is the "piece of candy" complaint reappearing in a new place.
   const snapItemId = listingItemId(snapListing);
   if (snapItemId && (snapshot.darkWebItems || []).find((it) => it?.id === snapItemId)?.owned) {
     return { success: false, message: `You already own this.` };
@@ -111,14 +111,14 @@ export const buyMarketListing = (
      * Two findings closed by one wiring.
      *
      * C10: `attemptPurchase` removed the listing, moved reputation, added heat
-     * and (pro/elite only) awarded opsec XP — but `DarkWebState` has no
+     * and (pro/elite only) awarded opsec XP - but `DarkWebState` has no
      * purchased-items collection and nothing wrote the bought title anywhere,
      * while the caller still reported "Delivered. <title> is yours." On a
      * common-tier listing, which carries no `xpReward`, a successful purchase
      * yielded exactly +1 buyer rep and +2 heat for real BTC.
      *
      * C1: 18 of the 19 illegal street jobs gate on `darkWebRequirements` items
-     * whose ONLY writer is `buyDarkWebItem` — a function with zero call sites
+     * whose ONLY writer is `buyDarkWebItem` - a function with zero call sites
      * anywhere in the app. The `items` catalogue cannot cover them either
      * (it is guitar/bike/smartphone/computer/suit/bed/gym/passport). So the
      * entire illegal-crime ladder was permanently greyed out and `criminalXp`
@@ -129,9 +129,9 @@ export const buyMarketListing = (
      * Gear and hacking-tool listings deliver the item the LISTING names, resolved
      * through `listingItemId` / `LISTING_TITLE_TO_ITEM_ID` in
      * `lib/darkweb/marketplace.ts`. (An earlier pass granted "the next unowned
-     * entry in catalogue order", which delivered *an* item but never *the* item —
+     * entry in catalogue order", which delivered *an* item but never *the* item -
      * buying "Night Vision" handed over a "Special USB".) The other listing
-     * categories — stolen accounts, carded items, fake IDs, services, data —
+     * categories - stolen accounts, carded items, fake IDs, services, data -
      * remain the pure reputation/heat plays they already are.
      */
     const deliveredId = listingItemId(listing);
@@ -143,7 +143,7 @@ export const buyMarketListing = (
        *
        * Already-owned is normally refused by the snapshot pre-check above, but
        * that reads the caller's `gameState`, so it cannot see a second tap
-       * landing in the same React batch — which is the case this re-check exists
+       * landing in the same React batch - which is the case this re-check exists
        * for. Falling through to the generic return would commit the BTC debit
        * and consume the listing while granting nothing: precisely the
        * "charged full price, got nothing" defect this whole block removes.
@@ -162,7 +162,7 @@ export const buyMarketListing = (
    *
    * This used to read "Delivered. <title> is yours." for EVERY category, but
    * only `gear` and `hackingTools` put anything in your inventory. The other
-   * five — stolen accounts, carded items, fake IDs, services, data — move buyer
+   * five - stolen accounts, carded items, fake IDs, services, data - move buyer
    * reputation and heat and nothing else, so the player was told they owned a
    * "New Identity Kit" that no system had ever heard of. That mismatch is what
    * a bug report looks like from the outside.
@@ -175,8 +175,8 @@ export const buyMarketListing = (
    * nothing behaviourally but newly exposes this function to the C-9 detector in
    * `__tests__/refactor/updaterResultRatchet.test.ts`, whose regex cannot see a
    * success return through a ternary. `buyMarketListing` does belong to that
-   * class — benignly, since every inner `return prev` mirrors an outer guard
-   * above — but surfacing it is ratchet work, not a copy fix, and it must not
+   * class - benignly, since every inner `return prev` mirrors an outer guard
+   * above - but surfacing it is ratchet work, not a copy fix, and it must not
    * ride in on this change. See the note in tasks/bbq-bug-report-2026-08-11.md.
    */
   return preview.result.outcome === 'scam'
@@ -190,7 +190,7 @@ export const buyMarketListing = (
         outcome: 'success',
         message: listingItemId(snapListing)
           ? `Delivered. ${snapListing.title} is yours.`
-          : `Deal done. ${snapListing.title} moved — buyer reputation up, heat up. Nothing to add to your kit.`,
+          : `Deal done. ${snapListing.title} moved - buyer reputation up, heat up. Nothing to add to your kit.`,
       };
 };
 
@@ -219,7 +219,7 @@ export const beginDarkWebJob = (
  * Run the current stage of a job. Deducts energy on attempt; on completion,
  * the BTC payout lands in the dirty wallet (the player still has to launder it).
  *
- * Returns an outcome the caller must surface — a silently swallowed block or
+ * Returns an outcome the caller must surface - a silently swallowed block or
  * failure reads as "the button does nothing" (bug report 2026-07-03).
  */
 export const runJobStage = (
@@ -247,7 +247,7 @@ export const runJobStage = (
     log.info(`Stage attempt blocked: need ${pre.result.energyCost} energy, have ${Math.round(energy)}`);
     return {
       success: false,
-      message: `Not enough energy — this stage needs ${pre.result.energyCost} energy and you have ${Math.round(energy)}. Rest up and try again.`,
+      message: `Not enough energy - this stage needs ${pre.result.energyCost} energy and you have ${Math.round(energy)}. Rest up and try again.`,
     };
   }
 
@@ -270,7 +270,7 @@ export const runJobStage = (
     return {
       success: true,
       outcome,
-      message: `Job complete! ${dirtyBtcEarned.toFixed(4)} ₿ landed in your dirty wallet — launder it before cashing out.`,
+      message: `Job complete! ${dirtyBtcEarned.toFixed(4)} ₿ landed in your dirty wallet - launder it before cashing out.`,
     };
   }
   if (outcome === 'fail') {
@@ -279,11 +279,11 @@ export const runJobStage = (
       success: true,
       outcome,
       message: burned
-        ? 'The stage failed one time too many — the job is burned and gone.'
+        ? 'The stage failed one time too many - the job is burned and gone.'
         : 'The stage failed and your progress reset to stage 1. Too many failures will burn the job.',
     };
   }
-  return { success: true, outcome, message: 'Stage complete — advanced to the next stage.' };
+  return { success: true, outcome, message: 'Stage complete - advanced to the next stage.' };
 };
 
 // ---------------------------------------------------------------------------
@@ -351,7 +351,7 @@ export const cashOutCleanBtc = (
 };
 
 // ---------------------------------------------------------------------------
-// New identity — late-game reset
+// New identity - late-game reset
 // ---------------------------------------------------------------------------
 
 /** Price in BTC for a fresh identity package. Tuned high enough that this is a real choice. */
@@ -378,7 +378,7 @@ export const acquireNewIdentity = (
     // R2-G keeps mortgage/auto loans (still tied to collateral); personal/business
     // loans taken under the old name are discharged. EXPLOIT FIX (M-1): that used
     // to cost a flat 0.5 BTC, so maxing out unsecured loans, spending the cash,
-    // and buying a new identity wiped the debt for almost nothing — repeatable
+    // and buying a new identity wiped the debt for almost nothing - repeatable
     // free money. Charge a settlement fee proportional to the discharged unsecured
     // principal (in BTC), so walking away from debt costs nearly as much as
     // repaying it. The base cost still covers a heat/rep reset when you owe little.

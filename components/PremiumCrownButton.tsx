@@ -1,5 +1,5 @@
 /**
- * PremiumCrownButton — a high-visibility golden crown that opens the DeepLife+
+ * PremiumCrownButton - a high-visibility golden crown that opens the DeepLife+
  * paywall. Self-contained: it renders the crest, owns the paywall modal state,
  * and hides itself for players who already have premium (no point upselling a
  * member). Drop `<PremiumCrownButton />` anywhere it should appear.
@@ -71,8 +71,8 @@ export default function PremiumCrownButton({ variant = 'full', style }: Props) {
 
   const onPress = useCallback(() => {
     haptic.light();
-    // Always open the app's own DeepLife+ paywall (SubscriptionModal) — the
-    // fully-designed surface — rather than RevenueCat's dashboard template.
+    // Always open the app's own DeepLife+ paywall (SubscriptionModal) - the
+    // fully-designed surface - rather than RevenueCat's dashboard template.
     // Purchases still route through RevenueCat/StoreKit via subscriptionService.
     setOpen(true);
   }, []);

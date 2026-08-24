@@ -65,7 +65,7 @@ export const purchaseLuxuryItem = (
     return { success: false, message: 'Item not found.' };
   }
 
-  // Already owned? (Collectibles are unique — you own one of each.)
+  // Already owned? (Collectibles are unique - you own one of each.)
   if (ownsLuxuryItem(gameState.luxuryItems, itemId)) {
     return { success: false, message: `You already own the ${item.name}.` };
   }
@@ -177,7 +177,7 @@ export const sellLuxuryItem = (
     const credit = applyMoneyDelta(prev, refund, `Sold luxury: ${item.name}`);
     if (!credit) return prev;
     // Selling the land sells everything built on it. The minted property is
-    // removed with the item — leaving an orphan property behind would keep
+    // removed with the item - leaving an orphan property behind would keep
     // paying its upkeep and counting toward net worth for an island the player
     // no longer owns.
     const mintedId = luxuryPropertyId(itemId);
@@ -203,7 +203,7 @@ export const sellLuxuryItem = (
 
 
 /**
- * Perform a luxury VERB — race the horse, book a track day, loan the diamond.
+ * Perform a luxury VERB - race the horse, book a track day, loan the diamond.
  *
  * The outcome comes from `getDeterministicRoll` keyed on the verb and the week,
  * so reloading the save and replaying the same week produces the same result.
@@ -265,7 +265,7 @@ export const performLuxuryVerb = (
       ...(moved ?? {}),
       stats,
       // Commit the roll so the same week can never be rerolled by reloading.
-      // NOTE: this returns the LOG, not a state patch — it must be assigned to
+      // NOTE: this returns the LOG, not a state patch - it must be assigned to
       // `rngCommitLog`, never spread, or the log's own fields (seed, entries,
       // order) land on the state root.
       ...(needsRoll ? { rngCommitLog: commitDeterministicRoll(prev, rollKey, weeksLived) } : {}),
@@ -290,7 +290,7 @@ export const performLuxuryVerb = (
 
 
 /**
- * Host an event at a luxury venue — a dinner, a party, a charity gala.
+ * Host an event at a luxury venue - a dinner, a party, a charity gala.
  *
  * This is the first thing in the feature where owning two trophies is worth
  * more than owning them apart: the rest of the collection decides who turns up
@@ -367,7 +367,7 @@ export const hostLuxuryEvent = (
  * Insure or un-insure an owned item.
  *
  * The premium is charged weekly by the luxury tick, so this action only flips
- * the flag — there is nothing to pay up front, and cancelling takes effect from
+ * the flag - there is nothing to pay up front, and cancelling takes effect from
  * the next week. That mirrors how the vehicle insurance already behaves.
  */
 export const setLuxuryInsurance = (

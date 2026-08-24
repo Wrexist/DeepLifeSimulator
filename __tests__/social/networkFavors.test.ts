@@ -41,7 +41,7 @@ import type { Favor } from '@/lib/contacts/favors';
 import type { GameState } from '@/contexts/game/types';
 
 function requireSlice<T>(slice: T | undefined, name: string): T {
-  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice - fixture cannot be built`);
   return slice;
 }
 
@@ -112,7 +112,7 @@ describe('a network contact can be asked for a favour', () => {
     expect(openFavors(stub.current().favorLedger!)).toHaveLength(0);
   });
 
-  it('refuses a personal contact — they have Call and lend instead', () => {
+  it('refuses a personal contact - they have Call and lend instead', () => {
     const stub = createSetGameStateStub(base());
     const r = askNetworkFavor(base(), stub.setGameState, { ...LOBBYIST, kind: 'friend' });
 
@@ -120,7 +120,7 @@ describe('a network contact can be asked for a favour', () => {
     expect(openFavors(stub.current().favorLedger!)).toHaveLength(0);
   });
 
-  it('one open favour per contact — the cooldown IS the ledger', () => {
+  it('one open favour per contact - the cooldown IS the ledger', () => {
     // No new save field: "you cannot call in a second favour while the first is
     // outstanding" is both the natural rule and already recorded.
     const start = base();
@@ -135,7 +135,7 @@ describe('a network contact can be asked for a favour', () => {
   });
 
   it('a same-batch double-tap cannot mint two', () => {
-    // Both calls read the SAME stale snapshot — the updater must re-check prev.
+    // Both calls read the SAME stale snapshot - the updater must re-check prev.
     const start = base();
     const stub = createSetGameStateStub(start);
     askNetworkFavor(start, stub.setGameState, LOBBYIST);
@@ -202,7 +202,7 @@ describe('redeeming a non-money favour actually does something', () => {
     /**
      * `expireFavors` runs in the weekly tick, so between the expiry week
      * arriving and the next tick a favour sits `open` with `expiresWeek` behind
-     * it. Without this guard the payout still landed — a deadline that only
+     * it. Without this guard the payout still landed - a deadline that only
      * binds if a tick happened to run is not a deadline. Only reachable at all
      * because network favours introduced expiries the player holds for weeks.
      */
@@ -247,7 +247,7 @@ describe('redeeming a non-money favour actually does something', () => {
   });
 
   it('the same introduction is the same person on every load', () => {
-    // Derived from the favour, not rolled — `Math.random()` here would give the
+    // Derived from the favour, not rolled - `Math.random()` here would give the
     // player a different friend each time the state was rebuilt.
     const once = applyNonMoneyFavor(base(), favorOf('intro'));
     const twice = applyNonMoneyFavor(base(), favorOf('intro'));
@@ -294,8 +294,8 @@ describe('review round: a refusal is not a no-op', () => {
    * Those want opposite handling: a no-op still closes the favour, a refusal
    * must leave it open or the player loses the IOU and gets nothing.
    *
-   * Not reachable today — `favorPayout` cannot produce a non-finite number and
-   * `applyMoneyDelta` CLAMPS at `MONEY_CEILING` rather than refusing — so this
+   * Not reachable today - `favorPayout` cannot produce a non-finite number and
+   * `applyMoneyDelta` CLAMPS at `MONEY_CEILING` rather than refusing - so this
    * pins the distinction rather than a live bug.
    */
   it('a no-op reports noop, not rejected', () => {
@@ -307,7 +307,7 @@ describe('review round: a refusal is not a no-op', () => {
     expect(resolveNonMoneyFavor(base(), favorOf('influence')).outcome).toBe('applied');
   });
 
-  it('a discount worth nothing is a no-op — the favour is spent, not stuck', () => {
+  it('a discount worth nothing is a no-op - the favour is spent, not stuck', () => {
     // Refusing here would leave an unredeemable entry open on the board forever.
     for (const bad of [NaN, Infinity, -50, 0]) {
       const r = resolveNonMoneyFavor(base(), favorOf('discount', { value: bad as number }));
@@ -318,7 +318,7 @@ describe('review round: a refusal is not a no-op', () => {
   it('the money ceiling CLAMPS rather than refusing, so it is not a refusal', () => {
     // Worth pinning because the reviewed claim was the opposite. If
     // `applyMoneyDelta` ever starts refusing at the ceiling, the discount favour
-    // must start staying open — and this test is what will say so.
+    // must start staying open - and this test is what will say so.
     const rich = base({ stats: { money: Number.MAX_SAFE_INTEGER, reputation: 50 } });
     expect(resolveNonMoneyFavor(rich, favorOf('discount')).outcome).not.toBe('rejected');
   });
@@ -354,7 +354,7 @@ describe('review round: the expiry gate cannot be walked past', () => {
 describe('review round: the favour id comes from the committed week', () => {
   it('the STORED id agrees with the createdWeek it is stored beside', () => {
     /**
-     * The id ENCODES the week — that encoding is half the double-tap guard — so
+     * The id ENCODES the week - that encoding is half the double-tap guard - so
      * building it from the stale snapshot could store an id naming one week next
      * to a `createdWeek` naming the next, if a tick landed between render and
      * commit. It could also collide with a closed favour from that earlier week
@@ -365,13 +365,13 @@ describe('review round: the favour id comes from the committed week', () => {
      *
      * The RETURNED `favorId` is a different question, and this test used to
      * conflate them. It was satisfied by a `let outcome` assigned inside the
-     * updater and read after — a capture, which is only readable for the FIRST
+     * updater and read after - a capture, which is only readable for the FIRST
      * functional update of a React batch, and which reported "Could not ask
      * right now." for favours it had booked whenever it was not (2026-08-15).
      *
      * With the outcome derived from the caller's snapshot, the reported id is
-     * the snapshot's. It can only differ in exactly this scenario — a tick
-     * landing between render and commit — and no caller reads it (`ContactsApp`
+     * the snapshot's. It can only differ in exactly this scenario - a tick
+     * landing between render and commit - and no caller reads it (`ContactsApp`
      * uses `success` and `message` only). Reporting a snapshot-derived id is
      * honest about what is knowable synchronously; promising the committed one
      * was not.
@@ -411,8 +411,8 @@ describe('review round: an unusable week counter refuses the ASK but not the RED
   /**
    * The two directions fail differently, so they are guarded differently.
    *
-   * Creation writes `prevWeek` into three durable places — the id,
-   * `createdWeek` and `expiresWeek` — so a `?? 0` fallback on a save whose real
+   * Creation writes `prevWeek` into three durable places - the id,
+   * `createdWeek` and `expiresWeek` - so a `?? 0` fallback on a save whose real
    * week is 500 books a favour stamped week 0 that expires at week 12: already
    * dead the moment the field is repaired. Redemption only READS the counter,
    * and refusing there would deny a legitimately earned payout because of a
@@ -423,7 +423,7 @@ describe('review round: an unusable week counter refuses the ASK but not the RED
    */
   // No cast: `weeksLived` is optional on the override type, so both the absent
   // and the NaN case go through the factory like any other fixture. An
-  // `as GameState` here would be the drift Hard Rule #3 exists to stop — and
+  // `as GameState` here would be the drift Hard Rule #3 exists to stop - and
   // the weekly audit flags it, which is how the first draft of this block got
   // caught.
   const noWeek = (over: TestGameStateOverrides = {}): GameState =>

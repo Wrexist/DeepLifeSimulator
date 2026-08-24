@@ -1,5 +1,5 @@
 /**
- * CommunityRewardPopup — the one-time "join our Discord for a cash reward"
+ * CommunityRewardPopup - the one-time "join our Discord for a cash reward"
  * invite, shown once early in a life and never again.
  *
  * ## Shape
@@ -53,7 +53,7 @@ interface CommunityRewardPopupProps {
   rewardAmount: number;
   /** Claim the reward + open Discord. */
   onJoin: () => void;
-  /** Quietly dismiss ("Maybe later") — won't nag again this install. */
+  /** Quietly dismiss ("Maybe later") - won't nag again this install. */
   onDismiss: () => void;
 }
 
@@ -148,7 +148,7 @@ export default function CommunityRewardPopup({
 
           <Text style={[styles.title, { color: theme.text }]}>Join our Discord</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Hang out with other players and the devs — and take a one-time welcome bonus with you.
+            Hang out with other players and the devs - and take a one-time welcome bonus with you.
           </Text>
 
           {safeRewardAmount > 0 && (
@@ -202,7 +202,7 @@ export default function CommunityRewardPopup({
           </Pressable>
 
           {/* The destination, in plain sight. Tapping it does exactly what the
-              CTA does — the reward is granted either way, so a player who aims
+              CTA does - the reward is granted either way, so a player who aims
               for the link instead of the button is never shortchanged. */}
           <Pressable
             onPress={handleJoin}

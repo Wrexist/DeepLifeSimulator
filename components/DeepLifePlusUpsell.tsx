@@ -1,11 +1,11 @@
 /**
- * DeepLifePlusUpsell — one component, three looks, all opening the DeepLife+
+ * DeepLifePlusUpsell - one component, three looks, all opening the DeepLife+
  * paywall via the shared `useDeepLifePlusUpsell` hook and all self-hiding for
  * existing members.
  *
- *   variant="banner"  — a fancy full-width gold card for the gem/IAP shop.
- *   variant="inline"  — a compact "go ad-free" pill for the rewarded-ad sheet.
- *   variant="badge"   — a small glowing crown to pin beside the player avatar.
+ *   variant="banner"  - a fancy full-width gold card for the gem/IAP shop.
+ *   variant="inline"  - a compact "go ad-free" pill for the rewarded-ad sheet.
+ *   variant="badge"   - a small glowing crown to pin beside the player avatar.
  *
  * Each instance owns its own SubscriptionModal fallback (only shown when the
  * RevenueCat paywall isn't available), so you can drop it anywhere.
@@ -26,7 +26,7 @@ const BANNER_ART = require('@/assets/images/deeplife-plus-banner.webp');
 
 // The DeepLife+ crest: the illustrated gold crown on its dark gold-framed plate.
 // Shared with the paywall hero (components/SubscriptionModal.tsx) so the badge a
-// player taps and the crest they land on are the same mark — the badge reads as
+// player taps and the crest they land on are the same mark - the badge reads as
 // a door to the paywall rather than as a separate gold pip.
 const CREST_ART = require('@/assets/images/deeplife-plus-crest.webp');
 
@@ -43,7 +43,7 @@ const INK = '#1A1206';
 // even for members (who normally never see it), so the banner/badge/pill can be
 // verified on a premium account in an internal-testing build. Metro inlines
 // EXPO_PUBLIC_* at build time, so it is compiled to `false` in any normal
-// production build where the flag is unset — it can never leak to real users.
+// production build where the flag is unset - it can never leak to real users.
 const FORCE_UPSELL = process.env.EXPO_PUBLIC_FORCE_DEEPLIFE_UPSELL === 'true';
 
 interface Props {
@@ -62,7 +62,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
   const glowGradId = useRef(`dlpGlow${_glowGradSeq++}`).current;
 
-  // A member normally hides every surface — unless the force flag is on (QA).
+  // A member normally hides every surface - unless the force flag is on (QA).
   const memberHidden = active && !FORCE_UPSELL;
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   // This was a hand-built gold "coin": an SVG radial gradient, a white rim and a
   // lucide crown glyph on top. At badge size the glyph sat under the pulsing
   // halo and the whole thing read as a featureless gold pip rather than a crown.
-  // It is the illustrated crest now — the SAME art as the paywall hero, so the
+  // It is the illustrated crest now - the SAME art as the paywall hero, so the
   // thing a player taps is visibly the thing they arrive at.
   //
   // The motion is unchanged and still carries the eye: a pulsing glow halo, a
@@ -139,7 +139,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
           accessibilityLabel={`Open DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''}`}
           style={[styles.badgeWrap, style]}
         >
-          {/* A flat `backgroundColor` circle was fine behind the old GOLD coin —
+          {/* A flat `backgroundColor` circle was fine behind the old GOLD coin -
               its hard edge was hidden under the coin and only peeked as a rim.
               Behind the crest, whose plate is dark, that same disc read as a
               solid yellow blob with a visible edge. This is a true radial
@@ -205,7 +205,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
         onPress={present}
         activeOpacity={0.9}
         accessibilityRole="button"
-        accessibilityLabel={`DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''} — ad-free plus exclusive perks`}
+        accessibilityLabel={`DeepLife Plus${showTrial ? `, ${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-day free trial` : ''} - ad-free plus exclusive perks`}
         style={[styles.banner, style]}
       >
         <ImageBackground
@@ -233,7 +233,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
               </View>
             </View>
             <Text style={styles.bannerSub} numberOfLines={2}>
-              Ad-free · +25% career income · daily gems{showTrial ? ' — free for a week' : ''}
+              Ad-free · +25% career income · daily gems{showTrial ? ' - free for a week' : ''}
             </Text>
           </View>
 
@@ -264,20 +264,20 @@ const styles = StyleSheet.create({
     height: scale(42),
     alignItems: 'center',
     justifyContent: 'center',
-    // NO SHADOW HERE — deliberately.
+    // NO SHADOW HERE - deliberately.
     //
     // The coin this replaced was a circle (`borderRadius: scale(13)` on a 26pt
     // box), so its drop shadow was drawn round and read as soft depth. The crest
     // is ALPHA ART inside a square box: a shadow follows the view's bounds, not
     // the artwork's silhouette, so the same shadow rendered as a hard rectangle
-    // floating around the badge — visible as a stray box outline over the
+    // floating around the badge - visible as a stray box outline over the
     // avatar. That is true on every platform, not just web: iOS derives the
     // shadow from the layer bounds without an explicit shadowPath, and Android's
     // elevation uses the bounds outline.
     //
     // Matching `borderRadius` to the art would only approximate its silhouette
-    // and still bleed at the corners. The art does not need the help — it ships
-    // with a luminous gold frame — and `badgeGlow` below supplies the depth.
+    // and still bleed at the corners. The art does not need the help - it ships
+    // with a luminous gold frame - and `badgeGlow` below supplies the depth.
   },
   badgeCrestArt: { width: '100%', height: '100%' },
   badgeSparkle: {

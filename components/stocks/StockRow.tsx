@@ -29,7 +29,7 @@ interface Props {
   onToggleWatch?: () => void;
 }
 
-/** Sector identity colors — reused by the app's sector board + allocation bar. */
+/** Sector identity colors - reused by the app's sector board + allocation bar. */
 export const SECTOR_COLOR: Record<Sector, string> = {
   tech: accent.info,
   finance: accent.success,
@@ -68,7 +68,7 @@ function formatPrice(n: number): string {
 /**
  * Tiny honest trend line. The engine only persists the current quote and last
  * week's close, so this draws the real 2-point week-over-week segment (prev →
- * current) scaled by the size of the move — never a fabricated history array.
+ * current) scaled by the size of the move - never a fabricated history array.
  */
 export function Sparkline({
   changePct,
@@ -117,7 +117,7 @@ export function ChangeChip({ changePct, darkMode, size = 'sm' }: { changePct?: n
   const down = (changePct ?? 0) < 0;
   const bg = !has ? theme.surfaceElevated : up ? accent.success : down ? accent.danger : theme.surfaceElevated;
   const fg = has && (up || down) ? '#FFFFFF' : theme.textMuted;
-  const label = has ? `${up ? '+' : ''}${((changePct as number) * 100).toFixed(2)}%` : '—';
+  const label = has ? `${up ? '+' : ''}${((changePct as number) * 100).toFixed(2)}%` : '-';
   return (
     <View style={[size === 'md' ? styles.changeChipMd : styles.changeChipSm, { backgroundColor: bg }]}>
       <Text style={[size === 'md' ? styles.changeTextMd : styles.changeTextSm, { color: fg }]} numberOfLines={1}>
@@ -232,7 +232,7 @@ export default function StockRow({
         accessibilityRole={onPress ? 'button' : undefined}
         accessibilityLabel={a11yLabel}
         // Hard Rule #7: this row carried the sector as a scale(3) bar down its
-        // left edge — a side accent bar, which the rule bans by name even
+        // left edge - a side accent bar, which the rule bans by name even
         // though it is a View rather than a border.
         //
         // The colour moves onto a faint row tint. Deliberately much weaker than
@@ -240,7 +240,7 @@ export default function StockRow({
         // the sector in that colour, so the tint is a scan aid, not the signal.
         // At chip strength a list of these reads as stripes of solid colour.
         //
-        // The borderBottom below stays — a neutral `theme.border` hairline row
+        // The borderBottom below stays - a neutral `theme.border` hairline row
         // divider is one of the rule's explicit structural exceptions.
         style={[
           styles.groupRow,
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   // Standalone card anatomy: outer carries shadow + radius + border; inner clips the stripe.
   cardOuter: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1 },
   cardInner: { flexDirection: 'row', alignItems: 'stretch', borderRadius: responsiveBorderRadius.xl, overflow: 'hidden' },
-  // (The scale(3) `stripe` that lived here is gone — Hard Rule #7. The
+  // (The scale(3) `stripe` that lived here is gone - Hard Rule #7. The
   // standalone card carries the sector on its full border, the grouped row on a
   // faint background tint.)
   rowContent: {

@@ -186,7 +186,7 @@ export const composePost = (
    * back after this one. That read is only reliable for the FIRST functional
    * update of a React batch, so on a deferred dispatch the post was appended
    * and its followers/earnings recorded while the energy/health/happiness costs
-   * and the cash NEVER landed — and the player was told "You already posted
+   * and the cash NEVER landed - and the player was told "You already posted
    * that type this week." Folding them in makes the grant and its costs the
    * same transition (CLAUDE.md §4.4), which is also a stronger version of the
    * double-pay guard the flag was there to provide.
@@ -266,8 +266,8 @@ export const composePost = (
     // post cannot land without them.
     //
     // `lifetimeStatistics.totalPostsMade` / `totalViralPosts` had NO production
-    // writer — `trackPost` in `lib/statistics/statisticsTracker.ts` was only
-    // ever called from a stress test — so StatisticsApp's "Posts" counter read
+    // writer - `trackPost` in `lib/statistics/statisticsTracker.ts` was only
+    // ever called from a stress test - so StatisticsApp's "Posts" counter read
     // a permanent 0 and the `viral` milestone (10 gems) was unearnable.
     // Incremented inside THIS updater, past the fresh weekly-cap guard above,
     // so a double-tapped compose cannot count a post that was refused
@@ -413,7 +413,7 @@ export const followNpc = (
   npcId: string,
 ): { success: boolean; message: string; mutualFollow?: boolean } => {
   /**
-   * Already following — the OUTER mirror of the updater's guard. Without one,
+   * Already following - the OUTER mirror of the updater's guard. Without one,
    * a second tap said "Following." and did nothing.
    */
   if ((gameState.socialMedia?.followGraph?.followingNpcIds ?? []).includes(npcId)) {
@@ -423,7 +423,7 @@ export const followNpc = (
   /**
    * The follow-back roll happens HERE, once, not inside the updater.
    *
-   * `mutualFollow` used to be assigned inside and read after — only reliable
+   * `mutualFollow` used to be assigned inside and read after - only reliable
    * for the FIRST functional update of a React batch, so a deferred dispatch
    * always reported the plain "Following." even when they followed back. Rolling
    * outside also makes the updater pure, which matters because React 19
@@ -476,7 +476,7 @@ export const followNpc = (
   // Reported from the roll made above, not from the updater.
   return {
     success: true,
-    message: followsBack ? 'Followed — they followed back!' : 'Following.',
+    message: followsBack ? 'Followed - they followed back!' : 'Following.',
     mutualFollow: followsBack,
   };
 };
@@ -543,8 +543,8 @@ export const recoverFromScandal = (
       break;
     }
     case 'silence': {
-      // No immediate impact — tick handles decay; small chance of resurge handled in tick.
-      message = 'You stayed silent. The story will fade — unless it resurges.';
+      // No immediate impact - tick handles decay; small chance of resurge handled in tick.
+      message = 'You stayed silent. The story will fade - unless it resurges.';
       break;
     }
     case 'gems': {
@@ -593,7 +593,7 @@ export const recoverFromScandal = (
      * options are plain `Pressable`s in a ScrollView, so two taps in one React
      * batch both cleared the same scandal: 500 gems debited twice, a duplicate
      * `scandalHistory` entry, and `totalScandalsSurvived` double-incremented.
-     * The `lawsuit` branch was worse — it charges $5,000 through `updateMoney`
+     * The `lawsuit` branch was worse - it charges $5,000 through `updateMoney`
      * OUTSIDE this updater, so a double tap was $10,000 for one clear.
      * CLAUDE.md §4.4.
      */
@@ -604,7 +604,7 @@ export const recoverFromScandal = (
     const ws = prev.weeksLived ?? 0;
     if (method === 'gems') {
       // Instant clear: severity 0, move to history, increment counter.
-      // R3-E: cap to 30 — was unbounded; an influencer with many scandals over
+      // R3-E: cap to 30 - was unbounded; an influencer with many scandals over
       // a long life would accumulate hundreds of entries.
       sm.scandalHistory = [
         ...(sm.scandalHistory ?? []),
@@ -647,7 +647,7 @@ export const recoverFromScandal = (
         };
       }
     } else {
-      // Apology / silence — store method on scandal so tick can adjust decay rate
+      // Apology / silence - store method on scandal so tick can adjust decay rate
       sm.activeScandal = { ...scandal, resolutionMethod: method };
     }
     return {
@@ -689,7 +689,7 @@ export const recoverFromScandal = (
  *
  * `next: null` means refuse. Used for BOTH the caller-facing outcome (against
  * the snapshot) and the commit (against `prev`), so no variable is read across
- * the updater boundary — the defect behind the 2026-08-15 player report.
+ * the updater boundary - the defect behind the 2026-08-15 player report.
  */
 function resolveAcceptBrandDeal(
   state: GameState,
@@ -729,7 +729,7 @@ function resolveAcceptBrandDeal(
   const bonus = Math.floor(offer.payment * 0.25);
   sm.totalEarnings = (sm.totalEarnings ?? 0) + bonus;
 
-  pushNotification(sm, 'brand_offer', `Accepted ${offer.brandName} deal — $${bonus} signing bonus paid`, ws, {
+  pushNotification(sm, 'brand_offer', `Accepted ${offer.brandName} deal - $${bonus} signing bonus paid`, ws, {
     refDealId: dealId,
   });
 
@@ -778,7 +778,7 @@ export const declineBrandDeal = (
  * PURE: what does delivering `postId` against `dealId` do to `state`?
  *
  * `next: null` means refuse. The mutable `result` below is a LOCAL of this pure
- * function — that is fine; what was not fine is the previous shape, where it
+ * function - that is fine; what was not fine is the previous shape, where it
  * lived outside a `setGameState` updater and was assigned from inside it. React
  * runs only the FIRST functional update of a batch eagerly, so any deferred
  * dispatch returned the initial "Deal not found." for a delivery that had
@@ -794,7 +794,7 @@ function resolveDeliverBrandDealPost(
   let completionPayout = 0;
 
   // ONE POST COUNTS ONCE. The counter was incremented unconditionally, with
-  // the "already used" check living only in the caller's render closure —
+  // the "already used" check living only in the caller's render closure -
   // `BrandDealsScreen.handleDeliver` picks `recent.find(p =>
   // !p.sponsoredByDealId)` from a stale snapshot, so two taps in one batch
   // both chose the SAME post and the reducer counted two deliveries. Once
@@ -868,7 +868,7 @@ function resolveDeliverBrandDealPost(
         totalBrandDealsCompleted: sm.lifetimeStats.totalBrandDealsCompleted + 1,
       };
     }
-    pushNotification(sm, 'brand_offer', `${deal.brandName} campaign completed — full payment received`, ws, {
+    pushNotification(sm, 'brand_offer', `${deal.brandName} campaign completed - full payment received`, ws, {
       refDealId: dealId,
     });
     result = { success: true, message: `${deal.brandName} campaign completed!` };
@@ -877,7 +877,7 @@ function resolveDeliverBrandDealPost(
   }
   // M-batch-B (R8): credit the remaining brand-deal balance on early completion
   // IN THE SAME updater. Finishing early removes the deal (above), so the
-  // tick's weekly installments stop — paying the remainder makes the total
+  // tick's weekly installments stop - paying the remainder makes the total
   // identical to riding the deal to expiry. applyMoneyDelta never rejects a
   // positive credit; folding it in avoids a post-setState read.
   const credit =
@@ -903,14 +903,14 @@ export const deliverBrandDealPost = (
  * Extracted so the CONFIRM SCREEN can quote the real number and refuse up front.
  * `breachBrandDeal` returns its outcome from inside a `setGameState` updater,
  * and React is free to defer an updater past the point the caller reads that
- * return — so the refusal added below could not be reported to the player
+ * return - so the refusal added below could not be reported to the player
  * through the return value alone. `BrandDealsScreen` ignored it outright, which
  * meant a player who could not afford the penalty tapped "Breach" on a
  * confirmation dialog and got silence. The alert also quoted `payment * 0.5`,
  * a different number from the one actually charged.
  *
  * Returns `null` when the deal is not active. The updater still re-checks
- * everything against `prev` — this is for the copy and the pre-flight, never
+ * everything against `prev` - this is for the copy and the pre-flight, never
  * the authority. 2026-07-30 review of ECON-R1-03.
  */
 export const brandDealBreachPenalty = (state: GameState, dealId: string): number | null => {
@@ -930,12 +930,12 @@ export const brandDealBreachPenalty = (state: GameState, dealId: string): number
  *
  * It used to carry a warning not to read it: the outcome was assembled inside
  * the `setGameState` updater, and React may run that updater after this
- * function has returned — so the caller could see the initial
+ * function has returned - so the caller could see the initial
  * `{ success: false, message: 'Deal not found.' }` for a breach that then
  * succeeded. Measured, not assumed: `__tests__/refactor/updaterTimingContract`
  * shows the first updater of a batch runs eagerly and a second is deferred.
  *
- * That warning has been replaced by the fix it asked for — a pure reducer with
+ * That warning has been replaced by the fix it asked for - a pure reducer with
  * an explicit result (`resolveBreachBrandDeal`), called once against the
  * caller's snapshot for the outcome and once against `prev` for the state.
  * Nothing is read across the updater boundary, so the report no longer depends
@@ -968,8 +968,8 @@ function resolveBreachBrandDeal(
   //
   // The penalty used to be applied afterwards via `updateMoney`, which is
   // all-or-nothing: it returns `prev` unchanged when the debit would go
-  // negative. So the breach had already landed — deal removed, history row
-  // written — and the charge silently did nothing. A player who moved their
+  // negative. So the breach had already landed - deal removed, history row
+  // written - and the charge silently did nothing. A player who moved their
   // cash into a bank account first breached every contract for FREE, kept the
   // 25% signing bonus `acceptBrandDeal` paid up front, and was told
   // "Contract breached. -$X" while paying nothing. 2026-07-30 audit ECON-R1-03.
@@ -985,7 +985,7 @@ function resolveBreachBrandDeal(
     };
   }
 
-  pushNotification(sm, 'brand_offer', `${deal.brandName} contract breached — $${penalty} penalty`, ws, {
+  pushNotification(sm, 'brand_offer', `${deal.brandName} contract breached - $${penalty} penalty`, ws, {
     refDealId: dealId,
   });
   return {
@@ -1134,7 +1134,7 @@ export const endLiveStream = (
    *
    * The tips and the stat deltas used to be separate dispatches gated on a
    * `let applied` flag read back from here. That read is only reliable for the
-   * FIRST functional update of a React batch — so a deferred dispatch ended the
+   * FIRST functional update of a React batch - so a deferred dispatch ended the
    * stream, banked the follower count, and never paid the tips, while telling
    * the player "Not live."
    */
@@ -1198,7 +1198,7 @@ export const boostPostWithGems = (
     const sm = { ...ensureSocial(prev) };
     sm.recentPosts = (sm.recentPosts ?? []).map((p) => {
       if (p.id !== postId) return p;
-      // Tripled-virality re-roll — distinct nonces so the three rolls are
+      // Tripled-virality re-roll - distinct nonces so the three rolls are
       // genuinely independent (≈ 3× the base viral chance), not one repeated.
       const viral = checkViralChance(sm.influenceLevel, p.contentType, 0) ||
         checkViralChance(sm.influenceLevel, p.contentType, 1) ||
@@ -1251,18 +1251,18 @@ export const subscribeVerifiedPro = (
   const price = plan === 'annual' ? VERIFIED_PRO_ANNUAL_PRICE : VERIFIED_PRO_WEEKLY_PRICE;
   // Re-entry guard: subscribing to the plan you ALREADY hold re-charges the full
   // price and (for annual) resets paidThroughWeek to now+52 instead of extending
-  // it — a pure loss. The modal normally hides the CTA, but a double-tap or a
+  // it - a pure loss. The modal normally hides the CTA, but a double-tap or a
   // stale render can still land here. Switching plan (weekly ⇄ annual) stays
   // allowed. Filed as a non-blocking LOW by the 2026-07-16 weekly audit.
   const activePro = gameState.socialMedia?.verifiedPro;
   if (activePro?.active === true && (activePro.plan ?? 'weekly') === plan) {
     return {
       success: false,
-      message: 'Pulse Verified Pro is already active — no need to buy it again.',
+      message: 'Pulse Verified Pro is already active - no need to buy it again.',
     };
   }
   // Derive the caller-facing result from the CURRENT snapshot BEFORE dispatching.
-  // setGameState is a plain (wrapped) React useState setter — it may defer the
+  // setGameState is a plain (wrapped) React useState setter - it may defer the
   // updater, so reading a value the updater assigns is unreliable. The atomic
   // charge+grant still lives inside the updater below (applyMoneyDelta overdraft-
   // reject), which remains the source of truth for money safety.
@@ -1299,12 +1299,12 @@ export const subscribeVerifiedPro = (
         longerPosts: true,
       },
     };
-    // Signup boost — ONCE per save (sticky flag survives cancel→resubscribe).
+    // Signup boost - ONCE per save (sticky flag survives cancel→resubscribe).
     if (!sm.verifiedProWelcomeClaimed) {
       sm.verifiedProWelcomeClaimed = true;
       sm.followers = (sm.followers ?? 0) + 500;
       sm.influenceLevel = getInfluenceLevel(sm.followers);
-      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro — +500 signup followers', ws);
+      pushNotification(sm, 'verified_pro_renewal', 'Welcome to Pulse Verified Pro - +500 signup followers', ws);
     }
 
     // Flip userProfile.verified
@@ -1315,8 +1315,8 @@ export const subscribeVerifiedPro = (
     success: true,
     message:
       plan === 'annual'
-        ? `Pulse Verified Pro active — $${price.toLocaleString()} for 52 weeks.`
-        : `Pulse Verified Pro active — $${price}/week.`,
+        ? `Pulse Verified Pro active - $${price.toLocaleString()} for 52 weeks.`
+        : `Pulse Verified Pro active - $${price}/week.`,
   };
 };
 
@@ -1339,7 +1339,7 @@ export const cancelVerifiedPro = (
       };
     }
     // The blue check is derived from an ACTIVE Verified Pro subscription. Cancelling
-    // must clear userProfile.verified too — otherwise the checkmark survived forever.
+    // must clear userProfile.verified too - otherwise the checkmark survived forever.
     const userProfile = prev.userProfile?.verified
       ? { ...prev.userProfile, verified: false }
       : prev.userProfile;
@@ -1359,7 +1359,7 @@ export interface AdBoostResult {
  * `RewardedAdModal` used to present a full rewarded video and only then call
  * `watchAdForFollowerBoost`, which refuses when the boost was already used this
  * game week. So a player watched a real 30-second ad, received nothing, and was
- * told nothing — the sheet had already been dismissed to present the ad, and
+ * told nothing - the sheet had already been dismissed to present the ad, and
  * the failure branch fired a haptic and dropped `result.message` on the floor.
  * 2026-07-30 audit UX-1.
  */
@@ -1385,7 +1385,7 @@ export const watchAdForFollowerBoost = (
    *
    * A `let granted` flag used to be read back here. It is only reliable for the
    * FIRST functional update of a React batch, and this path is reached straight
-   * out of `RewardedAdModal` — so a player who had genuinely watched an ad
+   * out of `RewardedAdModal` - so a player who had genuinely watched an ad
    * could be told "Already used your ad-boost this week" while the followers
    * landed. Of all the sites in this class that is the worst one to get wrong.
    */

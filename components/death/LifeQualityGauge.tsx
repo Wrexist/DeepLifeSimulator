@@ -15,7 +15,7 @@
  * ## The geometry, because it is easy to get subtly wrong
  *
  * A border colour on a circle paints a 90° quadrant whose seams sit on the 45°
- * diagonals — so `borderTopColor` alone covers 135°→45°, not the top-left
+ * diagonals - so `borderTopColor` alone covers 135°→45°, not the top-left
  * quarter. Rotating the ring by -45° moves that painted quadrant to exactly
  * 180°→90°, which IS the top-left quarter, and one quadrant is the largest
  * piece that can be swept without a second mask.
@@ -117,7 +117,7 @@ function LifeQualityGauge({ quality, darkMode, size = scale(104) }: Props) {
       </View>
 
       <Text style={s.label}>Life Quality</Text>
-      {/* One string, not `{score}%` — that renders as two text nodes and can
+      {/* One string, not `{score}%` - that renders as two text nodes and can
           break the sign onto its own line at large font scales. */}
       <Text style={[s.value, { color }]}>{`${quality.score}%`}</Text>
     </View>

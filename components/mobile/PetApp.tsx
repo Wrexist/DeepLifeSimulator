@@ -1,5 +1,5 @@
 /**
- * PetApp — Tamagotchi / Fitness DNA pass (Remake 12).
+ * PetApp - Tamagotchi / Fitness DNA pass (Remake 12).
  *
  * Skeleton (deliberately NOT "eyebrow hero + uniform rows"):
  *   - Pets tab   → a portrait STAGE: the active companion's emoji on a soft
@@ -16,7 +16,7 @@
  *   - Compete tab→ an arena: a wins medallion over competition cards, each with
  *                  its own win-probability dial.
  *
- * All logic still delegates to the pure libs in `lib/pets/`. No new mechanics —
+ * All logic still delegates to the pure libs in `lib/pets/`. No new mechanics -
  * every drill-down is presentation of state that already exists.
  *
  * Visual system: "Slate Glass". Identity accent = gold #EAB308 (identity chrome
@@ -98,9 +98,9 @@ import {
 import ProgressRing from '@/components/ui/ProgressRing';
 import { Pet } from '@/contexts/game/types';
 
-const WEEKS_PER_YEAR = 52; // display constant only — mirrors lib/pets/lifecycle
+const WEEKS_PER_YEAR = 52; // display constant only - mirrors lib/pets/lifecycle
 
-// Identity accent — gold. Solid hex only lands on small CTAs / badges; every
+// Identity accent - gold. Solid hex only lands on small CTAs / badges; every
 // larger surface uses the translucent tints below.
 const GOLD = '#EAB308';
 // Dark ink for text on solid gold (white on gold fails contrast).
@@ -188,7 +188,7 @@ export default function PetApp({ onBack }: PetAppProps) {
     [gameState, setGameState, saveGame, flash]
   );
 
-  // BUG FIX: the care-pad "Feed" button only switched to the Shop tab — it never
+  // BUG FIX: the care-pad "Feed" button only switched to the Shop tab - it never
   // fed the pet, unlike Play/Sleep which act directly. Feed with the cheapest
   // food the player actually owns; only route to the shop when the pantry is empty.
   const handleFeedFromInventory = useCallback(
@@ -201,7 +201,7 @@ export default function PetApp({ onBack }: PetAppProps) {
         .map((f) => f.id)
         .find((id) => (inventory[id] ?? 0) > 0);
       if (!ownedFoodId) {
-        flash('Out of food — buy some from the shop.');
+        flash('Out of food - buy some from the shop.');
         goTab('shop');
         return;
       }
@@ -285,7 +285,7 @@ export default function PetApp({ onBack }: PetAppProps) {
     return `Week ${w} · ${delta}w ago`;
   };
 
-  // The chunky care pad — reused by the stage and the profile page.
+  // The chunky care pad - reused by the stage and the profile page.
   const renderCarePad = (p: Pet) => (
     <View style={styles.carePad}>
       <CareBtn label="Feed" Icon={Bone} color={HUNGER_C} theme={theme} onPress={() => handleFeedFromInventory(p.id)} />
@@ -314,14 +314,14 @@ export default function PetApp({ onBack }: PetAppProps) {
     );
   };
 
-  // Recipe B hero — the ONE focal gold surface of the Pets tab: the STAGE.
+  // Recipe B hero - the ONE focal gold surface of the Pets tab: the STAGE.
   const renderPetStage = (p: Pet) => {
     const breed = findBreed(p.type);
     const stage = lifeStage(p, breed);
     const past = isPastLifespan(p, breed);
     const health = p.health ?? 0;
     const happiness = p.happiness ?? 0;
-    // Bond level (0–5 stars) derived from happiness + health — presentation of
+    // Bond level (0–5 stars) derived from happiness + health - presentation of
     // existing state, not a new stat.
     const bond = Math.max(0, Math.min(5, Math.round((health + happiness) / 2 / 20)));
     return (
@@ -380,7 +380,7 @@ export default function PetApp({ onBack }: PetAppProps) {
     );
   };
 
-  // Recipe B "adopt your first pet" state — the hero when there are no pets.
+  // Recipe B "adopt your first pet" state - the hero when there are no pets.
   const renderAdoptHero = () => (
     <View
       style={[
@@ -479,7 +479,7 @@ export default function PetApp({ onBack }: PetAppProps) {
             <View style={[styles.warningBanner, { backgroundColor: DANGER_FILL, borderColor: DANGER_RIM }]}>
               <Skull size={scale(14)} color={accent.danger} />
               <Text style={[styles.warningText, { color: accent.danger }]}>
-                A pet is in critical condition — feed or visit the vet.
+                A pet is in critical condition - feed or visit the vet.
               </Text>
             </View>
           ) : null}
@@ -631,7 +631,7 @@ export default function PetApp({ onBack }: PetAppProps) {
               ))}
             </View>
           ) : (
-            <Text style={[styles.cardSub, { color: theme.textMuted }]}>No toys yet — buy some in the Shop.</Text>
+            <Text style={[styles.cardSub, { color: theme.textMuted }]}>No toys yet - buy some in the Shop.</Text>
           )}
         </View>
 
@@ -941,7 +941,7 @@ export default function PetApp({ onBack }: PetAppProps) {
               if (!evalResult) return null;
               const winPct = Math.round(evalResult.winProbability * 100);
               // One competition per pet per week (enterCompetition rejects
-              // re-entry) — grey the button out instead of letting the tap
+              // re-entry) - grey the button out instead of letting the tap
               // fall through to an "already competed" flash.
               const competedThisWeek = p.lastCompetitionWeek === week;
               const eligible = evalResult.meetsRequirement && !competedThisWeek;
@@ -1099,7 +1099,7 @@ export default function PetApp({ onBack }: PetAppProps) {
   );
 }
 
-// The dual-ring + emoji-mat core of the stage — reused by the active-pet stage
+// The dual-ring + emoji-mat core of the stage - reused by the active-pet stage
 // and the pet-profile page's identity hero.
 function StageCore({
   health,
@@ -1166,7 +1166,7 @@ function VitalRing({
   );
 }
 
-// Compact vital meter (Hunger / Energy) for the stage — the two vitals not
+// Compact vital meter (Hunger / Energy) for the stage - the two vitals not
 // shown as rings.
 function MiniMeter({
   label,
@@ -1304,7 +1304,7 @@ function KV({
   );
 }
 
-// Recipe B context hero for the Shop tab — one gold focal surface carrying the
+// Recipe B context hero for the Shop tab - one gold focal surface carrying the
 // active-pet context.
 function TabHero({
   theme,
@@ -1402,7 +1402,7 @@ const styles = StyleSheet.create({
   scrollPad: { padding: sp.md, gap: sp.lg },
   centerText: { textAlign: 'center' },
 
-  // Top bar — no bottom border; the segmented tab strip below anchors the screen.
+  // Top bar - no bottom border; the segmented tab strip below anchors the screen.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1464,7 +1464,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: fs['2xl'], fontWeight: '800' },
   heroSub: { fontSize: fs.sm, marginTop: 2 },
 
-  // Stage — dual rings flanking the emoji mat.
+  // Stage - dual rings flanking the emoji mat.
   stageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: sp.xs },
   stageMat: {
     width: scale(96),

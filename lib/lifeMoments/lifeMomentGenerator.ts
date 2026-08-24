@@ -176,7 +176,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
         text: 'Go all in on the startup',
         quickEffect: [{ stat: 'money', amount: -5000, label: '-$5,000' }, { stat: 'happiness', amount: 6, label: '+6 Happiness' }],
         hiddenEffect: 'High risk, high hope. You\'ll hear how it went.',
-        hiddenConsequences: [{ type: 'unlock_event', targetEventId: 'startup_payout', weeksUntilActive: 8, description: 'Your startup bet pays off — or busts.' }],
+        hiddenConsequences: [{ type: 'unlock_event', targetEventId: 'startup_payout', weeksUntilActive: 8, description: 'Your startup bet pays off - or busts.' }],
       },
       {
         id: 'bank',
@@ -197,7 +197,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
         text: 'Cover for them',
         quickEffect: [{ stat: 'happiness', amount: 4, label: '+4 Happiness' }, { stat: 'reputation', amount: -1, label: '-1 Reputation' }],
         karma: { dimension: 'honesty', amount: -4, reason: 'Told a white lie to cover for a partner' },
-        hiddenEffect: 'They squeeze your hand under the table. You\'re a team — even in the small lies.',
+        hiddenEffect: 'They squeeze your hand under the table. You\'re a team - even in the small lies.',
       },
       {
         id: 'honest',
@@ -224,7 +224,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
       },
       {
         id: 'refuse',
-        text: 'Refuse — report it straight',
+        text: 'Refuse - report it straight',
         quickEffect: [{ stat: 'reputation', amount: 4, label: '+4 Reputation' }, { stat: 'happiness', amount: -1, label: '-1 Happiness' }],
         karma: { dimension: 'honesty', amount: 3, reason: 'Refused to falsify the numbers' },
         hiddenEffect: 'Your manager frowns, but your name stays clean.',
@@ -275,7 +275,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
   },
   {
     // KARMA: good karma pays off — closes the karma loop
-    situation: 'Someone you helped long ago tracks you down. They never forgot — and they insist on repaying you.',
+    situation: 'Someone you helped long ago tracks you down. They never forgot - and they insist on repaying you.',
     condition: (s) => karmaScore(s) >= 40,
     choices: [
       {
@@ -335,7 +335,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
   },
   {
     // Recognized in public — reputation payoff
-    situation: 'A stranger does a double-take. "Wait — aren\'t you...?" You\'re becoming known around town.',
+    situation: 'A stranger does a double-take. "Wait - aren\'t you...?" You\'re becoming known around town.',
     condition: (s) => (s.stats?.reputation ?? 0) >= 60,
     choices: [
       {
@@ -401,7 +401,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
     choices: [
       {
         id: 'yes',
-        text: 'Absolutely — make a plan',
+        text: 'Absolutely - make a plan',
         quickEffect: [{ stat: 'happiness', amount: 7, label: '+7 Happiness' }, { stat: 'energy', amount: -3, label: '-3 Energy' }],
         hiddenEffect: 'You pick up right where you left off.',
       },
@@ -428,7 +428,7 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
       },
       {
         id: 'pass',
-        text: 'Pass — if it\'s guaranteed, why does he need you?',
+        text: 'Pass - if it\'s guaranteed, why does he need you?',
         quickEffect: [{ stat: 'reputation', amount: 1, label: '+1 Reputation' }],
         hiddenEffect: 'Smart. Guaranteed returns rarely are.',
       },
@@ -449,14 +449,14 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
         id: 'noise',
         text: 'Bang on the wall and yell',
         quickEffect: [{ stat: 'happiness', amount: -2, label: '-2 Happiness' }],
-        hiddenEffect: 'The music stops — but now it\'s a cold war.',
+        hiddenEffect: 'The music stops - but now it\'s a cold war.',
       },
     ],
     category: 'social',
   },
   {
     // Impulse purchase temptation
-    situation: 'A limited-edition something you\'ve always wanted is on sale — today only, $300.',
+    situation: 'A limited-edition something you\'ve always wanted is on sale - today only, $300.',
     condition: (s) => (s.stats?.money ?? 0) >= 400,
     choices: [
       {

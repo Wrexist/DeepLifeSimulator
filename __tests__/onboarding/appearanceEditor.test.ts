@@ -54,7 +54,7 @@ describe('shape options are faces, not vocabulary', () => {
     expect(EDITOR).toMatch(/const previewConfigs = useMemo/);
   });
 
-  it('and they do not blink — that is the hero avatar’s job', () => {
+  it('and they do not blink - that is the hero avatar’s job', () => {
     // `VectorAvatar` defaults `alive` to false precisely because a screen can
     // mount dozens; passing it here would start 28 blink timers.
     expect(EDITOR).not.toMatch(/\balive\b/);

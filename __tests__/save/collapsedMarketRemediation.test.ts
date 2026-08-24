@@ -65,7 +65,7 @@ describe('v31 collapsed-market remediation', () => {
     expect(marketOf(state)).toEqual(expected);
   });
 
-  it('leaves a merely-down market alone — a bad run is not bug damage', () => {
+  it('leaves a merely-down market alone - a bad run is not bug damage', () => {
     // 0.8x is variance. The threshold sits at 0.5, well below anything the fixed
     // walk produces and well above the wreckage the old one left.
     const before = saveWithMarketAt(0.8);
@@ -74,7 +74,7 @@ describe('v31 collapsed-market remediation', () => {
     expect(marketOf(state)).toEqual(expected);
   });
 
-  it('is idempotent — a second pass over a repaired save changes nothing', () => {
+  it('is idempotent - a second pass over a repaired save changes nothing', () => {
     const { state: once } = runMigrations(saveWithMarketAt(0.05) as never);
     const { state: twice } = runMigrations(structuredClone(once) as never);
     expect(marketOf(twice)).toBeUndefined();

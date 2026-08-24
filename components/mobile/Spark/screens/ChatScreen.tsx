@@ -1,26 +1,26 @@
 /**
- * ChatScreen — single-match conversation, driven by CHOICES rather than typing.
+ * ChatScreen - single-match conversation, driven by CHOICES rather than typing.
  *
  * Top: partner header with avatar, name, a rapport bar, and the befriend /
  *      start-dating / view-profile buttons.
  * Middle: message thread (player right-aligned rose tint, NPC left glass).
- * Bottom: the option panel — wrapping chips, each showing its cost and, when
+ * Bottom: the option panel - wrapping chips, each showing its cost and, when
  *         locked, the reason. A visible gate is a goal.
  *
  * TWO OWNER REPORTS, one screen (2026-08-17):
  *
- *  (a) "The keyboard covers the composer — I cannot see what I typed, send it,
+ *  (a) "The keyboard covers the composer - I cannot see what I typed, send it,
  *      or close it." There is no keyboard here any more: the free-text
  *      TextInput is gone, so nothing on this screen is focusable and no
  *      software keyboard can be raised over the action area. That is the fix,
- *      and it is why this file carries no `KeyboardAvoidingView` — one would be
+ *      and it is why this file carries no `KeyboardAvoidingView` - one would be
  *      dead weight wrapping a view with no text input in it. What replaces it
  *      is the structural half of the guarantee: the option panel is a sibling
  *      of the thread (not inside it), pinned above `getAppScreenBottomPadding`,
  *      so it always sits clear of the home indicator, and the panel scrolls
  *      internally rather than growing into the thread on a short screen.
  *
- *  (b) "I want options instead — ask out for a date or compliment the person
+ *  (b) "I want options instead - ask out for a date or compliment the person
  *      and so on." Every chip resolves through `lib/spark/conversation.ts`,
  *      which owns rapport, the gates, the cooldowns and the outcome roll. The
  *      commit is one atomic updater in `playConversationOption`.
@@ -74,7 +74,7 @@ type IconComponent = React.ComponentType<{ size?: number; color?: string; stroke
 
 /**
  * Icon-name → component. The catalog in `lib/spark/conversation.ts` names its
- * icon as a string because `lib/` may not import from `components/` — this map
+ * icon as a string because `lib/` may not import from `components/` - this map
  * is the resolution step, and the `Sparkles` fallback keeps a typo from
  * rendering nothing at all.
  */
@@ -111,7 +111,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   const profile = match ? DATING_PROFILES.find((p) => p.id === match.profileId) : undefined;
   const messages: SparkMessage[] = sp?.messages?.[matchId] ?? [];
   const isPromoted = match?.promoted;
-  // WHAT it was promoted into is read off the relationship, not off the match —
+  // WHAT it was promoted into is read off the relationship, not off the match -
   // `SparkMatch.promoted` is a plain boolean and stays one, so adding friends
   // needed no save-format change. A promoted match shares its id with the
   // relationship it created.
@@ -120,7 +120,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     : undefined;
   const isFriend = promotedRel?.type === 'friend';
 
-  // The gate state the chips render from — produced by the SAME call the action
+  // The gate state the chips render from - produced by the SAME call the action
   // re-checks against `prev`, so a chip can never offer a move the action would
   // then refuse for a different reason.
   const view = useMemo(
@@ -185,7 +185,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
    * The header heart IS the `go_steady` chip.
    *
    * It used to call `promoteMatchToRelationship` directly, which knows only the
-   * anti-bigamy rule — so a free, instant, un-refusable promotion sat 40px from
+   * anti-bigamy rule - so a free, instant, un-refusable promotion sat 40px from
    * a chip that costs 5 energy, needs 75 rapport and can be turned down. Every
    * player would take the heart, and the whole rapport economy below it was
    * decoration. It now resolves through the same availability row and dispatches
@@ -207,7 +207,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
    * The other destination for a match.
    *
    * Without this, `resolveMatchPromotion`'s anti-bigamy guard meant every match
-   * after the first had nowhere to go — the player could keep matching and none
+   * after the first had nowhere to go - the player could keep matching and none
    * of them became a contact. Friendship costs nothing and is not exclusive, so
    * this button never refuses on "already with someone".
    */
@@ -227,7 +227,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
    * Befriending is a ONE-WAY DOOR and the button never said so.
    *
    * `promoteMatchToFriend` sets the same `promoted` flag the partner path does,
-   * which is what hides `go_steady` — so a tap meant as "keep in touch" quietly
+   * which is what hides `go_steady` - so a tap meant as "keep in touch" quietly
    * ended the romance for this match, with no warning and no way back. A
    * confirmation is the minimum: the cost is one extra tap on a rare action, and
    * the thing it protects is unrecoverable.
@@ -237,7 +237,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     const who = profile?.name.split(' ')[0] ?? 'them';
     Alert.alert(
       `Add ${who} as a friend?`,
-      `Friends stay in your contacts for good — but this ends the romance with ${who}. You will not be able to ask them to go steady afterwards.`,
+      `Friends stay in your contacts for good - but this ends the romance with ${who}. You will not be able to ask them to go steady afterwards.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Add friend', onPress: confirmBefriend },
@@ -275,7 +275,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
             {isPromoted ? (isFriend ? 'Friend' : 'Dating') : rapportBand(view.rapport)} · {view.rapport}
           </Text>
           {/* Rapport bar: progress the player can watch move. A fill, not a
-              side accent bar — Hard Rule #7. */}
+              side accent bar - Hard Rule #7. */}
           <View
             style={[styles.rapportTrack, { backgroundColor: theme.border }]}
             accessibilityRole="progressbar"
@@ -290,7 +290,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
           </View>
         </View>
         {/* Two destinations for an un-promoted match, not one. Befriending is
-            offered first because it never refuses — dating is exclusive AND
+            offered first because it never refuses - dating is exclusive AND
             gated on rapport, so on a second match (or an early one) the heart
             reports why it cannot happen yet and the person-plus is the only
             thing that can actually do something. */}
@@ -330,7 +330,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
         <View style={styles.emptyMsgs}>
           <EmptyState
             observation={`You matched with ${firstName}!`}
-            nudge="Pick an opener below — every move changes how well this is going."
+            nudge="Pick an opener below - every move changes how well this is going."
           />
         </View>
       ) : (
@@ -429,7 +429,7 @@ function Chip({
       accessibilityRole="button"
       accessibilityLabel={reason ? `${label}. Locked: ${reason}` : `${label}. Costs ${cost}`}
       accessibilityState={{ disabled }}
-      // Full border on all four sides — never a one-sided accent (Hard Rule #7).
+      // Full border on all four sides - never a one-sided accent (Hard Rule #7).
       style={[
         styles.chip,
         {

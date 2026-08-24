@@ -1,5 +1,5 @@
 /**
- * VehicleApp — desktop vehicle screen. Car-marketplace DNA.
+ * VehicleApp - desktop vehicle screen. Car-marketplace DNA.
  *
  * A 3-tab loop with a list→detail sub-page, art-led throughout:
  *   - Garage: art hero for the active vehicle (condition ProgressRing + spec
@@ -15,13 +15,13 @@
  * to the Insurance tab.
  *
  * Slate Glass is still binding. (The flat gradient stub this once worked around
- * is gone — `components/ui/Gradient.tsx` renders a real SVG gradient now.)
+ * is gone - `components/ui/Gradient.tsx` renders a real SVG gradient now.)
  * elevation only via getGlass helpers / getPlatformShadows, orange identity accent, one
  * focal gradient per screen, dark/light branching, a11y + nav-safety preserved.
  *
  * Existing systems are untouched: auto-loan financing (purchaseVehicleWithAutoLoan
  * → BankApp `Loan.type === 'auto'`), the weekly fuel/condition decay tick, and the
- * politics transportation perk all keep working — this pass is presentation only.
+ * politics transportation perk all keep working - this pass is presentation only.
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -70,7 +70,7 @@ import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 
-// Identity accent — orange (#F97316 / rgb 249,115,22 / accent.amber). Per the
+// Identity accent - orange (#F97316 / rgb 249,115,22 / accent.amber). Per the
 // Slate Glass accent budget: solid only on small CTAs/badges; everywhere else
 // translucent tints.
 const ORANGE = accent.amber;
@@ -78,7 +78,7 @@ const ORANGE_FILL = 'rgba(249, 115, 22, 0.15)'; // Recipe C icon-bubble fill
 const ORANGE_RIM = 'rgba(249, 115, 22, 0.30)';  // Recipe C icon-bubble rim / chip rim
 const ORANGE_CHIP = 'rgba(249, 115, 22, 0.14)'; // top-bar chip, refuel / plan / buy chips
 const ORANGE_TAB = 'rgba(249, 115, 22, 0.16)';  // active tab pill
-// Semantic tints — data only, kept translucent (never a saturated fill).
+// Semantic tints - data only, kept translucent (never a saturated fill).
 const GREEN_CHIP = 'rgba(16, 185, 129, 0.14)';  // repair (condition)
 const RED_CHIP = 'rgba(239, 68, 68, 0.12)';     // sell / cancel (destructive)
 const AMBER_FILL = 'rgba(245, 158, 11, 0.15)';  // warning bubble fill
@@ -139,7 +139,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     [autoLoans]
   );
 
-  // Fleet analytics — surfaced from existing per-vehicle fields the old UI never
+  // Fleet analytics - surfaced from existing per-vehicle fields the old UI never
   // showed (resale value + weekly running cost).
   const fleetValue = useMemo(
     () => vehicles.reduce((s, v) => s + calculateVehicleSellPrice(v), 0),
@@ -168,7 +168,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     // read them all as weekly, so an elected player's borrowing capacity was
     // inflated 52x at the DTI gate. One shared helper now encodes the rule.
     income += weeklyCareerSalary(gameState);
-    // Company income through the same helper the paycheck uses — the stored
+    // Company income through the same helper the paycheck uses - the stored
     // `weeklyIncome` is the base before the ceiling and the net-worth soft cap,
     // so summing it inflated borrowing capacity for a large portfolio.
     income += companyIncomePaidWeekly(gameState);
@@ -212,7 +212,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   const handleSell = (v: Vehicle) => {
     Alert.alert(
       'Sell vehicle?',
-      `${v.name} — sells for about ${formatMoney(calculateVehicleSellPrice(v))} based on age + condition.`,
+      `${v.name} - sells for about ${formatMoney(calculateVehicleSellPrice(v))} based on age + condition.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -277,11 +277,11 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   );
 
   /**
-   * Pilot's licence — the gate on both aircraft in the dealership.
+   * Pilot's licence - the gate on both aircraft in the dealership.
    *
    * `getPilotLicense` existed with the full age/cash/atomic-grant treatment and
    * had NO caller anywhere in the app, so `hasPilotLicense` could never become
-   * true and the two aircraft were permanently unbuyable — advertised, priced,
+   * true and the two aircraft were permanently unbuyable - advertised, priced,
    * and unreachable. 2026-07-28 audit reach-1. Note the signature differs from
    * getDriversLicense: no `deps` object.
    */
@@ -594,7 +594,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        {/* Recipe B hero — art + condition/fuel rings (ONE gradient per screen) */}
+        {/* Recipe B hero - art + condition/fuel rings (ONE gradient per screen) */}
         <View
           style={[
             getGlassCard(darkMode, 12),
@@ -685,7 +685,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           <ActionChip label={`Sell ${formatMoney(sellPrice)}`} fill={RED_CHIP} color={accent.danger} onPress={() => handleSell(v)} a11y={`Sell ${v.name}`} />
         </View>
 
-        {/* Spec grid — surfaces the full per-vehicle record */}
+        {/* Spec grid - surfaces the full per-vehicle record */}
         <View style={{ gap: responsiveSpacing.sm }}>
           <SectionTitle theme={theme}>Specifications</SectionTitle>
           <View style={styles.specGrid}>
@@ -702,7 +702,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             <SpecTile label="Model year" value={`${v.year}`} theme={theme} />
             <SpecTile
               label="Last service"
-              value={weeksSinceService == null ? '—' : weeksSinceService === 0 ? 'This week' : `${weeksSinceService} wk ago`}
+              value={weeksSinceService == null ? '-' : weeksSinceService === 0 ? 'This week' : `${weeksSinceService} wk ago`}
               theme={theme}
             />
           </View>
@@ -920,7 +920,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
                 </View>
 
                 <View style={styles.plansRow}>
-                  {/* Hide the buy buttons while a policy is active — the action
+                  {/* Hide the buy buttons while a policy is active - the action
                       rejects the purchase anyway; offering three Buy buttons next
                       to an active policy just invited error taps. */}
                   {!ins?.active && INSURANCE_PLANS.map((p) => (
@@ -1029,7 +1029,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
               term,
               weeklyIncome,
             });
-            // Celebrate the win too — buying a car is one of the game's most
+            // Celebrate the win too - buying a car is one of the game's most
             // aspirational purchases and used to complete in total silence.
             Alert.alert(result.success ? '🚗 New Ride!' : 'Purchase', result.message);
             queueSave();
@@ -1177,7 +1177,7 @@ function ActionChip({
   color: string;
   onPress: () => void;
   a11y: string;
-  /** Grey out + block taps (unaffordable / nothing to do) — same 0.55 pattern as the dealer buy card. */
+  /** Grey out + block taps (unaffordable / nothing to do) - same 0.55 pattern as the dealer buy card. */
   disabled?: boolean;
 }) {
   return (
@@ -1226,7 +1226,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  // Segmented control directly under the top bar — it anchors the screen, so
+  // Segmented control directly under the top bar - it anchors the screen, so
   // the top bar drops its bottom border.
   tabBar: {
     flexDirection: 'row',
@@ -1282,7 +1282,7 @@ const styles = StyleSheet.create({
   },
   btnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
 
-  // Fleet + insurance summary strip (Recipe A) — dense stat cells.
+  // Fleet + insurance summary strip (Recipe A) - dense stat cells.
   summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1308,7 +1308,7 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: responsiveFontSize['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
   infoSub: { fontSize: responsiveFontSize.xs, marginTop: 2 },
 
-  // Hero (Recipe B) — art-led.
+  // Hero (Recipe B) - art-led.
   heroInner: {
     borderRadius: responsiveBorderRadius['2xl'],
     overflow: 'hidden',

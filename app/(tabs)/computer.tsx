@@ -98,7 +98,7 @@ const { width: screenWidth } = Dimensions.get('window');
  * Apps that belong to the PHONE half of the launcher.
  *
  * This was the membership list for a segmented toggle that hid one half at a
- * time. The toggle is gone — both halves now render as labelled sections, so
+ * time. The toggle is gone - both halves now render as labelled sections, so
  * buying a computer no longer costs a tap on Bank, Stocks, Pulse, Spark,
  * Contacts and Pet. The list survives because the phone/computer distinction
  * is still worth showing; it just no longer hides anything.
@@ -119,7 +119,7 @@ export function ComputerScreenContent({
   onInitialAppConsumed,
 }: {
   embedded?: boolean;
-  /** App id to open straight away — see the Apps tab's `?app=` deep link. */
+  /** App id to open straight away - see the Apps tab's `?app=` deep link. */
   initialApp?: string;
   onInitialAppConsumed?: () => void;
 }) {
@@ -129,7 +129,7 @@ export function ComputerScreenContent({
   const [activeApp, setActiveApp] = useState<string | null>(null);
 
   // Deep link: another screen asked for a specific app (e.g. the Family tab's
-  // "Open the dating app"). Open it, then tell the parent to clear the param —
+  // "Open the dating app"). Open it, then tell the parent to clear the param -
   // otherwise returning to this tab would re-open the app forever.
   //
   // This used to also switch the grid's category so BACK landed somewhere
@@ -154,7 +154,7 @@ export function ComputerScreenContent({
   const { gameState } = useGame();
   const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
-  // Haptic parity with the phone grid — opening an app on mobile buzzed,
+  // Haptic parity with the phone grid - opening an app on mobile buzzed,
   // opening one on the computer was silent.
   const { buttonPress } = useFeedback(settings?.hapticFeedback ?? false);
   const router = useRouter();
@@ -190,7 +190,7 @@ export function ComputerScreenContent({
   }, [embedded, navReady, gameState.items, router, currentRoute]);
   const navigation = useNavigation<any>();
 
-  // Stable close handler (passed into every hosted app) — same tap feedback
+  // Stable close handler (passed into every hosted app) - same tap feedback
   // as the phone shell's close, and declared before the early returns below
   // per the Rules of Hooks.
   const handleCloseApp = useCallback(() => {
@@ -200,7 +200,7 @@ export function ComputerScreenContent({
 
   // Android hardware back must exit the SUB-APP, not the tab stack.
   // Opening an app calls setFullscreenApp(true), which hides both the
-  // TopStatsBar and the tab bar — so the app's own back chevron was the only
+  // TopStatsBar and the tab bar - so the app's own back chevron was the only
   // way out, and the system gesture instead popped the navigator, dumping the
   // player on Home (or out of the app) while `activeApp` stayed set.
   // Returning true consumes the press only while an app is open.
@@ -254,7 +254,7 @@ export function ComputerScreenContent({
       name: 'Spark',
       description: 'Find your match',
       icon: Flame,
-      gradient: ['#F43F5E', '#FB923C'], // Rose → orange — Spark brand gradient
+      gradient: ['#F43F5E', '#FB923C'], // Rose → orange - Spark brand gradient
       iconGradient: ['#F43F5E', '#FB923C'],
       available: true,
     },
@@ -281,7 +281,7 @@ export function ComputerScreenContent({
       name: 'Pulse',
       description: 'Feel the room',
       icon: Activity,
-      gradient: ['#EC4899', '#6366F1'], // Magenta → indigo — Pulse brand gradient
+      gradient: ['#EC4899', '#6366F1'], // Magenta → indigo - Pulse brand gradient
       iconGradient: ['#EC4899', '#6366F1'],
       available: true,
     },
@@ -308,7 +308,7 @@ export function ComputerScreenContent({
       name: 'Hustle',
       description: 'Build something',
       icon: Building,
-      gradient: ['#6366F1', '#06B6D4'], // Indigo → cyan — Hustle brand gradient
+      gradient: ['#6366F1', '#06B6D4'], // Indigo → cyan - Hustle brand gradient
       iconGradient: ['#6366F1', '#06B6D4'],
       available: true,
     },
@@ -414,7 +414,7 @@ export function ComputerScreenContent({
    * padlock and its requirement, rather than disappearing. Hiding them would
    * be cleaner but makes the game look thin and reshuffles the grid every time
    * something unlocks; showing them teaches the shape of the game from week 1.
-   * `available: false` still removes an app outright — that flag means "does
+   * `available: false` still removes an app outright - that flag means "does
    * not exist for this save", which is a different thing from "not yet".
    */
   const decorate = useCallback(
@@ -430,13 +430,13 @@ export function ComputerScreenContent({
   );
 
   /**
-   * Every app, in two labelled sections — NOT behind a segmented toggle.
+   * Every app, in two labelled sections - NOT behind a segmented toggle.
    *
    * Buying a computer used to make the launcher default to "Desktop Apps",
    * which pushed Bank, Stocks, Pulse, Spark, Contacts and Pet behind an extra
    * tap. So a $5,000 purchase ADDED a tap to six apps, two of which (Bank and
    * Stocks) are among the most-used in the game, and relocated them with no
-   * explanation — the player's answer to "where did my bank go?" was to
+   * explanation - the player's answer to "where did my bank go?" was to
    * rediscover a toggle.
    *
    * Sections keep the phone/computer mental model, which is worth keeping,
@@ -451,7 +451,7 @@ export function ComputerScreenContent({
     [decorate, desktopApps, mobileApps]
   );
 
-  // Per-app "needs attention" badge counts — computed before any early return.
+  // Per-app "needs attention" badge counts - computed before any early return.
   const appBadges = useMemo(
     () => getAppBadgeCounts(gameState),
     [gameState.sparkApp, gameState.socialMedia?.activeScandal, gameState.pets, gameState.companies],
@@ -491,7 +491,7 @@ export function ComputerScreenContent({
       bank: AdvancedBankApp,
       education: EducationApp,
       company: CompanyApp,
-      // The pet app is 'paw' on this grid and 'pet' on the phone grid — an
+      // The pet app is 'paw' on this grid and 'pet' on the phone grid - an
       // inconsistency the badge layer already has to paper over by setting
       // both. Accept either id in BOTH launchers so a `?app=` deep link can
       // never resolve to undefined and silently bounce back to the grid.
@@ -526,7 +526,7 @@ export function ComputerScreenContent({
 
   // Mirror mobile.tsx's responsive column count so both app-grid tabs scale
   // identically on phones vs tablets. Computer keeps its denser default
-  // (3 cols on phone, 4 on tablet) — mobile is 2 / 3.
+  // (3 cols on phone, 4 on tablet) - mobile is 2 / 3.
   const columns = isTablet() ? 4 : 3;
   const cardGap = responsiveSpacing.sm;
   const horizontalPad = responsivePadding.horizontal;
@@ -542,7 +542,7 @@ export function ComputerScreenContent({
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={true}
       >
-        {/* Macro economy strip — visible where the money apps live; null in normal times. */}
+        {/* Macro economy strip - visible where the money apps live; null in normal times. */}
         <EconomyEventBanner context="generic" />
         {appSections.map((section) => (
           <View key={section.key} style={styles.appSection}>
@@ -559,14 +559,14 @@ export function ComputerScreenContent({
                     styles.appCardGlass,
                     { width: cardWidth },
                     isHighlighted && styles.highlightedCardGlass,
-                    // Dim rather than hide — the card still teaches what exists.
+                    // Dim rather than hide - the card still teaches what exists.
                     app.locked && { opacity: 0.45 },
                   ]}
                   onPress={() => {
                     buttonPress();
                     if (app.locked) {
                       // Tapping a locked app explains itself rather than doing
-                      // nothing — a dead tap reads as a bug, not a gate.
+                      // nothing - a dead tap reads as a bug, not a gate.
                       Alert.alert(app.name, app.lockReason || 'Not available yet.');
                       return;
                     }
@@ -587,7 +587,7 @@ export function ComputerScreenContent({
                     settings.darkMode && styles.appCardGlassInnerDark
                   ]}>
                     <View style={styles.appIconGlassContainer}>
-                      {/* Padlock badge — reads as locked before the card is
+                      {/* Padlock badge - reads as locked before the card is
                           tapped, so the dim alone is not carrying the meaning
                           (dim also reads as "disabled" or just low contrast). */}
                       {app.locked && (
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Custom PNG icon — same footprint as the gradient circle, but a rounded
+  // Custom PNG icon - same footprint as the gradient circle, but a rounded
   // square (iOS-style squircle) since the assets are full-bleed app icons.
   appIconImage: {
     width: responsiveIconSize.xl + scale(8),

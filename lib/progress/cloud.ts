@@ -402,8 +402,8 @@ export async function downloadGameState(request?: CloudReadRequest): Promise<Clo
 /**
  * Erase this device's cloud data.
  *
- * With a `slotId`, one slot. Without one, EVERYTHING the device has — saves,
- * leaderboard entries, transfer codes — which is the GDPR article 17 path the
+ * With a `slotId`, one slot. Without one, EVERYTHING the device has - saves,
+ * leaderboard entries, transfer codes - which is the GDPR article 17 path the
  * settings screen offers.
  *
  * Deliberately NOT gated on `cloudWritesAllowed()`. That guard disables itself

@@ -52,7 +52,7 @@ function withBonuses(ids: string[]): GameState {
   return { ...base, prestige: { ...base.prestige!, unlockedBonuses: ids } };
 }
 
-describe('R3-P1 — Immortality is honoured from the prestige shop', () => {
+describe('R3-P1 - Immortality is honoured from the prestige shop', () => {
   it('is a real, purchasable shop entry (guards the rest)', () => {
     const entry = PRESTIGE_BONUSES.find((b) => b.id === 'immortality');
     expect(entry).toBeTruthy();
@@ -78,7 +78,7 @@ describe('R3-P1 — Immortality is honoured from the prestige shop', () => {
   });
 });
 
-describe('R3-P2 — a maxed career is actually reachable', () => {
+describe('R3-P2 - a maxed career is actually reachable', () => {
   const LEVELS = [
     { name: 'Junior', salary: 900 },
     { name: 'Mid', salary: 1_400 },
@@ -124,7 +124,7 @@ describe('R3-P2 — a maxed career is actually reachable', () => {
   });
 });
 
-describe('R3-P3 — the relationship multiplier reaches relationship gains', () => {
+describe('R3-P3 - the relationship multiplier reaches relationship gains', () => {
   it('the multiplier is above 1 when the bonuses are owned (guards the rest)', () => {
     expect(getRelationshipGainMultiplier(['social_master'])).toBeGreaterThan(1);
     expect(getRelationshipGainMultiplier([])).toBe(1);
@@ -152,7 +152,7 @@ describe('R3-P3 — the relationship multiplier reaches relationship gains', () 
     expect(applyRelationshipGain(withBonuses([]), 10)).toBe(10);
   });
 
-  it('never softens a LOSS — gains only, as documented', () => {
+  it('never softens a LOSS - gains only, as documented', () => {
     expect(applyRelationshipGain(withBonuses(['social_master']), -20)).toBe(-20);
   });
 

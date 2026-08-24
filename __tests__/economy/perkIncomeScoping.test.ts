@@ -40,7 +40,7 @@ const income = (perks: Record<string, boolean>, careerSalary = 1000) =>
     economyIncomeMultiplier: 1,
   });
 
-describe('financial_guru — +7% on the SALARY term only', () => {
+describe('financial_guru - +7% on the SALARY term only', () => {
   it('boosts exactly the salary slice of base income', () => {
     const base = income({});
     const guru = income({ financial_guru: true });

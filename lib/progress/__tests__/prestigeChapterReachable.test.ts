@@ -80,7 +80,7 @@ describe('isPrestigeAvailable is the shared answer', () => {
     }
   });
 
-  it('counts more than cash — assets move it too', () => {
+  it('counts more than cash - assets move it too', () => {
     const base = createTestGameState();
     const withSavings = createTestGameState({
       weeksLived: 900,

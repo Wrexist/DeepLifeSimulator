@@ -61,7 +61,7 @@ describe('buildLifeRecord', () => {
     expect(record.companiesOwned).toBe(1);
     expect(record.propertiesOwned).toBe(1); // the sold flat is excluded
     expect(record.totalWeeksWorked).toBe(182);
-    expect(record.careerHistory).toEqual(['Head Chef — 3 yrs', 'ceo — 26 wks']);
+    expect(record.careerHistory).toEqual(['Head Chef - 3 yrs', 'ceo - 26 wks']);
     expect(record.memorableEvents).toEqual(['Won a massive contract.']);
     expect(record.happiness).toBe(71);
     expect(record.health).toBe(64);
@@ -114,7 +114,7 @@ describe('the real prestige path stamps the rich record', () => {
   });
 });
 
-describe('hasRememberedLives — the gate that made the archive reachable', () => {
+describe('hasRememberedLives - the gate that made the archive reachable', () => {
   /**
    * The Legacy Timeline row was gated on `previousLives.length > 0`, and a
    * heirless death is exactly the case that leaves `previousLives` EMPTY while

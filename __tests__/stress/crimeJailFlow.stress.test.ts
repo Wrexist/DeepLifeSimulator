@@ -150,15 +150,15 @@ describe('Crime + Jail flow', () => {
     seedCriminal(1);
     const before = captured!.state.stats.energy;
     // `!` because the assignment happens inside an `act()` callback, which
-    // TypeScript's control-flow analysis cannot see through — `act` runs its
+    // TypeScript's control-flow analysis cannot see through - `act` runs its
     // callback synchronously, so the variable really is assigned before it is
     // read, and the `expect(...).toBeDefined()` below is the runtime proof.
     // (Initialising to `undefined` instead narrows the variable to `void` and
-    // breaks every downstream cast — measured, not guessed.)
+    // breaks every downstream cast - measured, not guessed.)
     let result!: { success: boolean; message?: string } | void;
     act(() => { result = captured!.job.performStreetJob('beg'); });
     expect(result).toBeDefined();
-    // Legal job — should not increase wanted level.
+    // Legal job - should not increase wanted level.
     expect(captured!.state.wantedLevel || 0).toBe(0);
     // Energy should be consumed.
     expect(captured!.state.stats.energy).toBeLessThan(before);
@@ -358,7 +358,7 @@ describe('Crime + Jail flow', () => {
     let result: { success: boolean; message: string } = { success: false, message: '' };
     act(() => { result = captured!.job.performJailActivity('exercise') as { success: boolean; message: string }; });
     expect(result).toBeDefined();
-    // Either rejected (not in jail) or no-op — must stay clean.
+    // Either rejected (not in jail) or no-op - must stay clean.
     assertClean('performJailActivity outside jail');
   });
 

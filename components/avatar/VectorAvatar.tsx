@@ -1,17 +1,17 @@
 /**
  * The avatar renderer.
  *
- * The FACE is illustrator-drawn modular art (avataaars via DiceBear) — see
+ * The FACE is illustrator-drawn modular art (avataaars via DiceBear) - see
  * `lib/avatar/style.ts`. The DEPTH is ours: a lit plate the art sits on.
  *
  * ── The 2.5D plate ────────────────────────────────────────────────────────
  * Four layers, back to front, all serving one key light at the upper left:
  *
- *   1. Contact shadow — cast below the disc, so it sits ON the surface rather
+ *   1. Contact shadow - cast below the disc, so it sits ON the surface rather
  *      than floating as a sticker.
- *   2. Lit plate      — a radial slate gradient, brightest toward the key.
- *   3. The art        — flat by design; the plate is what gives it weight.
- *   4. Gloss + rim    — a diagonal sweep and a hairline inner stroke.
+ *   2. Lit plate      - a radial slate gradient, brightest toward the key.
+ *   3. The art        - flat by design; the plate is what gives it weight.
+ *   4. Gloss + rim    - a diagonal sweep and a hairline inner stroke.
  *
  * This treatment was prototyped in `scripts/generate-avatar-styles.mjs` long
  * before this component existed, and its one hard constraint is recorded here
@@ -58,7 +58,7 @@ export interface VectorAvatarProps {
    * OFF by default, and that is deliberate: a contacts list or a family tree
    * mounts dozens of avatars, and dozens of independent timers is a battery
    * and jank cost for motion nobody is looking at. Turn it on for the one
-   * avatar a screen is ABOUT — the creator's hero, the identity card.
+   * avatar a screen is ABOUT - the creator's hero, the identity card.
    */
   alive?: boolean;
   /**
@@ -67,14 +67,14 @@ export interface VectorAvatarProps {
    *
    * Pulled back only by the appearance editor's OUTFIT previews. The default
    * framing centres the head, so a circular thumbnail shows a sliver of collar
-   * and nothing else — four different outfits rendered as four identical
+   * and nothing else - four different outfits rendered as four identical
    * headshots, which is the exact "you cannot see what you are choosing"
    * problem that editor exists to fix. Everything else wants the portrait.
    */
   zoom?: number;
 }
 
-/** The slate plate. Muted on purpose — the face is the subject, not the disc. */
+/** The slate plate. Muted on purpose - the face is the subject, not the disc. */
 const PLATE_LIGHT = '#465875';
 const PLATE_DEEP = '#1A2334';
 
@@ -159,7 +159,7 @@ function VectorAvatarImpl({
       {backdrop ? (
         <>
           {/* Contact shadow. Its own view because it has to fall OUTSIDE the
-              disc — drawn inside, the circular clip would eat it. */}
+              disc - drawn inside, the circular clip would eat it. */}
           <View
             style={[
               styles.contact,

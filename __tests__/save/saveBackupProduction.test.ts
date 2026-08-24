@@ -173,7 +173,7 @@ describe('createBackupFromState on a production-signed build', () => {
     expect((await backup.listBackups(slot)).length).toBe(1);
   });
 
-  it('never throttles a deliberate snapshot — those are the recoverable ones', async () => {
+  it('never throttles a deliberate snapshot - those are the recoverable ones', async () => {
     const { backup } = loadAsProductionBuild();
     const slot = 6;
 

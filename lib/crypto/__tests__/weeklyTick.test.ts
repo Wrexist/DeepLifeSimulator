@@ -26,7 +26,7 @@ const btc: Crypto = { id: 'btc', symbol: 'BTC', name: 'Bitcoin', price: 50000, c
 // Deterministic roll that always returns 0.5 — keeps regime evolution stable.
 const fixedRoll = (_: string) => 0.5;
 
-describe('runCryptoWeeklyTick — halving', () => {
+describe('runCryptoWeeklyTick - halving', () => {
   it('does not fire before week 208', () => {
     const r = runCryptoWeeklyTick({
       market: emptyMarket(),
@@ -90,7 +90,7 @@ describe('runCryptoWeeklyTick — halving', () => {
   });
 });
 
-describe('runCryptoWeeklyTick — regime evolution', () => {
+describe('runCryptoWeeklyTick - regime evolution', () => {
   it('appends to BTC price history every tick', () => {
     const r = runCryptoWeeklyTick({
       market: emptyMarket(),
@@ -115,7 +115,7 @@ describe('runCryptoWeeklyTick — regime evolution', () => {
   });
 });
 
-describe('runCryptoWeeklyTick — regime-flip notification gating (smoothness)', () => {
+describe('runCryptoWeeklyTick - regime-flip notification gating (smoothness)', () => {
   it('does NOT toast a regime flip when the player holds no crypto', () => {
     // economyState 'crash' forces a regime change, so regimeChangeCount > 0.
     const r = runCryptoWeeklyTick({

@@ -1,5 +1,5 @@
 /**
- * GamingStreamingApp — "Streamly" (Remake 14, Twitch DNA pass).
+ * GamingStreamingApp - "Streamly" (Remake 14, Twitch DNA pass).
  *
  * Shares the sibling GamingApp's monetization via `lib/content/` +
  * `ContentActions.ts`. This pass gives Streamly a distinct Twitch skeleton on
@@ -7,7 +7,7 @@
  * box-art game-CATEGORY tiles, a broadcast-console "Go Live" panel with the
  * game + duration as big tiles, and past broadcasts as VOD cards. Two
  * presentational sub-views (category / broadcast detail) surface history and
- * channel fields the old rows ignored. No new mechanics — data is unchanged.
+ * channel fields the old rows ignored. No new mechanics - data is unchanged.
  *
  * Tabs: Dashboard / Go Live / History / Shop   (+ category & broadcast pages)
  */
@@ -89,7 +89,7 @@ import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contex
 
 const LinearGradient = Gradient;
 
-// Identity accent — fuchsia. Solid (FUCHSIA / FUCHSIA_PAIR) only on small
+// Identity accent - fuchsia. Solid (FUCHSIA / FUCHSIA_PAIR) only on small
 // CTAs, badges and glyphs; everywhere else the translucent tints below.
 const FUCHSIA = '#D946EF';
 const FUCHSIA_PAIR = '#C026D3';
@@ -216,7 +216,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
     : 0;
   const streamsThisWeek =
     channel?.lastStreamWeek === week ? channel?.streamsThisWeek ?? 0 : 0;
-  // The in-progress real-time broadcast, if any (null-guarded — absent on old
+  // The in-progress real-time broadcast, if any (null-guarded - absent on old
   // saves and whenever offline).
   const liveSession = channel?.currentStream?.live ? channel.currentStream : null;
   const isLiveNow = !!liveSession;
@@ -303,7 +303,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
   }, [gameState, setGameState, saveGame, selectedGame, week, flash]);
 
   // Stop (manual or auto). Ref-stable: reads live state via refs so the drain
-  // effect can depend on it without re-subscribing. Idempotent — finalize is a
+  // effect can depend on it without re-subscribing. Idempotent - finalize is a
   // no-op once the session is cleared, so a manual Stop racing an auto-stop
   // can't double-pay.
   const handleStopStream = useCallback(
@@ -325,7 +325,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   // Real-time drain loop: while live, every LIVE_TICK_MS drain energy + accrue
   // viewers; when energy hits 0 the stream auto-stops. The interval is cleared
-  // on Stop, on auto-stop (isLiveNow flips false), AND on unmount — so no leaked
+  // on Stop, on auto-stop (isLiveNow flips false), AND on unmount - so no leaked
   // timers and no setState-after-unmount.
   useEffect(() => {
     if (!isLiveNow) return;
@@ -341,7 +341,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
       tickLiveStream(setGameState, LIVE_TICK_MS / 1000);
       // Checkpoint accrued progress ~every 10s so a crash/kill mid-stream can't
       // make the stale-session resolver finalize from an older snapshot and
-      // under-pay the player. Throttled (saveGame validates + writes) — not
+      // under-pay the player. Throttled (saveGame validates + writes) - not
       // every tick.
       if (++ticksSinceSave >= 10) {
         ticksSinceSave = 0;
@@ -474,7 +474,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         style={styles.flex1}
         contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
       >
-        {/* Recipe B hero — live channel preview over real box art (ONE per view). */}
+        {/* Recipe B hero - live channel preview over real box art (ONE per view). */}
         <View
           style={[
             getGlassCard(darkMode, 12),
@@ -546,7 +546,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Stream health — setup ring + partner level + gear/rig sub-scores. */}
+        {/* Stream health - setup ring + partner level + gear/rig sub-scores. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SectionHead icon={Cpu} title="Stream health" linkLabel="Upgrade" onLink={() => setActiveTab('shop')} />
           <View style={styles.healthRow}>
@@ -577,7 +577,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Revenue — dense monetization grid. */}
+        {/* Revenue - dense monetization grid. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SectionHead icon={DollarSign} title="Revenue" />
           <View style={styles.statsRow}>
@@ -592,7 +592,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Browse categories — the signature box-art directory (tap → detail). */}
+        {/* Browse categories - the signature box-art directory (tap → detail). */}
         <View style={styles.section}>
           <SectionHead icon={Gamepad2} title="Browse categories" />
           <View style={styles.tileGrid}>
@@ -612,7 +612,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                     <View pointerEvents="none" style={styles.thumbScrim} />
                     <View pointerEvents="none" style={styles.catViewers}>
                       <Eye size={scale(11)} color="#fff" />
-                      <Text style={styles.catViewersText}>{st.count ? fmt(st.avg) : '—'}</Text>
+                      <Text style={styles.catViewersText}>{st.count ? fmt(st.avg) : '-'}</Text>
                     </View>
                   </View>
                   <View style={styles.catBody}>
@@ -661,7 +661,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
     return `${mm}:${ss.toString().padStart(2, '0')}`;
   };
 
-  // ── LIVE view — shown while a real-time broadcast is running. ──────────────
+  // ── LIVE view - shown while a real-time broadcast is running. ──────────────
   const renderLiveActive = (session: StreamSession) => {
     const elapsed = session.elapsedSeconds ?? 0;
     const liveViewers = session.viewers ?? 0;
@@ -712,7 +712,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Energy bar — drains in real time; empties → auto-stop. */}
+        {/* Energy bar - drains in real time; empties → auto-stop. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.capRow}>
             <View style={styles.hintRow}>
@@ -725,7 +725,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={[styles.capFill, { width: `${energyPct}%`, backgroundColor: energy < 20 ? accent.danger : FUCHSIA }]} />
           </View>
           <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: sp.xs }]}>
-            Streaming drains energy live — about {fmtElapsed(secondsLeft)} left before you run out.
+            Streaming drains energy live - about {fmtElapsed(secondsLeft)} left before you run out.
           </Text>
         </View>
 
@@ -740,7 +740,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Stop Stream — end + finalise the broadcast. */}
+        {/* Stop Stream - end + finalise the broadcast. */}
         <TouchableOpacity
           onPress={() => handleStopStream(false)}
           activeOpacity={0.85}
@@ -773,7 +773,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
         style={styles.flex1}
         contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
       >
-        {/* Broadcast monitor — the scene preview of the selected category. */}
+        {/* Broadcast monitor - the scene preview of the selected category. */}
         <View
           style={[
             getGlassCard(darkMode, 12),
@@ -812,7 +812,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Category — big box-art tiles. */}
+        {/* Category - big box-art tiles. */}
         <View style={styles.section}>
           <SectionHead icon={Gamepad2} title="Category" />
           <View style={styles.tileGrid}>
@@ -851,7 +851,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Broadcast console — weekly cap + hype + the one loud Go Live CTA. */}
+        {/* Broadcast console - weekly cap + hype + the one loud Go Live CTA. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.capRow}>
             <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
@@ -959,7 +959,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
       style={styles.flex1}
       contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
     >
-      {/* Setup summary — links gear spend to the quality score. */}
+      {/* Setup summary - links gear spend to the quality score. */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.bestRow}>
           <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: FUCHSIA_FILL, borderWidth: 1, borderColor: FUCHSIA_RIM }]}>

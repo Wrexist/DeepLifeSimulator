@@ -1,12 +1,12 @@
 /**
- * Travel App — Boarding-Pass DNA (differentiation pass on top of Slate Glass).
+ * Travel App - Boarding-Pass DNA (differentiation pass on top of Slate Glass).
  *
  * Skeleton is deliberately NOT "eyebrow hero + uniform rows":
  *   - My Trip tab = a real BOARDING PASS: HOM → route, airline header, a
  *     flight/gate/seat + depart/return/fare info grid, a trip-progress ring,
  *     a dashed PERFORATION with punched notches, and an SVG BARCODE stub.
  *   - Destinations tab = a DEPARTURES board + a vibe GRID of per-destination
- *     tinted panels (each opens a rich detail page — list→detail sub-view).
+ *     tinted panels (each opens a rich detail page - list→detail sub-view).
  *   - Business tab = STOREFRONT cards with awnings + a passive-income medal.
  *   - History tab = a PASSPORT book of rubber-stamp chips.
  *
@@ -18,7 +18,7 @@
  * elevation via glass helpers + getPlatformShadows, no expo-blur, no raw boxShadow,
  * no `as any`. Identity accent = teal #14B8A6 (solid only on small
  * CTAs/badges/glyphs); per-destination vibe hues are categorical Recipe-C
- * tints. ZERO REMOVAL — every prior action stays reachable.
+ * tints. ZERO REMOVAL - every prior action stays reachable.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -171,7 +171,7 @@ const ACTIVITY_META: Record<
   relaxation: { Icon: Sparkles, hue: IDENTITY },
 };
 
-// FNV-1a — stable pseudo values for boarding-pass flavor (gate/seat/flight/ref).
+// FNV-1a - stable pseudo values for boarding-pass flavor (gate/seat/flight/ref).
 const hashStr = (s: string): number => {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
@@ -190,7 +190,7 @@ const classForCost = (c: number) => (c >= 5000 ? 'FIRST' : c >= 2500 ? 'BUSINESS
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-// Non-zero benefit descriptors — shows exactly what `returnFromTrip` applies.
+// Non-zero benefit descriptors - shows exactly what `returnFromTrip` applies.
 // GameStats has no `stress`/`intelligence` field: those advertised benefits are
 // folded into happiness/energy by deriveExperienceStats on return, so the
 // preview folds them the same way rather than showing phantom stat chips.
@@ -261,7 +261,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         `Travel to ${dest.name}?`,
         `Cost ${formatMoney(quote.adjustedCost)} • ${quote.adjustedDuration} week${quote.adjustedDuration > 1 ? 's' : ''}` +
           (quote.adjustedCost !== quote.baseCost
-            ? `\n(base ${formatMoney(quote.baseCost)} — policy savings)`
+            ? `\n(base ${formatMoney(quote.baseCost)} - policy savings)`
             : ''),
         [
           { text: 'Cancel', style: 'cancel' },
@@ -533,7 +533,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       <EconomyEventBanner context="travel" />
 
-      {/* Departures board — plain Recipe A (EconomyEventBanner owns the screen's
+      {/* Departures board - plain Recipe A (EconomyEventBanner owns the screen's
           color moment, so no gradient hero here). */}
       <View style={[getGlassCard(darkMode, 6), styles.boardCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.boardHead}>
@@ -550,7 +550,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         <View style={[styles.boardPass, { backgroundColor: ownsPassport ? softFill(accent.success) : softFill(accent.warning), borderColor: ownsPassport ? softRim(accent.success) : softRim(accent.warning) }]}>
           <Globe size={scale(12)} color={ownsPassport ? accent.success : accent.warning} />
           <Text style={[styles.boardPassText, { color: ownsPassport ? accent.success : accent.warning }]}>
-            {ownsPassport ? 'Passport active — world unlocked' : 'No passport — domestic only'}
+            {ownsPassport ? 'Passport active - world unlocked' : 'No passport - domestic only'}
           </Text>
         </View>
       </View>
@@ -602,7 +602,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               accessibilityRole="button"
               accessibilityLabel={`${dest.name}, ${dest.country}. View details`}
               // Hard Rule #7: the vibe hue used to be a 3px bar pinned across
-              // the tile's TOP edge — the same banned one-sided accent the rule
+              // the tile's TOP edge - the same banned one-sided accent the rule
               // names as borderTopWidth, just built from a positioned View. It
               // moves onto the full border. The hue was already carried by the
               // tile wash and the airport-code chip, so this is the third place
@@ -696,7 +696,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        {/* Detail hero — ticket-style route header, vibe hue is this screen's one focal gradient. */}
+        {/* Detail hero - ticket-style route header, vibe hue is this screen's one focal gradient. */}
         <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
           <View style={styles.heroInner}>
             <View pointerEvents="none" style={[styles.detailBlob, { backgroundColor: vibeTint(meta.hue, 0.1) }]} />
@@ -770,7 +770,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
         </View>
 
-        {/* Stat effects — all benefits incl. stress + reputation */}
+        {/* Stat effects - all benefits incl. stress + reputation */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Stat effects</Text>
           <View style={styles.benefitRow}>
@@ -780,7 +780,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
         </View>
 
-        {/* Event pool — what the engine can roll for this trip (cost-eligible). */}
+        {/* Event pool - what the engine can roll for this trip (cost-eligible). */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>What could happen</Text>
           <Text style={[styles.cardHint, { color: theme.textMuted }]}>
@@ -814,7 +814,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           <Text style={[styles.cardHint, { color: theme.textSecondary }]}>
             {lastVisit
               ? `Last stamped Week ${lastVisit.week}, Year ${lastVisit.year}.`
-              : 'No stamps yet — this would be a first visit.'}
+              : 'No stamps yet - this would be a first visit.'}
           </Text>
           {!visited && (
             <View style={[styles.firstVisitRow, { backgroundColor: softFill(accent.gold), borderColor: softRim(accent.gold) }]}>
@@ -842,7 +842,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
         )}
 
-        {/* Book CTA — the one loud action on this screen */}
+        {/* Book CTA - the one loud action on this screen */}
         <TouchableOpacity
           onPress={() => handleBook(dest)}
           disabled={!quote.ok}
@@ -1041,7 +1041,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
         </View>
 
-        {/* In-trip activities — the things you can DO while at the destination. */}
+        {/* In-trip activities - the things you can DO while at the destination. */}
         {renderActivities(currentTrip.destinationId)}
 
         {/* Trip-edge context stays visible on the pass screen too. */}
@@ -1176,7 +1176,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           </View>
         </View>
 
-        {/* Frequent-flyer milestones — a bounded one-off progression to aim for.
+        {/* Frequent-flyer milestones - a bounded one-off progression to aim for.
             Tiers are earned by distinct destinations visited; rewards apply on return. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.sectionHeadRow}>
@@ -1391,7 +1391,7 @@ function StorefrontBody({
         style={[styles.investBtn, { backgroundColor: invested ? softFill(accent.success) : tint(0.16), borderColor: invested ? softRim(accent.success) : tint(0.3) }]}
       >
         {invested ? <CheckCircle size={scale(14)} color={accent.success} /> : <Store size={scale(14)} color={IDENTITY} />}
-        <Text style={[styles.investBtnText, { color: invested ? accent.success : IDENTITY }]}>{invested ? 'Invested — earning' : 'Invest'}</Text>
+        <Text style={[styles.investBtnText, { color: invested ? accent.success : IDENTITY }]}>{invested ? 'Invested - earning' : 'Invest'}</Text>
       </TouchableOpacity>
     </View>
   );

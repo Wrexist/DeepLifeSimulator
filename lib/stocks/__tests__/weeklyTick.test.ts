@@ -22,7 +22,7 @@ function baseInput() {
   };
 }
 
-describe('runStocksWeeklyTick — sector-rotation notification gating (smoothness)', () => {
+describe('runStocksWeeklyTick - sector-rotation notification gating (smoothness)', () => {
   it('rotates sectors but stays silent when the player holds no stocks', () => {
     const r = runStocksWeeklyTick(baseInput());
     // The rotation still happened internally…
@@ -41,7 +41,7 @@ describe('runStocksWeeklyTick — sector-rotation notification gating (smoothnes
   });
 });
 
-describe('runStocksWeeklyTick — macro economy drift (teeth)', () => {
+describe('runStocksWeeklyTick - macro economy drift (teeth)', () => {
   // A settled sector (many weeks left) won't rotate, so any price move relative
   // to the no-event baseline is attributable to the macro drift alone.
   const settled: SectorSnapshot[] = [
@@ -85,7 +85,7 @@ describe('runStocksWeeklyTick — macro economy drift (teeth)', () => {
   });
 });
 
-describe('runStocksWeeklyTick — priceFactors persist tilt + drift to the tradeable price', () => {
+describe('runStocksWeeklyTick - priceFactors persist tilt + drift to the tradeable price', () => {
   // Settled sectors won't rotate, isolating the effect being measured.
   const techStrong: SectorSnapshot[] = [{ sector: 'tech', state: 'strong', weeksRemaining: 8 }];
   const techNeutral: SectorSnapshot[] = [{ sector: 'tech', state: 'neutral', weeksRemaining: 8 }];
@@ -141,7 +141,7 @@ describe('runStocksWeeklyTick — priceFactors persist tilt + drift to the trade
   });
 });
 
-describe('runStocksWeeklyTick — limit/stop fills pay the 2% commission (parity with market orders)', () => {
+describe('runStocksWeeklyTick - limit/stop fills pay the 2% commission (parity with market orders)', () => {
   const STOCK_FEE = 0.02;
   // No sector snapshots → the tick seeds fresh all-neutral 12-week snapshots that
   // don't rotate this tick, so prices stay put and cashDelta is the fill alone.
@@ -194,7 +194,7 @@ describe('runStocksWeeklyTick — limit/stop fills pay the 2% commission (parity
   });
 });
 
-describe('runStocksWeeklyTick — capital-gains + dividend tax (parity with crypto)', () => {
+describe('runStocksWeeklyTick - capital-gains + dividend tax (parity with crypto)', () => {
   const stableRoll = (_: string) => 0.5;
 
   function taxInput(over: Partial<Parameters<typeof runStocksWeeklyTick>[0]> = {}) {

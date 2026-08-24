@@ -73,7 +73,7 @@ class SaveLoadMutex {
         if (settled) return false;
         settled = true;
         clearTimeout(queueTimer);
-        // The lock is handed over SYNCHRONOUSLY from `release` — it was never
+        // The lock is handed over SYNCHRONOUSLY from `release` - it was never
         // unlocked in between (see the comment there), so this assignment is a
         // transfer of ownership, not a fresh acquisition.
         this.isLocked = true;
@@ -100,7 +100,7 @@ class SaveLoadMutex {
   private armWatchdog(operation: 'save' | 'load', timeoutMs: number): void {
     if (this.acquireTimer) clearTimeout(this.acquireTimer);
     this.acquireTimer = setTimeout(() => {
-      log.error(`Lock holder ${operation} exceeded ${timeoutMs}ms — force-releasing to prevent deadlock`);
+      log.error(`Lock holder ${operation} exceeded ${timeoutMs}ms - force-releasing to prevent deadlock`);
       // Invalidate the current holder's token BEFORE releasing, so its late
       // `release(token)` is provably stale and gets ignored.
       this.holderId++;
@@ -112,8 +112,8 @@ class SaveLoadMutex {
    * Release lock and process next queued operation.
    *
    * Pass the token returned by `acquire`. A token that no longer matches the
-   * current holder — because the watchdog force-released and the lock has since
-   * been handed on — is IGNORED, which is what stops a late holder unlocking
+   * current holder - because the watchdog force-released and the lock has since
+   * been handed on - is IGNORED, which is what stops a late holder unlocking
    * somebody else's write. Calling with no token keeps the old unchecked
    * behaviour so an un-migrated site still works.
    *
@@ -139,7 +139,7 @@ class SaveLoadMutex {
 
     // SYNCHRONOUS HAND-OFF. This used to set `isLocked = false` here and then
     // grant the lock to the queued waiter from a `setTimeout(…, 0)`. Every
-    // pending microtask — and every `await` continuation already scheduled —
+    // pending microtask - and every `await` continuation already scheduled -
     // runs before that macrotask, so any caller that hit `acquire()` inside the
     // window took the fast path (`if (!this.isLocked)`), got the lock, and then
     // the timer handed the SAME lock to the queued waiter. Two holders, both

@@ -171,11 +171,11 @@ describe('Real-Provider Loop Stress', () => {
     for (const [k, d] of deltas.slice(0, 12)) {
       process.stdout.write(`  ${k}: +${d}B (now ${finalSizes[k]}B)\n`);
     }
-    // No specific threshold — diagnostic only.
+    // No specific threshold - diagnostic only.
     expect(deltas.length).toBeGreaterThan(0);
   });
 
-  it('Test 2: drives the REAL nextWeek 50 times — state advances correctly', async () => {
+  it('Test 2: drives the REAL nextWeek 50 times - state advances correctly', async () => {
     mounted = mountGame();
     const startWeeks = captured!.state.weeksLived;
     const startAge = captured!.state.date.age;
@@ -193,7 +193,7 @@ describe('Real-Provider Loop Stress', () => {
     }
   });
 
-  it('Test 3: drives REAL nextWeek 500 times — no crashes, no NaN, save round-trips', async () => {
+  it('Test 3: drives REAL nextWeek 500 times - no crashes, no NaN, save round-trips', async () => {
     mounted = mountGame();
     const startTime = Date.now();
     const startMem = process.memoryUsage().heapUsed;
@@ -286,7 +286,7 @@ describe('Real-Provider Loop Stress', () => {
     process.stdout.write('\n');
     process.stdout.write(`[tick-latency] mean=${mean.toFixed(1)}ms p95=${p95}ms max=${max}ms`);
     // Under isolated runs mean is typically 70-90ms. Allow very generous
-    // headroom for parallel-suite execution — with 70+ test files now running
+    // headroom for parallel-suite execution - with 70+ test files now running
     // in parallel across jest workers, CPU contention pushes per-tick latency
     // up significantly. The point of this test is to flag pathological
     // regressions (>1s per tick), not enforce a tight perf budget.

@@ -19,7 +19,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
   const bankSavings = useGameSelector((s) => s.bankSavings);
   // The accounts the player opened themselves. `nonMirrorDeposits` drops
   // checking-default / savings-default, which mirror `stats.money` /
-  // `bankSavings` — the legacy pool is already counted as `savings` below.
+  // `bankSavings` - the legacy pool is already counted as `savings` below.
   const accounts = useGameSelector((s) => s.banking?.accounts);
   const stocks = useGameSelector((s) => s.stocks);
   const weeksLived = useGameSelector((s) => s.weeksLived);
@@ -57,7 +57,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
     });
 
     const totalStockValue = stockItems.reduce((sum, item) => sum + item.totalValue, 0);
-    // Must match the HUD chip's total exactly — the chip is what opens this
+    // Must match the HUD chip's total exactly - the chip is what opens this
     // modal, so any term missing from one and present in the other reads as a
     // bug in whichever the player looks at second.
     const totalSavings = savings + selfOpenedTotal + totalStockValue;
@@ -128,7 +128,7 @@ export default function BankBreakdownModal({ visible, onClose }: BankBreakdownMo
 
         {/* Accounts the player opened themselves. These carry a real balance and
             a real APR, and were previously absent from both this list and the
-            total it rolls up to — so a funded high-yield account looked like it
+            total it rolls up to - so a funded high-yield account looked like it
             had swallowed the money. */}
         {breakdown.selfOpened.map((account) => (
           <View

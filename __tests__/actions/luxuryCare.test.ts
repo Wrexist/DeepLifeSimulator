@@ -95,7 +95,7 @@ describe('restoreLuxuryItem', () => {
     expect(state.stats.money).toBe(before.stats.money - cost);
   });
 
-  it('raises what the item sells for — the point of paying for it', () => {
+  it('raises what the item sells for - the point of paying for it', () => {
     const before = damaged();
     const valueDamaged = getLuxuryHoldingValue(ITEM, before.luxuryHoldings?.[ITEM_ID]);
 

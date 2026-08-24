@@ -42,7 +42,7 @@ function batch(state: GameState, run: (set: never, state: GameState) => void, ti
   return current;
 }
 
-describe('ECON-4 — a brand-deal post can only be delivered once', () => {
+describe('ECON-4 - a brand-deal post can only be delivered once', () => {
   const DEAL = 'deal-1';
   const POST = 'post-1';
 
@@ -108,7 +108,7 @@ describe('ECON-4 — a brand-deal post can only be delivered once', () => {
   });
 });
 
-describe('ECON-3 — a lobbyist cannot be hired twice, or for free', () => {
+describe('ECON-3 - a lobbyist cannot be hired twice, or for free', () => {
   function player(money: number): GameState {
     const base = createTestGameState();
     return createTestGameState({
@@ -170,7 +170,7 @@ describe('ECON-3 — a lobbyist cannot be hired twice, or for free', () => {
   });
 });
 
-describe('ECON-2 — research respects the lab cap and charges once', () => {
+describe('ECON-2 - research respects the lab cap and charges once', () => {
   /** A real catalogue technology with no prerequisites. */
   const TECH = 'automation_lvl1';
 

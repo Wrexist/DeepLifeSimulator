@@ -35,7 +35,7 @@ const st = (money: number, over: Partial<GameStats> = {}): GameStats => ({ ...BA
 const btcOwned = (owned: number): Crypto[] =>
   [{ id: 'btc', symbol: 'BTC', name: 'Bitcoin', price: 42150, change: 0, changePercent: 0, owned }];
 
-describe('trade money guards — NaN balance', () => {
+describe('trade money guards - NaN balance', () => {
   describe('stock BUY', () => {
     it('a healthy balance fills the buy (proves the market setup works)', () => {
       const store = makeStore(createTestGameState({ stats: st(1_000_000) }));
@@ -46,7 +46,7 @@ describe('trade money guards — NaN balance', () => {
       expect(isFinite(store.get().stats.money)).toBe(true);
     });
 
-    it('a NaN balance rejects the buy — no shares granted', () => {
+    it('a NaN balance rejects the buy - no shares granted', () => {
       const store = makeStore(createTestGameState({ stats: st(NaN) }));
       buyStockMarket(store.setGameState, 'AAPL', 1_000, 150);
       expect(store.get().stocks?.holdings ?? []).toHaveLength(0);
@@ -86,7 +86,7 @@ describe('trade money guards — NaN balance', () => {
       expect((btc?.owned ?? 0)).toBeGreaterThan(0);
     });
 
-    it('a NaN balance rejects the buy — no coins granted', () => {
+    it('a NaN balance rejects the buy - no coins granted', () => {
       const store = makeStore(createTestGameState({ stats: st(NaN), cryptos: btcOwned(0) }));
       buyCryptoMarket(store.setGameState, 'btc', 1_000);
       const btc = store.get().cryptos.find((c) => c.id === 'btc');
@@ -122,7 +122,7 @@ describe('trade money guards — NaN balance', () => {
       expect((store.get().vehicles ?? []).some((v) => v.id === 'economy_sedan')).toBe(true);
     });
 
-    it('a NaN balance rejects the purchase — no vehicle granted', () => {
+    it('a NaN balance rejects the purchase - no vehicle granted', () => {
       const store = makeStore(createTestGameState({ hasDriversLicense: true, stats: st(NaN) }));
       const res = purchaseVehicleWithAutoLoan(store.get(), store.setGameState, {
         templateId: 'economy_sedan',

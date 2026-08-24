@@ -52,7 +52,7 @@ function bankingCard(state: GameState): SystemCard | null {
   // These all read stale/imagined field names under the old `as any`: the real
   // BankingState nests the score under creditScore.score and names the totals
   // total*; open loans live on state.loans, not banking.loans. So every detail
-  // here previously rendered 0 / '—'.
+  // here previously rendered 0 / '-'.
   const credit = safe(banking.creditScore?.score, 0);
   const lateFees = safe(banking.totalLateFeesPaid, 0);
   const interestPaid = safe(banking.totalInterestPaid, 0);
@@ -64,7 +64,7 @@ function bankingCard(state: GameState): SystemCard | null {
   return {
     id: 'banking',
     label: 'Banking',
-    lead: { label: 'Credit score', value: credit > 0 ? String(credit) : '—' },
+    lead: { label: 'Credit score', value: credit > 0 ? String(credit) : '-' },
     details: [
       { label: 'Interest paid', value: fmtMoney(interestPaid) },
       { label: 'Interest earned', value: fmtMoney(interestEarned) },
@@ -89,7 +89,7 @@ function cryptoCard(state: GameState): SystemCard | null {
     lead: { label: 'Portfolio', value: fmtMoney(totalOwnedUSD) },
     details: [
       { label: 'Realized gains', value: fmtMoney(realized) },
-      { label: 'Dirty BTC', value: dirty > 0 ? dirty.toFixed(3) : '—' },
+      { label: 'Dirty BTC', value: dirty > 0 ? dirty.toFixed(3) : '-' },
     ],
     warning: dirty > 0 ? 'Tainted crypto needs laundering' : undefined,
   };
@@ -116,7 +116,7 @@ function stocksCard(state: GameState): SystemCard | null {
 
 function realEstateCard(state: GameState): SystemCard | null {
   // `state.realEstate` is the RealEstate[] holdings array. The previous code read
-  // `state.realEstate?.properties` — a stale schema where realEstate was an object —
+  // `state.realEstate?.properties` - a stale schema where realEstate was an object -
   // so `props` always resolved to [] and this card never rendered. Read the array
   // directly and count owned properties (matching lib/economy/expenses.ts).
   const props = (state.realEstate ?? []).filter((p) => p.owned);
@@ -137,7 +137,7 @@ function darkWebCard(state: GameState): SystemCard | null {
   const jobs = (dw.jobHistory ?? []).length + (dw.activeJobs ?? []).length;
   const rep = safe(dw.playerReputation, 0);
   const warning =
-    heat >= 80 ? 'Heat critical — lay low' :
+    heat >= 80 ? 'Heat critical - lay low' :
     heat >= 60 ? 'Heat high' : undefined;
   if (heat === 0 && jobs === 0 && rep === 0) return null;
   return {

@@ -25,7 +25,7 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
   const [cryptoId, setCryptoId] = useState<string>(cryptos[0]?.id ?? '');
   const [amountText, setAmountText] = useState('');
   const [cadence, setCadence] = useState<'weekly' | 'monthly'>('weekly');
-  // Memoized so it isn't a new array reference every render — otherwise it (and
+  // Memoized so it isn't a new array reference every render - otherwise it (and
   // its use in the reset effect below) re-fired the effect on every keystroke,
   // wiping the amount field and leaving the Schedule button permanently disabled.
   const checkingAccounts = useMemo(
@@ -94,7 +94,7 @@ export default function DCAModal({ visible, cryptos, accounts, darkMode, onClose
                   value={amountText}
                   onChangeText={setAmountText}
                   keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"

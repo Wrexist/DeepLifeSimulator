@@ -28,7 +28,7 @@ function marriedState(weeksLived: number, marriageWeek: number): GameState {
   return s;
 }
 
-describe('checkAnniversary — live-path idempotence', () => {
+describe('checkAnniversary - live-path idempotence', () => {
   it('fires on the exact 1-year boundary and records exactly one milestone', () => {
     const { setGameState, getState } = harness(marriedState(200 + WEEKS_PER_YEAR, 200));
     const r = checkAnniversary(getState(), setGameState, DEPS);

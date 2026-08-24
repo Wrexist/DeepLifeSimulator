@@ -1,21 +1,21 @@
 /**
- * LifeGoalsPanel — the perk catalogue and how close the player is to each one.
+ * LifeGoalsPanel - the perk catalogue and how close the player is to each one.
  *
  * ## Why this is a list of rows and not a list of cards
  *
  * It used to render one 160pt gradient card per perk, each carrying its own
  * progress bar and a "0 / 1 completed" counter. With 21 perks that is a
  * 3,400pt column in which barely one and a half entries are on screen at once,
- * and the player's actual question — *which of these have I got, and what is
- * the nearest one I have not?* — could not be answered without scrolling the
+ * and the player's actual question - *which of these have I got, and what is
+ * the nearest one I have not?* - could not be answered without scrolling the
  * whole thing.
  *
  * Two things went, for the same reason. The per-card progress bar measured a
  * BINARY: a perk is unlocked by one achievement, so every bar in the list read
  * 0% or 100% and the ladder of "nearly there" it implied did not exist. And
  * the counter under it said the same thing a third time. Both are replaced by
- * one bar at the top that measures something real — how much of the catalogue
- * is unlocked — and a check mark on the rows that are.
+ * one bar at the top that measures something real - how much of the catalogue
+ * is unlocked - and a check mark on the rows that are.
  *
  * The sections are the structure: unlocked first (what you have earned), then
  * locked (what is left). That ordering is also what makes the list scannable
@@ -39,7 +39,7 @@ import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { safeSettings } from '@/utils/safeGameState';
 import { responsivePadding, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 
-/** Rarity is the one piece of colour on a row — it is the only thing on the
+/** Rarity is the one piece of colour on a row - it is the only thing on the
  *  card that varies per perk and means something at a glance. */
 const RARITY_COLORS: Record<string, string> = {
   Common: '#94A3B8',
@@ -95,7 +95,7 @@ function PerkRow({ perk, unlocked, darkMode }: RowProps) {
           </Text>
         </View>
 
-        {/* Unlocked perks lead with what they DO — the requirement is history.
+        {/* Unlocked perks lead with what they DO - the requirement is history.
             Locked ones lead with the requirement, which is the actionable half. */}
         <Text
           style={[styles.detail, darkMode ? styles.detailDark : styles.detailLight]}
@@ -117,7 +117,7 @@ function PerkRow({ perk, unlocked, darkMode }: RowProps) {
 }
 
 export default function LifeGoalsPanel() {
-  // The LIVE achievement system, not `s.achievements` — that array's `completed`
+  // The LIVE achievement system, not `s.achievements` - that array's `completed`
   // flag has no writer (`evaluateAchievements` is a no-op stub), so this panel
   // rendered every life goal at 0% forever. `getSatisfiedAchievementIds` returns
   // a superset of that all-false array, so a goal can only go from incomplete to

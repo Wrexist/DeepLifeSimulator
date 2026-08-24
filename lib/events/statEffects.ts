@@ -48,7 +48,7 @@ export function applyEventStatDeltas(
       // An authored template asked to move a currency through the stat clamp.
       // Dropping it beats destroying a balance; the warn is what gets it fixed.
       logger.warn(
-        `[events] '${key}' inside effects.stats is ignored — use effects.money / an explicit grant instead`
+        `[events] '${key}' inside effects.stats is ignored - use effects.money / an explicit grant instead`
       );
       return;
     }

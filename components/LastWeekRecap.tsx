@@ -68,7 +68,7 @@ function LastWeekRecap() {
   const pendingEvents = data?.pendingEventCount ?? 0;
 
   // Only go silent when there is truly NOTHING to say. Previously any
-  // money-flat week returned null — which also swallowed career progress and
+  // money-flat week returned null - which also swallowed career progress and
   // even the "decisions waiting" badge, making those weeks feel dead.
   // A cliffhanger teaser counts as something to say: it is the "tune in next
   // week" hook, and a money-flat week is exactly when it matters most.
@@ -148,7 +148,7 @@ function LastWeekRecap() {
         )}
       </View>
 
-      {/* The cliffhanger teaser — the game's one "tune in next week" beat.
+      {/* The cliffhanger teaser - the game's one "tune in next week" beat.
           It used to render only inside WeeklyResultSheet, which is gated
           three ways (meaningful-week check, the weeklySummaryEnabled setting,
           lowest modal priority), so the hook that exists to pull the player

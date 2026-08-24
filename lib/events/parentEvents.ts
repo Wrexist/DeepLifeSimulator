@@ -101,7 +101,7 @@ const schoolPlay: EventTemplate = {
       choices: [
         { id: 'front_row', text: 'Take the afternoon off, front row', effects: { relationship: 6, stats: { happiness: 10, energy: -3 } } },
         { id: 'sneak_late', text: 'Slip in for the second half', effects: { relationship: 2, stats: { happiness: 4 } } },
-        { id: 'work', text: 'Stay at work — pick up a shift', effects: { money: 80, relationship: -8, stats: { happiness: -4 }, karma: { dimension: 'loyalty', amount: -2, reason: 'Missed the school play for work' } } },
+        { id: 'work', text: 'Stay at work - pick up a shift', effects: { money: 80, relationship: -8, stats: { happiness: -4 }, karma: { dimension: 'loyalty', amount: -2, reason: 'Missed the school play for work' } } },
       ],
     };
   },

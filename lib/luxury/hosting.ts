@@ -171,7 +171,7 @@ export function quoteEvent(
   if (!venue || !spec) return null;
 
   const guests = getGuestList(state);
-  // Completed collections raise the STANDING of the host, not the guest list —
+  // Completed collections raise the STANDING of the host, not the guest list -
   // so the bonus lands on the payoff here rather than being folded into
   // `guests.multiplier` (whose +60% ceiling is its own documented invariant).
   // Its own product is capped at 2.0, so the combined ceiling stays bounded.
@@ -200,7 +200,7 @@ export interface HostingAvailability {
  * Can an event be held at this venue right now?
  *
  * The cooldown is per-venue rather than global, so a player who owns both the
- * island and the penthouse has two places to entertain — which is a genuine
+ * island and the penthouse has two places to entertain - which is a genuine
  * reason to own both.
  */
 export function getHostingAvailability(
@@ -247,7 +247,7 @@ export function pickAttendees(
   const relationships = Array.isArray(state?.relationships) ? state!.relationships : [];
   return relationships
     .filter((r) => r && typeof r.id === 'string' && r.type !== 'child')
-    // Warm the people you are already closest to — a party is not how you meet
+    // Warm the people you are already closest to - a party is not how you meet
     // your estranged father, it is where your circle gets tighter.
     .slice()
     .sort((a, b) => num(b.relationshipScore) - num(a.relationshipScore))
@@ -265,7 +265,7 @@ export interface HostingOutcome {
   message: string;
 }
 
-/** Resolve an event. No roll — a party you paid for happens. */
+/** Resolve an event. No roll - a party you paid for happens. */
 export function resolveEvent(quote: HostingQuote, attendeeIds: string[]): HostingOutcome {
   return {
     cost: quote.cost,

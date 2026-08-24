@@ -92,7 +92,7 @@ describe('sha256Hex', () => {
     const samples = [
       'The quick brown fox jumps over the lazy dog',
       'DEEP-TEST-TEST-TEST',
-      'café ☕ 日本語 — 🎁 promo',
+      'café ☕ 日本語 - 🎁 promo',
       JSON.stringify({ finalized: ['a', 'b'], pending: null }),
     ];
     for (const s of samples) {
@@ -453,7 +453,7 @@ describe('persistRedeemedPerkEntitlements', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('no-ops (true) for {m} rewards; returns false — never throws — when persistence fails', async () => {
+  it('no-ops (true) for {m} rewards; returns false - never throws - when persistence fails', async () => {
     const spy = jest.spyOn(iapService, 'persistPermanentPerks').mockRejectedValue(new Error('disk'));
     await expect(persistRedeemedPerkEntitlements({ m: 500 })).resolves.toBe(true);
     expect(spy).not.toHaveBeenCalled();

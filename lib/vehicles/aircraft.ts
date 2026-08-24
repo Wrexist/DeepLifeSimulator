@@ -197,8 +197,8 @@ export function getAirTravelStatus(state: GameState | null | undefined): AirTrav
 
   const cut = Math.round((1 - durationMultiplier) * 100);
   const summary = based
-    ? `${profile.label} based at your own ${profile.basedBy === AIRSTRIP_ROOM_ID ? 'airstrip' : 'helipad'} — trips ${cut}% faster.`
-    : `${profile.label} flying out of a commercial field — trips ${cut}% faster. Build ${
+    ? `${profile.label} based at your own ${profile.basedBy === AIRSTRIP_ROOM_ID ? 'airstrip' : 'helipad'} - trips ${cut}% faster.`
+    : `${profile.label} flying out of a commercial field - trips ${cut}% faster. Build ${
         profile.basedBy === AIRSTRIP_ROOM_ID ? 'an airstrip' : 'a helipad'
       } to base it properly.`;
 

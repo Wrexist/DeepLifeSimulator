@@ -250,8 +250,8 @@ export const runForOffice = (
     (gameState.educations || []).some(e => e.id === id && e.completed);
   
   // Weeks served in the CURRENT office. Prefer the real tenure counter
-  // (`startedWeeksLived`, stamped on each election win below) so the upper rungs —
-  // whose `minWeeksInPrevious` (104/208/260) exceed the 0–100 `progress` ceiling —
+  // (`startedWeeksLived`, stamped on each election win below) so the upper rungs -
+  // whose `minWeeksInPrevious` (104/208/260) exceed the 0–100 `progress` ceiling -
   // are actually reachable. A sitting official is level 0 for Council, so gate on
   // `accepted` (NOT `level > 0`) or their served weeks are wrongly zeroed and the
   // ladder dead-ends at Council. Fall back to `progress` for pre-fix saves with no
@@ -318,7 +318,7 @@ export const runForOffice = (
       : -1;
     
     // CRITICAL: Check if findIndex found a valid index (not -1) before accessing array.
-    // Must have REACHED the prerequisite level, not exceeded it — `<=` rejected a
+    // Must have REACHED the prerequisite level, not exceeded it - `<=` rejected a
     // sitting Council Member (level 0) from running for Mayor (prereq index 0),
     // making the ladder above Council unwinnable.
     if (previousLevelIndex >= 0 && career.level < previousLevelIndex) {
@@ -358,7 +358,7 @@ export const runForOffice = (
   if (gameState.stats.money < campaignCost) {
     return {
       success: false,
-      message: `Need ${formatMoney(campaignCost)} to run for ${office} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(campaignCost - gameState.stats.money)} short).`,
+      message: `Need ${formatMoney(campaignCost)} to run for ${office} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(campaignCost - gameState.stats.money)} short).`,
     };
   }
 
@@ -419,7 +419,7 @@ export const runForOffice = (
     // Atomic: merge campaign cost + election reward + politics update into single update.
     // R-audit 2026-07-02: the outer age/reputation/money gates read the stale render-time
     // `gameState`, so two same-batch taps both passed them and both applied the (up to $5M)
-    // election reward. Re-check affordability AND idempotency against `prev` — the first tap
+    // election reward. Re-check affordability AND idempotency against `prev` - the first tap
     // stamps `lastElectionAttemptWeek`, so ANY second tap this week (win, loss, or mixed roll)
     // no-ops instead of double-paying / double-charging. (minWeeksInPrevious already prevents
     // a legitimate second office run in the same week.)
@@ -430,7 +430,7 @@ export const runForOffice = (
       // render snapshot. A same-batch "take Lobbyist/Federal Judge/board seat →
       // run for office" would otherwise slip through: the outer check read the
       // pre-batch state (no appointment), and this updater previously only
-      // re-checked money + attempt-week — so the appointment updater could set
+      // re-checked money + attempt-week - so the appointment updater could set
       // the barring post first and the win still landed, leaving the player
       // holding a ballot-barred post AND sitting in office (both salaries
       // streaming, §4.4 gate→grant). Refuse if the bar is set in `prev`.
@@ -453,7 +453,7 @@ export const runForOffice = (
           applied: true,
           accepted: true,
           // Stamp when this term began so `weeksInCurrentLevel` measures real
-          // tenure — this is what makes the minWeeksInPrevious gates on the upper
+          // tenure - this is what makes the minWeeksInPrevious gates on the upper
           // rungs (Mayor→…→President) satisfiable.
           startedWeeksLived: currentWeek,
         };
@@ -471,7 +471,7 @@ export const runForOffice = (
           campaignFunds: 0,
         },
         // politics.careerLevel is the 1-based office RANK (0=Citizen, 1=Council
-        // … 6=President) — matches OFFICE_NAME and unlocks the scandal tick +
+        // … 6=President) - matches OFFICE_NAME and unlocks the scandal tick +
         // political events (all gated on careerLevel > 0). It is deliberately
         // career.level + 1.
         careerLevel: newLevel + 1,
@@ -484,8 +484,8 @@ export const runForOffice = (
       currentJob: 'political',
       // Open a careerHistory entry for the office, mirroring what
       // JobActions does on accepting an ordinary job. `updateCareerHistory`
-      // only ever accumulates into an EXISTING open entry — it never creates
-      // one — so without this a politician's weeks and earnings had nowhere to
+      // only ever accumulates into an EXISTING open entry - it never creates
+      // one - so without this a politician's weeks and earnings had nowhere to
       // land, and the retirement path had no entry to close. Idempotent: a
       // re-election while already in office must not open a second entry.
       // 2026-07-28 audit GL-3.
@@ -520,7 +520,7 @@ export const runForOffice = (
     // Lost election - deduct campaign cost + small approval hit.
     // Re-check funds AND the per-week attempt marker against `prev` so a same-batch
     // double-tap (lose+lose, or a win followed by an independently-rolled loss) can't
-    // over-charge — any second attempt this week no-ops.
+    // over-charge - any second attempt this week no-ops.
     setGameState(prev => {
       if ((prev.stats?.money ?? 0) < campaignCost) return prev;
       if (prev.politics?.lastElectionAttemptWeek === currentWeek) return prev;
@@ -548,7 +548,7 @@ export const runForOffice = (
         // representative … you have to wait the full length again." The -5
         // approval per failed bid applied to SITTING officials too, so climbing
         // attempts dragged approval down until the automatic re-election roll
-        // (successChance reads approval) threw them out of their CURRENT seat —
+        // (successChance reads approval) threw them out of their CURRENT seat -
         // which zeroes the career and restarts the whole tenure ladder. A
         // citizen pays the hit (nothing to lose the seat over); an officeholder
         // keeps their approval and their seat when a higher rung says no.
@@ -601,13 +601,13 @@ export const enactPolicy = (
 
   // Policy Influence finally does something: it discounts the implementation
   // cost (up to 25% off, reached at influence >= 25). Before this it was a pure
-  // vanity stat — accumulated by enact/lobby/hireLobbyist but never spent or
+  // vanity stat - accumulated by enact/lobby/hireLobbyist but never spent or
   // checked by any politics mechanic.
   //
   // Stacked on top of that, up to a further 15%: the influence of hired
   // lobbyists who actually SPECIALISE in this policy's type. `specialty` was
-  // rendered in three places in `PoliticalApp` and read by nothing — the one
-  // function that consumed it had zero call sites — so choosing the
+  // rendered in three places in `PoliticalApp` and read by nothing - the one
+  // function that consumed it had zero call sites - so choosing the
   // Environmental Advocate over the Criminal Justice Expert for a green bill
   // changed the copy and no number. It changes the price now.
   //
@@ -628,7 +628,7 @@ export const enactPolicy = (
   if (gameState.stats.money < discountedCost) {
     return {
       success: false,
-      message: `Need ${formatMoney(discountedCost)} to implement this policy — you have ${formatMoney(gameState.stats.money)} (${formatMoney(discountedCost - gameState.stats.money)} short).`,
+      message: `Need ${formatMoney(discountedCost)} to implement this policy - you have ${formatMoney(gameState.stats.money)} (${formatMoney(discountedCost - gameState.stats.money)} short).`,
     };
   }
 
@@ -647,7 +647,7 @@ export const enactPolicy = (
     const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
     const newApproval = Math.max(0, Math.min(100, (prevPolitics?.approvalRating ?? 50) + policy.approvalImpact));
 
-    // Enacting the platform moves party standing — the machinery the Career
+    // Enacting the platform moves party standing - the machinery the Career
     // tab's copy promises ("Enacting the platform raises standing"). This was
     // the ONLY path that can push standing above the drift ceiling of 50, and
     // it shipped uncalled: endorsement (60), party funding, and the two
@@ -668,7 +668,7 @@ export const enactPolicy = (
         ...prev.stats,
         // TODO(flawless-audit): weekly policy effects need a tick reducer.
         // policy.effects.money is applied exactly ONCE here at enactment, never
-        // as a recurring weekly stream — the catalog copy is worded as one-time
+        // as a recurring weekly stream - the catalog copy is worded as one-time
         // to match. A true recurring payout would hook a per-week politics tick.
         money: Math.max(0, prev.stats.money - influenceCost(prev.politics) + (policy.effects.money || 0)),
         happiness: Math.max(0, Math.min(100, (prev.stats.happiness || 0) + (policy.effects.happiness || 0))),
@@ -723,7 +723,7 @@ export const lobby = (
   if (gameState.stats.money < amount) {
     return {
       success: false,
-      message: `Need ${formatMoney(amount)} to lobby — you have ${formatMoney(gameState.stats.money)} (${formatMoney(amount - gameState.stats.money)} short).`,
+      message: `Need ${formatMoney(amount)} to lobby - you have ${formatMoney(gameState.stats.money)} (${formatMoney(amount - gameState.stats.money)} short).`,
     };
   }
 
@@ -733,7 +733,7 @@ export const lobby = (
 
   // Increase policy influence (lobbying makes policies easier to pass)
   // Any real spend must buy at least +1 influence (capped at 10). The old
-  // floor(amount/10000) granted 0 for a $1,000–$9,999 spend — money gone, no effect.
+  // floor(amount/10000) granted 0 for a $1,000–$9,999 spend - money gone, no effect.
   const influenceGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 10000))) : 0;
 
   // ECON-3: REJECT an unaffordable spend, don't floor it. `Math.max(0, money -
@@ -778,7 +778,7 @@ export const lobby = (
  * Join a party, or cross the floor to another one.
  *
  * Joining for the FIRST time is free and starts you at the party's baseline
- * standing. Every switch afterwards costs public approval — more each time —
+ * standing. Every switch afterwards costs public approval - more each time -
  * and drops you to the bottom of the new party's pecking order. That cost is
  * the point: without it, affiliation is a button a player presses before each
  * election to collect whichever endorsement is cheapest.
@@ -805,8 +805,8 @@ export const joinParty = (
  * Preview/commit over one pure resolver (the C-9 / ARCH-1 sound fix). The old
  * shape checked the alliance list on the stale snapshot and appended
  * unconditionally inside the updater, so a same-batch double tap appended the
- * same character twice — with the SAME id, since a `Date.now()` captured once
- * outside the updater stamped both — and paid the +3 approval twice.
+ * same character twice - with the SAME id, since a `Date.now()` captured once
+ * outside the updater stamped both - and paid the +3 approval twice.
  */
 export const formAlliance = (
   gameState: GameState,
@@ -831,7 +831,7 @@ export const campaign = (
   if (gameState.stats.money < amount) {
     return {
       success: false,
-      message: `Need ${formatMoney(amount)} to fund this campaign — you have ${formatMoney(gameState.stats.money)} (${formatMoney(amount - gameState.stats.money)} short).`,
+      message: `Need ${formatMoney(amount)} to fund this campaign - you have ${formatMoney(gameState.stats.money)} (${formatMoney(amount - gameState.stats.money)} short).`,
     };
   }
 
@@ -841,14 +841,14 @@ export const campaign = (
 
   // Increase approval rating (diminishing returns)
   // Any real spend must buy at least +1 approval (capped at 10). The old
-  // floor(amount/5000) granted 0 for a $500–$4,999 spend — money gone, no effect.
+  // floor(amount/5000) granted 0 for a $500–$4,999 spend - money gone, no effect.
   const approvalGain = amount > 0 ? Math.min(10, Math.max(1, Math.round(amount / 5000))) : 0;
 
-  // ECON-3: reject rather than floor — see `lobby` above.
+  // ECON-3: reject rather than floor - see `lobby` above.
   // The outer guards above are the reported outcome; the `return prev` below is
   // the same-batch RACE guard for STATE. A `let applied` flag used to be read
   // back after the dispatch, which is only reliable for the FIRST functional
-  // update of a React batch — so a legitimate spend that was not first reported
+  // update of a React batch - so a legitimate spend that was not first reported
   // "you cannot afford ..." for money it had just spent (2026-08-15).
   setGameState(prev => {
     const spend = applyMoneyDelta(prev, -amount, 'Campaign spending');
@@ -908,7 +908,7 @@ export const hireLobbyist = (
   if (gameState.stats.money < lobbyist.cost) {
     return {
       success: false,
-      message: `Hiring ${lobbyist.name} costs ${formatMoney(lobbyist.cost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(lobbyist.cost - gameState.stats.money)} short).`,
+      message: `Hiring ${lobbyist.name} costs ${formatMoney(lobbyist.cost)} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(lobbyist.cost - gameState.stats.money)} short).`,
     };
   }
 
@@ -924,13 +924,13 @@ export const hireLobbyist = (
   // ECON-3: reject rather than floor, AND re-check the already-hired gate.
   // The picker renders every catalogue lobbyist as its own row with
   // `affordable` computed from the render snapshot, so with cash for exactly
-  // one retainer two taps hired two lobbyists — the second free, its influence
+  // one retainer two taps hired two lobbyists - the second free, its influence
   // permanent. Tapping the SAME row twice appended a duplicate entry while
   // `fireLobbyist` only ever subtracts one lobbyist's influence.
   // The outer guards above are the reported outcome; the `return prev` below is
   // the same-batch RACE guard for STATE. A `let applied` flag used to be read
   // back after the dispatch, which is only reliable for the FIRST functional
-  // update of a React batch — so a legitimate spend that was not first reported
+  // update of a React batch - so a legitimate spend that was not first reported
   // "you cannot afford ..." for money it had just spent (2026-08-15).
   setGameState(prev => {
     if ((prev.politics?.lobbyists || []).some((l) => l?.id === newLobbyist.id)) return prev;
@@ -1088,7 +1088,7 @@ export const spendPACOnCampaign = (
 };
 
 /**
- * Spend on suppression for a specific scandal — PR team, legal, opp research.
+ * Spend on suppression for a specific scandal - PR team, legal, opp research.
  * Reduces weekly approval drain and accelerates the fade.
  */
 export const suppressPoliticalScandal = (
@@ -1121,7 +1121,7 @@ export { SEVERITY_PARAMS };
 
 
 // ---------------------------------------------------------------------------
-// Political Life expansion — appointments, embezzlement, retirement
+// Political Life expansion - appointments, embezzlement, retirement
 // ---------------------------------------------------------------------------
 
 /**
@@ -1129,7 +1129,7 @@ export { SEVERITY_PARAMS };
  * refused when it is.
  *
  * Returns the whole catalog rather than the eligible subset so the UI can show
- * a player what to go and do — a greyed row with no explanation is the reason
+ * a player what to go and do - a greyed row with no explanation is the reason
  * `politicalPromotionBlocker` returns a message instead of a boolean.
  */
 export const availableAppointments = (
@@ -1159,7 +1159,7 @@ export const availableAppointments = (
  *
  * One at a time: accepting a second replaces the first, which the message says
  * rather than silently doing. Preview/commit over one pure resolver, so the
- * reputation cost is charged exactly once even on a same-batch double tap — the
+ * reputation cost is charged exactly once even on a same-batch double tap - the
  * second resolve sees the post already held and refuses.
  */
 export const takeAppointment = (
@@ -1177,7 +1177,7 @@ export const takeAppointment = (
 
 /**
  * Step down from an appointed position. The post's reputation bump goes with
- * it (see `resolveResignAppointment`) — resign-and-retake must net zero.
+ * it (see `resolveResignAppointment`) - resign-and-retake must net zero.
  */
 export const resignAppointment = (
   gameState: GameState,
@@ -1194,13 +1194,13 @@ export const resignAppointment = (
 /**
  * Move money from the war chest into your own pocket.
  *
- * The pot is `campaignFunds` plus the CLEAN PAC balance — never the dirty
+ * The pot is `campaignFunds` plus the CLEAN PAC balance - never the dirty
  * balance, which is already laundered money the player put in themselves and
  * would otherwise round-trip out for free.
  *
  * The debit, the credit and the one-per-week marker are one object built by one
  * pure resolver, so they cannot be separated by a re-render (§4.4). The gate is
- * `weeksLived`, never the device clock — a wall-clock gate on a lever that pays
+ * `weeksLived`, never the device clock - a wall-clock gate on a lever that pays
  * cash is farmable by scrubbing the date, which this codebase has now fixed
  * five times over (v28/v31/v35/v40/v44).
  */
@@ -1222,8 +1222,8 @@ export const embezzleCampaignFunds = (
  *
  * The third exit from office and the only one the player chooses. It resets
  * `careers.political.level` and `politics.careerLevel` the same way the
- * voted-out path does — so lifestyle costs and the "in office?" UI stop
- * treating a private citizen as a sitting official — but it records the title
+ * voted-out path does - so lifestyle costs and the "in office?" UI stop
+ * treating a private citizen as a sitting official - but it records the title
  * FIRST, while it is still true (the v42 reasoning).
  */
 export const retireFromPolitics = (

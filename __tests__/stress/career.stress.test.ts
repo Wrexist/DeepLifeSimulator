@@ -190,7 +190,7 @@ describe('Career & Education Stress Tests', () => {
       let state = baseState;
 
       // Start Fast Food career
-      // Simulate using a local job object — canonical state.currentJob
+      // Simulate using a local job object - canonical state.currentJob
       // is just an id string; salary/progress/level live on a separate
       // Career entry. For a pure-math simulation, a local object is
       // clearer than mutating the typed state.
@@ -241,7 +241,7 @@ describe('Career & Education Stress Tests', () => {
 
   describe('Test 3: Career switching', () => {
     it('should handle switching between careers', () => {
-      // Local job object — see Test 2 note: canonical state.currentJob
+      // Local job object - see Test 2 note: canonical state.currentJob
       // is just an id; we simulate full career fields locally.
       let job: { id: string; title: string; level: number; salary: number; progress: number; company: string };
 

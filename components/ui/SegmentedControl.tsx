@@ -1,5 +1,5 @@
 /**
- * SegmentedControl — the one shared tab/segment control for the app's in-screen
+ * SegmentedControl - the one shared tab/segment control for the app's in-screen
  * tab bars (Market, Work, Computer). Dark-glass container, tinted active
  * segment, muted inactive text. Replaces three near-identical hand-rolled bars.
  *
@@ -28,7 +28,7 @@ export interface Segment<T extends string> {
    * `onLockedPress` instead of `onChange`. Optional and default-off, so every
    * existing caller is unaffected.
    *
-   * Locked, not hidden — the segment stays in place so the control does not
+   * Locked, not hidden - the segment stays in place so the control does not
    * reflow as things unlock and the player can see what is coming.
    */
   locked?: boolean;
@@ -49,7 +49,7 @@ interface SegmentedControlProps<T extends string> {
   activeColor?: string;
   style?: ViewStyle;
   /**
-   * Subordinate variant — flatter background, shorter tabs, smaller text. Use
+   * Subordinate variant - flatter background, shorter tabs, smaller text. Use
    * when this control is nested UNDER a primary segmented control (e.g. Market's
    * Items/Food/Gym inside the Life tab's Health/Shop/Stats) so the two levels
    * read as a hierarchy instead of two identical stacked bars.
@@ -72,8 +72,8 @@ export default function SegmentedControl<T extends string>({
   return (
     <View style={[styles.container, compact && styles.containerCompact, style]}>
       {segments.map((seg) => {
-        // A locked segment can never also be the active one in practice — the
-        // unlock tier only ever rises — but if it somehow were, "locked" wins
+        // A locked segment can never also be the active one in practice - the
+        // unlock tier only ever rises - but if it somehow were, "locked" wins
         // so the player is never left tapping an inert highlighted tab.
         const locked = seg.locked === true;
         const active = !locked && seg.key === value;

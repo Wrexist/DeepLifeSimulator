@@ -1,5 +1,5 @@
 /**
- * PulseApp — root shell for the in-game Pulse social platform.
+ * PulseApp - root shell for the in-game Pulse social platform.
  *
  * Mounts when the player taps the Pulse tile from the phone shell. Owns:
  *   - Internal nav state machine (no React Navigation nested container)
@@ -43,7 +43,7 @@ import { formatPulseNumber } from './utils/formatPulseNumber';
 const LinearGradient = Gradient;
 
 type PulseTab = 'home' | 'trending' | 'alerts' | 'dms';
-/** Overlay routes — full-screen pushed above the tab bar. */
+/** Overlay routes - full-screen pushed above the tab bar. */
 type PulseOverlay = 'profile' | 'brandDeals' | 'liveStream' | 'insights' | null;
 
 interface PulseAppProps {
@@ -57,7 +57,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   // Remove Ads / DeepLife+ hides every "watch ad" affordance in Pulse.
   const adsRemoved = areAdsRemoved(gameState);
   // When the app runs full-screen the game tab bar is hidden, so only the home
-  // indicator needs clearing at the bottom — not the (now absent) tab bar.
+  // indicator needs clearing at the bottom - not the (now absent) tab bar.
   const fullscreenApp = useFullscreenApp();
   const bottomInset = fullscreenApp ? insets.bottom : getTabBarSafePadding(insets.bottom);
   const [activeTab, setActiveTab] = useState<PulseTab>('home');
@@ -72,7 +72,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [boostPostId, setBoostPostId] = useState<string | null>(null);
   const [showRewardedAd, setShowRewardedAd] = useState(false);
-  // NPC tapped from the StoriesRail — drives the follow/unfollow sheet.
+  // NPC tapped from the StoriesRail - drives the follow/unfollow sheet.
   const [sheetNpc, setSheetNpc] = useState<NpcStoryTarget | null>(null);
 
   const sm = gameState.socialMedia;
@@ -93,7 +93,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
   const openNpcSheet = useCallback((npc: NpcStoryTarget) => setSheetNpc(npc), []);
   const dismissNpcSheet = useCallback(() => setSheetNpc(null), []);
 
-  // Verified Pro is an IN-GAME cash subscription — the VerifiedProUpsellModal
+  // Verified Pro is an IN-GAME cash subscription - the VerifiedProUpsellModal
   // owns the buy/cancel flow (charges stats.money via subscribeVerifiedPro). No
   // real-IAP path here anymore.
 
@@ -142,7 +142,7 @@ export default function PulseApp({ onBack }: PulseAppProps) {
         <ProfileEditModal visible={showProfileEdit} onDismiss={() => setShowProfileEdit(false)} />
         {/* Must be mounted here too: this overlay is an early return, so the
             main return's BoostPostModal never renders while the profile is
-            open — without this, Boost on your own profile posts sets
+            open - without this, Boost on your own profile posts sets
             boostPostId but no modal ever appears (silently dead button). */}
         <BoostPostModal
           visible={!!boostPostId}

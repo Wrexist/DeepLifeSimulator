@@ -132,7 +132,7 @@ describe('replaying a queue from a previous session', () => {
     expect(saveQueue.getStatus().queueLength).toBe(0);
   });
 
-  it('still replays a recent, real, forward-moving save — the case the queue exists for', async () => {
+  it('still replays a recent, real, forward-moving save - the case the queue exists for', async () => {
     persistQueueOf([
       { id: 'a', slot: 2, data: played(900), timestamp: Date.now() - 30_000, retryCount: 0 },
     ]);
@@ -179,7 +179,7 @@ describe('the persisted queue is signed', () => {
     expect(JSON.parse(parsed.data)[0].slot).toBe(1);
   });
 
-  it('refuses — and clears — a hand-edited queue', async () => {
+  it('refuses - and clears - a hand-edited queue', async () => {
     const { createSaveEnvelope } = await import('@/utils/saveValidation');
     const envelope = JSON.parse(
       createSaveEnvelope(

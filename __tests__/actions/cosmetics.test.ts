@@ -9,7 +9,7 @@ describe('cosmetics catalog', () => {
     expect(getCosmetic('legacy_theme_s_10')).toMatchObject({ type: 'theme' });
   });
 
-  it('gives the reward track VISIBLE variety — every cosmetic reward id resolves to a distinct registered look', () => {
+  it('gives the reward track VISIBLE variety - every cosmetic reward id resolves to a distinct registered look', () => {
     const cosmeticIds = [...FREE_REWARDS, ...PREMIUM_REWARDS]
       .filter((r) => r.kind === 'cosmetic')
       .map((r) => r.id!)

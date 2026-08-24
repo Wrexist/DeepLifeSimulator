@@ -6,7 +6,7 @@ import { ComputerScreenContent } from './computer';
 import { MobileScreenContent } from './mobile';
 
 /**
- * Apps — the merged device tab.
+ * Apps - the merged device tab.
  *
  * Replaces the old Mobile/Computer tabs that swapped identity as you upgraded
  * (the Mobile tab vanished the moment you bought a computer). This is one
@@ -17,13 +17,13 @@ import { MobileScreenContent } from './mobile';
  *     if you somehow reach here before owning any device).
  *
  * The tab BUTTON's visibility (hidden until a device is owned) lives in
- * _layout.tsx via `href`. Rendering the launchers here — rather than routing
- * to the mobile/computer routes — keeps those routes unmounted, so there's no
+ * _layout.tsx via `href`. Rendering the launchers here - rather than routing
+ * to the mobile/computer routes - keeps those routes unmounted, so there's no
  * double-mount and the full-screen-app / tab-reset hooks key off THIS tab.
  *
  * `?app=<id>` opens one app directly. Which launcher is showing depends on
  * device ownership, and the two launchers file the same app under different
- * categories — the Family tab's "Open the dating app" landed on the desktop
+ * categories - the Family tab's "Open the dating app" landed on the desktop
  * grid, where Dating is not even in the visible category. The param removes
  * that guesswork from the caller: it names the app, this screen finds it.
  */

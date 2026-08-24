@@ -132,7 +132,7 @@ describe('hireCandidate energy', () => {
     expect(cap.run(state).stats.energy).toBe(60 - HIRE_ENERGY_COST);
   });
 
-  it('charges on a DECLINED offer too — the interview happened', () => {
+  it('charges on a DECLINED offer too - the interview happened', () => {
     const state = stateWith(60, false);
     const cap = captureUpdater();
     const res = hireCandidate(cap.setGameState, state, COMPANY_ID, 'cand-1', 1_100, 0);

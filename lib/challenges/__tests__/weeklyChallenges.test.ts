@@ -14,7 +14,7 @@ import {
   getWeeklyChallengeDefinition,
 } from '@/lib/challenges/weeklyChallenges';
 
-describe('getWeeklyChallengeIdForWeek — all challenges reachable across rotations', () => {
+describe('getWeeklyChallengeIdForWeek - all challenges reachable across rotations', () => {
   it('there are 12 challenges to rotate through', () => {
     expect(WEEKLY_CHALLENGES).toHaveLength(12);
   });
@@ -46,7 +46,7 @@ describe('getWeeklyChallengeIdForWeek — all challenges reachable across rotati
     expect(getWeeklyChallengeIdForWeek(48)).toBe(WEEKLY_CHALLENGES[0].id); // wraps
   });
 
-  it('the previously-reachable set {1,5,9} was only 3 challenges — now far more show', () => {
+  it('the previously-reachable set {1,5,9} was only 3 challenges - now far more show', () => {
     const oldReachable = new Set([
       WEEKLY_CHALLENGES[1 % 12].id,
       WEEKLY_CHALLENGES[5 % 12].id,

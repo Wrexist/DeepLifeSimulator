@@ -143,7 +143,7 @@ describe('RevenueCatService ad tracking', () => {
     await expect(service.trackAdRevenue(PAYLOAD)).resolves.toBe(false);
   });
 
-  it('no-ops when the RevenueCat flag is off — ads can run without RC configured', async () => {
+  it('no-ops when the RevenueCat flag is off - ads can run without RC configured', async () => {
     const { mod, adTracker } = mockPurchases();
     mockIsFeatureEnabled.mockReturnValue(false);
     const service = await freshService();

@@ -1,5 +1,5 @@
 /**
- * DailyGemClaim — the daily gem drop shown on the identity card. Everyone can
+ * DailyGemClaim - the daily gem drop shown on the identity card. Everyone can
  * claim once per UTC day; the amount is tiered (DeepLife+ members 250, free
  * players 20).
  *
@@ -44,13 +44,13 @@ import { claimDailyGems, canClaimDailyGemsFor } from '@/contexts/game/actions/Su
 
 // Gold palette. The SOLID-gold surfaces (the claim button, the "perfect week"
 // chip) carry INK text and read on ANY background, so they stay theme-independent
-// on purpose — the premium look the paywall uses. The TRANSLUCENT-gold surfaces
+// on purpose - the premium look the paywall uses. The TRANSLUCENT-gold surfaces
 // (the "claimed" chip, the upsell teaser, the strip's empty-day rings) are soft
 // gold on a faint tint; those wash out on a LIGHT identity card, so they get a
 // darker-amber light-mode variant (below) selected when the app is in light mode
 // AND the component isn't on a permanently-dark surface (the gem-shop sheet).
 // No LinearGradient: the app's is a flat fallback (expo-linear-gradient crashes
-// on New Arch) — it would render the same solid colour, so it adds nothing here.
+// on New Arch) - it would render the same solid colour, so it adds nothing here.
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
 const INK = '#1A1206';
@@ -62,7 +62,7 @@ const AMBER_BRAND = '#B45309';
 
 /**
  * One weekday dot. When `pop` is true (the day just claimed this session), the
- * dot springs in from a smaller scale and the check fades up — a clean, one-shot
+ * dot springs in from a smaller scale and the check fades up - a clean, one-shot
  * "stamp" animation. Otherwise it renders static (no motion on card open).
  */
 function DayDot({
@@ -135,7 +135,7 @@ function WeekStrip({
 }
 
 /**
- * @param onDarkSurface Force the dark styling regardless of the app theme — set
+ * @param onDarkSurface Force the dark styling regardless of the app theme - set
  * by hosts whose background is always dark (the gem-shop sheet). Left unset on
  * the identity card, which follows `settings.darkMode`.
  */
@@ -180,7 +180,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   const now = Date.now();
   const claimSettled = !canClaimDailyGemsFor(lastClaim, lastClaimAt, todayKey, now, weekGate);
   // Distinguish the two reasons a claim is settled, so the chip doesn't tell a
-  // free player to "come back tomorrow" when tomorrow won't help — only playing a
+  // free player to "come back tomorrow" when tomorrow won't help - only playing a
   // game week will. It's blocked BY THE WEEK GATE precisely when the day-key/epoch
   // guards alone would allow the claim but the full check (with the gate) refuses.
   // Derived from the same predicate the reducer uses, so it can't drift from it.
@@ -193,7 +193,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   // today's claim closed out the week, celebrate it.
   const perfectWeek = claimedToday && isPerfectDeepLifePlusWeek(claimDays, new Date());
 
-  // The day claimed in THIS session — drives the one-shot pop on the streak dot
+  // The day claimed in THIS session - drives the one-shot pop on the streak dot
   // and the claimed-chip entrance (so neither animates on a normal card open).
   const [justClaimedKey, setJustClaimedKey] = useState<string | null>(null);
 
@@ -231,7 +231,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
     setJustClaimedKey(key);
     // A member collecting the 250-gem drop (against a free player's 20) is the
     // clearest deliberate USE of a paid perk in the game: the other headline
-    // benefits — ad-free, the +25% payday — are passive and arrive whether the
+    // benefits - ad-free, the +25% payday - are passive and arrive whether the
     // player notices them or not. Recording it answers the question that decides
     // renewal (see utils/premiumValueTracking.ts). Fire-and-forget: it must never
     // be able to interfere with the claim itself.
@@ -287,7 +287,7 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
         </Animated.View>
       )}
 
-      {/* Non-members: sell the gap — 20/day vs the 250/day member drop. */}
+      {/* Non-members: sell the gap - 20/day vs the 250/day member drop. */}
       {!active ? (
         <>
           <TouchableOpacity
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   // to content width and collapse the flex:1 button/teaser text to nothing.
   wrap: { marginTop: scale(10), width: '100%', alignSelf: 'stretch' },
   // Every row below also pins itself to full width (alignSelf/width) so no single
-  // claim state can shrink to content and collapse its flex:1 text — belt-and-
+  // claim state can shrink to content and collapse its flex:1 text - belt-and-
   // suspenders for the "narrow until you tap claim" bug.
   pressWrap: { width: '100%' },
 

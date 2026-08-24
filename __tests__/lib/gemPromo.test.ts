@@ -1,9 +1,9 @@
 import { activeGemPromo, formatPromoCountdown, GEM_PACK_PROMO } from '@/lib/shop/gemPromo';
 
-describe('gemPromo — honest, opt-in limited-time offer', () => {
+describe('gemPromo - honest, opt-in limited-time offer', () => {
   const now = new Date('2026-07-23T12:00:00Z');
 
-  it('ships DISABLED — no promo renders by default', () => {
+  it('ships DISABLED - no promo renders by default', () => {
     expect(GEM_PACK_PROMO.enabled).toBe(false);
     expect(activeGemPromo(now)).toBeNull();
   });

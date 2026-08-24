@@ -230,7 +230,7 @@ describe('brand partnerships read the collection', () => {
     expect(both.ratePerFollower).toBeGreaterThan(watchOnly.ratePerFollower);
   });
 
-  it('beats the generic premium rate — the collection is the differentiator', () => {
+  it('beats the generic premium rate - the collection is the differentiator', () => {
     // The premium follower-only tier pays $5/follower. A luxury house paying
     // less than that would make the collection worthless to a brand.
     for (const ids of [['supercar'], ['rare_watch_collection'], ['luxury_yacht']]) {

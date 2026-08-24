@@ -19,7 +19,7 @@ import { playSound } from '@/utils/soundManager';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
-// require-cycle) — same import shape SettingsModal's existing flows use.
+// require-cycle) - same import shape SettingsModal's existing flows use.
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { logger } from '@/utils/logger';
@@ -37,13 +37,13 @@ import {
 } from '@/utils/redeemCodes';
 import type { RedeemReward } from '@/utils/redeemCodes';
 
-/** Cool blues + a mint accent — the sheet's own palette, not the promotion gold. */
+/** Cool blues + a mint accent - the sheet's own palette, not the promotion gold. */
 const REDEEM_CONFETTI = ['#60A5FA', '#BFDBFE', '#34D399', '#A78BFA', '#F0F4FF'];
 
 const COUNT_UP_MS = 900;
 
 /**
- * Hard Rule #2 — read the union through an `in` guard, never a cast.
+ * Hard Rule #2 - read the union through an `in` guard, never a cast.
  * `RedeemReward` is `{ p: string } | { m: number }`; only the cash arm has an
  * amount worth counting up to.
  */
@@ -78,7 +78,7 @@ function formatCodeInput(raw: string): string {
 const STATUS_MESSAGE: Record<Exclude<RedeemStatus, 'idle' | 'submitting' | 'success'>, string> = {
   invalid: "We don't recognize that code. Check it and try again.",
   already: 'This code has already been redeemed on this device.',
-  throttled: 'Too many attempts — wait a minute and try again.',
+  throttled: 'Too many attempts - wait a minute and try again.',
   error: "Couldn't save your claim. Please try again in a moment.",
 };
 
@@ -90,7 +90,7 @@ const STATUS_MESSAGE: Record<Exclude<RedeemStatus, 'idle' | 'submitting' | 'succ
  * where reading it reads as a receipt. Ticking haptics ride the climb.
  *
  * Product rewards (gem packs, permanent perks) have no number to count, so they
- * just spring in — `amount` is null and the label renders as-is.
+ * just spring in - `amount` is null and the label renders as-is.
  */
 function RewardValue({
   amount,
@@ -117,7 +117,7 @@ function RewardValue({
       // Ease-out so it decelerates into the final number instead of stopping dead.
       const eased = 1 - Math.pow(1 - t, 3);
       setShown(Math.round(amount * eased));
-      // A tick every ~8 frames — enough to feel the climb, not enough to buzz.
+      // A tick every ~8 frames - enough to feel the climb, not enough to buzz.
       const tick = Math.floor(t * 8);
       if (tick !== lastTick) {
         lastTick = tick;
@@ -144,7 +144,7 @@ function RewardValue({
 
 /**
  * "Redeem Code" sheet. Rendered NESTED inside SettingsModal's already-presented
- * Modal tree (mirrors the DevToolsModal nesting) — never a sibling root-level
+ * Modal tree (mirrors the DevToolsModal nesting) - never a sibling root-level
  * Modal, which would trip the iOS stacked-modal hazard.
  *
  * Success path order is load-bearing (repo convention): begin → one setGameState
@@ -173,7 +173,7 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
   //   0ms    badge springs in, ring blooms, confetti falls, success haptic
   //   180ms  "Reward unlocked!" rises
   //   340ms  the reward springs in and starts counting
-  //   620ms  Done fades up — deliberately last, so the moment is not
+  //   620ms  Done fades up - deliberately last, so the moment is not
   //          immediately dismissible before it has played
   //
   // With Reduce Motion on, all four land at their end state instantly and no
@@ -274,15 +274,15 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
     // (b) ONE state update grants the reward AND flags the hash atomically.
     setGameState((prev) => applyRedeemReward(prev, hash, reward));
     // (b2) the same cross-slot entitlement persistence a real purchase performs
-    //      (permanent perks survive new lives / other slots). Idempotent —
+    //      (permanent perks survive new lives / other slots). Idempotent -
     //      finalization below is gated on this succeeding too, so a transient
     //      failure keeps the claim pending and the launch reconciler retries.
     const entitlementsOk = await persistRedeemedPerkEntitlements(reward);
-    // (c) macrotask yield — saveGame reads a post-commit ref synced in a passive
+    // (c) macrotask yield - saveGame reads a post-commit ref synced in a passive
     //     effect, so it lags the commit by one cycle.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     // (d) persist DURABLY: force-save (the same path real IAP purchases use).
-    //     saveGame resolves true only after the write is verified on disk — a
+    //     saveGame resolves true only after the write is verified on disk - a
     //     plain saveGame() merely queues and swallows failures, which would let
     //     us finalize a claim whose reward was never persisted.
     let saved = false;
@@ -296,7 +296,7 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
       //     force-save AND the cross-slot entitlement persistence.
       await finalizeRedeemClaim(hash);
     } else {
-      // NOT finalized — the pending marker + the home reconciler complete the
+      // NOT finalized - the pending marker + the home reconciler complete the
       // claim on next launch (the designed recovery). The reward is already in
       // memory, so the player keeps playing with it either way.
       logger.warn('Redeem claim not fully durable; will reconcile next launch', {
@@ -350,7 +350,7 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
                   { opacity: badge, transform: [{ scale: badge }] },
                 ]}
               >
-                {/* Bloom ring — scales OUT past the badge and fades, so the
+                {/* Bloom ring - scales OUT past the badge and fades, so the
                     badge reads as landing rather than just appearing. */}
                 <Animated.View
                   pointerEvents="none"
@@ -390,7 +390,7 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
               </Animated.View>
 
               {/* Full width: `successBody` centres its children, and the button
-                  carried no width of its own — so "Done" collapsed to a tiny
+                  carried no width of its own - so "Done" collapsed to a tiny
                   square around its label, while the same style rendered full
                   width in the input branch where the card stretches it. */}
               <Animated.View style={[styles.doneWrap, { opacity: done }]}>
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   },
   rewardPillText: {
     color: '#DBEAFE',
-    // The payoff line — it gets to be the biggest text in the sheet.
+    // The payoff line - it gets to be the biggest text in the sheet.
     fontSize: 30,
     fontWeight: '800',
     letterSpacing: 0.5,

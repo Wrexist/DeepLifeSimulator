@@ -89,8 +89,8 @@ export interface DeepLifePlusBenefit {
  * rejects paywalls that promise benefits the app doesn't deliver).
  */
 export const DEEP_LIFE_PLUS_BENEFITS: DeepLifePlusBenefit[] = [
-  { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials — just pure, uninterrupted play.' },
-  { id: 'daily_gems', title: 'Daily Gem Drop', description: '250 gems every day — 12× the free daily.' },
+  { id: 'no_ads', title: 'Ad-Free Forever', description: 'No banners, no interstitials - just pure, uninterrupted play.' },
+  { id: 'daily_gems', title: 'Daily Gem Drop', description: '250 gems every day - 12× the free daily.' },
   { id: 'income_boost', title: 'Bigger Paychecks', description: '+25% career income, every single payday.' },
   { id: 'legacy_premium', title: 'Legacy Pass Premium', description: 'Unlock the full premium reward track, every single season.' },
   { id: 'cosmetics', title: 'Exclusive Cosmetics', description: 'Members-only seasonal themes, frames and skins.' },
@@ -203,7 +203,7 @@ export function deepLifePlusWeekKeys(now: Date): string[] {
 /**
  * The Mon→Sun week keys for the week containing a "YYYY-MM-DD" day key (parsed at
  * noon UTC so it's unambiguous). Empty array if the key is malformed. Lets the
- * pure claim reducer — which only knows `todayKey` — find the current week.
+ * pure claim reducer - which only knows `todayKey` - find the current week.
  */
 export function weekKeysForDayKey(dayKey: string): string[] {
   const ms = Date.parse(`${dayKey}T12:00:00.000Z`);
@@ -245,7 +245,7 @@ export function buildDeepLifePlusWeekStatus(claimDays: string[] | undefined, now
 /**
  * Career-income boost for DeepLife+ members (1.25 = +25% weekly salary). Applied
  * in the weekly payday reducer (applyCareerSalaryAndPenalty) and advertised on
- * the paywall — keep the number and the "+25% career income" copy in sync.
+ * the paywall - keep the number and the "+25% career income" copy in sync.
  */
 export const DEEP_LIFE_PLUS_INCOME_MULTIPLIER = 1.25;
 
@@ -266,7 +266,7 @@ export function hasDeepLifePlusEntitlement(settings?: {
  * Introductory free-trial length advertised on the paywall (the "Try 7 days
  * free" hook). IMPORTANT: the MATCHING introductory offer must be configured on
  * the `deeplife_premium_*` subscription products in App Store Connect / Play
- * Console — StoreKit/Play present and enforce the actual trial at checkout; the
+ * Console - StoreKit/Play present and enforce the actual trial at checkout; the
  * app only advertises it here. Set to 0 to hide all trial messaging (e.g. if the
  * store offer isn't live yet), so we never promise a trial the store won't honor.
  *
@@ -279,7 +279,7 @@ export function hasDeepLifePlusEntitlement(settings?: {
  * single sitting.
  *
  * The rule the data actually supports is: match the trial to the TIME TO VALUE
- * of the thing being sold. And what is sold here is not the game — the game is
+ * of the thing being sold. And what is sold here is not the game - the game is
  * free. It is a SUBSCRIPTION whose value (ad-free play, weekly gems, perks)
  * accrues across sessions. A player cannot feel the worth of a recurring charge
  * in 72 hours, which is exactly the case where 3-day trials underperform.
@@ -299,7 +299,7 @@ export const DEEP_LIFE_PLUS_FREE_TRIAL_DAYS = 7;
  * `yearlyPerWeek()` and `yearlySavingsPercent()` used to live here, along with
  * the `priceToNumber` / `currencySymbol` / `formatLike` helpers they needed.
  * They computed the paywall's "just $0.96/week" line and its "SAVE 17%" badge
- * from the CONFIG price strings above — which are US dollars by definition.
+ * from the CONFIG price strings above - which are US dollars by definition.
  *
  * Every player outside the US therefore read a per-week figure in the wrong
  * currency, and a savings percentage derived from tiers they were not on: Apple
@@ -312,7 +312,7 @@ export const DEEP_LIFE_PLUS_FREE_TRIAL_DAYS = 7;
  * a helper that silently answers in the wrong currency is exactly the kind of
  * thing that gets reached for again.
  *
- * The `price` fields on the plans above are NOT dead — they remain the labelled
+ * The `price` fields on the plans above are NOT dead - they remain the labelled
  * fallback shown only where no store exists (Expo Go, the web preview), with the
  * purchase CTA disabled.
  */
@@ -329,7 +329,7 @@ export function isDeepLifePlusProduct(productId: string): boolean {
 }
 
 /**
- * True if the player has premium access right now — via an active subscription
+ * True if the player has premium access right now - via an active subscription
  * OR the one-time lifetime unlock. Every premium gate should use this.
  */
 export function isDeepLifePlusActive(): boolean {

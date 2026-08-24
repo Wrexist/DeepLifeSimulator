@@ -97,7 +97,7 @@ export function applyAutoCheckpoint(input: AutoCheckpointInput): AutoCheckpointR
     // There used to be one: on the tick that killed you, the PREVIOUS week's
     // state was snapshotted as "Before Death" so you could rewind to being
     // alive. It undercut the whole death economy. Rewinding to it cost
-    // `BASE_REWIND_COST` — 500 gems — and handed back a living character one
+    // `BASE_REWIND_COST` - 500 gems - and handed back a living character one
     // week older, which is what Revive charges thousands for and what the
     // $2.99 Revival Pack sells. Nobody informed would ever have bought either.
     //

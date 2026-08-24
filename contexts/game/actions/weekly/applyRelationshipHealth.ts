@@ -151,7 +151,7 @@ export function applyRelationshipHealth(
     };
   }
 
-  // Branch 2: healthy partner/spouse — reset the low-week counter.
+  // Branch 2: healthy partner/spouse - reset the low-week counter.
   if ((rel.type === 'partner' || rel.type === 'spouse') && rel.relationshipScore >= 30) {
     return {
       rel: {
@@ -164,13 +164,13 @@ export function applyRelationshipHealth(
   }
 
   /**
-   * Branch 3: parent · child · friend — neglect finally costs something.
+   * Branch 3: parent · child · friend - neglect finally costs something.
    *
    * PLAYER REPORT (BBQ, 2026-08-11): "There's no penalty for letting relations
    * go to 1 or bad. They can be at risk all they want. Nothing happens."
    *
    * Exactly right. This branch used to be a clamp and nothing else, at any
-   * score, forever — while `ContactsApp` renders an "At risk" counter and an
+   * score, forever - while `ContactsApp` renders an "At risk" counter and an
    * entire Attention triage tab off `contactsNeedingAttention`. The UI named a
    * consequence the code did not have, which is why it reads as broken rather
    * than as lenient.
@@ -183,14 +183,14 @@ export function applyRelationshipHealth(
    *     friendship does.
    *   - **Family** never gets deleted. You do not stop having a mother because
    *     you did not call. Estrangement is a standing happiness cost instead,
-   *     which is both truer and safer — silently removing a parent would break
+   *     which is both truer and safer - silently removing a parent would break
    *     inheritance, the family tree and every `parent`-typed consumer.
    *
    * The warning fires well before the bite: the UI flags "at risk" at strength
    * < 50, this bites at < 25, so a player who reads the Attention tab has
    * roughly half the scale to react in.
    *
-   * Scores only reach this band through sustained neglect — the only automatic
+   * Scores only reach this band through sustained neglect - the only automatic
    * downward pressure is `-2` per fully-ignored want cycle in `npcDepth`, so
    * this cannot slide a player who ever interacts.
    */
@@ -199,7 +199,7 @@ export function applyRelationshipHealth(
       const weeksAtLow = (rel.weeksAtLowRelationship || 0) + 1;
 
       // Empathy (Life Skills) softens this exactly as it softens the partner
-      // branch above — same modifier, same clamp, so one skill reads one way.
+      // branch above - same modifier, same clamp, so one skill reads one way.
       const decayMult = ctx.lifeSkillMods?.relationshipDecayMult ?? 1;
       const safeDecayMult =
         typeof decayMult === 'number' && isFinite(decayMult) && decayMult > 0 && decayMult <= 1
@@ -225,7 +225,7 @@ export function applyRelationshipHealth(
         }
       }
 
-      // Announce once, on the week the drag starts, rather than every week —
+      // Announce once, on the week the drag starts, rather than every week -
       // a recurring notification for a standing state is noise, and noise is
       // what taught players to swipe these away.
       if (weeksAtLow === 1) {
@@ -249,7 +249,7 @@ export function applyRelationshipHealth(
       };
     }
 
-    // Healthy again — clear the counter, but only if one was ever set. Writing
+    // Healthy again - clear the counter, but only if one was ever set. Writing
     // `weeksAtLowRelationship: 0` onto every never-neglected parent and child
     // would churn the whole family tree to record a value that its absence
     // already means.
@@ -266,7 +266,7 @@ export function applyRelationshipHealth(
     };
   }
 
-  // Branch 4: any other relationship type — just clamp.
+  // Branch 4: any other relationship type - just clamp.
   return {
     rel: {
       ...rel,

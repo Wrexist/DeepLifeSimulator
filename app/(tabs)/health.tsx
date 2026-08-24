@@ -142,7 +142,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   const currentDiseases = gameState.diseases || [];
   const hasDiseases = currentDiseases.length > 0;
 
-  // At-a-glance vitals — the health screen never showed the player's own stats.
+  // At-a-glance vitals - the health screen never showed the player's own stats.
   const stats = gameState.stats ?? { health: 0, energy: 0, happiness: 0, fitness: 0 };
   const vitals = [
     { key: 'health', label: t('game.health'), value: stats.health ?? 0, color: '#34D399', Icon: Heart },
@@ -173,7 +173,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Vitals overview — current health/energy/happiness/fitness at a glance */}
+        {/* Vitals overview - current health/energy/happiness/fitness at a glance */}
         <View style={styles.vitalsCard}>
           <Text style={styles.vitalsTitle}>Your Vitals</Text>
           <View style={styles.vitalsList}>
@@ -202,7 +202,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
           </View>
         </View>
 
-        {/* Disease status — quiet warning card, no left bar */}
+        {/* Disease status - quiet warning card, no left bar */}
         {hasDiseases && (
           <View style={styles.diseaseCard}>
             <View style={styles.diseaseHeader}>
@@ -250,7 +250,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               (`lib/diseases/diseaseGenerator.ts:184-197`) and neither appeared in
               ANY component. A player pays $150 for a pneumonia vaccine and has no
               way to confirm they have it, that it persisted, or that it is doing
-              anything — which is indistinguishable from the purchase not working.
+              anything - which is indistinguishable from the purchase not working.
               Immunities come free from recovering, and were equally invisible. */}
           {protection.length > 0 && (
             <View style={styles.protectionCard}>
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   sectionDescriptionDark: {
     color: 'rgba(226, 232, 240, 0.6)',
   },
-  // Disease status card — quiet, no left bar.
+  // Disease status card - quiet, no left bar.
   diseaseCard: {
     backgroundColor: 'rgba(248, 113, 113, 0.08)',
     borderRadius: responsiveBorderRadius.md,

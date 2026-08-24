@@ -169,7 +169,7 @@ export function computeInheritance(state: GameState): InheritanceSummary {
   // Get player age and children count
   const playerAge = state.date?.age || 18;
   const childrenCount = state.family?.children?.length || 0;
-  // `achievements[].completed` is the DEPRECATED store — 52 entries that ship
+  // `achievements[].completed` is the DEPRECATED store - 52 entries that ship
   // `false` and are never set in normal play (`evaluateAchievements` is a
   // documented no-op). The live store is `claimedProgressAchievements`. Reading
   // the dead flag made this silently empty for every player. 2026-07-30 audit

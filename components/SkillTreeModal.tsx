@@ -402,7 +402,7 @@ interface SkillTreeModalProps {
 
 export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps) {
   const { gameState, setGameState } = useGame();
-  const settings = safeSettings(gameState); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = safeSettings(gameState); // R3-D: defensive - see utils/safeGameState.ts
   const [selectedCategory, setSelectedCategory] = useState<string>('career');
   const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
   
@@ -423,7 +423,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     // Points from completed education
     const completedEducation = (gameState.educations || []).filter(e => e.completed);
     points += completedEducation.length * 2;
-    // Points from achievements — the LIVE claimed store. This read
+    // Points from achievements - the LIVE claimed store. This read
     // `achievements[].completed`, which nothing in play ever sets, so every
     // achievement a player earned contributed ZERO skill points, for the whole
     // game. 2026-07-30 audit GP-3.
@@ -496,15 +496,15 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
   /**
    * The purchase itself, after the player has confirmed.
    *
-   * Atomic via the shared pure reducer — deduct the real cost AND persist the
+   * Atomic via the shared pure reducer - deduct the real cost AND persist the
    * unlock in ONE setGameState so two rapid taps (or React StrictMode's
    * double-invoke) can never double-charge or grant a free / duplicate skill.
    * Every gate is re-validated against FRESH `prev`; money only ever DECREASES
-   * (mirror-safe — no cash minted).
+   * (mirror-safe - no cash minted).
    *
    * C-10: the outcome is reported from a PREVIEW run of the same pure reducer
    * on the caller's snapshot, not through a `let purchased` read after the
-   * updater. CLAUDE.md §4.1 — a value assigned inside an updater is not
+   * updater. CLAUDE.md §4.1 - a value assigned inside an updater is not
    * reliably visible outside it, and React only evaluates eagerly when the
    * fiber has no pending lanes, which is exactly not the contended case. The
    * old form could show no confirmation for a purchase that had in fact
@@ -512,7 +512,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
    * through.
    *
    * WP-A: the haptic and the Alert used to fire from INSIDE the updater. An
-   * updater must be pure — React StrictMode double-invokes it (and a
+   * updater must be pure - React StrictMode double-invokes it (and a
    * re-render/rebase replays it), so a single purchase buzzed the phone twice
    * and stacked two identical "Skill Unlocked" alerts. `purchaseLifeSkill` is
    * pure, so it can be run twice: once against the snapshot for the REPORT,
@@ -525,13 +525,13 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
       levelRequired: node.levelRequired,
       requires: node.requires,
     };
-    // Preview on the snapshot — decides the UI only. The committed state is
+    // Preview on the snapshot - decides the UI only. The committed state is
     // whatever the second run against `prev` says, which is the authority.
     const preview = purchaseLifeSkill(gameState, args);
     setGameState(prev => purchaseLifeSkill(prev, args).state);
     if (preview.purchased) {
       haptic.success();
-      Alert.alert('Skill Unlocked', `${node.name} — ${node.effect}`, [{ text: 'Nice' }]);
+      Alert.alert('Skill Unlocked', `${node.name} - ${node.effect}`, [{ text: 'Nice' }]);
     }
   }, [gameState, setGameState]);
 
@@ -566,7 +566,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
      * A tap used to buy the node outright. The cost is real money AND a node in
      * a tree the player cannot refund, so the first time they explore the
      * screen they spend something unrecoverable on a node whose effect they
-     * have not read yet. The effect string exists — it was only ever shown in
+     * have not read yet. The effect string exists - it was only ever shown in
      * the SUCCESS alert, after the purchase.
      */
     Alert.alert(
@@ -746,12 +746,12 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           The body scrolls and the action does NOT.
 
           This was one `<View style={detailsBody}>` holding description, effect,
-          requirements and — last — the Unlock button, inside a panel capped at
+          requirements and - last - the Unlock button, inside a panel capped at
           a flat `maxHeight: scale(200)`. At the base scale the content measures
           ~218px for a one-line description and ~235px for two, so the cap ate
           the bottom of the button; the panel has no scroll and the modal shell
           is `overflow: 'hidden'`, so the primary action on this screen was
-          clipped, and on the tighter cases unreachable — you could open a skill
+          clipped, and on the tighter cases unreachable - you could open a skill
           you could afford and have no way to buy it.
 
           Splitting it means the prose can grow without ever pushing the button
@@ -1075,16 +1075,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    // Was `maxHeight: scale(200)` — a flat cap on a column ending in the Unlock
+    // Was `maxHeight: scale(200)` - a flat cap on a column ending in the Unlock
     // button, which is the shape `__tests__/render/modalListsShrink.test.ts`
     // exists to keep out: a fixed cap cannot give space back, so the overflow
     // (the button) simply left the panel. A share of the shell instead, which
-    // the panel only reaches if the prose needs it — the shell has a definite
+    // the panel only reaches if the prose needs it - the shell has a definite
     // height (`container`), so the percentage resolves.
     maxHeight: '45%',
   },
   detailsScroll: {
-    // The other half of the pair — RN defaults flexShrink to 0. Without this
+    // The other half of the pair - RN defaults flexShrink to 0. Without this
     // the text keeps its full height and pushes the footer out again.
     flexShrink: 1,
   },

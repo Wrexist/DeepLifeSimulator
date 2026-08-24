@@ -58,7 +58,7 @@ function drive(state: GameState) {
 const dealsOf = (s: GameState) => (s.socialMedia?.activeBrandDeals ?? []) as { id: string }[];
 
 describe('a breach the player can afford', () => {
-  it('actually debits the penalty — the assertion the old suite never made', () => {
+  it('actually debits the penalty - the assertion the old suite never made', () => {
     const before = withDeal(1_000_000);
     const { result, state } = drive(before);
 
@@ -94,7 +94,7 @@ describe('a breach the player cannot afford', () => {
     expect(state.stats.money).toBe(before.stats.money);
   });
 
-  it('leaves the deal ACTIVE — the breach must not land without the charge', () => {
+  it('leaves the deal ACTIVE - the breach must not land without the charge', () => {
     const { state } = drive(withDeal(50));
 
     expect(dealsOf(state).some((d) => d.id === DEAL_ID)).toBe(true);

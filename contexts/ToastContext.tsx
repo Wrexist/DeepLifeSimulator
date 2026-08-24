@@ -10,7 +10,7 @@ import { logger } from '@/utils/logger';
 /**
  * Turn a raw error into something actionable: one tap on an error toast's
  * "Report" button emails us a COMPREHENSIVE diagnostic (build, live game
- * position, state validation, recent logs) — built via the shared
+ * position, state validation, recent logs) - built via the shared
  * diagnosticReport helper, which pulls the live game state from the AI debug
  * getter when no state is passed. Goes to the canonical support inbox.
  */
@@ -69,7 +69,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       persistent?: boolean
     ) => {
       // Warnings used to be dropped entirely: they "overlapped the status bar".
-      // That silenced the whole rejection channel — a refused job application, a
+      // That silenced the whole rejection channel - a refused job application, a
       // denied promotion, a blocked retirement and a failed street job all
       // buzzed and rendered nothing, so a rejected tap was indistinguishable
       // from a successful one. The overlap was a POSITION problem, not a reason
@@ -78,7 +78,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       const resolvedPosition: Toast['position'] =
         position ?? (type === 'warning' ? 'bottom' : 'top');
 
-      // Drop blank toasts — an empty message renders as a bare icon-only
+      // Drop blank toasts - an empty message renders as a bare icon-only
       // blue pill (a call site passed an optional result?.message that was
       // undefined). Nothing useful to show.
       if (!message?.trim()) {
@@ -86,7 +86,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return;
       }
 
-      // Emoji out, length capped — applied HERE rather than at the ~200 call
+      // Emoji out, length capped - applied HERE rather than at the ~200 call
       // sites, because most toast copy is assembled by concatenation several
       // modules away from the call (see utils/notificationText.ts). A message
       // that is nothing but emoji sanitises to empty and is dropped like any
@@ -197,7 +197,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
             onDismiss={dismissToast}
             position={toast.position}
             // Only problems buzz. Buzzing on every success/info toast meant a
-            // burst of purchases became a burst of vibrations — action handlers
+            // burst of purchases became a burst of vibrations - action handlers
             // already give their own press haptics.
             hapticEnabled={toast.type === 'error' || toast.type === 'warning'}
             action={toast.action}

@@ -31,7 +31,7 @@ import path from 'path';
 const read = (rel: string): string =>
   fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
 
-describe('R3-P4 — Eventful Life changes the event rate', () => {
+describe('R3-P4 - Eventful Life changes the event rate', () => {
   it('the boost helper returns above 1 when owned (guards the rest)', () => {
     expect(getEventFrequencyBoost(['event_frequency_boost'])).toBeGreaterThan(1);
     expect(getEventFrequencyBoost([])).toBe(1);
@@ -65,7 +65,7 @@ describe('R3-P4 — Eventful Life changes the event rate', () => {
   });
 });
 
-describe('R3-P7 — GPA reaches the hiring roll', () => {
+describe('R3-P7 - GPA reaches the hiring roll', () => {
   it('the multiplier spans a real range (guards the rest)', () => {
     expect(jobOfferMultiplier(4.0)).toBeGreaterThan(jobOfferMultiplier(2.0));
     expect(jobOfferMultiplier(1.0)).toBeLessThan(1);
@@ -100,7 +100,7 @@ describe('R3-P7 — GPA reaches the hiring roll', () => {
   });
 });
 
-describe('R3-P9 — the Legacy Pass capstone grants a real trait', () => {
+describe('R3-P9 - the Legacy Pass capstone grants a real trait', () => {
   it('names an id that exists in the genetic catalogue', () => {
     const source = read('lib/legacyPass/legacyPass.ts');
     const match = source.match(/rewards\.push\(\{ kind: 'trait', id: '([^']+)'/);
@@ -135,7 +135,7 @@ describe('R3-P9 — the Legacy Pass capstone grants a real trait', () => {
   });
 });
 
-describe('R3-P11 — two prestige achievements no longer mint for free', () => {
+describe('R3-P11 - two prestige achievements no longer mint for free', () => {
   const source = read('lib/prestige/prestigeAchievements.ts');
 
   it('Clean Slate requires having actually borrowed', () => {

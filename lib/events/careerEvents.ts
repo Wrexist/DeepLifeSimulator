@@ -398,14 +398,14 @@ const companyLayoffs: EventTemplate = {
     // High performers have a better chance of surviving layoffs
     const surviveChance = perf >= 70 ? 0.85 : perf >= 50 ? 0.6 : 0.3;
 
-    // ONE roll decides this outcome. It used to be drawn twice — once for the
-    // effects, once for `special` — so the two halves could disagree: keep your
+    // ONE roll decides this outcome. It used to be drawn twice - once for the
+    // effects, once for `special` - so the two halves could disagree: keep your
     // job and take the -25 happiness of being laid off, or get the +5 reputation
     // for surviving and be fired anyway. Each player saw a self-contradictory
     // result 2 × p × (1-p) of the time (~42% at the 50-performance band).
     // 2026-07-28 audit GL-4.
     // SEEDED (H7b): this decides whether the player is FIRED, and it ran inside
-    // the weekly `setGameState` updater — React 19's double invocation drew a
+    // the weekly `setGameState` updater - React 19's double invocation drew a
     // different number each time, so the committed outcome was whichever render
     // React kept, and a reload re-rolled it. Now a pure function of the week.
     const survivedLayoffs = payloadRoll(state, 'company_layoffs')('survive') < surviveChance;
@@ -451,9 +451,9 @@ export const careerEventTemplates: EventTemplate[] = [
  * Called each week to update career.performance.
  *
  * Formula: base 50, modified by how far stats are from 50 (neutral point)
- *   - Energy has the highest weight (0.3) — tired workers perform poorly
- *   - Happiness is secondary (0.2) — morale matters
- *   - Health is tertiary (0.1) — sick workers still show up
+ *   - Energy has the highest weight (0.3) - tired workers perform poorly
+ *   - Happiness is secondary (0.2) - morale matters
+ *   - Health is tertiary (0.1) - sick workers still show up
  */
 export function calculatePerformance(stats: { energy: number; happiness: number; health: number }): number {
   const base = 50;

@@ -1,5 +1,5 @@
 /**
- * AnalyticsTracker — centralized, render-free funnel instrumentation (Wave 0.1.3).
+ * AnalyticsTracker - centralized, render-free funnel instrumentation (Wave 0.1.3).
  *
  * Watches a few primitive GameState fields via `useGameSelector` and emits
  * analytics events on *transitions* (not every render). Keeping this in one
@@ -20,7 +20,7 @@ import { weeksSinceLifeStart } from '@/utils/weekCounters';
 export function AnalyticsTracker(): null {
   const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
   // `week_advanced` fires on the DELTA of the absolute counter, which is right.
-  // `first_week_completed` is a funnel milestone — "this player played a week" —
+  // `first_week_completed` is a funnel milestone - "this player played a week" -
   // and must measure weeks into THIS life: `weeksLived` is seeded from the
   // starting age, so `>= 1` was already true at mount for every scenario that
   // does not start at 18, the ref armed itself, and the event never fired for
@@ -43,7 +43,7 @@ export function AnalyticsTracker(): null {
   const prevDeath = useRef(showDeathPopup);
   const firstWeekFired = useRef(weeksThisLife >= 1); // already past week 1 on load → don't fire
 
-  // week_advanced — fire once per actual week increment; first_week_completed once.
+  // week_advanced - fire once per actual week increment; first_week_completed once.
   useEffect(() => {
     if (!ready) {
       // Keep refs armed from the (hydrating) values; do not emit.
@@ -61,12 +61,12 @@ export function AnalyticsTracker(): null {
     prevWeeks.current = weeksLived;
   }, [weeksLived, weeksThisLife, age, ready]);
 
-  // screen_view — fire on route change (no-op unless telemetry is enabled).
+  // screen_view - fire on route change (no-op unless telemetry is enabled).
   useEffect(() => {
     if (pathname) track('screen_view', { path: pathname });
   }, [pathname]);
 
-  // death — fire on the false→true edge of the death popup.
+  // death - fire on the false→true edge of the death popup.
   useEffect(() => {
     if (!ready) {
       prevDeath.current = showDeathPopup;
@@ -78,7 +78,7 @@ export function AnalyticsTracker(): null {
     prevDeath.current = showDeathPopup;
   }, [showDeathPopup, weeksLived, age, deathReason, ready]);
 
-  // prestige — fire when the generation counter advances.
+  // prestige - fire when the generation counter advances.
   useEffect(() => {
     if (!ready) {
       prevGeneration.current = generation;
@@ -93,7 +93,7 @@ export function AnalyticsTracker(): null {
   // session_end + flush when the app backgrounds.
   //
   // `session_end` was in the event catalogue from the start and emitted by
-  // nothing, which left SESSION LENGTH unmeasurable — and for a Day-1
+  // nothing, which left SESSION LENGTH unmeasurable - and for a Day-1
   // retention figure below the 25th percentile of the peer set, how long a
   // first session lasts is the most diagnostic number there is. Nothing
   // supplies it for free either: the transport here is a plain-JS batcher, not

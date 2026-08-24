@@ -1,11 +1,11 @@
 /**
- * NpcProfileSheet — minimal bottom sheet for an NPC tapped from the StoriesRail.
+ * NpcProfileSheet - minimal bottom sheet for an NPC tapped from the StoriesRail.
  *
  * Shows the tapped NPC's avatar + name + derived @handle and a single
  * Follow / Following toggle wired straight into `PulseActions.followNpc` /
  * `unfollowNpc`. This is the ONLY UI entry point into the follow graph, so it's
  * what finally makes ProfileScreen's "Following" count move. Deliberately not a
- * full profile page — just the follow affordance.
+ * full profile page - just the follow affordance.
  */
 import React, { useCallback } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -23,7 +23,7 @@ import { pulseHaptics } from '../utils/pulseHaptics';
 const LinearGradient = Gradient;
 
 /**
- * Minimal NPC identity the sheet needs — threaded through StoriesRail's
+ * Minimal NPC identity the sheet needs - threaded through StoriesRail's
  * `onTapNpc` so the sheet doesn't have to re-look-up the relationship.
  */
 export interface NpcStoryTarget {
@@ -49,7 +49,7 @@ export default function NpcProfileSheet({ visible, npc, onDismiss }: NpcProfileS
 
   // Source of truth for the toggle: the authoritative follow graph. Reading it
   // live via useGame() means the button flips the instant followNpc/unfollowNpc
-  // mutate state — no need to reopen the sheet.
+  // mutate state - no need to reopen the sheet.
   const isFollowing = !!(
     npc && gameState.socialMedia?.followGraph?.followingNpcIds?.includes(npc.id)
   );

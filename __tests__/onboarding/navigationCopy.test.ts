@@ -79,7 +79,7 @@ describe('player-facing copy only names tabs that exist', () => {
       expect(layout).toMatch(new RegExp(`name="${visible}"`));
     }
 
-    // There are exactly five hard `href: null` entries — one per hidden route.
+    // There are exactly five hard `href: null` entries - one per hidden route.
     const hardNulls = layout.match(/href: null,/g) ?? [];
     expect(hardNulls).toHaveLength(5);
   });

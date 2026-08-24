@@ -35,7 +35,7 @@ function formatNumber(num: number): string {
 }
 
 /**
- * Money display that snaps INSTANTLY to the new value — no count-up animation.
+ * Money display that snaps INSTANTLY to the new value - no count-up animation.
  * Players expect money to change the moment an action applies it; the previous
  * 300ms–1000ms count made spends/earnings feel laggy, and re-installed an
  * Animated listener on every change (per-tick churn flagged in prior audits).

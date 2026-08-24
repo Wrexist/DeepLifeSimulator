@@ -52,7 +52,7 @@ export function simulateChildToAge(
   // NURTURE INFLUENCE (parenting). Nurture stats are deterministic values stored
   // on the child, so folding them into the rolls keeps this simulation
   // reproducible (no savescum window). When a child has never been parented the
-  // stats default to NURTURE_DEFAULT (50) and every boost below is exactly 0 —
+  // stats default to NURTURE_DEFAULT (50) and every boost below is exactly 0 -
   // preserving the original behaviour for old saves and un-nurtured children.
   const intelligence = getNurtureStat(child, 'intelligence');
   const discipline = getNurtureStat(child, 'discipline');

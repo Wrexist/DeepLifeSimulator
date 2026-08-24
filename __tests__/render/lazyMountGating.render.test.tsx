@@ -83,7 +83,7 @@ function mountGate(src: string, at: number): string | null {
 /** `{flag && (`, `{cond ? (`, and the paren-less forms of both. */
 const GATE = /(&&|\?)\s*\(?$/;
 
-describe('app/ — lazy components are mounted conditionally', () => {
+describe('app/ - lazy components are mounted conditionally', () => {
   const files = walk(APP_DIR).filter((f) => /\blazy\s*\(/.test(fs.readFileSync(f, 'utf8')));
 
   it('finds the files that use React.lazy (so a rename cannot empty this suite)', () => {
@@ -108,7 +108,7 @@ describe('app/ — lazy components are mounted conditionally', () => {
             throw new Error(
               `${rel}: <${name}> is mounted unconditionally. A lazy modal must be ` +
                 `wrapped in a condition ({flag && <Suspense>…</Suspense>}), not ` +
-                `mounted always with visible={false} — see this file's header for ` +
+                `mounted always with visible={false} - see this file's header for ` +
                 `what that costs and how it hangs the render suite.\n` +
                 `  found before its <Suspense>: ${
                   gate === null ? '<none>' : JSON.stringify(gate.slice(-80))

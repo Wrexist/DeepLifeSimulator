@@ -27,7 +27,7 @@ function makePet(id: string, overrides: Partial<Pet> = {}): Pet {
   } as Pet;
 }
 
-describe('tickPetsForWeek — pet sickness index wrap', () => {
+describe('tickPetsForWeek - pet sickness index wrap', () => {
   it('a pet past the pre-roll length can still fall sick (not immune)', () => {
     // 12 pets; pre-roll arrays are length 20, but exercise an index that would
     // have been out of range under the old length-10 buffer (idx 11).

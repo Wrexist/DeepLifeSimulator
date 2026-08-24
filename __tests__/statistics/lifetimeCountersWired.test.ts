@@ -123,7 +123,7 @@ describe('totalPropertiesOwned is written by a real property purchase', () => {
     expect(isMilestoneClaimable(h.get(), 'first-property')).toBe(false);
   });
 
-  it('buying the SAME property twice counts once — the second is refused', () => {
+  it('buying the SAME property twice counts once - the second is refused', () => {
     const start = buyer();
     const h = harness(start);
     buyPropertyWithMortgage(start, h.setGameState, {

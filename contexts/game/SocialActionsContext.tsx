@@ -35,13 +35,13 @@ interface SocialActionsContextType {
 
 /**
  * Deps bundle for DatingActions, which take the MODULE form
- * `updateMoney(setGameState, amount, reason)` — see CLAUDE.md Hard Rule #5.
+ * `updateMoney(setGameState, amount, reason)` - see CLAUDE.md Hard Rule #5.
  *
  * Module scope, not component scope. Both members are imports, so the object
  * never varies between renders; building it inside the provider allocated a
  * fresh one on every render and made `react-hooks/exhaustive-deps` flag four
  * callbacks for omitting it. Adding it to those deps would have been the wrong
- * fix — a new identity each render would rebuild all four callbacks every time,
+ * fix - a new identity each render would rebuild all four callbacks every time,
  * which is the opposite of what the rule is for. Hoisting removes the warning
  * and the allocation at once, and puts the invariance in the type system's
  * hands rather than a comment's.
@@ -76,7 +76,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
   // M4: read the LIVE state on demand instead of mirroring it into a ref.
   // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
   // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
-  // and still handed callbacks a snapshot that was one commit stale — the
+  // and still handed callbacks a snapshot that was one commit stale - the
   // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
   // returns a stable getter over the same store, so callbacks stay stable, the
   // memoized context value keeps its identity, and the provider no longer
@@ -92,7 +92,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
 
     const result = executeWedding(state, setGameState, partnerId, DATING_DEPS);
     if (result?.success) {
-      haptic.heavy(); // Wedding — major life event!
+      haptic.heavy(); // Wedding - major life event!
       showInfoBanner('Wedding Success', result.message || 'You got married!');
     } else {
       showError('Wedding Failed', result?.message || 'Could not get married');
@@ -210,7 +210,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
     // Map giftId to DatingActions gift types; default to 'flowers'.
     // `isGiftType` narrows instead of casting: `includes` wants its argument to
     // already BE the union, which is what the old `giftId as any` was working
-    // around — and that cast also silenced the second one on the result. A
+    // around - and that cast also silenced the second one on the result. A
     // predicate does the same job with the narrowing the compiler can check.
     const giftType = isGiftType(giftId) ? giftId : 'flowers';
 
@@ -317,7 +317,7 @@ export function SocialActionsProvider({ children }: SocialActionsProviderProps) 
        * `getGameState()`, and this updater re-checked none of them while
        * unconditionally applying +20 happiness. The only caller sits behind an
        * `Alert.alert` confirm that dismisses on first press, so landing two
-       * calls in one React batch is impractical — this is the pattern being
+       * calls in one React batch is impractical - this is the pattern being
        * closed, not a live exploit. CLAUDE.md §4.4.
        */
       const partner = (prev.relationships || []).find(r => r.id === partnerId);

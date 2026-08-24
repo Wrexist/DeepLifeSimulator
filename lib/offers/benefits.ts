@@ -78,7 +78,7 @@ function derivedBullets(productId: string): string[] {
  *
  * `liveUSD` is the store's numeric price when it loaded AND the storefront is
  * USD; pass null otherwise. When present it is preferred over the config price,
- * so a scheduled App Store Connect discount makes the value line BETTER — which
+ * so a scheduled App Store Connect discount makes the value line BETTER - which
  * is the one case where the number should move, and it moves because the store
  * actually charges less, not because the app decided to say so.
  */

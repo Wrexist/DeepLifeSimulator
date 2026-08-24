@@ -68,7 +68,7 @@ beforeEach(() => {
 });
 
 describe('a slot read says WHY it found nothing', () => {
-  it('reports `none` — and only `none` — for a genuinely empty slot', async () => {
+  it('reports `none` - and only `none` - for a genuinely empty slot', async () => {
     const result = await doubleBufferLoad(SLOT_KEY);
 
     expect(result).toMatchObject({ data: null, source: 'none', blobPresent: false });
@@ -87,7 +87,7 @@ describe('a slot read says WHY it found nothing', () => {
     expect(result.blobPresent).toBe(true);
   });
 
-  it('reports `unknown` when the read itself throws — a throw proves nothing', async () => {
+  it('reports `unknown` when the read itself throws - a throw proves nothing', async () => {
     failNextRead = true;
 
     const result = await doubleBufferLoad(SLOT_KEY);
@@ -118,7 +118,7 @@ describe('a slot read says WHY it found nothing', () => {
 describe('a lost active pointer does not lose the save', () => {
   it('still finds an intact buffer when the pointer key is gone', async () => {
     await doubleBufferSave(SLOT_KEY, envelope('Mara'));
-    // The pointer disappears — a partial wipe, an interrupted write, a
+    // The pointer disappears - a partial wipe, an interrupted write, a
     // migration. The buffers are untouched.
     store.delete(`${SLOT_KEY}_active`);
     expect(store.has(`${SLOT_KEY}_A`) || store.has(`${SLOT_KEY}_B`)).toBe(true);
@@ -172,11 +172,11 @@ describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
   // via atomicSave. The migration branch re-wraps that blob into buffer A. If it
   // wraps the RAW envelope instead of the decoded state, buffer A holds a
   // double envelope; loading it once yields the inner envelope OBJECT, which
-  // repairs to a near-default state and autosaves over the real save — the
+  // repairs to a near-default state and autosaves over the real save - the
   // SAVE-OW-1 wipe, reintroduced for the exact recovery cohort this serves.
 
   // The recovered payload should decode to a character, never to an inner
-  // envelope — so the fields we assert on are the character's, plus `v` (which
+  // envelope - so the fields we assert on are the character's, plus `v` (which
   // is present only on the double-wrapped envelope object this guards against).
   type DecodedState = {
     userProfile?: { firstName?: string };
@@ -199,7 +199,7 @@ describe('migrating a legacy-key save must not double-wrap it (SEC-3b)', () => {
     expect(result.migrated).toBe(true);
     expect(result.source).toBe('legacy');
 
-    // The returned blob decodes ONCE straight to the real state — not to an
+    // The returned blob decodes ONCE straight to the real state - not to an
     // inner envelope object (which would carry `v: 2` and no character).
     const state = loadOnce(result.data as string);
     expect(state.userProfile?.firstName).toBe('Nadia');
@@ -246,7 +246,7 @@ describe('the callers that inherited the same blindness', () => {
 
     // `exists` was hardcoded false on the null path, so the corruption
     // messaging below it was unreachable for the case that produces it, and
-    // the slot read out as empty — the one answer that invites an overwrite.
+    // the slot read out as empty - the one answer that invites an overwrite.
     expect(result.exists).toBe(true);
     expect(result.valid).toBe(false);
     expect(result.errors.join(' ')).toMatch(/verified|recoverable/i);
@@ -263,7 +263,7 @@ describe('the callers that inherited the same blindness', () => {
     store.set('lastSlot', '1');
 
     // It used to fall through, wipe the summary and slot markers and report
-    // success — the Continue card vanished while the blob sat on disk.
+    // success - the Continue card vanished while the blob sat on disk.
     expect(await purgeSlotIfPhantom(1)).toBe(false);
     expect(store.get(`${SLOT_KEY}_A`)).toBe('corrupt-but-maybe-recoverable');
     expect(store.get('lastSlot')).toBe('1');
@@ -271,18 +271,18 @@ describe('the callers that inherited the same blindness', () => {
 });
 
 /**
- * F-10 — the pointer flip is the COMMIT, so it has to be verified, and a load
+ * F-10 - the pointer flip is the COMMIT, so it has to be verified, and a load
  * with no pointer must not guess.
  *
  * `doubleBufferSave` wrote the inactive buffer, verified it by read-back, then
  * flipped the pointer and reported success without checking that the flip
  * landed. A flip that is accepted but does not persist leaves the newest save
  * in a buffer nothing points at: the next load returns the OLDER buffer, and
- * the save after that targets the inactive one — overwriting the newest data.
+ * the save after that targets the inactive one - overwriting the newest data.
  *
  * The load side had the mirror problem. Its comment promised a fallback to
  * "the buffer with a valid checksum + newer timestamp", but it ordered strictly
- * by the pointer, and when the pointer is MISSING that order is arbitrary — 'A'
+ * by the pointer, and when the pointer is MISSING that order is arbitrary - 'A'
  * first, whether or not A is the newer save. It then healed the pointer to that
  * choice, making the wrong guess permanent.
  */
@@ -333,7 +333,7 @@ describe('the pointer flip is the commit (F-10)', () => {
     await doubleBufferSave(SLOT_KEY, stamped('Newer', 2_000));
     swallowPointerWrites = false;
 
-    // The pointer never moved, so the committed save is the older one — which
+    // The pointer never moved, so the committed save is the older one - which
     // is exactly right: the newer write was reported as failed.
     const result = await doubleBufferLoad(SLOT_KEY);
     expect(nameIn(result.data)).toBe('Mara');
@@ -384,7 +384,7 @@ describe('the pointer flip is the commit (F-10)', () => {
   });
 
   it('still trusts a PRESENT pointer over timestamps', async () => {
-    // A valid pointer is the commit record. It stays authoritative — the
+    // A valid pointer is the commit record. It stays authoritative - the
     // timestamp comparison exists only for the case where it is gone, and
     // reading the second buffer on every load would cost a full extra verify.
     store.set(`${SLOT_KEY}_A`, stamped('Pointed', 1_000));

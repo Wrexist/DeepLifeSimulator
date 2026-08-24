@@ -123,7 +123,7 @@ describe('rewindLastSwipe', () => {
 // used to crash `rewindLastSwipe` / `likeBackFromLikedYou` with
 // "Cannot read properties of undefined (reading 'perks')". These sites read the
 // raw sparkApp (no ensureSpark backfill), so they must optional-chain `premium`.
-describe('premium-less (legacy) sparkApp — no crash on premium.perks reads', () => {
+describe('premium-less (legacy) sparkApp - no crash on premium.perks reads', () => {
   it('rewindLastSwipe treats a missing premium as free-tier (no throw)', () => {
     const state = freshState({ weeksLived: 1 });
     state.stats.gems = 0; // free tier + no gems → graceful "need gems" failure

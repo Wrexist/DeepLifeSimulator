@@ -17,7 +17,7 @@ import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
 import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
 
 /**
- * What a food purchase actually did — the market toast reads THIS rather than
+ * What a food purchase actually did - the market toast reads THIS rather than
  * the catalogue values, so the satiety curve (v48) can never make the toast
  * advertise a restore the charge did not apply.
  */
@@ -70,7 +70,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   // M4: read the LIVE state on demand instead of mirroring it into a ref.
   // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
   // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
-  // and still handed callbacks a snapshot that was one commit stale — the
+  // and still handed callbacks a snapshot that was one commit stale - the
   // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
   // returns a stable getter over the same store, so callbacks stay stable, the
   // memoized context value keeps its identity, and the provider no longer
@@ -101,7 +101,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     }
   }, [setGameState, updateMoney, showError]);
 
-  // Onion (dark-web) actions — were all stubs that logged and did nothing,
+  // Onion (dark-web) actions - were all stubs that logged and did nothing,
   // so the entire Onion tab was non-functional: buying items, buying
   // hacks, and performing hacks all silently no-op'd. Wire them through
   // the canonical state (cryptos[btc].owned for BTC, hacks[i].purchased
@@ -135,7 +135,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
        * The outer guards above read `getGameState()`, which is the classic
        * gate-outside / grant-inside shape: two taps in one React batch both pass
        * the outer check, and the second charges BTC for an item already owned.
-       * That never bit before because this function had no caller — the Gear tab
+       * That never bit before because this function had no caller - the Gear tab
        * is the first, so the guard has to be real now.
        */
       const owned = (prev.darkWebItems || []).find(i => i.id === itemId);
@@ -210,7 +210,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
      *
      * Without this the hack MINTED MONEY. Energy is written with
      * `Math.max(0, …)`, so a second tap in the same batch was charged nothing
-     * and still paid out the full cash reward and the BTC — repeatable at zero
+     * and still paid out the full cash reward and the BTC - repeatable at zero
      * energy for as long as the taps landed in one batch. Rejecting leaves the
      * outer return value optimistic for that second tap, which is the same
      * trade the quick actions in TopStatsBar make and document: a toast for
@@ -241,7 +241,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       return { success: false, caught: true, reward: 0, btcReward: 0, risk: effectiveRisk, jailed: true };
     }
 
-    // Reward: 80% cash, 20% BTC (deterministic split — rewardBonus adds to cash).
+    // Reward: 80% cash, 20% BTC (deterministic split - rewardBonus adds to cash).
     const cashReward = Math.round(hack.reward * (1 + rewardBonus));
     const btcPrice = state.cryptos?.find(c => c.id === 'btc')?.price || 50000;
     const btcReward = btcPrice > 0 ? (hack.reward * 0.2) / btcPrice : 0;
@@ -265,12 +265,12 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
   }, [setGameState, showError]);
 
   /**
-   * Buy a meal. F5 (inflated price at label, gate AND charge), SATIETY (v48 —
+   * Buy a meal. F5 (inflated price at label, gate AND charge), SATIETY (v48 -
    * meals 1-3 full strength, 4-6 half, 7+ quarter, closing the uncapped
    * ~$1.60/point money->energy conversion) and the §4.4 atomicity all live in
    * ONE pure resolution, `resolveFoodPurchase` (lib/economy/foodPurchase.ts),
    * called on the snapshot for the preview the toast reports and again inside
-   * the updater for the state that commits — the C-9 SOUND shape (the
+   * the updater for the state that commits - the C-9 SOUND shape (the
    * `purchaseLifeSkill` exemplar), so no cross-updater capture exists and a
    * same-batch double tap is simply two meals, each gated and scaled against
    * the state it actually lands on.
@@ -331,12 +331,12 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       const resetsGymTimer = FITNESS_INCREASING_ACTIVITIES.includes(activityId) || !!activity.healthGain;
 
       // Zero-gain guard: for pure wellness activities (no disease-cure / vaccine
-      // payoff), if every stat gain would clamp to zero the player gains nothing —
+      // payoff), if every stat gain would clamp to zero the player gains nothing -
       // so don't debit money or energy. Medical activities (doctor/hospital/
       // experimental/vaccines) keep their value at max stats and are exempt.
       // Exception: a timer-resetting activity is still worth doing when the
       // gym-visit timer is stale (lastGymVisitWeek is behind the current week),
-      // because it staves off accelerated fitness decay — so allow it then. Only
+      // because it staves off accelerated fitness decay - so allow it then. Only
       // refuse when nothing at all would change: both gains clamp to zero AND the
       // timer is already current for this week.
       const MEDICAL_ACTIVITY_IDS = ['doctor', 'hospital', 'experimental', 'flu_shot', 'pneumonia_vaccine'];
@@ -356,14 +356,14 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         const wouldRefreshStaleTimer = resetsGymTimer && gymTimerStale;
         if (happinessDelta <= 0 && healthDelta <= 0 && !wouldRefreshStaleTimer) {
           processingActivities.current.delete(activityId);
-          result = { message: `You're already at peak wellness — ${activity.name} wouldn't change anything right now.` };
+          result = { message: `You're already at peak wellness - ${activity.name} wouldn't change anything right now.` };
           return prevState;
         }
       }
 
       // GL-3: medical activities are discounted by enacted healthcare policy.
       // Computed from `prevState`, the same snapshot the affordability check
-      // and the debit below both read, so the two can never disagree — and
+      // and the debit below both read, so the two can never disagree - and
       // `policyAdjustedActivityPrice` is the same function `health.tsx` uses
       // for its lock label, so the screen quotes what is actually charged.
       const chargedPrice = policyAdjustedActivityPrice(prevState, activityId, activity.price);
@@ -379,7 +379,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
        * C-1: the Commitment focus moves a health activity's energy cost.
        * `getEffectiveEnergyCost` was written for this and had no caller, so a
        * player whose primary focus was health was shown a discount they never
-       * received — and one who had deprioritised health paid no surcharge.
+       * received - and one who had deprioritised health paid no surcharge.
        * Resolved from `prevState` so the gate and the debit below use the
        * same figure.
        */
@@ -459,12 +459,12 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         
         diseasesToCheck.forEach((disease, diseaseIdx) => {
           // Critical diseases need experimental treatment (matches the
-          // SicknessModal guidance) — a routine doctor visit can't cure them.
+          // SicknessModal guidance) - a routine doctor visit can't cure them.
           if (disease.curable && disease.severity !== 'critical') {
             // 50% cure chance (pre-rolled for StrictMode safety). Wrap the index
             // modulo the buffer length so a player carrying more than 10 curable
             // diseases doesn't read `undefined` (which `< 0.5` treats as false =
-            // silent cure-immunity) — same buffer-overflow class as pet sickness.
+            // silent cure-immunity) - same buffer-overflow class as pet sickness.
             const cureRoll = curePreRolls[diseaseIdx % curePreRolls.length];
             if (cureRoll < 0.5) {
               // Disease cured
@@ -495,7 +495,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         });
         
         // Chronic care: non-curable conditions can't be removed, but a doctor
-        // visit puts them under management — the weekly tick halves their
+        // visit puts them under management - the weekly tick halves their
         // symptoms and blocks worsening for the care window, and any
         // complication-compounded effects reset back to baseline.
         const doctorCare = applyChronicCare(
@@ -525,7 +525,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
       } else if (activityId === 'hospital') {
         // Hospital stay: 100% cure for all curable diseases. Critical-tier
         // diseases (cancer, heart disease, stroke, organ/kidney failure) need
-        // experimental treatment — was previously a cancer-only special case.
+        // experimental treatment - was previously a cancer-only special case.
         const diseasesToCure = updatedDiseases.filter(d => d.curable && d.severity !== 'critical');
         const curedDiseaseIds = new Set<string>();
         
@@ -561,7 +561,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         updatedDiseases = updatedDiseases.filter(d => !curedDiseaseIds.has(d.id));
 
         // Chronic care: a hospital stay grants a longer management window than
-        // a doctor visit (same mechanics — halved symptoms, no worsening,
+        // a doctor visit (same mechanics - halved symptoms, no worsening,
         // compounded effects reset to baseline).
         const hospitalCare = applyChronicCare(
           updatedDiseases,
@@ -687,7 +687,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         dailySummary,
         lifetimeStatistics: updatedLifetimeStats,
         diseases: updatedDiseases,
-        // THIS treatment's cures only — not the lifetime list.
+        // THIS treatment's cures only - not the lifetime list.
         //
         // Player report: "When fixing a current ailment, all previous ailments
         // are mentioned." Curing one condition showed "CURED · 9" listing every
@@ -698,7 +698,7 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         // Safe to narrow: that modal is the field's ONLY reader anywhere in the
         // app, and the lifetime tally already lives in
         // `diseaseHistory.totalCured`, which is updated just below. So no new
-        // GameState field and no STATE_VERSION bump — an existing save simply
+        // GameState field and no STATE_VERSION bump - an existing save simply
         // shows the correct short list on its next treatment.
         //
         // Still deduped: a single visit can cure the same-named condition from

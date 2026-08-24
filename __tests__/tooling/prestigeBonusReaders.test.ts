@@ -216,13 +216,13 @@ describe('no prestige bonus is sold without being wired', () => {
    * The check above counts a LITERAL occurrence of a bonus id as a reader. All
    * three bonuses found dead on 2026-08-21 had one, and all three did nothing:
    *
-   *   early_item_access       `if (unlockedBonuses.includes(id)) { }` — body is
+   *   early_item_access       `if (unlockedBonuses.includes(id)) { }` - body is
    *                           two comments explaining that the shop UI could
    *                           check this. No shop UI does.
    *   early_real_estate       same empty guard, plus an exported
    *                           `hasEarlyRealEstateAccess()` predicate that is
    *                           imported into one modal and never called.
-   *   auto_manage_properties  `shouldAutoCollectRent()` — imported into
+   *   auto_manage_properties  `shouldAutoCollectRent()` - imported into
    *                           `MoneyActionsContext` and never called. Rent is
    *                           collected unconditionally for everyone anyway.
    *

@@ -60,7 +60,7 @@ describe('the inbox pack is wired end to end', () => {
     }
   });
 
-  it('never claims the verified badge — that is reserved for the bank, employer and state', () => {
+  it('never claims the verified badge - that is reserved for the bank, employer and state', () => {
     for (const template of inboxEventTemplates) {
       const event = routeEvents([template.generate(eligible())], 300)[0];
       expect(letterFromEvent(event, 300)!.verified).toBeUndefined();
@@ -117,7 +117,7 @@ describe('the pack is the non-adversarial half, by construction', () => {
     }
   });
 
-  it('is deterministic — the same state generates the same letter twice', () => {
+  it('is deterministic - the same state generates the same letter twice', () => {
     // These templates take no rolls, so this is a guard against someone adding
     // Math.random() to one later: the mail generator runs inside a
     // setGameState updater React 19 may invoke twice.

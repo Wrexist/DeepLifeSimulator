@@ -140,7 +140,7 @@ export function buildDiagnosticReport(options: BuildReportOptions = {}): string 
   const note = userNote && userNote.trim().length > 0 ? userNote.trim() : '(none provided)';
 
   return [
-    '=== DEEPLIFE SIMULATOR — PLAYER REPORT ===',
+    '=== DEEPLIFE SIMULATOR - PLAYER REPORT ===',
     `Generated: ${new Date().toISOString()}`,
     source ? `Triggered from: ${source}` : '',
     `Screen: ${currentScreen()}`,
@@ -154,7 +154,7 @@ export function buildDiagnosticReport(options: BuildReportOptions = {}): string 
     `Device: ${safe(() => Constants.deviceName || 'unknown', 'unknown')}`,
     // BOTH numbers. This printed only the compile-time constant, so a save
     // frozen at v13 on a v25 app reported "State version: 25" in a support
-    // ticket — structurally incapable of showing the one gap that explains a
+    // ticket - structurally incapable of showing the one gap that explains a
     // halted migration chain. 2026-07-29 audit MR-3.
     `State version: ${safe(() => String((gameState as { version?: unknown } | null)?.version ?? 'unknown'), 'unknown')} (app expects ${STATE_VERSION})`,
     `Platform: ${Platform.OS} ${String(Platform.Version)}`,

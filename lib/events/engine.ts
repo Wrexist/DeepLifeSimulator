@@ -328,7 +328,7 @@ const friendNeedsHelp: EventTemplate = {
       description: `${friend.name} asks to borrow $50.`,
       relationId: friend.id,
       choices: [
-        // Lending is a story with a second half — the loan comes back around
+        // Lending is a story with a second half - the loan comes back around
         // in ~6 weeks (friend_repays, a sequel-only template below). First
         // production use of the declarative `followUpEventId` API.
         { id: 'lend', text: 'Lend the money', effects: { money: -50, relationship: 10, stats: { happiness: 5 }, karma: { dimension: 'generosity', amount: 4, reason: 'Helped a friend in need' } }, followUpEventId: 'friend_repays', followUpDelayWeeks: 6 },
@@ -339,7 +339,7 @@ const friendNeedsHelp: EventTemplate = {
 };
 
 // Sequel to friend_help's "lend" (weight 0 = never fires at random; arrives
-// only through the choice's `followUpEventId`). The outcome is a seeded roll —
+// only through the choice's `followUpEventId`). The outcome is a seeded roll -
 // the sequel is guaranteed, the RESULT is not, which is where the story lives.
 const friendRepays: EventTemplate = {
   id: 'friend_repays',
@@ -350,16 +350,16 @@ const friendRepays: EventTemplate = {
     if (roll('repay-outcome') < 0.65) {
       return {
         id: 'friend_repays',
-        description: 'The friend you lent $50 turns up with an envelope — $75, "for the wait", and dinner is on them.',
+        description: 'The friend you lent $50 turns up with an envelope - $75, "for the wait", and dinner is on them.',
         choices: [
           { id: 'accept', text: 'Take it and catch up over dinner', effects: { money: 75, relationship: 8, stats: { happiness: 8 } } },
-          { id: 'wave_off', text: 'Take back just the $50 — friends don\'t profit', effects: { money: 50, relationship: 12, stats: { happiness: 6 }, karma: { dimension: 'generosity', amount: 3, reason: 'Refused interest from a friend' } } },
+          { id: 'wave_off', text: 'Take back just the $50 - friends don\'t profit', effects: { money: 50, relationship: 12, stats: { happiness: 6 }, karma: { dimension: 'generosity', amount: 3, reason: 'Refused interest from a friend' } } },
         ],
       };
     }
     return {
       id: 'friend_repays',
-      description: 'The friend you lent $50 has been avoiding your calls. When you finally meet, they can\'t pay it back — things have gotten worse for them.',
+      description: 'The friend you lent $50 has been avoiding your calls. When you finally meet, they can\'t pay it back - things have gotten worse for them.',
       choices: [
         { id: 'forgive', text: 'Tell them to forget the debt', effects: { relationship: 10, stats: { happiness: 3 }, karma: { dimension: 'generosity', amount: 5, reason: 'Forgave a friend\'s debt' } } },
         { id: 'insist', text: 'Insist on a repayment plan', effects: { money: 25, relationship: -12, stats: { happiness: -4 } } },
@@ -383,7 +383,7 @@ const weddingEvent: EventTemplate = {
       description: `You consider marrying ${partner.name}.`,
       relationId: partner.id,
       choices: [
-        // Marrying earns its afterglow — a honeymoon callback two weeks on
+        // Marrying earns its afterglow - a honeymoon callback two weeks on
         // (sequel-only template below, via the declarative followUpEventId API).
         { id: 'marry', text: 'Plan wedding ($2000)', effects: { money: -2000, relationship: 20, stats: { happiness: 15 } }, followUpEventId: 'honeymoon_glow', followUpDelayWeeks: 2 },
         { id: 'wait', text: 'Wait for now', effects: { relationship: -10, stats: { happiness: -5 } }, followUpEventId: 'partner_cools', followUpDelayWeeks: 4 },
@@ -395,11 +395,11 @@ const weddingEvent: EventTemplate = {
 // ── The sequel pack (2026-08-24) ────────────────────────────────────────────
 // Nine follow-ups on high-frequency events, all through the declarative
 // `followUpEventId` API and all weight 0 (sequel-only, never random). Mixed
-// tones on purpose — a repaid favor, a bill coming due, a relationship
-// cooling — because §15's point is anticipation, not reward drip. Seeded
+// tones on purpose - a repaid favor, a bill coming due, a relationship
+// cooling - because §15's point is anticipation, not reward drip. Seeded
 // outcomes where uncertainty reads better than certainty.
 
-// Sequel to gym_invite "join" (+4wk): one session becomes a habit — if you
+// Sequel to gym_invite "join" (+4wk): one session becomes a habit - if you
 // commit to it.
 const trainingBuddy: EventTemplate = {
   id: 'training_buddy',
@@ -407,7 +407,7 @@ const trainingBuddy: EventTemplate = {
   weight: 0,
   generate: () => ({
     id: 'training_buddy',
-    description: 'Your gym session stuck. Your friend wants to make it a weekly thing — same time, every week, no excuses.',
+    description: 'Your gym session stuck. Your friend wants to make it a weekly thing - same time, every week, no excuses.',
     choices: [
       { id: 'commit', text: 'Commit to weekly sessions', effects: { money: -40, stats: { fitness: 10, health: 5, energy: -8 }, relationship: 8 } },
       { id: 'sometimes', text: '"When I can make it"', effects: { stats: { fitness: 3 }, relationship: 2 } },
@@ -415,7 +415,7 @@ const trainingBuddy: EventTemplate = {
   }),
 };
 
-// Sequel to charity_event "donate" (+5wk): generosity gets noticed — the
+// Sequel to charity_event "donate" (+5wk): generosity gets noticed - the
 // choice is whether you wanted it to be.
 const charityRecognition: EventTemplate = {
   id: 'charity_recognition',
@@ -423,7 +423,7 @@ const charityRecognition: EventTemplate = {
   weight: 0,
   generate: () => ({
     id: 'charity_recognition',
-    description: 'The charity you gave to wants to feature you in their donor spotlight — photo, name, the works.',
+    description: 'The charity you gave to wants to feature you in their donor spotlight - photo, name, the works.',
     choices: [
       { id: 'spotlight', text: 'Accept the spotlight', effects: { stats: { reputation: 8, happiness: 4 } } },
       { id: 'anonymous', text: 'Ask to stay anonymous', effects: { stats: { happiness: 6 }, karma: { dimension: 'generosity', amount: 4, reason: 'Gave without wanting credit' } } },
@@ -457,7 +457,7 @@ const reportCard: EventTemplate = {
     return {
       id: 'report_card',
       description: thriving
-        ? 'A report card lands on the table, pushed proudly across it. The term you paid for went well — very well.'
+        ? 'A report card lands on the table, pushed proudly across it. The term you paid for went well - very well.'
         : 'A report card arrives, and the term was rough. The teacher\'s note asks for a meeting.',
       choices: thriving
         ? [
@@ -513,7 +513,7 @@ const partnerCools: EventTemplate = {
     return {
       id: 'partner_cools',
       relationId: partner?.id,
-      description: `${name} has been quieter since the wedding talk stalled. Not angry — just further away.`,
+      description: `${name} has been quieter since the wedding talk stalled. Not angry - just further away.`,
       choices: [
         { id: 'date_night', text: 'Plan a proper night out ($200)', effects: { money: -200, relationship: 10, stats: { happiness: 6 } } },
         { id: 'talk', text: 'Talk honestly about the timing', effects: { relationship: 5, stats: { happiness: 2 } } },
@@ -531,7 +531,7 @@ const friendManagedAlone: EventTemplate = {
   weight: 0,
   generate: () => ({
     id: 'friend_managed_alone',
-    description: 'The friend you turned down found the money elsewhere. They\'re fine now — and a shade cooler with you than before.',
+    description: 'The friend you turned down found the money elsewhere. They\'re fine now - and a shade cooler with you than before.',
     choices: [
       { id: 'apologize', text: 'Own it and apologize', effects: { relationship: 8, stats: { happiness: -2 }, karma: { dimension: 'loyalty', amount: 3, reason: 'Owned a refusal' } } },
       { id: 'move_on', text: 'Let it stay unspoken', effects: { relationship: -4 } },
@@ -546,7 +546,7 @@ const festivalPhoto: EventTemplate = {
   weight: 0,
   generate: () => ({
     id: 'festival_photo',
-    description: 'A photographer\'s shot from the street festival is making the rounds — and you\'re right in the middle of it, mid-laugh.',
+    description: 'A photographer\'s shot from the street festival is making the rounds - and you\'re right in the middle of it, mid-laugh.',
     choices: [
       { id: 'print', text: 'Order a print for the wall ($20)', effects: { money: -20, stats: { happiness: 9 } } },
       { id: 'save', text: 'Save it to your phone', effects: { stats: { happiness: 6 } } },
@@ -554,7 +554,7 @@ const festivalPhoto: EventTemplate = {
   }),
 };
 
-// Sequel to wedding's "marry" (weight 0 — arrives only as a follow-up). The
+// Sequel to wedding's "marry" (weight 0 - arrives only as a follow-up). The
 // warm-callback half of the pattern: not every sequel is a bill.
 const honeymoonGlow: EventTemplate = {
   id: 'honeymoon_glow',
@@ -970,7 +970,7 @@ const generousTipper: EventTemplate = {
     const tip = Math.floor(25 + roll * 225); // $25-$250
     return {
       id: 'generous_tipper',
-      description: `A customer at your job leaves an enormous tip — $${tip}!`,
+      description: `A customer at your job leaves an enormous tip - $${tip}!`,
       choices: [
         { id: 'keep', text: 'Keep it all', effects: { money: tip, stats: { happiness: 8 } } },
         { id: 'share', text: 'Split it with coworkers', effects: { money: Math.floor(tip * 0.5), stats: { happiness: 5, reputation: 8 }, karma: { dimension: 'generosity', amount: 3, reason: 'Shared a generous tip with coworkers' } } },
@@ -1188,7 +1188,7 @@ const policyVotingEvent: EventTemplate = {
       };
     }
 
-    // Pick a policy — seeded, so the same week always votes on the same bill.
+    // Pick a policy - seeded, so the same week always votes on the same bill.
     const roll = payloadRoll(state, 'policy_voting');
     const policy = pickSeeded(availablePolicies, roll, 'policy');
 
@@ -1245,7 +1245,7 @@ const policyVotingEvent: EventTemplate = {
             // The policy's money effect is a CURRENCY and must ride the money
             // path. It used to sit inside `stats`, where the 0-100 stat clamp
             // turned "add the policy's money" into "overwrite cash with at
-            // most $100" — voting yes on any passing bill destroyed the
+            // most $100" - voting yes on any passing bill destroyed the
             // player's balance (even `money: 0` did, since
             // clamp(0,100,cash+0) is 100 for anyone holding more). See
             // lib/events/statEffects.ts.
@@ -1671,7 +1671,7 @@ const techStartupSuccess: EventTemplate = {
     description: 'Tech startups are flourishing thanks to your support policies. Several companies are going public.',
     choices: [
       // The +200 used to sit inside `stats`, where the 0-100 clamp overwrote
-      // the player's whole balance with $100 — see lib/events/statEffects.ts.
+      // the player's whole balance with $100 - see lib/events/statEffects.ts.
       // Folded into the flat charge instead.
       { id: 'invest', text: 'Invest in the ecosystem', effects: { money: -49800, stats: { reputation: 15 } } },
       { id: 'celebrate', text: 'Celebrate the success', effects: { stats: { reputation: 10 } } },
@@ -1732,7 +1732,7 @@ const milestoneBirthday30: EventTemplate = {
   id: 'milestone_birthday_30',
   category: 'general',
   weight: 0.9,
-  // `age === 30` stays true for 52 straight weeks — without oncePerLife the
+  // `age === 30` stays true for 52 straight weeks - without oncePerLife the
   // player could "turn 30" several times in one year (2026-08-24).
   oncePerLife: true,
   condition: state => state.date?.age === 30,
@@ -1787,7 +1787,7 @@ const oldFriendReturns: EventTemplate = {
   id: 'old_friend_returns',
   category: 'relationship',
   weight: 0.4,
-  // A first reunion can only happen once — the same friend "just moved back"
+  // A first reunion can only happen once - the same friend "just moved back"
   // arbitrarily many times was the audit's example of fiction-breaking repeats.
   oncePerLife: true,
   generate: state => {
@@ -1864,10 +1864,10 @@ const investmentTip: EventTemplate = {
 
     return {
       id: 'investment_tip',
-      // BALANCE: was +25% EV (win +amount / lose only half) — a repeatable money
+      // BALANCE: was +25% EV (win +amount / lose only half) - a repeatable money
       // printer. Now a fair double-or-nothing: win doubles the stake, loss forfeits
       // it (50/50, EV ≈ 0). Description updated to match the real stakes.
-      description: 'A successful investor shares a tip about an undervalued stock. You could double your money — or lose your whole stake.',
+      description: 'A successful investor shares a tip about an undervalued stock. You could double your money - or lose your whole stake.',
       choices: [
         { id: 'invest_big', text: `Invest $${bigAmount.toLocaleString()}`, effects: { money: roll('big-outcome') > 0.5 ? bigAmount : -bigAmount } },
         { id: 'invest_small', text: `Invest $${smallAmount.toLocaleString()}`, effects: { money: roll('small-outcome') > 0.5 ? smallAmount : -smallAmount } },
@@ -1911,7 +1911,7 @@ const distantRelativeInheritance: EventTemplate = {
   id: 'distant_relative_inheritance',
   category: 'economy',
   weight: 0.15,
-  oncePerLife: true, // one surprise inheritance per life — also caps the faucet
+  oncePerLife: true, // one surprise inheritance per life - also caps the faucet
   generate: (state) => {
     // ECONOMY FIX: Scale inheritance with net worth to prevent exploit
     // At low net worth: Floor ensures minimum $5K (same as before)
@@ -2784,7 +2784,7 @@ const parkingTicket: EventTemplate = {
 // Resolutions to setup choices made in the Life Moments system
 // (lib/lifeMoments/lifeMomentGenerator.ts). Picking a "risky" or "kind" branch
 // there attaches a HiddenConsequence that, after a delay, unlocks the matching
-// payoff id below — via consequenceState.unlockedEvents (for `unlock_event`) or
+// payoff id below - via consequenceState.unlockedEvents (for `unlock_event`) or
 // consequenceState.eventWeightModifiers (for `modify_weight`). Each self-gates
 // on choiceHistory so it fires EXACTLY ONCE: resolving it records the choice,
 // which flips the condition false. Without these templates the unlock flags
@@ -2811,7 +2811,7 @@ const weightPayoffReady = (state: GameState, id: string): boolean => {
 /**
  * Deterministic 0..1 roll seeded on the absolute week + a per-event salt.
  *
- * DETERMINISM FIX: this was `Math.sin(seed) * 10000` fractional parts — the exact
+ * DETERMINISM FIX: this was `Math.sin(seed) * 10000` fractional parts - the exact
  * construction the weekly selection roll below abandoned, and for the same reason:
  * ECMAScript does not require bit-exact `Math.sin`, so a device on Hermes and CI on
  * V8 could disagree on which payoff branch a given week produces. Routed through
@@ -2831,7 +2831,7 @@ const streetMusicianFriend: EventTemplate = {
   condition: state => payoffReady(state, 'street_musician_friend'),
   generate: () => ({
     id: 'street_musician_friend',
-    description: 'You round a corner and there they are — the street musician you tipped weeks ago. Their face lights up in recognition. "You! This one\'s for you," they say, and start playing your favorite song right there on the sidewalk.',
+    description: 'You round a corner and there they are - the street musician you tipped weeks ago. Their face lights up in recognition. "You! This one\'s for you," they say, and start playing your favorite song right there on the sidewalk.',
     choices: [
       { id: 'listen', text: 'Stop and take it all in', effects: { stats: { happiness: 12, energy: 3 } } },
       { id: 'tip_again', text: 'Drop another $10 in the case', effects: { money: -10, stats: { happiness: 15, reputation: 3 }, karma: { dimension: 'generosity', amount: 3, reason: 'Tipped the street musician again' } } },
@@ -2853,7 +2853,7 @@ const startupPayout: EventTemplate = {
         id: 'startup_payout',
         description: 'Your phone buzzes: the startup you bet $5,000 on just got acquired. Your stake is worth $25,000. The founder is texting you champagne emojis.',
         choices: [
-          { id: 'cash_out', text: 'Cash out — take the $25,000', effects: { money: 25000, stats: { happiness: 20 } } },
+          { id: 'cash_out', text: 'Cash out - take the $25,000', effects: { money: 25000, stats: { happiness: 20 } } },
           { id: 'reinvest', text: 'Roll it into their next round', effects: { money: 5000, stats: { happiness: 10, reputation: 6 } } },
         ],
       };
@@ -2861,7 +2861,7 @@ const startupPayout: EventTemplate = {
     if (roll < 0.65) {
       return {
         id: 'startup_payout',
-        description: 'The startup didn\'t moon, but it didn\'t die either. They buy out early backers at a small premium — you get $7,000 back on your $5,000.',
+        description: 'The startup didn\'t moon, but it didn\'t die either. They buy out early backers at a small premium - you get $7,000 back on your $5,000.',
         choices: [
           { id: 'take', text: 'Take the $7,000 and move on', effects: { money: 7000, stats: { happiness: 6 } } },
           { id: 'gripe', text: 'Grumble it wasn\'t the moonshot promised', effects: { money: 7000, stats: { happiness: -2 } } },
@@ -2880,7 +2880,7 @@ const startupPayout: EventTemplate = {
 };
 
 // Payoff to: handing $1,000 to an acquaintance's "guaranteed" stock tip
-// (unlock_event, +4 weeks). Mostly a scam — thematically, guaranteed rarely is.
+// (unlock_event, +4 weeks). Mostly a scam - thematically, guaranteed rarely is.
 const hotTipOutcome: EventTemplate = {
   id: 'hot_tip_outcome',
   category: 'economy',
@@ -2900,7 +2900,7 @@ const hotTipOutcome: EventTemplate = {
     }
     return {
       id: 'hot_tip_outcome',
-      description: 'Your calls go to voicemail. The "guaranteed" stock cratered — or never existed. Your $1,000 is gone, and so is your slick acquaintance.',
+      description: 'Your calls go to voicemail. The "guaranteed" stock cratered - or never existed. Your $1,000 is gone, and so is your slick acquaintance.',
       choices: [
         { id: 'learn', text: 'Take the lesson: guaranteed returns never are', effects: { stats: { happiness: -6, reputation: 3 } } },
         { id: 'chase', text: 'Waste an afternoon trying to track him down', effects: { stats: { happiness: -10, energy: -8 } } },
@@ -2928,14 +2928,14 @@ const auditScandal: EventTemplate = {
 };
 
 /**
- * R4-X6 — payoffs for `friend_invitation_exam` (lib/events/enhancedEvents.ts).
+ * R4-X6 - payoffs for `friend_invitation_exam` (lib/events/enhancedEvents.ts).
  *
  * That event is registered in this pool and fires. Each of its three choices
  * attaches hidden consequences naming a follow-up event, and NONE of those
  * follow-ups existed: `friend_helps_study`, `exam_success`,
  * `friend_respects_balance` and `friend_distant` had zero definitions anywhere.
  * The unlock flags were written into `consequenceState.unlockedEvents` and
- * never consumed — the same bug the four templates above were written to fix
+ * never consumed - the same bug the four templates above were written to fix
  * for `lifeMomentGenerator.ts`. That pass simply did not reach this file.
  *
  * The fifth reference, `exam_results`, is handled at its own site rather than
@@ -2964,7 +2964,7 @@ const friendHelpsStudy: EventTemplate = {
 };
 
 // Payoff to: staying home to study (unlock_event, +1 week). The dedication
-// lands — this is the branch the player gave up a night out for.
+// lands - this is the branch the player gave up a night out for.
 const examSuccess: EventTemplate = {
   id: 'exam_success',
   category: 'general',
@@ -2972,7 +2972,7 @@ const examSuccess: EventTemplate = {
   condition: state => payoffReady(state, 'exam_success'),
   generate: () => ({
     id: 'exam_success',
-    description: 'The results are posted. You are near the top of the list — the night you stayed in is sitting right there in the number.',
+    description: 'The results are posted. You are near the top of the list - the night you stayed in is sitting right there in the number.',
     choices: [
       { id: 'celebrate', text: 'Let yourself enjoy it', effects: { stats: { happiness: 14, reputation: 3 } } },
       { id: 'push_on', text: 'Bank the confidence and keep going', effects: { stats: { happiness: 6, energy: -4, intelligence: 2 } } },
@@ -2983,7 +2983,7 @@ const examSuccess: EventTemplate = {
 // Payoff to: taking the coffee break with a coworker (unlock_event, +3 weeks,
 // lib/lifeMoments/lifeMomentGenerator.ts). The hidden effect promised "future
 // networking opportunities may arise" and the consequence description promised
-// an introduction — but the unlock flag named an id that existed ONLY as a
+// an introduction - but the unlock flag named an id that existed ONLY as a
 // FOLLOW_UP_EVENTS entry (reachable solely through the networking_event chain),
 // so the flag was written and never consumed and the promised introduction
 // never arrived. Same orphaned-unlock class as the R4-X6 fixes below; the
@@ -2997,7 +2997,7 @@ const networkingIntroduction: EventTemplate = {
   generate: () => ({
     id: 'networking_opportunity',
     description:
-      'Your coworker from that coffee break waves you over. "There\'s someone you should meet," they say — a well-connected manager who has heard good things about you already.',
+      'Your coworker from that coffee break waves you over. "There\'s someone you should meet," they say - a well-connected manager who has heard good things about you already.',
     choices: [
       { id: 'meet', text: 'Take the introduction', effects: { stats: { reputation: 10, happiness: 6, energy: -4 } } },
       { id: 'card_only', text: 'Swap contacts and keep it brief', effects: { stats: { reputation: 4, happiness: 2 } } },
@@ -3006,7 +3006,7 @@ const networkingIntroduction: EventTemplate = {
 };
 
 // Payoff to: telling your friend honestly that you needed to study
-// (unlock_event, +3 weeks). The mature branch — respected rather than resented.
+// (unlock_event, +3 weeks). The mature branch - respected rather than resented.
 const friendRespectsBalance: EventTemplate = {
   id: 'friend_respects_balance',
   category: 'relationship',
@@ -3031,7 +3031,7 @@ const friendDistant: EventTemplate = {
   condition: state => weightPayoffReady(state, 'friend_distant'),
   generate: () => ({
     id: 'friend_distant',
-    description: 'Your friend has stopped inviting you to things. Not coldly — they just assume the answer is no now, and they have stopped asking.',
+    description: 'Your friend has stopped inviting you to things. Not coldly - they just assume the answer is no now, and they have stopped asking.',
     choices: [
       { id: 'reach_out', text: 'Reach out first and make the effort', effects: { stats: { happiness: 5, energy: -6 }, relationship: 8 } },
       { id: 'let_it_go', text: 'Let the friendship cool', effects: { stats: { happiness: -8 }, relationship: -6 } },
@@ -3060,27 +3060,27 @@ export const eventTemplates: EventTemplate[] = [
   sickDay,
   unexpectedBill,
   lotteryWin,
-  partyAftermath, // weight 0 — sequel-only (lottery_win "spend")
+  partyAftermath, // weight 0 - sequel-only (lottery_win "spend")
   burglary,
   policeRaid,
   courtTrial,
   friendNeedsHelp,
-  friendRepays, // weight 0 — sequel-only (friend_help "lend")
-  friendManagedAlone, // weight 0 — sequel-only (friend_help "refuse")
+  friendRepays, // weight 0 - sequel-only (friend_help "lend")
+  friendManagedAlone, // weight 0 - sequel-only (friend_help "refuse")
   weddingEvent,
-  honeymoonGlow, // weight 0 — sequel-only (wedding "marry")
-  partnerCools, // weight 0 — sequel-only (wedding "wait")
+  honeymoonGlow, // weight 0 - sequel-only (wedding "marry")
+  partnerCools, // weight 0 - sequel-only (wedding "wait")
   schoolFees,
-  reportCard, // weight 0 — sequel-only (school_fees "pay")
+  reportCard, // weight 0 - sequel-only (school_fees "pay")
   carBreakdown,
-  diyFixFails, // weight 0 — sequel-only (car_breakdown "fix")
+  diyFixFails, // weight 0 - sequel-only (car_breakdown "fix")
   foundWallet,
   charityEvent,
-  charityRecognition, // weight 0 — sequel-only (charity_event "donate")
+  charityRecognition, // weight 0 - sequel-only (charity_event "donate")
   gymInvitation,
-  trainingBuddy, // weight 0 — sequel-only (gym_invite "join")
+  trainingBuddy, // weight 0 - sequel-only (gym_invite "join")
   streetFestival,
-  festivalPhoto, // weight 0 — sequel-only (street_festival "attend")
+  festivalPhoto, // weight 0 - sequel-only (street_festival "attend")
   fluShot,
   homeMaintenance,
   decorContest,
@@ -3197,7 +3197,7 @@ export const eventTemplates: EventTemplate[] = [
   phoneLost,
   sleepIssues,
   mentorOffer,
-  mentorsTest, // weight 0 — sequel-only (mentor_offer "accept")
+  mentorsTest, // weight 0 - sequel-only (mentor_offer "accept")
   neighborMovingAway,
   hobbyDiscover,
   backPain,
@@ -3225,29 +3225,29 @@ export const eventTemplates: EventTemplate[] = [
   // Life milestone events (relationships, family, age, wellness)
   ...lifeMilestoneEventTemplates,
   ...legalEventTemplates,
-  // Inbox events — the non-adversarial half of the mail app (see inboxEvents.ts)
+  // Inbox events - the non-adversarial half of the mail app (see inboxEvents.ts)
   ...inboxEventTemplates,
   // Career events (performance, workplace, firing)
   ...careerEventTemplates,
   // Travel events (experiences while on trips)
   ...travelEventTemplates,
-  // Near-miss events (tension builders — "you almost died!")
+  // Near-miss events (tension builders - "you almost died!")
   ...nearMissEventTemplates,
-  // Fame tier events (paparazzi, talk shows, stalkers — fame = double-edged sword)
+  // Fame tier events (paparazzi, talk shows, stalkers - fame = double-edged sword)
   ...fameEventTemplates,
   // Secret/Easter egg events (hidden triggers, community discovery)
   ...secretEventTemplates,
   // Hobby-mastery events (fire for the hobbies you actively practice)
   ...hobbyEventTemplates,
   // Life-stage event packs (each strictly gated so it only fires in its own
-  // chapter — see the pack files for the exact age/status conditions):
+  // chapter - see the pack files for the exact age/status conditions):
   //   childhood/teen (age 5-17), parent (has a child in-band),
   //   midlife (age 50-64), senior/retirement (age 65+ and/or retired).
   ...childhoodEventTemplates,
   ...parentEventTemplates,
   ...midlifeEventTemplates,
   ...seniorEventTemplates,
-  // Late-game / wealth-tier pack — the ONLY templates that declare `moneyPct`,
+  // Late-game / wealth-tier pack - the ONLY templates that declare `moneyPct`,
   // so a choice is worth a fraction of net worth instead of a flat figure that
   // has become noise. Gated on the canonical netWorth() at four tiers ($1M /
   // $10M / $50M / $250M) plus 26 weeks INTO THIS LIFE, so an early-game player never
@@ -3262,7 +3262,7 @@ export const eventTemplates: EventTemplate[] = [
  * follow-up ONLY against the 8-entry `FOLLOW_UP_EVENTS` registry, which is
  * what made `EventChoice.followUpEventId` unusable for the other ~390
  * templates. This is the lookup that opens the whole pool to it. Returns null
- * (never throws) for an unknown id or a generator that dies — the caller
+ * (never throws) for an unknown id or a generator that dies - the caller
  * dequeues in both cases, exactly as it always did for unknown follow-ups.
  *
  * The template's `condition` is deliberately NOT consulted: a sequel was
@@ -3276,7 +3276,7 @@ export const eventTemplates: EventTemplate[] = [
  *
  * `eventLog` is per-life (a fresh life starts it empty; prestige does not
  * carry it), so "once per life" is exactly a membership check. The log is
- * capped at 500 — a template that scrolls off a very long life could in
+ * capped at 500 - a template that scrolls off a very long life could in
  * principle refire, which is an accepted degradation, not a reason to grow
  * new state. (2026-08-24: the same "old friend" was returning for the first
  * time arbitrarily many times, and a birthday could fire repeatedly across
@@ -3310,7 +3310,7 @@ interface EventChainDefinition {
   chainId: string;
   /**
    * Minimum weeks INTO THIS LIFE before this chain can trigger (compared
-   * against `weeksInThisLife`, not the absolute `weeksLived` — see §4.2).
+   * against `weeksInThisLife`, not the absolute `weeksLived` - see §4.2).
    */
   minWeeksLived: number;
   /** Upper bound, same life-relative basis. */
@@ -3319,7 +3319,7 @@ interface EventChainDefinition {
   triggerChance: number;
   /** Additional condition */
   condition?: (state: GameState) => boolean;
-  /** Ordered stages — each generates a WeeklyEvent */
+  /** Ordered stages - each generates a WeeklyEvent */
   stages: ((state: GameState, stageIndex: number) => WeeklyEvent)[];
 }
 
@@ -3357,7 +3357,7 @@ const eventChainDefinitions: EventChainDefinition[] = [
         return {
           id: 'health_scare_diagnosis',
           description: sawDoctor
-            ? 'The doctor found the issue early. "Good thing you came in — we caught it before it got serious."'
+            ? 'The doctor found the issue early. "Good thing you came in - we caught it before it got serious."'
             : 'The pain got worse. A trip to the ER reveals a condition that could have been caught earlier.',
           chainId: 'health_scare',
           chainStage: 1,
@@ -3433,7 +3433,7 @@ const eventChainDefinitions: EventChainDefinition[] = [
           return {
             id: 'biz_pitch',
             description:
-              'You run into the investor again. "Last chance — this deal closes Friday."',
+              'You run into the investor again. "Last chance - this deal closes Friday."',
             chainId: 'business_opportunity',
             chainStage: 1,
             choices: [
@@ -3581,7 +3581,7 @@ export function rollEventChain(state: GameState): WeeklyEvent | null {
 
   // Chain windows are "how far into THIS life" (15/20/25 weeks in), so they read
   // the life-relative counter. The SEED below deliberately stays on the absolute
-  // `weeksLived` — it identifies the week, it does not gate on it.
+  // `weeksLived` - it identifies the week, it does not gate on it.
   const wl = weeksInThisLife(state);
   const absoluteWeek = state.weeksLived || 0;
   const completedChainIds = (state.eventChains || [])
@@ -3595,7 +3595,7 @@ export function rollEventChain(state: GameState): WeeklyEvent | null {
     if (chain.condition && !chain.condition(state)) continue;
 
     // DETERMINISM: this was the last event roll on the `Math.sin(seed)`
-    // construction — ECMAScript does not require bit-exact Math.sin, so
+    // construction - ECMAScript does not require bit-exact Math.sin, so
     // Hermes and V8 could disagree on which week a chain starts (the same
     // hole H7a closed for the payoff rolls). Routed through the audited
     // integer-only seeded RNG, salted by chainId so chains roll independently.
@@ -3625,7 +3625,7 @@ export function getNextChainEvent(state: GameState): WeeklyEvent | null {
 
 /**
  * Authoritative stage count for an event chain. The week loop must use this
- * when starting a chain instead of a hardcoded default — a wrong total
+ * when starting a chain instead of a hardcoded default - a wrong total
  * force-completes the chain early and silently drops its final payout stage
  * (the `business_opportunity` chain, 4 stages, lost its results stage to a
  * hardcoded `3`). Returns `undefined` for unknown chains so callers can fall
@@ -3640,7 +3640,7 @@ export function getEventChainStageCount(chainId: string): number | undefined {
  * or start a new one.
  *
  * Pure and exported ON PURPOSE. This decision used to live inline inside
- * `resolveEvent` in the React context, where no test could reach it — which is
+ * `resolveEvent` in the React context, where no test could reach it - which is
  * exactly why an off-by-one survived there: `eventChains.test.ts` only ever
  * exercised `getNextChainEvent`, hand-building an `activeEventChain` rather than
  * producing one. The bug was that the branch compared the STORED stage index
@@ -3648,7 +3648,7 @@ export function getEventChainStageCount(chainId: string): number | undefined {
  * stage advanced instead of completing, and the chain latched forever
  * (2026-07-28 audit GL-1).
  *
- * `currentStage` is the index of the last RESOLVED stage — `getNextChainEvent`
+ * `currentStage` is the index of the last RESOLVED stage - `getNextChainEvent`
  * reads it as `currentStage + 1`, so the two must agree on that meaning.
  *
  * Returns the fields the caller should write; `eventChains` is returned
@@ -3685,7 +3685,7 @@ export function advanceEventChain(
       };
     }
 
-    // Final stage resolved — the chain is done and must be recorded so
+    // Final stage resolved - the chain is done and must be recorded so
     // rollEventChain's completed-chain filter can see it.
     return {
       activeEventChain: undefined,
@@ -3697,7 +3697,7 @@ export function advanceEventChain(
           stages: [],
           completed: true,
         },
-        // R2-B: cap to 50 — was unbounded.
+        // R2-B: cap to 50 - was unbounded.
       ].slice(-50) as NonNullable<GameState['eventChains']>,
     };
   }
@@ -3720,19 +3720,19 @@ export function advanceEventChain(
 }
 
 /**
- * Heal a LATCHED `activeEventChain` — one the engine can never advance again.
+ * Heal a LATCHED `activeEventChain` - one the engine can never advance again.
  *
  * An off-by-one in the resolve path (fixed 2026-07-28, audit GL-1) left saves
  * pointing at a stage past the end of their chain. `getNextChainEvent` refuses
  * to generate anything for such a state, and `rollEventChain` only fires when
- * `activeEventChain` is absent — so the field pinned itself and every future
+ * `activeEventChain` is absent - so the field pinned itself and every future
  * chain was locked out for the rest of that life. Fixing the resolve path does
  * nothing for the saves already in that state, and there is no version bump to
  * hang a migration on, so the terminal condition is detected and cleared on the
  * weekly tick instead: an active chain whose next stage cannot be produced is,
  * by definition, over.
  *
- * Also covers a chain whose definition was removed from the catalog — same
+ * Also covers a chain whose definition was removed from the catalog - same
  * dead-end, same resolution.
  *
  * Returns `null` when there is nothing to heal, so the caller can leave state
@@ -3781,7 +3781,7 @@ export const starterEventTemplates: EventTemplate[] = [
     condition: (state) => weeksInThisLife(state) === 0,
     generate: () => ({
       id: 'starter_luck',
-      description: 'A relative left you a small envelope with a note: "Use this wisely — the world is yours."',
+      description: 'A relative left you a small envelope with a note: "Use this wisely - the world is yours."',
       choices: [
         {
           id: 'save',
@@ -3810,7 +3810,7 @@ export const starterEventTemplates: EventTemplate[] = [
     },
     generate: () => ({
       id: 'first_paycheck_bonus',
-      description: 'Your boss pulls you aside: "Great start — here\'s a little extra for your hard work."',
+      description: 'Your boss pulls you aside: "Great start - here\'s a little extra for your hard work."',
       choices: [
         {
           id: 'accept',
@@ -3833,7 +3833,7 @@ export const starterEventTemplates: EventTemplate[] = [
       const baseAmount = 200 + Math.floor(((state.weeksLived || 0) * 37) % 300);
       return {
         id: 'surprise_windfall',
-        description: `You found a scratch-off ticket in your jacket pocket — and it\'s a winner!`,
+        description: `You found a scratch-off ticket in your jacket pocket - and it\'s a winner!`,
         choices: [
           {
             id: 'cash_it',
@@ -3866,7 +3866,7 @@ const LIFE_STAGE_WEIGHT_BOOST = 3.5;
  * roll in [0, 1). Returns null when every weight is zero.
  *
  * Both the routine roll and the pity system select through this so the pool's
- * variety actually surfaces — the old flow multiplied each template's chance
+ * variety actually surfaces - the old flow multiplied each template's chance
  * by a global 6% modifier AFTER the frequency gate had already passed, so most
  * "event weeks" produced nothing, and pity always forced the single
  * highest-weight template (players saw the same 1-2 events forever).
@@ -3909,7 +3909,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   const lastEventWeeksLivedForGap = state.lastEventWeeksLived !== undefined
     ? state.lastEventWeeksLived
     : (state.lastEventWeek !== undefined ? state.lastEventWeek : 0);
-  // The GAP is a delta between two absolute stamps — absolute on both sides.
+  // The GAP is a delta between two absolute stamps - absolute on both sides.
   const weeksSinceLastEventForGap = weeksLived - lastEventWeeksLivedForGap;
   // The PHASE ("is this player early / mid / late game") is life-relative: an
   // age-25 start begins at weeksLived 364 and would otherwise be classified
@@ -3993,7 +3993,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
           events.push(event);
         }
       } catch (e) {
-        // Starter event generation failed — continue without it
+        // Starter event generation failed - continue without it
       }
     }
   }
@@ -4007,12 +4007,12 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     const chainEvent = getNextChainEvent(state);
     if (chainEvent) {
       events.push(chainEvent);
-      return events; // Chain events are exclusive — no random events this week
+      return events; // Chain events are exclusive - no random events this week
     }
   }
 
   // ENGAGEMENT: Roll for starting a new event chain (if none active).
-  // Gated by the smoothness cooldown — a brand-new multi-week chain shouldn't
+  // Gated by the smoothness cooldown - a brand-new multi-week chain shouldn't
   // kick off the same week another popup just fired.
   if (!state.activeEventChain && !inEventCooldown && events.length < MAX_EVENTS_PER_WEEK) {
     const chainStarter = rollEventChain(state);
@@ -4069,7 +4069,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // DETERMINISM FIX: the weekly event roll previously used `Math.sin(seed)*10000`
   // fractional parts. ECMAScript does NOT require bit-exact Math.sin, so a device
   // running Hermes and CI running V8 could diverge on WHICH event fired for a given
-  // week — a save-integrity / reproducibility hole. Route through the audited,
+  // week - a save-integrity / reproducibility hole. Route through the audited,
   // integer-only seeded RNG (makeWeeklyRoll → mulberry32 finalizer) instead: same
   // week + same key always yields the same, engine-independent roll. Distinct keys
   // stand in for the old numeric seed offsets (+0 jitter, +1 fire gate, +2 pick).
@@ -4079,11 +4079,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // Early game: high (hook the player with narrative). Mid-game: frequent (content variety). Late game: moderate.
   let baseEventChance: number;
   if (weeksThisLifeForPacing < EARLY_GAME_THRESHOLD_WEEKS) {
-    baseEventChance = EARLY_GAME_EVENT_CHANCE; // ~8% — occasional surprise, not a constant interruption
+    baseEventChance = EARLY_GAME_EVENT_CHANCE; // ~8% - occasional surprise, not a constant interruption
   } else if (weeksThisLifeForPacing < 50) {
     baseEventChance = 0.10 + Math.min(0.03, weeksThisLifeForPacing * 0.001); // 10-13% rolls in weeks 8-11 after the min-gap; pity guarantees at 12 -> ~1 event/10-12 weeks
   } else {
-    baseEventChance = 0.12; // 12% — with the 8-week min-gap cooldown this lands ~1 event/15 weeks late game
+    baseEventChance = 0.12; // 12% - with the 8-week min-gap cooldown this lands ~1 event/15 weeks late game
   }
   baseEventChance += weeklyEventRoll('event-jitter') * 0.01; // Small deterministic jitter
 
@@ -4095,7 +4095,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // Force event if pity threshold reached
   // TESTFLIGHT FIX: Use deterministic random for consistency
   // SMOOTHNESS: during the cooldown window only a pity-guaranteed event may
-  // fire — routine random rolls are suppressed so popups don't appear every week.
+  // fire - routine random rolls are suppressed so popups don't appear every week.
   if (guaranteedEvent || (!inEventCooldown && weeklyEventRoll('event-fire') < baseEventChance)) {
     // Event will occur - continue to event selection
   } else {
@@ -4133,7 +4133,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
         const weightModifier = consequenceState.eventWeightModifiers[template.id] || 0;
         let adjustedWeight = Math.max(0, weight + weightModifier);
         // LIFE-STAGE BOOST: an age-gated pack event only reaches this map once its
-        // strict `condition` (age band / child status / retirement) has passed —
+        // strict `condition` (age band / child status / retirement) has passed -
         // i.e. its gate already matches the player's current chapter. On its own
         // its ~0.2 weight is buried under the ~150-template generic pool and almost
         // never fires. Multiply it so a matching chapter's beats actually surface.
@@ -4148,7 +4148,7 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
     if (chosen) {
       events.push(chosen.generate(state));
     } else if (guaranteedEvent) {
-      // Defensive: pity must not starve — fall back to any general event.
+      // Defensive: pity must not starve - fall back to any general event.
       const generalEvent = baseEventTemplates.find(t => t.category === 'general');
       if (generalEvent) {
         events.push(generalEvent.generate(state));

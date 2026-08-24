@@ -154,7 +154,7 @@ export function processOpenOrders(
 
 /**
  * Execute a market order at the current mid + spread/slippage. No order book
- * insertion — fills immediately. Used by the buy/sell handlers.
+ * insertion - fills immediately. Used by the buy/sell handlers.
  */
 export function executeMarket(
   symbol: string,

@@ -9,7 +9,7 @@ import { subscriptionService } from '@/services/SubscriptionService';
 import { iapService } from '@/services/IAPService';
 import { IAP_PRODUCTS } from '@/utils/iapConfig';
 
-describe('SubscriptionService — premium access (subscription OR lifetime)', () => {
+describe('SubscriptionService - premium access (subscription OR lifetime)', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('is false for a free player with no lifetime unlock', () => {

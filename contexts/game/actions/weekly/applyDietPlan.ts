@@ -54,7 +54,7 @@ export function applyDietPlanForWeek(
     ctx.newStats.money = Math.max(0, currentMoneyPre);
     return {
       logMessage:
-        `[WEEK PROGRESSION] Diet plan ${activeDietPlan.name} skipped — insufficient funds ` +
+        `[WEEK PROGRESSION] Diet plan ${activeDietPlan.name} skipped - insufficient funds ` +
         `(need $${weeklyCostPre}, have $${currentMoneyPre}).`,
     };
   }

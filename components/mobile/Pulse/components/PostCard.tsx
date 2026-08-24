@@ -1,5 +1,5 @@
 /**
- * PostCard — single Pulse post in the feed.
+ * PostCard - single Pulse post in the feed.
  *
  * Renders a `PulseRecentPost` with author handle, content, optional photo,
  * and an engagement row (like / repost / comment / bookmark counts). Tap on
@@ -41,11 +41,11 @@ interface PostCardProps {
   onOpenDetail?: (postId: string) => void;
   /** Tap on the "Boost" affordance → open the gem-boost modal (player posts only). */
   onBoost?: (postId: string) => void;
-  /** True for player's own posts — shows the Boost affordance. */
+  /** True for player's own posts - shows the Boost affordance. */
   isPlayerPost?: boolean;
   /**
    * Optional like handler override. Ambient NPC/trending posts aren't in the
-   * player's `recentPosts`, so `likePost` would no-op on them — the parent
+   * player's `recentPosts`, so `likePost` would no-op on them - the parent
    * passes a local toggler instead so their heart still responds.
    */
   onLike?: (postId: string) => void;
@@ -57,7 +57,7 @@ interface PostCardProps {
  * A feed row. Rendered ~60 times in the Pulse FlatList (`recentPosts` is capped
  * at 50, plus ~11 ambient posts), so what it subscribes to matters a lot.
  *
- * It used `useGame()`, which composes `useGameState()` — a plain `useContext`
+ * It used `useGame()`, which composes `useGameState()` - a plain `useContext`
  * on the provider carrying `gameState`. Every mutation anywhere in the game (a
  * like, a week advance, an unrelated background tick) therefore re-rendered
  * EVERY mounted row, each also rebuilding the merged 9-context object in
@@ -100,7 +100,7 @@ function PostCard({
 
   /**
    * Bookmarks. `bookmarkPost` shipped with ZERO call sites while
-   * `ProfileScreen`'s Bookmarks tab read `p.isBookmarked` — so the tab could
+   * `ProfileScreen`'s Bookmarks tab read `p.isBookmarked` - so the tab could
    * only ever say "No bookmarks yet" (tasks/lessons.md: a leaf with green
    * tests, a context that exposes it, and nothing that calls it). Only rendered
    * for the player's own posts: ambient/NPC posts are not in `recentPosts`, so
@@ -109,7 +109,7 @@ function PostCard({
   const handleBookmark = useCallback(() => {
     pulseHaptics.light();
     bookmarkPost(setGameState, post.id);
-    // Same post-commit deferral as `handleLike` — `saveGame` reads a ref that
+    // Same post-commit deferral as `handleLike` - `saveGame` reads a ref that
     // is synced in a post-commit effect.
     setTimeout(() => { void saveGame?.(); }, 0);
   }, [setGameState, saveGame, post.id]);
@@ -170,7 +170,7 @@ function PostCard({
           active={false}
           activeColor={theme.text}
           mutedColor={theme.textSecondary}
-          // Ambient/NPC posts have no detail route — render a static, non-tappable
+          // Ambient/NPC posts have no detail route - render a static, non-tappable
           // count instead of a button that looks pressable but no-ops.
           onPress={onOpenDetail ? () => onOpenDetail(post.id) : undefined}
           label="Comment"
@@ -195,7 +195,7 @@ function PostCard({
             label="Bookmark"
           />
         ) : null}
-        {/* Boost — player's own posts only; gem cost shown in the modal */}
+        {/* Boost - player's own posts only; gem cost shown in the modal */}
         {isPlayerPost && onBoost ? (
           <Pressable
             onPress={() => {
@@ -300,7 +300,7 @@ function EngagementButton({ Icon, count, active, activeColor, mutedColor, onPres
     </>
   );
 
-  // Static (non-interactive) rendering when no handler is wired — e.g. the
+  // Static (non-interactive) rendering when no handler is wired - e.g. the
   // comment count on ambient posts, which have no detail route to open.
   if (!onPress) {
     return (

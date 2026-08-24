@@ -18,7 +18,7 @@ describe('bumpSparkLifetimeStat', () => {
     expect(next!.lifetimeStats.totalDatesGoneOn).toBe(before + 1);
   });
 
-  it('is immutable — original sparkApp is untouched', () => {
+  it('is immutable - original sparkApp is untouched', () => {
     const sp = freshSpark();
     const before = sp.lifetimeStats.totalGiftsGiven;
     const next = bumpSparkLifetimeStat(sp, 'totalGiftsGiven');

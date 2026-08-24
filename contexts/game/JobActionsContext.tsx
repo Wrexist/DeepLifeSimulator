@@ -50,7 +50,7 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
   // M4: read the LIVE state on demand instead of mirroring it into a ref.
   // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
   // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
-  // and still handed callbacks a snapshot that was one commit stale — the
+  // and still handed callbacks a snapshot that was one commit stale - the
   // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
   // returns a stable getter over the same store, so callbacks stay stable, the
   // memoized context value keeps its identity, and the provider no longer
@@ -64,7 +64,7 @@ export function JobActionsProvider({ children }: JobActionsProviderProps) {
  *
  * Extracted so `performJailActivity` can fold XP into its OWN updater rather
  * than calling `gainCriminalXp` after it. That call sat outside the updater and
- * was gated on `criminalXpToGain`, an outer variable assigned INSIDE it — so
+ * was gated on `criminalXpToGain`, an outer variable assigned INSIDE it - so
  * whenever React deferred the updater (any time another state update is already
  * queued on the fiber) the variable was still 0 and the XP from Escape Attempt,
  * Contraband Trade and Join a Gang was silently dropped. R3-C11.
@@ -157,7 +157,7 @@ function applyCriminalXp(
        * already-unlocked gate lived entirely in the render-snapshot UI
        * (`SkillTalentTree`'s `canUnlockNode`). Two taps on the unlock chevron in
        * one React batch both read `status === 'available'`, both updaters
-       * passed, and the same node id was appended twice — charging $200 for one
+       * passed, and the same node id was appended twice - charging $200 for one
        * node and, worse, permanently burning TWO skill points, because
        * `spentPoints = skill.upgrades.length`. With only `skillLevel - 1` points
        * ever available and nothing that removes an entry from `upgrades`, that
@@ -191,7 +191,7 @@ function applyCriminalXp(
 
     const result = JobActions.applyForJob(state, setGameState, jobId);
     // Fire the success haptic only on an ACTUAL success. The old check was
-    // `if (result)` — truthy for a REJECTION object too, so a refused
+    // `if (result)` - truthy for a REJECTION object too, so a refused
     // application buzzed like an accepted one and the message was dropped on
     // the floor. Returning the result lets the screen say what happened
     // (2026-07-28 audit UX-2); mirrors promoteCareer below.
@@ -303,7 +303,7 @@ function applyCriminalXp(
     }
 
     // Check if already done this week. Use `weeksLived` (absolute timeline)
-    // — `state.date.week` cycles 1–4 (week-of-month) and would let players
+    // - `state.date.week` cycles 1–4 (week-of-month) and would let players
     // re-do an activity in the other 3 weeks of every month.
     const weeklyActivities = state.weeklyJailActivities || {};
     const currentWeek = state.weeksLived;
@@ -344,7 +344,7 @@ function applyCriminalXp(
 
     // WP-A: the report is built HERE, outside the updater, from the same
     // snapshot every guard above already used. It used to be a `let
-    // resultMessage = ''` assigned inside the updater and returned after —
+    // resultMessage = ''` assigned inside the updater and returned after -
     // React defers any functional update that is not first in its batch, so a
     // jail activity that ran and paid out returned an EMPTY message to the
     // screen. Nothing here is a gate: both of the updater's `return prevState`
@@ -389,7 +389,7 @@ function applyCriminalXp(
       let working: GameState = prevState;
       const newStats = { ...prevState.stats };
       let newJailWeeks = prevState.jailWeeks;
-      // Local to this updater — the player-facing message is built outside.
+      // Local to this updater - the player-facing message is built outside.
       let releasedByReduction = false;
       let criminalXpToGain = 0;
 
@@ -397,7 +397,7 @@ function applyCriminalXp(
       newStats.energy = Math.max(0, newStats.energy - activity.energyCost);
 
       if (success) {
-        // Deduct cost first (atomic affordability) — reject the whole activity
+        // Deduct cost first (atomic affordability) - reject the whole activity
         // if it can't be paid rather than silently flooring to free.
         if (activity.cost) {
           const spend = applyMoneyDelta(working, -activity.cost, `Jail: ${activity.name} fee`);
@@ -481,8 +481,8 @@ function applyCriminalXp(
         // Mark escaped from jail for achievement tracking
         ...(success && activityId === 'escape_attempt' && releasedByReduction && { escapedFromJail: true }),
         // R3-C11: fold the XP into THIS updater. It used to be granted after,
-        // gated on `criminalXpToGain` — an outer variable assigned inside this
-        // very updater — so whenever React deferred the updater (any time
+        // gated on `criminalXpToGain` - an outer variable assigned inside this
+        // very updater - so whenever React deferred the updater (any time
         // another update is already queued on the fiber) the check read 0 and
         // the XP was silently dropped.
         ...(success && criminalXpToGain > 0 ? applyCriminalXp(prevState, criminalXpToGain) : {}),
@@ -501,7 +501,7 @@ function applyCriminalXp(
 
     const estimatedBailCost = computeBailCost(state.jailWeeks, calculateNetWorth(state));
     // A corrupt save can make calculateNetWorth (and thus the clamp inside
-    // computeBailCost) return NaN, which would poison stats.money below —
+    // computeBailCost) return NaN, which would poison stats.money below -
     // NaN comparisons are false, so the affordability gates wouldn't catch it.
     if (!Number.isFinite(estimatedBailCost)) {
       logger.warn('Cannot pay bail: bail cost is not a finite number', { bailCost: estimatedBailCost });
@@ -514,18 +514,18 @@ function applyCriminalXp(
 
     const now = Date.now();
     setGameState(prevState => {
-      // Compute bail from prevState to avoid stale closure — same shared helper
+      // Compute bail from prevState to avoid stale closure - same shared helper
       // JailScreen uses for display, so the charge matches what the player saw.
       /**
        * F3: the player must still BE in jail.
        *
        * The cost and the affordability check were both already re-derived from
-       * `prevState` — but nothing re-checked `jailWeeks`. `JailScreen`'s Pay
+       * `prevState` - but nothing re-checked `jailWeeks`. `JailScreen`'s Pay
        * Bail button has no in-flight guard, so two taps in one React batch both
        * ran: the first set `jailWeeks: 0` and charged, and the second charged
        * AGAIN for a player who was already out. `computeBailCost` has a $500
        * FLOOR and scales at 0.5% of net worth up to $250,000, so at zero weeks
-       * it still returns a real bill — up to a quarter of a million dollars for
+       * it still returns a real bill - up to a quarter of a million dollars for
        * nothing. CLAUDE.md §4.4.
        */
       if ((prevState.jailWeeks || 0) <= 0) {
@@ -534,7 +534,7 @@ function applyCriminalXp(
 
       const bailCost = computeBailCost(prevState.jailWeeks, calculateNetWorth(prevState));
       if (!Number.isFinite(bailCost) || (prevState.stats.money || 0) < bailCost) {
-        return prevState; // Invalid cost or insufficient funds at actual state — no-op
+        return prevState; // Invalid cost or insufficient funds at actual state - no-op
       }
       return {
         ...prevState,

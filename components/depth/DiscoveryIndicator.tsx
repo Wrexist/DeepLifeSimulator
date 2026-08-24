@@ -206,7 +206,7 @@ function DiscoveryModal({
    *
    * The whole point of the change: this screen listed all 20 systems as inert
    * cards, so it showed the player the entire game and gave them no way in.
-   * Close first, then navigate — leaving the modal mounted over the destination
+   * Close first, then navigate - leaving the modal mounted over the destination
    * strands them behind an overlay they have to dismiss to see what they asked
    * for.
    */

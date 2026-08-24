@@ -29,7 +29,7 @@ jest.mock('lucide-react-native', () => new Proxy(
  *   1. no purchase CTA is presented when the price could not be proven, and
  *   2. no unconditional free-trial promise is made without store confirmation.
  */
-describe('render — SubscriptionModal (DeepLife+ paywall)', () => {
+describe('render - SubscriptionModal (DeepLife+ paywall)', () => {
   it('mounts and shows the value stack', () => {
     const { renderer, json, unmount } = renderWithProviders(
       <SubscriptionModal visible onClose={() => {}} />,

@@ -117,7 +117,7 @@ describe('every way to borrow records that the player borrowed', () => {
       start,
     );
 
-    if ((after.loans ?? []).length === 0) throw new Error('no auto loan was created — nothing to assert on');
+    if ((after.loans ?? []).length === 0) throw new Error('no auto loan was created - nothing to assert on');
     expect(after.progress?.hasBeenInDebt).toBe(true);
   });
 
@@ -132,7 +132,7 @@ describe('every way to borrow records that the player borrowed', () => {
       borrower(),
     );
 
-    if ((after.loans ?? []).length === 0) throw new Error('no mortgage was created — nothing to assert on');
+    if ((after.loans ?? []).length === 0) throw new Error('no mortgage was created - nothing to assert on');
     expect(after.progress?.hasBeenInDebt).toBe(true);
   });
 

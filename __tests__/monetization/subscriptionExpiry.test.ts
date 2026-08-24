@@ -60,7 +60,7 @@ describe('a subscription term is finite', () => {
 });
 
 describe('an expired term is not active', () => {
-  it('refuses a monthly bought 31 days ago — the Restore exploit', () => {
+  it('refuses a monthly bought 31 days ago - the Restore exploit', () => {
     const expiry = subscriptionExpiryFor(MONTHLY, NOW - 31 * DAY);
 
     expect(isSubscriptionActiveAt(expiry, NOW)).toBe(false);
@@ -79,7 +79,7 @@ describe('an expired term is not active', () => {
   });
 });
 
-describe('a live term IS active — the fix must not strip paying subscribers', () => {
+describe('a live term IS active - the fix must not strip paying subscribers', () => {
   it('keeps a monthly bought yesterday', () => {
     expect(isSubscriptionActiveAt(subscriptionExpiryFor(MONTHLY, NOW - DAY), NOW)).toBe(true);
   });

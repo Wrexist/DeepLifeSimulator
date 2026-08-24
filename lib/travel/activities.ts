@@ -96,7 +96,7 @@ export const TRAVEL_ACTIVITIES: TravelActivity[] = [
   {
     id: 'adventure_excursion',
     name: 'Adventure Excursion',
-    description: 'A guided outdoor thrill — zip-lines, rapids, or a summit hike.',
+    description: 'A guided outdoor thrill - zip-lines, rapids, or a summit hike.',
     category: 'adventure',
     cost: 220,
     energyCost: 24,
@@ -322,7 +322,7 @@ export function quoteActivity(activityId: string, state: GameState): ActivityQuo
     return {
       ok: false,
       reason: 'needs-money',
-      message: `Costs $${activity.cost.toLocaleString()} — you have $${Math.floor(money).toLocaleString()}.`,
+      message: `Costs $${activity.cost.toLocaleString()} - you have $${Math.floor(money).toLocaleString()}.`,
       activity,
     };
   }
@@ -332,7 +332,7 @@ export function quoteActivity(activityId: string, state: GameState): ActivityQuo
     return {
       ok: false,
       reason: 'needs-energy',
-      message: `Needs ${activity.energyCost} energy — you have ${Math.floor(energy)}.`,
+      message: `Needs ${activity.energyCost} energy - you have ${Math.floor(energy)}.`,
       activity,
     };
   }

@@ -1,5 +1,5 @@
 /**
- * CompanyDetailScreen — single-company deep view (business-dashboard DNA).
+ * CompanyDetailScreen - single-company deep view (business-dashboard DNA).
  *
  * Header: name + industry + key metrics.
  * Body reads as DEPARTMENTS, each surfacing existing overlay data the old UI
@@ -10,7 +10,7 @@
  * upgrade buys, notifications) stays reachable.
  *
  * Existing CompanyActions (createCompany, buyCompanyUpgrade) remain canonical
- * for the upgrade economy — Hustle layers premium systems on top.
+ * for the upgrade economy - Hustle layers premium systems on top.
  */
 import React, { useCallback, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -59,7 +59,7 @@ const BOARD_ROLE: Record<string, string> = {
 const scandalKindLabel = (k: string) => k.split('_').map(cap).join(' ');
 const meterColor = (v: number) => (v >= 70 ? HUSTLE_COLORS.success : v >= 45 ? HUSTLE_COLORS.warning : HUSTLE_COLORS.danger);
 
-// Family-business economy — costs + effects mirror createFamilyBusiness /
+// Family-business economy - costs + effects mirror createFamilyBusiness /
 // manageFamilyBusiness in FamilyBusinessActions (those actions stay the source of
 // truth; these are display-only labels for the buttons).
 const FAMILY_BUSINESS_COST = 1_000_000; // one-time conversion cost in createFamilyBusiness
@@ -94,7 +94,7 @@ export default function CompanyDetailScreen({
   );
   const overlay: HustleCompanyOverlay | undefined = gameState.hustleApp?.companies?.[companyId];
 
-  // Generic staff management — canonical addWorker/removeWorker mutators
+  // Generic staff management - canonical addWorker/removeWorker mutators
   // (contexts/game/company.ts). Hiring charges one week's salary up front and
   // recomputes weeklyIncome with the diminishing-returns headcount multiplier.
   const handleHireWorker = useCallback(() => {
@@ -109,7 +109,7 @@ export default function CompanyDetailScreen({
     saveGame?.();
   }, [gameState, setGameState, companyId, saveGame]);
 
-  // Exit path — the suite let you found/staff/IPO/acquire but never divest.
+  // Exit path - the suite let you found/staff/IPO/acquire but never divest.
   // 50% of total (inflated) investment, quoted up front in the confirm.
   const handleSellCompany = useCallback(() => {
     const quote = quoteCompanySaleValue(gameState, companyId);
@@ -166,7 +166,7 @@ export default function CompanyDetailScreen({
     saveGame?.();
   }, [setGameState, companyId, saveGame]);
 
-  // ───────── R&D handlers — thin wrappers over the canonical RDActions ─────────
+  // ───────── R&D handlers - thin wrappers over the canonical RDActions ─────────
   // (buildRDLab / startResearch / filePatent / enterCompetition). The weekly
   // research tick + completion/breakthrough live in CompanyActionsContext.
   const handleBuildLab = useCallback((labType: LabType) => {
@@ -193,10 +193,10 @@ export default function CompanyDetailScreen({
     else { hustleHaptics.error(); Alert.alert('Competition', r.message); }
   }, [gameState, setGameState, companyId, saveGame]);
 
-  // ───────── Family-business handlers — canonical CompanyActionsContext actions ─────────
+  // ───────── Family-business handlers - canonical CompanyActionsContext actions ─────────
   // createFamilyBusiness converts this company into a multi-generation legacy
   // ($1M, atomic); manageFamilyBusiness spends to build brand + reputation (also
-  // atomic — one charge, one benefit per tap). The button gating below keeps the
+  // atomic - one charge, one benefit per tap). The button gating below keeps the
   // disabled states honest, so a press only fires when it can succeed.
   const handleConvertToFamilyBusiness = useCallback(() => {
     hustleHaptics.tap();
@@ -239,7 +239,7 @@ export default function CompanyDetailScreen({
   // sections rendered as permanently dead. Derive a stable, deterministic roster
   // when the overlay carries none: a board once the company is public (post-IPO),
   // suppliers for every company. Seeded by company id (+ the stable IPO week for
-  // the board) so the list is identical across renders and reloads — no
+  // the board) so the list is identical across renders and reloads - no
   // Math.random. Plain (non-hook) computation because it sits after the early
   // `if (!company)` return; the generators are pure and cheap. Stored data (if a
   // future tick ever writes real board/supplier records) always wins.
@@ -254,8 +254,8 @@ export default function CompanyDetailScreen({
     ? storedSuppliers
     : generateSuppliers(companyId, company.type as HustleIndustry, company.weeklyIncome ?? 0);
 
-  // Revenue composition (surfaces baseWeeklyIncome — previously hidden).
-  // EFFECTIVE income, from the same helper the payout uses. See CompanyTile —
+  // Revenue composition (surfaces baseWeeklyIncome - previously hidden).
+  // EFFECTIVE income, from the same helper the payout uses. See CompanyTile -
   // showing the raw stored field is what made brand / share / hires /
   // acquisitions look inert to players.
   const factors = companyIncomeFactors(overlay);
@@ -339,7 +339,7 @@ export default function CompanyDetailScreen({
       ) : null}
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
-        {/* Hero — Recipe B (industry-tinted, translucent) */}
+        {/* Hero - Recipe B (industry-tinted, translucent) */}
         <View
           style={[
             getGlassCard(isDark, 12),
@@ -369,11 +369,11 @@ export default function CompanyDetailScreen({
               <Text style={[styles.heroRevenueSuffix, { color: theme.textSecondary }]}> / week</Text>
             </Text>
             <Text style={[styles.heroEmployees, { color: theme.textSecondary }]}>
-              {/* employees already INCLUDES named hires — do not sum them */}
+              {/* employees already INCLUDES named hires - do not sum them */}
               {company.employees} employees{namedHires.length > 0 ? ` (incl. ${namedHires.length} key ${namedHires.length === 1 ? 'hire' : 'hires'})` : ''}
             </Text>
 
-            {/* Revenue composition — base vs lift from staff/upgrades */}
+            {/* Revenue composition - base vs lift from staff/upgrades */}
             <View style={styles.compBar} pointerEvents="none">
               <View style={[styles.compTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.10)' }]}>
                 <View style={[styles.compBase, { width: `${basePct}%`, backgroundColor: theme.textMuted }]} />
@@ -385,11 +385,11 @@ export default function CompanyDetailScreen({
               {isPublic && overlay?.ipo ? ` · you own ${overlay.ipo.ownershipPercent.toFixed(0)}%` : ''}
             </Text>
             {/* WHY the multiplier is what it is. Without this the number moves
-                and the player still cannot tell which lever moved it — which is
+                and the player still cannot tell which lever moved it - which is
                 how "acquisitions change nothing" gets reported for a feature
                 that does work. */}
             <Text style={[styles.compCaption, { color: theme.textMuted }]}>
-              {`×${factors.multiplier.toFixed(2)} — brand ${factors.brand >= 0 ? '+' : ''}${Math.round(factors.brand * 100)}%`}
+              {`×${factors.multiplier.toFixed(2)} - brand ${factors.brand >= 0 ? '+' : ''}${Math.round(factors.brand * 100)}%`}
               {` · share +${Math.round(factors.share * 100)}%`}
               {` · hires ${factors.hires >= 0 ? '+' : ''}${Math.round(factors.hires * 100)}%`}
               {factors.clamped ? ' (capped)' : ''}
@@ -401,13 +401,13 @@ export default function CompanyDetailScreen({
         <View style={styles.kpiGrid}>
           <KPICard icon={Briefcase} label="Brand" value={String(brand)} trend={overlay?.brand?.trend === 'rising' ? 'up' : overlay?.brand?.trend === 'declining' ? 'down' : 'flat'} trendValue={overlay?.brand?.trend ?? 'flat'} />
           <KPICard icon={TrendingUp} label="Share" value={`${share}%`} accentColor={HUSTLE_COLORS.accentSecondary} />
-          {/* Was "Cash", reading `company.money` — a field nothing ever writes,
+          {/* Was "Cash", reading `company.money` - a field nothing ever writes,
               so it displayed $0 for every company forever. Payroll is real and
               it is the cost side of the hires that lift the multiplier. */}
           <KPICard
             icon={DollarSign}
             label="Payroll"
-            value={payroll > 0 ? `-$${Math.round(payroll / 1000)}K` : '—'}
+            value={payroll > 0 ? `-$${Math.round(payroll / 1000)}K` : '-'}
             accentColor={HUSTLE_COLORS.success}
           />
           {isPublic && overlay?.ipo ? (
@@ -464,7 +464,7 @@ export default function CompanyDetailScreen({
           )}
         </View>
 
-        {/* Generic staff — canonical addWorker/removeWorker */}
+        {/* Generic staff - canonical addWorker/removeWorker */}
         <View style={[getGlassCard(isDark, 6), styles.staffCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
           <Text style={[styles.staffCount, { color: theme.text }]}>
             {company.employees} / {STAFF_CAP} employees · payroll ${company.workerSalary.toLocaleString()}/hire
@@ -600,7 +600,7 @@ export default function CompanyDetailScreen({
             icon={Rocket}
             color={HUSTLE_COLORS.success}
             title="Take public (IPO)"
-            subtitle={weekly >= 10_000 ? 'Eligible — raise capital, dilute ownership' : 'Need $10K/week revenue'}
+            subtitle={weekly >= 10_000 ? 'Eligible - raise capital, dilute ownership' : 'Need $10K/week revenue'}
             theme={theme}
             onPress={() => { hustleHaptics.tap(); onOpenIPO(); }}
             disabled={weekly < 10_000 || !!scandal}
@@ -616,7 +616,7 @@ export default function CompanyDetailScreen({
           />
         )}
 
-        {/* Board seats roster (surfaces boardSeats — unused by old UI) */}
+        {/* Board seats roster (surfaces boardSeats - unused by old UI) */}
         {boardSeats.length > 0 ? (
           <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
             <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Board of directors</Text>
@@ -676,7 +676,7 @@ export default function CompanyDetailScreen({
           icon={AlertTriangle}
           color={HUSTLE_COLORS.danger}
           title="Sell company"
-          subtitle={`Divest for ${formatMoney(quoteCompanySaleValue(gameState, companyId) ?? 0)} — 50% of invested`}
+          subtitle={`Divest for ${formatMoney(quoteCompanySaleValue(gameState, companyId) ?? 0)} - 50% of invested`}
           theme={theme}
           onPress={handleSellCompany}
         />
@@ -770,7 +770,7 @@ export default function CompanyDetailScreen({
           </View>
         )}
 
-        {/* ───────── Upgrades department — tracks as ProgressRings ───────── */}
+        {/* ───────── Upgrades department - tracks as ProgressRings ───────── */}
         {upgradeDefs.length > 0 ? (
           <>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>Upgrade tracks</Text>
@@ -840,7 +840,7 @@ export default function CompanyDetailScreen({
             <Text style={[styles.sectionLabel, { color: theme.text }]}>R&amp;D Lab</Text>
 
             {!rdLab ? (
-              /* No lab yet — build options */
+              /* No lab yet - build options */
               <View style={[getGlassCard(isDark, 6), styles.deptCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
                 <Text style={[styles.deptSubhead, { color: theme.textSecondary }]}>Build a lab</Text>
                 <Text style={[styles.staffHint, { color: theme.textSecondary, marginBottom: responsiveSpacing.xs }]}>
@@ -1081,7 +1081,7 @@ export default function CompanyDetailScreen({
           </>
         ) : null}
 
-        {/* ───────── Suppliers (surfaces suppliers — unused by old UI) ───────── */}
+        {/* ───────── Suppliers (surfaces suppliers - unused by old UI) ───────── */}
         {suppliers.length > 0 ? (
           <>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>Suppliers</Text>
@@ -1112,7 +1112,7 @@ export default function CompanyDetailScreen({
           </>
         ) : null}
 
-        {/* ───────── Scandal ledger (surfaces scandalHistory — unused) ───────── */}
+        {/* ───────── Scandal ledger (surfaces scandalHistory - unused) ───────── */}
         {scandalHistory.length > 0 ? (
           <>
             <Text style={[styles.sectionLabel, { color: theme.text }]}>Scandal ledger</Text>
@@ -1138,7 +1138,7 @@ export default function CompanyDetailScreen({
 
         {/* Notifications list. `markHustleNotificationRead` /
             `clearHustleNotifications` both shipped with ZERO call sites, so
-            every alert stayed unread forever and the list only ever grew —
+            every alert stayed unread forever and the list only ever grew -
             the unread dot was decoration. Tapping a row marks it read; the
             header carries a Clear-all. */}
         {overlay && overlay.notifications.length > 0 ? (
@@ -1279,7 +1279,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
     // Full border, not a `borderLeftWidth: 3` accent stripe. Hard Rule #7 bans
-    // a one-sided coloured border used decoratively — the product owner
+    // a one-sided coloured border used decoratively - the product owner
     // rejected the look, and RN curls it into a crescent artifact against
     // `borderRadius`. The danger colour is kept, on all four sides, so the
     // meaning survives. 2026-07-30 audit UX-3.

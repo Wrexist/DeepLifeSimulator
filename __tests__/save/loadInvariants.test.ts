@@ -116,7 +116,7 @@ describe('enforceStateInvariants', () => {
     warnSpy.mockRestore();
   });
 
-  it('is a no-op on a healthy state — same reference, nothing logged', () => {
+  it('is a no-op on a healthy state - same reference, nothing logged', () => {
     const state = createTestGameState();
     const result = enforceStateInvariants(state, 'test');
 

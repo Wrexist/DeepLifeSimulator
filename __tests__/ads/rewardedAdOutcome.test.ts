@@ -54,7 +54,7 @@ describe('rewardedAd outcome helpers', () => {
   });
 });
 
-describe('runRewardedAd — grant path is distinguishable and display == grant', () => {
+describe('runRewardedAd - grant path is distinguishable and display == grant', () => {
   beforeEach(() => mockShowRewardedAd.mockReset());
 
   it('grantOnNoFill on a no-fill honours the reward as granted-no-fill (grant once)', async () => {

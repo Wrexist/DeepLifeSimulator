@@ -37,7 +37,7 @@ describe('a marker authorises the cast it belongs to', () => {
   it('in the comment block directly above it', () => {
     const src = [
       'const a = 1;',
-      `// ${DELIBERATE_MARKER} — a truncated save really carries this.`,
+      `// ${DELIBERATE_MARKER} - a truncated save really carries this.`,
       '// Second line of the same block.',
       'const bad = {} as GameState;',
     ].join('\n');
@@ -48,7 +48,7 @@ describe('a marker authorises the cast it belongs to', () => {
   it('inside a JSDoc block directly above it', () => {
     const src = [
       '/**',
-      ` * ${DELIBERATE_MARKER} — the reasoning belongs with the fixture.`,
+      ` * ${DELIBERATE_MARKER} - the reasoning belongs with the fixture.`,
       ' */',
       'const bad = {} as GameState;',
     ].join('\n');
@@ -62,7 +62,7 @@ describe('and CANNOT authorise anything else', () => {
     // THE REGRESSION. Both casts sit within twelve lines of one marker; only the
     // first is marked. The flat-window implementation returned true for both.
     const src = [
-      `// ${DELIBERATE_MARKER} — this one is intentional.`,
+      `// ${DELIBERATE_MARKER} - this one is intentional.`,
       'const marked = {} as GameState;',
       'doSomething(marked);',
       'const sneaky = { weeksLived: 1 } as GameState;',

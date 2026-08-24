@@ -119,7 +119,7 @@ describe('the policy card no longer claims effects with no system', () => {
       const carrier = POLICIES.find(
         (p) => (p.effects as Record<string, Record<string, unknown> | undefined>)?.[group]?.[field] !== undefined,
       );
-      // `economy.priceIndex` is the one entry no policy sets — it was a row for
+      // `economy.priceIndex` is the one entry no policy sets - it was a row for
       // a field the catalogue never populated, which is its own kind of dead.
       if (key !== 'economy.priceIndex') {
         expect(`${key} is carried by a policy: ${Boolean(carrier)}`).toBe(`${key} is carried by a policy: true`);
@@ -138,7 +138,7 @@ describe('the policy card no longer claims effects with no system', () => {
   });
 
   it('the effects that DO work are still rendered', () => {
-    // The control. Hiding the dead rows must not have hidden the live ones —
+    // The control. Hiding the dead rows must not have hidden the live ones -
     // rentModifier, miningBonus, the healthcare pair, the transport pair, the
     // education trio, the stock pair, and the newly-wired inflation.
     for (const field of [

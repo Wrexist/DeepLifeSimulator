@@ -1,9 +1,9 @@
 /**
- * DashboardScreen — multi-company overview (business-dashboard DNA).
+ * DashboardScreen - multi-company overview (business-dashboard DNA).
  *
  * Top: hero KPI strip (total weekly revenue) with an SVG revenue-by-company
  * bar chart. Below: a KPI strip whose tiles each carry a mini chart, then a
- * Portfolio / Milestones segmented switch — Portfolio lists CompanyTile cards
+ * Portfolio / Milestones segmented switch - Portfolio lists CompanyTile cards
  * with revenue bars; Milestones surfaces lifetime records. FAB founds a company.
  */
 import React, { useCallback, useMemo, useState } from 'react';
@@ -76,7 +76,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   const lifetime = gameState.hustleApp?.lifetimeStats;
 
   const series = useMemo(() => {
-    // The bars must plot the same figure the tiles print — the stored
+    // The bars must plot the same figure the tiles print - the stored
     // `weeklyIncome` is only the FIRST step of the payout chain.
     const revenue = companies.map((c) => companyWeeklyIncomeFor(gameState, c, 1));
     const employees = companies.map((c) => c.employees ?? 0);
@@ -93,7 +93,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
     let scandals = 0;
     for (const c of companies) {
       // c.employees is the canonical headcount and already INCLUDES named
-      // hires (hireCandidate/fireNamedHire keep it in sync) — never add
+      // hires (hireCandidate/fireNamedHire keep it in sync) - never add
       // overlay.hiringPipeline.namedHires.length on top of this.
       employees += c.employees ?? 0;
       const o = overlays[c.id];
@@ -177,7 +177,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
-        {/* Hero strip — Recipe B (identity indigo) */}
+        {/* Hero strip - Recipe B (identity indigo) */}
         <View
           style={[
             getGlassCard(isDark, 12),
@@ -220,7 +220,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
           </View>
         </View>
 
-        {/* KPI grid — each tile carries a mini chart from real per-company data */}
+        {/* KPI grid - each tile carries a mini chart from real per-company data */}
         <View style={styles.kpiGrid}>
           <KPICard icon={DollarSign} label="Weekly" value={`$${(empire.paid / 1000).toFixed(1)}K`} accentColor={HUSTLE_COLORS.success} chart={series.revenue} caption={`${companies.length} co${companies.length === 1 ? '' : 's'}`} />
           <KPICard icon={Users} label="Employees" value={String(totals.employees)} chart={series.employees} />
@@ -287,7 +287,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   );
 }
 
-/** Lifetime records — surfaces hustleApp.lifetimeStats (unused by the old UI). */
+/** Lifetime records - surfaces hustleApp.lifetimeStats (unused by the old UI). */
 function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boolean; lifetime: any }) {
   const stats: { icon: any; label: string; value: number; color: string }[] = [
     { icon: Building2, label: 'Founded', value: lifetime?.totalCompaniesFounded ?? 0, color: HUSTLE_COLORS.accent },

@@ -61,7 +61,7 @@ export function suspendLifeAutosave(reason: string): void {
 /**
  * Allow the ambient autosave again.
  *
- * Call when a life is actually in play — after a successful load, and after
+ * Call when a life is actually in play - after a successful load, and after
  * onboarding has written and loaded the new character. Safe to call when not
  * suspended.
  */
@@ -82,7 +82,7 @@ export function lifeAutosaveSuspendReason(): string {
   return suspendReason;
 }
 
-/** Test seam — resets module state between cases. */
+/** Test seam - resets module state between cases. */
 export function __resetLifeAutosaveSuspensionForTests(): void {
   suspended = false;
   suspendReason = '';

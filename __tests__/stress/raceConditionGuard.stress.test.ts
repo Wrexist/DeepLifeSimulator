@@ -202,7 +202,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
   // Two-mode test for street jobs:
   //  - Real rapid-tap (separate act blocks per call, like distinct touch events): cap must hold
   //  - Worst-case batched (all in ONE act block, like programmatic spam): cap may be bypassed
-  it('Street jobs: separate-tap (real UX) — cap holds at 3', () => {
+  it('Street jobs: separate-tap (real UX) - cap holds at 3', () => {
     mounted = mountGame();
     seedWealthy();
     act(() => captured!.setGameState(prev => ({ ...prev, weeklyStreetJobs: {} })));
@@ -225,7 +225,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
   // FIX: the cap check now also runs INSIDE setGameState(prev =>) so each
   // invocation sees the cumulative weeklyStreetJobs[jobId] from prior
   // same-batch invocations and returns prev unchanged when capped.
-  it('FIXED: same-batch spam respects per-job cap (3) — inner setGameState guard', () => {
+  it('FIXED: same-batch spam respects per-job cap (3) - inner setGameState guard', () => {
     mounted = mountGame();
     seedWealthy();
     act(() => captured!.setGameState(prev => ({ ...prev, weeklyStreetJobs: {} })));
@@ -239,7 +239,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
     expect(count).toBe(3);
   });
 
-  it('Gift: separate-tap (real UX) — gift cap holds at 2/week', async () => {
+  it('Gift: separate-tap (real UX) - gift cap holds at 2/week', async () => {
     mounted = mountGame();
     seedWealthy();
     const partner: Relationship = {
@@ -391,7 +391,7 @@ describe('Race-condition / anti-exploit guard audit', () => {
     seedWealthy();
     const gemsBefore = captured!.state.stats.gems;
 
-    // All 5 calls in ONE act block — the AUTHORITATIVE check inside
+    // All 5 calls in ONE act block - the AUTHORITATIVE check inside
     // setGameState(prev =>) must reject claims 2-5.
     await act(async () => {
       await Promise.all([

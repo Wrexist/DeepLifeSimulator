@@ -23,7 +23,7 @@ import type { LuxuryHolding } from '@/contexts/game/types';
 
 const ALL_IDS = LUXURY_CATALOG.map((i) => i.id);
 
-describe('yield — the collection produces', () => {
+describe('yield - the collection produces', () => {
   it('no item ever out-earns its own upkeep', () => {
     // The line that keeps a trophy a trophy. If any item paid for itself it
     // would stop being a money sink and start being an investment.
@@ -71,7 +71,7 @@ describe('yield — the collection produces', () => {
   });
 });
 
-describe('appreciation — value drifts', () => {
+describe('appreciation - value drifts', () => {
   it('gains on the assets that actually appreciate', () => {
     const ids = ['fine_art_collection', 'rare_watch_collection'];
     const { holdings, valueDelta } = appreciateLuxuryHoldings(ids, {});
@@ -90,7 +90,7 @@ describe('appreciation — value drifts', () => {
     expect(holdings.luxury_yacht.currentValue).toBeLessThan(getLuxuryItem('luxury_yacht')!.price);
   });
 
-  it('does not drift developable items — their property appreciates instead', () => {
+  it('does not drift developable items - their property appreciates instead', () => {
     // The island mints a RealEstate that appreciates through the real-estate
     // system. Drifting both would count one island twice.
     const { holdings, valueDelta } = appreciateLuxuryHoldings(['private_island'], {});
@@ -143,7 +143,7 @@ describe('appreciation — value drifts', () => {
   });
 });
 
-describe('market value — what net worth should count', () => {
+describe('market value - what net worth should count', () => {
   it('matches the old flat resale value before anything drifts', () => {
     // The guarantee that makes this safe to ship: an untouched collection is
     // valued exactly as it always was.
@@ -157,7 +157,7 @@ describe('market value — what net worth should count', () => {
     expect(getTotalLuxuryMarketValue(ids, holdings)).toBeGreaterThan(before);
   });
 
-  it('still applies the resale haircut — luxury is never a net-worth exploit', () => {
+  it('still applies the resale haircut - luxury is never a net-worth exploit', () => {
     const item = getLuxuryItem('fine_art_collection')!;
     const value = getTotalLuxuryMarketValue([item.id], {});
     expect(value).toBe(Math.floor(item.price * LUXURY_RESALE_FRACTION));

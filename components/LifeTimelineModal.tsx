@@ -1,5 +1,5 @@
 /**
- * LifeTimelineModal — the chronological "This Life" view (2026-08-24, §11).
+ * LifeTimelineModal - the chronological "This Life" view (2026-08-24, §11).
  *
  * The game has always stamped weeks on careers, births, marriages, notable
  * events and journal entries, and never assembled them into the one view the
@@ -59,7 +59,7 @@ export default function LifeTimelineModal({ visible, onClose }: Props) {
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator>
             {entries.length === 0 ? (
               <Text style={[styles.empty, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>
-                Nothing on the record yet — live a little.
+                Nothing on the record yet - live a little.
               </Text>
             ) : (
               entries.map((entry, index) => {
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   title: { fontSize: fontScale(18), fontWeight: '800' },
-  // flexShrink so the list actually bounds inside the maxHeight sheet — the
+  // flexShrink so the list actually bounds inside the maxHeight sheet - the
   // soft-lock class __tests__/render/modalListsShrink.test.ts ratchets.
   scroll: { flexGrow: 0, flexShrink: 1 },
   empty: { fontSize: fontScale(13), paddingVertical: scale(24), textAlign: 'center' },

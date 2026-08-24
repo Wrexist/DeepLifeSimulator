@@ -1,5 +1,5 @@
 /**
- * VerifiedBadge — gradient checkmark badge, with 600ms shimmer on first render.
+ * VerifiedBadge - gradient checkmark badge, with 600ms shimmer on first render.
  *
  * For unverified users with `showUpsellOnTapIfUnverified`, renders a faint
  * outline that opens the Pulse Pro upsell modal on tap.

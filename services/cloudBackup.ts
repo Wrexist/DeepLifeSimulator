@@ -60,7 +60,7 @@ export const CLOUD_RESTORE_OLDER_MESSAGE =
  * blames the player for closing the app.
  */
 export const CLOUD_RESTORE_UNSAVED_MESSAGE =
-  'Your cloud backup was restored and is running now, but it could not be saved to this device. Keep playing to save it — if you close the game first, your previous save comes back.';
+  'Your cloud backup was restored and is running now, but it could not be saved to this device. Keep playing to save it - if you close the game first, your previous save comes back.';
 
 export type CloudRestoreOutcome =
   | {
@@ -218,7 +218,7 @@ export async function getLastCloudBackupAt(): Promise<number | null> {
   try {
     return await getCloudSyncService().getLastBackupAt();
   } catch (error) {
-    // Null renders as "Not backed up yet" — indistinguishable from a device
+    // Null renders as "Not backed up yet" - indistinguishable from a device
     // that genuinely never uploaded, which is the one reading a player would
     // act on. Swallowing the cause left nothing to diagnose it with.
     logger.warn('[CloudBackup] Could not read the last backup timestamp', { error });
@@ -226,7 +226,7 @@ export async function getLastCloudBackupAt(): Promise<number | null> {
   }
 }
 
-/** "Last backup: 12 minutes ago" — the Settings status line. Pure, so it is testable. */
+/** "Last backup: 12 minutes ago" - the Settings status line. Pure, so it is testable. */
 export function formatLastBackupLabel(at: number | null, now: number = Date.now()): string {
   if (!at || !Number.isFinite(at) || at <= 0) return 'Not backed up yet';
   const minutes = Math.floor(Math.max(0, now - at) / 60000);
@@ -242,10 +242,10 @@ export function formatLastBackupLabel(at: number | null, now: number = Date.now(
  * Download the cloud save for a slot and decide whether it may be applied.
  *
  * The order is the one `loadGame` uses and is not optional: migrate FIRST
- * (a cloud copy can be older — or newer — than this build's STATE_VERSION,
+ * (a cloud copy can be older - or newer - than this build's STATE_VERSION,
  * and a future-version save must be refused rather than repaired), then run
  * the shared hydration through `hydrateRemoteState`, which re-validates and
- * refuses a state whose `weeksLived` sits behind the local one (§4.2 — the
+ * refuses a state whose `weeksLived` sits behind the local one (§4.2 - the
  * absolute counter only grows, so a behind-remote is a rollback of weeks
  * actually played).
  *

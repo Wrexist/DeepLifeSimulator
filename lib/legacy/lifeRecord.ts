@@ -69,7 +69,7 @@ function safely<T>(label: string, fn: () => T): T | undefined {
   }
 }
 
-/** "Head Chef — 3 yrs" from a career-history entry, robust to old entries. */
+/** "Head Chef - 3 yrs" from a career-history entry, robust to old entries. */
 function careerLine(entry: {
   job?: string;
   title?: string;
@@ -78,14 +78,14 @@ function careerLine(entry: {
   const name = entry.title || entry.job;
   if (!name) return null;
   const weeks = finite(entry.weeks);
-  if (weeks >= 52) return `${name} — ${Math.floor(weeks / 52)} yr${weeks >= 104 ? 's' : ''}`;
-  if (weeks > 0) return `${name} — ${Math.round(weeks)} wk${weeks >= 2 ? 's' : ''}`;
+  if (weeks >= 52) return `${name} - ${Math.floor(weeks / 52)} yr${weeks >= 104 ? 's' : ''}`;
+  if (weeks > 0) return `${name} - ${Math.round(weeks)} wk${weeks >= 2 ? 's' : ''}`;
   return name;
 }
 
 /**
  * Highlights for the "Memorable Events" section: the biggest money swings and
- * the special/crime beats, most recent first — the same signal the life-story
+ * the special/crime beats, most recent first - the same signal the life-story
  * generator reads, kept deliberately small (the record is stored per life).
  */
 function memorableEvents(state: GameState): string[] {
@@ -118,7 +118,7 @@ export function buildLifeRecord(oldState: GameState): PreviousLifeRecord {
     deathReason: oldState.deathReason,
     timestamp: Date.now(),
     summaryAchievements: safely('achievements', () => getEarnedAchievementNames(oldState)),
-    // Weeks lived when this life ended — feeds the prestige-speed achievements.
+    // Weeks lived when this life ended - feeds the prestige-speed achievements.
     weeksLivedAtEnd: oldState.weeksLived || 0,
   };
 

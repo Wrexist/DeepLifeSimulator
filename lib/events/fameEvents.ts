@@ -90,7 +90,7 @@ const talkShowInvitation: EventTemplate = {
     choices: [
       {
         id: 'accept',
-        text: 'Accept — time to shine!',
+        text: 'Accept - time to shine!',
         effects: { money: 5000, stats: { reputation: 15, happiness: 12 } },
       },
       {
@@ -340,7 +340,7 @@ const privacyInvasion: EventTemplate = {
       },
       {
         id: 'cope',
-        text: 'Deal with it — this is the price of fame',
+        text: 'Deal with it - this is the price of fame',
         effects: { stats: { happiness: -8 } },
       },
     ],
@@ -448,7 +448,7 @@ const exclusiveParty: EventTemplate = {
       },
       {
         id: 'skip',
-        text: 'Stay home — early morning tomorrow',
+        text: 'Stay home - early morning tomorrow',
         effects: { stats: { happiness: -3, energy: 10 } },
       },
     ],

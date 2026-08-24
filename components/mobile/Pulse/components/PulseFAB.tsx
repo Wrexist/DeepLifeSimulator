@@ -1,5 +1,5 @@
 /**
- * PulseFAB — floating gradient compose button.
+ * PulseFAB - floating gradient compose button.
  *
  * Sits absolute, bottom-right, above the tab bar. Brand magenta-indigo
  * gradient + shadow + center plus icon. Press triggers haptic + onPress.

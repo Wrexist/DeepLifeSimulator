@@ -1,5 +1,5 @@
 /**
- * DeepMail — the game's paper trail, and the one channel the player has to judge.
+ * DeepMail - the game's paper trail, and the one channel the player has to judge.
  *
  * ## Shape
  *
@@ -8,7 +8,7 @@
  * tabs that separate money from marketing from people, a dense list where
  * weight carries unread, and a folder drawer behind the hamburger. Copying a
  * layout this well-worn means the player spends their attention on the
- * CONTENT — which is the part that can cost them money — instead of on
+ * CONTENT - which is the part that can cost them money - instead of on
  * learning a mail client.
  *
  * ## Navigation, and what it costs to get it wrong
@@ -18,7 +18,7 @@
  * EXPIRE. Everything else in the app can be found by scrolling; a summons that
  * settles itself in two weeks has to be findable on purpose. So "Needs reply"
  * is a chip, its badge counts across every folder, and the row carries the
- * deadline. A chip is also a question you can answer by looking — unlike a
+ * deadline. A chip is also a question you can answer by looking - unlike a
  * search operator, which you have to know exists before you can discover it.
  *
  * The current folder is the FIRST chip whenever it is not the Inbox, and it is
@@ -33,7 +33,7 @@
  *   never "here are the scams", only "here is who nobody vouched for".
  * - Search spans folders. This screen's stated reason for having search is that
  *   "did my bank really write from that address?" should be answerable inside
- *   it — and a folder-scoped search told a player who had archived the message
+ *   it - and a folder-scoped search told a player who had archived the message
  *   "No matches", which does not fail to answer that, it answers it wrongly.
  * - The risk panel in the drawer says WHY the player's exposure is what it is.
  *   Being phished more often because you shopped an untrusted vendor is a
@@ -156,7 +156,7 @@ function MailAppInner({ onBack }: Props) {
   // perf regression CLAUDE.md 4.1 documents.
   const getGameState = useGameStateGetter();
   // The one resolver. Mail delegates event-backed choices to it rather than
-  // reimplementing effect application — see `MailResolver`.
+  // reimplementing effect application - see `MailResolver`.
   const { resolveEvent } = useGameActions();
 
   // Narrow subscription: the mail slice and the two booleans that style it.
@@ -167,15 +167,15 @@ function MailAppInner({ onBack }: Props) {
   // Risk inputs, read separately so the panel stays live without subscribing to
   // the whole state. `shallowEqual` is not optional here: the selector builds a
   // fresh object every call, so without it this component would re-render on
-  // every mutation in the game — the documented regression in CLAUDE.md §4.1.
+  // every mutation in the game - the documented regression in CLAUDE.md §4.1.
   const riskState = useGameSelector(
     (s) => ({ darkWeb: s?.darkWeb, stats: s?.stats, bankSavings: s?.bankSavings }),
     shallowEqual
   );
   // The tab layout floats a "N decisions waiting" pill at `bottom: scale(88)`
   // and keeps it up while a sub-app is open. Reserve room for it only while it
-  // is actually there — see the note on `MailDetail`'s `pillClearance`.
-  // `modalEventCount`, not `pendingEvents.length` — the pill stopped counting
+  // is actually there - see the note on `MailDetail`'s `pillClearance`.
+  // `modalEventCount`, not `pendingEvents.length` - the pill stopped counting
   // mail-routed letters when routing landed, so reserving space for it on the
   // raw count would leave a dead strip whenever the only pending event was a
   // letter the player is already reading.
@@ -199,7 +199,7 @@ function MailAppInner({ onBack }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
-  // `getMailState` is the safe read layer — a partial or absent slice degrades
+  // `getMailState` is the safe read layer - a partial or absent slice degrades
   // to an empty inbox rather than throwing.
   const state = useMemo(() => getMailState({ mail } as never), [mail]);
   const counts = useMemo(() => folderCounts({ mail } as never), [mail]);
@@ -211,7 +211,7 @@ function MailAppInner({ onBack }: Props) {
   const risk = useMemo(() => scamRisk(riskState as never, currentWeek), [riskState, currentWeek]);
   // What is holding the risk DOWN. Shown next to what pushed it up, because a
   // player who paid to rotate their credentials should be able to see it
-  // working — otherwise the purchase is an act of faith.
+  // working - otherwise the purchase is an act of faith.
   const defences = useMemo(
     () => protections({ mail } as never, currentWeek),
     [mail, currentWeek]
@@ -222,7 +222,7 @@ function MailAppInner({ onBack }: Props) {
   /**
    * The messages the list shows.
    *
-   * Two modes, kept apart deliberately. SEARCHING spans folders — see the
+   * Two modes, kept apart deliberately. SEARCHING spans folders - see the
    * header note; intersecting it with the current folder and the category tab
    * would silently exclude most of the mailbox from a query the player typed
    * expecting it to look everywhere. BROWSING is folder-scoped, then narrowed
@@ -236,12 +236,12 @@ function MailAppInner({ onBack }: Props) {
     // `messagesInFolder` owns the folder rule (including that Starred is a VIEW
     // across folders, not a folder). It existed and this screen re-implemented
     // it inline, which is how the two would have disagreed the first time
-    // either changed — and how the helper ended up looking like dead code.
+    // either changed - and how the helper ended up looking like dead code.
     return messagesInFolder({ mail } as never, folder).filter((m) => {
       if (filter && !matchesFilter(m, filter)) return false;
       // Category tabs are an INBOX affordance. Applying them to Archive or
       // Spam would hide messages inside a folder the player opened precisely
-      // to find one specific thing — and applying them under an active chip
+      // to find one specific thing - and applying them under an active chip
       // would silently intersect two filters the player set one of.
       if (folder === 'inbox' && !filter && (m.category ?? 'primary') !== category) {
         return false;
@@ -295,7 +295,7 @@ function MailAppInner({ onBack }: Props) {
   /**
    * Stable per-row handlers. These were inline arrows in the list JSX, so every
    * render minted a fresh pair for each of up to 50 rows and `React.memo(MailRow)`
-   * never once hit — typing a character into the search field re-rendered the
+   * never once hit - typing a character into the search field re-rendered the
    * whole list. Same shape as Pulse's FeedScreen: the row passes its own id back.
    */
   const toggleStar = useCallback(
@@ -313,7 +313,7 @@ function MailAppInner({ onBack }: Props) {
   const handleAct = useCallback(() => {
     if (!open) return;
     // `scamLossSummary` owns this copy. It was exported, unused, and duplicated
-    // verbatim here — two sources for one sentence.
+    // verbatim here - two sources for one sentence.
     actOnScamMail({ mail, money }, setGameState, open.id, ({ lost }) => setBanner(scamLossSummary(lost)));
   }, [open, mail, money, setGameState]);
 
@@ -392,7 +392,7 @@ function MailAppInner({ onBack }: Props) {
 
   return (
     <View style={s.container}>
-      {/* Gmail's search bar IS the header — there is no separate title. */}
+      {/* Gmail's search bar IS the header - there is no separate title. */}
       <View style={s.searchWrap}>
         <TouchableOpacity
           onPress={() => setDrawerOpen(true)}
@@ -448,7 +448,7 @@ function MailAppInner({ onBack }: Props) {
         // COLUMN stretches to fill the cross axis, so a horizontal one with no
         // height cap claimed ~380px of vertical space: the chips floated in the
         // middle of the screen and the message list was squashed to the bottom.
-        // Nothing in the test suite could see it — the tree was correct, only
+        // Nothing in the test suite could see it - the tree was correct, only
         // the pixels were wrong.
         style={s.chipScroll}
         contentContainerStyle={s.chipRow}
@@ -498,7 +498,7 @@ function MailAppInner({ onBack }: Props) {
         })}
       </ScrollView>
 
-      {/* Category tabs — inbox only, hidden while searching or filtering. A
+      {/* Category tabs - inbox only, hidden while searching or filtering. A
           search that silently excluded three quarters of the mailbox would be
           the most confusing thing in the app, and a chip intersected with a
           tab is the same problem with two controls instead of one. */}
@@ -590,7 +590,7 @@ function MailAppInner({ onBack }: Props) {
               message={m}
               darkMode={darkMode}
               currentWeek={currentWeek}
-              // Only on results from somewhere else — labelling every row
+              // Only on results from somewhere else - labelling every row
               // "Inbox" while standing in the Inbox is noise, and the label
               // exists so a search hit can be found again afterwards.
               folderLabel={
@@ -690,7 +690,7 @@ function MailAppInner({ onBack }: Props) {
             </TouchableOpacity>
 
             {/* Exposure panel. The player should always be able to find out why
-                they are getting targeted — a hidden risk multiplier reads as
+                they are getting targeted - a hidden risk multiplier reads as
                 the game being unfair rather than the game responding. */}
             <View style={s.riskCard}>
               <View style={s.riskHead}>
@@ -787,7 +787,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       flexDirection: 'row',
       paddingHorizontal: responsiveSpacing.sm,
       gap: responsiveSpacing.xs,
-      // Structural divider under the tab strip — allowed by Hard Rule #7.
+      // Structural divider under the tab strip - allowed by Hard Rule #7.
       borderBottomWidth: 1,
       borderBottomColor: darkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
     },
@@ -797,7 +797,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       gap: scale(4),
       paddingVertical: responsiveSpacing.sm,
       paddingHorizontal: responsiveSpacing.sm,
-      // Active-tab underline — the other structural exception in Hard Rule #7.
+      // Active-tab underline - the other structural exception in Hard Rule #7.
       borderBottomWidth: 2,
       borderBottomColor: 'transparent',
     },

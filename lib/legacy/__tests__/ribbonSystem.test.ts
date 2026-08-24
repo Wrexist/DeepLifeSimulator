@@ -24,7 +24,7 @@ function freshState(overrides: TestGameStateOverrides = {}): GameState {
 const ordinary = RIBBONS.find((r) => r.id === 'ribbon_ordinary') as RibbonDefinition;
 const centenarian = RIBBONS.find((r) => r.id === 'ribbon_centenarian') as RibbonDefinition;
 
-describe('ribbonSystem — addRibbonToCollection', () => {
+describe('ribbonSystem - addRibbonToCollection', () => {
   it('appends one entry per life and records the ribbon id in discoveredIds', () => {
     const state = freshState({ generationNumber: 1 });
     const collection = addRibbonToCollection(undefined, ordinary, state);
@@ -93,7 +93,7 @@ describe('ribbonSystem — addRibbonToCollection', () => {
   });
 });
 
-describe('ribbonSystem — classifyLife', () => {
+describe('ribbonSystem - classifyLife', () => {
   it('always returns a ribbon (ordinary fallback matches every life)', () => {
     const ribbon = classifyLife(freshState());
     expect(ribbon).toBeTruthy();

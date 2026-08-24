@@ -178,7 +178,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
 
   // 2) Apply sector tilt to prices (multiplicative), then the macro drift.
   //    priceFactors captures the net move (tilted / base) per symbol so the
-  //    caller can persist it into the authoritative module price — this is what
+  //    caller can persist it into the authoritative module price - this is what
   //    turns the previously-cosmetic tilt/drift into a real, compounding move on
   //    the market board, Movers sort, market-order fills, and portfolio value.
   const prices = { ...input.prices };
@@ -251,7 +251,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
         );
       }
     } else {
-      // Sell — pay out proceeds ONLY for shares actually held, reduce holdings,
+      // Sell - pay out proceeds ONLY for shares actually held, reduce holdings,
       // compute realized gain. R10-1: clamp to owned shares so an order placed
       // (or migrated) for more shares than the player holds can't print cash for
       // phantom shares. Placement validation already guards this; this is the
@@ -283,7 +283,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
     });
   }
 
-  // 5) Capital-gains + dividend tax — parity with the crypto tick, which taxes
+  // 5) Capital-gains + dividend tax - parity with the crypto tick, which taxes
   //    realized gains 25% at the year boundary from its persisted
   //    `market.realizedGainsThisYear` accumulator (lib/crypto/weeklyTick.ts §4).
   //
@@ -291,16 +291,16 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
   //    (GameActionsContext, owned by another agent this wave) does NOT thread a
   //    yearly realized-gains accumulator the way the crypto MARKET STATE does. A
   //    literal year-boundary block here could therefore only ever see the boundary
-  //    week's realizations, letting ~51/52 of gains escape untaxed — defeating the
+  //    week's realizations, letting ~51/52 of gains escape untaxed - defeating the
   //    fix (stock gains + dividends were the reported "never taxed" bug). So we
   //    withhold the tax at REALIZATION each tick instead. Everything else mirrors
   //    the crypto block: same 25% rate, debited from the canonical cash path
-  //    (cashDelta → stats.money — never the banking.accounts mirrors), clamped to
+  //    (cashDelta → stats.money - never the banking.accounts mirrors), clamped to
   //    what the player can afford THIS tick, losses never generate a refund, and a
   //    notification is emitted. Deterministic (no RNG in this block).
   //
   //    UNAFFORDABLE TAX IS NO LONGER FORGIVEN (2026-08-06). The clamp below
-  //    still keeps cash non-negative — that invariant has ~40 dependants — but
+  //    still keeps cash non-negative - that invariant has ~40 dependants - but
   //    the shortfall is now REPORTED as `capitalGainsTaxUnpaid` and folded into
   //    the same `overdueBalance` arrears bucket the weekly income tax uses.
   //    Writing it off made selling into a gain while broke the one tax-free

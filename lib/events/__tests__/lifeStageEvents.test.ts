@@ -58,7 +58,7 @@ function richState(): GameState {
   });
 }
 
-describe('life-stage packs — wiring', () => {
+describe('life-stage packs - wiring', () => {
   it('every pack event is registered in the master event pool', () => {
     for (const t of packEvents) {
       expect(eventTemplates.some(e => e.id === t.id)).toBe(true);
@@ -83,7 +83,7 @@ describe('life-stage packs — wiring', () => {
   });
 });
 
-describe('life-stage packs — valid shape', () => {
+describe('life-stage packs - valid shape', () => {
   it('each event has a valid category, sane weight, and generates >=1 well-formed choice', () => {
     const state = richState();
     for (const t of packEvents) {
@@ -119,7 +119,7 @@ describe('life-stage packs — valid shape', () => {
   });
 });
 
-describe('life-stage packs — gating', () => {
+describe('life-stage packs - gating', () => {
   it('childhood/teen events do NOT fire at age 40', () => {
     const adult = createTestGameState({ date: { year: 2025, month: 'January', week: 1, age: 40 } });
     for (const t of childhoodEventTemplates) {
@@ -128,7 +128,7 @@ describe('life-stage packs — gating', () => {
   });
 
   it('the re-banded early-teen events fire in 13-17 (reachable from a 16-start) but not below 13', () => {
-    // Fix 7: the five formerly-childhood (5-12) templates were unreachable — no
+    // Fix 7: the five formerly-childhood (5-12) templates were unreachable - no
     // start scenario begins below 16. They are now banded 13-17, so a 16-year-old
     // start reaches them, while a (currently impossible) age-10 state does not.
     const child10 = createTestGameState({ date: { year: 2025, month: 'January', week: 1, age: 10 } });
@@ -200,7 +200,7 @@ describe('life-stage packs — gating', () => {
     expect(wisdom.condition!(at50)).toBe(false);
     expect(wisdom.condition!(at70)).toBe(true);
 
-    // Grandchild milestone: age 70 alone is not enough — needs a child.
+    // Grandchild milestone: age 70 alone is not enough - needs a child.
     const grandkid = seniorEventTemplates.find(t => t.id === 'senior_grandchild_milestone')!;
     expect(grandkid.condition!(at70)).toBe(false);
     const at70WithChild = createTestGameState({
@@ -216,7 +216,7 @@ describe('life-stage packs — gating', () => {
   });
 });
 
-describe('life-stage packs — selection weighting (Fix 6)', () => {
+describe('life-stage packs - selection weighting (Fix 6)', () => {
   // A senior (65+, retired, no children) so ONLY the senior pack is eligible among
   // the life-stage packs (grandchild needs a child; parent/midlife/teen gated out).
   function seniorState(weeksLived: number): GameState {
@@ -254,7 +254,7 @@ describe('life-stage packs — selection weighting (Fix 6)', () => {
     // Floor 0.13, not 0.15: the share is measured over a seeded sweep in which
     // CHAIN weeks are exclusive, so migrating the chain-start roll off
     // Math.sin (2026-08-24 determinism fix) reshuffled which of the 240 weeks
-    // chains claim and nudged the measured share from 15.0% to 14.2% — the
+    // chains claim and nudged the measured share from 15.0% to 14.2% - the
     // 3.5x boost itself is unchanged. Without the boost the share is ~1%, so
     // the floor still cleanly separates boosted from unboosted.
     expect(seniorFires / totalFires).toBeGreaterThanOrEqual(0.13);
@@ -285,7 +285,7 @@ describe('life-stage packs — selection weighting (Fix 6)', () => {
   });
 });
 
-describe('life-stage packs — generate() purity', () => {
+describe('life-stage packs - generate() purity', () => {
   it('is deterministic in shape (same state -> identical event) and never throws', () => {
     const state = richState();
     for (const t of packEvents) {

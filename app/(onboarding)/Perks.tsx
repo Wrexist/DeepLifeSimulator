@@ -166,7 +166,7 @@ const PerkCard = React.memo(function PerkCard({
             isPermanent && styles.permanentPerkCard,
           ]}
         >
-          {/* Hero artwork — the perk's own painting, full-bleed under a bottom
+          {/* Hero artwork - the perk's own painting, full-bleed under a bottom
               FADE so the title and rarity read cleanly without hiding the art.
               This used to be one flat 90%-opaque band across the bottom 55%,
               which blacked out over half of every illustration behind a hard
@@ -265,7 +265,7 @@ interface MindsetCardProps {
   onSelect: (id: MindsetId) => void;
 }
 
-// R-perf: memoized — selecting a mindset only re-renders the affected cards
+// R-perf: memoized - selecting a mindset only re-renders the affected cards
 // instead of the whole list.
 const MindsetCard = React.memo(function MindsetCard({
   trait,
@@ -294,7 +294,7 @@ const MindsetCard = React.memo(function MindsetCard({
           end={{ x: 1, y: 1 }}
           style={[styles.perkCard, isSelected && styles.mindsetCardSelected]}
         >
-          {/* Hero symbol — the mindset's glowing icon, full-bleed with a scrim
+          {/* Hero symbol - the mindset's glowing icon, full-bleed with a scrim
               to match the perk cards; the purple accent marks the category. */}
           <View style={styles.heroWrap}>
             <Image source={trait.icon} style={styles.heroImage} resizeMode="cover" />
@@ -356,8 +356,8 @@ const MindsetCard = React.memo(function MindsetCard({
 export default function Perks() {
   const { state, clearDraft } = useOnboarding();
   // Perk unlock state comes from the LIVE achievement system. This used to select
-  // `s.achievements` — the deprecated catalogue whose `completed` flag has no
-  // writer — so all 20 perks were permanently locked. `getSatisfiedAchievementIds`
+  // `s.achievements` - the deprecated catalogue whose `completed` flag has no
+  // writer - so all 20 perks were permanently locked. `getSatisfiedAchievementIds`
   // derives completion from each achievement's own progressSpec plus anything
   // already claimed, so it can only ever return MORE ids than the all-false array
   // it replaces: no perk a player could previously select becomes locked.
@@ -418,7 +418,7 @@ export default function Perks() {
   );
 
   // Backdrop, entrance animation, and floating particles are all owned by
-  // OnboardingScreenShellV2 now — no need to hand-roll them here.
+  // OnboardingScreenShellV2 now - no need to hand-roll them here.
 
   const toggle = useCallback((id: string) => {
     haptic.selection();
@@ -506,8 +506,8 @@ export default function Perks() {
       });
 
       // Pass the chosen slot through UNCHANGED. The old `state.slot || 1` is
-      // what let a flow that never picked a slot — the death screen, a deep
-      // link, a rehydrated draft — land on slot 1 and overwrite a real save.
+      // what let a flow that never picked a slot - the death screen, a deep
+      // link, a rehydrated draft - land on slot 1 and overwrite a real save.
       // `initializeAndSaveGame` re-reads the slot and refuses if it is not ours.
       const slotToUse = state.slot;
       const createBackupForOnboarding = async (
@@ -540,7 +540,7 @@ export default function Perks() {
       if (!result.success) {
         haptic.error();
         if (result.slotProblem) {
-          // Don't dead-end them on an alert four screens deep — the fix is a
+          // Don't dead-end them on an alert four screens deep - the fix is a
           // slot choice, so take them to where that choice is made. Their
           // scenario, name, perks and mindset stay in the draft, so coming
           // back is a couple of taps, not a restart.
@@ -558,7 +558,7 @@ export default function Perks() {
 
       haptic.success();
       // R3-B: drop the persisted onboarding draft once the player has actually
-      // started the life — clearDraft() also resets the in-memory onboarding
+      // started the life - clearDraft() also resets the in-memory onboarding
       // state so the next "New Life" entry starts clean (no leaked name/perks).
       void clearDraft();
       navigating = true;
@@ -591,7 +591,7 @@ export default function Perks() {
           onInfo={() =>
             Alert.alert(
               'Perks & Mindset',
-              'Perks give small head-starts and mostly unlock by earning achievements as you play — so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your run with bonuses and trade-offs. Both are optional: tap "Start Your Life" whenever you are ready.'
+              'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your run with bonuses and trade-offs. Both are optional: tap "Start Your Life" whenever you are ready.'
             )
           }
         />
@@ -600,7 +600,7 @@ export default function Perks() {
 
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
-            ? 'Optional. Most perks unlock as you earn achievements — new players can just tap "Start Your Life".'
+            ? 'Optional. Most perks unlock as you earn achievements - new players can just tap "Start Your Life".'
             : 'Optional. A mindset adds bonuses and trade-offs. Skip it if you’re not sure.'}
         </Text>
 
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  // (the flat `heroScrim` band is gone — see ImageScrim in the heroes above)
+  // (the flat `heroScrim` band is gone - see ImageScrim in the heroes above)
   heroTitleRow: {
     position: 'absolute',
     left: 0,

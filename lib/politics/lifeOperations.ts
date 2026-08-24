@@ -130,7 +130,7 @@ export function resolveJoinParty(state: GameState, target: PartyId): PoliticalOu
 // ---------------------------------------------------------------------------
 
 /**
- * Form a political alliance with a character. One alliance per character —
+ * Form a political alliance with a character. One alliance per character -
  * resolving against an already-allied state refuses, which is what makes the
  * commit safe on a same-batch double tap. The id is deterministic
  * (characterId + week) rather than `Date.now()`: uniqueness is guaranteed by
@@ -195,7 +195,7 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
   // Reputation from a post lasts only while you hold it: swapping posts gives
   // the old one's bump back before granting the new one's, and resigning
   // (below) gives it back too. Without the give-back, alternating two posts
-  // was a free +5/+8 reputation per tap with no cooldown — six taps took a
+  // was a free +5/+8 reputation per tap with no cooldown - six taps took a
   // Governor from 70 to the 100 clamp, and reputation feeds the election roll
   // and its up-to-$5M rewards.
   const repDelta = def.reputationOnTake - (previous?.reputationOnTake ?? 0);
@@ -213,7 +213,7 @@ export function resolveTakeAppointment(state: GameState, appointmentId: string):
 
   const repNote = repDelta >= 0
     ? `Reputation +${repDelta}.`
-    : `Reputation ${repDelta} — people notice.`;
+    : `Reputation ${repDelta} - people notice.`;
   const replaced = previous ? ` You stepped down as ${previous.title} to take it.` : '';
 
   return {
@@ -228,7 +228,7 @@ export function resolveResignAppointment(state: GameState): PoliticalOutcome {
   const def = findAppointment(politics?.appointment?.id);
   if (!politics || !def) return refuse(state, 'You do not hold an appointed position.');
 
-  // The post's reputation goes with the post (see resolveTakeAppointment) —
+  // The post's reputation goes with the post (see resolveTakeAppointment) -
   // otherwise resign-and-retake mints the take bonus forever.
   const repDelta = -def.reputationOnTake;
   const repNote = repDelta === 0 ? '' : repDelta > 0
@@ -288,7 +288,7 @@ export function resolveEmbezzle(state: GameState, amount: number): PoliticalOutc
     ok: true,
     message:
       `${formatMoney(plan.amount)} moved into your accounts. `
-      + `Exposure is now ${plan.next.heat}% — auditors are not stupid.`,
+      + `Exposure is now ${plan.next.heat}% - auditors are not stupid.`,
     next,
   };
 }
@@ -309,7 +309,7 @@ export function resolveRetirement(state: GameState): PoliticalOutcome {
   if (blocker || !politics) return refuse(state, blocker ?? 'You are not currently holding office.');
 
   // Built BEFORE careerLevel is zeroed, so the title is captured while it is
-  // still true — the v42 `CareerHistoryEntry.title` reasoning. Retiring resets
+  // still true - the v42 `CareerHistoryEntry.title` reasoning. Retiring resets
   // the career the same way the voted-out path does, so a title derived
   // afterwards would name whatever rank 0 is called.
   const record = buildRetirement({
@@ -331,7 +331,7 @@ export function resolveRetirement(state: GameState): PoliticalOutcome {
     // not, so a player who retired while a scandal was live left it frozen
     // `active: true` forever (the tick early-returns to `tickOutOfOffice` once
     // careerLevel is 0 and never processes it again) and kept every hired
-    // lobbyist active — the exact BBQ report class `applyOfficeExit` was
+    // lobbyist active - the exact BBQ report class `applyOfficeExit` was
     // written to fix. It is idempotent (voted-out already ran it), so wiring it
     // here is safe.
     politics: applyOfficeExit({

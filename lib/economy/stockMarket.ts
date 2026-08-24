@@ -209,7 +209,7 @@ function hashSeed(weeksLived: number, index: number): number {
 // The tier arrays are `StockSymbol[]` (M19), so a typo or a symbol removed from
 // DEFAULT_PRICES fails the type-check here instead of silently dropping the
 // stock to the 5% default tier. The tiers stay ARRAYS, checked in order, rather
-// than one exhaustive map: the `else` default is deliberate — a symbol added to
+// than one exhaustive map: the `else` default is deliberate - a symbol added to
 // the universe without a volatility opinion gets a sane middle value, and the
 // board keeps working.
 const HIGH_VOLATILITY: StockSymbol[] = ['TSLA', 'NVDA', 'META', 'NFLX'];
@@ -245,14 +245,14 @@ Object.keys(stocks).forEach(symbol => {
 /**
  * Sync the module's live board to a save's persisted market.
  *
- * The board is module-level mutable state that OUTLIVES a save — it is created
+ * The board is module-level mutable state that OUTLIVES a save - it is created
  * once per app launch and every slot, life and generation shares it. So this is
  * not "restore if present", it is "make the board equal this save's market".
  *
  * A save with no persisted prices is a life that has not traded yet, and it must
  * open on the catalogue, not on whatever the previous session left behind. The
  * early-return that used to sit here meant starting a new game right after
- * playing an old one inherited that old market — and since `nextWeek` snapshots
+ * playing an old one inherited that old market - and since `nextWeek` snapshots
  * the board into the new save on its first tick, the inheritance became
  * permanent. With the drift fix that is worse, not better: an heir would open on
  * a market that had compounded for sixty years while holding a starter wallet.
@@ -268,7 +268,7 @@ export function restoreStockPrices(savedPrices?: Record<string, { price: number;
     if (stocks[normalizedSymbol] && typeof data?.price === 'number' && isFinite(data.price) && data.price > 0) {
       stocks[normalizedSymbol].price = data.price;
       // R3-M1: a persisted yield ABOVE the catalogue default is the fingerprint
-      // of the ratchet bug — nothing in the game raises a yield any more, so a
+      // of the ratchet bug - nothing in the game raises a yield any more, so a
       // saved value can only equal the default or be inflated by it. Clamping
       // here heals affected saves on load without a STATE_VERSION bump, since
       // no schema changes: the field simply returns to the only value it should
@@ -289,7 +289,7 @@ export function restoreStockPrices(savedPrices?: Record<string, { price: number;
  * A stock's dividend yield with the standing policy bonus applied.
  *
  * Read-time, so it reflects the policies CURRENTLY in force and can never
- * accumulate — see the note in `simulateWeek`, where this used to be a
+ * accumulate - see the note in `simulateWeek`, where this used to be a
  * once-per-week mutation of persistent state. Capped at the same 10% the old
  * code capped at, so the ceiling the design intended is unchanged.
  */
@@ -305,7 +305,7 @@ export function policyAdjustedYield(baseYield: number, dividendBonus: number): n
 /**
  * Get a snapshot of current prices for persistence in game state.
  *
- * Reader of the module-global board — see the warning on `stocks`. Called on the
+ * Reader of the module-global board - see the warning on `stocks`. Called on the
  * SAVE path, so it is the accessor with the most to lose from being called
  * early: snapshotting before `restoreStockPrices` has run for this save writes
  * another life's market into this one's file.
@@ -342,7 +342,7 @@ export function simulateWeek(policyEffects?: {
 
   // Apply policy effects
   const volatilityModifier = policyEffects?.volatilityModifier ?? 1;
-  // `policyEffects.dividendBonus` is deliberately NOT read here — see the R3-M1
+  // `policyEffects.dividendBonus` is deliberately NOT read here - see the R3-M1
   // note at the end of the loop. It stays on the parameter type because callers
   // pass the whole aggregated effects object, but it is applied at read time in
   // the week loop (`policyAdjustedYield`) so it cannot compound into the
@@ -362,7 +362,7 @@ export function simulateWeek(policyEffects?: {
 
     // Company boost from an enacted policy: a genuine edge on the DRIFT.
     //
-    // This used to be `changePercent *= 1.02` — scaling a zero-mean shock by
+    // This used to be `changePercent *= 1.02` - scaling a zero-mean shock by
     // 1.02, which leaves it zero-mean. The "2% positive bias" the comment
     // promised was 2% of nothing. Adding it to the drift instead is what the
     // wording always meant, and it does not also amplify the downside.
@@ -393,7 +393,7 @@ export function simulateWeek(policyEffects?: {
     //
     // The company boost stays a multiplicative nudge on the drift rather than on
     // the whole return, so a boosted stock gets a persistent edge instead of an
-    // amplified shock — a policy that "supports" a company should not also make
+    // amplified shock - a policy that "supports" a company should not also make
     // it swing harder on the way down.
     const logReturn = weeklyLogDriftFor(volatility, isBoosted) + z * volatility;
 
@@ -408,7 +408,7 @@ export function simulateWeek(policyEffects?: {
     );
 
     // CRASH FIX (B-2): Apply the change with floor AND ceiling to prevent overflow
-    // ($1M per-share max — module-level MAX_STOCK_PRICE, shared with adjustStockPrice).
+    // ($1M per-share max - module-level MAX_STOCK_PRICE, shared with adjustStockPrice).
     let newPrice = stock.price * (1 + changePercent);
     // Guard against NaN/Infinity from edge-case calculations
     if (!isFinite(newPrice) || isNaN(newPrice)) {
@@ -418,12 +418,12 @@ export function simulateWeek(policyEffects?: {
 
     // R3-M1: the policy dividend bonus is NOT applied here any more.
     //
-    // `dividendBonus` is a STANDING modifier — the aggregate of the enacted
+    // `dividendBonus` is a STANDING modifier - the aggregate of the enacted
     // policies, recomputed from scratch by `calculateActivePolicyEffects` every
     // time a policy changes. This line added it to the persistent per-stock
     // yield once per game week, so it compounded: IBM's 4.8% reached the 10%
     // cap in about a year of game time under a single $30k Mayor-level policy,
-    // and every dividend payer eventually sat at a permanent 10% — roughly 3x
+    // and every dividend payer eventually sat at a permanent 10% - roughly 3x
     // the highest real yield on the board. `getStockPricesSnapshot` persists
     // `dividendYield`, so it survived save/reload, and nothing ever subtracted
     // it, so repealing the policy did not undo it either. The card advertises
@@ -445,7 +445,7 @@ export function simulateWeek(policyEffects?: {
  * the previous save's price, and both look valid.
  */
 export function getStockInfo(id: string): StockData {
-  // ANTI-EXPLOIT (B-6): Normalize to uppercase — stock keys are uppercase (AAPL, GOOGL, etc.)
+  // ANTI-EXPLOIT (B-6): Normalize to uppercase - stock keys are uppercase (AAPL, GOOGL, etc.)
   // Prevents silent zero-dividend from case mismatch (e.g., 'aapl' vs 'AAPL')
   const normalizedId = id?.toUpperCase() ?? '';
   return stocks[normalizedId] || { price: 0, dividendYield: 0 };
@@ -466,13 +466,13 @@ export function adjustStockPrice(id: string, factor: number) {
   }
 }
 
-/** Reader of the module-global board — see the warning on `stocks`. */
+/** Reader of the module-global board - see the warning on `stocks`. */
 export function getAllStockSymbols(): string[] {
   return Object.keys(stocks);
 }
 
 /**
- * Reader of the module-global board — see the warning on `stocks`. The copy
+ * Reader of the module-global board - see the warning on `stocks`. The copy
  * stops callers mutating the board; it does NOT make the values save-scoped.
  */
 export function getAllStocks(): Record<string, StockData> {

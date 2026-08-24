@@ -1,12 +1,12 @@
 /**
- * SubscriptionReconciler — keeps subscription-driven state in sync with the live
+ * SubscriptionReconciler - keeps subscription-driven state in sync with the live
  * entitlement at the right moments (after subscription data loads + on every
  * foreground, since a subscription can lapse/restore while backgrounded).
  *
  * Two reconciliations, both keyed off the live subscription tier:
- *   1. DeepLife+ benefits — revert the ad-free DeepLife+ granted if it lapsed,
+ *   1. DeepLife+ benefits - revert the ad-free DeepLife+ granted if it lapsed,
  *      without stripping ad-free owned via the permanent Remove Ads IAP.
- *   2. Legacy Pass season — roll the seasonal pass over (auto-collecting unclaimed
+ *   2. Legacy Pass season - roll the seasonal pass over (auto-collecting unclaimed
  *      rewards, no silent loss) and re-derive its premium flag from the subscription.
  *
  * Render-free; mount once inside the GameProvider tree.
@@ -24,7 +24,7 @@ import { logger } from '@/utils/logger';
 export function SubscriptionReconciler(): null {
   const setGameState = useSetGameState();
   const runningRef = useRef(false);
-  // `weeksLived` is a stable post-load value — its first change signals the save
+  // `weeksLived` is a stable post-load value - its first change signals the save
   // has hydrated (closing the mount-vs-load race), and later changes catch a
   // season rollover that happens mid-session.
   const weeksLived = useGameSelector((s) => s.weeksLived ?? 0);
@@ -43,7 +43,7 @@ export function SubscriptionReconciler(): null {
       // does, so on a cold start `isAdsRemoved()` was structurally false for
       // every player and this reconcile wrote that false over a paid Remove Ads
       // purchase. 2026-07-30 audit MON-1.
-      // Only when the ledger is not already loaded — `reconcile` runs on mount,
+      // Only when the ledger is not already loaded - `reconcile` runs on mount,
       // on every foreground, on every weeksLived change and on every RC
       // entitlement callback, and each unconditional call was a fresh
       // `getPurchaseHistoryAsync()` round trip.
@@ -67,14 +67,14 @@ export function SubscriptionReconciler(): null {
           ? iapService.hasAuthoritativeEntitlementSource()
           : false;
 
-      // Premium access via subscription OR the one-time lifetime unlock — both
+      // Premium access via subscription OR the one-time lifetime unlock - both
       // keep ad-free + the Legacy Pass premium track.
       //
       // R4-MON-4: read AFTER `loadPurchases()`. This was computed above the
       // load, and `hasPremiumAccess()` falls through to `hasLifetimePremium()`
       // → `iapService.hasPurchased(...)`, which reads the ledger the load
       // populates. So on a cold start it was structurally false for a
-      // lifetime-premium owner — the same ordering hazard MON-1 fixed for
+      // lifetime-premium owner - the same ordering hazard MON-1 fixed for
       // `isAdsRemoved()`, one line higher up.
       const plusActive = subscriptionService.hasPremiumAccess();
 

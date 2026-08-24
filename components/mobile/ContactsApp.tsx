@@ -1,5 +1,5 @@
 /**
- * ContactsApp — Social-CRM remake (Remake 11, on top of Slate Glass).
+ * ContactsApp - Social-CRM remake (Remake 11, on top of Slate Glass).
  *
  * The network spine, now with a personal-CRM body instead of uniform rows:
  *   - Personal → contact rows with an AVATAR + strength RING + last-contact
@@ -14,7 +14,7 @@
  *     reconnect for personal, View profile for network allies).
  *
  * Slate Glass tokens stay binding: amber identity, Recipe A/B/C/D, crash-safe
- * `Gradient` (react-native-svg) + getPlatformShadows only. ZERO REMOVAL — every action
+ * `Gradient` (react-native-svg) + getPlatformShadows only. ZERO REMOVAL - every action
  * and readout the old file had is still reachable.
  */
 
@@ -100,7 +100,7 @@ const LinearGradient = Gradient;
 
 type TabType = 'personal' | 'network' | 'favors' | 'attention';
 
-// Date sheet metadata — icon + one-line vibe per tier. Prices are read from
+// Date sheet metadata - icon + one-line vibe per tier. Prices are read from
 // DATE_CONFIGS (the single source of truth in DatingActions) so the sheet can
 // never drift from what goOnDate actually charges. Order: cheapest → most
 // lavish. `chat` is the free maintain-the-bond option for broke players.
@@ -144,7 +144,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
-  // Recipe A — the standard elevated card surface shared by every contact row:
+  // Recipe A - the standard elevated card surface shared by every contact row:
   // solid fill (contrast + Android elevation), one thin border, friendly 16pt radius.
   const cardSurface = [
     styles.card,
@@ -152,7 +152,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: br.xl },
   ];
 
-  // Recipe C — tinted glass icon "badge" (same-hue trio: 15% fill, 30% rim,
+  // Recipe C - tinted glass icon "badge" (same-hue trio: 15% fill, 30% rim,
   // saturated glyph). Reused by network tiles, favor ledger rows, triage cards,
   // and the network detail hero.
   const iconBubble = useCallback(
@@ -163,7 +163,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [darkMode]
   );
 
-  // Recipe B — the single focal amber hero per tab-view. Depth is a flat tint
+  // Recipe B - the single focal amber hero per tab-view. Depth is a flat tint
   // wash + one glow blob (a shape the flat gradient stub forced at the
   // time, kept as-is); the passed-in content is the hero body.
   const statsHero = (title: string, children: React.ReactNode) => (
@@ -202,7 +202,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   //
   // Narrowed to the two fields `childParentSources` actually reads. Keyed on
   // the whole `gameState` it would return a new object on every stat tick, so
-  // every child avatar would rebuild its SVG each week — the exact cost this
+  // every child avatar would rebuild its SVG each week - the exact cost this
   // memo exists to avoid.
   const parentSources = useMemo(
     () => childParentSources(gameState),
@@ -211,7 +211,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   // aggregateContacts walks 5+ arrays. Only re-run when the underlying source
-  // arrays actually change — not on every gameState mutation (e.g., stat ticks).
+  // arrays actually change - not on every gameState mutation (e.g., stat ticks).
   const allContacts = useMemo(
     () => aggregateContacts(gameState),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,7 +234,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
   const needAttention = useMemo(() => contactsNeedingAttention(allContacts), [allContacts]);
 
-  // Top of the personal book by bond strength — powers the hero avatar stack.
+  // Top of the personal book by bond strength - powers the hero avatar stack.
   const topPersonal = useMemo(
     () => [...personalContacts].sort((a, b) => b.strength - a.strength).slice(0, 4),
     [personalContacts]
@@ -285,7 +285,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   // ANNIVERSARY: the grant (happiness + milestone + Pulse post) now runs in the
   // weekly tick (contexts/game/actions/weekly/applyAnniversaries.ts) for every
-  // married player regardless of which screen is open — the old ContactsApp
+  // married player regardless of which screen is open - the old ContactsApp
   // useEffect only fired when Contacts happened to be mounted on the exact
   // anniversary week, silently missing the reward otherwise. Removed to keep a
   // single, deterministic code path.
@@ -310,7 +310,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       });
       if (r.success) {
         saveGame();
-        // A generous gift at a strong bond leaves them owing you one — a natural
+        // A generous gift at a strong bond leaves them owing you one - a natural
         // producer of an owed-to-player (non-money) favor, so the Redeem side of
         // the ledger actually populates. Deduped to one open goodwill favor per
         // contact (recordFavor is also id-idempotent).
@@ -338,7 +338,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [gameState, setGameState, updateMoneyDep, updateStatsDep, saveGame, flash]
   );
 
-  // Call / Hang Out — routes through the ContactsActions.recordInteraction
+  // Call / Hang Out - routes through the ContactsActions.recordInteraction
   // helper so the UI never mutates state inline (mechanics ground rule #3). The
   // helper stamps lastInteractionWeek + bumps weeklyInteractions atomically, so
   // this warms the recency dot, lights the "This wk" chip, and clears the
@@ -351,7 +351,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [gameState, setGameState, flash]
   );
 
-  // Bond / Remove — PLAYER REPORT (BBQ, 2026-08-21): "there needs to be a way
+  // Bond / Remove - PLAYER REPORT (BBQ, 2026-08-21): "there needs to be a way
   // to remove or make inactive [contacts]" and "options … to raise the
   // relationship or remove them." Both route through ContactsActions so state
   // is never mutated inline; the action module owns the family guard, the
@@ -387,7 +387,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
 
-  // "Ask $" — the button previously cost 5 relationship points and granted
+  // "Ask $" - the button previously cost 5 relationship points and granted
   // NOTHING (the money leg was never wired; the pity-system fields on
   // Relationship existed but were unused). Success scales with relationship
   // score, with a guaranteed grant after 5 straight refusals. Gate re-check +
@@ -419,7 +419,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         const prevWs = prev.weeksLived ?? 0;
         if (target.actions?.['askmoney'] === prevWs) return prev;
         const { granted, amount } = askOutcome(target, roll);
-        // Asking counts as a contact — stamp recency so the dot warms and the
+        // Asking counts as a contact - stamp recency so the dot warms and the
         // Attention tab clears (weeklyInteractions resets in a fresh week).
         const weeklyInteractions =
           target.lastInteractionWeek === prevWs ? (target.weeklyInteractions ?? 0) + 1 : 1;
@@ -438,7 +438,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         const grant = applyMoneyDelta(prev, amount, `Borrowed from ${target.name}`);
         if (!grant) return { ...prev, relationships: newRels };
         // A granted loan becomes a real owed-by-player IOU in the Favors ledger,
-        // so borrowing has a consequence (repay it later — a pure money sink).
+        // so borrowing has a consequence (repay it later - a pure money sink).
         // No expiresWeek: the debt persists until repaid rather than lapsing into
         // free money. Stable id (once-per-week askmoney gate) keeps a same-batch
         // double-tap from ever minting two IOUs.
@@ -471,7 +471,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     [gameState, setGameState, saveGame, flash, askOutcome]
   );
 
-  // "Lend $" — the producer for owed-to-player money favors. Debits the player
+  // "Lend $" - the producer for owed-to-player money favors. Debits the player
   // now and books an IOU the contact repays via the Redeem button (which credits
   // the cash back). Routed through the ContactsActions.lendMoney helper so the UI
   // never mutates state inline.
@@ -485,7 +485,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   );
 
   /**
-   * X-2: the network half of Contacts had no action at all — hero, Overview,
+   * X-2: the network half of Contacts had no action at all - hero, Overview,
    * Tags, "Back to network". `askNetworkFavor` is its producer, and the favor it
    * books is redeemed from the Favors tab like any other.
    */
@@ -594,7 +594,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   // ---- Personal: CRM row (avatar + recency dot + strength ring) --------------
 /**
  * A ContactView carries only an opaque `raw` reference, so the face has to be
- * read out of it defensively — `raw` is genuinely `unknown` and may be any of
+ * read out of it defensively - `raw` is genuinely `unknown` and may be any of
  * the source systems' records. Guarded rather than cast (Hard Rule #2); a
  * contact with no usable shape still gets a stable face seeded from its id.
  */
@@ -634,7 +634,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 sex={r.gender || 'male'}
                 age={r.age || 25}
                 // A child's face is INHERITED, and this screen was resolving it
-                // from the seed alone — so the same child had one face here and
+                // from the seed alone - so the same child had one face here and
                 // a different one on the Family tab, which passes this. One
                 // person with two faces depending on the screen is the exact
                 // defect the parameterised avatar exists to remove.
@@ -689,7 +689,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
 
         {expanded && (
           <View style={styles.actionsBox}>
-            {/* Densified facts — job/income/dates/gifts/interactions were all in
+            {/* Densified facts - job/income/dates/gifts/interactions were all in
                 state but never surfaced. */}
             <View style={styles.factRow}>
               {r.job ? <Fact label="Job" value={r.job} theme={theme} /> : null}
@@ -736,7 +736,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 </Text>
               </View>
             ) : null}
-            {/* Current WANT — the actionable "right now" ask (rotates over time).
+            {/* Current WANT - the actionable "right now" ask (rotates over time).
                 Satisfying it via the matching action below gives a bond boost. */}
             {r.npcWant ? (
               <View style={styles.innerLifeRow}>
@@ -825,7 +825,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                         onPress={() => handleDate(c.id, t.type)}
                         activeOpacity={0.85}
                         accessibilityRole="button"
-                        accessibilityLabel={`${t.label} date, ${cost === 0 ? 'free' : `$${cost}`} — ${t.vibe}`}
+                        accessibilityLabel={`${t.label} date, ${cost === 0 ? 'free' : `$${cost}`} - ${t.vibe}`}
                       >
                         <View style={iconBubble(t.color, 34)}>
                           <DIcon size={scale(16)} color={t.color} />
@@ -928,7 +928,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   // ---- Network detail (list → detail page) ----------------------------------
   const renderNetworkDetail = (c: ContactView) => {
     const { Icon, color } = kindMeta(c.kind);
-    // Derived once, before the JSX — an IIFE in the tree recomputed these on
+    // Derived once, before the JSX - an IIFE in the tree recomputed these on
     // every render and rebuilt the press handler with them.
     const favorKind = FAVOR_KIND_BY_CONTACT[c.kind];
     const owedFavor = open.find((f) => f.contactId === c.id);
@@ -985,7 +985,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           </View>
         ) : null}
         {/* X-2: the one thing you can actually DO with a network contact.
-            Everything above this was read-only — the report's complaint was
+            Everything above this was read-only - the report's complaint was
             that vendors and politicals "can't [be] associate[d] with". */}
         {favorKind ? (
           <View style={cardSurface}>
@@ -994,7 +994,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               {owedFavor
                 ? `${c.name} already owes you a ${owedFavor.kind}. Redeem it from the Favors tab.`
                 : tooDistant
-                  ? `Needs ${NETWORK_FAVOR_MIN_STRENGTH} standing — you are at ${Math.round(c.strength)}.`
+                  ? `Needs ${NETWORK_FAVOR_MIN_STRENGTH} standing - you are at ${Math.round(c.strength)}.`
                   : `${c.name} can owe you a ${favorKind}. One at a time.`}
             </Text>
             <TouchableOpacity
@@ -1142,12 +1142,12 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
 
   // The personal tab is the one list on this screen with NO upper bound: every
   // friend, colleague, ex, child and grandchild a long life accumulates lands
-  // here, and `.map()` inside a ScrollView mounted the lot — each row an avatar,
+  // here, and `.map()` inside a ScrollView mounted the lot - each row an avatar,
   // a strength ring and, when expanded, a dense profile. Mount cost tracked
   // relationship count, so it grew for the whole life and never came back down.
   //
-  // A FlatList, and it is the tab's OUTER scroller — never nested inside another
-  // scroll view — so virtualization actually engages rather than warning. That is
+  // A FlatList, and it is the tab's OUTER scroller - never nested inside another
+  // scroll view - so virtualization actually engages rather than warning. That is
   // only possible because the tab has exactly ONE section above the list: the
   // portfolio hero moves to `ListHeaderComponent` verbatim and the empty state to
   // `ListEmptyComponent`, so no restructuring of the screen was needed. The header
@@ -1171,7 +1171,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           Icon={Users}
           title="No relationships yet"
           // Was "Date, befriend, or build family ties" while nothing in the game
-          // could create a friend. Now it can — and the subtitle says WHERE,
+          // could create a friend. Now it can - and the subtitle says WHERE,
           // because naming an action without naming its home is how the old copy
           // read as a missing feature rather than a hidden one.
           subtitle="Match on Spark, then start dating or add them as a friend."
@@ -1445,7 +1445,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           ? gameState.relationships?.find((rel) => rel.id === divorceTargetId && rel.type === 'spouse')
           : undefined;
         if (!divorceTarget) return null;
-        // Preview numbers come from calculateDivorceCosts — the SAME helper path
+        // Preview numbers come from calculateDivorceCosts - the SAME helper path
         // fileDivorce uses for its base settlement (calculateDivorceNetWorth ×
         // the deterministic spouse-hash ratio) and base lawyer fee
         // (DIVORCE_LAWYER_BASE_FEE), so the modal's estimate matches the actual
@@ -1489,7 +1489,7 @@ function ActionBtn({
   subtle?: boolean;
 }) {
   // Destructive (Break up / File for divorce): a quiet glass button with a
-  // danger-colored LABEL only — never a filled red button.
+  // danger-colored LABEL only - never a filled red button.
   if (subtle) {
     return (
       <TouchableOpacity
@@ -1528,7 +1528,7 @@ function ActionBtn({
       </TouchableOpacity>
     );
   }
-  // Standard action: a soft same-hue tinted chip — saturated glyph + label, no border.
+  // Standard action: a soft same-hue tinted chip - saturated glyph + label, no border.
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -1702,7 +1702,7 @@ function recencyMeta(
   if (weeks <= 0) return { color: accent.success, label: 'Contacted this week' };
   if (weeks <= 3) return { color: accent.success, label: `Contacted ${weeks}w ago` };
   if (weeks <= 8) return { color: accent.warning, label: `${weeks}w since contact` };
-  return { color: accent.danger, label: `${weeks}w — going cold` };
+  return { color: accent.danger, label: `${weeks}w - going cold` };
 }
 
 function favorColor(kind: string): string {

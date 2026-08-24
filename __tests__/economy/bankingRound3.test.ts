@@ -44,7 +44,7 @@ function withAccounts(balances: number[]): BankingState {
   };
 }
 
-describe('R3-M6 — the savings soft cap is a portfolio allowance', () => {
+describe('R3-M6 - the savings soft cap is a portfolio allowance', () => {
   it('pays the same on one big account as on many small ones', () => {
     // The exploit in one assertion: splitting must not increase yield.
     const total = SAVINGS_BALANCE_SOFT_CAP * 20;
@@ -65,7 +65,7 @@ describe('R3-M6 — the savings soft cap is a portfolio allowance', () => {
     expect(totalInterest).toBeCloseTo((under * CD_APR) / 52, 4);
   });
 
-  it('is order-independent — allocation is proportional, not first-come', () => {
+  it('is order-independent - allocation is proportional, not first-come', () => {
     const a = accrueAccountInterest(withAccounts([900_000, 100_000])).totalInterest;
     const b = accrueAccountInterest(withAccounts([100_000, 900_000])).totalInterest;
 
@@ -80,7 +80,7 @@ describe('R3-M6 — the savings soft cap is a portfolio allowance', () => {
   });
 });
 
-describe('R3-M7 — the market-sell path is taxed like every other', () => {
+describe('R3-M7 - the market-sell path is taxed like every other', () => {
   const source = fs.readFileSync(
     path.join(__dirname, '..', '..', 'contexts/game/actions/StockActions.ts'),
     'utf8',
@@ -98,7 +98,7 @@ describe('R3-M7 — the market-sell path is taxed like every other', () => {
 
   it('never refunds on a loss', () => {
     // `Math.max(0, …)` is what makes a losing sale untaxed rather than
-    // credited — the same rule the tick uses.
+    // credited - the same rule the tick uses.
     expect(source).toMatch(/Math\.max\(0, realizedGain\)/);
   });
 
@@ -108,7 +108,7 @@ describe('R3-M7 — the market-sell path is taxed like every other', () => {
   });
 });
 
-describe('R3-M8 — credit-card balances accrue their advertised APR', () => {
+describe('R3-M8 - credit-card balances accrue their advertised APR', () => {
   function withCard(balance: number, baseAPR: number): BankingState {
     return {
       ...initialGameState.banking!,

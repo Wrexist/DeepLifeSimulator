@@ -83,12 +83,12 @@ describe('portfolio-size efficiency', () => {
 
 describe('the summary reconciles', () => {
   it('names every step between what companies earn and what is paid', () => {
-    // 12 companies at $30k = $360k stored — the reporter's number.
+    // 12 companies at $30k = $360k stored - the reporter's number.
     //
     // The ceiling is PER COMPANY now (`companyIncomeCap`, $200k base + $5k per
     // employee), so a portfolio of small companies is no longer capped at all;
     // what still bites is the portfolio-size management penalty. That is the
-    // point of the change that landed on main — a shared $200k pool punished
+    // point of the change that landed on main - a shared $200k pool punished
     // owning more companies, which is the play the game asks for.
     const companies = Array.from({ length: 12 }, (_, i) => company(`c${i}`, 30_000));
     const summary = calcCompanyWeeklyIncome(stateWith(companies, 26_000_000));
@@ -127,7 +127,7 @@ describe('the summary reconciles', () => {
 
   it('survives a missing / corrupt companies list', () => {
     for (const bad of [undefined, null, 'nope']) {
-      // Through the factory (Hard Rule #3) — only the ONE field under test is
+      // Through the factory (Hard Rule #3) - only the ONE field under test is
       // widened, rather than casting a hand-built object to GameState and
       // losing the compile-time check on every other field.
       const state = createTestGameState({ companies: bad as never });

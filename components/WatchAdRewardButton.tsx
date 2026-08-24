@@ -1,5 +1,5 @@
 /**
- * WatchAdRewardButton — a reusable, self-contained "watch ad → reward" CTA that
+ * WatchAdRewardButton - a reusable, self-contained "watch ad → reward" CTA that
  * any in-app screen can drop in to offer an optional rewarded ad.
  *
  * Behaviour:
@@ -34,7 +34,7 @@ type IconComponent = React.ComponentType<{
  * PLACEMENT CONSTRAINT: never render this button inside a react-native
  * `Modal`. It presents a fullscreen ad directly on tap, and showing an ad over
  * an open RN Modal is unsupported by the ad SDK (iOS freezes with an invisible
- * touch-blocking modal window and the reward is lost — see `adsAvailable` in
+ * touch-blocking modal window and the reward is lost - see `adsAvailable` in
  * lib/ads/rewardedAd.ts). Modal hosts must dismiss their sheet first and run
  * the ad themselves, like AdRewardOrb / Pulse RewardedAdModal do.
  */
@@ -84,7 +84,7 @@ export default function WatchAdRewardButton({
         haptic.success();
         onGranted?.();
       } else {
-        haptic.error(); // no-fill / error — reward NOT granted
+        haptic.error(); // no-fill / error - reward NOT granted
       }
     } finally {
       setBusy(false);

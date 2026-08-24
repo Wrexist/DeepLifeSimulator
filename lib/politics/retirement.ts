@@ -63,7 +63,7 @@ export function retirementBlocker(input: {
   const weeks = safe(input.weeksInOffice, 0);
   if (weeks < WEEKS_PER_YEAR) {
     const remaining = Math.ceil(WEEKS_PER_YEAR - weeks);
-    return `Serve a full year in this office first — ${remaining} week${remaining === 1 ? '' : 's'} to go.`;
+    return `Serve a full year in this office first - ${remaining} week${remaining === 1 ? '' : 's'} to go.`;
   }
   return null;
 }
@@ -111,7 +111,7 @@ export function calculatePension(input: {
 /**
  * The record written when a player stands down.
  *
- * `title` is captured HERE, while it is still true — the same reasoning as v42's
+ * `title` is captured HERE, while it is still true - the same reasoning as v42's
  * `title` on `CareerHistoryEntry`. Retiring resets `careers.political.level` to
  * 0 so lifestyle costs and the "in office?" UI stop treating a private citizen
  * as a sitting official, which means a title derived later would name whatever
@@ -140,7 +140,7 @@ export function buildRetirement(input: {
 /**
  * The pension currently payable, read off a save.
  *
- * Degrades a missing or malformed record to $0 rather than throwing — this is
+ * Degrades a missing or malformed record to $0 rather than throwing - this is
  * read from inside the weekly income path.
  */
 export function readPensionWeekly(stored: unknown): number {

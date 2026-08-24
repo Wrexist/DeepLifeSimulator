@@ -29,7 +29,7 @@ const deps = { updateMoney, updateStats };
  * not being set (Hard Rule #3).
  */
 function requireSlice<T>(slice: T | undefined, name: string): T {
-  if (!slice) throw new Error(`initialGameState ships no ${name} slice — fixture cannot be built`);
+  if (!slice) throw new Error(`initialGameState ships no ${name} slice - fixture cannot be built`);
   return slice;
 }
 
@@ -45,7 +45,7 @@ function politician(over: { influence?: number; lobbyists?: string[]; money?: nu
       policyInfluence: over.influence ?? 0,
       policiesEnacted: [],
       activePolicies: [],
-      // Only `id` is read — the discount is derived from the CATALOGUE, keyed by
+      // Only `id` is read - the discount is derived from the CATALOGUE, keyed by
       // id, which is why making specialty real needed no save change.
       lobbyists: (over.lobbyists ?? []).map((id) => ({ id, name: id, cost: 0, influence: 0, active: true })),
     },
@@ -128,7 +128,7 @@ describe('the quoted price is the charged price', () => {
     expect(stub.current().politics?.policiesEnacted ?? []).toHaveLength(0);
   });
 
-  it('accepts at exactly the discounted cost — the pre-check and the debit agree', () => {
+  it('accepts at exactly the discounted cost - the pre-check and the debit agree', () => {
     /**
      * The regression guard. If the affordability pre-check and the in-updater
      * debit ever compute the discount from different inputs, this is where it
@@ -165,7 +165,7 @@ describe('the quoted price is the charged price', () => {
     });
     const stub = createSetGameStateStub(noPolitics);
 
-    // No career level, so it is refused — but it must be refused cleanly with a
+    // No career level, so it is refused - but it must be refused cleanly with a
     // finite quoted cost, not a NaN comparison that passes as false.
     const r = enactPolicy(noPolitics, stub.setGameState, POLICY_ID, deps);
     expect(typeof r.message).toBe('string');

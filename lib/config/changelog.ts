@@ -56,7 +56,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: 'What next',
         bullets: [
           'A card on your home screen suggests one thing to do now, one soon, and one big dream.',
-          'It reads your actual life — no job, low health, a bill piling up — not a generic list.',
+          'It reads your actual life - no job, low health, a bill piling up - not a generic list.',
           'Reach one and it tells you right there, instead of just quietly moving the goalposts.',
         ],
       },
@@ -64,7 +64,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         category: 'new',
         title: 'See it coming',
         bullets: [
-          'Graduation, a loan clearing, a baby due, a wedding booked — shown before they land.',
+          'Graduation, a loan clearing, a baby due, a wedding booked - shown before they land.',
           'A disease that could turn fatal is flagged early enough to actually do something about it.',
         ],
       },
@@ -74,7 +74,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: [
           "The shop button lights up gold when there's something worth a look.",
           'One featured item each week, with last week and next week shown so nothing feels random.',
-          'The full price and what you get are shown up front — no surprises, no double-counted numbers.',
+          'The full price and what you get are shown up front - no surprises, no double-counted numbers.',
         ],
       },
       {
@@ -82,7 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: 'The money you see is the money you get',
         bullets: [
           'Your salary read differently on four screens. They all show what you are paid now.',
-          'That includes your raise, work boosts, life skills and DeepLife+ — not the base rate.',
+          'That includes your raise, work boosts, life skills and DeepLife+ - not the base rate.',
           'Political office pay was showing the yearly figure per week. President said $100K/wk.',
           'Cash Flow left out luxury upkeep, pet food and subscriptions. It shows the whole bill.',
           'Owning luxury will look far more expensive. It always cost that; it was never listed.',
@@ -101,7 +101,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: 'Your save, on your terms',
         bullets: [
           'Back your save up, and move it to a new phone with a code.',
-          'Delete it whenever you like — that really deletes it, leaderboard entries included.',
+          'Delete it whenever you like - that really deletes it, leaderboard entries included.',
           'A transfer copies rather than moves, so the old phone keeps working. We say so up front.',
         ],
       },
@@ -151,7 +151,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: [
           'The text box is gone. Pick a move: break the ice, compliment, joke, or flirt.',
           'Each match keeps its own rapport. Flirting opens at 25, dates at 45, going steady at 75.',
-          'Ask them out for coffee, dinner or something reckless — each with its own cost and payoff.',
+          'Ask them out for coffee, dinner or something reckless - each with its own cost and payoff.',
           'Not feeling it? Any match can become a friend instead.',
         ],
       },
@@ -208,7 +208,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'A fast double-tap could buy a vehicle twice, or duplicate coins in a crypto swap.',
           'Savings had no way to pay into it, so the piggy bank sat at zero for a whole life.',
           'Buying out a rival added no revenue, and one achievement asked for more than the cap.',
-          'Ad rewards read your wallet, not your worth — a property millionaire was offered $50.',
+          'Ad rewards read your wallet, not your worth - a property millionaire was offered $50.',
           'The poverty scholarship promised free education and paid respect. It covers tuition now.',
         ],
       },
@@ -225,7 +225,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         category: 'improved',
         title: 'Faster to open, easier to read',
         bullets: [
-          'Cold start is about six seconds quicker — the loading bar was waiting on nothing.',
+          'Cold start is about six seconds quicker - the loading bar was waiting on nothing.',
           'The death screen scrolls properly, so every option is reachable on both tabs.',
           'Food, gym and housing cards show what they do to each stat, in the same colours as the HUD.',
           'Life Goals fits in a page or two instead of a dozen, and Contacts stays smooth in a long life.',
@@ -243,7 +243,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         category: 'improved',
         title: 'Start a life in two taps',
         bullets: [
-          'Tap Play and you are in — no scenario, name, ambition or perk screens first.',
+          'Tap Play and you are in - no scenario, name, ambition or perk screens first.',
           'Want to pick all of that yourself? Custom life is still one tap away.',
         ],
       },
@@ -269,7 +269,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Dark web jobs could pay out again without costing you any energy.',
           'Gym sessions and warehouse upgrades could be taken without paying.',
           'A warehouse could also pass its maximum level, or leave you below zero.',
-          'Vehicle insurance never ran out — it now lasts its term and tells you.',
+          'Vehicle insurance never ran out - it now lasts its term and tells you.',
         ],
       },
       {
@@ -327,7 +327,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'A rental ladder from a shared room up to a penthouse lease.',
           'Your home now gives you weekly health, happiness and energy.',
           'Sleeping rough wears you down, so a roof is worth working for.',
-          'Buying still beats renting — it stops the rent and keeps the benefits.',
+          'Buying still beats renting - it stops the rent and keeps the benefits.',
         ],
       },
       {
@@ -337,7 +337,7 @@ export const CHANGELOG: ChangelogEntry[] = [
           'Four straight weeks behind on rent and your landlord evicts you.',
           'You get warned from the second week, with a countdown.',
           'Clearing what you owe resets the clock completely, every time.',
-          'Eviction stops the rent but not the debt — and a shared room is always affordable.',
+          'Eviction stops the rent but not the debt - and a shared room is always affordable.',
         ],
       },
       {
@@ -381,7 +381,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         bullets: [
           'Rent used to repay a property in under four years.',
           'Yields are now realistic, so landlording competes with careers instead of replacing them.',
-          'Renting a home costs less too — the same rate drives both.',
+          'Renting a home costs less too - the same rate drives both.',
         ],
       },
       {
@@ -562,7 +562,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: 'July 2026',
     headline: 'The big one: new life systems, a new look, and a fairer economy',
     summary:
-      'A major update touching nearly every corner of the game — new ways to live, a redesigned look, and a huge fix-and-balance sweep.',
+      'A major update touching nearly every corner of the game - new ways to live, a redesigned look, and a huge fix-and-balance sweep.',
     changes: [
       {
         category: 'new',

@@ -64,7 +64,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const { settings } = gameState;
   const insets = useSafeAreaInsets();
   const legacyClaimable = getClaimableCount(gameState.legacyPass);
-  // Legacy Contracts live on the Dynasty tab of the prestige shop — the sixth of
+  // Legacy Contracts live on the Dynasty tab of the prestige shop - the sixth of
   // six scrolling tabs, below the Dynasty board. This card is the Progress
   // screen's door to that shop, so a completed contract gets counted here too;
   // without it `getClaimableContracts` was surfaced nowhere in the app.
@@ -95,19 +95,19 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
 
   // (Removed: a `checkAchievements()` effect keyed to a per-render
   // `achievementSignal` string. It called `evaluateAchievements`, which is an
-  // explicitly documented no-op returning [], and discarded the result — so it
+  // explicitly documented no-op returning [], and discarded the result - so it
   // fired on every money/health/relationship/item/week change to do nothing.
   //
   // Its P2-7 comment was the real cost: it defended tuning "the full
   // achievement sweep" that GP-3 had already replaced with the live store read
   // below, which tells the next reader the effect is load-bearing and
-  // expensive. `checkAchievements` remains on the context — featureGauntlet
-  // asserts it survives a minimal state — only this dead call site is gone.)
+  // expensive. `checkAchievements` remains on the context - featureGauntlet
+  // asserts it survives a minimal state - only this dead call site is gone.)
 
   // Read the LIVE achievement store, not `gameState.achievements[].completed`.
   //
   // That array ships 52 entries all `completed: false`, and the only writer of
-  // `completed: true` anywhere in the repo is one `luxury_life` special case —
+  // `completed: true` anywhere in the repo is one `luxury_life` special case -
   // `evaluateAchievements` is an explicitly documented no-op. So this headline
   // read "0/42 · 0% complete" for the entire game, forever. Same defect and
   // same fix as lib/careers/advancedCareers.ts, whose comment records that
@@ -121,7 +121,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const prestige = gameState.prestige;
   const prestigeLevel = prestige?.prestigeLevel ?? 0;
   const prestigePoints = prestige?.prestigePoints ?? 0;
-  // Derived — the stored flag is never set true in normal play (UX-1).
+  // Derived - the stored flag is never set true in normal play (UX-1).
   const prestigeAvailable = isPrestigeAvailable(gameState);
 
   const legacyXp = gameState.legacyPass?.xp ?? 0;
@@ -134,7 +134,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
     { key: 'skills', label: 'Life Skills', icon: Brain, color: accent.success, onPress: () => setShowSkillTree(true) },
     { key: 'hobbies', label: 'Hobbies', icon: Palette, color: accent.purple, onPress: () => setShowHobbies(true) },
     { key: 'story', label: 'Life Story', icon: BookOpen, color: '#8B5CF6', onPress: () => setShowLifeStory(true) },
-    // The chronological record (2026-08-24) — the narrative Life Story's
+    // The chronological record (2026-08-24) - the narrative Life Story's
     // factual sibling: careers, births, marriages, windfalls, by age.
     { key: 'timeline', label: 'Timeline', icon: CalendarClock, color: '#A78BFA', onPress: () => setShowLifeTimeline(true) },
     { key: 'share', label: 'Share Life', icon: Share2, color: accent.info, onPress: () => setShowShareCard(true) },
@@ -151,7 +151,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header — hidden when embedded in the Life tab, which supplies its own
+        {/* Header - hidden when embedded in the Life tab, which supplies its own
             title + segmented control above this content. */}
         {!embedded && (
           <View style={styles.header}>
@@ -173,7 +173,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             // The card whose own meta line reads "Ready to prestige" must be the
             // card that STARTS a prestige. It used to open the points shop, so
             // the one surface advertising the action was the one surface that
-            // could not perform it — the real entry point is a button on Home
+            // could not perform it - the real entry point is a button on Home
             // that only renders when prestige is already available.
             // A badge must lead to the thing it counts, so claimable Legacy
             // Contracts route to the shop (they are claimed on its Dynasty tab,
@@ -253,7 +253,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         {/* Life diary */}
         <Journal />
 
-        {/* Tools & More — compact launcher tiles */}
+        {/* Tools & More - compact launcher tiles */}
         <View style={styles.toolsSection}>
           <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Tools & More</Text>
           <View style={styles.toolsGrid}>

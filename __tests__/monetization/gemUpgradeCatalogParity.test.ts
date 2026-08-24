@@ -123,7 +123,7 @@ describe('gem-upgrade catalogue is the single source of truth', () => {
         });
         expect(applied).toBe(true);
         expect(captured!.state.goldUpgrades?.[upgrade.id]).toBe(true);
-        // Exactly the catalogue price — one gem left over from the seed.
+        // Exactly the catalogue price - one gem left over from the seed.
         expect(captured!.state.stats.gems).toBe(1);
       }
     } finally {
@@ -153,7 +153,7 @@ describe('gem-upgrade catalogue is the single source of truth', () => {
       expect(captured!.state.goldUpgrades?.multiplier).toBeFalsy();
       expect(captured!.state.stats.gems).toBe(1);
 
-      // Already owned — the first buy reports true, the repeat reports false
+      // Already owned - the first buy reports true, the repeat reports false
       // and charges nothing.
       seedGems(GEM_UPGRADES[0].cost * 2);
       act(() => {

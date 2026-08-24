@@ -102,7 +102,7 @@ describe('the title → item map cannot drift from the titles it maps', () => {
       ...TITLES_BY_CATEGORY.gear,
       ...TITLES_BY_CATEGORY.hackingTools,
     ];
-    // Assert the input is non-empty FIRST — an undefined/empty source would make
+    // Assert the input is non-empty FIRST - an undefined/empty source would make
     // the loop below iterate nothing and pass while checking nothing.
     expect(deliveringTitles.length).toBeGreaterThan(0);
 
@@ -145,7 +145,7 @@ describe('a successful gear purchase delivers the listed item', () => {
 
     expect(result.outcome).toBe('success');
     expect(state.darkWebItems?.find((i) => i.id === 'lockpick')?.owned).toBe(true);
-    // `usb` is index 0 of the catalogue — what the old findIndex(!owned) grant
+    // `usb` is index 0 of the catalogue - what the old findIndex(!owned) grant
     // would have handed over regardless of the listing.
     expect(state.darkWebItems?.find((i) => i.id === 'usb')?.owned).toBe(false);
   });
@@ -167,7 +167,7 @@ describe('a successful gear purchase delivers the listed item', () => {
 
 describe('an already-owned tool is refused before any BTC moves', () => {
   it('rejects the purchase and leaves the wallet untouched', () => {
-    // Without this the sale succeeds, charges full price and grants nothing —
+    // Without this the sale succeeds, charges full price and grants nothing -
     // the "piece of candy" complaint reappearing in a new place.
     const base = stateWithListing({ title: 'Lockpicks', category: 'gear' });
     const owned: GameState = {

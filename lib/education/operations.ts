@@ -79,7 +79,7 @@ export function pauseEducation(educations: Education[], educationId: string, pau
 /**
  * Flip a course's study group on/off. When active the weekly tick applies
  * +2 happiness / −3 energy and `runExam` gets a +15% pass bonus (both already
- * wired) — this is the missing writer that lets `studyGroupActive` ever be true.
+ * wired) - this is the missing writer that lets `studyGroupActive` ever be true.
  */
 export function setStudyGroup(educations: Education[], educationId: string, active: boolean): Education[] {
   return educations.map((e) => (e.id === educationId ? { ...e, studyGroupActive: active } : e));
@@ -116,7 +116,7 @@ export function applyExamResult(
 }
 
 // ---------------------------------------------------------------------------
-// Study (player tap action — extra progress in exchange for stat penalty)
+// Study (player tap action - extra progress in exchange for stat penalty)
 // ---------------------------------------------------------------------------
 
 export function applyStudySession(
@@ -131,8 +131,8 @@ export function applyStudySession(
       ...e,
       weeksRemaining: remaining,
       // Do NOT finalize `completed` here. The weekly education tick finalizes
-      // graduation — applying the enrolled-class stat bonuses + the "Completed!"
-      // toast — when weeksRemaining reaches 0. Setting completed in this Study
+      // graduation - applying the enrolled-class stat bonuses + the "Completed!"
+      // toast - when weeksRemaining reaches 0. Setting completed in this Study
       // path made the tick skip it (it guards on !completed), forfeiting both.
     };
   });
@@ -148,14 +148,14 @@ export { newId };
 /**
  * Every catalogue programme, completed.
  *
- * Written for the two prestige bonuses that promise a fully-educated start —
+ * Written for the two prestige bonuses that promise a fully-educated start -
  * `early_education_access` ("Start with all educations completed", 3,000 pts)
  * and `legacy_education` ("Future generations start with all educations",
  * 15,000 pts). Both used to do this by mapping `completed: true` over the
  * educations list they were handed, which is the player's ENROLMENT record:
  * `[]` at the start of every life, because entries are only appended by
  * `enroll` above. Mapping an empty array completes nothing, so both bonuses
- * were consumed for zero effect — 18,000 points between them.
+ * were consumed for zero effect - 18,000 points between them.
  *
  * The fix is to source the programmes from the CATALOGUE rather than from the
  * player's list, which is the only place the full set exists.
@@ -163,7 +163,7 @@ export { newId };
  * Existing entries are preserved and flipped to completed rather than replaced,
  * so a programme the player was part-way through keeps its GPA, exam record and
  * enrolled classes instead of having them reset by the reward. `weeksRemaining`
- * is cleared to `undefined` — the shape `needsEducationProgressionTick` already
+ * is cleared to `undefined` - the shape `needsEducationProgressionTick` already
  * treats as not-tickable, matching what the old code wrote.
  *
  * A programme that has left the catalogue but still sits in the player's list

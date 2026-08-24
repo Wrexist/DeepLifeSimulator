@@ -60,7 +60,7 @@ async function callVerify(env: Record<string, string | undefined>, body: any) {
 const VALID_RECEIPT = 'a'.repeat(40); // > 20 chars, not an Apple JWS (no dots)
 const KNOWN_PRODUCT = 'deeplife_lifetime_premium';
 
-describe('iap-verify endpoint — hardening', () => {
+describe('iap-verify endpoint - hardening', () => {
   describe('soft-launch (F2) fails closed in production', () => {
     it('grants under soft-launch when NOT production (creds absent)', async () => {
       const res = await callVerify(

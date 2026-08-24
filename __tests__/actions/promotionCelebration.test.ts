@@ -44,7 +44,7 @@ function makeState(career: Career): GameState {
 /** promoteCareer writes through setGameState; tests only read the return value. */
 const noopSetState = (() => {}) as unknown as React.Dispatch<React.SetStateAction<GameState>>;
 
-describe('promoteCareer — celebration payload', () => {
+describe('promoteCareer - celebration payload', () => {
   it('captures the before/after story of the promotion', () => {
     const career = makeCareer();
     const result = promoteCareer(makeState(career), noopSetState, 'software');

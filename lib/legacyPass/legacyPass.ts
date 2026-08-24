@@ -93,7 +93,7 @@ export type LegacyPassTrack = 'free' | 'premium';
 // lib/cosmetics/cosmetics.ts) rather than the old lone finale frame + two themes.
 // Invariants preserved: free tiers 1–3 stay gems, free %5 stay youth pills, the
 // free finale + premium finale (trait) are unchanged, premium %10 stay themes,
-// premium %3 stay youth pills — so the reward-table unit tests hold.
+// premium %3 stay youth pills - so the reward-table unit tests hold.
 const FREE_COSMETIC_TIERS: Record<number, LegacyPassReward> = {
   8: { kind: 'cosmetic', id: 'legacy_theme_s_8', label: 'Forest Theme' },
   12: { kind: 'cosmetic', id: 'legacy_theme_s_12', label: 'Aurora Theme' },
@@ -134,7 +134,7 @@ function buildRewardTable(track: LegacyPassTrack): LegacyPassReward[] {
          * `applyStatModifiers` skipped it.
          *
          * `strong_constitution` is a real catalogue entry, positive polarity,
-         * and — importantly — its effect is `statModifiers`, the ONLY effects
+         * and - importantly - its effect is `statModifiers`, the ONLY effects
          * key any consumer reads. Picking `genius` would have looked grander
          * and delivered its `happiness: 0.9` downside alone, since its
          * `skillLearningRates` and `careerIncome` have no readers.
@@ -178,7 +178,7 @@ export function getDefaultLegacyPass(seasonId: string = getCurrentSeasonId()): L
 
 /**
  * Ensure the pass belongs to the given season. If the season rolled over, reset
- * progress (including premium ownership — premium is purchased per season).
+ * progress (including premium ownership - premium is purchased per season).
  */
 export function ensureCurrentSeason(
   pass: LegacyPassState | undefined,
@@ -198,7 +198,7 @@ export function ensureCurrentSeason(
     claimedPremiumTiers === pass.claimedPremiumTiers &&
     ownedCosmetics === pass.ownedCosmetics
   ) {
-    return pass; // already well-formed — avoid a needless allocation
+    return pass; // already well-formed - avoid a needless allocation
   }
   return { ...pass, claimedFreeTiers, claimedPremiumTiers, ownedCosmetics };
 }

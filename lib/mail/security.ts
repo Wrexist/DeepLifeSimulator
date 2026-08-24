@@ -77,11 +77,11 @@ export function protections(
   const out: string[] = [];
   const until = getMailState(state).shieldUntilWeek;
   if (typeof until === 'number' && atWeek <= until) {
-    out.push(`Credentials rotated — holding for ${Math.max(0, until - atWeek)} more weeks.`);
+    out.push(`Credentials rotated - holding for ${Math.max(0, until - atWeek)} more weeks.`);
   }
   const reports = getMailState(state).reportsMade ?? 0;
   if (reports >= REPORTS_FOR_VIGILANCE) {
-    out.push(`${reports} phishing reports filed — you are harder to fool.`);
+    out.push(`${reports} phishing reports filed - you are harder to fool.`);
   }
   return out;
 }
@@ -98,7 +98,7 @@ function usedDarkWeb(state: GameState): boolean {
 }
 
 /**
- * A breach notice — the warning shot.
+ * A breach notice - the warning shot.
  *
  * Only sent to someone whose address plausibly leaked, and only while they are
  * not already protected. Sending it to a careful player would be noise; sending
@@ -114,7 +114,7 @@ export function breachNotice(state: GameState, atWeek: number): MailMessage | nu
     {
       id: 'rotate',
       label: 'Rotate everything now',
-      detail: `${docMoney(cost)} — new credentials, ${SHIELD_WEEKS} weeks of cover`,
+      detail: `${docMoney(cost)} - new credentials, ${SHIELD_WEEKS} weeks of cover`,
       kind: 'primary',
     },
     {
@@ -137,7 +137,7 @@ export function breachNotice(state: GameState, atWeek: number): MailMessage | nu
       'We monitor the places where lists like this get traded, and your address ' +
       'is on one of them.\n\n' +
       'Nothing has been taken. What happens next is that the list gets sold on, ' +
-      'and the people who buy it start writing to you — convincingly, using ' +
+      'and the people who buy it start writing to you - convincingly, using ' +
       'details they already have.\n\n' +
       'Rotating your credentials will not stop the mail arriving, but it makes ' +
       'the attempts far less likely to work. It costs money and it wears off. ' +
@@ -171,7 +171,7 @@ export function breachNotice(state: GameState, atWeek: number): MailMessage | nu
 /**
  * An extortion demand.
  *
- * Not a scam — the threat is real, and refusing genuinely costs. That is the
+ * Not a scam - the threat is real, and refusing genuinely costs. That is the
  * distinction the player has to make: the fraudulent mail wants you to act
  * quickly on something that does not exist, this one is a bad situation you
  * actually created. Both arrive in the same inbox, which is the point.

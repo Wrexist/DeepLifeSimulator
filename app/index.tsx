@@ -7,13 +7,13 @@ import { shouldAllowNavigation } from '@/lib/utils/startupHealthValidator';
 // same background index the main menu is about to TAKE, so the loader renders
 // the identical artwork and boot dissolves seamlessly into the menu.
 import { MENU_BACKGROUNDS, peekMenuBackgroundIndex } from '@/utils/menuBackground';
-// RN-core-only (AccessibilityInfo), defensively caught — boot-safe. Mirrors the
+// RN-core-only (AccessibilityInfo), defensively caught - boot-safe. Mirrors the
 // main menu so reduce-motion users get the same instant (un-faded) handoff.
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 // Minimum time the loader stays on screen. This is POLISH, not work: without it a
 // warm start flashes the splash for a frame or two, which reads as a glitch. It is
-// the ONLY intentional delay on the boot path — everything else waits on a real
+// the ONLY intentional delay on the boot path - everything else waits on a real
 // readiness signal (preload complete, router ready, startup health gate).
 const MIN_SPLASH_MS = 600;
 
@@ -28,27 +28,27 @@ export default function Index() {
   const { isPreloaded, preloadProgress } = usePreload();
   const [routerReady, setRouterReady] = useState(false);
   const [minSplashElapsed, setMinSplashElapsed] = useState(false);
-  // Diagnostics only — nothing renders from this, so it is a ref, not state
+  // Diagnostics only - nothing renders from this, so it is a ref, not state
   // (the old `useState` re-rendered the boot screen for a value no one read).
   const startupHealthCheckRef = useRef<any>(null);
   const healthPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Bumped to re-run the navigation effect when a health check defers navigation.
-  // (Must be a real value change — `setState(prev => prev)` is a no-op React bails on.)
+  // (Must be a real value change - `setState(prev => prev)` is a no-op React bails on.)
   const [navRetry, setNavRetry] = useState(0);
   const hasNavigatedRef = useRef(false); // Use ref to prevent double navigation without re-render
 
-  // Lightweight "alive" animations — RN core only (Animated), so the very first
+  // Lightweight "alive" animations - RN core only (Animated), so the very first
   // production render stays crash-proof (no third-party animation deps here).
   const dot0 = useRef(new Animated.Value(0.3)).current;
   const dot1 = useRef(new Animated.Value(0.3)).current;
   const dot2 = useRef(new Animated.Value(0.3)).current;
-  // This launch's background (null until the peek resolves — the flat #020617
+  // This launch's background (null until the peek resolves - the flat #020617
   // base shows meanwhile, exactly like the menu's fallback).
   const [bgIndex, setBgIndex] = useState<number | null>(null);
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Three dots that pulse in sequence — a calm "working…" rhythm.
+    // Three dots that pulse in sequence - a calm "working…" rhythm.
     const pulse = (value: Animated.Value, delay: number) =>
       Animated.loop(
         Animated.sequence([
@@ -117,7 +117,7 @@ export default function Index() {
       attempts += 1;
       if (attempts >= HEALTH_POLL_MAX_ATTEMPTS) {
         if (__DEV__) {
-          console.warn('[Index] Startup health check never became available — giving up');
+          console.warn('[Index] Startup health check never became available - giving up');
         }
         return;
       }
@@ -143,7 +143,7 @@ export default function Index() {
     }
   }, [router]);
 
-  // The one intentional delay on the boot path — see MIN_SPLASH_MS.
+  // The one intentional delay on the boot path - see MIN_SPLASH_MS.
   useEffect(() => {
     const timer = setTimeout(() => setMinSplashElapsed(true), MIN_SPLASH_MS);
     return () => clearTimeout(timer);
@@ -177,7 +177,7 @@ export default function Index() {
           new Promise<boolean>((resolve) =>
             setTimeout(() => {
               if (__DEV__) {
-                console.warn('[Index] Navigation health check timed out — proceeding anyway');
+                console.warn('[Index] Navigation health check timed out - proceeding anyway');
               }
               resolve(true); // Default to allowing navigation on timeout
             }, NAVIGATION_CHECK_TIMEOUT)
@@ -189,7 +189,7 @@ export default function Index() {
             console.warn('[Index] Navigation blocked by health check - waiting for system stabilization');
           }
           // Don't navigate yet, retry in 500ms. Bump a counter (a real value
-          // change) so the effect actually re-runs — `setRouterReady(prev => prev)`
+          // change) so the effect actually re-runs - `setRouterReady(prev => prev)`
           // is a no-op React bails on, which left the app stuck on the loader.
           retryTimer = setTimeout(() => {
             if (!cancelled) {
@@ -225,20 +225,20 @@ export default function Index() {
   }, [isPreloaded, routerReady, router, navRetry, minSplashElapsed]);
 
   // ALWAYS render a safe fallback screen (never crash).
-  // H9: the bar is driven by the REAL signals it is waiting on — preload progress
-  // (80% of the bar) and router readiness (the last 20%) — instead of a scripted
+  // H9: the bar is driven by the REAL signals it is waiting on - preload progress
+  // (80% of the bar) and router readiness (the last 20%) - instead of a scripted
   // six-step script that narrated work nobody was doing.
   const currentProgress = Math.round(preloadProgress * 0.8) + (routerReady ? 20 : 0);
   const currentMessage = 'Loading…';
 
   // Dependency-light loading screen (React Native core only) so the very first
-  // production render is crash-proof. This screen owns "/" — app/(tabs) must NOT
+  // production render is crash-proof. This screen owns "/" - app/(tabs) must NOT
   // also claim "/" (it lives at /(tabs)/home), or a production bundle would
   // silently drop this loader. See app/(tabs)/_layout.tsx unstable_settings.
   const pct = Math.max(0, Math.min(100, currentProgress || 0));
   return (
     <View style={loadingStyles.container}>
-      {/* Same artwork the menu is about to show, behind the same flat scrim —
+      {/* Same artwork the menu is about to show, behind the same flat scrim -
           pure decoration; the flat #020617 base is the instant fallback. */}
       {bgIndex != null && (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: bgOpacity }]}>
@@ -290,7 +290,7 @@ export default function Index() {
 }
 
 // Mirrors the MainMenu design language with fixed px values (the scaling utils
-// may not be loaded yet on this very first screen — RN core only here).
+// may not be loaded yet on this very first screen - RN core only here).
 const loadingStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#020617' },
   bgScrim: {

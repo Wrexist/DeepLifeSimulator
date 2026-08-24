@@ -98,7 +98,7 @@ export async function purgeSlotIfPhantom(slot: number): Promise<boolean> {
   try {
     token = await saveLoadMutex.acquire('save');
   } catch (lockError) {
-    log.warn('Could not acquire save lock for phantom purge — proceeding unlocked', {
+    log.warn('Could not acquire save lock for phantom purge - proceeding unlocked', {
       slot,
       error: lockError instanceof Error ? lockError.message : String(lockError),
     });
@@ -132,7 +132,7 @@ async function purgeSlotIfPhantomLocked(slot: number): Promise<boolean> {
     // while the blob itself sat on disk, recoverable and unreachable.
     // 2026-07-29 audit SAVE-OW-8.
     if (!raw && read.blobPresent) {
-      log.warn('Slot has unreadable data — not treating it as a phantom', {
+      log.warn('Slot has unreadable data - not treating it as a phantom', {
         slot,
         source: read.source,
       });

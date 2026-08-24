@@ -35,12 +35,12 @@ export default function CreditCardRow({ card, darkMode, onPress }: Props) {
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
       // Hard Rule #7: the tier used to read as a scale(6) coloured bar down the
-      // left edge. That is the banned decorative side stripe — and because the
+      // left edge. That is the banned decorative side stripe - and because the
       // wrapper clipped it with borderRadius.xl + overflow:hidden, RN curled it
       // into the crescent artifact the rule warns about, which is what a player
       // photographed and filed as "the UI for credit cards is broken".
       //
-      // The tier keeps its colour; it just wears it the way the rule allows —
+      // The tier keeps its colour; it just wears it the way the rule allows -
       // a full border on all four sides, plus the card icon that was already
       // tinted. Nothing about which tier you are looking at is lost.
       style={[

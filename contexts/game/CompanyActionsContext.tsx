@@ -61,7 +61,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   // M4: read the LIVE state on demand instead of mirroring it into a ref.
   // The old idiom (`useRef(gameState)` + a post-commit `useEffect`) forced this
   // provider to subscribe to the ENTIRE GameState purely to keep the ref fresh,
-  // and still handed callbacks a snapshot that was one commit stale — the
+  // and still handed callbacks a snapshot that was one commit stale - the
   // staleness the gate->grant class (CLAUDE.md 4.4) exploits. `useGameStateGetter`
   // returns a stable getter over the same store, so callbacks stay stable, the
   // memoized context value keeps its identity, and the provider no longer
@@ -82,7 +82,7 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
     processCompetitionResults(setGameState, weeksLived);
   }, [weeksLived, setGameState]);
 
-  // R&D research tick — the previously-missing driver that makes labs actually
+  // R&D research tick - the previously-missing driver that makes labs actually
   // finish research (before this, `completeResearch` had ZERO callers, so
   // research never completed). `advanceResearch` bumps each in-progress project's
   // progress by the lab's speed and finalises any that hit 100% (recording the
@@ -90,14 +90,14 @@ export function CompanyActionsProvider({ children }: CompanyActionsProviderProps
   //
   // The `lastResearchWeekRef` guard makes it idempotent per week: a remount
   // (save reload / React StrictMode) or an unrelated re-render never grants a
-  // free increment — it only advances when `weeksLived` genuinely changes.
+  // free increment - it only advances when `weeksLived` genuinely changes.
   const lastResearchWeekRef = useRef<number>(weeksLived);
   useEffect(() => {
     const prevWeek = lastResearchWeekRef.current;
     lastResearchWeekRef.current = weeksLived;
     // Only a genuine +1 weekly advance advances research. Gating on an exact
     // forward step of one week means loading a different save slot (any other
-    // delta — a jump forward or a rewind) no longer grants a spurious research
+    // delta - a jump forward or a rewind) no longer grants a spurious research
     // week / breakthrough roll. First mount is a no-op (prevWeek === weeksLived).
     if (weeksLived !== prevWeek + 1) return;
     const state = getGameState();

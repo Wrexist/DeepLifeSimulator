@@ -86,7 +86,7 @@ describe('taking on debt is recorded, so "Debt Free" can be earned', () => {
     expect(after.progress?.hasBeenInDebt).toBe(true);
   });
 
-  it('stays true after the loan is gone — it records history, not current state', () => {
+  it('stays true after the loan is gone - it records history, not current state', () => {
     const after = drive(createTestGameState({ weeksLived: 50 }), (set) => {
       acceptLoan(set, {
         principal: 10_000,
@@ -194,13 +194,13 @@ describe('Auto-Rest fires for the bonus that promises it', () => {
   });
 
   it('still helps a player right at the < 20 threshold', () => {
-    // 19 is the worst case the bonus is meant to cover — regen alone takes it
+    // 19 is the worst case the bonus is meant to cover - regen alone takes it
     // to 59, so a target of 40 or 50 would leave the edge of the band inert
     // even if the floor case passed.
     expect(energyAfterTick(19, ['auto_save_energy'])).toBeGreaterThan(energyAfterTick(19, []));
   });
 
-  it('would NEVER fire if the check ran after regen — the bug this replaced', () => {
+  it('would NEVER fire if the check ran after regen - the bug this replaced', () => {
     // Post-regen energy for an exhausted player, which the old wiring tested.
     const postRegen = 5 + BASE_REGEN;
     expect(shouldAutoRest(postRegen, ['auto_save_energy'])).toBe(false);

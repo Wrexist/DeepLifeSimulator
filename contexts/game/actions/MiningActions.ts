@@ -78,7 +78,7 @@ export function repairRig(
     if (!Number.isFinite(freshCost) || freshCost <= 0) return prev;
     if ((prev.stats?.money ?? 0) < freshCost) return prev;
 
-    // Canonical money path (NaN/ceiling guards + dailySummary tracking) — the
+    // Canonical money path (NaN/ceiling guards + dailySummary tracking) - the
     // affordability re-check above keeps behavior identical.
     const repairPatch = applyMoneyDelta(prev, -freshCost, 'Miner repair');
     if (!repairPatch) return prev;
@@ -102,7 +102,7 @@ export function repairRig(
  * Arm / disarm auto-repair. When enabling, the player picks which crypto pays
  * the weekly repair bill; we also stamp the tiny `AUTO_REPAIR_WEEKLY_COST_FLOOR`
  * so the already-implemented tick (applyMiningWarehouse durability restore +
- * applyMiningCryptos real-cost deduction) actually fires — both were dead because
+ * applyMiningCryptos real-cost deduction) actually fires - both were dead because
  * no component ever wrote these fields.
  */
 export function setAutoRepair(
@@ -147,7 +147,7 @@ export function setAutoRepair(
 
 /**
  * Mining yield arithmetic + the miner-upgrade catalog now live in
- * `@/lib/crypto/miningEarnings` — both are pure data/arithmetic with no React
+ * `@/lib/crypto/miningEarnings` - both are pure data/arithmetic with no React
  * and no setter, and keeping them here forced `lib/crypto/estimateWeeklyMining`
  * to import UPWARD into `contexts/`. Re-exported unchanged so every existing
  * importer (BitcoinMiningApp, applyMiningCryptos, the parity tests) keeps
@@ -287,7 +287,7 @@ export function joinMiningPool(
     return { success: false, message: 'Pool crypto must match selected mining crypto' };
   }
 
-  // R5-E: 1-week cooldown between pool changes — previously the player could
+  // R5-E: 1-week cooldown between pool changes - previously the player could
   // hop between pools every action to chase the best `bonusMultiplier - fee`
   // for the current crypto. The cooldown turns this into a deliberate choice.
   const POOL_CHANGE_COOLDOWN_WEEKS = 1;
@@ -296,7 +296,7 @@ export function joinMiningPool(
     lastPoolChangeWeek?: number;
   };
   const lastChange = warehouseWithCooldown.lastPoolChangeWeek;
-  // Don't gate the very first join — players need an initial choice.
+  // Don't gate the very first join - players need an initial choice.
   if (gameState.warehouse.activePool && typeof lastChange === 'number' && currentWeek - lastChange < POOL_CHANGE_COOLDOWN_WEEKS) {
     return { success: false, message: `Pool changes are limited to once per week. Try again next week.` };
   }
@@ -389,7 +389,7 @@ export function stakeCrypto(
     return { success: false, message: 'Insufficient crypto balance' };
   }
 
-  // R2-G: also require an integer lockWeeks — fractional values land as
+  // R2-G: also require an integer lockWeeks - fractional values land as
   // `undefined` in the rewardRates lookup and fall through to the 2% default
   // (paying out for a lock duration the caller didn't request).
   if (!Number.isInteger(lockWeeks) || lockWeeks < 1 || lockWeeks > 4) {
@@ -414,7 +414,7 @@ export function stakeCrypto(
     if (!prev.warehouse) return prev;
 
     // R4-E: re-read the coin balance from `prev` so a same-batch double-tap
-    // can't both pass the stale outer gate and each subtract `amount` — that
+    // can't both pass the stale outer gate and each subtract `amount` - that
     // drove `owned` negative and minted phantom staking positions.
     const freshCrypto = prev.cryptos.find(c => c.id === cryptoId);
     if (!freshCrypto || freshCrypto.owned < amount) return prev;
@@ -534,7 +534,7 @@ export function claimStakingRewards(
   setGameState(prev => {
     if (!prev.warehouse) return prev;
     const fresh = computeStakingClaim(prev);
-    if (fresh.totalRewards === 0) return prev; // nothing left to claim — no-op
+    if (fresh.totalRewards === 0) return prev; // nothing left to claim - no-op
 
     const updatedCryptos = prev.cryptos.map(crypto => {
       const rewards = fresh.rewardsByCrypto[crypto.id] || 0;
@@ -569,7 +569,7 @@ export function upgradeEnergySystem(
 
   /**
    * C-9. The updater refuses to re-buy an energy type the warehouse already
-   * has — a one-time switch, not a stackable purchase — but there was no OUTER
+   * has - a one-time switch, not a stackable purchase - but there was no OUTER
    * check for it, so the function fell through to an unconditional success.
    * A player tapping "Solar" while already on Solar was told "Upgraded to Solar
    * Panels", charged nothing, and nothing changed.
@@ -599,7 +599,7 @@ export function upgradeEnergySystem(
     if (!prev.warehouse) return prev;
     // Same-batch double-tap safety (mirrors buyMinerUpgrade): the outer
     // affordability gate read the stale render-time snapshot, so two queued
-    // updaters could both pass it and subtract the cost twice — driving money
+    // updaters could both pass it and subtract the cost twice - driving money
     // negative. Re-check against prev, and no-op if this energy type is
     // already installed (it's a one-time switch, not a stackable purchase).
     if (prev.warehouse.energyType === energyType) return prev;
@@ -654,7 +654,7 @@ export function upgradeAutomation(
   setGameState(prev => {
     if (!prev.warehouse) return prev;
     // Same-batch double-tap safety: re-derive the level from prev (the outer
-    // `currentLevel` is a stale snapshot — two queued taps both saw the same
+    // `currentLevel` is a stale snapshot - two queued taps both saw the same
     // level, charging twice while advancing once) and re-check affordability
     // so money can't go negative. A second tap this batch sees the bumped
     // level ≠ snapshot level and no-ops.

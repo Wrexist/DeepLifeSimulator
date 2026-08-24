@@ -71,7 +71,7 @@ export function quotePropertyPurchase(
   // so the quoted figures and the charged figures cannot disagree (§4.4). The
   // owned entry's purchasePrice/currentValue basis is set to this same
   // discounted figure in resolveBuyProperty, so buy-then-sell cannot mint the
-  // 10% back — the property appreciates from what was paid.
+  // 10% back - the property appreciates from what was paid.
   const effectivePrice = Math.round(
     (property.price ?? 0) * propertyPriceMultiplier(state.prestige?.unlockedBonuses),
   );
@@ -142,7 +142,7 @@ export function quotePropertyPurchase(
  */
 /** What the player is asking to buy, and how they are financing it. */
 type BuyPropertySpec = {
-  /** Existing RealEstate descriptor — pass the full catalog item for new properties. */
+  /** Existing RealEstate descriptor - pass the full catalog item for new properties. */
   property: RealEstate;
   tier: DownPaymentTier;
   term: MortgageTerm;
@@ -204,16 +204,16 @@ function resolveBuyProperty(
     // instead of silently flooring.
     if (cash < downPayment) {
       log.info(`Purchase rejected: insufficient cash for down payment (need ${downPayment}, have ${cash})`);
-      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` }, next: null };
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down - you have $${Math.round(cash).toLocaleString()}.` }, next: null };
     }
     // Route the down-payment debit through the canonical money helper
     // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
-    // directly — the amount is unchanged, but a corrupt (NaN) balance can no
+    // directly - the amount is unchanged, but a corrupt (NaN) balance can no
     // longer slip a purchase through (`cash < downPayment` is false for NaN).
     const spend = applyMoneyDelta(state, -downPayment, `Property down payment: ${catalog.name}`);
     if (!spend) {
       log.info(`Purchase rejected by money guard: down ${downPayment}, cash ${cash}`);
-      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` }, next: null };
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down - you have $${Math.round(cash).toLocaleString()}.` }, next: null };
     }
 
     // Create the Loan record if there's a mortgage.
@@ -246,7 +246,7 @@ function resolveBuyProperty(
       ...(existing ?? catalog),
       owned: true,
       status: spec.asResidence ? 'owner' : 'owner',
-      // Basis at the DISCOUNTED price when Real Estate Mogul applies — see the
+      // Basis at the DISCOUNTED price when Real Estate Mogul applies - see the
       // anti-arbitrage note in quotePropertyPurchase.
       purchasePrice: quote.effectivePrice ?? catalog.price,
       purchasedWeek: state.weeksLived,
@@ -288,7 +288,7 @@ function resolveBuyProperty(
         success: true,
         message: spec.tier === 'cash'
           ? `You bought ${catalog.name} outright for $${catalog.price.toLocaleString()}!`
-          : `You bought ${catalog.name} — $${Math.round(downPayment).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
+          : `You bought ${catalog.name} - $${Math.round(downPayment).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk mortgage.`,
       },
       next: {
         ...state,
@@ -297,7 +297,7 @@ function resolveBuyProperty(
         realEstate: updatedRealEstate,
         loans: updatedLoans,
         /**
-         * `totalPropertiesOwned` had NO production writer — `trackNewProperty`
+         * `totalPropertiesOwned` had NO production writer - `trackNewProperty`
          * in `lib/statistics/statisticsTracker.ts` was only ever called from a
          * stress test. StatisticsApp's "Properties" counter therefore read a
          * permanent 0, and the `first-property` milestone (15 gems) was
@@ -339,7 +339,7 @@ export const sellOwnedProperty = (
     const cash = prev.stats?.money ?? 0;
     // Underwater ("short") sale: the proceeds didn't cover the mortgage. Keep the
     // loan as a deficiency balance (reduced to the uncovered remainder) rather
-    // than discharging negative equity for $0 — deleting the loan outright let a
+    // than discharging negative equity for $0 - deleting the loan outright let a
     // player erase a compounded mortgage for free.
     const newLoans = !result.releasedMortgageId
       ? prev.loans
@@ -356,7 +356,7 @@ export const sellOwnedProperty = (
           : '')
     );
 
-    // Canonical credit path — a big sale near the money cap must respect
+    // Canonical credit path - a big sale near the money cap must respect
     // MONEY_CEILING like every other credit (M-7 parity with the buy flow).
     // Abort if the credit is rejected: the property must never leave the
     // portfolio while the player receives nothing.
@@ -440,7 +440,7 @@ export const maintainProperty = (
 ): { success: boolean; message: string } => {
   /**
    * Both refusals used to be reachable ONLY inside the updater, and the
-   * function returned `void` — so a player who could not afford maintenance
+   * function returned `void` - so a player who could not afford maintenance
    * tapped the button and got complete silence, with a `log.warn` nobody sees.
    * These outer guards make the refusal reportable; the inner copies stay as
    * the same-batch race protection for state.
@@ -453,7 +453,7 @@ export const maintainProperty = (
   if ((gameState.stats?.money ?? 0) < quotedCost) {
     return {
       success: false,
-      message: `Maintenance costs $${Math.round(quotedCost).toLocaleString()} — you have $${Math.round(gameState.stats?.money ?? 0).toLocaleString()}.`,
+      message: `Maintenance costs $${Math.round(quotedCost).toLocaleString()} - you have $${Math.round(gameState.stats?.money ?? 0).toLocaleString()}.`,
     };
   }
 
@@ -469,7 +469,7 @@ export const maintainProperty = (
     // The canonical guard is the only charge path. No hand-written fallback:
     // a non-finite cost slips past the `cash < cost` gate (NaN comparisons are
     // false), gets refused here, and a `cash - cost` fallback would then write
-    // NaN into stats.money — so refusal must mean "no charge, no effect".
+    // NaN into stats.money - so refusal must mean "no charge, no effect".
     const spend = applyMoneyDelta(prev, -cost, 'Property maintenance');
     if (!spend) {
       log.warn(`Maintenance rejected by money guard: need $${cost}, have $${cash}`);
@@ -489,7 +489,7 @@ export const maintainProperty = (
 
   return {
     success: true,
-    message: `Maintenance done — $${Math.round(quotedCost).toLocaleString()}.`,
+    message: `Maintenance done - $${Math.round(quotedCost).toLocaleString()}.`,
   };
 };
 
@@ -503,7 +503,7 @@ export const maintainProperty = (
  * That read is only reliable for the FIRST functional update of a React batch
  * (`__tests__/refactor/updaterTimingContract.test.tsx`); on any deferred
  * dispatch it returned the initial "Install failed" / "Add-room failed" /
- * "Upgrade failed" placeholder for work that had in fact succeeded — the same
+ * "Upgrade failed" placeholder for work that had in fact succeeded - the same
  * defect as the 2026-08-15 player report ($40.25M told they needed $10,000).
  *
  * These were the hardest members of the class because they took only
@@ -513,7 +513,7 @@ export const maintainProperty = (
  * caller's snapshot) and the next state (from `prev`), so no cross-updater
  * variable exists to be stale.
  *
- * `next: null` means refuse — the updater returns `prev` unchanged, which is
+ * `next: null` means refuse - the updater returns `prev` unchanged, which is
  * also the same-batch race guard.
  */
 type ImproveOutcome = { result: { success: boolean; message: string }; next: GameState | null };
@@ -537,7 +537,7 @@ function resolveInstallDecor(state: GameState, propertyId: string, decorId: stri
       next: null,
     };
   }
-  // Canonical guard only — see resolveMaintenance for why a hand-written
+  // Canonical guard only - see resolveMaintenance for why a hand-written
   // `cash - cost` fallback is a NaN hazard, not a safety net.
   const spend = applyMoneyDelta(state, -item.cost, 'Property decor');
   if (!spend) {
@@ -578,7 +578,7 @@ function resolveAddRoom(state: GameState, propertyId: string, roomId: string): I
       next: null,
     };
   }
-  // Canonical guard only — see resolveMaintenance for the NaN-fallback hazard.
+  // Canonical guard only - see resolveMaintenance for the NaN-fallback hazard.
   const spend = applyMoneyDelta(state, -room.cost, 'Property room addition');
   if (!spend) {
     return {
@@ -615,7 +615,7 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
       next: null,
     };
   }
-  // Canonical guard only — see resolveMaintenance for the NaN-fallback hazard.
+  // Canonical guard only - see resolveMaintenance for the NaN-fallback hazard.
   const spend = applyMoneyDelta(state, -nextTier.cost, 'Property tier upgrade');
   if (!spend) {
     return {
@@ -640,11 +640,11 @@ function resolveUpgradeTier(state: GameState, propertyId: string): ImproveOutcom
 }
 
 /**
- * Improve flow — install a decoration item into an owned property. Debits the
+ * Improve flow - install a decoration item into an owned property. Debits the
  * item cost, tracks 'housing' budget spend, and writes the EXISTING interior[]
  * field (which calculatePropertyHappiness / appreciatePropertyValue already
  * consume). Reads prev inside the updater, so a same-batch double-tap sees the
- * already-installed item (or the debited cash) and rejects — no double spend.
+ * already-installed item (or the debited cash) and rejects - no double spend.
  */
 export const installPropertyDecor = (
   gameState: GameState,
@@ -660,7 +660,7 @@ export const installPropertyDecor = (
 };
 
 /**
- * Improve flow — add a room to an owned property. Debits the cost, tracks
+ * Improve flow - add a room to an owned property. Debits the cost, tracks
  * 'housing' spend, and writes the EXISTING rooms[] field. Double-tap safe.
  */
 export const addPropertyRoom = (
@@ -677,7 +677,7 @@ export const addPropertyRoom = (
 };
 
 /**
- * Improve flow — bump a property to the next upgrade tier (max tier 3). Debits
+ * Improve flow - bump a property to the next upgrade tier (max tier 3). Debits
  * the tier cost, tracks 'housing' spend, and writes the EXISTING upgradeLevel.
  * The tier's rent bonus flows through the weekly tenant-model rent (bounded,
  * only when the unit is actually tenanted). Double-tap safe.

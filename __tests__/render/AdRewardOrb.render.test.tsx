@@ -8,7 +8,7 @@ import AdRewardOrb from '@/components/AdRewardOrb';
  * meaningful assertion is that it mounts inside the real provider tree without
  * throwing (bad import / hook / net-worth call) and commits as null.
  */
-describe('render — AdRewardOrb', () => {
+describe('render - AdRewardOrb', () => {
   it('mounts without throwing and starts hidden', () => {
     const { renderer, json, unmount } = renderWithProviders(<AdRewardOrb />);
     expect(renderer).toBeTruthy();

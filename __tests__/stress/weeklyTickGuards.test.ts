@@ -299,7 +299,7 @@ describe('every subsystem call in the weekly tick is guarded', () => {
 
   it('the guarded subsystems are the ones that actually run in the tick', () => {
     const guarded = callSites.filter((s) => s.guardTickWrapped).map((s) => s.name);
-    // The three that were bare until the 2026-08-16 pass — pinned by name
+    // The three that were bare until the 2026-08-16 pass - pinned by name
     // because each one is a documented regression, not because the list is the
     // mechanism. The scan above is the mechanism.
     expect(guarded).toEqual(expect.arrayContaining([
@@ -318,7 +318,7 @@ describe('the guard exemptions are self-checking', () => {
       expect(callSites.some((s) => s.name === name)).toBe(true);
 
       // Resolve the tick's own import for this symbol and check it points at the
-      // file the exemption names — so the exemption cannot drift onto a
+      // file the exemption names - so the exemption cannot drift onto a
       // different (unguarded) module of the same name. Read from the UNMASKED
       // source: the scanner blanks string contents, and the path is a string.
       const importMatch = new RegExp(

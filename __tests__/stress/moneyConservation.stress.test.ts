@@ -30,7 +30,7 @@ describe('Money conservation invariant (applyMoneyDelta)', () => {
       const delta = Math.round((Math.sin(i * 12.9898) * 10000));
       const result = applyMoneyDelta(state, delta, `test-${i}`);
       if (result === null) {
-        // Rejected (overdraft / non-finite) — balance must be unchanged.
+        // Rejected (overdraft / non-finite) - balance must be unchanged.
         continue;
       }
       sumAccepted += result.stats.money - state.stats.money;

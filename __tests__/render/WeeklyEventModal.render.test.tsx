@@ -24,7 +24,7 @@ jest.mock('@/contexts/GameContext', () => ({
   useGameActions: () => ({ resolveEvent: mockResolveEvent, saveGame: mockSaveGame }),
 }));
 
-describe('render — WeeklyEventModal (Liquid Glass)', () => {
+describe('render - WeeklyEventModal (Liquid Glass)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGameState = {

@@ -1,5 +1,5 @@
 /**
- * StoriesRail — horizontal scroller above the feed.
+ * StoriesRail - horizontal scroller above the feed.
  *
  * Shows: your own live status (when streaming), then NPCs with high
  * relationship scores as "story" bubbles. Tap your own bubble to go live;
@@ -50,7 +50,7 @@ export default function StoriesRail({ onGoLive, onTapNpc }: StoriesRailProps) {
     };
   }, [isLive, ringScale, reduced]);
 
-  // NPCs with relationship score >= 30 — show top 8 by score
+  // NPCs with relationship score >= 30 - show top 8 by score
   const npcStories = useMemo(() => {
     const rels = gameState.relationships ?? [];
     return [...rels]

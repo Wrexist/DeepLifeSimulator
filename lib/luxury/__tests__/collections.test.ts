@@ -44,7 +44,7 @@ describe('collection definitions', () => {
     expect(new Set(LUXURY_COLLECTIONS.map((c) => c.title)).size).toBe(LUXURY_COLLECTIONS.length);
   });
 
-  it('grants no weekly cash — luxury stays a sink', () => {
+  it('grants no weekly cash - luxury stays a sink', () => {
     // The catalog's central rule: a trophy that pays for itself stops being a
     // trophy. Sets grant standing and hosting only, never income.
     for (const c of LUXURY_COLLECTIONS) {
@@ -133,7 +133,7 @@ describe('reputation bonus', () => {
 });
 
 describe('hosting multiplier', () => {
-  it('is exactly 1 with nothing complete — no silent change for most players', () => {
+  it('is exactly 1 with nothing complete - no silent change for most players', () => {
     expect(getCollectionHostingMultiplier([])).toBe(1);
   });
 
@@ -145,7 +145,7 @@ describe('hosting multiplier', () => {
   it('is bounded even when every set is complete', () => {
     const full = getCollectionHostingMultiplier(ALL_IDS);
     expect(full).toBeLessThanOrEqual(MAX_COLLECTION_HOSTING_MULTIPLIER);
-    // And the cap actually binds here — otherwise the test proves nothing.
+    // And the cap actually binds here - otherwise the test proves nothing.
     const uncapped = LUXURY_COLLECTIONS.reduce((m, c) => m * c.hostingMultiplier, 1);
     expect(uncapped).toBeGreaterThan(MAX_COLLECTION_HOSTING_MULTIPLIER);
     expect(full).toBe(MAX_COLLECTION_HOSTING_MULTIPLIER);

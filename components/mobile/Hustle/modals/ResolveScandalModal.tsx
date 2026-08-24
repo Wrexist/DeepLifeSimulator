@@ -1,5 +1,5 @@
 /**
- * ResolveScandalModal — 5 response cards for an active brand scandal.
+ * ResolveScandalModal - 5 response cards for an active brand scandal.
  *
  * Apology / Recall / Lawsuit / Cover up / Restructure each have unique
  * cost+reputation+severity-drop profiles. Calls resolveScandal action.
@@ -25,7 +25,7 @@ type OptionMeta = {
   iconColor: string;
   title: string;
   cost: string;
-  /** Numeric cost for affordability gating — must match resolveScandal's table. */
+  /** Numeric cost for affordability gating - must match resolveScandal's table. */
   costValue: number;
   effect: string;
 };
@@ -50,7 +50,7 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
   const overlay = gameState.hustleApp?.companies?.[companyId];
   const scandal = overlay?.activeScandal;
   const cash = gameState.stats?.money ?? 0;
-  // Failure feedback — every sibling Hustle modal surfaces a resultMsg on a
+  // Failure feedback - every sibling Hustle modal surfaces a resultMsg on a
   // failed action; this one used to answer an unaffordable tap with only a buzz.
   const [resultMsg, setResultMsg] = useState<string | null>(null);
 
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
   // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // button lands off the bottom of the SCREEN - and the sheet itself does not
   // scroll, so nothing can reach it. Bounding the sheet is what gives the list
   // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {

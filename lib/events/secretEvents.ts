@@ -311,7 +311,7 @@ const palindromeAge: EventTemplate = {
  },
  generate: (state) => ({
  id: 'secret_palindrome',
- description: ` You've been alive for exactly ${state.weeksLived} weeks — a palindrome number! A math professor stops you on the street to congratulate you.`,
+ description: ` You've been alive for exactly ${state.weeksLived} weeks - a palindrome number! A math professor stops you on the street to congratulate you.`,
  choices: [
  {
  id: 'celebrate',
@@ -331,7 +331,7 @@ const niceNumber: EventTemplate = {
  id: 'secret_nice',
  category: 'general',
  weight: 100,
- oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
+ oncePerLife: true, // a secret is DISCOVERED once - refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const age = getAge(s);
  // Age 69 triggers the meme event (like BitLife)
@@ -360,7 +360,7 @@ const fullCircle: EventTemplate = {
  id: 'secret_full_circle',
  category: 'general',
  weight: 100,
- oncePerLife: true, // a secret is DISCOVERED once — refiring reads as a copy-paste bug (2026-08-24)
+ oncePerLife: true, // a secret is DISCOVERED once - refiring reads as a copy-paste bug (2026-08-24)
  condition: (s) => {
  const prestigeLevel = s.prestige?.prestigeLevel ?? 0;
  const age = getAge(s);
@@ -378,7 +378,7 @@ const fullCircle: EventTemplate = {
  const lastAge = lastLife?.ageAtDeath ?? 0;
  return {
  id: 'secret_full_circle',
- description: ` You just turned ${lastAge} — the exact age you died in your previous life. A chill runs down your spine. Déjà vu hits hard.`,
+ description: ` You just turned ${lastAge} - the exact age you died in your previous life. A chill runs down your spine. Déjà vu hits hard.`,
  choices: [
  {
  id: 'determined',

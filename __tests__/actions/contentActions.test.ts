@@ -73,7 +73,7 @@ function makeStore(initial: GameState) {
 }
 
 
-describe('publishVideo — creator level persistence', () => {
+describe('publishVideo - creator level persistence', () => {
   it('recomputes level from XP after enough views cross a threshold', () => {
     // experience 90 + a big-subscriber upload crosses the 100-XP → level 2 mark.
     const store = makeStore(baseState(channel({ experience: 90, subscribers: 200_000 })));
@@ -87,7 +87,7 @@ describe('publishVideo — creator level persistence', () => {
   });
 });
 
-describe('publishVideo — trending topic bonus', () => {
+describe('publishVideo - trending topic bonus', () => {
   it('a trend bonus raises reach vs no bonus at the same viral roll', () => {
     // Pin rollOrganic on both so the only difference is the trend bonus (the
     // action seeds Math.random() for organic in live play).
@@ -101,7 +101,7 @@ describe('publishVideo — trending topic bonus', () => {
   });
 });
 
-describe('runStream — averageViewers', () => {
+describe('runStream - averageViewers', () => {
   it('writes averageViewers equal to the recorded stream viewers on the first stream', () => {
     const store = makeStore(baseState(channel({ followers: 10_000 })));
     runStream(store.get(), store.setState, { game: 'Just Chatting', duration: 60, rollHype: 0.99 }, 5);
@@ -112,7 +112,7 @@ describe('runStream — averageViewers', () => {
   });
 });
 
-describe('runStream — hype streak', () => {
+describe('runStream - hype streak', () => {
   it('starts at 1, increments on consecutive weeks, and resets after a gap', () => {
     const store = makeStore(baseState(channel({ followers: 5_000 })));
 
@@ -142,7 +142,7 @@ describe('runStream — hype streak', () => {
   });
 });
 
-describe('live streaming — start / tick / finalize', () => {
+describe('live streaming - start / tick / finalize', () => {
   const lowEnergy = (ch: GamingStreamingState, energy: number, money = 1000): GameState =>
     createTestGameState({ stats: { money, energy }, weeksLived: 5, gamingStreaming: ch });
 
@@ -228,7 +228,7 @@ describe('live streaming — start / tick / finalize', () => {
   });
 });
 
-describe('upgradePCComponent — tier cap (anti-exploit)', () => {
+describe('upgradePCComponent - tier cap (anti-exploit)', () => {
   it('bumps the component tier by one and charges basePrice·2^tier', () => {
     const store = makeStore(baseState(channel()));
     const before = store.get().stats.money;
@@ -240,7 +240,7 @@ describe('upgradePCComponent — tier cap (anti-exploit)', () => {
     expect(store.get().stats.money).toBe(before - PC_BASE_PRICES.cpu);
   });
 
-  it(`refuses to upgrade past tier ${MAX_PC_TIER} — no charge, tier unchanged`, () => {
+  it(`refuses to upgrade past tier ${MAX_PC_TIER} - no charge, tier unchanged`, () => {
     // Huge balance so ONLY the cap (not affordability) can block the upgrade.
     const ch = channel({
       pcUpgradeLevels: { cpu: MAX_PC_TIER, gpu: 0, ram: 0, ssd: 0, motherboard: 0, cooling: 0, psu: 0, case: 0, network: 0 },

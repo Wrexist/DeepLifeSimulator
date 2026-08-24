@@ -211,7 +211,7 @@ export function validateTimeInvariants(state: Partial<GameState>): InvariantChec
     errors.push(`date.week is outside valid range [1, ${WEEKS_PER_MONTH}]: ${state.date.week}`);
   }
 
-  // Validate age. The floor is MIN_VALID_AGE, not adulthood — see the constant.
+  // Validate age. The floor is MIN_VALID_AGE, not adulthood - see the constant.
   if (typeof state.date.age !== 'number') {
     errors.push('date.age is not a number');
   } else if (isNaN(state.date.age) || !isFinite(state.date.age)) {
@@ -222,7 +222,7 @@ export function validateTimeInvariants(state: Partial<GameState>): InvariantChec
     warnings.push(`date.age is very high: ${state.date.age}`);
   }
 
-  // Validate year. Lower bound only — the year is cumulative across prestige
+  // Validate year. Lower bound only - the year is cumulative across prestige
   // generations, so there is no meaningful ceiling (see GAME_EPOCH_YEAR).
   if (typeof state.date.year !== 'number') {
     errors.push('date.year is not a number');
@@ -387,7 +387,7 @@ export function validateMoneyInvariants(
 /**
  * Comprehensive state invariant check.
  *
- * Pure — reports, never repairs. `enforceStateInvariants` is the wrapper that
+ * Pure - reports, never repairs. `enforceStateInvariants` is the wrapper that
  * logs and repairs; use that one at a boundary.
  */
 export function validateStateInvariants(state: Partial<GameState>): InvariantCheckResult {
@@ -497,7 +497,7 @@ export function sanitizeFinalStats(stats: Partial<GameStats>): GameStats {
 
 /** Outcome of an `enforceStateInvariants` pass. */
 export interface InvariantEnforcementResult {
-  /** True when nothing was wrong — `state` is then the identical reference. */
+  /** True when nothing was wrong - `state` is then the identical reference. */
   clean: boolean;
   /** Invariant ERRORS found before repair (logged under `[INVARIANT]`). */
   violations: string[];
@@ -518,7 +518,7 @@ function deriveAge(weeksLived: unknown): number {
   return Math.max(MIN_VALID_AGE, Math.min(MAX_VALID_AGE, age));
 }
 
-/** The `weeksLived` counter an age implies — the inverse of `computeWeeksLived`. */
+/** The `weeksLived` counter an age implies - the inverse of `computeWeeksLived`. */
 function deriveWeeksLived(age: unknown): number {
   if (typeof age !== 'number' || !isFinite(age)) return 0;
   return Math.max(0, Math.floor((age - ADULTHOOD_AGE) * WEEKS_PER_YEAR));
@@ -534,8 +534,8 @@ function deriveWeeksLived(age: unknown): number {
  *   here is "logged and left alone".
  * - **Never invents or deletes.** Repairs clamp an existing value back into
  *   range, or derive one counter from its documented twin (`date.age` ⇄
- *   `weeksLived`). Relationship violations — duplicate ids, out-of-union types,
- *   family/relationships mismatches — are reported and NOT repaired: every
+ *   `weeksLived`). Relationship violations - duplicate ids, out-of-union types,
+ *   family/relationships mismatches - are reported and NOT repaired: every
  *   repair for those is either a deletion or a guess about who someone is.
  * - **Cheap when clean.** One pass over stats/date/relationships and an early
  *   return with the same object reference; the shallow copies below only happen
@@ -596,7 +596,7 @@ export function enforceStateInvariants(state: GameState, context: string): Invar
     const week: unknown = nextDate.week;
     if (typeof week !== 'number' || !isFinite(week) || week < 1 || week > WEEKS_PER_MONTH) {
       // Clamp rather than wrap. `week` is display-only week-of-month, so a
-      // stored 0 or 9 carries no information worth preserving modulo-style —
+      // stored 0 or 9 carries no information worth preserving modulo-style -
       // and wrapping would turn "uninitialised" (0) into the last week of the
       // month, which reads as real data.
       const fixed =

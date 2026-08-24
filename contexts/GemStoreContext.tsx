@@ -3,13 +3,13 @@
  *
  * The IAP store (GemShopModal) was previously mounted only inside TopStatsBar,
  * which unmounts inside full-screen phone apps (Pulse/Spark/Hustle/Banking)
- * and during onboarding — so the store was unreachable exactly where
+ * and during onboarding - so the store was unreachable exactly where
  * high-intent moments happen (death popup, out-of-gems rejections, in-app
  * currency sinks). This context owns a single app-level mount and exposes
  * `openStore(tab?)` so any surface can deep-link into a specific store tab
  * without mounting its own copy of the modal.
  *
- * Default tab is 'gems' (the purchase surface) — entry points that mean
+ * Default tab is 'gems' (the purchase surface) - entry points that mean
  * something else (e.g. the HUD cart showing the whole shop) pass their tab
  * explicitly.
  */

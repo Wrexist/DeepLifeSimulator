@@ -92,7 +92,7 @@ describe('buildLifeTimeline', () => {
 describe('collapsing repeated beats', () => {
   /**
    * A standing nudge is re-journalled every week it holds, so an unhoused
-   * stretch used to render as ten identical rows and nothing else — found by
+   * stretch used to render as ten identical rows and nothing else - found by
    * looking at the shipped timeline in the running app.
    */
   const withJournal = (titles: string[]) =>

@@ -93,7 +93,7 @@ function mountGame() {
 
 const WEEKS_PER_YEAR = 52;
 
-describe('Weekly relationship pass — per-entry failure containment (M3)', () => {
+describe('Weekly relationship pass - per-entry failure containment (M3)', () => {
   jest.setTimeout(120_000);
   let mounted: { root: any } | null = null;
 
@@ -172,7 +172,7 @@ describe('Weekly relationship pass — per-entry failure containment (M3)', () =
     expect(badAfter!.name).toBe('Malformed');
   });
 
-  it('stays contained week after week — the pass never freezes permanently', async () => {
+  it('stays contained week after week - the pass never freezes permanently', async () => {
     mounted = mountGame();
     seed();
 

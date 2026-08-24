@@ -56,6 +56,6 @@ export function scaledFoodRestore(base: number, purchasesThisWeek: number | unde
 export function satietyHint(purchasesThisWeek: number | undefined): string | null {
   const mult = foodEffectMultiplier(purchasesThisWeek);
   if (mult >= 1) return null;
-  if (mult === 0.5) return 'Well fed — meals restore half as much until next week.';
-  return 'Completely full — meals barely help until next week.';
+  if (mult === 0.5) return 'Well fed: meals restore half as much until next week.';
+  return 'Completely full: meals barely help until next week.';
 }

@@ -63,7 +63,7 @@ const code = (rel: string) =>
   read(rel).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 describe('legacy_business is wired now, and honestly described', () => {
-  it('still exists at the same price — nobody was refunded or stranded', () => {
+  it('still exists at the same price - nobody was refunded or stranded', () => {
     const b = PRESTIGE_BONUSES.find((x) => x.id === 'legacy_business');
 
     expect(b).toBeDefined();
@@ -115,7 +115,7 @@ describe('the registry still behaves, for the next dead bonus', () => {
     }
   });
 
-  it('is EMPTY — every dead bonus found so far has been wired (2026-08-23)', () => {
+  it('is EMPTY - every dead bonus found so far has been wired (2026-08-23)', () => {
     // A ratchet, not a snapshot: an id LEAVING this list must be a deliberate
     // wiring, and one arriving must be a deliberate finding. Both should fail
     // here first. The three 2026-08-21 entries left when the owner resolved
@@ -138,7 +138,7 @@ describe('the registry still behaves, for the next dead bonus', () => {
     }
 
     // And the predicates that used to front them are gone, rather than sitting
-    // there uncalled — a predicate named for a bonus reads as its wiring, which
+    // there uncalled - a predicate named for a bonus reads as its wiring, which
     // is why two of these survived a previous audit.
     for (const fn of ['hasEarlyItemAccess', 'hasEarlyRealEstateAccess', 'shouldAutoCollectRent']) {
       expect(`${fn}: ${realCallersOf(fn).length}`).toBe(`${fn}: 0`);

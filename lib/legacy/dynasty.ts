@@ -233,7 +233,7 @@ export function updateHeirloomGenerations(heirlooms: Heirloom[]): Heirloom[] {
 /**
  * The dynasty rank ladder.
  *
- * `getDynastyTier` shipped with SIX tiers, a title and a description each —
+ * `getDynastyTier` shipped with SIX tiers, a title and a description each -
  * and **zero consumers** anywhere in the app. It is a working, persisted,
  * cross-life progression score that no player has ever seen, which is the same
  * "built but unreachable" class as the legacy shop's missing buy button.
@@ -246,7 +246,7 @@ export function updateHeirloomGenerations(heirlooms: Heirloom[]): Heirloom[] {
  * Legendary, with thresholds derived from that curve rather than chosen as
  * round numbers: a deep-but-plausible family (60 generations, $2B of combined
  * wealth, 15 legendary heirlooms held 30 generations, max reputation) scores
- * ~2,700, so the ladder runs 1,500 / 2,000 / 2,600 — the top rank is a real
+ * ~2,700, so the ladder runs 1,500 / 2,000 / 2,600 - the top rank is a real
  * climb past Legendary that such a dynasty just finishes.
  *
  * The first pass used 1,800 / 3,000 / 5,000, chosen as round numbers, and the
@@ -298,7 +298,7 @@ export function getDynastyTier(stats: DynastyStats): {
 }
 
 /**
- * Current score, current rank, and what is next — everything a readout needs.
+ * Current score, current rank, and what is next - everything a readout needs.
  * `progress` is 0..1 through the CURRENT band, so a bar can't jump backwards
  * when a new rank is entered.
  */
@@ -325,7 +325,7 @@ export function getDynastyProgress(stats: DynastyStats): {
 /**
  * Calculate dynasty score for tier determination.
  *
- * Exported so a readout can show the number the rank is derived from — a rank
+ * Exported so a readout can show the number the rank is derived from - a rank
  * with no visible score is a badge, not a progression bar.
  */
 export function calculateDynastyScore(stats: DynastyStats): number {
@@ -354,7 +354,7 @@ export function calculateDynastyScore(stats: DynastyStats): number {
   score += (stats.familyAchievements ?? []).length * 2;
 
   // Descendants. `totalChildrenAllGenerations` accumulates on every death, so
-  // a family that keeps having children keeps climbing — which is what makes
+  // a family that keeps having children keeps climbing - which is what makes
   // grandchildren (v34) feed the rank rather than being a display-only tree.
   score += Math.min(200, (stats.totalChildrenAllGenerations ?? 0) * 3);
 

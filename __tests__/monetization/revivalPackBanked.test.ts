@@ -136,7 +136,7 @@ describe('consuming a banked revive', () => {
     expect(stub.current().showDeathPopup).toBe(true); // still dead
   });
 
-  it('refuses when the player is alive — the charge is not burnable early', () => {
+  it('refuses when the player is alive - the charge is not burnable early', () => {
     const alive = createTestGameState({ showDeathPopup: false, revivalPack: true });
     const stub = createSetGameStateStub(alive);
     stub.setGameState(reviveWithPackUpdater);
@@ -177,7 +177,7 @@ describe('the real action keeps both gates inside the updater', () => {
   });
 });
 
-describe('v30 — the field is finally registered', () => {
+describe('v30 - the field is finally registered', () => {
   // Asserted against the live constants, not the literal 30. What this suite
   // cares about is that the v30 registration still WORKS, not what the current
   // version number happens to be — pinning the literal made an unrelated bump
@@ -233,7 +233,7 @@ describe('v30 — the field is finally registered', () => {
     expect(bankedRevive(partial)).toBe(false);
   });
 
-  it('and the repair actually writes back — `repaired = true` was set (the control)', () => {
+  it('and the repair actually writes back - `repaired = true` was set (the control)', () => {
     // The trap §7 calls out by name: the repaired clone is only copied onto the
     // caller's object when the flag is set, so a backfill without it is
     // computed and silently discarded. The assertion above would still pass if

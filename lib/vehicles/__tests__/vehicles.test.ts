@@ -18,7 +18,7 @@ import {
   type VehicleTemplate,
 } from '../vehicles';
 
-describe('createVehicleFromTemplate — per-template specs', () => {
+describe('createVehicleFromTemplate - per-template specs', () => {
   it('copies the template specs onto the owned vehicle when present', () => {
     const template = getVehicleTemplate('economy_sedan')!;
     // The template declares its own specs.
@@ -86,7 +86,7 @@ describe('createVehicleFromTemplate — per-template specs', () => {
   });
 });
 
-describe('calculateRepairCostAfterInsurance — quotes what repairVehicle charges', () => {
+describe('calculateRepairCostAfterInsurance - quotes what repairVehicle charges', () => {
   const damaged = () => {
     const v = createVehicleFromTemplate(getVehicleTemplate('economy_sedan')!, 0);
     v.condition = 50; // 50% damage → a non-zero gross repair bill

@@ -120,7 +120,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         choices: [
           {
             id: 'accept',
-            text: 'Accept it — at least I still have a job',
+            text: 'Accept it - at least I still have a job',
             effects: { money: -200, stats: { happiness: -8 } },
           },
           {
@@ -165,7 +165,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_mysterious_letter_resolve',
       description:
-        "The letter is from a long-lost relative. They're leaving you a small inheritance — but there's a catch. You must visit their hometown first.",
+        "The letter is from a long-lost relative. They're leaving you a small inheritance - but there's a catch. You must visit their hometown first.",
       choices: [
         {
           id: 'visit',
@@ -174,7 +174,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         },
         {
           id: 'decline',
-          text: 'Too suspicious — throw it away',
+          text: 'Too suspicious - throw it away',
           effects: { stats: { happiness: -3 } },
         },
       ],
@@ -208,7 +208,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
   // ── Health cliffhangers ──
   {
     id: 'ch_doctor_callback',
-    teaser: "The doctor's office called — they need to discuss your test results...",
+    teaser: "The doctor's office called - they need to discuss your test results...",
     weight: 0.2,
     condition: (s) => weeksInThisLife(s) > 15,
     resolveEvent: (state) => {
@@ -235,7 +235,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
       return {
         id: 'ch_doctor_callback_resolve',
         description:
-          "Great news — your bloodwork came back perfect! The doctor says you're in excellent health.",
+          "Great news - your bloodwork came back perfect! The doctor says you're in excellent health.",
         choices: [
           {
             id: 'celebrate',
@@ -274,7 +274,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_bank_call_resolve',
       description:
-        "Your bank detected unusual activity on your account. Fortunately, they froze it in time — no money was lost.",
+        "Your bank detected unusual activity on your account. Fortunately, they froze it in time - no money was lost.",
       choices: [
         {
           id: 'secure',
@@ -322,7 +322,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
     resolveEvent: () => ({
       id: 'ch_friend_trouble_resolve',
       description:
-        "Your friend needed advice about a big life decision — they're thinking about moving abroad and wanted your honest opinion.",
+        "Your friend needed advice about a big life decision - they're thinking about moving abroad and wanted your honest opinion.",
       choices: [
         {
           id: 'support',
@@ -331,7 +331,7 @@ export const CLIFFHANGERS: CliffhangerDefinition[] = [
         },
         {
           id: 'honest',
-          text: "Think carefully — that's a huge change",
+          text: "Think carefully - that's a huge change",
           effects: { stats: { happiness: 3 }, relationship: 5 },
         },
       ],

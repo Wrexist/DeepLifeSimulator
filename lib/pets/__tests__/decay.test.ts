@@ -33,7 +33,7 @@ describe('tickPet', () => {
     expect(r.pet.sickness).toBeDefined();
   });
 
-  it('vaccinations lower illness chance — high roll skips', () => {
+  it('vaccinations lower illness chance - high roll skips', () => {
     const r = tickPet({ pet: pet({ vaccinated: true }), rollIllness: 0.05, rollSicknessKind: 0.5 });
     // adult dog base 0.025 * 0.5 vax = 0.0125 → 0.05 misses
     expect(r.pet.isSick).toBeFalsy();

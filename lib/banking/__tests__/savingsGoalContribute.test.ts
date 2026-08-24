@@ -32,7 +32,7 @@ function banking(over: Partial<BankingState> = {}): BankingState {
   };
 }
 
-describe('contributeToGoal — cash-funded (unlinked)', () => {
+describe('contributeToGoal - cash-funded (unlinked)', () => {
   it('reports a cashDebit equal to the contribution and raises currentAmount', () => {
     const { banking: b, goal } = addSavingsGoal(banking(), { name: 'Vacation', targetAmount: 5000, category: 'vacation', createdWeek: 0 });
     const r = contributeToGoal(b, goal.id, 250, 3);
@@ -75,7 +75,7 @@ describe('contributeToGoal — cash-funded (unlinked)', () => {
   });
 });
 
-describe('contributeToGoal — linked-account funded (assets conserved)', () => {
+describe('contributeToGoal - linked-account funded (assets conserved)', () => {
   it('debits the linked account balance, not cash', () => {
     const { banking: b, goal } = addSavingsGoal(banking(), {
       name: 'Linked', targetAmount: 5000, category: 'other', createdWeek: 0, linkedAccountId: 'hysa-1',
@@ -104,7 +104,7 @@ describe('contributeToGoal — linked-account funded (assets conserved)', () => 
   });
 });
 
-describe('contributeToGoal — rejects', () => {
+describe('contributeToGoal - rejects', () => {
   it('rejects unknown goal / zero amount', () => {
     const b = banking();
     expect(contributeToGoal(b, 'nope', 100, 0).ok).toBe(false);

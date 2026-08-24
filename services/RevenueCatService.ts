@@ -571,7 +571,7 @@ class RevenueCatService {
     return this.track('trackAdDisplayed', payload);
   }
 
-  /** Report a failed ad load (no-fill / error) — carries no impression id. */
+  /** Report a failed ad load (no-fill / error) - carries no impression id. */
   trackAdFailedToLoad(payload: RcAdFailedPayload): Promise<boolean> {
     return this.track('trackAdFailedToLoad', payload);
   }

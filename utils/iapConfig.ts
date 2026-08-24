@@ -200,7 +200,7 @@ export const PRODUCT_CONFIGS = {
   // gems-per-price ratios (this flag is informational only, kept truthful).
   [IAP_PRODUCTS.GEMS_50000]: {
     name: '50,000 Gems',
-    description: 'Colossal gem pack — the best gems per dollar',
+    description: 'Colossal gem pack - the best gems per dollar',
     gems: 50000,
     price: '$99.99',
     popular: false,

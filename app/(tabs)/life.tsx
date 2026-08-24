@@ -12,15 +12,15 @@ import { ProgressionScreenContent } from './progression';
 import FamilyTab from '@/components/FamilyTab';
 
 /**
- * Life — the merged personal tab.
+ * Life - the merged personal tab.
  *
  * Folds the three always-on tabs the player touches least often (Health,
  * Market, Progress) into one, behind a Health / Shop / Stats segmented
- * sub-menu. Defaults to Health, so a player's vitals stay a single tap away —
+ * sub-menu. Defaults to Health, so a player's vitals stay a single tap away -
  * Health simply isn't its own bottom-bar icon any more.
  *
  * A fourth "Family" entry acts as a launcher (not an inline segment): it opens
- * the full-screen FamilyTab — spouse/partner, children, heir, pregnancy — which
+ * the full-screen FamilyTab - spouse/partner, children, heir, pregnancy - which
  * is the only surface that manages children & the heir. `haveChild` has no other
  * reachable caller, so without this the whole children/heir subsystem was
  * unreachable in shipped builds.
@@ -31,7 +31,7 @@ import FamilyTab from '@/components/FamilyTab';
  * the same reset you'd get switching bottom tabs before.
  *
  * Stats is the one segment behind a progressive-disclosure gate. It holds
- * achievements, prestige and legacy — dense, and none of it actionable in
+ * achievements, prestige and legacy - dense, and none of it actionable in
  * week 1. Health and Market are never gated: health decays from week 1 and
  * food lives in Market, so locking either could strand a player.
  */
@@ -43,7 +43,7 @@ function LifeScreen() {
   const [showFamily, setShowFamily] = useState(false);
   // This shell re-renders with game state, but all three of its children are
   // already subscribed and only one is mounted, so the added cost is a
-  // 4-segment control — not a screen's worth of work.
+  // 4-segment control - not a screen's worth of work.
   const { gameState } = useGame();
 
   const statsLocked = !isFeatureUnlocked(gameState, 'tab:progression');

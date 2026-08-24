@@ -58,7 +58,7 @@ function getMemoryStyle(memory: Memory) {
 }
 
 export default function MemoryBookModal({ visible, onClose }: Props) {
-  // R2-A: defensive — `settings.darkMode` is read in ~30 places below.
+  // R2-A: defensive - `settings.darkMode` is read in ~30 places below.
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);

@@ -1,5 +1,5 @@
 /**
- * SparkProfileEditModal — edit the player's own Spark dating profile.
+ * SparkProfileEditModal - edit the player's own Spark dating profile.
  *
  * Wires the Profile tab's "Add a bio to attract more matches" hint (which had no
  * tap target) to the previously UI-less `updateMyProfile` action. The player can
@@ -59,7 +59,7 @@ export default function SparkProfileEditModal({ visible, onDismiss }: SparkProfi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  // Live attractiveness preview — recompute scorePlayerProfile against a state
+  // Live attractiveness preview - recompute scorePlayerProfile against a state
   // that has the DRAFT profile folded in, so the meter moves as they type/select
   // (before saving). Safe on legacy saves: scorePlayerProfile optional-chains.
   const previewScore = useMemo(() => {
@@ -102,7 +102,7 @@ export default function SparkProfileEditModal({ visible, onDismiss }: SparkProfi
             </Pressable>
           </View>
 
-          {/* Live profile-strength meter — the visible payoff of a fuller profile. */}
+          {/* Live profile-strength meter - the visible payoff of a fuller profile. */}
           <View style={[styles.scoreCard, { backgroundColor: theme.surfaceElevated }]}>
             <View style={styles.scoreRow}>
               <Text style={[styles.scoreLabel, { color: theme.textSecondary }]}>Profile strength</Text>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
   // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN — and the sheet itself does not
+  // button lands off the bottom of the SCREEN - and the sheet itself does not
   // scroll, so nothing can reach it. Bounding the sheet is what gives the list
   // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
   sheet: {

@@ -29,7 +29,7 @@ function makeStore(initial: GameState) {
   return { get: () => current, setGameState };
 }
 
-describe('purchaseVehicleWithAutoLoan — reputation grant', () => {
+describe('purchaseVehicleWithAutoLoan - reputation grant', () => {
   it('grants the template reputationBonus once on a cash purchase', () => {
     const template = getVehicleTemplate('economy_sedan')!; // reputationBonus 2
     const store = makeStore(
@@ -115,7 +115,7 @@ describe('purchaseVehicleWithAutoLoan — reputation grant', () => {
   });
 });
 
-describe('processAccident — total loss', () => {
+describe('processAccident - total loss', () => {
   it('removes the totaled vehicle and reassigns activeVehicleId to a survivor', () => {
     const v1 = createVehicleFromTemplate(getVehicleTemplate('economy_sedan')!, 0);
     const v2 = { ...createVehicleFromTemplate(getVehicleTemplate('used_suv')!, 0), id: 'used_suv' };

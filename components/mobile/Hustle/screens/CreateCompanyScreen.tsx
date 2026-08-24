@@ -1,9 +1,9 @@
 /**
- * CreateCompanyScreen — pick an industry to found a company.
+ * CreateCompanyScreen - pick an industry to found a company.
  *
  * Framed as an opportunity board: each industry is a market card with a
  * growth / volatility / moat profile strip, an affordability read against the
- * player's cash, and a clear selected state. Presentational only — delegates to
+ * player's cash, and a clear selected state. Presentational only - delegates to
  * the existing `createCompany` action so all canonical logic (inflation,
  * prestige unlock, education requirement, $$ cost) stays intact.
  */
@@ -37,7 +37,7 @@ import type { HustleIndustry } from '@/contexts/game/types';
 
 const LinearGradient = Gradient;
 
-// Presentational profile labels — mirror each industry's existing description
+// Presentational profile labels - mirror each industry's existing description
 // (no new mechanics; createCompany remains the single source of economy truth).
 const PROFILE: Record<HustleIndustry, { growth: string; volatility: string; moat: string }> = {
   factory: { growth: 'Slow', volatility: 'Low', moat: 'Med' },
@@ -81,8 +81,8 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
 
   // Mirror createCompany's canonical gating so the UI never advertises a card
   // that the action will reject on confirm:
-  //  1) founding charges getInflatedPrice(baseCost, priceIndex) — NOT the raw
-  //     catalog cost — so affordability + the "$X startup" figure must inflate.
+  //  1) founding charges getInflatedPrice(baseCost, priceIndex) - NOT the raw
+  //     catalog cost - so affordability + the "$X startup" figure must inflate.
   //  2) founding requires the completed Entrepreneurship course OR the Early
   //     Company Access prestige bonus; without either, every industry is locked.
   const priceIndex =
@@ -96,7 +96,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
   // Conglomerate: the price of the NEXT company of a type escalates with how
   // many you already run, so the card must quote the escalated figure. Quoting
   // the flat catalogue price would advertise a number createCompany does not
-  // charge — the advertised-vs-actual class the audits keep finding.
+  // charge - the advertised-vs-actual class the audits keep finding.
   const nextCostFor = useCallback(
     (industryId: string, baseCost: number) =>
       getInflatedPrice(
@@ -191,7 +191,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
               }}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected, disabled: !selectable }}
-              accessibilityLabel={`${ind.name}: ${formatMoney(inflatedCost)}${ownedOfType > 0 ? `, you already run ${ownedOfType}` : ''}${atCap ? ', at the limit' : ''}${locked ? `, locked — ${lockReason}` : ''}`}
+              accessibilityLabel={`${ind.name}: ${formatMoney(inflatedCost)}${ownedOfType > 0 ? `, you already run ${ownedOfType}` : ''}${atCap ? ', at the limit' : ''}${locked ? `, locked - ${lockReason}` : ''}`}
               style={[
                 getGlassCard(isDark, 6),
                 styles.industryCard,
@@ -226,7 +226,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
                 </View>
               </View>
 
-              {/* Profile strip — presentational market descriptors */}
+              {/* Profile strip - presentational market descriptors */}
               <View style={styles.profileRow}>
                 <ProfileChip label="Growth" value={profile.growth} theme={theme} />
                 <ProfileChip label="Volatility" value={profile.volatility} theme={theme} />

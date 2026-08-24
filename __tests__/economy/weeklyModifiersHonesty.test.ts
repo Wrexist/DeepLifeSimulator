@@ -43,7 +43,7 @@ function weeklyModifiersBlock(): string {
   return CARD.slice(start, end);
 }
 
-describe('C-4 — no weekly tick applies a low-health penalty', () => {
+describe('C-4 - no weekly tick applies a low-health penalty', () => {
   /**
    * The premise, asserted rather than assumed. If a sickness penalty is ever
    * genuinely implemented, this test fails and whoever implemented it is told
@@ -91,7 +91,7 @@ describe('C-4 — no weekly tick applies a low-health penalty', () => {
   });
 });
 
-describe('C-4 — the card no longer advertises it', () => {
+describe('C-4 - the card no longer advertises it', () => {
   it('the Sickness row and its invented numbers are gone', () => {
     const block = weeklyModifiersBlock();
 
@@ -107,7 +107,7 @@ describe('C-4 — the card no longer advertises it', () => {
   });
 });
 
-describe('C-4 — the honest warning for the same state survives (the control)', () => {
+describe('C-4 - the honest warning for the same state survives (the control)', () => {
   /**
    * Deleting the false row must not have left a player at 12 health with no
    * warning at all. `healthIssues` tests the SAME condition and says something
@@ -128,7 +128,7 @@ describe('C-4 — the honest warning for the same state survives (the control)',
   });
 
   it('the modifiers list still shows the effects that ARE real', () => {
-    // The diet plan row is applied by applyDietPlan every tick — removing the
+    // The diet plan row is applied by applyDietPlan every tick - removing the
     // false row must not have emptied the card.
     const block = weeklyModifiersBlock();
 

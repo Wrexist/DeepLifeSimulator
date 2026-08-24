@@ -111,7 +111,7 @@ export function publishVideo(
   const preChannel = ensureChannel(gameState);
   const videosThisWeek = preChannel.lastVideoWeek === currentWeek ? safe(preChannel.videosThisWeek, 0) : 0;
   if (videosThisWeek >= MAX_VIDEOS_PER_WEEK) {
-    return { success: false, message: `You've published ${MAX_VIDEOS_PER_WEEK} videos this week — come back next week.` };
+    return { success: false, message: `You've published ${MAX_VIDEOS_PER_WEEK} videos this week - come back next week.` };
   }
 
   const channel = preChannel;
@@ -177,7 +177,7 @@ export function publishVideo(
     success: true,
     message: outcome.viral
       ? `${args.title} went viral! +${outcome.views.toLocaleString()} views.`
-      : `${args.title} published — ${outcome.views.toLocaleString()} views.`,
+      : `${args.title} published - ${outcome.views.toLocaleString()} views.`,
     video,
     outcome,
     earnings,
@@ -211,7 +211,7 @@ export function runStream(
   const preChannel = ensureChannel(gameState);
   const streamsThisWeek = preChannel.lastStreamWeek === currentWeek ? safe(preChannel.streamsThisWeek, 0) : 0;
   if (streamsThisWeek >= MAX_STREAMS_PER_WEEK) {
-    return { success: false, message: `You've streamed ${MAX_STREAMS_PER_WEEK} times this week — come back next week.` };
+    return { success: false, message: `You've streamed ${MAX_STREAMS_PER_WEEK} times this week - come back next week.` };
   }
 
   const channel = preChannel;
@@ -256,7 +256,7 @@ export function runStream(
     if (!earn) return prev;
     const nextHistory = [stream, ...ch.streamHistory].slice(0, 200);
     // averageViewers: rolling mean of the most-recent broadcasts (the dashboard
-    // hero + History summary read this — it was pinned to 0 forever).
+    // hero + History summary read this - it was pinned to 0 forever).
     const nextAverageViewers = rollingAverageViewers(nextHistory);
     // Persist the shared creator level from accumulated XP (badge advances now).
     const nextExperience = ch.experience + Math.floor(outcome.viewers / 50);
@@ -294,7 +294,7 @@ export function runStream(
     success: true,
     message: outcome.hypeTrain
       ? `Hype train! ${outcome.viewers} viewers, +${outcome.newSubs} subs.`
-      : `Stream ended — ${outcome.viewers} viewers, $${earnings}.`,
+      : `Stream ended - ${outcome.viewers} viewers, $${earnings}.`,
     stream,
     outcome,
     earnings,
@@ -330,7 +330,7 @@ export interface StartLiveResult {
 /**
  * Go live. Reserves one weekly stream slot up-front (a live session counts as
  * one stream, so start/stop can't farm slots), seeds a live `currentStream`, and
- * does NOT charge energy here — the drain loop does that in real time.
+ * does NOT charge energy here - the drain loop does that in real time.
  */
 export function startLiveStream(
   gameState: GameState,
@@ -348,7 +348,7 @@ export function startLiveStream(
 
   const streamsThisWeek = channel.lastStreamWeek === currentWeek ? safe(channel.streamsThisWeek, 0) : 0;
   if (streamsThisWeek >= MAX_STREAMS_PER_WEEK) {
-    return { success: false, message: `You've streamed ${MAX_STREAMS_PER_WEEK} times this week — come back next week.` };
+    return { success: false, message: `You've streamed ${MAX_STREAMS_PER_WEEK} times this week - come back next week.` };
   }
 
   setGameState((prev) => {
@@ -540,10 +540,10 @@ export function finalizeLiveStream(
   return {
     success: true,
     message: args.autoStopped
-      ? `Out of energy — stream ended. ${outcome.viewers} viewers, $${earnings}.`
+      ? `Out of energy - stream ended. ${outcome.viewers} viewers, $${earnings}.`
       : outcome.hypeTrain
       ? `Hype train! ${outcome.viewers} viewers, +${outcome.newSubs} subs.`
-      : `Stream ended — ${outcome.viewers} viewers, $${earnings}.`,
+      : `Stream ended - ${outcome.viewers} viewers, $${earnings}.`,
     stream,
     outcome,
     earnings,
@@ -592,7 +592,7 @@ export function upgradePCComponent(
   const currentTier = channel.pcUpgradeLevels[id] || 0;
   // Anti-exploit: refuse once a component hits the tier ceiling. Past this point
   // the upgrade is a no-op for quality/earnings, so charging for it would be a
-  // pure money sink. Refuse BEFORE any debit — never charge on a failure path.
+  // pure money sink. Refuse BEFORE any debit - never charge on a failure path.
   if (currentTier >= MAX_PC_TIER) {
     return { success: false, message: `${String(id)} is maxed (tier ${MAX_PC_TIER}).` };
   }

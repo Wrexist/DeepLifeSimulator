@@ -139,7 +139,7 @@ interface ClaimRewardButtonProps {
 // Extracted so the shared press hook can live here: this button renders inside
 // the achievements .map() below, where calling usePressableScale() inline would
 // break the Rules of Hooks. Mirrors the repo's canonical press recipe (see
-// TopStatsBar's RightSide) — wrap the TouchableOpacity in the hook's
+// TopStatsBar's RightSide) - wrap the TouchableOpacity in the hook's
 // AnimatedView + animatedStyle and forward onPressIn/onPressOut. The gradient/
 // blur content is unchanged, so the idle button stays pixel-identical.
 function ClaimRewardButton({ onPress, disabled }: ClaimRewardButtonProps) {
@@ -215,7 +215,7 @@ export default function AchievementsProgress() {
   // beginner-tier achievements first. Otherwise a brand-new player sees a wall
   // of $1B-cash targets at the top and feels the game is unwinnable.
   // Weeks into THIS life. The absolute `weeksLived` is seeded from the starting
-  // age, so this bias never applied to any scenario starting past 18 — the
+  // age, so this bias never applied to any scenario starting past 18 - the
   // players it was written for. CLAUDE.md §4.2.
   const isEarlyGame = weeksSinceLifeStart(weeksLived, lifeStartWeek) <= 12;
 

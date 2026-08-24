@@ -94,7 +94,7 @@ describe('rewinding is not a cheap revive', () => {
     expect(labels).not.toContain('Before Death');
   });
 
-  it('costs far less than a revive — which is only sound because it costs a YEAR', () => {
+  it('costs far less than a revive - which is only sound because it costs a YEAR', () => {
     // Rewind staying cheap is correct: year checkpoints cost up to 52 weeks of
     // progress, so it is a real trade rather than a discount on dying. The
     // relationship is asserted so nobody "fixes" the price by raising this one.

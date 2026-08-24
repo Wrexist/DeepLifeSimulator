@@ -217,7 +217,7 @@ export const purchaseVehicle = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   vehicleId: string,
-  /** Unused — the resolver above applies the charge atomically. Optional so callers need not fake it. */
+  /** Unused - the resolver above applies the charge atomically. Optional so callers need not fake it. */
   _deps?: { updateMoney: typeof updateMoney; updateStats: typeof updateStats }
 ): { success: boolean; message: string } => {
   // Outcome from the caller's snapshot: what the player can be told.
@@ -260,7 +260,7 @@ export const sellVehicle = (
   setGameState(prev => {
     // H-9: re-check ownership against `prev`. Without this, two rapid taps both
     // read the vehicle from the stale `gameState`, and each updater adds
-    // `sellPrice` again (the second `.filter` is a harmless no-op) — duplicating
+    // `sellPrice` again (the second `.filter` is a harmless no-op) - duplicating
     // the sale proceeds per extra tap. If the vehicle is already gone this batch,
     // the sale already happened: return prev unchanged.
     if (!(prev.vehicles || []).some(v => v.id === vehicleId)) return prev;
@@ -278,7 +278,7 @@ export const sellVehicle = (
     const loanPayoff = typeof rem === 'number' && isFinite(rem) && rem > 0 ? rem : 0;
     // Underwater sale: proceeds can't cover the auto loan. Keep the loan as a
     // deficiency balance (reduced to the uncovered remainder) instead of erasing
-    // negative equity for $0 — deleting the loan while clamping cash at 0 let a
+    // negative equity for $0 - deleting the loan while clamping cash at 0 let a
     // player shed a compounded auto loan for free.
     const residualDebt = Math.max(0, loanPayoff - sellPrice);
     const cashDelta = sellPrice - Math.min(sellPrice, loanPayoff); // surplus after the loan (>= 0)
@@ -328,7 +328,7 @@ export const refuelVehicle = (
   /**
    * Unused, and optional so callers need not fake it.
    *
-   * NOTE there is no amount/litres parameter — refuelling always fills to 100,
+   * NOTE there is no amount/litres parameter - refuelling always fills to 100,
    * priced by `calculateFuelCost`. Several stress tests called this as
    * `refuelVehicle(state, set, id, 100, deps)`, so the phantom `100` landed in
    * this slot and the real deps became an ignored fifth argument. Harmless only
@@ -499,7 +499,7 @@ export const purchaseInsurance = (
     : 'Insurance';
   
   // Atomic: merge insurance cost + insurance creation into single update
-  // Reject buying over an active, unexpired policy — the old path silently
+  // Reject buying over an active, unexpired policy - the old path silently
   // overwrote it, discarding the remaining prepaid premium with no refund.
   const existingPolicy = vehicle.insurance;
   const nowWeek = gameState.weeksLived ?? 0;
@@ -569,20 +569,20 @@ export const cancelInsurance = (
   // previous "no refund" behavior turned insurance into a single-claim rental
   // exploit: buy 6 months for $X, force an accident (or just wait for one),
   // get the repair discount, then cancel and walk away from the rest of the
-  // premium. A pro-rata refund — minus a $25 administrative fee — removes
+  // premium. A pro-rata refund - minus a $25 administrative fee - removes
   // the cancel-after-claim arbitrage without punishing legitimate cancels.
   const currentWeek = gameState.weeksLived ?? 0;
   // H-3 refund-printer fix: prorate against the ACTUAL premium paid and the
   // ACTUAL policy term, not a 4-week month. The premium is `monthlyCost * 6`
   // charged for a 26-week term (see purchaseInsurance), so a "month" here is
   // 26/6 ≈ 4.33 weeks. The previous formula divided weeksRemaining by 4, which
-  // refunded up to 26/4 = 6.5 months of premium for a 6-month policy — so a
+  // refunded up to 26/4 = 6.5 months of premium for a 6-month policy - so a
   // buy-then-immediately-cancel netted +$25..+$175 per cycle, repeatable. By
   // prorating `premiumPaid * remaining/term` and clamping to `premiumPaid`, the
   // refund can never exceed what was paid: cancelling only ever costs the $25
   // admin fee.
   const POLICY_TERM_WEEKS = 26; // matches the 6-month term set at purchase
-  // Pure refund proration — also used INSIDE the updater against `prev` so a
+  // Pure refund proration - also used INSIDE the updater against `prev` so a
   // same-batch double-cancel can't credit the refund twice (the first tap clears
   // `insurance`, the second sees it gone and returns prev). Mirrors the H-9
   // ownership re-check on sellVehicle.
@@ -619,7 +619,7 @@ export const cancelInsurance = (
     success: true,
     message: refund > 0
       ? `Insurance cancelled for ${vehicle.name}. Refund: $${refund.toLocaleString()} (pro-rata, less $25 admin fee).`
-      : `Insurance cancelled for ${vehicle.name}. No refund — policy was already near expiry.`,
+      : `Insurance cancelled for ${vehicle.name}. No refund - policy was already near expiry.`,
   };
 };
 
@@ -714,7 +714,7 @@ export const processAccident = (
 /**
  * Process weekly vehicle maintenance.
  *
- * @deprecated SUPERSEDED — do NOT wire this into the weekly tick. The live
+ * @deprecated SUPERSEDED - do NOT wire this into the weekly tick. The live
  * weekly path is `applyVehiclesForWeek` (contexts/game/actions/weekly/applyVehicles.ts),
  * wired in GameActionsContext.nextWeek(). This standalone updater duplicates the
  * maintenance/fuel/mileage/condition/insurance-expiry logic; calling it in the
@@ -722,11 +722,11 @@ export const processAccident = (
  * stress suite still exercises it directly; it must not be re-added to the tick.
  */
 /**
- * @deprecated SUPERSEDED — do not wire this into the week loop.
+ * @deprecated SUPERSEDED - do not wire this into the week loop.
  *
  * The live weekly vehicle tick is `applyVehiclesForWeek`
  * (`contexts/game/actions/weekly/applyVehicles.ts`). This is its pre-WeekContext
- * ancestor, and it has NO production caller — only its own stress tests, which
+ * ancestor, and it has NO production caller - only its own stress tests, which
  * is precisely what let it rot unnoticed while looking maintained.
  *
  * It is kept because those tests still exercise real fuel/mileage/condition
@@ -739,8 +739,8 @@ export const processAccident = (
  *     have a failure state.
  *   · It has none of the accidents.ts model the live reducer uses.
  *
- * Its one behaviour the live path was MISSING — expiring a lapsed insurance
- * policy — has been moved into `applyVehiclesForWeek`. Before that move, a
+ * Its one behaviour the live path was MISSING - expiring a lapsed insurance
+ * policy - has been moved into `applyVehiclesForWeek`. Before that move, a
  * single six-month premium bought permanent coverage.
  */
 export const processVehicleWeekly = (
@@ -761,7 +761,7 @@ export const processVehicleWeekly = (
   };
 
   /**
-   * NO PRODUCTION CALLER as of 2026-08-15 — the live weekly path is
+   * NO PRODUCTION CALLER as of 2026-08-15 - the live weekly path is
    * `contexts/game/actions/weekly/applyVehicles.ts`, whose own comment calls
    * this "the pre-WeekContext version". Only the stress/insurance suites reach
    * it, and they drive `setGameState` with a synchronous stub.
@@ -769,8 +769,8 @@ export const processVehicleWeekly = (
    * That matters because the two values below ARE the cross-updater capture
    * this repo spent 2026-08-15 removing everywhere else: assigned inside the
    * updater, read after it, and therefore only reliable for the FIRST
-   * functional update of a React batch. It is left as-is deliberately — there
-   * is no player-facing path to get wrong — but if you ever wire this into the
+   * functional update of a React batch. It is left as-is deliberately - there
+   * is no player-facing path to get wrong - but if you ever wire this into the
    * tick, derive the result from a pure helper first, the way
    * `computeStakingClaim` does in MiningActions.
    */
@@ -869,7 +869,7 @@ export function quoteVehiclePurchase(
   if (!template) return { rejected: true, reason: 'Vehicle not found' };
 
   const cash = state.stats?.money ?? 0;
-  // Vehicle templates don't carry a year — treat them all as current-model-year for LTV.
+  // Vehicle templates don't carry a year - treat them all as current-model-year for LTV.
   const currentYear = (state.date?.year as number | undefined) ?? 2025;
   const vehicleYear = currentYear;
   const orig = originateAuto({
@@ -912,7 +912,7 @@ export function quoteVehiclePurchase(
     aprReduction: politicsAprReduction(state),
     // R3-M2 completion: this quote site was missed. Without the floor a
     // high-office player financed a car at the 2.5% hard minimum while a CD
-    // pays 5.5% — the exact borrow-low/save-high carry
+    // pays 5.5% - the exact borrow-low/save-high carry
     // `lib/banking/rateEnvironment.ts` caps deposits to prevent.
     aprFloor: politicsAprReduction(state) > 0 ? POLITICS_LOAN_APR_FLOOR : undefined,
   });
@@ -974,7 +974,7 @@ export const purchaseVehicleWithAutoLoan = (
  * deferred dispatch showed "Purchase failed" for a car the player had bought
  * and paid a down payment on. It is also the exact pattern whose adoption
  * across the other nine `VehicleActions` functions was REVERTED in an earlier
- * round when a stress test caught a successful refuel reporting failure — the
+ * round when a stress test caught a successful refuel reporting failure - the
  * evidence was there, and this one was left carrying it.
  */
 function resolveBuyVehicle(
@@ -1001,11 +1001,11 @@ function resolveBuyVehicle(
     const downPayment = quote.downPaymentUSD ?? 0;
     // Route the down-payment debit through the canonical money helper
     // (MONEY_CEILING clamp + NaN/overdraft guard) instead of writing stats.money
-    // directly — a corrupt (NaN) balance now rejects the purchase rather than
+    // directly - a corrupt (NaN) balance now rejects the purchase rather than
     // writing NaN money. The amount charged is unchanged.
     const spend = applyMoneyDelta(state, -downPayment, `Vehicle down payment: ${template.name}`);
     if (!spend) {
-      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down — you have $${Math.round(cash).toLocaleString()}.` }, next: null };
+      return { result: { success: false, message: `You need $${Math.round(downPayment).toLocaleString()} down - you have $${Math.round(cash).toLocaleString()}.` }, next: null };
     }
 
     let updatedLoans = state.loans ?? [];
@@ -1050,7 +1050,7 @@ function resolveBuyVehicle(
 
     // Grant the dealer-card / spec-grid "+X rep" once at purchase. The UI buys
     // exclusively through THIS path (BuyVehicleModal → purchaseVehicleWithAutoLoan),
-    // so without this the advertised reputationBonus was never applied — only the
+    // so without this the advertised reputationBonus was never applied - only the
     // legacy, UI-unused purchaseVehicle granted it. Capped at 100 (Math.min); the
     // weekly tick's separate +1/wk nudge (capped at reputationBonus*3) is unchanged.
     const snapshotReputation = typeof state.stats?.reputation === 'number' && isFinite(state.stats.reputation)
@@ -1066,7 +1066,7 @@ function resolveBuyVehicle(
         message:
           spec.tier === 'cash'
             ? `Bought ${template.name} for $${template.price.toLocaleString()}`
-            : `Financed ${template.name} — $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
+            : `Financed ${template.name} - $${(quote.downPaymentUSD ?? 0).toLocaleString()} down, $${Math.round(quote.weeklyPayment ?? 0)}/wk`,
       },
       next: {
         ...state,
@@ -1085,11 +1085,11 @@ function resolveBuyVehicle(
 
 
 // ---------------------------------------------------------------------------
-// Scooter / moped rentals — the first rung of the transport ladder
+// Scooter / moped rentals - the first rung of the transport ladder
 // ---------------------------------------------------------------------------
 //
 // Deliberately NOT routed through purchaseVehicle: that path demands a driver's
-// licence and rejects a zero price. Both are correct for cars and wrong here —
+// licence and rejects a zero price. Both are correct for cars and wrong here -
 // needing no licence is exactly why a rented scooter is the option a broke
 // 18-year-old can reach, and the "price" of a rental is its weekly fee, not a
 // sticker price.
@@ -1174,12 +1174,12 @@ export const startScooterRental = (
   log.info(`Started rental: ${plan.id}`);
   return {
     success: true,
-    message: `${plan.name} active — $${plan.weeklyPrice}/wk. Delivery work is open to you now.`,
+    message: `${plan.name} active - $${plan.weeklyPrice}/wk. Delivery work is open to you now.`,
   };
 };
 
 /**
- * End the active rental. No resale value — you never owned it. That asymmetry
+ * End the active rental. No resale value - you never owned it. That asymmetry
  * against selling a bike is the whole cost of renting, and it is what makes
  * buying the upgrade feel earned.
  */

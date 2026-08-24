@@ -57,7 +57,7 @@ type SexualityOption = IdentitySexuality;
 /**
  * Per-field cap on the player's typed name. Both fields were unbounded, so a
  * pasted paragraph became the character's name and then flowed into every
- * surface that renders it — the HUD, the ID card, the obituary, save-slot
+ * surface that renders it - the HUD, the ID card, the obituary, save-slot
  * metadata. Pulse caps a whole display name at 40 (ProfileEditModal); first +
  * last at 20 each keeps the same total budget. `onboardingValidation` only
  * requires the names be non-empty, so nothing downstream contradicts this.
@@ -82,7 +82,7 @@ const SEXUALITY_OPTIONS: { value: SexualityOption; label: string }[] = [
  * portrait the player happened to tap, which meant appearance and gameplay sex
  * could disagree and the name generator had to chase the face. A vector face
  * has to be drawn for a concrete sex anyway, so an unresolved sex has nowhere
- * to live — it is resolved once, on mount, and the Randomize button re-rolls
+ * to live - it is resolved once, on mount, and the Randomize button re-rolls
  * appearance WITHOUT flipping it. Sex changing under the player mid-edit reads
  * as a bug, however random they asked the rest to be.
  */
@@ -118,7 +118,7 @@ export default function Customize() {
 
   const scenarioAge = state.scenario?.start?.age ?? 18;
 
-  // Three checkpoints across a life, always ascending and always distinct — a
+  // Three checkpoints across a life, always ascending and always distinct - a
   // scenario starting at 60 must not render "60, 45, 75".
   const agePreview = useMemo(() => {
     const start = Math.max(1, Math.round(scenarioAge));
@@ -126,7 +126,7 @@ export default function Customize() {
   }, [scenarioAge]);
 
   /**
-   * The hero pops whenever the face changes — a randomize, or any picker tap.
+   * The hero pops whenever the face changes - a randomize, or any picker tap.
    * Without it a tap swaps the art instantly and the screen feels inert; the
    * pop is what makes an edit feel like it landed.
    */
@@ -300,7 +300,7 @@ export default function Customize() {
         onInfo={() =>
           Alert.alert(
             'Create Your Character',
-            'Build a face that is yours — it ages with you across the whole life, and your children will inherit it. Name, sex and sexuality shape your story and relationships, not difficulty.'
+            'Build a face that is yours - it ages with you across the whole life, and your children will inherit it. Name, sex and sexuality shape your story and relationships, not difficulty.'
           )
         }
       />
@@ -353,7 +353,7 @@ export default function Customize() {
               <Text style={styles.heroSub}>Ages with you · passed to your children</Text>
 
               {/* The claim above, made checkable. The same config rendered at
-                  three ages — this is the whole reason the face is parameters
+                  three ages - this is the whole reason the face is parameters
                   rather than a picked portrait, so showing it beats saying it. */}
               <View style={styles.ageStrip}>
                 {agePreview.map((previewAge, index) => (
@@ -427,7 +427,7 @@ export default function Customize() {
               <Text style={styles.sectionTitle}>Appearance</Text>
 
               {/* Extracted to `components/onboarding/AppearanceEditor`. It used
-                  to be ~90 lines of inline JSX rendering option NAMES — you
+                  to be ~90 lines of inline JSX rendering option NAMES - you
                   chose a hairstyle by tapping the word "Fro" and looking up at
                   the avatar to see what happened. See that file for the rest. */}
               <AppearanceEditor
@@ -533,7 +533,7 @@ export default function Customize() {
               </View>
 
               <Text style={styles.helperText}>
-                Sex and sexuality shape your story and relationships — not difficulty.
+                Sex and sexuality shape your story and relationships - not difficulty.
               </Text>
             </LinearGradient>
           </BlurView>

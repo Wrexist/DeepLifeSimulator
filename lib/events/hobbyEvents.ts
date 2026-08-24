@@ -195,7 +195,7 @@ const hobbyMarketplaceSale: EventTemplate = {
           id: 'pass',
           text: 'Not for sale',
           // Keeping something you made is a real trade against cash, so it pays
-          // MORE happiness than selling — and scales with skill like every
+          // MORE happiness than selling - and scales with skill like every
           // other reward in this file. It was a flat 3 next to level-scaled
           // siblings, which read as an authoring oversight rather than a choice.
           effects: { stats: { happiness: happyReward(level) + 2 } },
@@ -249,7 +249,7 @@ const hobbyBreakthrough: EventTemplate = {
     const { def, level } = pick;
     return {
       id: 'hobby_breakthrough',
-      description: `Something clicked during your ${def.name.toLowerCase()} practice — a genuine ${tierForLevel(level).name} breakthrough. You feel unstoppable.`,
+      description: `Something clicked during your ${def.name.toLowerCase()} practice - a genuine ${tierForLevel(level).name} breakthrough. You feel unstoppable.`,
       choices: [
         {
           id: 'savor',
@@ -281,7 +281,7 @@ const hobbyInvitedToTeach: EventTemplate = {
     const fee = moneyReward(level, 50, 18);
     return {
       id: 'hobby_invited_to_teach',
-      description: `A community center asks you to teach a ${def.name.toLowerCase()} class — your ${tierForLevel(level).name} expertise is in demand.`,
+      description: `A community center asks you to teach a ${def.name.toLowerCase()} class - your ${tierForLevel(level).name} expertise is in demand.`,
       choices: [
         {
           id: 'teach',
@@ -290,7 +290,7 @@ const hobbyInvitedToTeach: EventTemplate = {
         },
         {
           id: 'decline',
-          text: 'Decline — keep it a hobby',
+          text: 'Decline - keep it a hobby',
           effects: { stats: { happiness: 3 } },
         },
       ],

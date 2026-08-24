@@ -1,5 +1,5 @@
 /**
- * BrandDealsScreen — three-tab inbox: Inbox / Active / History.
+ * BrandDealsScreen - three-tab inbox: Inbox / Active / History.
  *
  * Inbox shows pending offers with accept/decline. Active shows current deals
  * with their progress and a "deliver post" button (composes a sponsored post).
@@ -58,7 +58,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       const name = deal?.brandName ?? 'this brand';
       // The real charge, from the same helper the action uses. The dialog used
       // to quote `payment * 0.5` while the action charged
-      // `remaining weekly payments * 1.5` — a different, usually much larger
+      // `remaining weekly payments * 1.5` - a different, usually much larger
       // number. And since the action now REFUSES a penalty the player cannot
       // afford, confirming an amount they don't have would end in silence:
       // `breachBrandDeal` reports its outcome from inside a setGameState
@@ -108,7 +108,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       persist();
     },
     // `gameState` is a real dependency now that the action reports from the
-    // snapshot it is handed — a stale one would preview a delivery against an
+    // snapshot it is handed - a stale one would preview a delivery against an
     // out-of-date post list.
     [gameState, setGameState, sm?.recentPosts, persist],
   );

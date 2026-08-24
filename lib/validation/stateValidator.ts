@@ -36,7 +36,7 @@ export function validateStatsBounds(stats: GameStats): ValidationResult {
       // Negative money is legal (debt) but worth surfacing as a warning. This is
       // checked BEFORE the generic bounds test on purpose: money's range is
       // [-Infinity, Infinity], so `value < min || value > max` can never be true
-      // for it — nesting the warning inside that branch (the old code) left it
+      // for it - nesting the warning inside that branch (the old code) left it
       // permanently unreachable.
       warnings.push(`${stat} is negative: ${value}`);
     } else if (value < min || value > max) {

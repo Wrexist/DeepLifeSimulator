@@ -1,5 +1,5 @@
 /**
- * ClaimableBadge — a small red count badge that gently pulses to draw the eye
+ * ClaimableBadge - a small red count badge that gently pulses to draw the eye
  * when rewards are waiting. Honors reduced-motion (renders static). Position it
  * inside a `position: relative` parent (default for RN View).
  */

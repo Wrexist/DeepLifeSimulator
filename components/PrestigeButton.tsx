@@ -54,7 +54,7 @@ export default function PrestigeButton({ onPress }: PrestigeButtonProps) {
       );
       pulse.start();
 
-      // Glow animation — drives opacity only, so the native driver is safe.
+      // Glow animation - drives opacity only, so the native driver is safe.
       const glow = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {

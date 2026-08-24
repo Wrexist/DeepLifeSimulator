@@ -20,7 +20,7 @@ const repoRoot = path.join(__dirname, '..', '..');
 const code = (rel: string) =>
   fs.readFileSync(path.join(repoRoot, rel), 'utf8');
 
-describe('starting_real_estate — 12,000 points now grants an actual property', () => {
+describe('starting_real_estate - 12,000 points now grants an actual property', () => {
   it('grants the cheapest catalogue property to a fresh life', () => {
     // The killed pattern: filtering state.realEstate, which is [] on every
     // fresh life because state only holds properties the player bought.
@@ -47,7 +47,7 @@ describe('starting_real_estate — 12,000 points now grants an actual property',
   });
 });
 
-describe('achievement_progress_multiplier — now pays prestige points', () => {
+describe('achievement_progress_multiplier - now pays prestige points', () => {
   // getEarnedAchievementCount reads claimedProgressAchievements — the
   // collected-rewards ledger, which is what prestige points credit from.
   const stateWithAchievements = (n: number): GameState => ({
@@ -69,7 +69,7 @@ describe('achievement_progress_multiplier — now pays prestige points', () => {
     expect(base.achievementBonus).toBeGreaterThan(0);
   });
 
-  it('does not touch the anti-farm ledger — already-credited achievements still pay nothing', () => {
+  it('does not touch the anti-farm ledger - already-credited achievements still pay nothing', () => {
     const result = calculatePrestigePoints(
       stateWithAchievements(10), 0,
       {
@@ -82,7 +82,7 @@ describe('achievement_progress_multiplier — now pays prestige points', () => {
   });
 });
 
-describe('skill_gain_multiplier — now feeds pursuit XP', () => {
+describe('skill_gain_multiplier - now feeds pursuit XP', () => {
   it('the pursuit action reads the prestige multiplier (source pin)', () => {
     const src = code('contexts/game/actions/PursuitActions.ts');
     expect(src).toMatch(/getSkillGainMultiplier/);
@@ -102,7 +102,7 @@ describe('social bonuses reach the dating paths (source pin)', () => {
   });
 });
 
-describe('repurchase sink closed — boolean bonuses cap at one copy', () => {
+describe('repurchase sink closed - boolean bonuses cap at one copy', () => {
   const BOOLEAN_IDS = [
     'starting_reputation', 'starting_energy', 'skill_gain_multiplier',
     'stat_decay_reduction', 'auto_save_energy', 'auto_manage_properties',
@@ -175,7 +175,7 @@ describe('every education id referenced by a gate exists in the catalogue', () =
   });
 });
 
-describe('Vigorous Start — the half that works on every path (2026-08-23)', () => {
+describe('Vigorous Start - the half that works on every path (2026-08-23)', () => {
   it('boosts regen +25% during the first year of a life', () => {
     expect(getStartingEnergyRegenMultiplier(['starting_energy'], 0)).toBeCloseTo(1.25, 10);
     expect(getStartingEnergyRegenMultiplier(['starting_energy'], 51)).toBeCloseTo(1.25, 10);

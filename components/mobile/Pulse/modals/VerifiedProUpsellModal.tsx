@@ -1,7 +1,7 @@
 /**
- * VerifiedProUpsellModal — Pulse Verified Pro, an IN-GAME cash subscription.
+ * VerifiedProUpsellModal - Pulse Verified Pro, an IN-GAME cash subscription.
  *
- * The player pays with the in-game money they earn from jobs — NOT a real App
+ * The player pays with the in-game money they earn from jobs - NOT a real App
  * Store IAP. Buying debits `stats.money` immediately (via subscribeVerifiedPro →
  * canonical applyMoneyDelta, overdraft-reject) and the fee auto-renews weekly on
  * the game tick (applySubscriptionsForWeek); it lapses if the player can't afford
@@ -28,17 +28,17 @@ import { pulseHaptics } from '../utils/pulseHaptics';
 const LinearGradient = Gradient;
 
 /**
- * F7. "No ads in feed — Cleaner browsing experience" used to sit in this list.
+ * F7. "No ads in feed - Cleaner browsing experience" used to sit in this list.
  *
  * There are no ads in the Pulse feed. `PulseApp` renders posts, stories and
  * trending chips; there is no ad unit, sponsored row or promoted post anywhere
  * in the feed to remove. The one ad in Pulse is the OPT-IN rewarded video in
- * `RewardedAdModal`, which Verified Pro does not remove — it triples its
+ * `RewardedAdModal`, which Verified Pro does not remove - it triples its
  * reward, and that perk really is implemented.
  *
  * Removed rather than delivered: adding an in-feed ad so a subscription could
  * take it away would be inventing an ad placement to justify the copy, which
- * is worse than the bug. The other four perks below are all real — the badge,
+ * is worse than the bug. The other four perks below are all real - the badge,
  * the 1.25x tick multiplier and reduced follower decay, the analytics screen,
  * and the 500-character compose limit.
  */
@@ -81,7 +81,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
   const handleCancel = useCallback(() => {
     Alert.alert(
       'Cancel Verified Pro?',
-      // F7: "ad-free feed" removed here too — there is no in-feed ad to lose.
+      // F7: "ad-free feed" removed here too - there is no in-feed ad to lose.
       'You will lose the blue check, post boost, analytics, slower follower decay, and longer posts. You can resubscribe any time.',
       [
         { text: 'Keep it', style: 'cancel' },
@@ -184,7 +184,7 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
                 onPress={() => handleSubscribe('annual')}
                 disabled={!canAffordAnnual}
                 accessibilityRole="button"
-                accessibilityLabel={`Subscribe annually, $${VERIFIED_PRO_ANNUAL_PRICE} for 52 weeks — save 17%`}
+                accessibilityLabel={`Subscribe annually, $${VERIFIED_PRO_ANNUAL_PRICE} for 52 weeks - save 17%`}
                 style={[styles.planBtnPrimary, { opacity: canAffordAnnual ? 1 : 0.5 }]}
               >
                 <LinearGradient

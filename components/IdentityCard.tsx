@@ -33,7 +33,7 @@ import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
-// Rarely-opened modals — lazy-loaded and only mounted when open, so their
+// Rarely-opened modals - lazy-loaded and only mounted when open, so their
 // code + element tree isn't built on every home-tab render.
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
@@ -124,7 +124,7 @@ interface IdentityCardProps {
    * render smoke test mounts it with no props); when it is absent the prestige
    * badge is a plain, non-interactive View rather than a button that does
    * nothing. Wired from `app/(tabs)/home.tsx`, which already owns the
-   * `PrestigeShopModal` instance — the badge reuses it instead of mounting a
+   * `PrestigeShopModal` instance - the badge reuses it instead of mounting a
    * second copy of that modal's graph.
    */
   onOpenPrestigeShop?: () => void;
@@ -135,7 +135,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // through the destructure below, in the cash-flow modal JSX, and via the
   // economy helpers) instead of the whole gameState. One shallow-equal
   // composite means the card re-renders only when one of these top-level
-  // slices changes identity — not on every stat-decay tick.
+  // slices changes identity - not on every stat-decay tick.
   const gameState = useGameSelector(
     (s) => ({
       stats: s?.stats,
@@ -220,7 +220,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   const job = currentCareer && currentCareer.levels && currentCareer.levels[currentCareer.level]
     ? currentCareer.levels[currentCareer.level].name
     : 'Unemployed';
-  // Reputation standing (Unknown → Icon) — makes the hidden reputation stat legible.
+  // Reputation standing (Unknown → Icon) - makes the hidden reputation stat legible.
   //
   // PLAYER REPORT (1.4): "Reputation stat is not viewable anywhere". The tier
   // word alone was not what they asked for and not what the game gates on:
@@ -233,7 +233,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   ));
   const reputationStanding = getReputationStanding(reputationValue);
 
-  // The CANONICAL net worth — the same figure prestige, the leaderboard,
+  // The CANONICAL net worth - the same figure prestige, the leaderboard,
   // ambitions, bail cost and the stats screen read.
   //
   // This card used to build its own asset list and run it through
@@ -247,12 +247,12 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // a pointer compare in the common case.
   const netWorth = canonicalNetWorth(gameState);
 
-  // What the tick will actually credit for the job — NOT `levels[level].salary`,
+  // What the tick will actually credit for the job - NOT `levels[level].salary`,
   // which is the listed base and was wrong here in two independent ways.
   //
   // It ignored every multiplier the paycheck applies (raise premium, Work Pay
   // Boost, life skills, DeepLife+), so this panel disagreed with both the work
-  // tab and the promotion modal — "unsure of what the income is, usually the
+  // tab and the promotion modal - "unsure of what the income is, usually the
   // case with every job, conflicting numbers".
   //
   // And it read the POLITICAL ladder, which is stored ANNUAL, as a weekly
@@ -262,7 +262,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // then handed to `calcWeeklyExpenses` as the basis for the tax estimate.
   // `paidWeeklyCareerSalary` splits the two so office pay is shown under Job
   // Income (where a player looks for it) and netted out of Passive (where it is
-  // actually credited) — counted once, either way.
+  // actually credited) - counted once, either way.
   //
   // It also guards the level index the way `job` (line ~153) does: a
   // stale/migrated save can carry a `level` out of bounds for `levels`, which
@@ -283,21 +283,21 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   const passiveInfo = useMemo(
     () => calcWeeklyPassiveIncome(gameState),
     // Key on the actual asset arrays that drive passive income, NOT stats.money
-    // (which changes every decay tick and is not an input to passive income) —
+    // (which changes every decay tick and is not an input to passive income) -
     // otherwise this walk re-runs every tick on the home tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [gameState.realEstate, gameState.companies, gameState.stocks, gameState.socialMedia]
   );
   // Office pay is credited by `calcWeeklyPassiveIncome`, but a player in office
   // looks for it under Job Income, not under Passive. Move it across rather
-  // than counting it twice — and take the figure from `breakdown.political`
+  // than counting it twice - and take the figure from `breakdown.political`
   // rather than from `jobPay.fromOffice`, because the breakdown is what is
   // actually inside `passiveInfo.total` (per-source caps applied), so the two
   // rows sum to the same money the week loop pays no matter what the cap does.
   const officePay = passiveInfo.breakdown.political;
   const jobIncome = jobPay.fromPayroll + officePay;
 
-  // Luxury yield — charter fees, vintage sales, a season dividend — is credited
+  // Luxury yield - charter fees, vintage sales, a season dividend - is credited
   // every week by `applyLuxuryItems`, and is NOT part of `calcWeeklyPassiveIncome`.
   // Added here rather than there on purpose: the weekly tick consumes
   // `calcWeeklyPassiveIncome(...).total` directly (`applyIncome.ts`), so folding
@@ -305,14 +305,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // that needs the combined figure.
   //
   // Its cost side now sits in `calcWeeklyExpenses` (breakdown.luxury), so the
-  // two halves arrive together — showing a $301,200/wk yield without the
+  // two halves arrive together - showing a $301,200/wk yield without the
   // $556,820/wk upkeep beneath it would be a worse lie than showing neither.
   const luxuryYield = getTotalLuxuryYield(
     Array.isArray(gameState.luxuryItems) ? gameState.luxuryItems : [],
   );
   const passive = Math.max(0, passiveInfo.total - officePay) + luxuryYield;
 
-  // Partner / spouse weekly income (counts even after marriage) — 25% of the
+  // Partner / spouse weekly income (counts even after marriage) - 25% of the
   // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
   // to the top earner, not a sum) so the displayed cash flow matches reality.
   const partnerIncome = useMemo(() => {
@@ -444,7 +444,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
      *
      * It is removed rather than implemented. A -10 health/week penalty that
      * switches on at 30 is a compounding death spiral, and no save has ever
-     * behaved that way — inventing it to match a label would be a balance
+     * behaved that way - inventing it to match a label would be a balance
      * change disguised as a bug fix. The card also warns about this exact
      * state honestly a few lines down: `healthIssues` raises "Low health"
      * on the SAME `health <= 30` test, with the fix attached and no invented
@@ -461,7 +461,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
        * right for one and wrong for the other three.
        *
        * The Athlete Diet ($10,000/day) advertised "+84 health, +56 energy, +35
-       * happiness per week" against an actual +12 / +8 / +5 — a stat pump one
+       * happiness per week" against an actual +12 / +8 / +5 - a stat pump one
        * seventh the size of the number on the card, at a correctly-stated
        * price. Same shape as the Family Income x7 a player reported.
        */
@@ -503,7 +503,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
       const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
       const fix = (d.treatmentRequired || hasDeathCountdown)
         ? 'See a doctor or hospital under Life → Health to treat it.'
-        : 'Rest and eat well — it should pass, or treat it under Life → Health.';
+        : 'Rest and eat well - it should pass, or treat it under Life → Health.';
       issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
     });
 
@@ -512,7 +512,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
       const weeksLeft = Math.max(1, 4 - (gameState.healthZeroWeeks || 0));
       issues.push({
         id: 'health-zero',
-        title: `Health critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
+        title: `Health critical - ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
         fix: "Eat, rest and start a diet plan under Life → Health before it's too late.",
         level: 'critical',
       });
@@ -530,7 +530,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
       const weeksLeft = Math.max(1, 4 - (gameState.happinessZeroWeeks || 0));
       issues.push({
         id: 'happiness-zero',
-        title: `Happiness critical — ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
+        title: `Happiness critical - ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
         fix: 'Do something fun or spend time with people you care about.',
         level: 'critical',
       });
@@ -595,12 +595,12 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           <View
             style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
-          {/* DeepLife+ upsell — a glowing crown at the avatar's top-left corner
+          {/* DeepLife+ upsell - a glowing crown at the avatar's top-left corner
               (prestige badge owns the top-right). Self-hides for members. */}
           <DeepLifePlusUpsell variant="badge" surface="player_card" style={styles.premiumAvatarCrown} />
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
             /* The badge used to be a TouchableOpacity whose onPress was an empty
-               body with a comment admitting it did nothing — it dimmed on press
+               body with a comment admitting it did nothing - it dimmed on press
                and read as a button while going nowhere. It now opens the
                Prestige Shop through `onOpenPrestigeShop`, and degrades to a
                plain View when no handler is supplied. */
@@ -639,11 +639,11 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
         </View>
         <View style={styles.nameContainer}>
-          {/* Player-typed name — clamp to one line so a long one cannot push
+          {/* Player-typed name - clamp to one line so a long one cannot push
               the streak badge and everything under it down the card
               (DeathPopup's obituary name does the same). */}
           <Text style={[styles.name, styles.nameDark]} numberOfLines={1}>{name}</Text>
-          {/* Persistent login-streak badge — surfaces the daily-reward streak
+          {/* Persistent login-streak badge - surfaces the daily-reward streak
               outside the popup so loss aversion can do its job. */}
           {(gameState?.loginStreak ?? 0) >= 2 && (
             <View style={styles.streakBadge}>
@@ -718,7 +718,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           </View>
         </View>
 
-        {/* Daily gem drop — 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
+        {/* Daily gem drop - 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
         <DailyGemClaim />
 
         <TouchableOpacity
@@ -802,7 +802,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
         </TouchableOpacity>
       </LinearGradient>
 
-      {/* Health Issues — passive replacement for the week-advance health popups.
+      {/* Health Issues - passive replacement for the week-advance health popups.
           Lists every active health problem and how to fix it. */}
       <View
         style={{
@@ -836,7 +836,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
 
         {healthIssues.length === 0 ? (
           <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#94A3B8' : '#6B7280' }}>
-            You&apos;re in good shape — no health issues right now.
+            You&apos;re in good shape - no health issues right now.
           </Text>
         ) : (
           healthIssues.map(issue => {
@@ -911,7 +911,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
         t={t}
       >
         {/* Only BUILD the heavy cash-flow breakdown (these IIFEs walk every
-            property/loan/vehicle/miner) when the modal is actually open —
+            property/loan/vehicle/miner) when the modal is actually open -
             otherwise this whole subtree was computed on every home-tab render. */}
         {showCash && (
         <>
@@ -1001,7 +1001,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </View>
           )}
           {/* Office pay is reported under Job Income above and netted out of
-              `passive`, so it must not also appear here — the breakdown would
+              `passive`, so it must not also appear here - the breakdown would
               list money the section total no longer contains. */}
           {luxuryYield > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
@@ -1484,7 +1484,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
 
           {/* The five lines the tick charges that this breakdown never named.
               Luxury, pets and subscriptions were missing from the TOTAL as well
-              — a full collection alone owes $556,820/wk — while student loans
+              - a full collection alone owes $556,820/wk - while student loans
               and income tax were counted in the total but had no row, so the
               itemisation did not add up to the number above it. */}
           {expenseInfo.breakdown.luxury > 0 && (

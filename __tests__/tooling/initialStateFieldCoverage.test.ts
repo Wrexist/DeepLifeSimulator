@@ -75,7 +75,7 @@ describe('initialState field coverage (audit-save V11)', () => {
     expect({ undocumented }).toEqual({ undocumented: [] });
   });
 
-  it('has no stale grandfather entries — the list may only shrink', () => {
+  it('has no stale grandfather entries - the list may only shrink', () => {
     const uncoveredSet = new Set(uncovered);
     const stale = [...LEGACY_PRE_MIGRATION_FIELDS].filter((name) => !uncoveredSet.has(name));
     // A field that gained its migration/mirror must leave the list, so the
@@ -111,7 +111,7 @@ describe('initialState field coverage (audit-save V11)', () => {
         `export const initialGameState: GameState = {\n  ${decl}`,
       );
 
-    // (a) BACKFILLED by a migration — a real assignment, not a mention. A word
+    // (a) BACKFILLED by a migration - a real assignment, not a mention. A word
     //     match used to be enough, and it ran over the UNSTRIPPED migration
     //     source, so a field was exempted by its name turning up in migration
     //     prose. The commented control below is the half that used to pass.

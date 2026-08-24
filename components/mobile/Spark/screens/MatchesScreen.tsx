@@ -1,5 +1,5 @@
 /**
- * MatchesScreen — list of all Spark matches.
+ * MatchesScreen - list of all Spark matches.
  *
  * Top row of avatars for fresh / unread matches; below that, a vertical list
  * of conversations with last-message preview + timestamp. Tap a match to
@@ -48,7 +48,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
       <View style={styles.empty}>
         <EmptyState
           observation="No matches yet."
-          nudge="Keep swiping — your next match is one swipe away."
+          nudge="Keep swiping - your next match is one swipe away."
         >
           <Pressable onPress={onOpenSwipe} accessibilityRole="button" accessibilityLabel="Start swiping">
             <Text style={[styles.cta, { color: SPARK_GRADIENT[0] }]}>Start swiping →</Text>
@@ -60,7 +60,7 @@ export default function MatchesScreen({ onOpenChat, onOpenSwipe }: MatchesScreen
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      {/* Fresh matches rail — the screen's single rose focal surface (Recipe B). */}
+      {/* Fresh matches rail - the screen's single rose focal surface (Recipe B). */}
       {freshMatches.length > 0 ? (
         <View
           style={[

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chrome as Home, Briefcase, Smartphone, ShoppingCart, Heart, Monitor, Trophy, Bell, LayoutGrid, Activity } from 'lucide-react-native';
 import { modalEventCount } from '@/lib/events/routing';
 // M16: read through the leaf selector channel, not `useGame()`. `useGame()`
-// subscribed the whole <Tabs> navigator — every tab screen's parent — to every
+// subscribed the whole <Tabs> navigator - every tab screen's parent - to every
 // GameState mutation, so a money tick re-rendered the navigator. The sibling
 // app/(onboarding)/_layout.tsx documents the same reasoning (it also avoids the
 // GameContext barrel's import cycle by importing the leaf module directly).
@@ -31,7 +31,7 @@ const WeeklyResultSheet = lazy(() => import('@/components/WeeklyResultSheet'));
 
 // The game home tab lives at `home`, NOT the bare `index`. app/index.tsx is the
 // boot loader and owns "/"; if a (tabs)/index.tsx existed it would ALSO resolve
-// to "/" and — in a production bundle — expo-router silently keeps whichever file
+// to "/" and - in a production bundle - expo-router silently keeps whichever file
 // sorts first by context key ("(tabs)/index" < "index"), dropping the loader and
 // rendering the game home at launch (the long-standing launch crash). Anchoring
 // the group on `home` keeps "/" unambiguously the loader.
@@ -47,7 +47,7 @@ interface EventInboxPillProps {
 // otherwise pop into place with no bridge. On mount it runs a small entrance:
 // opacity 0→1 and translateY 8→0 in parallel (200ms, Easing.out(Easing.cubic),
 // native driver). Reduce Motion keeps the opacity feedback but drops the
-// movement — it renders settled. No exit animation (the conditional unmount is
+// movement - it renders settled. No exit animation (the conditional unmount is
 // acceptable). Tap behavior and copy are unchanged from the inline pill.
 function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
   const reducedMotion = useReducedMotion();
@@ -118,7 +118,7 @@ function EventInboxPill({ count, bottom, onPress }: EventInboxPillProps) {
 export default function TabLayout() {
   // The exact slices this layout reads. Each is a primitive or a stable
   // reference, so the navigator re-renders only when one of them actually
-  // changes — not on every mutation.
+  // changes - not on every mutation.
   const jailWeeks = useGameSelector((s) => s?.jailWeeks ?? 0);
   const ownsSmartphone = useGameSelector((s) =>
     (s?.items ?? []).some((item) => item.id === 'smartphone' && item.owned)
@@ -135,7 +135,7 @@ export default function TabLayout() {
     (s) => s?.settings?.weeklySummaryEnabled !== false
   );
   // Letter-shaped events live in the mail app, so they must not inflate the
-  // pill — a player who saw "2 decisions waiting", opened the inbox and found
+  // pill - a player who saw "2 decisions waiting", opened the inbox and found
   // one would have no way to find the other. One selector, shared with
   // `WeeklyEventModal`, so the two can never disagree.
   const pendingEventCount = useGameSelector((s) => modalEventCount(s));
@@ -154,7 +154,7 @@ export default function TabLayout() {
 
   // R3-S1: being inside the tab tree means a life is in play, so the ambient
   // autosave must be live. Entering the pre-game stack suspends it; this is the
-  // counterpart that covers every way back — loading a slot, starting a new
+  // counterpart that covers every way back - loading a slot, starting a new
   // life, or simply backing out of SaveSlots without choosing anything. Without
   // this last case the player's progress would silently stop autosaving for the
   // rest of the session.
@@ -167,7 +167,7 @@ export default function TabLayout() {
   const fullscreenApp = useFullscreenApp();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
 
-  // Weekly payoff sheet — shows after a week actually advances during the
+  // Weekly payoff sheet - shows after a week actually advances during the
   // session (never on app load), and only when the week had something worth
   // reporting. Sits below the death/wedding/life-moment/event modals.
   const [resultWeek, setResultWeek] = useState<number | null>(null);
@@ -206,12 +206,12 @@ export default function TabLayout() {
   //
   // `INTERRUPTION_PRIORITY` has carried LIFE_MOMENT (80) and EVENT_INBOX (70)
   // since it was written, and NOTHING claimed either. Both were suppressed
-  // downward by `higherModalUp` — which is exactly the hand-rolled, single-file
+  // downward by `higherModalUp` - which is exactly the hand-rolled, single-file
   // chain the queue exists to replace. It works one way only: these two hid the
   // surfaces in THIS file, while every surface in another file was blind to
   // them. So an open Life Moment could be covered by the daily reward (50),
   // welcome back (45) or community reward (42) from `home.tsx`, by the premium
-  // promo (20), or by the ad orb (10) — the modal the player is supposed to be
+  // promo (20), or by the ad orb (10) - the modal the player is supposed to be
   // reading, buried under an upsell.
   //
   // Claiming makes them visible to every other surface. Death and wedding stay
@@ -256,7 +256,7 @@ export default function TabLayout() {
 
   // Device ownership decides which tabs show (selected above).
   // The merged Apps tab appears in the bar once the player owns any device.
-  // (Which launcher shows — phone grid vs desktop — is decided inside apps.tsx.)
+  // (Which launcher shows - phone grid vs desktop - is decided inside apps.tsx.)
   const ownsAnyDevice = ownsSmartphone || ownsComputer;
 
   return (
@@ -267,7 +267,7 @@ export default function TabLayout() {
         headerShown: false,
         // PERF: freeze blurred tab screens (react-native-screens). Every tab
         // screen subscribes to game state, so without this all mounted tabs
-        // re-rendered on every state change — 5 hidden screens' worth of work
+        // re-rendered on every state change - 5 hidden screens' worth of work
         // on each "Next Week" press. Frozen screens catch up on focus.
         freezeOnBlur: true,
         tabBarShowLabel: true,
@@ -290,7 +290,7 @@ export default function TabLayout() {
           // Android nav bar, but trims the oversized inset padding + tall base
           // height that left the labels floating high with dead space beneath.
           // ~scale(10) is shaved off the inset (24pt clearance on a notched
-          // iPhone — plenty), and the base height drops scale(70) → scale(56).
+          // iPhone - plenty), and the base height drops scale(70) → scale(56).
           paddingBottom: Math.max(scale(8), (insets.bottom || 0) - scale(10)),
           height: scale(56) + Math.max(scale(8), (insets.bottom || 0) - scale(10)),
         },
@@ -324,7 +324,7 @@ export default function TabLayout() {
           // Always allow work tab (prison screen is shown here)
         }}
       />
-      {/* Apps — merged device tab. Shows the phone grid or (once owned) the
+      {/* Apps - merged device tab. Shows the phone grid or (once owned) the
           desktop launcher with its own Desktop/Mobile sub-toggle. Hidden from
           the bar until the player owns any device, and while in prison. */}
       <Tabs.Screen
@@ -335,7 +335,7 @@ export default function TabLayout() {
           href: (isInPrison || !ownsAnyDevice) ? null : undefined,
         }}
       />
-      {/* Life — merged personal tab: a Health / Shop / Stats sub-menu that opens
+      {/* Life - merged personal tab: a Health / Shop / Stats sub-menu that opens
           on Health, so vitals stay one tap away without their own bar icon. */}
       <Tabs.Screen
         name="life"
@@ -345,7 +345,7 @@ export default function TabLayout() {
           href: isInPrison ? null : undefined,
         }}
       />
-      {/* The five screens below are no longer their own bottom-bar tabs — they're
+      {/* The five screens below are no longer their own bottom-bar tabs - they're
           folded into Apps (mobile, computer) and Life (market, health,
           progression). Their routes stay registered with href: null so deep
           links and direct router.push() navigation still resolve; they just
@@ -392,14 +392,14 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    {/* R2-H: render exclusively — both modals are <Modal transparent fade>,
+    {/* R2-H: render exclusively - both modals are <Modal transparent fade>,
         and on a tick that produces both a life moment AND a weekly event,
         their backdrops stack and taps on the lower one are blocked. Let the
         life moment win first; the weekly event will show after dismissal. */}
     {/* P2-6: suppress these tabs-layer modals while the root-level DeathPopup is
         up. DeathPopup gates its own dismissal, so a transparent LifeMoment/Weekly
         modal underneath would otherwise intercept taps and soft-lock the player.
-        Same for the WeddingPopup — a wedding + life-moment landing on one tick
+        Same for the WeddingPopup - a wedding + life-moment landing on one tick
         stacked two full-screen modals. */}
     {showLifeMoment ? (
       <Suspense fallback={null}>
@@ -411,12 +411,12 @@ export default function TabLayout() {
       </Suspense>
     ) : null}
     {/* Urgent smart notifications (critical/high only) auto-surface after a
-        week advance — the authored warning content was manual-only before. */}
+        week advance - the authored warning content was manual-only before. */}
     <SmartNotificationTicker />
     {/* Occasional animated premium-pass upsell (gated: unsubscribed + rewards
         already earned & waiting + long cooldown). */}
     <PremiumPassPromo />
-    {/* Weekly payoff sheet — the satisfying end-of-week beat. Lowest priority:
+    {/* Weekly payoff sheet - the satisfying end-of-week beat. Lowest priority:
         only shows once the modals above have cleared. */}
     {showWeekResult ? (
       <Suspense fallback={null}>
@@ -427,7 +427,7 @@ export default function TabLayout() {
         />
       </Suspense>
     ) : null}
-    {/* Non-blocking event inbox pill — tap to review decisions on your own time. */}
+    {/* Non-blocking event inbox pill - tap to review decisions on your own time. */}
     {showEventPill ? (
       <EventInboxPill
         count={pendingEventCount}
@@ -437,7 +437,7 @@ export default function TabLayout() {
     ) : null}
     {/* ENGAGEMENT: Floating stat change indicators on week advance */}
     <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
-    {/* Floating "watch ad → cash / vitality" reward orb — mounted at the
+    {/* Floating "watch ad → cash / vitality" reward orb - mounted at the
         tab-group level so it drifts in over ANY game tab (Home / Work / Apps /
         Life), not just Home. Self-manages its own appear/hide scheduling and
         hides itself during blocking moments (death/wedding/jail) + when ads are

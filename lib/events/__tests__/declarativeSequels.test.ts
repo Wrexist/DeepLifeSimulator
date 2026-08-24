@@ -23,7 +23,7 @@ const byId = (id: string) => {
   return t;
 };
 
-describe('followUpFromChoice — the producer half', () => {
+describe('followUpFromChoice - the producer half', () => {
   it('returns null for every choice written before the API went live', () => {
     expect(followUpFromChoice('evt', { }, 100)).toBeNull();
     expect(followUpFromChoice('evt', undefined, 100)).toBeNull();
@@ -55,7 +55,7 @@ describe('followUpFromChoice — the producer half', () => {
   });
 });
 
-describe('generateEventById — the pool-wide delivery half', () => {
+describe('generateEventById - the pool-wide delivery half', () => {
   it('generates a registered template by id', () => {
     const state = createTestGameState({ weeksLived: 100 });
     const event = generateEventById('friend_repays', state);
@@ -102,7 +102,7 @@ describe('the first two shipped sequels', () => {
 
   it('sequel ids resolve OUTSIDE the FOLLOW_UP_EVENTS registry (the pool path)', () => {
     // The delivery block falls back to generateEventById precisely because
-    // these are not registry entries — if someone later adds them there, the
+    // these are not registry entries - if someone later adds them there, the
     // registry copy would shadow the richer template.
     expect(FOLLOW_UP_EVENTS).not.toHaveProperty('friend_repays');
     expect(FOLLOW_UP_EVENTS).not.toHaveProperty('honeymoon_glow');
@@ -154,7 +154,7 @@ describe('the sequel pack (2026-08-24)', () => {
           if (choice.followUpEventId) found.set(`${event.id}:${choice.id}`, choice.followUpEventId);
         }
       } catch {
-        // generator needing richer state — the count assertion keeps this honest
+        // generator needing richer state - the count assertion keeps this honest
       }
     }
     return found;
@@ -182,12 +182,12 @@ describe('the sequel pack (2026-08-24)', () => {
   it('carries the source relationId so sequel effects hit the right person', () => {
     const pending = followUpFromChoice('friend_help', { followUpEventId: 'friend_repays' }, 100, 'f1');
     expect(pending?.relationId).toBe('f1');
-    // And absent stays absent — pre-existing queue entries keep the fallback.
+    // And absent stays absent - pre-existing queue entries keep the fallback.
     expect(followUpFromChoice('x', { followUpEventId: 'y' }, 100)?.relationId).toBeUndefined();
   });
 });
 
-describe('oncePerLife — narrative one-shots cannot repeat', () => {
+describe('oncePerLife - narrative one-shots cannot repeat', () => {
   it('is inert for untagged templates and for an empty log', () => {
     expect(oncePerLifeSpent({ id: 'job_bonus' }, [{ id: 'job_bonus' } as never])).toBe(false);
     expect(oncePerLifeSpent({ id: 'old_friend_returns', oncePerLife: true }, [])).toBe(false);

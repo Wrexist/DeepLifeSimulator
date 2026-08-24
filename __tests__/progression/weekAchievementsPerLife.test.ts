@@ -82,7 +82,7 @@ describe('week-threshold achievements are not pre-completed at birth', () => {
   });
 
   it('the reported case: a fresh age-25 start has NOT survived 4 weeks', () => {
-    // 364 absolute weeks — 91x the threshold — and zero weeks actually played.
+    // 364 absolute weeks - 91x the threshold - and zero weeks actually played.
     const state = freshLife(25);
     expect(state.weeksLived).toBe(364);
     expect(achievementProgress(state, byId('beginner_survivor'))).toBe(0);
@@ -118,7 +118,7 @@ describe('they complete when the weeks are actually played', () => {
     }
   });
 
-  it('the age-18 case is unchanged — it is the one that was always right', () => {
+  it('the age-18 case is unchanged - it is the one that was always right', () => {
     expect(computeWeeksLived(18)).toBe(0);
     expect(isAchievementEarned(freshLife(18), 'beginner_survivor')).toBe(false);
     expect(isAchievementEarned(afterWeeks(18, 4), 'beginner_survivor')).toBe(true);
@@ -148,7 +148,7 @@ describe('an already-recorded claim is honoured, never revoked', () => {
     }
   });
 
-  it('the short-circuit reports exactly the goal — it cannot inflate progress', () => {
+  it('the short-circuit reports exactly the goal - it cannot inflate progress', () => {
     const claimed = freshLife(40, { claimedProgressAchievements: ['milestone_500_weeks'] });
     const spec = byId('milestone_500_weeks').progressSpec;
     expect(spec.kind).toBe('counter');
@@ -157,7 +157,7 @@ describe('an already-recorded claim is honoured, never revoked', () => {
     expect(achievementProgress(claimed, byId('milestone_500_weeks'))).toBe(1);
   });
 
-  it('a claim does not survive into the NEXT life — prestige wipes the store', () => {
+  it('a claim does not survive into the NEXT life - prestige wipes the store', () => {
     // `createResetGameState` clears `claimedProgressAchievements` and re-stamps
     // `lifeStartWeek`, so the heir re-earns these against their own weeks. The
     // gem is still minted only once ever, via `prestige.claimedAchievementIds`.
@@ -184,7 +184,7 @@ describe('average happiness divides by weeks PLAYED', () => {
 
   it('an age-25 life at 80 happiness per played week reaches the goal', () => {
     // 10 played weeks at 85 happiness. Against the absolute counter this was
-    // 850/374 = 2.3 — the achievement was effectively unreachable for every
+    // 850/374 = 2.3 - the achievement was effectively unreachable for every
     // scenario that does not start at 18.
     const state = afterWeeks(25, 10, { totalHappiness: 850 });
     const spec = joyful().progressSpec;

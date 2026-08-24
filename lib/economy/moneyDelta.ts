@@ -59,7 +59,7 @@ export function applyMoneyDelta(
     typeof prev.stats.money === 'number' && !isNaN(prev.stats.money) && isFinite(prev.stats.money)
       ? prev.stats.money
       : 0;
-  // Overdraft reject — mirrors updateMoney's B-1 atomic affordability check.
+  // Overdraft reject - mirrors updateMoney's B-1 atomic affordability check.
   if (amount < 0 && currentMoney + amount < -0.01) {
     log.warn(
       `applyMoneyDelta rejected: insufficient funds. Has ${currentMoney}, needs ${Math.abs(amount)}. Reason: ${reason}`

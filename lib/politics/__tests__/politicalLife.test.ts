@@ -79,7 +79,7 @@ describe('party standing', () => {
 
   it('reads an ABSENT key as the fresh-member baseline, not zero (pre-v47 saves)', () => {
     // `politics.party` predates v47, so a legacy save can carry a party with
-    // no `partySupport` key at all. That member is in good standing — reading
+    // no `partySupport` key at all. That member is in good standing - reading
     // 0 would load them straight into a primary challenge at the maximum
     // election penalty, and the weekly tick would then PERSIST that number.
     // This is the contract the v47 carve-out's "no backfill" reasoning relies
@@ -89,7 +89,7 @@ describe('party standing', () => {
       expect(readPartySupport('republican', absent)).toBe(50);
       expect(facesPrimaryChallenge('democratic', absent)).toBe(false);
     }
-    // A STORED 0 is an earned 0 and stays 0 — absence and zero must differ.
+    // A STORED 0 is an earned 0 and stays 0 - absence and zero must differ.
     expect(readPartySupport('democratic', 0)).toBe(0);
     expect(facesPrimaryChallenge('democratic', 0)).toBe(true);
     // Independents still have no machine to stand in, absent key or not.
@@ -117,14 +117,14 @@ describe('party standing', () => {
     expect(policySupportDelta('democratic', 'healthcare')).toBeGreaterThan(0);
     expect(policySupportDelta('democratic', 'crypto')).toBeLessThan(0);
     expect(policySupportDelta('republican', 'crypto')).toBeGreaterThan(0);
-    // An independent answers to nobody — no bonus, and no penalty either.
+    // An independent answers to nobody - no bonus, and no penalty either.
     expect(policySupportDelta('independent', 'crypto')).toBe(0);
     expect(policySupportDelta('democratic', undefined)).toBe(0);
   });
 
   it('funds an endorsed office-holder and nobody else', () => {
     expect(weeklyPartyFunding({ party: 'democratic', support: 80, careerLevel: 6 })).toBeGreaterThan(0);
-    // Endorsed but holding no seat — a party spends on races, not on members.
+    // Endorsed but holding no seat - a party spends on races, not on members.
     expect(weeklyPartyFunding({ party: 'democratic', support: 80, careerLevel: 0 })).toBe(0);
     // In office but out of favour.
     expect(weeklyPartyFunding({ party: 'democratic', support: 30, careerLevel: 6 })).toBe(0);
@@ -187,7 +187,7 @@ describe('appointed positions', () => {
   it('names the reason it is refused instead of returning a bare false', () => {
     const judge = findAppointment('federal_judge');
     expect(appointmentBlocker(judge, { ...anyone, hasEducation: () => false }))
-      // 2026-08-23: the gate now names the REAL programme (law_school) — the
+      // 2026-08-23: the gate now names the REAL programme (law_school) - the
       // old 'law_degree' id existed in no catalogue, so the post was
       // permanently unobtainable.
       .toMatch(/Law School/);
@@ -288,7 +288,7 @@ describe('taking the money', () => {
 
   it('only cools off in a week the player kept their hands out of the pot', () => {
     const hot = { totalUSD: 1, heat: 40, lastWeek: 3_000 };
-    // Same week as the last dip — no decay.
+    // Same week as the last dip - no decay.
     expect(decayHeat(hot, 3_000).heat).toBe(40);
     expect(decayHeat(hot, 3_001).heat).toBe(40 - HEAT_DECAY_PER_WEEK);
     expect(decayHeat({ ...hot, heat: 0 }, 9_999).heat).toBe(0);

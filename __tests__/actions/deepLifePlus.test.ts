@@ -68,7 +68,7 @@ describe('applyDeepLifePlusBenefits', () => {
     expect(next.stats.gems).toBe(10 + DEEP_LIFE_PLUS_WELCOME_GEMS);
   });
 
-  it('is idempotent — welcome gems are granted only once', () => {
+  it('is idempotent - welcome gems are granted only once', () => {
     const s = createTestGameState({ stats: { gems: 0 } });
     const once = applyDeepLifePlusBenefits(s);
     const twice = applyDeepLifePlusBenefits(once);
@@ -160,7 +160,7 @@ describe('claimDailyGems (tiered daily gem drop)', () => {
   });
 });
 
-describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () => {
+describe('claimDailyGems - free-tier game-week gate (forward-clock farm)', () => {
   const TODAY = '2026-07-23';
   const YESTERDAY = '2026-07-22';
   // A free player who already claimed yesterday, at game-week `week`, with the
@@ -196,7 +196,7 @@ describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () 
     expect(next.settings.deepLifePlusLastGemClaimWeek).toBe(5);
   });
 
-  it('does NOT gate a DeepLife+ member — the daily-check-in grace is preserved', () => {
+  it('does NOT gate a DeepLife+ member - the daily-check-in grace is preserved', () => {
     // Same frozen game week as the last claim, but a member: still claimable on a
     // new calendar day (the deliberate subscriber grace, guarded here so a future
     // change to gate members is a conscious one).
@@ -226,7 +226,7 @@ describe('claimDailyGems — free-tier game-week gate (forward-clock farm)', () 
  * `deepLifePlusLastMemberClaimWeek`); a second unplayed claim at the same
  * `weeksLived` is refused.
  */
-describe('claimDailyGems — DeepLife+ member grace cap (v46)', () => {
+describe('claimDailyGems - DeepLife+ member grace cap (v46)', () => {
   const D1 = '2026-07-21';
   const D2 = '2026-07-22';
   const D3 = '2026-07-23';
@@ -237,7 +237,7 @@ describe('claimDailyGems — DeepLife+ member grace cap (v46)', () => {
       settings: { deepLifePlusActivated: true, ...over },
     });
 
-  it('(a) a member who plays a week between claims claims every day — grace untouched', () => {
+  it('(a) a member who plays a week between claims claims every day - grace untouched', () => {
     // Day 1 (first ever claim): allowed, and it spends the grace (nothing was
     // played to earn it).
     let s = member(100);
@@ -274,7 +274,7 @@ describe('claimDailyGems — DeepLife+ member grace cap (v46)', () => {
     expect(claimDailyGems(s, D2)).toBe(s); // no-op, no gems minted
   });
 
-  it('(c) plays a week, claims, then a quiet day still claims — that is the perk', () => {
+  it('(c) plays a week, claims, then a quiet day still claims - that is the perk', () => {
     // Claimed at week 100, then a week is played (weeksLived 101) and claimed
     // (play-backed). The NEXT quiet day still claims out of the banked grace.
     let s = member(101, { deepLifePlusLastGemClaim: D1, deepLifePlusLastGemClaimWeek: 100 });
@@ -334,7 +334,7 @@ describe('claimDailyGems — DeepLife+ member grace cap (v46)', () => {
     expect(canClaimDailyGems(claimed, D2, Date.parse('2026-07-22T12:00:00Z'))).toBe(false);
   });
 
-  it('the FREE tier is untouched by the grace — every claim must be play-backed', () => {
+  it('the FREE tier is untouched by the grace - every claim must be play-backed', () => {
     const free = createTestGameState({
       stats: { gems: 0 },
       weeksLived: 100,
@@ -357,7 +357,7 @@ describe('claimDailyGems — DeepLife+ member grace cap (v46)', () => {
   });
 });
 
-describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)', () => {
+describe('claimDailyGems - anti-clock-manipulation (monotonic high-water mark)', () => {
   const TODAY = '2026-07-23';
   const YESTERDAY = '2026-07-22';
   const DAY_MS = 86_400_000;
@@ -380,7 +380,7 @@ describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)
     expect(claimDailyGems(claimed, YESTERDAY, rewound)).toBe(claimed); // no gems minted
   });
 
-  it('does not move the mark backward — max(previous, now) wins', () => {
+  it('does not move the mark backward - max(previous, now) wins', () => {
     // A legit new-day claim whose wall clock is (implausibly) a touch behind the
     // stored mark must not lower the high-water mark.
     const s = member({ deepLifePlusLastGemClaim: YESTERDAY, deepLifePlusLastGemClaimAt: NOW });
@@ -405,12 +405,12 @@ describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)
 
   it('BLOCKS the alternating-adjacent-day farm across a midnight boundary', () => {
     // The gap a pure epoch+tolerance guard missed: claim 23:59, cross midnight and
-    // claim 00:02 (3 min later — inside the 5-min skew tolerance), then rewind to
+    // claim 00:02 (3 min later - inside the 5-min skew tolerance), then rewind to
     // 23:59 and reclaim yesterday's key, forever. Strict day-key monotonicity must
     // refuse any key that isn't strictly later than the last claimed day.
     const d23_2359 = Date.parse(`${YESTERDAY}T23:59:00.000Z`);
     const d24_0002 = Date.parse(`${TODAY}T00:02:00.000Z`);
-    // Claim yesterday 23:59, then today 00:02 — both legit, strictly increasing.
+    // Claim yesterday 23:59, then today 00:02 - both legit, strictly increasing.
     const afterY = claimDailyGems(member(), YESTERDAY, d23_2359);
     expect(afterY.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS);
     // Play a game week between the two days: this test is about the DAY-KEY
@@ -419,7 +419,7 @@ describe('claimDailyGems — anti-clock-manipulation (monotonic high-water mark)
     const afterT = claimDailyGems({ ...afterY, weeksLived: afterY.weeksLived + 1 }, TODAY, d24_0002);
     expect(afterT.stats.gems).toBe(DEEP_LIFE_PLUS_DAILY_GEMS * 2); // two legit days
     expect(afterT.settings.deepLifePlusLastGemClaim).toBe(TODAY);
-    // Now rewind to 23:59 and try to reclaim YESTERDAY's key — must be refused
+    // Now rewind to 23:59 and try to reclaim YESTERDAY's key - must be refused
     // (YESTERDAY is not strictly later than the stored TODAY), so no gems mint.
     expect(canClaimDailyGems(afterT, YESTERDAY, d23_2359)).toBe(false);
     expect(claimDailyGems(afterT, YESTERDAY, d23_2359)).toBe(afterT);

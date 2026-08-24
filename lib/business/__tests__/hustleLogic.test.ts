@@ -101,14 +101,14 @@ describe('rollScandalForWeek', () => {
     expect(SCANDAL_HEADLINES[scandal!.kind]).toContain(scandal!.headline);
   });
 
-  it('is deterministic — same company + week yields the same scandal', () => {
+  it('is deterministic - same company + week yields the same scandal', () => {
     const a = rollScandalForWeek(company('co-56', 10_000), overlay, 3);
     const b = rollScandalForWeek(company('co-56', 10_000), overlay, 3);
     expect(a).toEqual(b);
   });
 
   it('does not spawn when the seeded roll is above the chance (most weeks)', () => {
-    // factory wk0 rolls ~0.29 — far above any chance.
+    // factory wk0 rolls ~0.29 - far above any chance.
     expect(rollScandalForWeek(company('factory', 10_000), overlay, 0)).toBeNull();
   });
 
@@ -249,7 +249,7 @@ describe('realizedCampaignROI', () => {
 
   it('varies week to week (not a fixed per-id multiplier) and can dip below break-even', () => {
     const rois = Array.from({ length: 40 }, (_, w) => realizedCampaignROI('camp-1', 3.2, w + 1));
-    // distinct values across weeks — real per-week variance, not clustered
+    // distinct values across weeks - real per-week variance, not clustered
     expect(new Set(rois).size).toBeGreaterThan(20);
     // at least one week realizes below the break-even ROI of 2 → a losing week
     expect(rois.some((r) => r < 2)).toBe(true);
@@ -259,7 +259,7 @@ describe('realizedCampaignROI', () => {
 
   it('makes even the highest-ROI kind non-guaranteed: expected net ≤ 0 over many weeks', () => {
     // net per week (spend 1) = realizedROI − 2. Averaged over a wide seed range,
-    // guerrilla (projected 3.2) nets ≈ 0-or-negative — no risk-free printer.
+    // guerrilla (projected 3.2) nets ≈ 0-or-negative - no risk-free printer.
     let netSum = 0;
     const N = 200;
     for (let w = 1; w <= N; w++) netSum += realizedCampaignROI('camp-1', 3.2, w) - 2;
@@ -272,7 +272,7 @@ describe('realizedCampaignROI', () => {
   });
 });
 
-describe('generateCandidates — excludes already-hired ids', () => {
+describe('generateCandidates - excludes already-hired ids', () => {
   it('never re-emits a candidate id passed in excludeIds', () => {
     const first = generateCandidates('co-1', 0, 3);
     const hiredId = first[0].id;
@@ -289,7 +289,7 @@ describe('generateCandidates — excludes already-hired ids', () => {
   });
 });
 
-describe('generateCandidates — reroll nonce', () => {
+describe('generateCandidates - reroll nonce', () => {
   it('nonce 0 is the original set (backward compatible ids + values)', () => {
     const withArg = generateCandidates('co-1', 4, 3, [], 0);
     const withoutArg = generateCandidates('co-1', 4, 3);
@@ -331,7 +331,7 @@ describe('createDefaultCompanyOverlay', () => {
 });
 
 describe('generateBoardSeats', () => {
-  it('is deterministic for a given (companyId, seedWeek) — no Math.random', () => {
+  it('is deterministic for a given (companyId, seedWeek) - no Math.random', () => {
     const a = generateBoardSeats('ai', 42);
     const b = generateBoardSeats('ai', 42);
     expect(a).toEqual(b);
@@ -370,7 +370,7 @@ describe('generateBoardSeats', () => {
 });
 
 describe('generateSuppliers', () => {
-  it('is deterministic for a given companyId — stable across weeks (no Math.random)', () => {
+  it('is deterministic for a given companyId - stable across weeks (no Math.random)', () => {
     const a = generateSuppliers('factory', 'factory', 5000);
     const b = generateSuppliers('factory', 'factory', 5000);
     expect(a).toEqual(b);

@@ -62,7 +62,7 @@ describe('pruneSaveData reaches inside checkpoints', () => {
     expect(after).toBeLessThan(before);
   });
 
-  it('keeps every checkpoint on the normal pass — they are visible rewind targets', () => {
+  it('keeps every checkpoint on the normal pass - they are visible rewind targets', () => {
     const pruned = prune(saveWithCheckpoints(5));
     expect(pruned.checkpoints).toHaveLength(5);
     expect(pruned.checkpoints.map((c: any) => c.id)).toEqual(['cp0', 'cp1', 'cp2', 'cp3', 'cp4']);

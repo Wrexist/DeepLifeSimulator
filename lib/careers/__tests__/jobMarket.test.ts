@@ -125,7 +125,7 @@ describe('getJobBoard', () => {
     expect(BOARD_SIZE).toBeLessThan(ENTRY_JOB_PROFILES.length);
   });
 
-  it('is stable within a rotation block — a reload never reshuffles it', () => {
+  it('is stable within a rotation block - a reload never reshuffles it', () => {
     const a = getJobBoard(freshState()).map((o) => o.careerId);
     const b = getJobBoard(freshState()).map((o) => o.careerId);
     expect(a).toEqual(b);

@@ -86,7 +86,7 @@ describe('enacting the platform moves standing', () => {
     expect(policySupportDelta('democratic', favored.type)).toBeGreaterThan(0);
   });
 
-  it("an opposed policy costs standing — the platform's downside is real", () => {
+  it("an opposed policy costs standing - the platform's downside is real", () => {
     // Crypto policies are gated at higher office levels; the mayor here holds
     // rank 3, so pick whichever opposed policy the state can legally enact by
     // lifting the level requirement out of the way via a President-rank state.
@@ -101,7 +101,7 @@ describe('enacting the platform moves standing', () => {
       expect(policySupportDelta('democratic', opposed.type)).toBeLessThan(0);
     } else {
       // If some other gate refuses (funds, influence), the pure delta still
-      // must be negative — the wiring test above covers the application.
+      // must be negative - the wiring test above covers the application.
       expect(policySupportDelta('democratic', opposed.type)).toBeLessThan(0);
     }
   });

@@ -165,7 +165,7 @@ export const returnFromTrip = (
    *
    * A capture is only readable for the FIRST functional update of a React batch
    * (`__tests__/refactor/updaterTimingContract.test.tsx`). On any deferred
-   * dispatch the flag read `false` — so the queued clear-trip updater still ran
+   * dispatch the flag read `false` - so the queued clear-trip updater still ran
    * and ENDED THE TRIP, while every reward was skipped and the player was told
    * "You are not on a trip". Losing a whole trip's payoff is a much worse
    * failure than the wrong message that motivated the sweep it was found in.
@@ -181,7 +181,7 @@ export const returnFromTrip = (
   /**
    * The milestone set REPORTED to the caller, derived from the snapshot the
    * player acted on. `evaluateTravelMilestones` is pure, so the updater below
-   * re-derives the same answer from `prev` for the state — outcome and state
+   * re-derives the same answer from `prev` for the state - outcome and state
    * from one function, never a variable read across the updater boundary.
    */
   const previewVisited = gameState.travel?.visitedDestinations || [];
@@ -316,8 +316,8 @@ export const purchasePassport = (
   /**
    * Unused, and optional so tests need not fake it.
    *
-   * This charges through `applyMoneyDelta` INSIDE the updater — the atomic
-   * gate→debit→grant §4.4 requires — so it never needs the injected
+   * This charges through `applyMoneyDelta` INSIDE the updater - the atomic
+   * gate→debit→grant §4.4 requires - so it never needs the injected
    * `updateMoney`. The parameter is kept (renamed, like `_deps` above) rather
    * than deleted because `TravelApp` passes it and the sibling travel actions
    * that DO use their deps take it in the same position.
@@ -334,7 +334,7 @@ export const purchasePassport = (
   if (gameState.stats.money < passportCost) {
     return {
       success: false,
-      message: `Passport costs ${formatMoney(passportCost)} — you have ${formatMoney(gameState.stats.money)} (${formatMoney(passportCost - gameState.stats.money)} short).`,
+      message: `Passport costs ${formatMoney(passportCost)} - you have ${formatMoney(gameState.stats.money)} (${formatMoney(passportCost - gameState.stats.money)} short).`,
     };
   }
 
@@ -367,7 +367,7 @@ export const investInBusinessOpportunity = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   opportunityId: string,
-  /** Unused — charges atomically via `applyMoneyDelta`. See `purchasePassport`. */
+  /** Unused - charges atomically via `applyMoneyDelta`. See `purchasePassport`. */
   _deps?: { updateMoney: typeof updateMoney }
 ) => {
   const travel = gameState.travel;
@@ -437,7 +437,7 @@ export interface TravelActivityResult {
  * Money-safe: the cash cost runs through `applyMoneyDelta` (overdraft-reject +
  * daily-summary + budget tracking) folded into the SAME guarded updater that
  * marks the activity done AND grants the stat effects, so a double-tap can
- * neither charge twice nor apply the reward twice — the second tap finds the
+ * neither charge twice nor apply the reward twice - the second tap finds the
  * activity already in `activitiesDone` and returns `prev`. One transition, so
  * there is no flag to read back across the updater boundary.
  */
@@ -478,7 +478,7 @@ export const doTravelActivity = (
 
     // Stat rewards land in the SAME transition as the charge and the cooldown
     // stamp. They used to be a separate `deps.updateStats` dispatch gated on a
-    // flag read back after this updater — so a deferred dispatch charged the
+    // flag read back after this updater - so a deferred dispatch charged the
     // player, marked the activity done for the trip, and granted nothing.
     const withMoney: GameState = { ...prev, ...(spend || {}) };
     const statPatch = applyStatsDelta(withMoney, {
@@ -512,7 +512,7 @@ export const doTravelActivity = (
   log.info(`Did travel activity ${activity.id} (cost ${formatMoney(activity.cost)})`);
   return {
     success: true,
-    message: `${activity.name} — ${activity.souvenir ?? 'a memory to keep.'}`,
+    message: `${activity.name} - ${activity.souvenir ?? 'a memory to keep.'}`,
     activityName: activity.name,
     souvenir: activity.souvenir,
   };

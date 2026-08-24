@@ -1,5 +1,5 @@
 /**
- * LifeStoryModal — Auto-generated narrative of the player's life
+ * LifeStoryModal - Auto-generated narrative of the player's life
  *
  * Reads journal entries, event log, relationships, and stats to produce
  * a shareable, chapter-based "life story" that players can view and share.
@@ -106,7 +106,7 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
                   <BookOpen size={48} color="#4B5563" />
                   <Text style={styles.emptyTitle}>Your story is just beginning</Text>
                   <Text style={styles.emptyText}>
-                    Keep living your life — every week adds to your story. Make choices, build relationships, and pursue your dreams.
+                    Keep living your life - every week adds to your story. Make choices, build relationships, and pursue your dreams.
                   </Text>
                 </View>
               </FadeInUp>

@@ -57,7 +57,7 @@ function reMirror(s: GameState): GameState {
 }
 
 describe('depositing into the default savings account', () => {
-  it('moves cash into bankSavings — the field the gold chip reads', () => {
+  it('moves cash into bankSavings - the field the gold chip reads', () => {
     const base = { ...createTestGameState(), bankSavings: 0 };
     base.stats.money = 5_000;
 
@@ -79,7 +79,7 @@ describe('depositing into the default savings account', () => {
     expect(savingsRow(after).balance).toBe(2_000);
   });
 
-  it('SURVIVES the weekly re-mirror — the reason mirrors were read-only', () => {
+  it('SURVIVES the weekly re-mirror - the reason mirrors were read-only', () => {
     const base = { ...createTestGameState(), bankSavings: 0 };
     base.stats.money = 5_000;
 

@@ -6,7 +6,7 @@ function acct(id: string, balance: number): BankAccount {
 }
 
 describe('computeStatementNetWorth (mirror double-count regression)', () => {
-  it('counts cash once — the checking mirror is not added on top of stats.money', () => {
+  it('counts cash once - the checking mirror is not added on top of stats.money', () => {
     // checking-default mirrors cash (2000); savings-default mirrors bankSavings (500).
     const accounts = [
       acct('checking-default', 2000),

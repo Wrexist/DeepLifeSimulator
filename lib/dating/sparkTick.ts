@@ -128,7 +128,7 @@ export function processSparkWeeklyTick(
     }
   }
 
-  // 6. Liked-you top-up — Ultra sees who likes them, Plus sees a count only.
+  // 6. Liked-you top-up - Ultra sees who likes them, Plus sees a count only.
   // Deterministic per week: reuse the same seededRandom helper the jealousy
   // branch above uses so re-runs / reloads produce identical entries (no
   // save-scum reroll, StrictMode-consistent). Distinct seed labels keep the
@@ -154,7 +154,7 @@ export function processSparkWeeklyTick(
       i++;
     }
   } else {
-    // Even free users accumulate hidden "liked you" entries — Plus upsell teaser
+    // Even free users accumulate hidden "liked you" entries - Plus upsell teaser
     if (likedSeed('free-gate') < 0.5 && sp.likedYou.length < 20) {
       const p = DATING_PROFILES[Math.floor(likedSeed('free-pick') * DATING_PROFILES.length)];
       if (!sp.likedYou.some((l) => l.profileId === p.id)) {

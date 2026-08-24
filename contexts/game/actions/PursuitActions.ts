@@ -71,7 +71,7 @@ export const practicePursuit = (
 
   const energy = gameState.stats?.energy ?? 0;
   if (energy < energyCost) {
-    return { success: false, message: `Too tired — need ${energyCost} energy.` };
+    return { success: false, message: `Too tired - need ${energyCost} energy.` };
   }
   const practicedThisWeek = gameState.weeklyPursuitPractice?.[pursuitId] ?? 0;
   if (practicedThisWeek >= def.weeklyCap) {
@@ -181,7 +181,7 @@ export const practicePursuit = (
       message: projectedLevel >= MAX_PURSUIT_LEVEL
         ? `${def.name} mastered! You've reached the top tier.`
         : willTierUp
-          ? `${def.name} reached ${tierName} — Lv ${projectedLevel}!`
+          ? `${def.name} reached ${tierName} - Lv ${projectedLevel}!`
           : `${def.name} leveled up to ${projectedLevel}!`,
     };
   }

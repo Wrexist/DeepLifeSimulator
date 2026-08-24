@@ -218,7 +218,7 @@ describe('Integration Stress Tests', () => {
     });
 
     it('should max out Doctor career (highest paying)', () => {
-      // Local job object — canonical state.currentJob is just an id.
+      // Local job object - canonical state.currentJob is just an id.
       let state: GameState = {
         ...baseState,
         date: { ...baseState.date, age: 28 },

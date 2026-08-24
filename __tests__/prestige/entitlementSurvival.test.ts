@@ -146,7 +146,7 @@ describe.each([
     expect(stateOf(after).youthPills).toBe(7);
   });
 
-  it('does NOT re-arm the DeepLife+ claim stamps — that was a gem printer', () => {
+  it('does NOT re-arm the DeepLife+ claim stamps - that was a gem printer', () => {
     const after = run(bigSpender());
     const s = settingsOf(after);
 

@@ -110,7 +110,7 @@ describe('the parameters are the only difference between the books', () => {
 
 // ── Stocks ──────────────────────────────────────────────────────────────────
 
-describe('stock book — unchanged numeric behaviour', () => {
+describe('stock book - unchanged numeric behaviour', () => {
   it.each(MIDS)('bid/ask at mid %p', (mid) => {
     expect(stocks.bidPrice(mid)).toBe(mid * (1 - stocks.DEFAULT_SPREAD / 2));
     expect(stocks.askPrice(mid)).toBe(mid * (1 + stocks.DEFAULT_SPREAD / 2));
@@ -154,7 +154,7 @@ describe('stock book — unchanged numeric behaviour', () => {
 
 // ── Crypto ──────────────────────────────────────────────────────────────────
 
-describe('crypto book — unchanged numeric behaviour', () => {
+describe('crypto book - unchanged numeric behaviour', () => {
   it('bid/ask across every mid and regime', () => {
     for (const mid of MIDS) {
       for (const regime of REGIMES) {

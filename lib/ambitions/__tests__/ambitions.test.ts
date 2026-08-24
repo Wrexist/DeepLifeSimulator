@@ -27,7 +27,7 @@ function makeState(overrides: TestGameStateOverrides = {}): GameState {
   });
 }
 
-describe('ambitions — catalogue integrity', () => {
+describe('ambitions - catalogue integrity', () => {
   it('has 6–8 ambitions with unique ids', () => {
     expect(LIFE_AMBITIONS.length).toBeGreaterThanOrEqual(6);
     expect(LIFE_AMBITIONS.length).toBeLessThanOrEqual(8);
@@ -78,7 +78,7 @@ describe('ambitions — catalogue integrity', () => {
   });
 });
 
-describe('ambitions — milestone progress evaluation', () => {
+describe('ambitions - milestone progress evaluation', () => {
   it('returns null when no ambition is chosen (freeform / old saves)', () => {
     expect(getAmbitionCompletion(makeState())).toBeNull();
     expect(getAmbitionCompletion(makeState({ ambitionId: undefined }))).toBeNull();
@@ -114,7 +114,7 @@ describe('ambitions — milestone progress evaluation', () => {
     expect(c.readyToClaim).toBe(true);
   });
 
-  it('milestones are sticky — persisted progress survives a later stat dip', () => {
+  it('milestones are sticky - persisted progress survives a later stat dip', () => {
     // happiness was high (bliss reached) and got persisted, then dropped.
     const state = makeState({
       ambitionId: 'true_love',
@@ -139,7 +139,7 @@ describe('ambitions — milestone progress evaluation', () => {
   });
 });
 
-describe('ambitions — one-time payoff idempotency', () => {
+describe('ambitions - one-time payoff idempotency', () => {
   const completeTrueLoveState = () =>
     makeState({
       ambitionId: 'true_love',

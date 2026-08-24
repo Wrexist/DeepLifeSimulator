@@ -20,7 +20,7 @@ interface ErrorMessageProps {
  onReport?: () => void;
  autoDismiss?: boolean;
  dismissAfter?: number;
- /** Position in the visible banner stack — offsets each so they don't overlap. */
+ /** Position in the visible banner stack - offsets each so they don't overlap. */
  stackIndex?: number;
 }
 
@@ -67,7 +67,7 @@ export default function ErrorMessage({
  case 'info':
  return Info;
  case 'warning':
- // Friendly rounded icon — no alarming yellow triangle for advisories.
+ // Friendly rounded icon - no alarming yellow triangle for advisories.
  return AlertCircle;
  case 'critical':
  return AlertOctagon;
@@ -77,7 +77,7 @@ export default function ErrorMessage({
  };
 
  // Real errors (error/critical) are the only place we surface a "Report"
- // action — gameplay advisories (info/warning) stay quiet and dismissible.
+ // action - gameplay advisories (info/warning) stay quiet and dismissible.
  const isRealError = severity === 'error' || severity === 'critical';
 
  const colors = getSeverityColors();

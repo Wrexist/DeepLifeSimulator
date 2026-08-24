@@ -23,7 +23,7 @@ export default function WeddingPopup() {
 
   // P2-2: keep refs to the running loops so the cleanup function always runs
   // (the previous version only registered cleanup inside the
-  // `if (showWeddingPopup)` block — if the popup mounted and unmounted while
+  // `if (showWeddingPopup)` block - if the popup mounted and unmounted while
   // `showWeddingPopup` was false, the loops weren't cleaned up).
   const loopsRef = useRef<Animated.CompositeAnimation[]>([]);
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function WeddingPopup() {
       confettiLoop.start();
       loopsRef.current = [heartLoop, sparkleLoop, confettiLoop];
     }
-    // Unconditional cleanup — fires on unmount or when showWeddingPopup
+    // Unconditional cleanup - fires on unmount or when showWeddingPopup
     // toggles back to false.
     return () => {
       loopsRef.current.forEach(l => l.stop());
@@ -147,8 +147,8 @@ export default function WeddingPopup() {
                 button stays pinned below it as a sibling.
 
                 The card is bounded (`maxHeight: height * 0.85`) and clips
-                (`overflow: 'hidden'`), and this column — crest, congratulation
-                line, celebration box, three reward rows, closing line, CTA —
+                (`overflow: 'hidden'`), and this column - crest, congratulation
+                line, celebration box, three reward rows, closing line, CTA -
                 measures taller than that bound on a normal phone. With nothing
                 scrollable, the overflow went off the bottom of the card and
                 took the Continue button with it: the popup blocks every other
@@ -159,7 +159,7 @@ export default function WeddingPopup() {
                 the same rule `ApplyCardModal` follows: `flex: 1` is flexBasis 0
                 + grow with shrink still 0, so a footer taller than the
                 left-over space takes ALL of it and the scroll area resolves to
-                zero height — the DeathPopup failure. Shrink lets the scroller
+                zero height - the DeathPopup failure. Shrink lets the scroller
                 take whatever the pinned button leaves, at any screen size. */}
             <ScrollView
               style={styles.scrollArea}
@@ -218,7 +218,7 @@ export default function WeddingPopup() {
               </View>
             </ScrollView>
 
-            {/* Continue button — pinned OUTSIDE the scroller on purpose, so the
+            {/* Continue button - pinned OUTSIDE the scroller on purpose, so the
                 one way to dismiss the popup is on screen the moment it opens
                 and never scrolls away. */}
             <TouchableOpacity style={styles.continueButton} onPress={closePopup}>

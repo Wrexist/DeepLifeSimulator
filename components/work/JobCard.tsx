@@ -30,7 +30,7 @@ interface JobCardProps {
   feedbackOpacity?: Animated.Value;
   footer?: React.ReactNode;
   /**
-   * When set (0–100), a compact leading ProgressRing renders in the header —
+   * When set (0–100), a compact leading ProgressRing renders in the header -
    * used by street/crime jobs to show weekly-usage against the 3×/week cap.
    */
   progress?: number;

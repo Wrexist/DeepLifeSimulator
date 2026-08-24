@@ -43,7 +43,7 @@ function ed(over: Partial<Education> = {}): Education {
   };
 }
 
-describe('applyEducationProgression — semesterNumber', () => {
+describe('applyEducationProgression - semesterNumber', () => {
   it('stays at semester 1 early on', () => {
     // 104-week degree, 1 week elapsed → still semester 1.
     const res = applyEducationProgression(
@@ -190,7 +190,7 @@ describe('applyEducationProgression — semesterNumber', () => {
     expect(ctx.notifications.some((n) => n.title?.startsWith('📝'))).toBe(false);
   });
 
-  it('finalize-only recovery for a corrupt NEGATIVE-week program — no exam, no campus event', () => {
+  it('finalize-only recovery for a corrupt NEGATIVE-week program - no exam, no campus event', () => {
     // Codex P2: -3 is truthy, so a plain falsy guard in isExamWeek /
     // shouldTriggerCampusEvent would let a corrupt save fire a stray exam or
     // campus event during recovery. Both now guard with `!(weeksRemaining > 0)`.

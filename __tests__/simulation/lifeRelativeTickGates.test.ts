@@ -63,13 +63,13 @@ describe('early-game decay grace is measured in weeks into THIS life', () => {
     expect(older.effectiveDecayRate).toBeCloseTo(young.effectiveDecayRate, 10);
   });
 
-  it('the window still CLOSES — full rate once eight weeks of this life are lived', () => {
+  it('the window still CLOSES - full rate once eight weeks of this life are lived', () => {
     const s = freshLife(25);
     s.weeksLived = (s.lifeStartWeek as number) + 8;
     expect(computeDecayInputs(s, DECAY_OPTS).graceFactor).toBe(1);
   });
 
-  it('a pre-v43 save (no lifeStartWeek) keeps today\'s behaviour — no reopened window', () => {
+  it('a pre-v43 save (no lifeStartWeek) keeps today\'s behaviour - no reopened window', () => {
     const s = createTestGameState({ weeksLived: computeWeeksLived(25) });
     delete (s as { lifeStartWeek?: number }).lifeStartWeek;
     expect(computeDecayInputs(s, DECAY_OPTS).graceFactor).toBe(1);
@@ -114,7 +114,7 @@ describe('beginner luck is gated on weeks into THIS life', () => {
     expect(income(s, past - 1)).toBeGreaterThan(0);
   });
 
-  it('a pre-v43 save (no lifeStartWeek) keeps today\'s behaviour — window stays shut', () => {
+  it('a pre-v43 save (no lifeStartWeek) keeps today\'s behaviour - window stays shut', () => {
     const s = createTestGameState({ weeksLived: computeWeeksLived(25) });
     delete (s as { lifeStartWeek?: number }).lifeStartWeek;
     expect(income(s, s.weeksLived)).toBe(0);

@@ -203,7 +203,7 @@ describe('Statistics Tracker audit', () => {
   });
 
   // ── PEAK NET WORTH ─────────────────────────────────────────────────────
-  it('updatePeakNetWorth: monotonic — only updates on increase', () => {
+  it('updatePeakNetWorth: monotonic - only updates on increase', () => {
     let s = getDefaultStatistics();
     s = updatePeakNetWorth(s, 1000, 10);
     expect(s.peakNetWorth).toBe(1000);
@@ -314,7 +314,7 @@ describe('Statistics Tracker audit', () => {
   });
 
   it('formatStatNumber: handles NaN/Infinity without crashing', () => {
-    // Documents current behavior — function does NOT crash on bad input.
+    // Documents current behavior - function does NOT crash on bad input.
     expect(() => formatStatNumber(NaN)).not.toThrow();
     expect(() => formatStatNumber(Infinity)).not.toThrow();
     expect(() => formatStatNumber(-Infinity)).not.toThrow();

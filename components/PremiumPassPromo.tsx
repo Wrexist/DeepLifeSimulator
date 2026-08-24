@@ -1,5 +1,5 @@
 /**
- * PremiumPassPromo — an occasional, animated upsell popup for the Legacy Pass
+ * PremiumPassPromo - an occasional, animated upsell popup for the Legacy Pass
  * premium track. Surfaces the value the player is ALREADY leaving on the table
  * (premium rewards earned but unclaimable without a subscription) so the offer
  * is concrete, not a generic "buy premium" nag.
@@ -45,7 +45,7 @@ function PremiumPassPromo() {
 
   // Don't intrude during blocking moments. This popup previously respected NO
   // guard at all, so a gold subscription modal could land on top of the death
-  // screen, a wedding, or a life moment — a paywall covering the one dialog the
+  // screen, a wedding, or a life moment - a paywall covering the one dialog the
   // player actually has to act on. Same predicate the ad orb uses.
   const blocked = useGameSelector((s) => !!(
     s?.showDeathPopup ||
@@ -144,7 +144,7 @@ function PremiumPassPromo() {
             <Text style={styles.title}>Your rewards are piling up</Text>
             <Text style={styles.body}>
               You've already earned <Text style={styles.bold}>{stats.locked} premium reward{stats.locked === 1 ? '' : 's'}</Text>
-              {stats.gems > 0 ? <Text> — including <Text style={styles.bold}>{stats.gems} gems</Text></Text> : null}
+              {stats.gems > 0 ? <Text> - including <Text style={styles.bold}>{stats.gems} gems</Text></Text> : null}
               {' '}and <Text style={styles.bold}>{stats.headline}</Text>. Go Premium to claim them all now.
             </Text>
 

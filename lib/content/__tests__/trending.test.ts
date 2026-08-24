@@ -7,7 +7,7 @@ import {
 const TOPICS = ['Tutorial', 'Speedrun', 'Boss Fight', 'Lore Deep Dive', 'Top 10 List', 'Reaction'];
 
 describe('trendingTopicForWeek', () => {
-  it('is deterministic — same week + pool yields the same topic (tick-safe)', () => {
+  it('is deterministic - same week + pool yields the same topic (tick-safe)', () => {
     expect(trendingTopicForWeek(7, TOPICS)).toBe(trendingTopicForWeek(7, TOPICS));
   });
 

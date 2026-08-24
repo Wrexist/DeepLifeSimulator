@@ -33,7 +33,7 @@ export const createFamilyBusiness = (
   // ATOMICITY FIX: fold the $1M debit and the familyBusinesses append into ONE
   // functional updater that reads `prev` (mirrors createCompany). The previous
   // code charged via a separate updateMoney call and then appended the business
-  // UNCONDITIONALLY — so a same-batch double-tap (or a concurrent spend) charged
+  // UNCONDITIONALLY - so a same-batch double-tap (or a concurrent spend) charged
   // once (overdraft reject) while BOTH appends ran, granting a free, duplicated
   // family business and corrupting state with a duplicate companyId.
   setGameState(prev => {
@@ -64,7 +64,7 @@ export type FamilyBusinessManageAction = 'marketing' | 'branding' | 'reputation'
  *
  * Previously a `switch` inside `manageFamilyBusiness` that initialised
  * `cost = 0`. A value outside the union therefore fell through every case and
- * charged nothing — harmless only because the gains defaulted to 0 too.
+ * charged nothing - harmless only because the gains defaulted to 0 too.
  * `resolveFamilyBusinessManage` now rejects an unknown action outright.
  */
 const MANAGE_EFFECTS: Record<
@@ -97,7 +97,7 @@ export type FamilyBusinessManageOutcome =
  * a second one is DEFERRED, so the flag was still `false` when it was read even
  * though the updater went on to charge and grant correctly. A player with
  * $40.25M tapping a $10,000 marketing push got the state change AND an error
- * banner reading `Need $10,000 for "marketing" — you have $40.25M.` — the
+ * banner reading `Need $10,000 for "marketing" — you have $40.25M.` - the
  * shortfall-less branch of that message, which is only reachable this way.
  *
  * Because `success` was false, `CompanyDetailScreen` also skipped its
@@ -124,21 +124,21 @@ export function resolveFamilyBusinessManage(
   if (cash < effect.cost) {
     return {
       ok: false,
-      message: `Need ${formatMoney(effect.cost)} for "${action}" — you have ${formatMoney(cash)} (${formatMoney(effect.cost - cash)} short).`,
+      message: `Need ${formatMoney(effect.cost)} for "${action}" - you have ${formatMoney(cash)} (${formatMoney(effect.cost - cash)} short).`,
     };
   }
 
   // ATOMICITY: the debit and the brand/reputation gain are built as ONE patch
   // (mirrors createFamilyBusiness above). The pre-fix code charged via a
   // standalone `deps.updateMoney(-cost)` and applied the gains in a SEPARATE,
-  // UNCONDITIONAL updater — so a same-batch double-tap could apply the benefit
+  // UNCONDITIONAL updater - so a same-batch double-tap could apply the benefit
   // twice while the overdraft-guarded charge went through once. Here the gain
   // cannot exist without its matching debit: they are the same object.
   const spend = applyMoneyDelta(state, -effect.cost, `Family Business: ${action}`);
   if (!spend) {
     return {
       ok: false,
-      message: `Need ${formatMoney(effect.cost)} for "${action}" — you have ${formatMoney(cash)}.`,
+      message: `Need ${formatMoney(effect.cost)} for "${action}" - you have ${formatMoney(cash)}.`,
     };
   }
 
@@ -166,7 +166,7 @@ export const manageFamilyBusiness = (
   setGameState: React.Dispatch<React.SetStateAction<GameState>>,
   companyId: string,
   action: FamilyBusinessManageAction,
-  /** Unused — charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
+  /** Unused - charges atomically via `applyMoneyDelta`. Optional so callers need not fake it. */
   _deps?: { updateMoney: typeof updateMoney }
 ) => {
   void _deps; // charge flows through applyMoneyDelta, not deps.updateMoney

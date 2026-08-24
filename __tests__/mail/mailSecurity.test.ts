@@ -48,7 +48,7 @@ const exposed = (cash = 20_000): GameState => {
   return s;
 };
 
-describe('the breach notice — a warning, not a trap', () => {
+describe('the breach notice - a warning, not a trap', () => {
   it('reaches someone who has used the dark web', () => {
     const notice = breachNotice(exposed(), 197);
     expect(notice).not.toBeNull();
@@ -169,7 +169,7 @@ describe('reporting phishing is the free lever', () => {
   });
 });
 
-describe('recruiter leverage — an existing lever, reached a different way', () => {
+describe('recruiter leverage - an existing lever, reached a different way', () => {
   const employed = (performance: number): GameState =>
     createTestGameState({
       weeksLived: 300,
@@ -194,7 +194,7 @@ describe('recruiter leverage — an existing lever, reached a different way', ()
     const career = state.careers.find((c) => c.id === 'tech')!;
 
     expect(career.raiseMultiplier).toBeGreaterThan(1);
-    // Same ceiling as the raise ladder — this must not be a second pay lever
+    // Same ceiling as the raise ladder - this must not be a second pay lever
     // that can stack past the cap.
     expect(career.raiseMultiplier).toBeLessThanOrEqual(RAISE_PREMIUM_CAP);
     // The cooldown is consumed: you cannot leverage AND ask in the same window.
@@ -231,7 +231,7 @@ describe('recruiter leverage — an existing lever, reached a different way', ()
   });
 });
 
-describe('extortion — a real threat, not a scam', () => {
+describe('extortion - a real threat, not a scam', () => {
   it('is only sent at high heat', () => {
     const cool = exposed();
     cool.darkWeb = { ...(cool.darkWeb ?? {}), heat: 10 } as never;
@@ -242,7 +242,7 @@ describe('extortion — a real threat, not a scam', () => {
     expect(extortionDemand(hot, 191)).not.toBeNull();
   });
 
-  it('carries no scam metadata — refusing it has real consequences', () => {
+  it('carries no scam metadata - refusing it has real consequences', () => {
     const hot = exposed();
     hot.darkWeb = { ...(hot.darkWeb ?? {}), heat: 60 } as never;
     const demand = extortionDemand(hot, 191)!;

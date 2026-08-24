@@ -125,7 +125,7 @@ function buildIdentifierCounts(): Map<string, number> {
   // not-run case and the nothing-found case must never be the same value.
   if (counts.size < 1000) {
     throw new Error(
-      `Source scan collected only ${counts.size} identifiers — it did not run properly. ` +
+      `Source scan collected only ${counts.size} identifiers - it did not run properly. ` +
       'Do not read this as "no references found".',
     );
   }
@@ -168,8 +168,8 @@ describe('GameState has no NEW dead field', () => {
   });
 
   it('and the known list has not gone stale', () => {
-    // The other half of the ratchet. A field that is no longer dead — deleted,
-    // or finally wired — must leave the list, or the list starts protecting
+    // The other half of the ratchet. A field that is no longer dead - deleted,
+    // or finally wired - must leave the list, or the list starts protecting
     // fields that do not need it and the count stops meaning anything.
     const dead = fields.filter((f) => referenceCount(f) === 0);
     const noLongerDead = KNOWN_DEAD.filter((f) => !dead.includes(f));

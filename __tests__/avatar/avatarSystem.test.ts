@@ -90,7 +90,7 @@ describe('catalogs', () => {
 
   it('excludes the expressions a life sim must never show', () => {
     // The style ships `vomit`, `screamOpen`, `grimace`, `xDizzy` and an
-    // eyepatch. Curation is the point — an unconstrained randomize button
+    // eyepatch. Curation is the point - an unconstrained randomize button
     // eventually hands the player a vomiting face on the creation screen.
     const banned = ['vomit', 'screamOpen', 'grimace', 'eating', 'tongue'];
     const mouths = MOUTH_SHAPES.map((m) => m.value);
@@ -111,7 +111,7 @@ describe('catalogs', () => {
 
   it('offers no despondent expression as a permanent face', () => {
     // This is the character's face for their whole life. Sadness is a state,
-    // not an identity — offering it produced characters who looked stricken at
+    // not an identity - offering it produced characters who looked stricken at
     // their own wedding.
     const mouths = MOUTH_SHAPES.map((m) => m.value);
     for (const bad of ['sad', 'concerned', 'disbelief']) {
@@ -142,7 +142,7 @@ describe('palette', () => {
 
   it('never lets the generator reach a grey or white hair colour', () => {
     // Grey hair is how the game says "old". A generator that can pick it
-    // outright breaks that signal AND puts grey hair on children — which has
+    // outright breaks that signal AND puts grey hair on children - which has
     // now happened twice, once because NATURAL_HAIR_COUNT is an index count
     // that shifts when an entry above it is removed. Assert the property, not
     // the number.
@@ -150,7 +150,7 @@ describe('palette', () => {
     for (const hex of generatorRange) {
       const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
       const spread = Math.max(r, g, b) - Math.min(r, g, b);
-      // Desaturation only reads as GREY when it is also light — near-black hair
+      // Desaturation only reads as GREY when it is also light - near-black hair
       // is legitimately desaturated and must not trip this.
       const readsAsGrey = spread < 24 && luma(hex) > 120;
       const readsAsWhite = luma(hex) > 205;
@@ -390,7 +390,7 @@ describe('inheritance', () => {
 
   it('never gives a child grey, white or dyed hair', () => {
     // The palette runs naturals 0-8, then GREY (9) and WHITE (10), then four
-    // dyed colours — so it is only a continuous ramp inside the first run.
+    // dyed colours - so it is only a continuous ramp inside the first run.
     // Blending across the boundary is what put grey hair on a NEWBORN: a
     // brown-haired parent (3) and a green-haired one (13) blended toward a
     // "dominant dark" midpoint land on 9 or 10. Third occurrence of that image
@@ -411,7 +411,7 @@ describe('inheritance', () => {
 
   it('takes the natural parent\'s colour when the other is dyed', () => {
     // One dyed parent carries no heritable colour, so the other parent's is
-    // the whole of the evidence — inventing a midpoint between them is what
+    // the whole of the evidence - inventing a midpoint between them is what
     // reached grey.
     for (let dyed = NATURAL_HAIR_COUNT; dyed < HAIR_COLORS.length; dyed++) {
       const child = inheritAvatar(
@@ -444,7 +444,7 @@ describe('inheritance', () => {
 
   it('keeps a parentless child out of the dyed range too', () => {
     // This branch returns a seeded face, and `avatarFromSeed` rolls dye on ~8%
-    // of faces — right for an adult picking a look, wrong for a five-year-old.
+    // of faces - right for an adult picking a look, wrong for a five-year-old.
     for (let i = 0; i < 200; i++) {
       const child = inheritAvatar(undefined, undefined, `orphan-${i}`, i % 2 ? 'male' : 'female');
       expect(child.hairColor).toBeLessThan(NATURAL_HAIR_COUNT);
@@ -553,7 +553,7 @@ describe('pickers', () => {
     }
   });
 
-  it('and every PAIRED colour too — a tint is a swatch strip as well', () => {
+  it('and every PAIRED colour too - a tint is a swatch strip as well', () => {
     // Hair colour and outfit colour moved from categories to tints. Without
     // this they would have quietly dropped out of the check above, since it
     // only looks at categories.
@@ -570,8 +570,8 @@ describe('pickers', () => {
     // Reads `EDITABLE_AVATAR_FIELDS`, not `AVATAR_PICKERS.map(c => c.field)`:
     // hair colour and outfit colour are now TINTS carried on the category they
     // belong to, so the category list alone no longer names every field the
-    // editor can write. The guarantee is unchanged — every field reachable,
-    // exactly once — only where it is read from.
+    // editor can write. The guarantee is unchanged - every field reachable,
+    // exactly once - only where it is read from.
     const fields = EDITABLE_AVATAR_FIELDS;
     expect(new Set(fields).size).toBe(fields.length);
     expect(fields.slice().sort()).toEqual(FIELD_ORDER.slice().sort());
@@ -700,7 +700,7 @@ describe('depth overlays', () => {
     // `frameArt` puts the head at 50% of the window. Both radials are lit from
     // the upper left of THAT, so their centres belong just above the midline.
     // They used to sit at 19% and 26%, aimed at where the head was before it
-    // was centred — high enough to light the hair and leave the face flat.
+    // was centred - high enough to light the hair and leave the face flat.
     const out = addDepth(svg, 'x');
     for (const layer of ['avFs', 'avKl']) {
       const cy = Number(/cy="([\d.]+)%"/.exec(
@@ -790,7 +790,7 @@ describe('art framing', () => {
 
   it('stays within the measured safe zoom', () => {
     // Centring hands the crown its headroom back, so what binds the zoom is
-    // now `froBand` — an afro simply wider than the circle at its equator,
+    // now `froBand` - an afro simply wider than the circle at its equator,
     // which starts shaving at 1.12. See screenshots/avatar-centering.png.
     // Raising this crops players' hair.
     expect(ART_ZOOM).toBeGreaterThan(1);
@@ -798,8 +798,8 @@ describe('art framing', () => {
   });
 
   it('still repositions at zoom 1, and is safe on junk', () => {
-    // Centring is a translation. Skipping it when the zoom happens to be 1 —
-    // which the first version did — would leave the head high.
+    // Centring is a translation. Skipping it when the zoom happens to be 1 -
+    // which the first version did - would leave the head high.
     expect(frameArt(svg, 1)).not.toBe(svg);
     expect(frameArt(svg, 1)).toContain(`translate(-140 -${HEAD_CENTER_Y})`);
     expect(frameArt('nope', 1.1)).toBe('nope');

@@ -19,7 +19,7 @@ const prod = (env: Record<string, string | undefined>): Verdict =>
   resolveVerificationPath(env, { isProductionBuild: true });
 
 describe('a production build needs ONE working verification path', () => {
-  it('RevenueCat with a key is sufficient — no verify URL required', () => {
+  it('RevenueCat with a key is sufficient - no verify URL required', () => {
     // This is what `eas.json` production is configured for. Failing it was
     // blocking every production preflight over the legacy path.
     expect(prod({ EXPO_PUBLIC_USE_REVENUECAT: 'true', EXPO_PUBLIC_RC_IOS_KEY: 'appl_x' }))
@@ -86,7 +86,7 @@ describe('non-production and disabled builds are skipped, not failed', () => {
       .toEqual({ verdict: 'skip-iap-disabled', ok: true });
   });
 
-  it('IAP is ON by default — only the literal "false" disables it (the control)', () => {
+  it('IAP is ON by default - only the literal "false" disables it (the control)', () => {
     // A typo'd value must not silently skip the whole check.
     expect(prod({ EXPO_PUBLIC_ENABLE_IAP: 'no' }).verdict).toBe('none');
   });

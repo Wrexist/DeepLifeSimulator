@@ -39,7 +39,7 @@ export const earningsReport: EventTemplate = {
   // sentiment/flavor event whose choice no longer burns $100 for zero shares.
   generate: () => ({
     id: 'earnings_report',
-    description: 'Strong earnings reports are lifting the market this week — tech stocks are up on the news.',
+    description: 'Strong earnings reports are lifting the market this week - tech stocks are up on the news.',
     choices: [
       { id: 'optimistic', text: 'Feel good about your investments', effects: { stats: { happiness: 2 } } },
       { id: 'ignore', text: 'Ignore the news', effects: {} },

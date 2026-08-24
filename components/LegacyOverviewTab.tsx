@@ -22,13 +22,13 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
   const legacyBonuses = useGameSelector((s) => s.legacyBonuses);
   const generationNumber = useGameSelector((s) => s.generationNumber);
   const dynastyStats = useGameSelector((s) => s.dynastyStats);
-  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive — see utils/safeGameState.ts
+  const settings = useGameSelector((s) => safeSettings(s), shallowEqual); // R3-D: defensive - see utils/safeGameState.ts
   const [showTree, setShowTree] = useState(false);
   const [showMemories, setShowMemories] = useState(false);
 
   const traits = (activeTraits || []).map(id => getTraitById(id)).filter(Boolean);
   // The dynasty rank. `getDynastyTier` shipped with six ranks and ZERO
-  // consumers — a working, persisted, cross-life progression score no player
+  // consumers - a working, persisted, cross-life progression score no player
   // had ever seen. This is its first readout.
   const dynasty = dynastyStats ? getDynastyProgress(dynastyStats) : null;
   const bonuses = legacyBonuses || { incomeMultiplier: 1, learningMultiplier: 1, reputationBonus: 0 };
@@ -64,7 +64,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
               <Crown size={40} color="rgba(255,255,255,0.3)" />
             </LinearGradient>
 
-            {/* Dynasty rank — the cross-life ladder. */}
+            {/* Dynasty rank - the cross-life ladder. */}
             {dynasty && (
               <View style={[styles.rankCard, settings.darkMode && styles.rankCardDark]}>
                 <View style={styles.rankHead}>
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
-    // Full border on all four sides — a one-sided coloured stripe is banned
+    // Full border on all four sides - a one-sided coloured stripe is banned
     // app-wide (Hard Rule #7).
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.08)',

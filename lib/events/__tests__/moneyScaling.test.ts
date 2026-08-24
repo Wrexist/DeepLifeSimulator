@@ -19,7 +19,7 @@ import {
   MAX_EVENT_MONEY,
 } from '@/lib/events/moneyScaling';
 
-describe('backwards compatibility — the property that lets this ship', () => {
+describe('backwards compatibility - the property that lets this ship', () => {
   it('returns the flat figure unchanged when no moneyPct is declared', () => {
     for (const money of [200, -75, 150_000, -150_000, 0]) {
       expect(`${money}:${resolveEventMoney({ money }, 250_000_000)}`).toBe(`${money}:${money}`);
@@ -41,7 +41,7 @@ describe('backwards compatibility — the property that lets this ship', () => {
 
   it('no shipped template declares moneyPct yet, so nothing changes today', () => {
     // The claim the rest of this change rests on. If a template opts in later
-    // this test is simply updated — but it must be a deliberate act.
+    // this test is simply updated - but it must be a deliberate act.
     const engine = fs.readFileSync(
       path.join(__dirname, '../engine.ts'),
       'utf8'
@@ -58,7 +58,7 @@ describe('scaling', () => {
     expect(resolveEventMoney({ money: -200, moneyPct: -0.01 }, 10_000_000)).toBe(-100_000);
   });
 
-  it('keeps the flat figure when it is larger — money is a FLOOR', () => {
+  it('keeps the flat figure when it is larger - money is a FLOOR', () => {
     // 1% of $1,000 = $10, so the authored $200 wins.
     expect(resolveEventMoney({ money: -200, moneyPct: -0.01 }, 1_000)).toBe(-200);
   });
@@ -80,7 +80,7 @@ describe('scaling', () => {
   });
 });
 
-describe('the caps — how a wealth event stops feeling like a bug', () => {
+describe('the caps - how a wealth event stops feeling like a bug', () => {
   it('bounds any single event to a fraction of net worth', () => {
     const worth = 100_000_000;
     // A mis-authored 90% must not wipe the player out.

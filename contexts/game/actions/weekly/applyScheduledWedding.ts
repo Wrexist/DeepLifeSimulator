@@ -82,7 +82,7 @@ export function applyScheduledWedding(
         `[WEDDING] Wedding happening for ${rel.name} in week ${nextWeeksLived}! Charged $${remainingBalance} remaining balance.`,
       );
       // Build the spouse record via the shared factory so this auto path and
-      // the manual executeWedding (DatingActions.ts) can never drift — the two
+      // the manual executeWedding (DatingActions.ts) can never drift - the two
       // are reached purely by timing, so they must produce identical spouse
       // shapes. (The auto path previously set only type/score, leaving
       // marriageWeek + anniversaryWeek undefined, which permanently disabled
@@ -104,11 +104,11 @@ export function applyScheduledWedding(
     }
     // Can't afford wedding - postpone by 4 weeks, but expire after WEEKS_PER_YEAR weeks from original date
     // R3-F6: measure from the ORIGINAL date. This read `scheduledWeek`, which
-    // the enclosing gate has just asserted equals `nextWeeksLived` — so
+    // the enclosing gate has just asserted equals `nextWeeksLived` - so
     // `weddingAge` was always 0 and the expiry below was unreachable. The
     // postpone path then rewrote `scheduledWeek` to `nextWeeksLived + 4`,
     // discarding the original, so a player who could not afford the balance was
-    // postponed +4 weeks indefinitely — holding the engagement slot forever,
+    // postponed +4 weeks indefinitely - holding the engagement slot forever,
     // which `findCommittedPartner` and `planWedding`'s bigamy gate then use to
     // block any other engagement. The documented "expires after 1 year, deposit
     // forfeited" anti-exploit never fired once.

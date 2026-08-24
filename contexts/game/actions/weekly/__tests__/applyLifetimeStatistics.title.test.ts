@@ -137,7 +137,7 @@ describe('and it writes nothing it cannot vouch for', () => {
   });
 });
 
-describe('the two halves together — a president who left office', () => {
+describe('the two halves together - a president who left office', () => {
   it('is eulogised by the recorded title, not by the reset career', () => {
     const POLITICAL: Career = {
       ...DEV,

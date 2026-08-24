@@ -1,5 +1,5 @@
 /**
- * TrendingChip — glass pill with hashtag + signed velocity arrow.
+ * TrendingChip - glass pill with hashtag + signed velocity arrow.
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';

@@ -1,5 +1,5 @@
 /**
- * ComposeModal — full-sheet composer for new Pulse posts.
+ * ComposeModal - full-sheet composer for new Pulse posts.
  *
  * Wires the input straight into `PulseActions.composePost`. Closes on
  * success; surfaces failure messages inline. Honors Verified Pro's 500-char
@@ -72,7 +72,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
   const remaining = maxLength - content.length;
   const overLimit = remaining < 0;
 
-  // Energy preview — composePost charges getEnergyCost(contentType) (text 15 /
+  // Energy preview - composePost charges getEnergyCost(contentType) (text 15 /
   // photo 20 / video 40 / story 12), NOT a flat 5. Show ⚡N · −cost for the
   // selected type so the player isn't surprised by a "not enough energy" error
   // post-tap, and disable Post when they can't afford the real cost.
@@ -109,7 +109,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
       // its delivery. composePost returns the new post's id, so we call
       // deliverBrandDealPost DIRECTLY (a normal action call) with r.postId.
       // The old code ran that dispatch INSIDE a setGameState updater that
-      // returned `prev` — an impure updater with a side-effect. React 19
+      // returned `prev` - an impure updater with a side-effect. React 19
       // StrictMode double-invokes updaters, so postsDelivered was incremented
       // twice, and the synchronous save above the dispatch never captured the
       // completion payout. A direct call fixes both.
@@ -141,7 +141,7 @@ export default function ComposeModal({ visible, onDismiss }: ComposeModalProps) 
       >
         {/* paddingBottom must come from the real inset, not a scaled constant:
             the home indicator is a fixed 34pt, while scale() shrinks toward 0.7
-            on small devices — i.e. the padding got smallest exactly where it was
+            on small devices - i.e. the padding got smallest exactly where it was
             already too tight. */}
         <View
           style={[

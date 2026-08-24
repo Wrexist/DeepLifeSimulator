@@ -111,7 +111,7 @@ describe('a screen reader can name the controls', () => {
   });
 
   it('the icon-only controls on the main flows announce themselves', () => {
-    // A bare icon in a TouchableOpacity is focusable and silent — VoiceOver
+    // A bare icon in a TouchableOpacity is focusable and silent - VoiceOver
     // lands on it and reads nothing at all. These are the back/send/filter/
     // close controls on flows the player passes through constantly.
     const cases: [string, RegExp[]][] = [
@@ -146,7 +146,7 @@ describe('a screen reader can name the controls', () => {
   });
 
   it('the four DESTRUCTIVE icon-only buttons say what they destroy', () => {
-    // "Delete" is not enough when the row is one of several identical icons —
+    // "Delete" is not enough when the row is one of several identical icons -
     // a screen-reader user could not tell evict from cancel.
     const cases: [string, RegExp][] = [
       ['components/realEstate/ManagePropertyModal.tsx', /accessibilityLabel="Evict the tenant"/],
@@ -165,7 +165,7 @@ describe('a life skill is confirmed before the point is spent', () => {
   const CODE = strip(read('components/SkillTreeModal.tsx'));
 
   it('asks before buying, quoting the effect and the cost', () => {
-    // The effect string always existed — it was shown in the SUCCESS alert,
+    // The effect string always existed - it was shown in the SUCCESS alert,
     // after the unrecoverable spend.
     expect(CODE).toMatch(/Unlock \$\{node\.name\}\?/);
     expect(CODE).toMatch(/\$\{node\.effect\}/);
@@ -182,7 +182,7 @@ describe('a life skill is confirmed before the point is spent', () => {
   });
 
   it('no longer reads the outcome out of the updater (C-10)', () => {
-    // CLAUDE.md §4.1 — a value assigned inside an updater is not reliably
+    // CLAUDE.md §4.1 - a value assigned inside an updater is not reliably
     // visible outside it, so the confirmation alert could be skipped for a
     // purchase that had in fact landed.
     expect(CODE).not.toMatch(/let purchased = false/);
@@ -192,7 +192,7 @@ describe('a life skill is confirmed before the point is spent', () => {
   it('still reports success (the control)', () => {
     // Moving the report out of the updater must not have deleted it. WP-A: the
     // Alert and the haptic fire from a PREVIEW run of the same pure reducer on
-    // the snapshot — inside the updater they were double-fired by StrictMode's
+    // the snapshot - inside the updater they were double-fired by StrictMode's
     // double-invoke (two buzzes, two stacked alerts, one purchase).
     expect(CODE).toMatch(/Alert\.alert\('Skill Unlocked'/);
     expect(CODE).toMatch(/if \(preview\.purchased\)/);
@@ -205,12 +205,12 @@ describe('a life skill is confirmed before the point is spent', () => {
 });
 
 /**
- * A1 — the 15 transaction sheets where BOTH escapes were unnamed.
+ * A1 - the 15 transaction sheets where BOTH escapes were unnamed.
  *
  * Each pairs a full-screen backdrop `TouchableOpacity` (self-closing, no label)
  * with a header X (icon-only, no label). `TouchableOpacity` defaults to
  * `accessible={true}`, so VoiceOver focused a full-screen element that
- * announced nothing, then a button that announced nothing — and iOS has no
+ * announced nothing, then a button that announced nothing - and iOS has no
  * `onRequestClose`, so a screen-reader user had no named way out of a sheet
  * that spends money.
  *
@@ -218,7 +218,7 @@ describe('a life skill is confirmed before the point is spent', () => {
  * accessibility tree rather than labelled, because it is a redundant affordance
  * and a full-screen focus target is worse than none.
  */
-describe('A1 — the transaction sheets have one named way out', () => {
+describe('A1 - the transaction sheets have one named way out', () => {
   const SHEETS = [
     'components/banking/AddBillModal.tsx',
     'components/banking/AmountInputModal.tsx',
@@ -284,7 +284,7 @@ describe('A1 — the transaction sheets have one named way out', () => {
  * said nothing.
  *
  * The interesting half is the slop shape. `hitSlopToMinTarget` returns a
- * symmetric object, and these two are only `responsiveSpacing.sm` apart — so
+ * symmetric object, and these two are only `responsiveSpacing.sm` apart - so
  * applying it verbatim would make their hit rectangles OVERLAP, and RN
  * hit-tests the last-rendered child first. That trades "too small to hit" for
  * "hit the wrong one", which on a withdraw/deposit pair is the worse bug. The
@@ -324,7 +324,7 @@ describe('the savings-goal money buttons are hittable and named', () => {
 
   it('says which direction the money moves, and for which goal', () => {
     // "Add" and "Remove" on an unnamed card is not enough when a screen shows
-    // several goals — the label has to identify the one being changed.
+    // several goals - the label has to identify the one being changed.
     expect(CODE).toMatch(/accessibilityLabel=\{`Withdraw from \$\{goal\.name\}`\}/);
     expect(CODE).toMatch(/accessibilityLabel=\{`Add to \$\{goal\.name\}`\}/);
     expect((CODE.match(/accessibilityRole="button"/g) ?? []).length).toBeGreaterThanOrEqual(2);

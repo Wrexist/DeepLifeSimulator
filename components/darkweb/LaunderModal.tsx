@@ -75,7 +75,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
           {/*
             The body scrolls; "Submit to Mixer" below it does not.
 
-            This sheet had no scroller at all — header, tiers, amount field, a
+            This sheet had no scroller at all - header, tiers, amount field, a
             summary block that grows to four lines once fronts are owned, and
             the submit button, all in one column capped at `maxHeight: '90%'`.
             RN does not shrink children by default, so past that cap the
@@ -136,7 +136,7 @@ export default function LaunderModal({ visible, dirtyBtc, launderingSkillLevel, 
                 value={amountText}
                 onChangeText={setAmountText}
                 keyboardType="decimal-pad"
-                  // R4-A: money input hygiene — autocorrect bar on Samsung One UI
+                  // R4-A: money input hygiene - autocorrect bar on Samsung One UI
                   // pushes Confirm off-screen on small devices.
                   autoCorrect={false}
                   autoCapitalize="none"

@@ -253,7 +253,7 @@ export const acceptLoan = (
 
     // R5-B: also credit `stats.money` with the principal. The weekly tick's
     // `mirrorAccountsFromLegacy` overwrites the checking-default balance with
-    // `stats.money` on every advance — without this, the loan principal would
+    // `stats.money` on every advance - without this, the loan principal would
     // vanish on the next weekly tick and the player would be left with the
     // repayment obligation and no cash.
     // Route the principal credit through applyMoneyDelta so it respects MONEY_CEILING
@@ -266,7 +266,7 @@ export const acceptLoan = (
       banking,
       // GL-5: `progress.hasBeenInDebt` was initialised to `false` in
       // initialState and set nowhere in the repo, so the "Debt Free"
-      // achievement — which requires having been in debt, then clearing it —
+      // achievement - which requires having been in debt, then clearing it -
       // could never be met no matter how a player borrowed and repaid. It sat
       // permanently at 0%. Taking on a loan IS entering debt.
       ...debtProgress(state, true),
@@ -296,7 +296,7 @@ export const prepayLoan = (
 
     // The mirrored checking account's `balance` is only re-synced from
     // stats.money on the weekly tick, so mid-week it can be stale in either
-    // direction. The pay modal caps against LIVE cash — validate and clamp
+    // direction. The pay modal caps against LIVE cash - validate and clamp
     // against the same source, or a stale-low mirror silently under-pays and
     // a stale-high mirror pays with money the player no longer has.
     const fundedFromCash = MIRRORED_ACCOUNT_IDS.has(fromAccountId);
@@ -326,7 +326,7 @@ export const prepayLoan = (
 
     // EXPLOIT FIX (H-1): when prepaying from the mirrored checking account, the
     // debit above only touched the account balance, which the next mirror tick
-    // restored from stats.money — free debt repayment. Debit authoritative
+    // restored from stats.money - free debt repayment. Debit authoritative
     // stats.money so the prepayment actually costs the player.
     if (fundedFromCash) {
       const currentMoney = typeof state.stats.money === 'number' && isFinite(state.stats.money) ? state.stats.money : 0;

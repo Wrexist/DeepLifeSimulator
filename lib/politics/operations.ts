@@ -232,7 +232,7 @@ export function getPACTotal(politics: PoliticsState): number {
 }
 
 // ---------------------------------------------------------------------------
-// Approval drift — natural decay between events
+// Approval drift - natural decay between events
 // ---------------------------------------------------------------------------
 
 /**

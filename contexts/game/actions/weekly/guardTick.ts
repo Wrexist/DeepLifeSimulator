@@ -48,7 +48,7 @@ export function guardTick<T>(name: string, run: () => T, fallback: T): T {
     // Not `logger.warn`. A subsystem throwing is a bug that now degrades
     // silently by design, which is exactly the kind of thing that stops being
     // noticed unless it is logged at the level someone actually reads.
-    logger.error(`[WEEK TICK] Subsystem "${name}" threw — skipped for this week:`, error);
+    logger.error(`[WEEK TICK] Subsystem "${name}" threw - skipped for this week:`, error);
     return fallback;
   }
 }

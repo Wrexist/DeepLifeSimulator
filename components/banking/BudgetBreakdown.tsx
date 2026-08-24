@@ -90,7 +90,7 @@ export default function BudgetBreakdown({ buckets, darkMode, weeks = 4, targets,
         const pct = grandTotal > 0 ? (amt ?? 0) / grandTotal : 0;
         const color = CATEGORY_COLOR[key];
         // Weekly budget cap (computer-only). Compare the weekly-average spend to
-        // the cap for the over/under chip — matches the weekly overspend tick.
+        // the cap for the over/under chip - matches the weekly overspend tick.
         const cap = targets ? targets[key] : undefined;
         const weeklyAvg = (amt ?? 0) / weeksCounted;
         const over = cap != null && cap > 0 && weeklyAvg > cap;

@@ -51,7 +51,7 @@ function engagedRel(scheduledWeek: number): Relationship {
   } as unknown as Relationship;
 }
 
-describe('applyScheduledWedding — auto wedding-completion path', () => {
+describe('applyScheduledWedding - auto wedding-completion path', () => {
   it('sets marriageWeek/anniversaryWeek/livingTogether so anniversaries can fire', () => {
     const ctx = makeCtx(1_000_000, 52);
     const result = applyScheduledWedding(engagedRel(52), ctx);

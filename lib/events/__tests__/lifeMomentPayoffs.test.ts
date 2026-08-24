@@ -27,7 +27,7 @@ const UNLOCK_PAYOFFS = [
   'startup_payout',
   'hot_tip_outcome',
   // The coffee-break introduction. Its unlock flag was written from day one;
-  // the payoff template only exists since 2026-08-24 — before that the
+  // the payoff template only exists since 2026-08-24 - before that the
   // promised introduction never arrived (orphaned-unlock class).
   'networking_opportunity',
 ];
@@ -125,7 +125,7 @@ describe('life-moment payoff events', () => {
       (s as any).weeksLived = w;
       descriptions.add(tpl.generate(s).description);
     }
-    // win / modest / bust — the seeded roll should surface more than one branch.
+    // win / modest / bust - the seeded roll should surface more than one branch.
     expect(descriptions.size).toBeGreaterThanOrEqual(2);
   });
 });

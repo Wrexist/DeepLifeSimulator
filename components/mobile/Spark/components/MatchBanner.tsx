@@ -1,5 +1,5 @@
 /**
- * MatchBanner — celebratory full-screen overlay when a match lands.
+ * MatchBanner - celebratory full-screen overlay when a match lands.
  *
  * Two side-by-side avatars with a pulsing gradient flame between them,
  * "It's a match!" headline, and CTA to message the new match. Auto-dismisses
