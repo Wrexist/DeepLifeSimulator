@@ -245,28 +245,6 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                   Your legacy will begin here when you start your next generation
                 </Text>
 
-                {/* Remembered lives (2026-08-24, §52) — earlier characters
-                    whose line ended without an heir. Memory only: nothing
-                    here grants anything to this dynasty. */}
-                {archivedLives.length > 0 && (
-                  <View style={styles.rememberedSection}>
-                    <Text style={[styles.rememberedTitle, settings.darkMode && styles.emptyTextDark]}>
-                      Remembered lives
-                    </Text>
-                    {archivedLives.slice(0, 8).map((life, idx) => (
-                      <View key={`${life.timestamp}-${idx}`} style={[styles.rememberedRow, settings.darkMode && styles.rememberedRowDark]}>
-                        <Text style={[styles.rememberedName, settings.darkMode && styles.emptyTextDark]} numberOfLines={1}>
-                          {life.name || `Generation ${life.generation}`}
-                          {life.ribbonName ? ` · ${life.ribbonName}` : ''}
-                        </Text>
-                        <Text style={[styles.rememberedMeta, settings.darkMode && styles.emptySubtextDark]}>
-                          {`Died at ${life.ageAtDeath || '?'} · ${formatMoney(life.netWorth || 0)}`}
-                          {typeof life.lifeQualityScore === 'number' ? ` · ${life.lifeQualityScore}% life` : ''}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
               </View>
             ) : (
               <View style={styles.timeline}>
@@ -498,6 +476,29 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 })}
               </View>
             )}
+                {/* Remembered lives (2026-08-24, §52) — earlier characters
+                whose line ended without an heir. Memory only: nothing
+                here grants anything to this dynasty. */}
+            {archivedLives.length > 0 && (
+              <View style={styles.rememberedSection}>
+                <Text style={[styles.rememberedTitle, settings.darkMode && styles.emptyTextDark]}>
+                  Remembered lives
+                </Text>
+                {archivedLives.slice(0, 8).map((life, idx) => (
+                  <View key={`${life.timestamp}-${idx}`} style={[styles.rememberedRow, settings.darkMode && styles.rememberedRowDark]}>
+                    <Text style={[styles.rememberedName, settings.darkMode && styles.emptyTextDark]} numberOfLines={1}>
+                      {life.name || `Generation ${life.generation}`}
+                      {life.ribbonName ? ` · ${life.ribbonName}` : ''}
+                    </Text>
+                    <Text style={[styles.rememberedMeta, settings.darkMode && styles.emptySubtextDark]}>
+                      {`Died at ${life.ageAtDeath || '?'} · ${formatMoney(life.netWorth || 0)}`}
+                      {typeof life.lifeQualityScore === 'number' ? ` · ${life.lifeQualityScore}% life` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
           </ScrollView>
         </LinearGradient>
       </View>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, lazy, Suspense } from 'react';
+import React, { useMemo, useState, useEffect, lazy, Suspense } from 'react';
 import { View,
   Text,
   Image,
@@ -37,6 +37,7 @@ import { getReputationStanding } from '@/lib/reputation/reputationTier';
 // code + element tree isn't built on every home-tab render.
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
+import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 const LinearGradient = Gradient;
 
@@ -351,6 +352,17 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   const [showModifiers, setShowModifiers] = useState(false);
   const [showMindset, setShowMindset] = useState(false);
   const [showLegacyTimeline, setShowLegacyTimeline] = useState(false);
+  // Lives remembered outside this dynasty (a heirless death archives the life
+  // rather than erasing it). Read once on mount: without this the archive's
+  // only surface stays hidden for exactly the players it exists for.
+  const [archivedLifeCount, setArchivedLifeCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    readLifeArchiveCount()
+      .then((n) => { if (!cancelled) setArchivedLifeCount(n); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [showNetWorth, setShowNetWorth] = useState(false);
 
   const activePerks = useMemo(() => allPerks.filter(p => perks?.[p.id as keyof typeof perks]), [perks]);
@@ -766,12 +778,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             <ChevronRight size={20} color="#94A3B8" />
           </TouchableOpacity>
         )}
-        {(gameState.previousLives && gameState.previousLives.length > 0) && (
+        {hasRememberedLives(gameState.previousLives, archivedLifeCount) && (
           <TouchableOpacity style={styles.listItem} onPress={() => setShowLegacyTimeline(true)}>
             <View style={styles.listItemContent}>
               <History size={20} color="#8B5CF6" />
               <Text style={[styles.listLabel, styles.listLabelDark]}>
-                Legacy Timeline ({gameState.previousLives.length} generation{gameState.previousLives.length !== 1 ? 's' : ''})
+                {(gameState.previousLives?.length ?? 0) > 0
+                  ? `Legacy Timeline (${gameState.previousLives!.length} generation${gameState.previousLives!.length !== 1 ? 's' : ''})`
+                  : `Remembered lives (${archivedLifeCount})`}
               </Text>
             </View>
             <ChevronRight size={20} color="#94A3B8" />

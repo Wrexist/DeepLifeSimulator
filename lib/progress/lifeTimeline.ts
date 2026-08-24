@@ -29,6 +29,8 @@ export interface TimelineEntry {
   kind: TimelineKind;
   title: string;
   detail?: string;
+  /** How many consecutive weeks ran this same beat (absent means once). */
+  repeats?: number;
 }
 
 /** Newest-first cap — a timeline, not an archive dump. */
@@ -154,6 +156,35 @@ function wealthEntries(state: GameState): TimelineEntry[] {
 }
 
 /**
+ * Collapse a run of identical beats into one row.
+ *
+ * A standing nudge ("Nowhere to live") is re-journalled every week it is true,
+ * so an unhoused stretch produced a timeline that was ten identical rows and
+ * nothing else — the feature reading as a log rather than a life. Consecutive
+ * entries sharing a kind and title become ONE row stamped at the most recent
+ * occurrence, with the run length noted. Only CONSECUTIVE runs collapse: the
+ * same beat recurring after something else happened is a real second time and
+ * keeps its own row. Found by looking at the shipped timeline in the app.
+ */
+function collapseRuns(entries: TimelineEntry[]): TimelineEntry[] {
+  const out: TimelineEntry[] = [];
+  for (const entry of entries) {
+    const last = out[out.length - 1];
+    if (last && last.kind === entry.kind && last.title === entry.title) {
+      const runs = (last.repeats ?? 1) + 1;
+      out[out.length - 1] = {
+        ...last,
+        repeats: runs,
+        detail: last.detail ?? entry.detail,
+      };
+      continue;
+    }
+    out.push(entry);
+  }
+  return out;
+}
+
+/**
  * The life so far, newest first (a scroll starts at "now" and digs back).
  * Deterministic order: week desc, then id, so re-renders never reshuffle.
  */
@@ -168,7 +199,10 @@ export function buildLifeTimeline(state: GameState | null | undefined): Timeline
       // one bad source loses its rows, never the timeline
     }
   }
-  return all
-    .sort((a, b) => b.week - a.week || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .slice(0, MAX_TIMELINE_ENTRIES);
+  const ordered = all.sort(
+    (a, b) => b.week - a.week || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+  // Collapse BEFORE the cap, so a repeated beat cannot crowd real events out
+  // of the visible window.
+  return collapseRuns(ordered).slice(0, MAX_TIMELINE_ENTRIES);
 }

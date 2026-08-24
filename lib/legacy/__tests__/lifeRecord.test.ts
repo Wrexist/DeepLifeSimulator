@@ -8,6 +8,7 @@
  * degrades per-field instead of throwing at the worst possible moment, and
  * that the real `executePrestige` path actually stamps the rich record.
  */
+import { hasRememberedLives } from '@/utils/lifeArchive';
 import { buildLifeRecord } from '../lifeRecord';
 import { executePrestige } from '@/lib/prestige/prestigeExecution';
 import { createTestGameState } from '@/__tests__/helpers/createTestGameState';
@@ -110,5 +111,31 @@ describe('the real prestige path stamps the rich record', () => {
     expect(last.careerHistory?.length).toBeGreaterThan(0);
     expect(typeof last.lifeQualityScore).toBe('number');
     expect(typeof last.ribbonName).toBe('string');
+  });
+});
+
+describe('hasRememberedLives — the gate that made the archive reachable', () => {
+  /**
+   * The Legacy Timeline row was gated on `previousLives.length > 0`, and a
+   * heirless death is exactly the case that leaves `previousLives` EMPTY while
+   * filling the archive — so the archive's only surface was unreachable for
+   * the players it exists for. Found by playing to a death in the running app.
+   */
+  it('opens for an archive-only player (the heirless death case)', () => {
+    expect(hasRememberedLives([], 3)).toBe(true);
+    expect(hasRememberedLives(undefined, 1)).toBe(true);
+  });
+
+  it('still opens for a dynasty with no archive', () => {
+    expect(hasRememberedLives([{}, {}], 0)).toBe(true);
+  });
+
+  it('stays shut for a genuinely first life', () => {
+    expect(hasRememberedLives([], 0)).toBe(false);
+    expect(hasRememberedLives(undefined, undefined)).toBe(false);
+  });
+
+  it('ignores malformed inputs rather than throwing', () => {
+    expect(hasRememberedLives('nope' as never, Number.NaN)).toBe(false);
   });
 });

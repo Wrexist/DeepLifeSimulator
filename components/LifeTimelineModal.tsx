@@ -76,7 +76,10 @@ export default function LifeTimelineModal({ visible, onClose }: Props) {
                       )}
                     </View>
                     <View style={styles.rowBody}>
-                      <Text style={[styles.age, { color: meta.color }]}>Age {entry.age}</Text>
+                      <Text style={[styles.age, { color: meta.color }]}>
+                        Age {entry.age}
+                        {entry.repeats && entry.repeats > 1 ? `  ·  ${entry.repeats} weeks running` : ''}
+                      </Text>
                       <Text style={[styles.rowTitle, { color: darkMode ? '#F1F5F9' : '#111827' }]}>
                         {entry.title}
                       </Text>

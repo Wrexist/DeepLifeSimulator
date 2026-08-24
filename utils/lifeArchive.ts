@@ -42,6 +42,30 @@ export async function readLifeArchive(): Promise<PreviousLifeRecord[]> {
 }
 
 /**
+ * Is there any remembered life to show — from this dynasty OR the archive?
+ *
+ * THE GATE THIS EXISTS TO FIX. The Legacy Timeline row on `IdentityCard` was
+ * gated on `previousLives.length > 0`, and a heirless death is precisely the
+ * case that leaves `previousLives` EMPTY while filling the archive. So the
+ * archive was written correctly and its only surface was unreachable for the
+ * players it was built for — the dead-feature class this repo keeps finding.
+ * Pure, so the gate is testable without mounting the card.
+ */
+export function hasRememberedLives(
+  previousLives: readonly unknown[] | undefined | null,
+  archivedCount: number | undefined | null
+): boolean {
+  const lineage = Array.isArray(previousLives) ? previousLives.length : 0;
+  const archived = typeof archivedCount === 'number' && Number.isFinite(archivedCount) ? archivedCount : 0;
+  return lineage > 0 || archived > 0;
+}
+
+/** How many lives the archive holds. 0 when unreadable — never throws. */
+export async function readLifeArchiveCount(): Promise<number> {
+  return (await readLifeArchive()).length;
+}
+
+/**
  * Remember a finished life. Newest first, capped. Never throws — a failed
  * write must not block starting the new life (the caller sits on the
  * death-screen path).

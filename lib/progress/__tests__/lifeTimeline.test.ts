@@ -88,3 +88,41 @@ describe('buildLifeTimeline', () => {
     expect(buildLifeTimeline(s).length).toBeLessThanOrEqual(MAX_TIMELINE_ENTRIES);
   });
 });
+
+describe('collapsing repeated beats', () => {
+  /**
+   * A standing nudge is re-journalled every week it holds, so an unhoused
+   * stretch used to render as ten identical rows and nothing else — found by
+   * looking at the shipped timeline in the running app.
+   */
+  const withJournal = (titles: string[]) =>
+    createTestGameState({
+      weeksLived: 400,
+      lifeStartWeek: 0,
+      journal: titles.map((title, i) => ({
+        id: `j${i}`, atWeek: 100 + i, title, details: '', tags: [],
+      })),
+    });
+
+  it('collapses a consecutive run into one row carrying the count', () => {
+    const timeline = buildLifeTimeline(withJournal(['Nowhere to live', 'Nowhere to live', 'Nowhere to live']));
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0].repeats).toBe(3);
+    // Stamped at the most recent occurrence, since the timeline reads newest-first.
+    expect(timeline[0].week).toBe(102);
+  });
+
+  it('keeps a beat that recurs AFTER something else happened', () => {
+    const timeline = buildLifeTimeline(withJournal(['Nowhere to live', 'Got a job', 'Nowhere to live']));
+    expect(timeline.map((e) => e.title)).toEqual(['Nowhere to live', 'Got a job', 'Nowhere to live']);
+    expect(timeline.every((e) => e.repeats === undefined)).toBe(true);
+  });
+
+  it('collapses before the cap, so repeats cannot crowd out real events', () => {
+    const titles = Array.from({ length: 80 }, () => 'Nowhere to live');
+    titles[0] = 'A real milestone'; // oldest entry
+    const timeline = buildLifeTimeline(withJournal(titles));
+    expect(timeline.map((e) => e.title)).toContain('A real milestone');
+    expect(timeline.length).toBeLessThanOrEqual(MAX_TIMELINE_ENTRIES);
+  });
+});
