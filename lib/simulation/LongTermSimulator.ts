@@ -344,7 +344,7 @@ export class LongTermSimulator {
             
             // PRIORITY 7: MAXIMIZE CRYPTO - Buy crypto strategically (SMART: diversify, limit per purchase)
             // Crypto provides capital appreciation but no passive income, so limit investment
-            // FIXED: Implement crypto purchase directly since buyCrypto is a stub
+            // Simulates the crypto purchase directly (the real buyCrypto lives in MoneyActionsContext; the dev simulator mimics its arithmetic rather than driving React)
             // LIMIT: Only buy crypto once per week to prevent spam
             if (!actionPerformed && !cryptoPurchasedThisWeek && money >= 5000 && currentState.cryptos && !failedActions.has('buyCrypto:all')) {
               const cryptoIds = ['btc', 'eth', 'sol', 'ada', 'xrp', 'ltc', 'doge'];
@@ -371,7 +371,7 @@ export class LongTermSimulator {
                   const sharesToBuy = amount / crypto.price;
                   
                   if (money >= cost && sharesToBuy > 0) {
-                    // Implement crypto purchase directly (buyCrypto is a stub)
+                    // Simulates the crypto purchase directly (see note above)
                     const initialOwned = crypto.owned || 0;
                     setGameState(prev => {
                       const updatedCryptos = prev.cryptos?.map(c => 

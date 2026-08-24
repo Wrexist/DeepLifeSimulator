@@ -265,21 +265,34 @@ export function executePrestige(
 }
 
 /**
+ * A fully independent copy of `initialGameState`.
+ *
+ * The old shape here spread the top level and hand-cloned only
+ * `stats`/`date`/`settings`, so every OTHER nested default (`politics`,
+ * `socialMedia`, `travel`, the arrays…) was the module singleton shared by
+ * reference — the exact aliasing hazard `createTestGameState` documents. No
+ * production write mutates those in place today, which is why it never bit;
+ * a deep clone removes the trap instead of trusting that to stay true.
+ * Same guarded pattern as `repairGameState` (utils/saveValidation.ts).
+ */
+function freshInitialState(): GameState {
+  try {
+    return typeof structuredClone === 'function'
+      ? structuredClone(initialGameState)
+      : (JSON.parse(JSON.stringify(initialGameState)) as GameState);
+  } catch {
+    return { ...initialGameState, stats: { ...initialGameState.stats }, date: { ...initialGameState.date }, settings: { ...initialGameState.settings } };
+  }
+}
+
+/**
  * Create new game state for reset path (age 18, fresh start)
  */
 function createResetGameState(
   oldState: GameState,
   prestigeData: PrestigeData
 ): GameState {
-  // Start with initial state - use spread operator for proper type safety
-  // initialGameState is a proper GameState, so spreading it maintains type safety
-  const newState: GameState = {
-    ...initialGameState,
-    // Deep clone nested objects that need to be independent
-    stats: { ...initialGameState.stats },
-    date: { ...initialGameState.date },
-    settings: { ...initialGameState.settings },
-  };
+  const newState: GameState = freshInitialState();
 
   // A purchase belongs to the PLAYER, not the character. `settings` above comes
   // from initialGameState, so without this every purchased entitlement flag —
@@ -535,16 +548,8 @@ function createChildGameState(
     selectedChild = simulateChildToAge(selectedChild, oldState, ADULTHOOD_AGE);
   }
 
-  // Start with initial state
-  // Clone initialGameState properly - use spread operator for type safety
-  // initialGameState is a proper GameState, so spreading it maintains type safety
-  const newState: GameState = {
-    ...initialGameState,
-    // Deep clone nested objects that need to be independent
-    stats: { ...initialGameState.stats },
-    date: { ...initialGameState.date },
-    settings: { ...initialGameState.settings },
-  };
+  // Start with a fully independent copy — see `freshInitialState` above.
+  const newState: GameState = freshInitialState();
 
   // A purchase belongs to the PLAYER, not the character. `settings` above comes
   // from initialGameState, so without this every purchased entitlement flag —

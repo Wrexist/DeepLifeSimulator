@@ -212,8 +212,8 @@ export function runWeeklyBankingTick(input: WeeklyBankingTickInput): WeeklyBanki
     };
   }
 
-  // 2. Run user-added bill-pay rules (Phase C adds the UI; for now this is a no-op for
-  //    existing players because billPayRules[] is empty).
+  // 2. Run user-added bill-pay rules (created via AddBillModal in the Bank
+  //    apps; players with no rules skip through as a no-op).
   const billResult = tickBillPay(banking, input.currentWeek);
   banking = billResult.banking;
   // Bills paid from a mirrored account only debited that mirror's balance (wiped

@@ -156,29 +156,29 @@ export function logPerformanceAnalysis(): void {
     return;
   }
 
-  console.log('=== Startup Performance Analysis ===');
-  console.log(`Total startup time: ${metrics.totalStartupTime}ms`);
+  logger.info('=== Startup Performance Analysis ===');
+  logger.info(`Total startup time: ${metrics.totalStartupTime}ms`);
 
-  console.log('\nStage Breakdown:');
+  logger.info('\nStage Breakdown:');
   metrics.stageBreakdown.forEach(stage => {
-    console.log(`  ${stage.stage}: ${stage.duration}ms (${stage.percentage.toFixed(1)}%)`);
+    logger.info(`  ${stage.stage}: ${stage.duration}ms (${stage.percentage.toFixed(1)}%)`);
   });
 
-  console.log(`\nCritical Path: ${metrics.criticalPath.join(' → ')}`);
+  logger.info(`\nCritical Path: ${metrics.criticalPath.join(' → ')}`);
 
   if (metrics.bottlenecks.length > 0) {
-    console.log('\nBottlenecks:');
+    logger.info('\nBottlenecks:');
     metrics.bottlenecks.forEach(bottleneck => {
-      console.log(`  ${bottleneck.stage}: ${bottleneck.duration}ms (threshold: ${bottleneck.threshold}ms) - ${bottleneck.severity.toUpperCase()}`);
+      logger.info(`  ${bottleneck.stage}: ${bottleneck.duration}ms (threshold: ${bottleneck.threshold}ms) - ${bottleneck.severity.toUpperCase()}`);
     });
   }
 
   if (metrics.recommendations.length > 0) {
-    console.log('\nRecommendations:');
-    metrics.recommendations.forEach(rec => console.log(`  • ${rec}`));
+    logger.info('\nRecommendations:');
+    metrics.recommendations.forEach(rec => logger.info(`  • ${rec}`));
   }
 
-  console.log('=== End Performance Analysis ===');
+  logger.info('=== End Performance Analysis ===');
 }
 
 /**

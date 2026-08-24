@@ -73,6 +73,8 @@ import { shouldAutoRest , shouldAutoReinvestDividends } from '@/lib/prestige/app
 import { getStartingEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import { healthcarePolicyPerks } from '@/lib/politics/healthcarePerks';
 import { calculateActivePolicyEffects } from './actions/PoliticalActions';
+import { getPolicyById } from '@/lib/politics/policies';
+import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 
 import { getLifeSkillModifiers , applyRelationshipGain } from '@/lib/skillTrees/lifeSkillEffects';
 import { processPulseWeeklyTick } from '@/lib/social/pulseTick';
@@ -2537,8 +2539,8 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // and recomputes the credit score. While the legacy bankSavings/loans/stats.money
  // fields remain authoritative for the old UI, this keeps the new slice in sync
  // so the AdvancedBankApp rewrite (Phase C) reads consistent state.
- // Any user-added bill-pay rules also fire here; for existing players the rule
- // list is empty, so this is effectively a no-op until the new UI ships.
+ // Any user-added bill-pay rules also fire here (created via AddBillModal in
+ // the Bank apps; a player with no rules skips through as a no-op).
  // Wrapped in try/catch like the other subsystem ticks (pulse/spark/stocks):
  // this tick's crash surface grew (account-interest accrual + per-tick
  // budgetSpend tracking), and an unhandled throw here would abort the whole
@@ -4133,10 +4135,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const politicsBase = updatedPolitics ?? prevState.politics;
  if (politicsBase && !(politicsBase.policiesEnacted || []).includes(effects.policy)) {
  const enacted = [...(politicsBase.policiesEnacted || []), effects.policy];
+ // Party standing moves here exactly as in `enactPolicy` — a bill passed
+ // by vote and a bill enacted from the Politics app must stay
+ // indistinguishable downstream, standing included.
+ const votedPolicyType = getPolicyById(effects.policy)?.type;
  updatedPolitics = {
 ...politicsBase,
  policiesEnacted: enacted,
  activePolicyEffects: calculateActivePolicyEffects(enacted),
+...(hasPartyMachine(politicsBase.party)
+ ? {
+ partySupport: Math.max(0, Math.min(100,
+ readPartySupport(politicsBase.party, politicsBase.partySupport)
+ + policySupportDelta(politicsBase.party, votedPolicyType))),
+ }
+ : {}),
  };
  }
  }

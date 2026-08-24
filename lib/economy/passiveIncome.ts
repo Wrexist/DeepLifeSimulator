@@ -144,6 +144,13 @@ export function getPoliticalWeeklySalary(state: GameState): number {
  * binds the pair of them together.
  */
 export function getPoliticalPensionWeekly(state: GameState): number {
+  // A pension pays a RETIRED official. Winning office again suspends it —
+  // without this gate a retired President could take a council seat and draw
+  // the $6,000/wk maximum pension ON TOP of the new salary, indefinitely,
+  // from a seat they can defend forever. The record survives (the title and
+  // the pension resume when they leave office again); only the payment stops
+  // while they are back on a public salary.
+  if ((state?.politics?.careerLevel ?? 0) > 0) return 0;
   return readPensionWeekly(state?.politics?.retirement);
 }
 

@@ -4138,3 +4138,49 @@ Owner: "do all that's left." Every deferred item from the second pass, resolved:
   disabled Apply button is never unexplained. Enforcing a never-enforced gate
   is safe exactly when: the bar is low, the theme demands it, the UI says so,
   and the existing waiver covers whoever paid to skip gates.
+
+## 2026-08-23 — Full-audit pass: a wired feature can still be unreachable, and a carve-out's contract lives in the reader
+
+- **"Wired" is not "reachable."** The v47 party machinery shipped with a tested
+  pure function (`policySupportDelta`), correct thresholds, honest UI copy —
+  and zero production callers, PLUS platform arrays written in a category
+  vocabulary (`environment`, `business`, `realEstate`, `defense`) that
+  `PolicyType` does not contain. Either defect alone silently capped standing
+  at 50, making endorsement (60) and two appointments (55/70) mathematically
+  unobtainable while the UI counted down to them. Rule: for any threshold a
+  feature gates on, find the WRITER that can cross it and prove the crossing
+  in a test (`partyStandingWiring.test.ts` pins both: every platform category
+  is carried by ≥1 real policy, and two favored enactments reach 60). Typing
+  the category arrays as `PolicyType[]` turns the vocabulary half of this bug
+  class into a compile error.
+- **A carve-out's "reads degrade gracefully" claim is code, not prose.** v47's
+  no-backfill reasoning for `partySupport` said the reader applies a
+  fresh-member baseline; the reader applied `?? 0` — which put every pre-v47
+  party member under a primary challenge at the max election penalty, and the
+  weekly drift then PERSISTED the 0. Absent must be distinguishable from a
+  stored 0 (`stored == null`, not `safe(stored, 0)`). When a migration comment
+  cites a reader's behaviour, open the reader and test THAT.
+- **The shallow-spread-plus-hand-cloned-slices shape is a standing trap.** The
+  prestige builders cloned `stats/date/settings` from `initialGameState` and
+  shared every other nested default by reference — harmless for years, until
+  the 2026-08-23 wiring made `applyStartingBonuses` write through
+  `newState.stocks.holdings` and the starting portfolio began compounding per
+  prestige (and leaking a company/car into brand-new games in the same
+  session). The trap armed the moment an UNRELATED fix made a dead write live.
+  Deep-clone at the boundary (`structuredClone` + JSON fallback, the
+  repairGameState pattern) instead of trusting "nothing mutates this today".
+  The regression test was proven red against the old builder before landing.
+- **Grants that live only while a state is held must be symmetric.** Two
+  instances in one pass: appointment `reputationOnTake` with no give-back
+  (alternate two posts → +13/cycle to the 100 clamp with no cooldown) and a
+  political pension that kept paying after the player won office again. The
+  shape to look for: any +X on ENTER with no −X on EXIT, where ENTER is
+  repeatable. The symmetric fix needs no new save field, which is what makes
+  it cheap enough to always take.
+- **A value-only change to a persisted seed array is invisible to the save
+  audit.** Zeroing the dark-web vendors' seeded `reviewCount` fixed new games
+  only; existing saves keep the phantom contacts until prestige, and no exact
+  migration exists because seed+purchases share one counter and old-seed and
+  new-seed saves share one version number. If a seeded VALUE is load-bearing,
+  bump the version in the same change or accept-and-document the residue —
+  deciding later costs the option.

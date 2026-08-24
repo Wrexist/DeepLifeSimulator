@@ -18,7 +18,7 @@ const config = PRODUCT_CONFIGS[IAP_PRODUCTS.SKILL_BOOST] as { skillBoost: number
 
 describe('the grant', () => {
   it('levels every pursuit, not the dead hobbies array', () => {
-    const state = createTestGameState() as GameState;
+    const state: GameState = createTestGameState();
     expect(state.hobbies || []).toEqual([]); // the precondition that made the old grant a no-op
 
     iapService.applyProductToState(state, IAP_PRODUCTS.SKILL_BOOST);
@@ -32,7 +32,7 @@ describe('the grant', () => {
   });
 
   it('adds on top of existing progress and respects the level cap', () => {
-    const state = createTestGameState() as GameState;
+    const state: GameState = createTestGameState();
     const first = PURSUITS[0].id;
     state.pursuits = {
       [first]: { xp: (MAX_PURSUIT_LEVEL - 1) * XP_PER_LEVEL, level: MAX_PURSUIT_LEVEL - 1 },

@@ -28,9 +28,11 @@ import {
 } from '@/lib/politics/operations';
 import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
 import { appointmentBlocker, findAppointment, POLITICAL_APPOINTMENTS } from '@/lib/politics/appointments';
+import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 import {
   highestOfficeHeld,
   resolveEmbezzle,
+  resolveFormAlliance,
   resolveJoinParty,
   resolveResignAppointment,
   resolveRetirement,
@@ -230,10 +232,16 @@ export const runForOffice = (
       applied: false,
       accepted: false,
     };
-    setGameState(prev => ({
-      ...prev,
-      careers: [...(prev.careers || []), newCareer],
-    }));
+    // Re-check against `prev`: the outer `find` read the stale snapshot, so
+    // two same-batch calls would otherwise BOTH append and leave a duplicated
+    // `political` entry that the salary/tenure readers (which use `.find`)
+    // and the exit paths (which `.map` over all of them) can desync.
+    setGameState(prev => (prev.careers || []).some(c => c && c.id === 'political')
+      ? prev
+      : {
+          ...prev,
+          careers: [...(prev.careers || []), newCareer],
+        });
     career = newCareer;
   }
 
@@ -627,6 +635,21 @@ export const enactPolicy = (
     const activePolicyEffects = calculateActivePolicyEffects(updatedPoliciesEnacted);
     const newApproval = Math.max(0, Math.min(100, (prevPolitics?.approvalRating ?? 50) + policy.approvalImpact));
 
+    // Enacting the platform moves party standing — the machinery the Career
+    // tab's copy promises ("Enacting the platform raises standing"). This was
+    // the ONLY path that can push standing above the drift ceiling of 50, and
+    // it shipped uncalled: endorsement (60), party funding, and the two
+    // appointments gated on 55/70 standing were all mathematically
+    // unreachable. Written only for machine-party members so a save with no
+    // party never grows a stamped number.
+    const partySupportPatch = hasPartyMachine(prevPolitics?.party)
+      ? {
+          partySupport: Math.max(0, Math.min(100,
+            readPartySupport(prevPolitics?.party, prevPolitics?.partySupport)
+              + policySupportDelta(prevPolitics?.party, policy.type))),
+        }
+      : {};
+
     return {
       ...prev,
       stats: {
@@ -664,6 +687,7 @@ export const enactPolicy = (
         ],
         policyInfluence: Math.min(100, (prevPolitics?.policyInfluence || 0) + 5),
         activePolicyEffects,
+        ...partySupportPatch,
       },
     };
   });
@@ -765,58 +789,25 @@ export const joinParty = (
   return { success: preview.ok, message: preview.message };
 };
 
+/**
+ * Preview/commit over one pure resolver (the C-9 / ARCH-1 sound fix). The old
+ * shape checked the alliance list on the stale snapshot and appended
+ * unconditionally inside the updater, so a same-batch double tap appended the
+ * same character twice — with the SAME id, since a `Date.now()` captured once
+ * outside the updater stamped both — and paid the +3 approval twice.
+ */
 export const formAlliance = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,
   characterId: string,
   characterName: string
 ): { success: boolean; message: string } => {
-  const politics = gameState.politics || {
-    careerLevel: 0,
-    approvalRating: 50,
-    policyInfluence: 0,
-    electionsWon: 0,
-    policiesEnacted: [],
-    lobbyists: [],
-    alliances: [],
-    campaignFunds: 0,
-  };
-
-  // Check if already allied
-  if (politics.alliances.some(a => a.characterId === characterId)) {
-    return { success: false, message: 'You already have an alliance with this character' };
+  const preview = resolveFormAlliance(gameState, characterId, characterName);
+  if (preview.ok) {
+    setGameState(prev => resolveFormAlliance(prev, characterId, characterName).next);
+    log.info(`Formed alliance with ${characterName}`);
   }
-
-  const allianceTimestamp = Date.now();
-  setGameState(prev => ({
-    ...prev,
-    politics: {
-      ...prev.politics || {
-        careerLevel: 0,
-        approvalRating: 50,
-        policyInfluence: 0,
-        electionsWon: 0,
-        policiesEnacted: [],
-        lobbyists: [],
-        alliances: [],
-        campaignFunds: 0,
-      },
-      alliances: [
-        ...(prev.politics?.alliances || []),
-        {
-          id: `alliance_${characterId}_${allianceTimestamp}`,
-          characterId,
-          name: characterName,
-          influence: 10,
-          formedWeek: prev.weeksLived || 0,
-        },
-      ],
-      approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + 3),
-    },
-  }));
-
-  log.info(`Formed alliance with ${characterName}`);
-  return { success: true, message: `Formed political alliance with ${characterName}!` };
+  return { success: preview.ok, message: preview.message };
 };
 
 export const campaign = (
@@ -1172,7 +1163,10 @@ export const takeAppointment = (
   return { success: preview.ok, message: preview.message };
 };
 
-/** Step down from an appointed position. No penalty — it is a job, not an office. */
+/**
+ * Step down from an appointed position. The post's reputation bump goes with
+ * it (see `resolveResignAppointment`) — resign-and-retake must net zero.
+ */
 export const resignAppointment = (
   gameState: GameState,
   setGameState: Dispatch<SetStateAction<GameState>>,

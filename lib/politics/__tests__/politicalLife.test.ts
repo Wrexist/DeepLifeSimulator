@@ -77,6 +77,25 @@ describe('party standing', () => {
     }
   });
 
+  it('reads an ABSENT key as the fresh-member baseline, not zero (pre-v47 saves)', () => {
+    // `politics.party` predates v47, so a legacy save can carry a party with
+    // no `partySupport` key at all. That member is in good standing — reading
+    // 0 would load them straight into a primary challenge at the maximum
+    // election penalty, and the weekly tick would then PERSIST that number.
+    // This is the contract the v47 carve-out's "no backfill" reasoning relies
+    // on (utils/saveMigrations.ts v47).
+    for (const absent of [undefined, null]) {
+      expect(readPartySupport('democratic', absent)).toBe(50);
+      expect(readPartySupport('republican', absent)).toBe(50);
+      expect(facesPrimaryChallenge('democratic', absent)).toBe(false);
+    }
+    // A STORED 0 is an earned 0 and stays 0 — absence and zero must differ.
+    expect(readPartySupport('democratic', 0)).toBe(0);
+    expect(facesPrimaryChallenge('democratic', 0)).toBe(true);
+    // Independents still have no machine to stand in, absent key or not.
+    expect(readPartySupport('independent', undefined)).toBe(0);
+  });
+
   it('endorses at the threshold and challenges below the floor', () => {
     expect(isEndorsed('democratic', ENDORSEMENT_THRESHOLD)).toBe(true);
     expect(isEndorsed('democratic', ENDORSEMENT_THRESHOLD - 1)).toBe(false);

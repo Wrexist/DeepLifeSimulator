@@ -1175,6 +1175,14 @@ export const initialGameState: GameState = {
       // vendors don't go away after prestige" — BBQ). Reputation stays: it is
       // marketplace data the Onion shop shows. A vendor becomes a contact the
       // first time the player actually buys from them.
+      //
+      // KNOWN RESIDUE (accepted, 2026-08-23): this is a value-only change, so
+      // saves written under the old seeds (12/84/230/3) keep them until
+      // prestige rebuilds from here — those players see the four phantoms in
+      // Contacts a while longer. No migration can fix it exactly: reviewCount
+      // is seed + purchases with no separate purchase record, and old-seed
+      // and new-seed saves share version 47, so subtracting the old seed
+      // would miscount real purchases on new saves. Cosmetic, self-healing.
       { id: 'vendor-shadow',    handle: 'shadow.eth',     reputation: 35, reviewCount: 0 },
       { id: 'vendor-zerocool',  handle: 'zerocool',       reputation: 65, reviewCount: 0 },
       { id: 'vendor-veil',      handle: 'veil_market',    reputation: 80, reviewCount: 0 },
