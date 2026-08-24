@@ -108,7 +108,12 @@ export function tickScandals(politics: PoliticsState, currentWeek: number): {
   let forcedResignation = false;
   const notifications: { id: string; title: string; message: string }[] = [];
   const updated: PoliticalScandalEntry[] = politics.scandals.map((s) => {
-    if (!s.active) return s;
+    // Guard the entry itself, matching the sibling reads (weeklyTick's
+    // `filter(s => s && s.active)` and applyOfficeExit). A null/corrupt entry
+    // is only reachable via a hand-corrupted save, but an unguarded `s.active`
+    // would throw and abort the whole politics tick for that week (scandal
+    // processing AND the later party-funding/embezzlement bookkeeping).
+    if (!s || !s.active) return s;
     const tick = tickScandal(s as unknown as PoliticalScandal);
     totalDamage += tick.approvalDamage;
     const out = tick.scandal as unknown as PoliticalScandalEntry;

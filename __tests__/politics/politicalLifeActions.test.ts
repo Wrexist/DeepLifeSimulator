@@ -227,6 +227,47 @@ describe('appointed positions', () => {
     expect(cap.commit(exGovernor).politics!.appointment).toBeUndefined();
   });
 
+  it('cannot slip past the office bar by taking a conflicted post in the SAME batch', () => {
+    // The bar is a designed constraint, so it is a §4.4 gate→grant hole if it is
+    // only enforced against the render snapshot. An ex-official with NO
+    // appointment in that snapshot taps "take Lobbyist" and "run for office" in
+    // one React batch: the outer guard on the run sees a clear ballot, and the
+    // appointment updater flushes first. The election updater must re-check the
+    // bar against `prev`, or the batch ends with the player holding a
+    // ballot-barred post AND sitting in office (both salaries streaming).
+    const prev = politician({ careerLevel: 0, appointment: undefined });
+    const exOfficial: GameState = {
+      ...prev,
+      // Clear council_member's outer gates (minAge 25, the Business Degree
+      // education requirement) so the run actually reaches its win updater
+      // rather than bailing early — otherwise the bar is never exercised.
+      date: { ...prev.date, age: 55 },
+      educations: [...(prev.educations ?? []), { id: 'business_degree', completed: true } as never],
+      careers: prev.careers.map(c => ({ ...c, accepted: false, level: 4 })),
+      politics: { ...prev.politics!, careerLevel: 0, electionsWon: 3, appointment: undefined },
+    };
+
+    const roll = jest.spyOn(Math, 'random').mockReturnValue(0); // force a win
+    try {
+      const cap = captureUpdaters();
+      // Take the barring post FIRST, then run — both off the same pre-batch snapshot.
+      expect(takeAppointment(exOfficial, cap.setGameState, 'lobbyist').success).toBe(true);
+      // Proves the run cleared every outer gate and reached its win updater —
+      // otherwise this test would pass trivially with the bar never exercised.
+      expect(runForOffice(exOfficial, cap.setGameState, 'council_member', { updateMoney }).success).toBe(true);
+
+      const after = cap.commit(exOfficial);
+      // The bar holds: they keep the lobbyist post and never took the seat…
+      expect(after.politics!.appointment).toEqual({ id: 'lobbyist', startedWeek: 3_000 });
+      expect(after.politics!.careerLevel).toBe(0);
+      expect(after.careers.find(c => c.id === 'political')!.accepted).toBe(false);
+      // …and were not even charged the campaign cost (the loss branch refuses too).
+      expect(after.stats.money).toBe(exOfficial.stats.money);
+    } finally {
+      roll.mockRestore();
+    }
+  });
+
   it('lists the whole catalog with a reason for every refusal', () => {
     const rookie = createTestGameState({ stats: { reputation: 5 } });
     const offers = availableAppointments(rookie);
@@ -309,6 +350,34 @@ describe('retiring from office', () => {
     expect(getPoliticalWeeklySalary(after)).toBe(0);
     expect(getPoliticalPensionWeekly(after)).toBe(after.politics!.retirement!.weeklyPension);
     expect(getPoliticalPensionWeekly(after)).toBeGreaterThan(0);
+  });
+
+  it('settles office-scoped state on the way out (scandals + lobbyists)', () => {
+    // Retirement is the THIRD office-exit path. Voted-out and scandal
+    // forced-resignation both run `applyOfficeExit`; this one did not, so a
+    // scandal live at the moment of retirement froze `active: true` forever (the
+    // tick early-returns to `tickOutOfOffice` for citizens and never processes
+    // it again) and hired lobbyists kept their retainer + contact card + policy
+    // influence for the rest of the life — the exact BBQ report class.
+    const prev = politician({
+      policyInfluence: 30,
+      scandals: [{
+        id: 's1', category: 'corruption', severity: 'minor',
+        headline: 'Pay-to-play scheme uncovered', startedWeek: 2_900,
+        weeksRemaining: 3, approvalLost: 3, suppressedUSD: 0, active: true,
+      }],
+      lobbyists: [{ id: 'l1', name: 'K Street', cost: 500, influence: 10, active: true }],
+    } as never);
+    const cap = captureUpdaters();
+    expect(retireFromPolitics(prev, cap.setGameState).success).toBe(true);
+    const after = cap.commit(prev);
+
+    // The scandal leaves the news cycle, kept in history as survived.
+    expect(after.politics!.scandals!.every(s => !s.active)).toBe(true);
+    expect(after.politics!.scandals!.find(s => s.id === 's1')!.resolution).toBe('survived');
+    // The lobbyist is deactivated and its influence stripped from the total.
+    expect(after.politics!.lobbyists!.every(l => !l.active)).toBe(true);
+    expect(after.politics!.policyInfluence).toBe(20);
   });
 
   it('a same-batch double tap cannot stamp a second, wrongly-titled record', () => {

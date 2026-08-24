@@ -4,6 +4,47 @@
 
 ## Patterns to Watch For
 
+### 2026-08-24 — Weekly audit: a re-checked updater must re-check EVERY designed gate, and the newest exit path inherits none of the old ones' cleanup
+
+Two v47 Political Life defects, both a direct continuation of the classes PR
+#158 closed the week before. The static audit was clean; both were found by the
+qualitative pass.
+
+- **A `setGameState` updater that re-checks `prev` for SOME gates but not all is
+  still a §4.4 gate→grant hole.** `runForOffice`'s win/loss updaters re-checked
+  money and `lastElectionAttemptWeek` against `prev` (added by earlier R-audits)
+  but not the v47 conflict-of-interest bar, which was only enforced against the
+  render snapshot at the top of the function. So a same-batch "take Lobbyist →
+  run for office" slipped through: the appointment updater flushed first, and the
+  election updater never re-read the bar — leaving the player holding a
+  ballot-barred post AND sitting in office, both salaries streaming. Rule: when a
+  new designed constraint is added to an action, the in-updater re-check list has
+  to grow with it. Grep the updater for every gate the outer guard enforces and
+  confirm each is re-checked against `prev`.
+- **Every office-exit path must run the shared exit-settlement helper — the
+  newest one is the one that won't.** `applyOfficeExit` (resolve active scandals,
+  deactivate lobbyists, strip their influence) was wired into voted-out and
+  scandal forced-resignation but NOT into `resolveRetirement`, the third exit
+  path. Because the tick early-returns for citizens, a scandal live at retirement
+  froze `active` forever and lobbyists kept their retainer + contact card for the
+  rest of the life — the exact BBQ report `applyOfficeExit` was written to fix,
+  reappearing through the one door the fix was never fitted to. Rule: when a
+  helper settles state on a transition, count the transition's entry points and
+  prove each one calls it. A test per path, not per helper.
+- **Prove a new "same-batch bypass" test actually reaches the updater.** The
+  first draft of the gate→grant regression test passed against the UNFIXED code —
+  a false green — because `runForOffice` bailed at an outer gate (minAge 25, then
+  the Business-Degree requirement) before ever dispatching the win updater, so
+  `careerLevel` stayed 0 trivially. Assert the action returns `success` (or the
+  updater count you expect) so the test fails loudly if the outer gates reject,
+  and always run the new test with the fix reverted to confirm it goes red for the
+  right reason.
+- **Before writing a "no test covers this" hardening item, grep for the test.**
+  The save round-trip for the five v47 `politics` carve-out fields was reported as
+  a gap; `__tests__/save/carveOutRoundTrip.test.ts` already pins all five
+  (lines 277-317). The parametrized suite that walks every §7 carve-out is the
+  first place to look before adding a bespoke one.
+
 ### 2026-08-23 - A bare `@everyone` in a JSDoc description silently deletes half a typedef
 
 Writing the Discord server config as JSDoc-typed `.mjs`, `ChannelSpec` carried:

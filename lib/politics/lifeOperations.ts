@@ -34,6 +34,7 @@ import { findParty, switchParty, type PartyId } from './parties';
 import { appointmentBlocker, findAppointment } from './appointments';
 import { planSkim, readEmbezzlement } from './embezzlement';
 import { buildRetirement, retirementBlocker } from './retirement';
+import { applyOfficeExit } from './operations';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 
 /** What every resolver returns. */
@@ -324,12 +325,21 @@ export function resolveRetirement(state: GameState): PoliticalOutcome {
       c && c.id === 'political' ? { ...c, accepted: false, applied: false, level: 0 } : c
     ),
     currentJob: state.currentJob === 'political' ? undefined : state.currentJob,
-    politics: {
+    // Retirement is the THIRD office-exit path. The other two (voted-out in
+    // weeklyTick, scandal forced-resignation in GameActionsContext) run
+    // `applyOfficeExit` to settle what belonged to the office; this one did
+    // not, so a player who retired while a scandal was live left it frozen
+    // `active: true` forever (the tick early-returns to `tickOutOfOffice` once
+    // careerLevel is 0 and never processes it again) and kept every hired
+    // lobbyist active — the exact BBQ report class `applyOfficeExit` was
+    // written to fix. It is idempotent (voted-out already ran it), so wiring it
+    // here is safe.
+    politics: applyOfficeExit({
       ...politics,
       careerLevel: 0,
       nextElectionWeek: undefined,
       retirement: record,
-    },
+    }),
   };
 
   const years = Math.round(weeks / WEEKS_PER_YEAR);

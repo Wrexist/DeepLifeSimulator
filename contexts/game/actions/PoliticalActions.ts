@@ -27,7 +27,7 @@ import {
   pacSpend,
 } from '@/lib/politics/operations';
 import { SEVERITY_PARAMS } from '@/lib/politics/scandals';
-import { appointmentBlocker, findAppointment, POLITICAL_APPOINTMENTS } from '@/lib/politics/appointments';
+import { appointmentBarsOffice, appointmentBlocker, findAppointment, POLITICAL_APPOINTMENTS } from '@/lib/politics/appointments';
 import { hasPartyMachine, policySupportDelta, readPartySupport } from '@/lib/politics/parties';
 import {
   highestOfficeHeld,
@@ -426,6 +426,15 @@ export const runForOffice = (
     setGameState(prev => {
       if ((prev.stats?.money ?? 0) < campaignCost) return prev;
       if (prev.politics?.lastElectionAttemptWeek === currentWeek) return prev;
+      // Re-check the conflict-of-interest bar against `prev`, not just the outer
+      // render snapshot. A same-batch "take Lobbyist/Federal Judge/board seat →
+      // run for office" would otherwise slip through: the outer check read the
+      // pre-batch state (no appointment), and this updater previously only
+      // re-checked money + attempt-week — so the appointment updater could set
+      // the barring post first and the win still landed, leaving the player
+      // holding a ballot-barred post AND sitting in office (both salaries
+      // streaming, §4.4 gate→grant). Refuse if the bar is set in `prev`.
+      if (appointmentBarsOffice(prev.politics?.appointment?.id)) return prev;
       return {
       ...prev,
       stats: {
@@ -515,6 +524,9 @@ export const runForOffice = (
     setGameState(prev => {
       if ((prev.stats?.money ?? 0) < campaignCost) return prev;
       if (prev.politics?.lastElectionAttemptWeek === currentWeek) return prev;
+      // Same conflict-of-interest re-check as the win branch, so a barred
+      // same-batch run is not even charged the campaign cost on a rolled loss.
+      if (appointmentBarsOffice(prev.politics?.appointment?.id)) return prev;
       return {
       ...prev,
       stats: {
