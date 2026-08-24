@@ -30,6 +30,7 @@ import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { applyEventStatDeltas } from '@/lib/events/statEffects';
 import { rollWeeklyLuckSeed } from '@/lib/economy/luckyBonus';
+import { longevityPivot } from '@/lib/statistics/lifeExpectancy';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
 import { GameState, GameStats, Relationship, Disease } from './types';
@@ -1469,11 +1470,17 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
 
 
- // Natural death from old age — escalating per-week chance after 80,
- // capped near-certain by 120. Immortality gold-upgrade or perk
- // skips the roll entirely (the IAP advertises "Never die of old
- // age" and now actually delivers on it).
- if (!deathTriggered && nextAge >= 80) {
+ // Natural death from old age — escalating per-week chance past the
+ // LONGEVITY PIVOT, capped near-certain ~40 years past it. The pivot
+ // (72-92) is derived from the life-expectancy model the Statistics app
+ // has always shown — display-only until the 2026-08-24 balance pass, so
+ // a player at 1 health lived exactly as long as one at 100. Health,
+ // happiness and fitness now buy (or cost) real years; the quadratic
+ // slope is unchanged, so pivot+N carries exactly the odds 80+N used to.
+ // Immortality gold-upgrade or perk skips the roll entirely (the IAP
+ // advertises "Never die of old age" and now actually delivers on it).
+ const longevityPivotAge = longevityPivot({ ...prevState, stats: newStats });
+ if (!deathTriggered && nextAge >= longevityPivotAge) {
  // R3-P1: the comment above says "gold-upgrade OR perk", and the 50,000-point
  // prestige bonus ("Never die from old age", the most expensive item in the
  // shop) was the perk half — but this read only the gold upgrade.
@@ -1482,11 +1489,12 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // HelpModal tells the player twice that the PRESTIGE bonus grants this.
  const isImmortal =!!prevState.goldUpgrades?.immortality || hasImmortality(unlockedBonuses);
  if (!isImmortal) {
- const yearsPast80 = nextAge - 80;
- // Quadratic ramp: ~6% annual at 90, ~24% at 100, ~95% at 120.
+ const yearsPastPivot = nextAge - longevityPivotAge;
+ // Quadratic ramp (same slope as the old fixed-80 ramp): ~6% annual at
+ // pivot+10, ~24% at pivot+20, ~95% at pivot+40.
  // Life Skills: Vitality (slow aging) scales the annual death chance down
  // (agingMult ≤ 1, clamped). Never raises it; never fully immortalizes.
- const annualChance = Math.min(0.95, Math.pow(yearsPast80 / 40, 2) * 0.95) * lifeSkillMods.agingMult;
+ const annualChance = Math.min(0.95, Math.pow(yearsPastPivot / 40, 2) * 0.95) * lifeSkillMods.agingMult;
  const weeklyChance = 1 - Math.pow(1 - annualChance, 1 / WEEKS_PER_YEAR);
  if (oldAgeDeathRoll < weeklyChance) {
  newShowDeathPopup = true;
@@ -1834,7 +1842,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // dying generators return null and are dequeued exactly as before.
  const sequel = generateEventById(pending.eventId, prevState);
  if (sequel) {
- dueFollowUps.push({ ...sequel, generatedAtWeeksLived: nextWeeksLived });
+ // Carry the source event's relationship binding (2026-08-24), so a
+ // sequel's relationship effects hit the friend the story is about
+ // rather than the spouse/highest fallback.
+ dueFollowUps.push({
+ ...sequel,
+ ...(pending.relationId && !sequel.relationId ? { relationId: pending.relationId } : {}),
+ generatedAtWeeksLived: nextWeeksLived,
+ });
  }
  } else if (pending && pending.triggerWeek > nextWeeksLived) {
  stillPending.push(pending);
@@ -3134,6 +3149,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // These counters track how many times each job/activity was done THIS week
  weeklyStreetJobs: {}, // Always reset when advancing week
  weeklyJailActivities: {}, // Always reset when advancing week
+ weeklyFoodPurchases: 0, // Food satiety re-arms with the week (v48)
  weeklyStudySessions: {}, // Always reset when advancing week
  weeklyPursuitPractice: {}, // Hobby mastery: reset weekly practice caps
  // Decrease jail time by 1 week when advancing, or add police encounter jail time
@@ -4093,7 +4109,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  // zero consumers — until the 2026-08-24 gameplay pass; this is the
  // producer half, and the weekly delivery block now resolves ids against
  // the whole template pool, not just FOLLOW_UP_EVENTS.
- const declaredSequel = followUpFromChoice(eventId, choice, prevState.weeksLived || 0);
+ const declaredSequel = followUpFromChoice(eventId, choice, prevState.weeksLived || 0, event.relationId);
  if (declaredSequel) {
  updatedPendingChainedEvents = [...(updatedPendingChainedEvents || []), declaredSequel];
  logger.info('Declared sequel queued:', { eventId: declaredSequel.eventId, triggerWeek: declaredSequel.triggerWeek });

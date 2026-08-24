@@ -6,7 +6,7 @@ import { INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 // header each carried their own identical copy of the thresholds.
 import { getLifeStage } from '@/lib/config/gameConstants';
 
-export const STATE_VERSION = 47;
+export const STATE_VERSION = 48;
 
 export const initialGameState: GameState = {
   version: STATE_VERSION,

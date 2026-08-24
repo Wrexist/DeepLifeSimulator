@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useCallback, ReactNode, useRef, useMemo } from 'react';
 import * as ItemActions from './actions/ItemActions';
-import * as StatsActions from './actions/StatsActions';
 import { updateMoney as updateMoneyModule } from './actions/MoneyActions';
 import { logger } from '@/utils/logger';
 import { useSetGameState, useGameStateGetter } from './useGameSelector';
@@ -13,8 +12,21 @@ import { trackMoneySpent, getDefaultStatistics } from '@/lib/statistics/statisti
 import { applyChronicCare, DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS } from '@/lib/diseases/chronicCare';
 import { haptic } from '@/utils/haptics';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
-import { getInflatedPrice } from '@/lib/economy/inflation';
+import { satietyHint } from '@/lib/economy/foodSatiety';
+import { resolveFoodPurchase } from '@/lib/economy/foodPurchase';
 import { getCommitmentModifiers } from '@/lib/commitments/commitmentSystem';
+
+/**
+ * What a food purchase actually did — the market toast reads THIS rather than
+ * the catalogue values, so the satiety curve (v48) can never make the toast
+ * advertise a restore the charge did not apply.
+ */
+export interface FoodPurchaseResult {
+  success: boolean;
+  applied?: { health: number; energy: number; happiness: number };
+  /** Player-facing satiety state after this meal, or null at full strength. */
+  hint?: string | null;
+}
 
 interface ItemActionsContextType {
   // Items & Purchases
@@ -23,7 +35,7 @@ interface ItemActionsContextType {
   buyDarkWebItem: (itemId: string) => void;
   buyHack: (hackId: string) => void;
   performHack: (hackId: string) => HackResult;
-  buyFood: (foodId: string) => void;
+  buyFood: (foodId: string) => FoodPurchaseResult;
   performHealthActivity: (activityId: string) => { message: string } | void;
   dismissSicknessModal: () => void;
   dismissCureSuccessModal: () => void;
@@ -252,61 +264,37 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
     return { success: true, caught: false, reward: cashReward, btcReward, risk: effectiveRisk };
   }, [setGameState, showError]);
 
-  const buyFood = useCallback((foodId: string) => {
+  /**
+   * Buy a meal. F5 (inflated price at label, gate AND charge), SATIETY (v48 —
+   * meals 1-3 full strength, 4-6 half, 7+ quarter, closing the uncapped
+   * ~$1.60/point money->energy conversion) and the §4.4 atomicity all live in
+   * ONE pure resolution, `resolveFoodPurchase` (lib/economy/foodPurchase.ts),
+   * called on the snapshot for the preview the toast reports and again inside
+   * the updater for the state that commits — the C-9 SOUND shape (the
+   * `purchaseLifeSkill` exemplar), so no cross-updater capture exists and a
+   * same-batch double tap is simply two meals, each gated and scaled against
+   * the state it actually lands on.
+   */
+  const buyFood = useCallback((foodId: string): FoodPurchaseResult => {
     const state = getGameState();
-    if (!state) return;
+    if (!state) return { success: false };
 
-    const food = state.foods?.find(f => f.id === foodId);
-    if (!food) {
-      logger.error('Food not found:', foodId);
-      return;
+    const preview = resolveFoodPurchase(state, foodId);
+    if (!preview.ok) {
+      logger.warn('Food purchase refused:', { foodId, reason: preview.reason });
+      return { success: false };
     }
 
-    /**
-     * F5. Food was the only purchasable in the app charged at its RAW price.
-     *
-     * `market.tsx` showed `${food.price}` raw and this charged raw — but the
-     * button's disabled state ran through `canAfford`, which applies
-     * `getInflatedPrice`. So all three disagreed, and the player-visible
-     * symptom was a greyed-out button on food they could plainly afford at the
-     * price printed beside it.
-     *
-     * Resolved by inflating, not by dropping the gate: every other item on that
-     * same screen is inflated at display, gate and charge, and `JailScreen`
-     * already inflates food explicitly. Leaving food alone was also an economy
-     * hole that widens for the whole game — inflation compounds at up to 50%
-     * annually, so food was drifting towards free in real terms.
-     *
-     * This does raise what food costs, in step with everything else.
-     */
-    const price = getInflatedPrice(food.price, state.economy?.priceIndex ?? 1);
-
-    if (state.stats.money < price) {
-      logger.error('Insufficient funds for food purchase:', { needed: price, have: state.stats.money });
-      return;
-    }
-
-    // Calculate happiness restore (healthRestore / 2, minimum 1)
-    const happinessRestore = Math.max(1, Math.round(food.healthRestore / 2));
-
-    // `updateMoney` re-checks affordability against `prev` and rejects an
-    // overdraw outright, so the stale read above is a fast path, not the gate.
-    updateMoney(-price, `Food purchase: ${food.name}`);
-    StatsActions.updateStats(setGameState, {
-      health: food.healthRestore,
-      energy: food.energyRestore,
-      happiness: happinessRestore,
-    });
+    setGameState(prev => resolveFoodPurchase(prev, foodId).next);
 
     logger.info('Food purchase completed:', {
       foodId,
-      name: food.name,
-      price,
-      healthGain: food.healthRestore,
-      energyGain: food.energyRestore,
-      happinessGain: happinessRestore
+      price: preview.price,
+      applied: preview.applied,
+      purchasesThisWeek: preview.purchasesAfter,
     });
-  }, [updateMoney, setGameState]);
+    return { success: true, applied: preview.applied, hint: satietyHint(preview.purchasesAfter) };
+  }, [setGameState, getGameState]);
 
   const performHealthActivity = useCallback((activityId: string) => {
     const state = getGameState();

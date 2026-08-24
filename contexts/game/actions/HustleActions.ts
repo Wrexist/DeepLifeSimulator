@@ -46,6 +46,17 @@ const log = logger.scope('HustleActions');
 
 const NOTIFICATION_CAP = 80;
 
+/**
+ * Energy costs on the two active management verbs (2026-08-24). Business
+ * management used to be the only active money path with zero energy cost, so
+ * it never competed with anything else the player wanted to do that week.
+ * These are the lightweight slice of a time budget: campaigns and interviews
+ * now draw on the same +40/week energy pool as street jobs, study and dates.
+ * Exported so the Hustle UI quotes the same numbers the charge applies.
+ */
+export const CAMPAIGN_ENERGY_COST = 8;
+export const HIRE_ENERGY_COST = 5;
+
 // ── Internal helpers ─────────────────────────────────────────────────────
 
 // P1-14: apply a reputation delta INSIDE an atomic updater — mirrors updateStats'
@@ -262,6 +273,12 @@ export const hireCandidate = (
     return { success: false, message: `Insufficient cash for $${offeredBonus} sign-on bonus`, accepted: false };
   }
 
+  // Interviewing costs effort whether or not they say yes (2026-08-24) — the
+  // lightweight time-budget slice; see launchCampaign's note.
+  if ((gameState.stats?.energy ?? 0) < HIRE_ENERGY_COST) {
+    return { success: false, message: `Too tired to run an interview (needs ${HIRE_ENERGY_COST} energy)`, accepted: false };
+  }
+
   const reputation = gameState.stats?.reputation ?? 0;
   const score = evaluateOffer(candidate, offeredSalary, offeredBonus, reputation);
 
@@ -284,6 +301,13 @@ export const hireCandidate = (
     const freshPipeline = prev.hustleApp?.companies?.[companyId]?.hiringPipeline;
     const freshCandidate = freshPipeline?.candidates.some((c) => c.id === candidateId);
     if (!freshCandidate) return prev;
+    // Energy re-checked against prev like the money — no exhausted interview.
+    if ((prev.stats?.energy ?? 0) < HIRE_ENERGY_COST) return prev;
+    // The interview's energy cost, applied to whichever outcome commits below.
+    const drainOfferEnergy = (s: GameState): GameState => ({
+      ...s,
+      stats: { ...s.stats, energy: Math.max(0, (s.stats.energy ?? 0) - HIRE_ENERGY_COST) },
+    });
     // Idempotent per candidate id: if this candidate is already on the roster,
     // never hire (or charge / bump headcount for) them a second time. Closes the
     // hire → Refresh → hire-same-person duplicate-hire vector at the write side.
@@ -345,9 +369,9 @@ export const hireCandidate = (
     if (accepted && offeredBonus > 0) {
       const spend = applyMoneyDelta(next, -offeredBonus, `Hustle sign-on bonus: ${candidate.name}`);
       if (!spend) return prev; // unaffordable → abort the hire entirely (no free hire)
-      return { ...next, ...spend };
+      return drainOfferEnergy({ ...next, ...spend });
     }
-    return next;
+    return drainOfferEnergy(next);
   });
 
   log.info(`Offer to ${candidate.name}: score=${score}, accepted=${accepted}`);
@@ -435,6 +459,13 @@ export const launchCampaign = (
   if ((gameState.stats?.money ?? 0) < upfront) {
     return { success: false, message: 'Insufficient cash for first week of spend' };
   }
+  // Running a campaign is WORK (2026-08-24): the owner briefs creative, signs
+  // off spend, watches the numbers. Charging energy puts business management
+  // inside the same weekly budget street jobs, study and dates draw on —
+  // the lightweight slice of a time economy, without touching passive income.
+  if ((gameState.stats?.energy ?? 0) < CAMPAIGN_ENERGY_COST) {
+    return { success: false, message: `Too tired to run a campaign (needs ${CAMPAIGN_ENERGY_COST} energy)` };
+  }
 
   const weeksLived = gameState.weeksLived ?? 0;
   const projectedROI = projectCampaignROI(kind, spendPerWeek, company.weeklyIncome ?? 0);
@@ -470,7 +501,13 @@ export const launchCampaign = (
     // P0-2: charge the first-week spend IN THE SAME updater (atomic — no free campaign).
     const spend = applyMoneyDelta(next, -upfront, `${kind} campaign first-week spend`);
     if (!spend) return prev; // unaffordable → don't launch
-    return { ...next, ...spend };
+    // Energy re-checked against prev like the money — no exhausted launch.
+    if ((prev.stats?.energy ?? 0) < CAMPAIGN_ENERGY_COST) return prev;
+    const charged = { ...next, ...spend };
+    return {
+      ...charged,
+      stats: { ...charged.stats, energy: Math.max(0, (charged.stats.energy ?? 0) - CAMPAIGN_ENERGY_COST) },
+    };
   });
 
   return { success: true, message: 'Campaign launched', projectedROI };

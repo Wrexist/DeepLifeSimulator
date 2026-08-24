@@ -6,6 +6,7 @@ import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { listRentalOptions, rentHome, endRental } from '@/contexts/game/actions/RentalActions';
 import { getInflatedPrice } from '@/lib/economy/inflation';
+import { satietyHint } from '@/lib/economy/foodSatiety';
 import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
@@ -422,8 +423,17 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         <LoadingButton
           onPress={() => {
             if (canAfford(food.price)) {
-              buyFood(food.id);
-              showSuccess(`Ate ${food.name}! +${food.healthRestore} health, +${happinessRestore} happiness, +${food.energyRestore} energy`);
+              // The toast reports what the purchase ACTUALLY applied — the
+              // satiety curve (v48) scales restores down after the third meal
+              // of the week, and a toast quoting the catalogue values would be
+              // the advertised-vs-actual bug all over again.
+              const result = buyFood(food.id);
+              if (result.success && result.applied) {
+                showSuccess(
+                  `Ate ${food.name}! +${result.applied.health} health, +${result.applied.happiness} happiness, +${result.applied.energy} energy` +
+                    (result.hint ? ` — ${result.hint}` : '')
+                );
+              }
             } else {
               showInfo("Not enough money for this yet");
             }
@@ -659,6 +669,14 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark]}>
                 {t('market.buyFood')}
               </Text>
+              {/* Satiety state (v48) — shown BEFORE buying, so a reduced
+                  restore is never a surprise on the receipt. Absent at full
+                  strength, which is the normal state. */}
+              {!!satietyHint(gameState.weeklyFoodPurchases) && (
+                <Text style={[styles.sectionDescription, settings.darkMode && styles.sectionDescriptionDark, { fontStyle: 'italic' }]}>
+                  {satietyHint(gameState.weeklyFoodPurchases)}
+                </Text>
+              )}
               {sortedFoods.map((food) => renderFood({ item: food }))}
             </>
           ) : activeTab === 'housing' ? (

@@ -2713,6 +2713,13 @@ export interface GameState {
   criminalXp: number;
   weeklyJailActivities?: Record<string, number>;
   weeklyStreetJobs?: Record<string, number>; // Track how many times each street job was done this week
+  /**
+   * Meals bought THIS game week — the food-satiety counter (v48 carve-out).
+   * Feeds the diminishing-returns curve in `lib/economy/foodSatiety.ts` (full
+   * strength x3, half x3, quarter after) that closed the uncapped money->energy
+   * conversion. Absent means 0; reset beside `weeklyStreetJobs` in the tick.
+   */
+  weeklyFoodPurchases?: number;
   // ANTI-EXPLOIT: study sessions completed per education this week. studyExtra
   // shaves a full week off a degree per call; without a per-week cap a player
   // could spam-study to complete a multi-year, tuition-gated degree instantly.
@@ -3780,6 +3787,14 @@ export interface PendingChainedEvent {
   eventId: string;
   triggerWeek: number;
   sourceEventId: string;
+  /**
+   * The relationship the SOURCE event was about (2026-08-24). Stamped onto
+   * the delivered sequel so its `relationship` effects land on the actual
+   * friend who borrowed the money, instead of falling back to the
+   * spouse/highest-scored relationship. Optional appended data — entries
+   * queued before this simply lack it and keep the fallback behavior.
+   */
+  relationId?: string;
 }
 
 // ============================================

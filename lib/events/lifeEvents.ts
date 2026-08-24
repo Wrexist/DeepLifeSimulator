@@ -28,7 +28,10 @@ export const DEFAULT_FOLLOW_UP_DELAY_WEEKS = 3;
 export function followUpFromChoice(
   sourceEventId: string,
   choice: Pick<EventChoice, 'followUpEventId' | 'followUpDelayWeeks'> | undefined | null,
-  currentWeek: number
+  currentWeek: number,
+  /** The source event's bound relationship, carried so the sequel's
+   *  relationship effects hit the same person. */
+  relationId?: string
 ): PendingChainedEvent | null {
   const targetId = choice?.followUpEventId;
   if (typeof targetId !== 'string' || targetId.length === 0) return null;
@@ -42,6 +45,7 @@ export function followUpFromChoice(
     eventId: targetId,
     triggerWeek: (currentWeek || 0) + delay,
     sourceEventId,
+    ...(typeof relationId === 'string' && relationId ? { relationId } : {}),
   };
 }
 

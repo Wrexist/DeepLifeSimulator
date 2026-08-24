@@ -47,11 +47,17 @@ describe('F5 — food is priced like everything else', () => {
   });
 
   it('the charge is inflated, not raw', () => {
-    const src = read('contexts/game/ItemActionsContext.tsx');
+    // v48 moved the whole purchase into the pure resolver
+    // (lib/economy/foodPurchase.ts — the C-9 sound shape); what F5 asserts is
+    // unchanged: the deducted amount is the inflated `price`, never the raw
+    // catalogue figure, and the action charges through that one resolver.
+    const resolver = read('lib/economy/foodPurchase.ts');
+    expect(resolver).toMatch(/const price = getInflatedPrice\(food\.price, state\.economy\?\.priceIndex \?\? 1\)/);
+    expect(resolver).toMatch(/money: \(state\.stats\.money \?\? 0\) - price/);
+    expect(resolver).not.toMatch(/- food\.price\b/);
 
-    expect(src).toMatch(/const price = getInflatedPrice\(food\.price, state\.economy\?\.priceIndex \?\? 1\)/);
-    expect(src).toMatch(/updateMoney\(-price, `Food purchase/);
-    expect(src).not.toMatch(/updateMoney\(-food\.price/);
+    const action = read('contexts/game/ItemActionsContext.tsx');
+    expect(action).toMatch(/setGameState\(prev => resolveFoodPurchase\(prev, foodId\)\.next\)/);
   });
 
   it('the displayed price is inflated too', () => {

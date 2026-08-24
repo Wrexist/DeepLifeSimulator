@@ -128,6 +128,65 @@ describe('the first two shipped sequels', () => {
   });
 });
 
+describe('the sequel pack (2026-08-24)', () => {
+  /** Every declared sequel in the whole pool, discovered by generating. */
+  const declaredSequels = (): Map<string, string> => {
+    const state = createTestGameState({
+      weeksLived: 80,
+      lifeStartWeek: 0,
+      relationships: [
+        { id: 'f1', name: 'Alex', type: 'friend', relationshipScore: 50, personality: '', gender: 'male', age: 28 },
+        { id: 'p1', name: 'Sam', type: 'partner', relationshipScore: 80, personality: '', gender: 'female', age: 27 },
+      ] as never,
+      family: {
+        ...createTestGameState().family,
+        children: [{ id: 'c1', name: 'Kit', age: 9 } as never],
+      },
+      currentJob: 'engineer',
+      careers: [{ id: 'engineer', levels: [{ name: 'Junior', salary: 100 }], level: 0, description: '', requirements: {}, progress: 0, applied: true, accepted: true }] as never,
+      pets: [],
+    });
+    const found = new Map<string, string>();
+    for (const template of eventTemplates) {
+      try {
+        const event = template.generate(state);
+        for (const choice of event.choices ?? []) {
+          if (choice.followUpEventId) found.set(`${event.id}:${choice.id}`, choice.followUpEventId);
+        }
+      } catch {
+        // generator needing richer state — the count assertion keeps this honest
+      }
+    }
+    return found;
+  };
+
+  it('COMPLETENESS RATCHET: every declared sequel id resolves somewhere', () => {
+    const sequels = declaredSequels();
+    expect(sequels.size).toBeGreaterThanOrEqual(11); // 2 original + 9 pack
+    const missing = [...sequels.entries()].filter(
+      ([, id]) =>
+        !eventTemplates.some((t) => t.id === id) &&
+        !(id in FOLLOW_UP_EVENTS)
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('every sequel-only target is weight 0 (never fires at random)', () => {
+    const sequels = declaredSequels();
+    for (const id of new Set(sequels.values())) {
+      const template = eventTemplates.find((t) => t.id === id);
+      if (template) expect({ id, weight: template.weight }).toEqual({ id, weight: 0 });
+    }
+  });
+
+  it('carries the source relationId so sequel effects hit the right person', () => {
+    const pending = followUpFromChoice('friend_help', { followUpEventId: 'friend_repays' }, 100, 'f1');
+    expect(pending?.relationId).toBe('f1');
+    // And absent stays absent — pre-existing queue entries keep the fallback.
+    expect(followUpFromChoice('x', { followUpEventId: 'y' }, 100)?.relationId).toBeUndefined();
+  });
+});
+
 describe('oncePerLife — narrative one-shots cannot repeat', () => {
   it('is inert for untagged templates and for an empty log', () => {
     expect(oncePerLifeSpent({ id: 'job_bonus' }, [{ id: 'job_bonus' } as never])).toBe(false);

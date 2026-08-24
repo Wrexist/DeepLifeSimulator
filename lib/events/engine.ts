@@ -265,7 +265,7 @@ const lotteryWin: EventTemplate = {
     description: 'You win $200 in a local lottery!',
     choices: [
       { id: 'save', text: 'Save the money', effects: { money: 200 } },
-      { id: 'spend', text: 'Throw a party', effects: { money: 100, stats: { happiness: 15 } } },
+      { id: 'spend', text: 'Throw a party', effects: { money: 100, stats: { happiness: 15 } }, followUpEventId: 'party_aftermath', followUpDelayWeeks: 3 },
     ],
   }),
 };
@@ -332,7 +332,7 @@ const friendNeedsHelp: EventTemplate = {
         // in ~6 weeks (friend_repays, a sequel-only template below). First
         // production use of the declarative `followUpEventId` API.
         { id: 'lend', text: 'Lend the money', effects: { money: -50, relationship: 10, stats: { happiness: 5 }, karma: { dimension: 'generosity', amount: 4, reason: 'Helped a friend in need' } }, followUpEventId: 'friend_repays', followUpDelayWeeks: 6 },
-        { id: 'refuse', text: 'Refuse', effects: { relationship: -10, stats: { happiness: -5 }, karma: { dimension: 'generosity', amount: -3, reason: 'Refused to help a friend' } } },
+        { id: 'refuse', text: 'Refuse', effects: { relationship: -10, stats: { happiness: -5 }, karma: { dimension: 'generosity', amount: -3, reason: 'Refused to help a friend' } }, followUpEventId: 'friend_managed_alone', followUpDelayWeeks: 5 },
       ],
     };
   },
@@ -386,10 +386,172 @@ const weddingEvent: EventTemplate = {
         // Marrying earns its afterglow — a honeymoon callback two weeks on
         // (sequel-only template below, via the declarative followUpEventId API).
         { id: 'marry', text: 'Plan wedding ($2000)', effects: { money: -2000, relationship: 20, stats: { happiness: 15 } }, followUpEventId: 'honeymoon_glow', followUpDelayWeeks: 2 },
-        { id: 'wait', text: 'Wait for now', effects: { relationship: -10, stats: { happiness: -5 } } },
+        { id: 'wait', text: 'Wait for now', effects: { relationship: -10, stats: { happiness: -5 } }, followUpEventId: 'partner_cools', followUpDelayWeeks: 4 },
       ],
     };
   },
+};
+
+// ── The sequel pack (2026-08-24) ────────────────────────────────────────────
+// Nine follow-ups on high-frequency events, all through the declarative
+// `followUpEventId` API and all weight 0 (sequel-only, never random). Mixed
+// tones on purpose — a repaid favor, a bill coming due, a relationship
+// cooling — because §15's point is anticipation, not reward drip. Seeded
+// outcomes where uncertainty reads better than certainty.
+
+// Sequel to gym_invite "join" (+4wk): one session becomes a habit — if you
+// commit to it.
+const trainingBuddy: EventTemplate = {
+  id: 'training_buddy',
+  category: 'health',
+  weight: 0,
+  generate: () => ({
+    id: 'training_buddy',
+    description: 'Your gym session stuck. Your friend wants to make it a weekly thing — same time, every week, no excuses.',
+    choices: [
+      { id: 'commit', text: 'Commit to weekly sessions', effects: { money: -40, stats: { fitness: 10, health: 5, energy: -8 }, relationship: 8 } },
+      { id: 'sometimes', text: '"When I can make it"', effects: { stats: { fitness: 3 }, relationship: 2 } },
+    ],
+  }),
+};
+
+// Sequel to charity_event "donate" (+5wk): generosity gets noticed — the
+// choice is whether you wanted it to be.
+const charityRecognition: EventTemplate = {
+  id: 'charity_recognition',
+  category: 'general',
+  weight: 0,
+  generate: () => ({
+    id: 'charity_recognition',
+    description: 'The charity you gave to wants to feature you in their donor spotlight — photo, name, the works.',
+    choices: [
+      { id: 'spotlight', text: 'Accept the spotlight', effects: { stats: { reputation: 8, happiness: 4 } } },
+      { id: 'anonymous', text: 'Ask to stay anonymous', effects: { stats: { happiness: 6 }, karma: { dimension: 'generosity', amount: 4, reason: 'Gave without wanting credit' } } },
+    ],
+  }),
+};
+
+// Sequel to mentor_offer "accept" (+4wk): a mentor is not a cheerleader.
+const mentorsTest: EventTemplate = {
+  id: 'mentors_test',
+  category: 'general',
+  weight: 0,
+  generate: () => ({
+    id: 'mentors_test',
+    description: 'Your mentor hands you a project nobody else wants: "Show me what you do with the boring, hard thing."',
+    choices: [
+      { id: 'grind', text: 'Do it properly, however long it takes', effects: { stats: { energy: -15, reputation: 10, happiness: 3 } } },
+      { id: 'shortcut', text: 'Do the visible half and polish it', effects: { stats: { energy: -5, reputation: 3 }, karma: { dimension: 'honesty', amount: -2, reason: 'Polished over the hard half' } } },
+    ],
+  }),
+};
+
+// Sequel to school_fees "pay" (+6wk): the fees bought something.
+const reportCard: EventTemplate = {
+  id: 'report_card',
+  category: 'relationship',
+  weight: 0,
+  generate: state => {
+    const roll = payloadRoll(state, 'report_card');
+    const thriving = roll('grade') < 0.7;
+    return {
+      id: 'report_card',
+      description: thriving
+        ? 'A report card lands on the table, pushed proudly across it. The term you paid for went well — very well.'
+        : 'A report card arrives, and the term was rough. The teacher\'s note asks for a meeting.',
+      choices: thriving
+        ? [
+            { id: 'celebrate', text: 'Celebrate with a treat', effects: { money: -30, relationship: 8, stats: { happiness: 8 } } },
+            { id: 'praise', text: 'Frame the praise, skip the sugar', effects: { relationship: 6, stats: { happiness: 5 } } },
+          ]
+        : [
+            { id: 'meeting', text: 'Take the meeting, make a plan', effects: { stats: { energy: -8, happiness: -2 }, relationship: 8 } },
+            { id: 'later', text: '"We\'ll sort it next term"', effects: { relationship: -6, stats: { happiness: -3 } } },
+          ],
+    };
+  },
+};
+
+// Sequel to car_breakdown "fix" (+3wk): the $20 patch was a loan, not a repair.
+const diyFixFails: EventTemplate = {
+  id: 'diy_fix_fails',
+  category: 'economy',
+  weight: 0,
+  generate: () => ({
+    id: 'diy_fix_fails',
+    description: 'The rattle is back, and it brought friends. Your roadside fix is coming apart at the worst possible spot.',
+    choices: [
+      { id: 'garage', text: 'Pay a garage to do it right ($150)', effects: { money: -150, stats: { happiness: 3 } } },
+      { id: 'limp_on', text: 'Keep nursing it along', effects: { stats: { happiness: -6, energy: -5 } } },
+    ],
+  }),
+};
+
+// Sequel to lottery_win "spend" (+3wk): the party had an afterlife.
+const partyAftermath: EventTemplate = {
+  id: 'party_aftermath',
+  category: 'relationship',
+  weight: 0,
+  generate: () => ({
+    id: 'party_aftermath',
+    description: 'Someone from your lottery party posts the photos. Half the neighborhood now thinks you throw the best nights in town.',
+    choices: [
+      { id: 'lean_in', text: 'Lean into the reputation', effects: { stats: { reputation: 6, happiness: 6 } } },
+      { id: 'shrug', text: '"It was one party"', effects: { stats: { happiness: 3 } } },
+    ],
+  }),
+};
+
+// Sequel to wedding "wait" (+4wk): "not yet" is an answer, and they heard it.
+const partnerCools: EventTemplate = {
+  id: 'partner_cools',
+  category: 'relationship',
+  weight: 0,
+  generate: state => {
+    const partner = state.relationships?.find(r => r.type === 'partner' || r.type === 'spouse');
+    const name = partner?.name ?? 'Your partner';
+    return {
+      id: 'partner_cools',
+      relationId: partner?.id,
+      description: `${name} has been quieter since the wedding talk stalled. Not angry — just further away.`,
+      choices: [
+        { id: 'date_night', text: 'Plan a proper night out ($200)', effects: { money: -200, relationship: 10, stats: { happiness: 6 } } },
+        { id: 'talk', text: 'Talk honestly about the timing', effects: { relationship: 5, stats: { happiness: 2 } } },
+        { id: 'let_drift', text: 'Give it space', effects: { relationship: -8, stats: { happiness: -4 } } },
+      ],
+    };
+  },
+};
+
+// Sequel to friend_help "refuse" (+5wk): they managed without you, and both of
+// you know it.
+const friendManagedAlone: EventTemplate = {
+  id: 'friend_managed_alone',
+  category: 'relationship',
+  weight: 0,
+  generate: () => ({
+    id: 'friend_managed_alone',
+    description: 'The friend you turned down found the money elsewhere. They\'re fine now — and a shade cooler with you than before.',
+    choices: [
+      { id: 'apologize', text: 'Own it and apologize', effects: { relationship: 8, stats: { happiness: -2 }, karma: { dimension: 'loyalty', amount: 3, reason: 'Owned a refusal' } } },
+      { id: 'move_on', text: 'Let it stay unspoken', effects: { relationship: -4 } },
+    ],
+  }),
+};
+
+// Sequel to street_festival "attend" (+2wk): a good day resurfaces.
+const festivalPhoto: EventTemplate = {
+  id: 'festival_photo',
+  category: 'general',
+  weight: 0,
+  generate: () => ({
+    id: 'festival_photo',
+    description: 'A photographer\'s shot from the street festival is making the rounds — and you\'re right in the middle of it, mid-laugh.',
+    choices: [
+      { id: 'print', text: 'Order a print for the wall ($20)', effects: { money: -20, stats: { happiness: 9 } } },
+      { id: 'save', text: 'Save it to your phone', effects: { stats: { happiness: 6 } } },
+    ],
+  }),
 };
 
 // Sequel to wedding's "marry" (weight 0 — arrives only as a follow-up). The
@@ -429,7 +591,7 @@ const schoolFees: EventTemplate = {
       description: `${child.name}'s school fees of $100 are due.`,
       relationId: child.id,
       choices: [
-        { id: 'pay', text: 'Pay fees', effects: { money: -100, relationship: 5, stats: { happiness: 5 } } },
+        { id: 'pay', text: 'Pay fees', effects: { money: -100, relationship: 5, stats: { happiness: 5 } }, followUpEventId: 'report_card', followUpDelayWeeks: 6 },
         { id: 'skip', text: 'Skip payment', effects: { relationship: -15, stats: { happiness: -5 } } },
       ],
     };
@@ -445,7 +607,7 @@ const carBreakdown: EventTemplate = {
     description: 'Your car breaks down on the way to work.',
     choices: [
       { id: 'repair', text: 'Pay $100 for repairs', effects: { money: -100, stats: { happiness: -5 } } },
-      { id: 'fix', text: 'Try to fix it yourself', effects: { money: -20, stats: { health: -5, happiness: 5 } } },
+      { id: 'fix', text: 'Try to fix it yourself', effects: { money: -20, stats: { health: -5, happiness: 5 } }, followUpEventId: 'diy_fix_fails', followUpDelayWeeks: 3 },
     ],
   }),
 };
@@ -472,7 +634,7 @@ const charityEvent: EventTemplate = {
     id: 'charity_event',
     description: 'A charity asks for a $30 donation.',
     choices: [
-      { id: 'donate', text: 'Donate', effects: { money: -30, stats: { reputation: 10, happiness: 5 }, karma: { dimension: 'generosity', amount: 5, reason: 'Donated to charity' } } },
+      { id: 'donate', text: 'Donate', effects: { money: -30, stats: { reputation: 10, happiness: 5 }, karma: { dimension: 'generosity', amount: 5, reason: 'Donated to charity' } }, followUpEventId: 'charity_recognition', followUpDelayWeeks: 5 },
       { id: 'decline', text: 'Decline', effects: { stats: { reputation: -5 }, karma: { dimension: 'generosity', amount: -2, reason: 'Declined a charity appeal' } } },
     ],
   }),
@@ -491,7 +653,7 @@ const gymInvitation: EventTemplate = {
       description: `${friend.name} invites you to join a gym session for $20.`,
       relationId: friend.id,
       choices: [
-        { id: 'join', text: 'Join the session', effects: { money: -20, stats: { health: 10, happiness: 5 }, relationship: 5 } },
+        { id: 'join', text: 'Join the session', effects: { money: -20, stats: { health: 10, happiness: 5 }, relationship: 5 }, followUpEventId: 'training_buddy', followUpDelayWeeks: 4 },
         { id: 'skip', text: 'Skip it', effects: { relationship: -5 } },
       ],
     };
@@ -506,7 +668,7 @@ const streetFestival: EventTemplate = {
     id: 'street_festival',
     description: 'A street festival is happening this weekend.',
     choices: [
-      { id: 'attend', text: 'Attend the festival', effects: { money: -20, stats: { happiness: 10 } } },
+      { id: 'attend', text: 'Attend the festival', effects: { money: -20, stats: { happiness: 10 } }, followUpEventId: 'festival_photo', followUpDelayWeeks: 2 },
       { id: 'skip', text: 'Skip it', effects: { stats: { happiness: -5 } } },
     ],
   }),
@@ -2177,7 +2339,7 @@ const mentorOffer: EventTemplate = {
     id: 'mentor_offer',
     description: 'A successful professional offers to mentor you in your career.',
     choices: [
-      { id: 'accept', text: 'Accept gratefully', effects: { stats: { reputation: 15, happiness: 10 } } },
+      { id: 'accept', text: 'Accept gratefully', effects: { stats: { reputation: 15, happiness: 10 } }, followUpEventId: 'mentors_test', followUpDelayWeeks: 4 },
       { id: 'decline', text: 'Politely decline', effects: {} },
     ],
   }),
@@ -2898,19 +3060,27 @@ export const eventTemplates: EventTemplate[] = [
   sickDay,
   unexpectedBill,
   lotteryWin,
+  partyAftermath, // weight 0 — sequel-only (lottery_win "spend")
   burglary,
   policeRaid,
   courtTrial,
   friendNeedsHelp,
   friendRepays, // weight 0 — sequel-only (friend_help "lend")
+  friendManagedAlone, // weight 0 — sequel-only (friend_help "refuse")
   weddingEvent,
   honeymoonGlow, // weight 0 — sequel-only (wedding "marry")
+  partnerCools, // weight 0 — sequel-only (wedding "wait")
   schoolFees,
+  reportCard, // weight 0 — sequel-only (school_fees "pay")
   carBreakdown,
+  diyFixFails, // weight 0 — sequel-only (car_breakdown "fix")
   foundWallet,
   charityEvent,
+  charityRecognition, // weight 0 — sequel-only (charity_event "donate")
   gymInvitation,
+  trainingBuddy, // weight 0 — sequel-only (gym_invite "join")
   streetFestival,
+  festivalPhoto, // weight 0 — sequel-only (street_festival "attend")
   fluShot,
   homeMaintenance,
   decorContest,
@@ -3027,6 +3197,7 @@ export const eventTemplates: EventTemplate[] = [
   phoneLost,
   sleepIssues,
   mentorOffer,
+  mentorsTest, // weight 0 — sequel-only (mentor_offer "accept")
   neighborMovingAway,
   hobbyDiscover,
   backPain,
@@ -3423,8 +3594,12 @@ export function rollEventChain(state: GameState): WeeklyEvent | null {
     if (completedChainIds.includes(chain.chainId)) continue;
     if (chain.condition && !chain.condition(state)) continue;
 
-    const seed = (absoluteWeek * 997 + chain.chainId.length * 31) % 10000;
-    const roll = Math.sin(seed) * 10000 - Math.floor(Math.sin(seed) * 10000);
+    // DETERMINISM: this was the last event roll on the `Math.sin(seed)`
+    // construction — ECMAScript does not require bit-exact Math.sin, so
+    // Hermes and V8 could disagree on which week a chain starts (the same
+    // hole H7a closed for the payoff rolls). Routed through the audited
+    // integer-only seeded RNG, salted by chainId so chains roll independently.
+    const roll = makeWeeklyRoll(absoluteWeek)(`chain-start:${chain.chainId}`);
     if (roll < chain.triggerChance) {
       return chain.stages[0](state, 0);
     }

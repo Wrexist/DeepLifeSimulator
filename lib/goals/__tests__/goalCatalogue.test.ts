@@ -149,6 +149,28 @@ function probeStates(): GameState[] {
         ],
       },
     }),
+    // One and then three companies — the empire bar between its endpoints.
+    createTestGameState({
+      companies: [
+        { id: 'co1', name: 'A', type: 'factory', weeklyIncome: 1500, level: 1 } as never,
+      ],
+    }),
+    createTestGameState({
+      companies: [
+        { id: 'co1', name: 'A', type: 'factory', weeklyIncome: 1500, level: 1 } as never,
+        { id: 'co2', name: 'B', type: 'ai', weeklyIncome: 2200, level: 1 } as never,
+        { id: 'co3', name: 'C', type: 'restaurant', weeklyIncome: 2600, level: 1 } as never,
+      ],
+    }),
+    // A prestiged dynasty with nothing claimed, then with two contracts in —
+    // the legacy-contracts bar off its floor.
+    createTestGameState({
+      prestige: { ...(createTestGameState().prestige as object), totalPrestiges: 2 } as never,
+    }),
+    createTestGameState({
+      prestige: { ...(createTestGameState().prestige as object), totalPrestiges: 2 } as never,
+      legacyContracts: { claimedIds: ['first_dynasty', 'first_million_total'] },
+    }),
   ];
 }
 

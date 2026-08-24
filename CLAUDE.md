@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 47`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 48`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -336,7 +336,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 47`** — single source of truth in
+- **Canonical `STATE_VERSION = 48`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -632,6 +632,18 @@ including the crash screen.
   boundary (see the note there).
   Numbered 46 because the Spark carve-out above reached `main` first and owns
   45; one version number must mean one schema shape.
+- **v48 adds `weeklyFoodPurchases`** — the per-game-week meal counter behind
+  food satiety (`lib/economy/foodSatiety.ts`): meals 1-3 restore in full, 4-6
+  at half strength, 7+ at a quarter. `buyFood` had no weekly cap, so a $40
+  steak was an uncapped ~$1.60/point energy conversion that collapsed the
+  weekly energy budget into money. Default `undefined`, so a CARVE-OUT:
+  version bumped, NO backfill and no `repairGameState` mirror — absent already
+  means "nothing eaten this week" (exactly what the tick writes at every week
+  boundary, resetting the counter to 0 beside `weeklyStreetJobs`), and
+  stamping a count would deny an existing player full-strength meals they
+  never ate. The charge, the scaled restores and the counter bump run in ONE
+  updater, and the market toast + section hint read the same helpers, so what
+  is advertised is exactly what is applied.
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you

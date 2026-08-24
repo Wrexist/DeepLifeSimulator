@@ -1,3 +1,101 @@
+# Future-improvements program — balance, content, memory surfaces (owner: "do all the good and fit the game", 2026-08-24)
+
+Owner approved the previously-flagged balance calls plus the top-10 future list.
+Scope judgement per item (Impact x Depth / Complexity, S70): everything below
+FITS; the two structural rewrites (full action-point economy, carrying ghosts
+into brand-new games as mechanics) stay out, replaced by fitting lightweight
+versions (hustle verbs cost energy; an out-of-save archive keeps the memory).
+
+## P1 — Balance triad (the dominant-strategy fixes)
+
+- [x] B1. Company upgrade ROI retune. Every income upgrade pays back in ~20
+      weeks (~260%/yr) vs stocks 7-11%/yr — the single dominant strategy.
+      Target: ~45-week payback at level 1 (~115%/yr, still clearly the best
+      ACTIVE path, no longer 26x stocks); cost x1.5^level + the existing
+      10%/level efficiency haircut keep later levels diminishing. Value-only
+      catalogue change (bonuses are baked into weeklyIncome at PURCHASE), so
+      existing companies keep every dollar they already earn — only new
+      purchases price at the new curve (the dark-web seed precedent). Base
+      founding deals unchanged (they are the "start a business" fantasy and
+      carry education + capital gates). Test: catalogue-wide payback ratchet
+      (no income upgrade under 40-week L1 payback).
+- [x] B2. Food satiety (closes the $1.60/point infinite energy printer).
+      NEW `weeklyFoodPurchases?: number` (top-level, default undefined,
+      STATE_VERSION 47 -> 48, stub migration, NO backfill, no repair mirror —
+      absent already means "nothing eaten this week"; stamping a count would
+      deny a player their full-strength meals). Reset with the other weekly
+      counters in the tick. Effect multiplier by count this week: 1-3 full,
+      4-6 half, 7+ quarter. buyFood becomes ONE atomic updater (recheck price
+      against prev, charge, apply scaled restores, bump the counter — fixes
+      its gate->grant shape too) and RETURNS what was applied so the market
+      toast stays honest; market shows a "well fed" hint from the same
+      helper. CLAUDE.md/DEV/WORKFLOW version lines synced + v48 entry.
+- [x] B3. Health/happiness finally touch lifespan. Old-age death ramps from a
+      LONGEVITY PIVOT derived from the already-shipped calculateLifeExpectancy
+      (display-only until now), clamped [72, 92], instead of the fixed 80.
+      A cared-for life ramps later (up to 92); a neglected one earlier (never
+      below 72 — S27: a gradient, not a punishment cliff). Vitality skill and
+      immortality unlocks unchanged. Tests: pivot clamps; healthy outlives
+      neglected in expectation at the same age.
+
+## P2 — Content and memory
+
+- [x] C1. Chain-start roll off Math.sin (last non-deterministic event roll;
+      Hermes vs V8 can disagree) -> makeWeeklyRoll, salted by chainId.
+- [x] C2. Sequels remember WHO. `PendingChainedEvent.relationId?` carried from
+      the source event through followUpFromChoice and stamped onto the
+      delivered sequel — so a sequel's relationship effects hit the actual
+      friend who borrowed the money instead of falling back to the spouse.
+      (Appended nested data — no migration.)
+- [x] C3. ~10 new sequels on high-frequency events via the one-line API, mixed
+      tones (bills, warmth, consequences): gym invite -> training buddy,
+      charity donate -> recognition, mentor accept -> mentor's test,
+      school fees paid -> report card, car self-repair -> the fix fails,
+      lottery party -> new friend, wedding wait -> partner cools, borrow
+      refuse -> friend manages alone, festival attend -> photo memory,
+      investment tip taken -> outcome. Each sequel weight 0, seeded outcomes
+      where uncertainty reads better.
+- [x] C4. Chapters 6-7 + 3 DREAM goals. Ch6 "Established" (weeks 100-250):
+      $1M wealthMark, top of any career ladder, 20 achievements, turn 40.
+      Ch7 "A Life Sealed" (250+): $10M wealthMark, 40 achievements, 3
+      companies founded THIS life (lifetimeStatistics.totalCompaniesFounded —
+      monotonic), turn 60. Rewards on the ch5 curve. DREAM goals:
+      business empire (5 companies), the Legacy Contracts board (claimed /
+      total — the audit's "buried behind six tabs" fix), a life well lived
+      (lifeQuality score to 80 — the non-wealth dream).
+- [x] C5. Hustle verbs cost energy (the fitting slice of a time budget):
+      launchCampaign -8, hireCandidate -5 — managing a business now draws on
+      the same weekly budget as street jobs and dates. Preview/commit
+      resolvers stay atomic; UI copy shows the cost.
+
+## P3 — Memory surfaces
+
+- [x] S1. "This Life" timeline: pure lib/progress/lifeTimeline.ts merging
+      careerHistory (start/end), notable eventLog entries, journal, births +
+      marriage into one chronological list; LifeTimelineModal + a Progress
+      launcher tile. The data always existed; it was never assembled (S11).
+- [x] S2. Death-without-heir stops erasing the record. buildLifeRecord gains
+      `name`; "Start New Game" appends the finished life to an out-of-save
+      AsyncStorage archive (utils/lifeArchive.ts, capped, the
+      premiumValueTracking pattern — NOT a save-format change), and
+      LegacyTimeline's empty state shows those remembered lives.
+
+## Verify + ship
+
+- [x] V1. Tests per item; type-check both trees; lint:errors + ratchet;
+      routes; full Jest.
+- [x] V2. Commit + push to claude/deep-life-gameplay-redesign-1lcoa4.
+
+## Still deliberately NOT doing
+
+- Full action-point / hours-per-week economy — C5 + B2 + career tolls give
+  the tradeoff without rewriting every action module.
+- Nerfing existing companies' banked income — retune reaches new purchases.
+- Carrying archive lives into new games as MECHANICS — memory only (S2).
+
+---
+---
+
 # Gameplay depth pass — core loop, memory, honesty (owner program, 2026-08-24)
 
 Owner brief: the "ULTIMATE CORE GAMEPLAY" program — audit the game as a designer,

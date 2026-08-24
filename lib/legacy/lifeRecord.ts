@@ -30,6 +30,8 @@ import { classifyLife } from './ribbonSystem';
 import { logger } from '@/utils/logger';
 
 export interface PreviousLifeRecord {
+  /** The character's name — who this life WAS (added with the archive, S2). */
+  name?: string;
   generation: number;
   netWorth: number;
   ageAtDeath: number;
@@ -103,7 +105,13 @@ function memorableEvents(state: GameState): string[] {
 }
 
 export function buildLifeRecord(oldState: GameState): PreviousLifeRecord {
+  const name =
+    [oldState.userProfile?.firstName, oldState.userProfile?.lastName].filter(Boolean).join(' ') ||
+    oldState.userProfile?.name ||
+    undefined;
+
   const record: PreviousLifeRecord = {
+    ...(name ? { name } : {}),
     generation: oldState.generationNumber || 1,
     netWorth: safely('netWorth', () => Math.round(netWorth(oldState))) ?? 0,
     ageAtDeath: Math.floor(finite(oldState.date?.age)),

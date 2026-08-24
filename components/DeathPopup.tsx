@@ -402,6 +402,21 @@ function DeathPopup() {
         deathReason: undefined,
       }));
 
+      // Remember the life before erasing it (2026-08-24, §52). Death WITHOUT
+      // an heir was the one ending that left no record anywhere — the heir and
+      // prestige paths append to previousLives, this path deleted the slot.
+      // Out-of-save archive (utils/lifeArchive.ts): memory only, no mechanics,
+      // never blocks the new life on failure.
+      try {
+        const [{ buildLifeRecord }, { appendToLifeArchive }] = await Promise.all([
+          import('@/lib/legacy/lifeRecord'),
+          import('@/utils/lifeArchive'),
+        ]);
+        await appendToLifeArchive(buildLifeRecord(gameState));
+      } catch {
+        // archive is best-effort
+      }
+
       if (currentSlot) {
         // Snapshot the life we are about to erase FIRST. This path deleted the
         // slot outright, so a player who tapped "Start New Game" by mistake —
@@ -449,7 +464,7 @@ function DeathPopup() {
         showDeathPopup: true,
       }));
     }
-  }, [setGameState, currentSlot, router, setOnboardingState]);
+  }, [setGameState, currentSlot, router, setOnboardingState, gameState]);
 
   const handleShareObituary = useCallback(async () => {
     try {

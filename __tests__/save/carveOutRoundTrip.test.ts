@@ -294,6 +294,15 @@ const CARVE_OUTS: CarveOut[] = [
     value: { retiredWeek: 3_760, officeLevel: 6, title: 'President', termsServed: 3, weeklyPension: 2_100 },
     build: () => politicsState(),
   },
+  {
+    // v48 — the food-satiety meal counter. A mid-week save that loses this on
+    // load would re-arm full-strength meals, which is exactly the restart-farm
+    // shape the v28 no-fill marker was added to close.
+    version: 48,
+    path: 'weeklyFoodPurchases',
+    value: 4,
+    build: () => ({ ...base(), weeklyFoodPurchases: 4 }),
+  },
 ];
 
 /**
@@ -358,7 +367,7 @@ describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(22);
+    expect(CARVE_OUTS).toHaveLength(23);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

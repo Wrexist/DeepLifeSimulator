@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Sparkles,
   CalendarDays,
+  CalendarClock,
   Share2,
 } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
@@ -31,6 +32,7 @@ import PrestigeModal from '@/components/PrestigeModal';
 import ActivityCommitmentModal from '@/components/ActivityCommitmentModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LifeStoryModal from '@/components/LifeStoryModal';
+import LifeTimelineModal from '@/components/LifeTimelineModal';
 import ShareLifeCard from '@/components/ShareLifeCard';
 import SkillTreeModal from '@/components/SkillTreeModal';
 import HobbiesModal from '@/components/HobbiesModal';
@@ -77,6 +79,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const [showPrestige, setShowPrestige] = useState(false);
   const [showCommitments, setShowCommitments] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
+  const [showLifeTimeline, setShowLifeTimeline] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [showSkillTree, setShowSkillTree] = useState(false);
   const [showHobbies, setShowHobbies] = useState(false);
@@ -131,6 +134,9 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
     { key: 'skills', label: 'Life Skills', icon: Brain, color: accent.success, onPress: () => setShowSkillTree(true) },
     { key: 'hobbies', label: 'Hobbies', icon: Palette, color: accent.purple, onPress: () => setShowHobbies(true) },
     { key: 'story', label: 'Life Story', icon: BookOpen, color: '#8B5CF6', onPress: () => setShowLifeStory(true) },
+    // The chronological record (2026-08-24) — the narrative Life Story's
+    // factual sibling: careers, births, marriages, windfalls, by age.
+    { key: 'timeline', label: 'Timeline', icon: CalendarClock, color: '#A78BFA', onPress: () => setShowLifeTimeline(true) },
     { key: 'share', label: 'Share Life', icon: Share2, color: accent.info, onPress: () => setShowShareCard(true) },
     { key: 'commit', label: 'Commitments', icon: Target, color: accent.warning, onPress: () => setShowCommitments(true) },
     { key: 'notif', label: 'Notifications', icon: Bell, color: accent.info, onPress: () => setShowSmartNotifications(true) },
@@ -277,6 +283,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
       <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
       <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
       <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
+      <LifeTimelineModal visible={showLifeTimeline} onClose={() => setShowLifeTimeline(false)} />
       {/* ShareLifeCard renders a full-bleed card rather than its own Modal, so it
           gets wrapped here. It covers the gap the death-screen obituary does
           not: sharing a life while it is still being lived. */}

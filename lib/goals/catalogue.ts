@@ -18,6 +18,8 @@
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
+import { visibleContracts, getContractProgress } from '@/lib/legacy/contracts';
+import { lifeQuality } from '@/lib/legacy/lifeQuality';
 
 import type { GoalDefinition } from './types';
 
@@ -291,5 +293,58 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     priority: (s) => (s.family?.spouse ? 65 : 30),
     format: countPair,
     achievementLevel: (s) => (s.family?.children ?? []).length,
+  },
+
+  // ── DREAM depth (2026-08-24). The audit's finding: NOW/SOON were well fed
+  // while DREAM had four definitions and collapsed late-game onto contracts
+  // "surfaced nowhere in the app". These three widen it — and one of them is
+  // deliberately not about money at all. ──────────────────────────────────
+  {
+    id: 'dream_business_empire',
+    horizon: 'dream',
+    title: 'Build a business empire',
+    rationale: 'One company is a job you own. Five is an empire.',
+    route: '/(tabs)/computer',
+    isEligible: (s) => (s.companies ?? []).length >= 1 && (s.companies ?? []).length < 5,
+    measure: (s) => ({ current: (s.companies ?? []).length, target: 5 }),
+    priority: () => 68,
+    format: countPair,
+    achievementLevel: (s) => (s.companies ?? []).length,
+  },
+  {
+    id: 'dream_legacy_contracts',
+    horizon: 'dream',
+    title: 'Fulfil the Legacy Contracts',
+    rationale: 'Goals that span lives — the longest game the dynasty plays.',
+    route: '/(tabs)/progression',
+    // Only once the multi-life game has begun; offering contracts to a first
+    // life that has never prestiged is noise.
+    isEligible: (s) => {
+      if ((s.prestige?.totalPrestiges ?? 0) < 1) return false;
+      const contracts = visibleContracts(s);
+      return (s.legacyContracts?.claimedIds ?? []).length < contracts.length;
+    },
+    measure: (s) => ({
+      current: (s.legacyContracts?.claimedIds ?? []).length,
+      target: Math.max(1, visibleContracts(s).length),
+    }),
+    priority: () => 75,
+    format: countPair,
+    achievementLevel: (s) =>
+      visibleContracts(s).filter((c) => getContractProgress(s, c).complete).length,
+  },
+  {
+    id: 'dream_life_quality',
+    horizon: 'dream',
+    title: 'A life well lived',
+    rationale: 'The score the obituary keeps — wealth is only a fifth of it.',
+    route: '/(tabs)/life',
+    // From the second year on: the score needs some life behind it to mean
+    // anything, and it is the one DREAM that no pile of money can buy alone.
+    isEligible: (s) => weeksInThisLife(s) >= 52 && lifeQuality(s).score < 80,
+    measure: (s) => ({ current: lifeQuality(s).score, target: 80 }),
+    priority: () => 55,
+    format: (c, t) => `${Math.round(c)} / ${t} life quality`,
+    achievementLevel: (s) => Math.floor(lifeQuality(s).score / 20),
   },
 ];

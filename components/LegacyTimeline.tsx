@@ -4,7 +4,7 @@
  * Displays previous lives with expandable details, family tree links,
  * and achievement badges
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Platform, View,
   Text,
   StyleSheet,
@@ -34,6 +34,8 @@ import {
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
+import { readLifeArchive } from '@/utils/lifeArchive';
+import type { PreviousLifeRecord } from '@/lib/legacy/lifeRecord';
 import {
   scale,
   fontScale,
@@ -89,6 +91,22 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
   });
 
   const [expandedLife, setExpandedLife] = useState<number | null>(null);
+
+  // Lives remembered OUTSIDE this dynasty (2026-08-24, §52): death without an
+  // heir used to erase the whole record; the archive keeps the memory. Loaded
+  // only when the modal is open — an async read on a modal must not run while
+  // it is closed, and a failed read degrades to an empty wall.
+  const [archivedLives, setArchivedLives] = useState<PreviousLifeRecord[]>([]);
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    readLifeArchive().then((lives) => {
+      if (!cancelled) setArchivedLives(lives);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   const sortedLives = useMemo(() => {
     return [...previousLives].sort((a, b) => (b.generation || 0) - (a.generation || 0));
@@ -226,6 +244,29 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 <Text style={[styles.emptySubtext, settings.darkMode && styles.emptySubtextDark]}>
                   Your legacy will begin here when you start your next generation
                 </Text>
+
+                {/* Remembered lives (2026-08-24, §52) — earlier characters
+                    whose line ended without an heir. Memory only: nothing
+                    here grants anything to this dynasty. */}
+                {archivedLives.length > 0 && (
+                  <View style={styles.rememberedSection}>
+                    <Text style={[styles.rememberedTitle, settings.darkMode && styles.emptyTextDark]}>
+                      Remembered lives
+                    </Text>
+                    {archivedLives.slice(0, 8).map((life, idx) => (
+                      <View key={`${life.timestamp}-${idx}`} style={[styles.rememberedRow, settings.darkMode && styles.rememberedRowDark]}>
+                        <Text style={[styles.rememberedName, settings.darkMode && styles.emptyTextDark]} numberOfLines={1}>
+                          {life.name || `Generation ${life.generation}`}
+                          {life.ribbonName ? ` · ${life.ribbonName}` : ''}
+                        </Text>
+                        <Text style={[styles.rememberedMeta, settings.darkMode && styles.emptySubtextDark]}>
+                          {`Died at ${life.ageAtDeath || '?'} · ${formatMoney(life.netWorth || 0)}`}
+                          {typeof life.lifeQualityScore === 'number' ? ` · ${life.lifeQualityScore}% life` : ''}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             ) : (
               <View style={styles.timeline}>
@@ -674,6 +715,39 @@ const styles = StyleSheet.create({
   },
   bestTextDark: {
     color: '#FCD34D',
+  },
+  rememberedSection: {
+    marginTop: scale(24),
+    alignSelf: 'stretch',
+    gap: scale(8),
+  },
+  rememberedTitle: {
+    fontSize: fontScale(13),
+    fontWeight: '800',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: scale(4),
+  },
+  rememberedRow: {
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+    borderRadius: scale(12),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    backgroundColor: 'rgba(148, 163, 184, 0.06)',
+  },
+  rememberedRowDark: {
+    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+  },
+  rememberedName: {
+    fontSize: fontScale(12.5),
+    fontWeight: '700',
+    color: '#374151',
+  },
+  rememberedMeta: {
+    fontSize: fontScale(11),
+    color: '#6B7280',
+    marginTop: scale(2),
   },
   genNumber: {
     fontSize: fontScale(14),

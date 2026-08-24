@@ -1206,6 +1206,26 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 47;
     return state;
   },
+
+  /**
+   * v48 adds `weeklyFoodPurchases` — the per-game-week meal counter behind
+   * food satiety (`lib/economy/foodSatiety.ts`). Bought meals restore in full
+   * for the first three each week, at half strength for the next three, and at
+   * a quarter after that, closing the uncapped ~$1.60/energy-point conversion
+   * that let money buy back the whole weekly energy budget.
+   *
+   * Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+   * `repairGameState` mirror. Absent already means "nothing eaten this week" —
+   * exactly what the tick writes at every week boundary anyway (it resets the
+   * counter to 0 beside `weeklyStreetJobs`) — and stamping a count onto an
+   * existing save would deny that player full-strength meals they never ate.
+   * Gated on game state, never the device clock (the v28/v31/v35/v40/v44
+   * rule): only advancing a week re-arms full strength.
+   */
+  48: (state) => {
+    state.version = 48;
+    return state;
+  },
 };
 
 /**
