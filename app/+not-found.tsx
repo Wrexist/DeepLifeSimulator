@@ -1,6 +1,6 @@
 /**
  * Not-found route. Shipped as the stock white Expo template for its whole
- * life — the one screen in the app with no theming. Now dressed as a small
+ * life - the one screen in the app with no theming. Now dressed as a small
  * branded dead-end with a way home.
  */
 import { Link, Stack } from 'expo-router';
@@ -18,7 +18,7 @@ export default function NotFoundScreen() {
           <Compass size={scale(32)} color={colors.light.textMuted} />
         </View>
         <Text style={styles.title}>This screen doesn&apos;t exist</Text>
-        <Text style={styles.body}>The road you took leads nowhere — but your life is still waiting.</Text>
+        <Text style={styles.body}>The road you took leads nowhere - but your life is still waiting.</Text>
         <Link href="/" style={styles.link} accessibilityRole="button" accessibilityLabel="Back to your life">
           <Text style={styles.linkText}>Back to your life</Text>
         </Link>

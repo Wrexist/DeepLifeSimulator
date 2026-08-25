@@ -316,7 +316,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               compact
               icon={<Utensils size={22} color="#34D399" />}
               observation="No diet plans available yet"
-              nudge="Plans appear here as your life progresses — check back after a few weeks."
+              nudge="Plans appear here as your life progresses - check back after a few weeks."
             />
           )}
           {(gameState.dietPlans ?? []).map(plan => {

@@ -141,7 +141,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
   }, [visible, fadeAnim, scaleAnim, glowAnim, shimmerAnim, reducedMotion]);
 
   // Hold the review prompt (and anything else that respects the gate) while
-  // the celebration owns the screen — same contract as PromotionCelebrationModal.
+  // the celebration owns the screen - same contract as PromotionCelebrationModal.
   useEffect(() => {
     if (!celebration) return;
     beginCelebration();
@@ -165,7 +165,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
       return;
     }
 
-    // Capture the celebration numbers BEFORE executing — the prestige resets
+    // Capture the celebration numbers BEFORE executing - the prestige resets
     // the very state they are derived from.
     const earnedPoints = pointsBreakdown?.total ?? 0;
     const newLevel = prestigeLevel + 1;
@@ -695,7 +695,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
             </View>
           </View>
         </Animated.View>
-        {/* Post-prestige celebration — the game's apex moment. Rendered on top
+        {/* Post-prestige celebration - the game's apex moment. Rendered on top
             of everything in this modal (the state behind it has already been
             reset, so the ordinary content is meaningless now). */}
         {celebration && (

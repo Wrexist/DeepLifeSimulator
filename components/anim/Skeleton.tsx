@@ -1,5 +1,5 @@
 /**
- * Skeleton — pulsing loading placeholder.
+ * Skeleton - pulsing loading placeholder.
  *
  * Plain RN Animated (native driver, opacity only), no reanimated. Honours
  * reduced motion by holding a static mid-opacity block instead of pulsing.

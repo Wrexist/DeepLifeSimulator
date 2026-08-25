@@ -1,12 +1,12 @@
 /**
- * EmptyState — the app-wide empty-state primitive.
+ * EmptyState - the app-wide empty-state primitive.
  *
  * One shared shape for "there is nothing here": an optional icon, a one-line
  * observation, an optional nudge explaining what the player can do about it,
  * and an optional CTA. The API mirrors the per-brand EmptyState components in
  * the Pulse/Spark/Hustle mini-apps (observation + nudge + children), which
  * keep their own illustrated identities; this version is for every general
- * surface — tab screens, lists, sections — which previously rendered either
+ * surface - tab screens, lists, sections - which previously rendered either
  * bare text or nothing at all under a lonely section heading.
  *
  * Copy guidance: observation states the fact in the player's terms

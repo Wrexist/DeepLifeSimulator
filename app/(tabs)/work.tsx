@@ -1193,7 +1193,7 @@ function WorkScreenContent() {
                                             compact
                                             icon={<Zap size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
                                             observation="No gigs on the board this week"
-                                            nudge="Quick jobs rotate as the weeks pass — advance the week and check back."
+                                            nudge="Quick jobs rotate as the weeks pass - advance the week and check back."
                                         />
                                     )}
                                 </View>
@@ -1229,7 +1229,7 @@ function WorkScreenContent() {
                                             compact
                                             icon={<Briefcase size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
                                             observation="No open positions right now"
-                                            nudge={`The job board rotates — new listings in ${boardRefreshWeeks} ${boardRefreshWeeks === 1 ? 'week' : 'weeks'}.`}
+                                            nudge={`The job board rotates - new listings in ${boardRefreshWeeks} ${boardRefreshWeeks === 1 ? 'week' : 'weeks'}.`}
                                         />
                                     )}
                                     <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>

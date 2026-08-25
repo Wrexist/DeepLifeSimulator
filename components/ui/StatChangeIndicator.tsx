@@ -110,7 +110,7 @@ function FloatingText({ change, index, onComplete }: FloatingTextProps) {
         : `${prefix}${change.amount}${label}`;
 
     // The pills are the game's primary "something happened" channel and render
-    // pointerEvents="none", so VoiceOver/TalkBack never reach them — announce
+    // pointerEvents="none", so VoiceOver/TalkBack never reach them - announce
     // each one so screen-reader players get the same confirmation.
     useEffect(() => {
         const spoken = change.stat === 'money'
@@ -179,7 +179,7 @@ export function StatChangeIndicator({ changes, onAnimationComplete }: StatChange
     );
 }
 
-// NOTE: a second `useStatChangeTracker` used to live here — a dead duplicate
+// NOTE: a second `useStatChangeTracker` used to live here - a dead duplicate
 // with the same name as the real one in `@/contexts/StatChangeContext` but
 // different semantics (threshold 1, cap 10, manual invocation). It had zero
 // callers and existed only to send a future reader to the wrong hook. Deleted.
