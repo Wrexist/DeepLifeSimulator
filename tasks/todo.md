@@ -78,6 +78,16 @@ at lib/config/statIdentity.ts.
 - [x] V2. Full Jest suite.
 - [x] V3. Commit + push; report per item, including what was NOT changed and why.
 
+## Pre-PR sweep (owner: "do all that's left before opening pr")
+
+- [x] L1. IdentityCard projection through computeWeeklyIncome (multipliers in
+      the shown cash flow + tax; last displayed-vs-applied item).
+- [x] L2. Property tax as a NAMED breakdown row + Cash Flow modal section.
+- [x] L3. Capital-gains single source in taxLedger.ts, asymmetry documented
+      (stocks 25% at sale / crypto 25% at year-end / property 15% + closing).
+- [x] L4. Commercial property tax 2x - prices the within-class dominance.
+- [x] L5. Open the PR.
+
 ---
 ---
 

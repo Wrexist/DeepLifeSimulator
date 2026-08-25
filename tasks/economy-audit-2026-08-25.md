@@ -203,6 +203,22 @@ nine were fixed the same day (see `tasks/todo.md` "Fix what's next"); the
 resolution of each is recorded inline below. Item 3 is the exception and the
 reason is given in full — it cannot be closed without re-opening a worse hole.
 
+A final pre-PR sweep then closed the four small leftovers that survived the
+audit's own findings list:
+- The IdentityCard cash-flow/tax projection now runs through the SAME income
+  model the tick pays (`computeWeeklyIncome` — prestige/gold/perk multipliers
+  and the macro modifier included), closing the last displayed-vs-applied item.
+- Property tax is a NAMED row in the expense breakdown and the Cash Flow
+  modal, per-property, instead of hiding inside "upkeep".
+- The three capital-gains regimes (stocks 25% at sale, crypto 25% at year-end,
+  property 15% + 6% closing) are consolidated in `lib/economy/taxLedger.ts`
+  with the reasoning written next to the numbers — the asymmetry is now a
+  documented decision, not drift; the second 0.25 literal in `lib/stocks` and
+  the raw 0.15 in `operations.ts` are gone.
+- Commercial buildings pay double property tax (2.4%/yr), pricing the
+  yield-AND-stability edge commercial tenancy held for free within the asset
+  class; it keeps a premium, as the capital-gated tier should.
+
 
 1. **Musician dominates the entry tier** on all five axes (pay ceiling
    $2,120, fast growth, −8 energy, +4 happiness, no gates). Options: an

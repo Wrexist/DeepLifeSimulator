@@ -3,7 +3,7 @@ import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
-import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
+import { portfolioPropertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
@@ -32,6 +32,13 @@ function hasLoanTermWeeks(loan: unknown): loan is { termWeeks: number } {
 
 export interface ExpenseBreakdown {
   upkeep: number;
+  /**
+   * Property tax on owned units (1.2%/yr of value — carryingCosts.ts). Charged
+   * by the tick through the same housingUpkeep line; broken out here so the
+   * player sees a NAMED wealth-scaling bill instead of "upkeep" quietly
+   * jumping when they buy a home.
+   */
+  propertyTax: number;
   loans: number;
   miningPower: number;
   vehicles: number;
@@ -83,16 +90,19 @@ export function calcWeeklyExpenses(
       const propertyUpkeep = typeof p.upkeep === 'number' && isFinite(p.upkeep) && p.upkeep >= 0 ? p.upkeep : 0;
       const tierUpkeepBonus = typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) && tier.upkeepBonus >= 0 ? tier.upkeepBonus : 0;
       
-      // Property tax rides with upkeep because the TICK charges it through the
-      // same `housingUpkeep` line (applyRentAndHousing). Omitting it here would
-      // understate a homeowner's real weekly bill - the displayed-vs-applied
-      // class this file has been bitten by twice.
-      const totalUpkeep = propertyUpkeep + tierUpkeepBonus + propertyTaxWeekly(p);
+      const totalUpkeep = propertyUpkeep + tierUpkeepBonus;
       if (isFinite(totalUpkeep) && totalUpkeep > 0) {
         return sum + totalUpkeep;
       }
       return sum;
     }, 0);
+    // Property tax, as its OWN named row. The tick charges it through the same
+    // housingUpkeep line (applyRentAndHousing), so the TOTAL here must include
+    // it — but folding it silently into "upkeep" made the one wealth-scaling
+    // mandatory bill invisible: a player buying a home saw upkeep jump with
+    // nothing on screen saying why. Named costs are the whole point (§28 of
+    // the economy program: understandable, predictable).
+    const propertyTax = portfolioPropertyTaxWeekly(realEstate);
     const loans = Array.isArray(state.loans) ? state.loans : [];
     // BUG FIX: Calculate loan payments, but also ensure minimum payment for loans with zero weeklyPayment
     // For loans with 0 weeklyPayment (long terms), calculate minimum payment based on remaining debt
@@ -280,9 +290,10 @@ export function calcWeeklyExpenses(
     const safeRentCosts = isFinite(rentCosts) && rentCosts >= 0 ? rentCosts : 0;
     const safeStudentLoans = isFinite(studentLoanCosts) && studentLoanCosts >= 0 ? studentLoanCosts : 0;
     const safeIncomeTax = isFinite(incomeTaxCost) && incomeTaxCost >= 0 ? incomeTaxCost : 0;
+    const safePropertyTax = isFinite(propertyTax) && propertyTax >= 0 ? propertyTax : 0;
     
-    const total = safeUpkeep + safeLoanPayments + safeMiningPowerCosts + safeVehicleCosts
-      + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax
+    const total = safeUpkeep + safePropertyTax + safeLoanPayments + safeMiningPowerCosts
+      + safeVehicleCosts + safeDietPlanCosts + safeRentCosts + safeStudentLoans + safeIncomeTax
       + safeLuxury + safePets + safeSubscriptions;
     
     // CRITICAL: Final validation - ensure total is always valid
@@ -292,6 +303,7 @@ export function calcWeeklyExpenses(
       total: safeTotal, 
       breakdown: { 
         upkeep: safeUpkeep, 
+        propertyTax: safePropertyTax,
         loans: safeLoanPayments, 
         miningPower: safeMiningPowerCosts, 
         vehicles: safeVehicleCosts,
@@ -311,6 +323,7 @@ export function calcWeeklyExpenses(
       total: 0,
       breakdown: {
         upkeep: 0,
+        propertyTax: 0,
         loans: 0,
         miningPower: 0,
         vehicles: 0,

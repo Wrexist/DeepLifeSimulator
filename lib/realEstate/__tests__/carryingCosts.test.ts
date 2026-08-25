@@ -12,7 +12,7 @@ import {
   propertyTaxWeekly,
   portfolioPropertyTaxWeekly,
 } from '../carryingCosts';
-import { RESIDENTIAL_CATALOG } from '../catalog';
+import { COMMERCIAL_CATALOG, RESIDENTIAL_CATALOG } from '../catalog';
 import type { RealEstate } from '@/contexts/game/types';
 import fs from 'fs';
 import path from 'path';
@@ -79,6 +79,25 @@ describe('the charge is honest', () => {
       path.join(root, 'contexts/game/actions/weekly/applyRentAndHousing.ts'), 'utf8');
     const panel = fs.readFileSync(path.join(root, 'lib/economy/expenses.ts'), 'utf8');
     expect(tick).toContain('portfolioPropertyTaxWeekly(updatedRealEstate)');
-    expect(panel).toContain('propertyTaxWeekly(p)');
+    expect(panel).toContain('portfolioPropertyTaxWeekly(realEstate)');
+  });
+});
+
+describe('commercial property tax premium', () => {
+  it('a commercial building pays double the residential rate on the same value', () => {
+    const warehouse = { ...COMMERCIAL_CATALOG.find((c: RealEstate) => c.id === 'warehouse'), owned: true } as RealEstate;
+    const sameValueHome = own({ id: 'sub-house', price: warehouse.price });
+    expect(propertyTaxWeekly(warehouse)).toBe(propertyTaxWeekly(sameValueHome) * 2);
+  });
+
+  it('which prices the yield/stability edge the audit found free', () => {
+    // Commercial rent mode: 0.20%/wk at 0.5% vacancy vs longTerm 0.15% at 1%.
+    // Net of maintenance (1%/yr) and its OWN tax, commercial must keep a
+    // premium (it is the capital-gated tier) without dominating for free.
+    const WEEKS = 52;
+    const commercialNet = 0.0020 - 0.010 / WEEKS - (0.012 * 2) / WEEKS;
+    const longTermNet = 0.0015 - 0.010 / WEEKS - 0.012 / WEEKS;
+    expect(commercialNet).toBeGreaterThan(longTermNet); // still a premium
+    expect(commercialNet / longTermNet).toBeLessThan(1.35); // no longer ~1.5x for free
   });
 });

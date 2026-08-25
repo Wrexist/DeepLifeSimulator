@@ -80,16 +80,17 @@ describe('financialIndependence', () => {
 describe('the milestone is actually surfaced', () => {
   it('has an achievement that reads the predicate', () => {
     // The audit's finding was that FIRE was computed and marked NOWHERE.
-    const fi = achievements.find((a: { id: string }) => a.id === 'financially_independent');
+    const fi = achievements.find((a) => a.id === 'financially_independent');
     expect(fi).toBeDefined();
-    expect(fi.progressSpec.kind).toBe('boolean');
+    if (!fi || fi.progressSpec.kind !== 'boolean') throw new Error('expected a boolean progressSpec');
     expect(fi.progressSpec.met(withCompanyIncome(9_000))).toBe(true);
     expect(fi.progressSpec.met(createTestGameState({}))).toBe(false);
   });
 
   it('has a DREAM goal so it is a visible target, not a surprise', () => {
-    const goal = GOAL_CATALOGUE.find((g: { id: string }) => g.id === 'dream_financial_independence');
+    const goal = GOAL_CATALOGUE.find((g) => g.id === 'dream_financial_independence');
     expect(goal).toBeDefined();
+    if (!goal) throw new Error('goal missing');
     expect(goal.horizon).toBe('dream');
     // Visible while still climbing, gone once it is done.
     expect(goal.isEligible(withCompanyIncome(120))).toBe(true);

@@ -18,9 +18,22 @@
  */
 import type { RealEstate } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
+import { isCommercialCatalogId } from './catalog';
 
 /** Annual property tax, as a fraction of a property's current value. */
 export const PROPERTY_TAX_ANNUAL_RATE = 0.012;
+
+/**
+ * Commercial buildings pay double the residential rate (2.4%/yr) - the
+ * real-world shape, and the counterweight the 2026-08-25 audit found missing
+ * WITHIN the asset class: the commercial rent mode out-earned long-term
+ * residential on yield (0.20%/wk vs 0.15%) AND stability (0.5% vacancy hazard
+ * vs 1%), so past the capital gate there was no reason to ever let a
+ * commercial unit go. With the heavier tax it keeps a premium - it should,
+ * it is the $620k+ tier with no comfort/energy utility - but the premium is
+ * now paid for, not free.
+ */
+export const COMMERCIAL_PROPERTY_TAX_MULTIPLIER = 2;
 
 /**
  * Annual maintenance reserve on a unit in commercial use, as a fraction of
@@ -40,7 +53,10 @@ const safeValue = (p: RealEstate | null | undefined): number => {
 export function propertyTaxWeekly(property: RealEstate | null | undefined): number {
   const value = safeValue(property);
   if (value <= 0) return 0;
-  const weekly = (value * PROPERTY_TAX_ANNUAL_RATE) / WEEKS_PER_YEAR;
+  const rate = property && isCommercialCatalogId(property.id)
+    ? PROPERTY_TAX_ANNUAL_RATE * COMMERCIAL_PROPERTY_TAX_MULTIPLIER
+    : PROPERTY_TAX_ANNUAL_RATE;
+  const weekly = (value * rate) / WEEKS_PER_YEAR;
   return isFinite(weekly) && weekly > 0 ? Math.round(weekly) : 0;
 }
 

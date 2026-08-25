@@ -19,11 +19,12 @@ import { styles } from '@/components/IdentityCardStyles';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { MINER_POWER_UNITS, minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
+import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState , Loan } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
-import { householdPartnerIncome } from '@/contexts/game/actions/weekly/applyIncome';
+import { householdPartnerIncome, computeWeeklyIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getTotalLuxuryYield } from '@/lib/luxury/operations';
@@ -335,18 +336,46 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
    *
    * Declared after the income pieces because it now depends on them.
    */
+  // The PROJECTED weekly income, through the SAME model the tick pays and
+  // taxes (`computeWeeklyIncome`) - prestige/gold/perk multipliers and the
+  // macro-event modifier included, partner income computed inside it from the
+  // same source the paycheck uses. The old base here was the raw
+  // jobIncome + passive + partnerIncome sum, which skips every multiplier, so
+  // for a boosted player both the headline Cash Flow and the income-tax line
+  // understated reality (2026-08-25 audit leftover - the last
+  // displayed-vs-applied item). Luxury yield stays OUTSIDE the multiplied base,
+  // exactly as the tick adds it. Pulse earnings are left at 0: a projection
+  // can't know next week's impressions, and omitting them only understates.
+  const projectedIncome = useMemo(() => {
+    const projected = computeWeeklyIncome({
+      prevState: gameState,
+      careerSalary: jobPay.fromPayroll,
+      passiveIncome: passiveInfo.total,
+      pulseEarnings: 0,
+      weeksLivedNow: gameState.weeksLived || 0,
+      unlockedBonuses: gameState.prestige?.unlockedBonuses || [],
+      economyIncomeMultiplier: gameState.economy?.economyEvents?.modifiers?.incomeMultiplier,
+    }).totalIncome;
+    return projected + luxuryYield;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    jobPay, passiveInfo, luxuryYield, gameState.weeksLived, gameState.prestige,
+    gameState.goldUpgrades, gameState.perks, gameState.relationships,
+    gameState.economy, gameState.lifeStartWeek,
+  ]);
+
   const expenseInfo = useMemo(
-    () => calcWeeklyExpenses(gameState, jobIncome + passive + partnerIncome),
+    () => calcWeeklyExpenses(gameState, projectedIncome),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       gameState.realEstate, gameState.vehicles, gameState.loans,
       gameState.rental, gameState.educations, gameState.unlockedLifeSkills,
-      jobIncome, passive, partnerIncome,
+      projectedIncome,
     ]
   );
 
   const expenses = expenseInfo.total;
-  const cashFlow = jobIncome + passive + partnerIncome - expenses;
+  const cashFlow = projectedIncome - expenses;
 
   const [showCash, setShowCash] = useState(false);
   const [showPerks, setShowPerks] = useState(false);
@@ -1133,6 +1162,32 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                   </View>
                 ) : null;
               })()}
+            </>
+          )}
+
+          {/* Property Tax - the named, wealth-scaling bill (1.2%/yr of value,
+              lib/realEstate/carryingCosts.ts). Charged by the tick through the
+              housing bills line; shown as its OWN row so buying a home never
+              reads as "upkeep quietly jumped". */}
+          {expenseInfo.breakdown.propertyTax > 0 && (
+            <>
+              <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
+                <Home size={scale(18)} color="#EF4444" />
+                <Text style={[styles.modalText, isDarkMode && styles.modalTextDark]}>
+                  Property Tax: {formatMoney(expenseInfo.breakdown.propertyTax)}
+                </Text>
+              </View>
+              <View style={styles.modalSubSection}>
+                {(gameState.realEstate || [])
+                  .filter((property) => property?.owned && propertyTaxWeekly(property) > 0)
+                  .map((property, idx) => (
+                    <View key={idx} style={[styles.modalSubItem, isDarkMode && styles.modalSubItemDark]}>
+                      <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
+                        • {property.name || property.id}: {formatMoney(propertyTaxWeekly(property))}/week
+                      </Text>
+                    </View>
+                  ))}
+              </View>
             </>
           )}
           

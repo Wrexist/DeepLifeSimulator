@@ -7,6 +7,7 @@
  */
 
 import { RealEstate } from '@/contexts/game/types';
+import { PROPERTY_GAINS_TAX_RATE } from '@/lib/economy/taxLedger';
 import {
   askChurnMultiplier,
   askFillMultiplier,
@@ -134,7 +135,10 @@ export function sellProperty(
   // capital-gains tax on any positive gain come out of the proceeds. Without these
   // a buy-then-immediate-sell round trip was nearly free.
   const closingCost = value * 0.06; // 6% realtor + closing
-  const capitalGainsTax = gain > 0 ? gain * 0.15 : 0; // 15% on realized gain
+  // PROPERTY_GAINS_TAX_RATE, not the paper-asset 25%: a sale already pays 6%
+  // closing costs and weeks of illiquidity. Reasoning with the rates in
+  // lib/economy/taxLedger.ts.
+  const capitalGainsTax = gain > 0 ? gain * PROPERTY_GAINS_TAX_RATE : 0;
   // Net the sale (after costs) BEFORE paying off the mortgage. When it covers the
   // debt the player pockets the surplus; when it does NOT (underwater / short
   // sale) the uncovered remainder stays owed via `residualDebt` — the caller
