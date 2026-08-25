@@ -3291,6 +3291,45 @@ export function oncePerLifeSpent(
   return eventLog.some(e => e && e.id === template.id);
 }
 
+/**
+ * How long the SAME template is kept out of the weighted pool after firing.
+ *
+ * Until this existed, only the 16 `oncePerLife` templates had ANY repeat
+ * guard — every other template could be picked again the very next eligible
+ * week, and "the exact same thing happened twice in a month" is the single
+ * cheapest way for ~340 authored events to read as 40 (2026-08-25 retention
+ * audit). Half a game-year: at the late-game cadence (~1 event / 15 weeks)
+ * this suppresses roughly the last two events lived, which is enough to stop
+ * verbatim repeats without meaningfully shrinking a ~300-template pool.
+ */
+export const EVENT_REPEAT_COOLDOWN_WEEKS = 26;
+
+/**
+ * Template ids lived within the cooldown window, derived from `eventLog` —
+ * the memory the game already writes — so this needs no new state, no
+ * migration, and cannot drift from what actually happened (the same
+ * derive-don't-store reasoning as the seasonal repeat fix, which replaced a
+ * stored guard nobody wrote). Entries without a `weeksLived` stamp are
+ * ignored rather than guessed at; a rewound-looking stamp (negative delta)
+ * never suppresses.
+ */
+export function recentlyLivedEventIds(
+  eventLog: GameState['eventLog'] | undefined | null,
+  currentWeeksLived: number,
+  cooldownWeeks: number = EVENT_REPEAT_COOLDOWN_WEEKS,
+): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(eventLog)) return out;
+  for (const e of eventLog) {
+    if (!e || typeof e.id !== 'string') continue;
+    const at = (e as { weeksLived?: unknown }).weeksLived;
+    if (typeof at !== 'number' || !Number.isFinite(at)) continue;
+    const delta = currentWeeksLived - at;
+    if (delta >= 0 && delta < cooldownWeeks) out.add(e.id);
+  }
+  return out;
+}
+
 export function generateEventById(id: string, state: GameState): WeeklyEvent | null {
   const template = eventTemplates.find((t) => t.id === id);
   if (!template) return null;
@@ -4126,7 +4165,15 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // deterministic weighted-random pick so the whole pool gets airtime instead
   // of the same highest-weight template every time.
   if (events.length < MAX_EVENTS_PER_WEEK) {
-    const eligible = baseEventTemplates
+    // REPETITION GUARD: drop templates lived within the cooldown window
+    // (derived from eventLog — see recentlyLivedEventIds). Falls back to the
+    // unfiltered pool if the filter would empty it, so the pity guarantee can
+    // never starve on a life that has somehow lived everything recently.
+    const recentIds = recentlyLivedEventIds(state.eventLog, currentWeeksLived);
+    const freshTemplates = baseEventTemplates.filter(t => !recentIds.has(t.id));
+    const pickPool = freshTemplates.length > 0 ? freshTemplates : baseEventTemplates;
+
+    const eligible = pickPool
       .filter(t => !t.condition || t.condition(state))
       .map(template => {
         const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
