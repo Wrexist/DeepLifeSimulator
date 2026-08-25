@@ -1,3 +1,42 @@
+# Retention program round 2 — the flagged recommendations (owner: "continue, do your recommendations", 2026-08-25)
+
+Working the §16 "remaining issues" from the round-1 report, each per my stated
+recommendation:
+
+- [x] F1. Heirless-death honesty: "Start New Life" wipes prestige, legacy
+      points, the Dynasty Tree, contracts, ribbons and gems with NO warning.
+      Add a confirm that says exactly what is kept (device memorial archive,
+      purchased entitlements) and what is lost. No economy change.
+- [x] F2. Records surface: lib/legacy/records.ts deriving family bests from
+      previousLives + the live life (best net worth, best life quality,
+      longest life, most companies/children, generations) + a FamilyRecordsCard
+      on the Progression tab. Derived only — no schema change; sidesteps the
+      stale prestige.lifetimeStats.maxNetWorth rather than trusting it.
+- [x] F3. Heir-path lifetime stats: continueAsChild (death → heir) passes
+      lifetimeStats through UNCHANGED, so a dynasty played through deaths
+      (never prestiging) accrues nothing toward 'A Long Life' / weeks / peak
+      contracts. Accumulate via the same calculateLifetimeStats the prestige
+      path uses (no double-count: the two paths are disjoint).
+- [x] F4. Weekly-challenge rotation: floor(w/4)%12 is the same 12-challenge
+      order for every player and every life. Per-life seeded permutation
+      (lineageId:generationNumber, the cliffhanger/market salt precedent) —
+      deterministic within a life, different across lives.
+- [x] F5. Event rarity (display-only): optional `rarity` on EventTemplate,
+      tag the secret events legendary + top wealth/milestone one-shots rare,
+      badge in WeeklyEventModal. Discovery signalling; NO selection change.
+- [x] F6. Delete dead schema: `Scenario.timeLimit` deleted (advertised
+      nowhere, enforced nowhere — the rewards.achievement/title precedent).
+      `GameState.completedGoals` deliberately NOT deleted: types.ts documents
+      keeping it as the prior audit's explicit call ("a migration is the
+      riskiest kind of no-op — leave it alone"); respected, not re-litigated.
+- [x] F7. Fill the post-$1B contract gap: wealth $10B rung between the $1B
+      and $1T contracts (derived board, one row).
+- [ ] F8. Tests per item; type-check both trees; lint; routes; full suite;
+      push.
+
+---
+---
+
 # Retention program — return loop, direction, variety, memory (owner program, 2026-08-25)
 
 Owner brief: the "MASTER PROGRAM 5 — RETENTION" prompt. Audit the player

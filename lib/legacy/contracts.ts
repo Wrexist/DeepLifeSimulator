@@ -75,6 +75,12 @@ export const LEGACY_CONTRACTS: LegacyContract[] = [
   { id: 'contract_networth_10m', name: 'Eight Figures', description: 'Reach $10,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 10_000_000, reward: 120, tier: 1 },
   { id: 'contract_networth_100m', name: 'Nine Figures', description: 'Reach $100,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 100_000_000, reward: 500, tier: 2 },
   { id: 'contract_networth_1b', name: 'Ten Figures', description: 'Reach $1,000,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 1_000_000_000, reward: 1_800, tier: 3 },
+  // Fills the quiet band the 2026-08-25 retention audit mapped: after the
+  // Dynasty Seat's last wing ($5B) and the $1B contract above, the next named
+  // wealth target was the Archive's $1T - three orders of magnitude away with
+  // nothing in between. One rung, on the reward curve between its neighbours
+  // (1,800 at $1B, 6,000+ in the Archive).
+  { id: 'contract_networth_10b', name: 'Eleven Figures', description: 'Reach $10,000,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 10_000_000_000, reward: 3_200, tier: 4 },
 
   // ── Endurance ─────────────────────────────────────────────────────────────
   { id: 'contract_weeks_2000', name: 'A Long Life', description: 'Live 2,000 weeks across every life.', metric: 'weeksLivedTotal', target: 2_000, reward: 150, tier: 1 },

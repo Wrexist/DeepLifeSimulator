@@ -48,7 +48,14 @@ export interface Scenario {
     };
   };
   winConditions: ScenarioCondition[];
-  timeLimit?: number; // Weeks to complete (optional)
+  // `timeLimit` used to sit here — 24 populated entries, ZERO consumers for
+  // its whole life: `checkScenarioWin` never read it, no onboarding card ever
+  // advertised it, and the live progress card deliberately refused to display
+  // a rule the evaluator ignores. Deleted like `rewards.achievement`/`title`
+  // below (2026-08-25): schema implying a deadline no code enforces is a trap
+  // for the next reader. If timed runs become a feature, they need a stored
+  // completion-week stamp first (evaluation happens only at prestige, which
+  // cannot know WHEN conditions were first met) — design that, then re-add.
   /**
    * Completion pays GEMS only. `achievement` and `title` fields used to sit
    * here too — 23 populated entries whose ids existed in no achievement
@@ -89,7 +96,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Reach $1,000,000 net worth',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 50,
     },
@@ -126,7 +132,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Become a Research Scientist',
       },
     ],
-    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 75,
     },
@@ -162,7 +167,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Reach 80+ reputation',
       },
     ],
-    timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 40,
     },
@@ -198,7 +202,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Have $5M in cash',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 100,
     },
@@ -240,7 +243,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Have your first child',
       },
     ],
-    timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 60,
     },
@@ -286,7 +288,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build a good reputation (50+)',
       },
     ],
-    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 80,
     },
@@ -325,7 +326,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build fearsome reputation (60+)',
       },
     ],
-    timeLimit: 12 * WEEKS_PER_YEAR, // 12 years
     rewards: {
       gems: 150,
     },
@@ -363,7 +363,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Achieve iconic reputation (90+)',
       },
     ],
-    timeLimit: 15 * WEEKS_PER_YEAR, // 15 years
     rewards: {
       gems: 200,
     },
@@ -400,7 +399,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Become CEO of your company',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 120,
     },
@@ -431,7 +429,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build $5M real estate portfolio',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 100,
     },
@@ -462,7 +459,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Earn $100,000 in cash',
       },
     ],
-    timeLimit: 2 * WEEKS_PER_YEAR, // 2 years — very tight!
     rewards: {
       gems: 125,
     },
@@ -505,7 +501,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build 5+ meaningful relationships',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 90,
     },
@@ -542,7 +537,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Rebuild your reputation (40+)',
       },
     ],
-    timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 85,
     },
@@ -573,7 +567,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Reach legendary reputation (95+)',
       },
     ],
-    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 70,
     },
@@ -610,7 +603,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Forge 8+ relationships',
       },
     ],
-    timeLimit: 6 * WEEKS_PER_YEAR, // 6 years
     rewards: {
       gems: 65,
     },
@@ -647,7 +639,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build a strong reputation (60+)',
       },
     ],
-    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 55,
     },
@@ -684,7 +675,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Earn $500,000 from your creative work',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 60,
     },
@@ -720,7 +710,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Build 5+ meaningful relationships',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 80,
     },
@@ -750,7 +739,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Grow your winnings to $2,000,000',
       },
     ],
-    timeLimit: 10 * WEEKS_PER_YEAR, // 10 years
     rewards: {
       gems: 40,
     },
@@ -786,7 +774,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Hold a legitimate job',
       },
     ],
-    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 70,
     },
@@ -816,7 +803,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Reach 80+ health',
       },
     ],
-    timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 45,
     },
@@ -853,7 +839,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Maintain $100,000 net worth while traveling',
       },
     ],
-    timeLimit: 8 * WEEKS_PER_YEAR, // 8 years
     rewards: {
       gems: 50,
     },
@@ -889,7 +874,6 @@ export const SCENARIOS: Scenario[] = [
         description: 'Save $10,000',
       },
     ],
-    timeLimit: 5 * WEEKS_PER_YEAR, // 5 years
     rewards: {
       gems: 75,
     },

@@ -9,6 +9,7 @@
  * see the same challenge at the same time.
  */
 import { netWorth } from '@/lib/progress/achievements';
+import { fnv1a32, mulberry32 } from '@/utils/seededRoll';
 import type { Company, GameState } from '@/contexts/game/types';
 
 export interface WeeklyChallengeObjective {
@@ -525,7 +526,30 @@ export const ROTATION_GAME_WEEKS = 4;
  * force rotation → re-claim the gem reward indefinitely. Game-time selection
  * ties the reward to genuine play (advancing weeks costs energy/money/ageing).
  */
-export function getWeeklyChallengeIdForWeek(weeksLived: number): string {
+/**
+ * Per-life rotation ORDER: a seeded permutation of the challenge indices.
+ *
+ * The unsalted rotation was `floor(w/4) % 12` over catalogue order - the
+ * same 12 challenges in the same sequence for every player and every life,
+ * repeating verbatim every 48 game weeks (the same fixed-schedule class as
+ * the old lucky-bonus and cliffhanger rolls). Salting by life keeps the
+ * rotation fully deterministic WITHIN a life (anti-clock-scrub property
+ * preserved: still keyed on weeksLived) while a new life meets the pool in a
+ * new order. An empty salt returns catalogue order unchanged, which is what
+ * the reachability tests pin and what legacy callers get.
+ */
+export function rotationOrder(lifeSalt: string): number[] {
+ const order = WEEKLY_CHALLENGES.map((_, i) => i);
+ if (!lifeSalt) return order;
+ const rand = mulberry32(fnv1a32(`challenge-rotation:${lifeSalt}`));
+ for (let i = order.length - 1; i > 0; i--) {
+ const j = Math.floor(rand() * (i + 1));
+ [order[i], order[j]] = [order[j], order[i]];
+ }
+ return order;
+}
+
+export function getWeeklyChallengeIdForWeek(weeksLived: number, lifeSalt: string = ''): string {
  const w = typeof weeksLived === 'number' && isFinite(weeksLived) && weeksLived >= 0 ? Math.floor(weeksLived) : 0;
  // REACHABILITY FIX: index by ROTATION COUNT, not raw week. Rotation only
  // advances every ROTATION_GAME_WEEKS (4) weeks (see needsRotation), so a raw
@@ -533,7 +557,8 @@ export function getWeeklyChallengeIdForWeek(weeksLived: number): string {
  // gcd(4,12)=4 means just 3 of the 12 challenges ({1,5,9} from week 1) were ever
  // selectable. Dividing by the rotation length first makes each rotation advance
  // the index by exactly 1, cycling through all 12 challenges over 48 game weeks.
- const index = Math.floor(w / ROTATION_GAME_WEEKS) % WEEKLY_CHALLENGES.length;
+ const order = rotationOrder(lifeSalt);
+ const index = order[Math.floor(w / ROTATION_GAME_WEEKS) % order.length];
  return WEEKLY_CHALLENGES[index].id;
 }
 
@@ -572,8 +597,11 @@ export function getOrRotateWeeklyChallenge(
  // would hand an established player 125-300 gems for taking no action at all,
  // a passive premium-currency faucet worth roughly 1,000-1,400 gems a year.
  // 2026-07-30 audit GP-11 and the review of it.
+ // Per-life rotation order (see rotationOrder): a new life meets the pool in
+ // a new sequence instead of the catalogue order every dynasty shares.
+ const lifeSalt = `${state.lineageId || ''}:${state.generationNumber || 1}`;
  const scheduledIndex = WEEKLY_CHALLENGES.findIndex(
- (c) => c.id === getWeeklyChallengeIdForWeek(weeksLived),
+ (c) => c.id === getWeeklyChallengeIdForWeek(weeksLived, lifeSalt),
  );
  const startIndex = scheduledIndex >= 0 ? scheduledIndex : 0;
 

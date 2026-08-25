@@ -25,6 +25,7 @@ import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
 import PrestigeStatsCard from '@/components/PrestigeStatsCard';
+import FamilyRecordsCard from '@/components/FamilyRecordsCard';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
@@ -224,6 +225,10 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             onShopPress={() => setShowPrestigeShop(true)}
           />
         )}
+
+        {/* Family records - the dynasty's personal bests and where this life
+            stands. Derived from previousLives; renders null on a first life. */}
+        <FamilyRecordsCard />
 
         {/* Overall achievement progress */}
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>

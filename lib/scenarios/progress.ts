@@ -14,11 +14,9 @@
  * `prestigeExecution` so the two surfaces cannot drift) — what the card shows
  * as met is exactly what prestige will pay for.
  *
- * `Scenario.timeLimit` is deliberately NOT surfaced: it has zero consumers —
- * the evaluator ignores it and no onboarding card advertises it — so showing
- * a deadline here would display a rule the game does not apply (the
- * displayed-vs-applied class CLAUDE.md §4.4 exists for). Flagged to the owner
- * as dead schema rather than silently wired into a nerf.
+ * (`Scenario.timeLimit` was flagged here as dead schema — zero consumers,
+ * advertised nowhere — and has since been deleted from the Scenario type
+ * rather than surfaced as a rule the evaluator ignores.)
  */
 import type { GameState } from '@/contexts/game/types';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';

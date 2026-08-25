@@ -426,7 +426,7 @@ function DeathPopup() {
     }
   }, [gameState, setGameState, saveGame, bridgeToStore]);
 
-  const handleStartNewGame = useCallback(async () => {
+  const performStartNewGame = useCallback(async () => {
     try {
       setGameState(prev => ({
         ...prev,
@@ -497,6 +497,44 @@ function DeathPopup() {
       }));
     }
   }, [setGameState, currentSlot, router, setOnboardingState, gameState]);
+
+  // Say what "Start New Life" actually costs BEFORE doing it. Unlike prestige
+  // and the heir path (which carry prestige data, gems and entitlements
+  // through their builders), this path rebuilds from onboarding and the whole
+  // meta layer dies with the slot: prestige points and level, the Dynasty
+  // Tree, Legacy Contracts, ribbons, and every unspent gem. Nothing on the
+  // screen said so - a player could torch hundreds of hours of dynasty (and
+  // paid-for gems) believing "new life" meant what the prestige button means.
+  // Store purchases are the one recoverable thing (receipt restore), and the
+  // life itself is remembered in the device memorial archive. The warning
+  // scales down to a light confirm when there is no meta to lose.
+  const handleStartNewGame = useCallback(() => {
+    const gems = safeStats(gameState).gems || 0;
+    const hasMeta =
+      (gameState.prestige?.totalPrestiges ?? 0) > 0 ||
+      (gameState.legacyPoints ?? 0) > 0 ||
+      (gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0 ||
+      gems > 0;
+    if (!hasMeta) {
+      void performStartNewGame();
+      return;
+    }
+    const lost: string[] = [];
+    if ((gameState.prestige?.totalPrestiges ?? 0) > 0) lost.push('your prestige level and points');
+    if ((gameState.legacyPoints ?? 0) > 0) lost.push('legacy points and the Dynasty Tree');
+    if ((gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0) lost.push('your ribbon collection');
+    if (gems > 0) lost.push(`${gems.toLocaleString()} gems`);
+    Alert.alert(
+      'Start a completely new life?',
+      `This is a fresh start, not an heir: it permanently erases ${lost.join(', ')}. ` +
+        'This life will be remembered in your archive, and store purchases can be restored from Settings. ' +
+        'To keep your dynasty, choose an heir or prestige instead.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Erase and start over', style: 'destructive', onPress: () => void performStartNewGame() },
+      ],
+    );
+  }, [gameState, performStartNewGame]);
 
   const handleShareObituary = useCallback(async () => {
     try {

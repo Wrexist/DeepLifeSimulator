@@ -475,8 +475,19 @@ export function continueAsChild(
     selectedChild = simulateChildToAge(selectedChild, gameState, ADULTHOOD_AGE);
   }
 
-  // Preserve prestige data WITHOUT incrementing it
-  const prestigeData = gameState.prestige || defaultPrestigeData;
+  // Preserve prestige data WITHOUT incrementing it - no points, no prestige
+  // count, no new record. But the LIFETIME ledger must still absorb the life
+  // that just ended: `lifetimeStats` previously updated only inside
+  // `executePrestige`, so a dynasty played through deaths (never prestiging)
+  // accrued NOTHING toward the weeks/peak-net-worth Legacy Contracts and
+  // `maxNetWorth` under-reported forever (2026-08-25 retention audit). The
+  // two paths are disjoint - a life ends through exactly one of them - so
+  // accumulating here cannot double-count.
+  const basePrestige = gameState.prestige || defaultPrestigeData;
+  const prestigeData: PrestigeData = {
+    ...basePrestige,
+    lifetimeStats: calculateLifetimeStats(gameState, basePrestige.lifetimeStats),
+  };
 
   // Create new state using createChildGameState but with preserved prestige
   return createChildGameState(gameState, prestigeData, childId);
