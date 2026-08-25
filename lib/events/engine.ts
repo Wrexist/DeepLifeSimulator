@@ -9,6 +9,7 @@ import { legalEventTemplates } from './legalEvents';
 import { inboxEventTemplates } from './inboxEvents';
 import { careerEventTemplates } from './careerEvents';
 import { travelEventTemplates } from './travelEvents';
+import { ancestorEventTemplates } from './ancestorEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
 import { fameEventTemplates } from './fameEvents';
 import { secretEventTemplates } from './secretEvents';
@@ -3253,6 +3254,10 @@ export const eventTemplates: EventTemplate[] = [
   ...careerEventTemplates,
   // Travel events (experiences while on trips)
   ...travelEventTemplates,
+  // Beats that name the player's OWN finished lives. Gated on `previousLives`,
+  // so a first life never sees them and a deep dynasty meets a world that
+  // remembers it (2026-08-25 endgame round).
+  ...ancestorEventTemplates,
   // Near-miss events (tension builders - "you almost died!")
   ...nearMissEventTemplates,
   // Fame tier events (paparazzi, talk shows, stalkers - fame = double-edged sword)

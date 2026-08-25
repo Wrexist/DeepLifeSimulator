@@ -1,3 +1,53 @@
+# Endgame depth — round 3 (owner picked "Endgame content depth", 2026-08-25)
+
+The mapped ceiling: Life Chapters stop at 7 (week 250 / $10M / age 60), the
+luxury catalog tops out at $500M, the Dynasty Seat's last wing is $5B, and
+PRESTIGE_UNLOCKS has nothing above tier 5 — so a long life runs out of
+direction and prestige 6 is mechanically identical to prestige 5. The brief's
+rule governs the fix: "do not rely on larger numbers alone."
+
+Reachability checked FIRST (tasks/lessons.md 2026-08-10 — two content goals
+shipped unreachable): life-expectancy ceiling is 92 (LONGEVITY_PIVOT_MAX), so
+age goals stop at 85; 159 achievements exist, so 100 claimed is demanding but
+real; the economy already names $5B (Seat) and $1T (Archive), so $10B is
+inside its own vocabulary; chapters pay ONLY on full completion, so every goal
+in a chapter must be co-achievable in one life.
+
+- [x] E1. Life Chapters 8-10, continuing the ch6→ch7 escalation ratio
+      (x10 wealth, x2 achievements, +15-20 age). Ch8 The Long Reign
+      [400 wks]: $100M / 60 achievements / 5 companies / age 75. Ch9 The
+      Great House [600]: $1B / 80 achievements / 8 properties / age 85.
+      Ch10 Written in Stone [900]: $10B / 100 achievements / life quality 85 /
+      10 companies — deliberately no age goal, so the 92 ceiling can never
+      make the capstone unreachable.
+- [x] E2. Ancestor events (lib/events/ancestorEvents.ts): a pack that reads
+      the player's OWN previousLives and names them. This is the piece that
+      makes life N feel unlike life 1 — the brief's "player history matters"
+      and the answer to "why start another life". Every record field needed
+      (name, generation, netWorth, ageAtDeath, careerHistory, ribbonName,
+      spouseName) is already stored and read by nothing but the timeline.
+      Gated on dynasty DEPTH (previousLives), not on a prestige tier.
+- [x] E3. One ancestor event ties the round-2 records board to the event
+      system: an ancestor's net worth quoted back as a challenge to beat.
+- [x] E4. Tests: chapter ladder invariants (monotonic targets, no duplicate
+      ids, every goal reachable-shaped), ancestor pack determinism + the
+      "never fires without an ancestor" gate.
+- [x] E5. Full gates: both type trees, lint + ratchet, routes, full suite,
+      push.
+
+## Deliberately NOT doing
+
+- Raising UnlockTier / PrestigeTier past 5. It is a type-level cap with
+  Math.min(5, ...) call sites, and a new tier is only worth adding when it
+  gates something that EXISTS. Ancestor content is gated on dynasty depth
+  instead, which is the truer trigger: what summons your ancestors is having
+  ancestors, not a prestige counter.
+- More luxury catalog entries above $500M. That is the "larger numbers alone"
+  the brief rules out, and a purchase is not a reason to return.
+
+---
+---
+
 # Retention program round 2 — the flagged recommendations (owner: "continue, do your recommendations", 2026-08-25)
 
 Working the §16 "remaining issues" from the round-1 report, each per my stated

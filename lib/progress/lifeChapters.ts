@@ -13,6 +13,9 @@ import { netWorth } from '@/lib/progress/achievements';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { outstandingDebt } from '@/lib/progress/wealthRatchet';
+// Chapter 10's non-monetary capstone. Leaf module (types + constants only), so
+// no cycle back into lib/progress.
+import { lifeQuality } from '@/lib/legacy/lifeQuality';
 import { logger } from '@/utils/logger';
 import { ageFromWeeksLived, weeksSinceLifeStart } from '@/utils/weekCounters';
 
@@ -537,6 +540,143 @@ export const LIFE_CHAPTERS: LifeChapter[] = [
     ],
     completionReward: { money: 150000, gems: 300 },
     perGoalReward: { money: 8000, gems: 40 },
+  },
+
+  // ── Chapters 8-10 (2026-08-25, endgame depth round) ───────────────────────
+  // Chapter 7 completes at $10M / age 60, which is roughly the prestige gate —
+  // so the direction system and the prestige gate used to expire at the same
+  // moment, leaving a marathon single life with no ladder at all. These three
+  // carry it to the end of a natural lifespan.
+  //
+  // REACHABILITY (tasks/lessons.md 2026-08-10 — two content goals shipped
+  // unreachable). Chapters pay only on FULL completion, so every goal here has
+  // to be co-achievable in one life:
+  //   • Age stops at 85. `LONGEVITY_PIVOT_MAX` caps life expectancy at 92, so
+  //     an age-90 goal would be a coin-flip on the mortality tail and chapter
+  //     10 deliberately has NO age goal — a capstone must not be gated on
+  //     outliving the curve.
+  //   • 100 of the 159 shipped achievements is demanding, not impossible.
+  //   • $10B sits inside the economy's own vocabulary: the Dynasty Seat's last
+  //     wing already costs $5B and the Archive contract names $1T.
+  // Escalation continues the ch6→ch7 ratio (x10 wealth, x2 achievements), and
+  // goal SOURCES follow the rules chapters 6-7 set: the ratcheted `wealthMark`,
+  // counters that only grow, and held-count goals on the ch3_invest precedent.
+  {
+    id: 'ch8_long_reign',
+    title: 'Chapter 8',
+    subtitle: 'The Long Reign',
+    weekRange: [400, 9999],
+    goals: [
+      {
+        id: 'ch8_net_100m',
+        title: 'Net Worth $100M',
+        description: 'Reach $100,000,000 net worth',
+        checkComplete: (s) => wealthMark(s) >= 100_000_000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 100_000_000),
+      },
+      {
+        id: 'ch8_achievements_60',
+        title: 'Decorated',
+        description: 'Claim 60 achievements',
+        checkComplete: (s) => (s.claimedProgressAchievements ?? []).length >= 60,
+        checkProgress: (s) => Math.min(1, (s.claimedProgressAchievements ?? []).length / 60),
+      },
+      {
+        id: 'ch8_conglomerate',
+        title: 'Conglomerate',
+        description: 'Hold 5 companies at once',
+        checkComplete: (s) => (s.companies ?? []).length >= 5,
+        checkProgress: (s) => Math.min(1, (s.companies ?? []).length / 5),
+      },
+      {
+        id: 'ch8_age_75',
+        title: 'Turn 75',
+        description: 'Reach your seventy-fifth birthday',
+        checkComplete: (s) => getAge(s) >= 75,
+        checkProgress: (s) => Math.min(1, Math.max(0, (getAge(s) - ADULTHOOD_AGE) / (75 - ADULTHOOD_AGE))),
+      },
+    ],
+    completionReward: { money: 400000, gems: 400 },
+    perGoalReward: { money: 20000, gems: 50 },
+  },
+  {
+    id: 'ch9_great_house',
+    title: 'Chapter 9',
+    subtitle: 'The Great House',
+    weekRange: [600, 9999],
+    goals: [
+      {
+        id: 'ch9_net_1b',
+        title: 'Net Worth $1B',
+        description: 'Reach $1,000,000,000 net worth',
+        checkComplete: (s) => wealthMark(s) >= 1_000_000_000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 1_000_000_000),
+      },
+      {
+        id: 'ch9_achievements_80',
+        title: 'Renowned',
+        description: 'Claim 80 achievements',
+        checkComplete: (s) => (s.claimedProgressAchievements ?? []).length >= 80,
+        checkProgress: (s) => Math.min(1, (s.claimedProgressAchievements ?? []).length / 80),
+      },
+      {
+        id: 'ch9_estate',
+        title: 'The Estate',
+        description: 'Own 8 properties at once',
+        checkComplete: (s) => (s.realEstate ?? []).filter((p) => p?.owned).length >= 8,
+        checkProgress: (s) => Math.min(1, (s.realEstate ?? []).filter((p) => p?.owned).length / 8),
+      },
+      {
+        id: 'ch9_age_85',
+        title: 'Turn 85',
+        description: 'Reach your eighty-fifth birthday',
+        checkComplete: (s) => getAge(s) >= 85,
+        checkProgress: (s) => Math.min(1, Math.max(0, (getAge(s) - ADULTHOOD_AGE) / (85 - ADULTHOOD_AGE))),
+      },
+    ],
+    completionReward: { money: 1200000, gems: 500 },
+    perGoalReward: { money: 60000, gems: 60 },
+  },
+  {
+    id: 'ch10_written_in_stone',
+    title: 'Chapter 10',
+    subtitle: 'Written in Stone',
+    weekRange: [900, 9999],
+    goals: [
+      {
+        id: 'ch10_net_10b',
+        title: 'Net Worth $10B',
+        description: 'Reach $10,000,000,000 net worth',
+        checkComplete: (s) => wealthMark(s) >= 10_000_000_000,
+        checkProgress: (s) => Math.min(1, wealthMark(s) / 10_000_000_000),
+      },
+      {
+        id: 'ch10_achievements_100',
+        title: 'The Full Record',
+        description: 'Claim 100 achievements',
+        checkComplete: (s) => (s.claimedProgressAchievements ?? []).length >= 100,
+        checkProgress: (s) => Math.min(1, (s.claimedProgressAchievements ?? []).length / 100),
+      },
+      {
+        id: 'ch10_empire_10',
+        title: 'Ten Houses',
+        description: 'Hold 10 companies at once',
+        checkComplete: (s) => (s.companies ?? []).length >= 10,
+        checkProgress: (s) => Math.min(1, (s.companies ?? []).length / 10),
+      },
+      {
+        // The one goal in the ladder no amount of money can buy: the obituary
+        // score weights family, career, relationships and condition alongside
+        // wealth, so a capstone that reads 85 there cannot be bought outright.
+        id: 'ch10_life_quality',
+        title: 'A Life Well Lived',
+        description: 'Reach a life quality score of 85',
+        checkComplete: (s) => lifeQuality(s).score >= 85,
+        checkProgress: (s) => Math.min(1, lifeQuality(s).score / 85),
+      },
+    ],
+    completionReward: { money: 4000000, gems: 700 },
+    perGoalReward: { money: 200000, gems: 80 },
   },
 ];
 
