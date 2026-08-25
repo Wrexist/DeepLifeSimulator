@@ -4,7 +4,7 @@
  * The 23 challenge scenarios carry authored win conditions and gem rewards,
  * evaluated in exactly one place: `executePrestige`, first prestige only. So a
  * player who chose "Rags to Riches" at onboarding played the whole life with
- * no view of the conditions, no progress, and no idea the reward existed —
+ * no view of the conditions, no progress, and no idea the reward existed -
  * the same built-but-invisible class as the weekly challenge before GP-1
  * (2026-08-25 retention audit).
  *
@@ -12,7 +12,7 @@
  * grant, this only surfaces what it will pay. Both read the SAME projection
  * (`projectScenarioState`), so a condition shown met here is met at payout.
  * Renders null for lives without a challenge scenario and after the first
- * prestige (the payout is spent — advertising gems that can no longer be won
+ * prestige (the payout is spent - advertising gems that can no longer be won
  * would be a lie).
  */
 import React, { useMemo } from 'react';
@@ -25,8 +25,8 @@ import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
 function ScenarioChallengeCard() {
-  // Win conditions read money, careers, relationships, achievements, banking —
-  // arbitrary state — so select the whole snapshot for this one card, the
+  // Win conditions read money, careers, relationships, achievements, banking -
+  // arbitrary state - so select the whole snapshot for this one card, the
   // WeeklyChallengeCard / AmbitionCard trade-off.
   const state = useGameSelector((s) => s) as GameState;
   const view = useMemo(() => getActiveScenarioProgress(state), [state]);

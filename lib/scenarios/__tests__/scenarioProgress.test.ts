@@ -1,9 +1,9 @@
 /**
- * Live scenario progress — the card and the prestige payout must agree.
+ * Live scenario progress - the card and the prestige payout must agree.
  *
  * `getActiveScenarioProgress` renders the run the player chose at onboarding;
  * `executePrestige` pays it on the first prestige. Both now read ONE
- * projection (`projectScenarioState`) — this suite pins that a condition the
+ * projection (`projectScenarioState`) - this suite pins that a condition the
  * card shows as met is exactly a condition the payout evaluator accepts, and
  * that the card refuses to advertise gems that can no longer be won.
  */
@@ -32,7 +32,7 @@ describe('getActiveScenarioProgress', () => {
     expect(getActiveScenarioProgress(null)).toBeNull();
   });
 
-  it('is null after the first prestige — the payout is spent and the gems cannot be won', () => {
+  it('is null after the first prestige - the payout is spent and the gems cannot be won', () => {
     const state = ragsToRichesState({
       prestige: {
         ...(createTestGameState().prestige as object),
@@ -66,7 +66,7 @@ describe('getActiveScenarioProgress', () => {
 
   it('agrees with the payout evaluator on met/unmet for every scenario', () => {
     // THE contract: the card and executePrestige read the same projection, so
-    // metCount === conditions the evaluator does NOT list as unmet — for every
+    // metCount === conditions the evaluator does NOT list as unmet - for every
     // scenario in the catalogue, on a mid-game state.
     const state = createTestGameState({ stats: { money: 250_000 } });
     const evalState = projectScenarioState(state);

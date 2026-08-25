@@ -30,9 +30,9 @@ export function AnalyticsTracker(): null {
   const generation = useGameSelector((s) => s.generationNumber ?? 1);
   // The prestige edge watches the PRESTIGE COUNTER, not the generation number:
   // the reset path deliberately does not increment generation (same character,
-  // fresh start — prestigeExecution.ts:321), so a generation-edge made every
+  // fresh start - prestigeExecution.ts:321), so a generation-edge made every
   // "start fresh" prestige invisible while counting heir continuations from
-  // death — which award nothing — as prestiges. Half the funnel, mislabeled.
+  // death - which award nothing - as prestiges. Half the funnel, mislabeled.
   const totalPrestiges = useGameSelector((s) => s.prestige?.totalPrestiges ?? 0);
   const showDeathPopup = useGameSelector((s) => !!s.showDeathPopup);
   const deathReason = useGameSelector((s) => s.deathReason ?? '');

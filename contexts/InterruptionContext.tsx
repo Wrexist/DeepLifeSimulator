@@ -68,7 +68,7 @@ export const INTERRUPTION_PRIORITY = {
    * the slot, and the session should open on "here is your life and what's
    * coming", not on a gem count. The daily reward keeps its claim while
    * outranked (its `wants` flag is game state, not a timer) and presents the
-   * moment the summary closes — nothing is lost, only ordered.
+   * moment the summary closes - nothing is lost, only ordered.
    */
   WELCOME_BACK: 55,
   DAILY_REWARD: 50,

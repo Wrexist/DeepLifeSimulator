@@ -401,11 +401,11 @@ function HomeScreenContent() {
   const lastWelcomeBackWeek = useGameSelector((s) => s?.settings?.lastWelcomeBackWeek);
 
   // Honest session clock. `lastLogin` used to be stamped ONLY at life creation
-  // and on welcome-back grant — so for a player who kept returning inside the
+  // and on welcome-back grant - so for a player who kept returning inside the
   // 24h window it went stale for as long as the habit lasted, and the next
   // day-plus absence was reported (and PAID) as the whole stale span: "Last
   // played: 1 week ago" plus seven days of salary for a one-day absence. Stamp
-  // it once per Home mount, but only while inside the 24h window — a genuine
+  // it once per Home mount, but only while inside the 24h window - a genuine
   // day-plus absence is left untouched so the popup can still measure it and
   // the grant can still close it (`applyWelcomeBackBonus` stamps on close).
   const sessionClockStampedRef = useRef(false);
@@ -435,7 +435,7 @@ function HomeScreenContent() {
       //
       // Deliberately NOT gated on `showDailyRewardPopup` any more: both may
       // want the slot on the same session, and the interruption queue orders
-      // them (WELCOME_BACK 55 > DAILY_REWARD 50) — the old gate meant the
+      // them (WELCOME_BACK 55 > DAILY_REWARD 50) - the old gate meant the
       // return summary was silently suppressed on exactly the session type it
       // was built for, because the daily popup's spawner fired 700ms earlier.
       if (
@@ -445,7 +445,7 @@ function HomeScreenContent() {
         hasCompletedTutorial
       ) {
         // 600ms: ahead of the daily popup's 800ms spawn, so the higher-priority
-        // summary claims the slot before the gem popup ever presents — the
+        // summary claims the slot before the gem popup ever presents - the
         // player sees summary → gems, not a gem flash replaced mid-animation.
         const timer = setTimeout(() => {
           setShowWelcomeBack(true);
@@ -781,7 +781,7 @@ function HomeScreenContent() {
         <FadeInUp delay={55}>
           <AmbitionCard />
           <AmbitionPickerCard />
-          {/* The challenge-scenario run chosen at onboarding — win conditions
+          {/* The challenge-scenario run chosen at onboarding - win conditions
               were previously invisible between onboarding and first prestige.
               Renders null for non-challenge lives and prestiged dynasties. */}
           <ScenarioChallengeCard />

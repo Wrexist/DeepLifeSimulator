@@ -131,7 +131,7 @@ export default function WeeklyResultSheet({ visible, onClose, children, gameStat
             {playStreak && playStreak.count > 1 && (
               <View style={styles.streakSection}>
                 <Text style={styles.streakText}>
-                  {/* Weeks played back-to-back, not calendar days — the
+                  {/* Weeks played back-to-back, not calendar days - the
                       counter increments per week-advance under 48h apart. */}
                   {playStreak.count}-week play streak (+{Math.min(playStreak.count * 2, 20)}% income)
                 </Text>

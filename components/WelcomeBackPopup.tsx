@@ -305,7 +305,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                     <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
                       {/* The canonical net-worth calculator, not cash+savings:
                           the popup used to understate for anyone holding
-                          property, stocks, crypto or a company — on the one
+                          property, stocks, crypto or a company - on the one
                           screen summarising their life. Same source as the
                           home dashboard, so the two cannot disagree. */}
                       {formatMoney(calculateNetWorth(gameState))}
@@ -344,7 +344,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                   // What's COMING, from the same anticipation engine as the
                   // home dashboard's Week Ahead card. The game does not
                   // simulate while closed, so the honest return summary is not
-                  // a fabricated delta — it is where you stand plus what is
+                  // a fabricated delta - it is where you stand plus what is
                   // already scheduled to land. Two rows: enough to create a
                   // reason to press Next Week, not enough to push the Continue
                   // button off-screen.
@@ -377,7 +377,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                           <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
                             {/* The counter counts consecutive WEEKS PLAYED
                                 (week-advances under 48h apart), not calendar
-                                days — the old "N days" label promised a daily
+                                days - the old "N days" label promised a daily
                                 habit the code never measured. */}
                             Play streak: {streakCount} weeks in a row (+{Math.min(streakCount * 2, 20)}% income)
                           </Text>

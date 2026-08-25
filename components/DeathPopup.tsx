@@ -29,6 +29,8 @@ import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { computeInheritance } from '@/lib/legacy/inheritance';
+import { RIBBONS } from '@/lib/legacy/ribbonSystem';
+import { netWorth as computeNetWorth } from '@/lib/progress/achievements';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
 import { MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
@@ -208,7 +210,7 @@ function DeathPopup() {
     }
   }, [gameState]);
 
-  // Dynasty context for the Legacy tab — the sell for the NEXT life. Both
+  // Dynasty context for the Legacy tab - the sell for the NEXT life. Both
   // numbers were always computed and never shown at life end: the ribbon
   // catalogue is a 26-strong collection whose count rendered only inside a
   // modal behind IdentityCard, and the best-previous-life comparison existed
@@ -216,8 +218,6 @@ function DeathPopup() {
   // whether a next life is worth starting (2026-08-25 retention audit).
   const dynastyContext = useMemo(() => {
     try {
-      const { RIBBONS } = require('@/lib/legacy/ribbonSystem');
-      const { netWorth } = require('@/lib/progress/achievements');
       const discovered = (gameState.ribbonCollection?.discoveredIds ?? []).length;
       const lives = gameState.previousLives ?? [];
       const bestLife = lives.reduce<{ netWorth: number; generation: number } | null>(
@@ -231,9 +231,9 @@ function DeathPopup() {
       );
       return {
         ribbonsDiscovered: discovered,
-        ribbonsTotal: RIBBONS.length as number,
+        ribbonsTotal: RIBBONS.length,
         bestLife,
-        thisLifeNetWorth: Math.round(netWorth(gameState)),
+        thisLifeNetWorth: Math.round(computeNetWorth(gameState)),
       };
     } catch {
       return null;
@@ -1068,11 +1068,11 @@ function DeathPopup() {
                                   while-alive action (executePrestige, reached
                                   from the home screen); the heir path below
                                   carries your existing balance unchanged and
-                                  the fresh start wipes it. The old caption —
+                                  the fresh start wipes it. The old caption -
                                   "use prestige points to start your next life
-                                  stronger" — promised a payout no death-screen
+                                  stronger" - promised a payout no death-screen
                                   path delivers. */}
-                              What prestiging this life would have banked — prestige happens while
+                              What prestiging this life would have banked - prestige happens while
                               alive, from the home screen. An heir keeps points you already have.
                             </Text>
                             <View style={styles.prestigeBuyList}>
@@ -1278,7 +1278,7 @@ function DeathPopup() {
               {activeTab === 'legacy' && (
                 <>
                   <View style={styles.pageContent}>
-                    {/* Your Dynasty — what continuing is FOR. Ribbon collection
+                    {/* Your Dynasty - what continuing is FOR. Ribbon collection
                         progress and the family record to beat, both already
                         computed elsewhere and never shown at life end. Hidden
                         entirely when there is nothing to say (first life, no
