@@ -15,8 +15,31 @@ interface GameStateContextType {
   setCurrentSlot: (slot: number) => void;
   startNewLifeFromLegacy: (childId: string) => void;
   reviveCharacter: () => void;
-  /** Spend a banked Revival Pack (MON-5). No-op unless dead AND one is banked. */
-  reviveWithPack: () => void;
+  /**
+   * Spend a banked Revival Pack (MON-5). No-op unless dead AND one is banked -
+   * unless `justPurchased` says the charge was bought this second (see the
+   * action for why that case cannot read the flag).
+   */
+  reviveWithPack: (options?: ReviveWithPackOptions) => void;
+}
+
+export interface ReviveWithPackOptions {
+  /**
+   * The player just bought the pack from the death screen and the store has
+   * confirmed the charge.
+   *
+   * The banked-charge gate is then skipped, because at that instant it cannot
+   * be trusted to answer: `IAPService.applyBenefit` counts a purchase as
+   * granted when EITHER the in-memory updater or the disk write landed, and the
+   * disk-only case (IAPHandler unmounted, a clone failure) leaves live state
+   * with `revivalPack: false` while the player has been charged. Refusing there
+   * would take $2.99 and leave the character dead - the exact failure MON-5
+   * exists to prevent. The charge is still cleared, so the disk copy is
+   * corrected by the save that follows.
+   *
+   * Only pass this on a verified `PurchaseResult.success`.
+   */
+  justPurchased?: boolean;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -252,7 +275,7 @@ export function GameStateProvider({
    * render's `disabled` check - and a pack consumed twice is a free extra life,
    * the mirror of the double-charge bug that shape already caused here once.
    */
-  const reviveWithPack = useCallback(() => {
+  const reviveWithPack = useCallback((options?: ReviveWithPackOptions) => {
     wrappedSetGameState(prev => {
       if (!prev.showDeathPopup) {
         logger.warn('[reviveWithPack] Ignored: character is not currently dead');
@@ -260,8 +283,15 @@ export function GameStateProvider({
       }
 
       if (!prev.revivalPack) {
-        logger.warn('[reviveWithPack] Ignored: no banked Revival Pack');
-        return prev;
+        // A fresh, store-verified purchase is allowed through without the flag -
+        // see ReviveWithPackOptions for why live state may not carry it yet.
+        // This is NOT a way to revive for free: the only caller passing it is
+        // the death screen's buy row, on a successful PurchaseResult.
+        if (!options?.justPurchased) {
+          logger.warn('[reviveWithPack] Ignored: no banked Revival Pack');
+          return prev;
+        }
+        logger.info('[reviveWithPack] Spending a charge the store just confirmed');
       }
 
       logger.info('[reviveWithPack] Revival Pack consumed');

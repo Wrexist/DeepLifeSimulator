@@ -5,6 +5,7 @@ import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from '@/utils/safeGameState';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useStorePurchase } from '@/hooks/useStorePurchase';
 import { X, Gem, Sparkles, Star, TrendingUp, RefreshCw, AlertCircle, ChevronRight } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import Gradient from '@/components/ui/Gradient';
@@ -136,13 +137,21 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const gems = useGameSelector((s) => s.stats?.gems ?? 0);
 
   const [tab, setTab] = useState<StoreTab>(initialTab ?? 'gems');
-  // Scoped so ONLY the pressed product shows "Processing…" (not every button),
-  // and Restore has its own state. `iapBusy` still locks all controls while any
-  // operation is in flight so two purchases can't overlap.
-  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  // The store subscription, the per-SKU availability gate, the localized price
+  // and the purchase flow itself all live in `useStorePurchase` - the ONE
+  // purchase flow, shared with the death screen's Revival Pack row. Restore
+  // stays here (it is this screen's own control); `iapBusy` still locks every
+  // control while any operation is in flight so two can't overlap.
+  const {
+    productsById,
+    storeReady,
+    isProductAvailable,
+    resolveDisplayPrice,
+    purchasingId,
+    purchase,
+  } = useStorePurchase();
   const [restoring, setRestoring] = useState(false);
   const iapBusy = purchasingId !== null || restoring;
-  const [iapState, setIapState] = useState(() => iapService.getState());
 
   const reducedMotion = useReducedMotion();
 
@@ -151,15 +160,6 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   useEffect(() => {
     if (visible && initialTab) setTab(initialTab);
   }, [visible, initialTab]);
-
-  // Reflect the store's live connection/catalog so buy buttons can degrade to a
-  // clear "Store unavailable" state instead of failing on tap. Presentation only
-  // - no transaction logic here; the app initializes IAP at startup.
-  useEffect(() => {
-    setIapState(iapService.getState());
-    const unsubscribe = iapService.addListener((s) => setIapState(s));
-    return unsubscribe;
-  }, []);
 
   // Slide-up + fade entrance (respecting Reduce Motion).
   const progress = useRef(new Animated.Value(0)).current;
@@ -184,33 +184,9 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     outputRange: [verticalScale(ENTER_TRANSLATE), 0],
   });
 
-  // True only when the store connected AND a non-empty catalog loaded - mirrors
-  // iapService.isStoreAvailable(), but read from local state so the UI re-renders
-  // when the catalog finishes loading.
-  const storeReady = iapState.isConnected && iapState.products.length > 0;
-
-  const productsById = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const p of iapState.products) {
-      if (p && p.productId) map.set(p.productId, p);
-    }
-    return map;
-  }, [iapState.products]);
-
-  // Per-SKU availability: an IAP is buyable only if THIS product id actually
-  // loaded from the store. `storeReady` (any product loaded) still drives the
-  // global banner, but a mixed catalog - most SKUs loaded, one missing - must
-  // not present a buyable button for the missing one on a config-price fallback.
-  // Gem-SPEND upgrades (handleBuyUpgrade) are not IAPs and are never gated here.
-  const isProductAvailable = (id: string): boolean => productsById.has(id);
-
-  // Prefer the store SDK's localized price; fall back to the config USD price.
-  const resolveDisplayPrice = (id: string): string => {
-    const p = productsById.get(id);
-    const localized = p?.displayPrice ?? p?.localizedPrice ?? p?.price;
-    if (typeof localized === 'string' && localized.trim().length > 0) return localized;
-    return getProductConfig(id)?.price ?? '';
-  };
+  // Note: `storeReady`, `productsById`, `isProductAvailable` and
+  // `resolveDisplayPrice` come from `useStorePurchase` above. Gem-SPEND upgrades
+  // (handleBuyUpgrade) are not IAPs and are never gated by availability.
 
   // Currency-honest value line for a gem pack:
   //  • live store price (numeric + currency) → ratio in the REAL storefront currency
@@ -282,63 +258,11 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     [gemPacks, bestGemId],
   );
 
-  // Confirm step + purchase. Transaction logic is unchanged - presentation only.
-  const handlePurchase = async (id: string, name: string, displayPrice: string) => {
-    if (iapBusy) {
-      Alert.alert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
-      return;
-    }
-    // Refuse before touching iapService when THIS SKU didn't load - its price on
-    // the card is a config fallback, not a real store price, so it isn't buyable.
-    if (!isProductAvailable(id)) {
-      Alert.alert(
-        'Item Unavailable',
-        'This item isn’t available right now. Please check your connection and try again in a moment.',
-      );
-      return;
-    }
-
-    const priceText = displayPrice || resolveDisplayPrice(id);
-
-    Alert.alert(
-      'Confirm Purchase',
-      `Buy ${name}${priceText ? ` for ${priceText}` : ''}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: priceText ? `Buy ${priceText}` : 'Buy',
-          onPress: async () => {
-            setPurchasingId(id);
-            try {
-              logger.info(`Attempting to purchase: ${id} (${name})`);
-              const result = await iapService.purchaseProduct(id);
-              if (result.success) {
-                // IAPService already applies benefits - do not re-apply here.
-                Alert.alert(
-                  'Purchase Successful!',
-                  result.message || 'Purchase completed! Your items have been added to your account.',
-                );
-              } else {
-                const errorMessage = result.message || 'Unable to complete purchase. Please try again.';
-                if (!errorMessage.includes('cancelled')) {
-                  Alert.alert('Purchase Failed', errorMessage);
-                }
-              }
-            } catch (error) {
-              logger.error('Purchase error:', error);
-              let errorMsg = 'An unexpected error occurred during purchase.';
-              if (error instanceof Error) {
-                errorMsg = error.message;
-              }
-              Alert.alert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
-            } finally {
-              setPurchasingId(null);
-            }
-          },
-        },
-      ],
-    );
-  };
+  // Confirm step + purchase. The flow itself lives in `useStorePurchase` (shared
+  // with the death screen); this only supplies the display price and the
+  // Restore-in-flight lock.
+  const handlePurchase = (id: string, name: string, displayPrice: string) =>
+    purchase(id, name, { displayPrice, blocked: restoring });
 
   // Gem-spend upgrades (in-game currency, NOT an IAP).
   const handleBuyUpgrade = async (id: string, price: number) => {

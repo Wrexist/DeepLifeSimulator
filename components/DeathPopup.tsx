@@ -21,6 +21,7 @@ import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
 import { useGame } from '@/contexts/GameContext';
 import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { getProductConfig, IAP_PRODUCTS } from '@/utils/iapConfig';
+import { useStorePurchase } from '@/hooks/useStorePurchase';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
 import { Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem, ChevronRight } from 'lucide-react-native';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
@@ -66,6 +67,20 @@ function DeathPopup() {
   const settings = safeSettings(gameState);
   const date = safeDate(gameState);
   const { deathReason } = gameState;
+
+  // The ONE purchase flow (hooks/useStorePurchase.ts), shared with GemShopModal.
+  // The death screen sells exactly one thing - the Revival Pack - and it sells
+  // it here rather than sending the player to the shop to find it.
+  const { isProductAvailable, resolveDisplayPrice, purchasingId, purchase } = useStorePurchase();
+  // The price on the row. Prefer the store's own localized price so what the row
+  // says matches what the pay sheet will charge; fall back to the config USD
+  // price, and hide the row entirely when neither exists rather than rendering a
+  // purchase button with no price on it.
+  const revivalPackPrice =
+    resolveDisplayPrice(IAP_PRODUCTS.REVIVAL_PACK) ||
+    getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price ||
+    '';
+  const buyingRevivalPack = purchasingId === IAP_PRODUCTS.REVIVAL_PACK;
 
   const [showLifeStory, setShowLifeStory] = useState(false);
   const [selectedHeirId, setSelectedHeirId] = useState<string | null>(null);
@@ -342,20 +357,50 @@ function DeathPopup() {
   const handleGetMoreGems = useCallback(() => bridgeToStore('gems'), [bridgeToStore]);
 
   /**
-   * Buy the Revival Pack with real money.
+   * Buy the Revival Pack with real money, right here.
    *
-   * Lands on the `perks` tab, where the pack lives. It deliberately does NOT
-   * run the purchase inline: `GemShopModal` owns the whole flow - store
-   * loading, localized pricing, receipt verification, entitlement grant,
-   * restore - and a second copy of that on the death screen would be a second
-   * set of rules for taking someone's money.
+   * This used to bridge to `GemShopModal`'s `perks` tab and stop there, because
+   * the purchase flow lived inside that component and a second copy of it would
+   * have been a second set of rules for taking someone's money. So the flow
+   * moved out to `useStorePurchase` and both surfaces call it - one flow, two
+   * entry points. The player taps the row, the platform's own pay sheet opens
+   * (no confirmation dialog in front of it - the row already names the product
+   * and the price), and on success the character comes back.
    *
-   * Buying while dead banks the charge (`revivalPack: true`), so the death
-   * screen re-presents with "Use Revival Pack" waiting at the top. That is the
-   * same one-shot machinery the pack has always used, reached from the one
-   * place it was never reachable from.
+   * The revive is not a second grant. `IAPService` banks the charge exactly as
+   * it always has (`revivalPack: true`, `settings.hasRevivalPack: true`), and
+   * `reviveWithPack` spends it through the same one updater as a pack bought
+   * earlier - so a purchase made while alive still banks and waits, and this
+   * path cannot mint a charge it did not pay for.
+   *
+   * When the SKU never loaded from the store there is nothing to buy inline, so
+   * this falls back to the old bridge rather than dead-ending on an alert.
    */
-  const handleBuyRevivalPack = useCallback(() => bridgeToStore('perks'), [bridgeToStore]);
+  const handleBuyRevivalPack = useCallback(() => {
+    if (!isProductAvailable(IAP_PRODUCTS.REVIVAL_PACK)) {
+      bridgeToStore('perks');
+      return;
+    }
+    void purchase(IAP_PRODUCTS.REVIVAL_PACK, 'Revival Pack', {
+      displayPrice: revivalPackPrice,
+      confirm: false,
+      // The revive IS the confirmation - a "Purchase Successful!" alert on top
+      // of a character coming back to life is one tap between the player and
+      // the game they just paid to keep playing.
+      successAlert: false,
+      onSuccess: async () => {
+        reviveWithPack({ justPurchased: true });
+        // Persist the spent charge. Without this the revive lives only in
+        // memory while the banked charge sits `true` on disk, so a crash before
+        // the next autosave hands out a second free revive.
+        try {
+          await saveGame(true);
+        } catch (error) {
+          logger.error('Failed to save after a Revival Pack purchase:', error);
+        }
+      },
+    });
+  }, [bridgeToStore, isProductAvailable, purchase, reviveWithPack, revivalPackPrice, saveGame]);
 
   // Re-present the death Modal once the store closes. The bridge flag is cleared
   // only when the store is DOWN, so `visible` never flickers true mid-bridge.
@@ -664,10 +709,6 @@ function DeathPopup() {
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
   const hasBankedRevive = gameState.revivalPack === true;
 
-  // The config USD price. The live localized price lives in the store modal -
-  // this is the death screen's label, and a missing config price hides the row
-  // rather than rendering a purchase button with no price on it.
-  const revivalPackPrice = getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
 
@@ -1172,7 +1213,7 @@ function DeathPopup() {
                         accessibilityLabel="Use your Revival Pack to come back to life"
                       >
                         <View style={[styles.optionIcon, styles.optionIconRevive]}>
-                          <Heart size={20} color="#F472B6" fill="#F472B6" />
+                          <Heart size={18} color="#F472B6" fill="#F472B6" />
                         </View>
                         <View style={styles.optionText}>
                           <Text style={styles.optionTitle}>Use Revival Pack</Text>
@@ -1184,6 +1225,48 @@ function DeathPopup() {
                       </TouchableOpacity>
                     )}
 
+                    {/* ── Revive with real money ──────────────────────────────
+                        FIRST of the priced rows, above the gem revive, because
+                        it is the cheaper of the two: a few dollars against
+                        thousands of gems. Showing the expensive option first on
+                        a death screen would be taking advantage of the moment.
+
+                        Tapping it opens the platform's pay sheet directly (see
+                        handleBuyRevivalPack) and the character comes back on
+                        success - it is a purchase, not a signpost to one.
+
+                        Shown only while the pack can still be bought. It is a
+                        NON-CONSUMABLE, so it is purchasable exactly once per
+                        Apple/Google account, ever - after that the row would be
+                        a button that cannot do anything, which is worse than no
+                        row. (Making it repeatable is a store-side product change,
+                        not a code one.) */}
+                    {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
+                      <TouchableOpacity
+                        style={[styles.optionRow, styles.optionRevive]}
+                        onPress={handleBuyRevivalPack}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityState={{ busy: buyingRevivalPack }}
+                        accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and come back to life`}
+                      >
+                        <View style={[styles.optionIcon, styles.optionIconRevive]}>
+                          <Heart size={18} color="#F472B6" fill="#F472B6" />
+                        </View>
+                        <View style={styles.optionText}>
+                          <Text style={styles.optionTitle}>Revival Pack</Text>
+                          <Text style={styles.optionSubtitle} numberOfLines={1}>
+                            {buyingRevivalPack ? 'Opening the store…' : 'Come back now. No gems.'}
+                          </Text>
+                        </View>
+                        <View style={[styles.optionPill, styles.optionPillRevive]}>
+                          <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
+                            {revivalPackPrice}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null}
+
                     <TouchableOpacity
                       style={[styles.optionRow, styles.optionRevive]}
                       onPress={handleRevive}
@@ -1193,7 +1276,7 @@ function DeathPopup() {
                       accessibilityHint={!canAffordRevive ? 'Not enough gems' : undefined}
                     >
                       <View style={[styles.optionIcon, styles.optionIconRevive]}>
-                        <Heart size={20} color="#F472B6" fill="#F472B6" />
+                        <Heart size={18} color="#F472B6" fill="#F472B6" />
                       </View>
                       <View style={styles.optionText}>
                         <Text style={styles.optionTitle}>Revive</Text>
@@ -1213,44 +1296,6 @@ function DeathPopup() {
                       </View>
                     </TouchableOpacity>
 
-                    {/* ── Revive with real money ──────────────────────────────
-                        Shown only while the pack can still be bought. It is a
-                        NON-CONSUMABLE, so it is purchasable exactly once per
-                        Apple/Google account, ever - after that the row would be
-                        a button that cannot do anything, which is worse than no
-                        row. (Making it repeatable is a store-side product change,
-                        not a code one.)
-
-                        It says the price is better than the gem route because it
-                        is: the pack is a few dollars and REVIVE_GEM_COST is
-                        thousands of gems. A death screen that hid that while
-                        showing the expensive option first would be taking
-                        advantage of the moment. */}
-                    {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
-                      <TouchableOpacity
-                        style={[styles.optionRow, styles.optionRevive]}
-                        onPress={handleBuyRevivalPack}
-                        activeOpacity={0.85}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and revive without gems`}
-                      >
-                        <View style={[styles.optionIcon, styles.optionIconRevive]}>
-                          <Heart size={20} color="#F472B6" fill="#F472B6" />
-                        </View>
-                        <View style={styles.optionText}>
-                          <Text style={styles.optionTitle}>Revival Pack</Text>
-                          <Text style={styles.optionSubtitle}>
-                            Revive without spending gems. One-time purchase.
-                          </Text>
-                        </View>
-                        <View style={[styles.optionPill, styles.optionPillRevive]}>
-                          <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
-                            {revivalPackPrice}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ) : null}
-
                     {/* The store bridge. No urgency copy, and the store is still
                         never opened automatically - this is a row you can tap,
                         not a thing that happens to you. */}
@@ -1262,7 +1307,7 @@ function DeathPopup() {
                       accessibilityLabel="Get more gems in the shop"
                     >
                       <View style={styles.optionIcon}>
-                        <Gem size={20} color={c.textSecondary} />
+                        <Gem size={18} color={c.textSecondary} />
                       </View>
                       <View style={styles.optionText}>
                         <Text style={styles.optionTitle}>Get more gems</Text>
@@ -1283,7 +1328,7 @@ function DeathPopup() {
                         accessibilityHint={!canAffordRewind ? 'Not enough gems' : undefined}
                       >
                         <View style={[styles.optionIcon, styles.optionIconRewind]}>
-                          <RotateCcw size={20} color={accent.warning} />
+                          <RotateCcw size={18} color={accent.warning} />
                         </View>
                         <View style={styles.optionText}>
                           <Text style={[styles.optionTitle, styles.optionTitleRewind]}>Rewind Time</Text>

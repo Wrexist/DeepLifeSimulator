@@ -466,12 +466,16 @@ export function createStyles(darkMode: boolean) {
     // Full four-sided borders throughout (Rule #7). The colour still carries
     // the meaning — pink is the paid second chance, amber is the cheaper
     // rewind — it just carries it on all four sides instead of a stripe.
+    // Deliberately compact (owner, 2026-08-25: "doesn't need to be that big").
+    // There are up to six of these on the death screen and the important thing
+    // is that they all fit on one screen, not that any one of them is imposing.
     optionRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: scale(12),
-      padding: scale(12),
-      borderRadius: scale(16),
+      gap: scale(10),
+      paddingVertical: scale(9),
+      paddingHorizontal: scale(11),
+      borderRadius: scale(14),
       backgroundColor: darkMode ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.03)',
       borderWidth: 1,
       borderColor: c.border,
@@ -485,9 +489,9 @@ export function createStyles(darkMode: boolean) {
       borderColor: darkMode ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.24)',
     },
     optionIcon: {
-      width: scale(42),
-      height: scale(42),
-      borderRadius: scale(12),
+      width: scale(34),
+      height: scale(34),
+      borderRadius: scale(10),
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -495,7 +499,7 @@ export function createStyles(darkMode: boolean) {
     optionIconRewind: { backgroundColor: darkMode ? 'rgba(245,158,11,0.14)' : 'rgba(245,158,11,0.10)' },
     optionText: { flex: 1 },
     optionTitle: {
-      fontSize: fontScale(15.5),
+      fontSize: fontScale(15),
       fontWeight: '700',
       color: c.text,
     },
