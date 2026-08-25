@@ -87,8 +87,8 @@ accurate summary, and direction — not fabricated deltas.
 ## Verify + ship
 
 - [x] T1. Tests per item; type-check both trees; lint:errors; routes.
-- [ ] T2. Full Jest suite.
-- [ ] T3. Commit + push to claude/deep-life-retention-9jcr6u; final report.
+- [x] T2. Full Jest suite.
+- [x] T3. Commit + push to claude/deep-life-retention-9jcr6u; final report.
 
 ## Deliberately NOT doing (Impact × Value ÷ Complexity)
 
