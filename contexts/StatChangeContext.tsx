@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { StatChange } from '@/components/ui/StatChangeIndicator';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 
 interface StatChangeContextType {
     changes: StatChange[];
@@ -162,6 +163,24 @@ export function useStatChangeTracker(gameState: {
         gameState?.stats?.fitness,
         addChange,
     ]);
+}
+
+/**
+ * Null-rendering tracker mounted once at the tab-group level, next to
+ * `StatChangeIndicator`. It used to live inside the Home screen, so money
+ * earned on Work / Apps / Life only produced a floating pill if Home happened
+ * to still be mounted. A leaf component with narrow selectors keeps the heavy
+ * tabs layout itself unsubscribed from stat mutations.
+ */
+export function StatChangeTracker() {
+    const health = useGameSelector((s) => s?.stats?.health);
+    const happiness = useGameSelector((s) => s?.stats?.happiness);
+    const energy = useGameSelector((s) => s?.stats?.energy);
+    const money = useGameSelector((s) => s?.stats?.money);
+    const gems = useGameSelector((s) => s?.stats?.gems);
+    const fitness = useGameSelector((s) => s?.stats?.fitness);
+    useStatChangeTracker({ stats: { health, happiness, energy, money, gems, fitness } });
+    return null;
 }
 
 export default StatChangeProvider;

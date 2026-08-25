@@ -1137,7 +1137,9 @@ export const initialGameState: GameState = {
     lifetimePremium: false,
     darkMode: true,
     soundEnabled: true,
-    hapticFeedback: false,
+    // Default ON: expo-haptics ships with the app and utils/haptics.ts already
+    // defaults _enabled = true — a false default here silently disagreed with it.
+    hapticFeedback: true,
     notificationsEnabled: true,
     autoSave: true,
     language: 'English',

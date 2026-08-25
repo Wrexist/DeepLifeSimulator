@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
   lifetimePremium: false,
   darkMode: true,
   soundEnabled: true,
-  hapticFeedback: false,
+  hapticFeedback: true,
   notificationsEnabled: true,
   autoSave: true,
   language: 'English',

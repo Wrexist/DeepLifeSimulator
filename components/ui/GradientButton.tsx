@@ -11,6 +11,7 @@ import React, { useRef } from 'react';
 import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
 import { fontScale, responsiveBorderRadius, scale, verticalScale } from '@/utils/scaling';
+import { haptic } from '@/utils/haptics';
 
 interface GradientButtonProps {
   label: string;
@@ -80,7 +81,10 @@ export default function GradientButton({
         activeOpacity={0.92}
         onPress={onPress}
         disabled={disabled || !onPress}
-        onPressIn={() => animateTo(1)}
+        onPressIn={() => {
+          haptic.light();
+          animateTo(1);
+        }}
         onPressOut={() => animateTo(0)}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}

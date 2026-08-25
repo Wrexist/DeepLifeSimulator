@@ -45,7 +45,6 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import {
   readDiscordClaim,
@@ -176,8 +175,6 @@ function HomeScreenContent() {
   const { dismissWelcomePopup } = useItemActions();
   const { theme, isDark } = useTheme();
   const { hasCompletedTutorial, startTutorial } = useTutorial();
-  // ENGAGEMENT: Track stat changes for floating indicators on week advance
-  useStatChangeTracker(gameState);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);

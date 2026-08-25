@@ -17,7 +17,7 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { getGlassTabBar } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useStatChanges } from '@/contexts/StatChangeContext';
+import { useStatChanges, StatChangeTracker } from '@/contexts/StatChangeContext';
 import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
 import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
@@ -435,7 +435,10 @@ export default function TabLayout() {
         onPress={() => setEventInboxOpen(true)}
       />
     ) : null}
-    {/* ENGAGEMENT: Floating stat change indicators on week advance */}
+    {/* ENGAGEMENT: Floating stat change indicators on week advance. The
+        tracker lives here (not on Home) so money earned on Work / Apps / Life
+        registers a pill on whichever tab the player is on. */}
+    <StatChangeTracker />
     <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
     {/* Floating "watch ad → cash / vitality" reward orb - mounted at the
         tab-group level so it drifts in over ANY game tab (Home / Work / Apps /

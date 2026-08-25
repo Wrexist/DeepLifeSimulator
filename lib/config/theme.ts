@@ -297,7 +297,12 @@ export const shadows = {
 // Animation Timing
 // ---------------------------------------------------------------------------
 
+// Motion tiers: micro = press/selection feedback, fast = small state changes,
+// normal = screen/content transitions, slow = emphasis. `MotiStub` and
+// `usePressableScale` read these as their defaults, so most of the app's motion
+// follows this scale without each call site naming a number.
 export const animation = {
+  micro: 100,
   fast: 150,
   normal: 300,
   slow: 500,

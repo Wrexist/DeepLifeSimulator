@@ -1,13 +1,13 @@
-import { Vibration, Platform , Animated, Easing } from 'react-native';
+import { Animated, Easing } from 'react-native';
 
 import { useState, useCallback, useMemo } from 'react';
 import { showGlobalToast } from './toastBridge';
 import { playSound } from './soundManager';
+import { haptic } from './haptics';
 
 // Enhanced Feedback System
 export class FeedbackSystem {
   private static instance: FeedbackSystem;
-  private hapticEnabled: boolean = false; // Default to false, must be enabled in settings
   private soundEnabled: boolean = true;
   private animationEnabled: boolean = true;
 
@@ -46,78 +46,27 @@ export class FeedbackSystem {
     scale: 'scale',
   } as const;
 
-  // Configure feedback settings
+  // Configure feedback settings.
+  //
+  // Haptics are deliberately NOT configurable here. This singleton used to keep
+  // its own `hapticEnabled` flag, reconfigured by `useFeedback()` during render
+  // — so whichever component rendered last decided haptics for the whole app,
+  // and its implementation was raw `Vibration.vibrate` (a flat buzz) rather
+  // than the Taptic Engine. The one haptic authority is `utils/haptics.ts`:
+  // its `_enabled` flag is set exactly twice — on save load and by the
+  // settings toggle — and every intent routes through expo-haptics.
   configure(options: {
-    haptic?: boolean;
     sound?: boolean;
     animation?: boolean;
   }) {
-    this.hapticEnabled = options.haptic ?? true;
     this.soundEnabled = options.sound ?? true;
     this.animationEnabled = options.animation ?? true;
   }
 
-  // Haptic Feedback
+  // Haptic Feedback — delegates to the single global haptics utility, which
+  // owns the enabled flag and no-ops when the player has haptics off.
   triggerHaptic(type: keyof typeof FeedbackSystem.HapticTypes) {
-    if (!this.hapticEnabled) return;
-
-    try {
-      switch (type) {
-        case 'light':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(50);
-          } else {
-            Vibration.vibrate(100);
-          }
-          break;
-        case 'medium':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(100);
-          } else {
-            Vibration.vibrate(200);
-          }
-          break;
-        case 'heavy':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(150);
-          } else {
-            Vibration.vibrate(300);
-          }
-          break;
-        case 'success':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(75);
-          } else {
-            Vibration.vibrate(150);
-          }
-          break;
-        case 'warning':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(100);
-          } else {
-            Vibration.vibrate(200);
-          }
-          break;
-        case 'error':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(125);
-          } else {
-            Vibration.vibrate(250);
-          }
-          break;
-        case 'selection':
-          if (Platform.OS === 'ios') {
-            Vibration.vibrate(25);
-          } else {
-            Vibration.vibrate(50);
-          }
-          break;
-      }
-    } catch (error) {
-      if (__DEV__) {
-        console.warn('Haptic feedback failed:', error);
-      }
-    }
+    haptic[type]();
   }
 
   // Sound Feedback
@@ -135,12 +84,13 @@ export class FeedbackSystem {
     };
     
     const soundId = soundMap[type] || 'button_click';
+    // No haptic fallback on failure: the combined methods below already pair a
+    // haptic with each sound, so a fallback here double-fired on every press
+    // for as long as no audio backend was installed.
     playSound(soundId).catch((error) => {
       if (__DEV__) {
         console.warn('Failed to play sound:', error);
       }
-      // Fallback to haptic feedback
-      this.triggerHaptic('light');
     });
   }
 
@@ -319,15 +269,15 @@ export class FeedbackSystem {
   }
 }
 
-// Hook for easy access with game settings
-export const useFeedback = (hapticEnabled?: boolean) => {
+// Hook for easy access with game settings.
+//
+// The parameter is accepted for call-site compatibility but IGNORED: the haptic
+// enabled state lives solely in `utils/haptics.ts` (set on save load and by the
+// settings toggle). Passing it here used to mutate the global singleton during
+// render, so the last component to render won for the entire app.
+export const useFeedback = (_hapticEnabled?: boolean) => {
   const feedbackSystem = FeedbackSystem.getInstance();
-  
-  // Configure haptic feedback based on settings
-  if (hapticEnabled !== undefined) {
-    feedbackSystem.configure({ haptic: hapticEnabled });
-  }
-  
+
   return {
     success: (message?: string) => feedbackSystem.success(message),
     error: (message?: string) => feedbackSystem.error(message),

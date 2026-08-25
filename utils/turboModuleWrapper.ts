@@ -356,7 +356,6 @@ export async function lazyLoadTurboModule<T = any>(
             module = await import('expo-splash-screen');
             break;
           case 'expo-haptics':
-            // @ts-expect-error - optional native dependency, lazy-loaded at runtime
             module = await import('expo-haptics');
             break;
           case 'expo-constants':

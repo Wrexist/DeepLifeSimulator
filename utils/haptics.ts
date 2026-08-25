@@ -1,9 +1,11 @@
 /**
  * Standalone Haptic Feedback Utility
  *
- * Context-free haptic triggers for use anywhere (actions, services, utils).
- * Respects the global haptic setting via a mutable flag.
- * For React components, prefer the useHapticFeedback hook instead.
+ * Context-free haptic triggers for use anywhere (components, actions, services).
+ * Respects the global haptic setting via a mutable flag, set in exactly two
+ * places: save load (GameActionsContext) and the settings toggle. This module
+ * is the ONE haptic authority — `useFeedback()` and the mini-app wrappers all
+ * route through it.
  */
 
 let Haptics: any = null;
