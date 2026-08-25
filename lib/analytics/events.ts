@@ -120,6 +120,28 @@ export type AnalyticsEventName =
   | 'premium_activated'
   // The first time a subscriber uses a perk they are paying for.
   | 'first_premium_value'
+  // ── Subscription lifecycle (client-observed via RevenueCat customerInfo) ──
+  //
+  // The gap these close: the app could not SEE a cancellation. Cancelling
+  // happens in the store, outside the app, and nothing read `willRenew` off
+  // the customerInfo the service already fetched - so a subscriber who
+  // cancelled yesterday and a delighted one were indistinguishable until the
+  // entitlement silently lapsed, and no retention change could be judged
+  // against the metric it exists to move (renewals).
+  //
+  // `subscription_state` is the once-per-session snapshot (phase +
+  // daysUntilExpiry) that gives the time series; the four edges are the
+  // actionable moments. `subscription_cancel_detected` fires when auto-renew
+  // turns OFF while still entitled - the win-back window opens.
+  // `subscription_recovered` fires when it turns back ON - the win-back
+  // WORKED, which is the number the whole effort is judged by.
+  // Client-observed, so edges are detected at next app open, not in real
+  // time; a RevenueCat webhook would be the authoritative upgrade.
+  | 'subscription_state'
+  | 'subscription_cancel_detected'
+  | 'subscription_renewed'
+  | 'subscription_recovered'
+  | 'subscription_lapsed'
   | 'ad_shown'
   | 'ad_rewarded'
   // ── Navigation ──
@@ -181,6 +203,11 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'restore_failed',
   'premium_activated',
   'first_premium_value',
+  'subscription_state',
+  'subscription_cancel_detected',
+  'subscription_renewed',
+  'subscription_recovered',
+  'subscription_lapsed',
   'ad_shown',
   'ad_rewarded',
   'screen_view',

@@ -1,3 +1,47 @@
+# Subscription visibility — round 4 (owner: "yes do that — I want as many people as renew as possible", 2026-08-25)
+
+The finding this round answers: the app cannot SEE a cancellation. RevenueCat
+hands over `willRenew` / `expirationDate` / `periodType` /
+`unsubscribeDetectedAt` / `billingIssueDetectedAt` in the same customerInfo
+the service already fetches, and `readEntitlements` keeps two booleans and
+discards the rest. Zero renewal/cancel/lapse events exist in the catalogue,
+so a subscriber who cancelled yesterday and a delighted one look identical
+until the entitlement silently lapses. Renewals cannot be maximised while
+they are invisible - and `willRenew: false` while still active IS the
+win-back window.
+
+- [x] S1. lib/subscription/subscriptionHealth.ts - pure parser from a raw
+      customerInfo shape to a typed phase machine: none / trial / intro /
+      renewing / cancelling / billing_issue / lapsed / lifetime, plus
+      expiresAt + daysUntilExpiry. Fully defensive (SDK object off the wire).
+- [x] S2. RevenueCatService.getCustomerInfoSnapshot() - guarded raw fetch
+      beside getEntitlements, so the monitor never re-implements configure().
+- [x] S3. services/subscriptionHealthMonitor.ts - device-local last-state
+      latch (the premiumValueTracking AsyncStorage pattern; NOT save format)
+      that emits `subscription_state` once per session plus the EDGES:
+      subscription_cancel_detected (renewing→cancelling - THE churn signal),
+      subscription_renewed (expiry advanced), subscription_recovered
+      (cancelling→renewing - the win-back worked), subscription_lapsed.
+- [x] S4. Catalogue: the five names above.
+- [x] S5. Wiring: fire-and-forget from AnalyticsTracker on mount (the one
+      render-free component that owns transition instrumentation), RC builds
+      only.
+- [x] S6. The action layer: when phase is `cancelling`, DailyGemClaim - the
+      surface where the paid perk is FELT daily - states the fact once:
+      "DeepLife+ ends <date>; daily gems continue until then", tap → the
+      Customer Center. Honest by construction: a true statement, no countdown
+      theatrics, no guilt copy, shown only to someone who already cancelled.
+- [x] S7. Tests: the phase machine (every branch), the monitor's edge
+      emission + once-per-session behaviour with mocked storage/track.
+- [x] S8. Full gates, push.
+
+NOT in this round: server-side RevenueCat webhooks (authoritative, but needs
+infra the owner must host - the client-observed signal covers the decision
+need first) and any discount/offer win-back (a pricing decision).
+
+---
+---
+
 # Endgame depth — round 3 (owner picked "Endgame content depth", 2026-08-25)
 
 The mapped ceiling: Life Chapters stop at 7 (week 250 / $10M / age 60), the

@@ -15,6 +15,7 @@ import { usePathname } from 'expo-router';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameUI } from '@/contexts/game/GameUIContext';
 import { track, analytics } from '@/lib/analytics';
+import { checkSubscriptionHealth } from '@/services/subscriptionHealthMonitor';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export function AnalyticsTracker(): null {
@@ -97,6 +98,16 @@ export function AnalyticsTracker(): null {
     }
     prevPrestiges.current = totalPrestiges;
   }, [totalPrestiges, generation, weeksLived, ready]);
+
+  // Subscription health - once per session, after the save has hydrated.
+  // Reads willRenew/expiry off the customerInfo RevenueCat already fetches and
+  // emits the state snapshot + cancel/renew/recover/lapse edges. Fire-and-
+  // forget: the monitor is internally idempotent per session, no-ops on
+  // non-RevenueCat builds, and swallows every failure path.
+  useEffect(() => {
+    if (!ready) return;
+    void checkSubscriptionHealth();
+  }, [ready]);
 
   // session_end + flush when the app backgrounds.
   //
