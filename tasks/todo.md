@@ -45,7 +45,29 @@ player is left in the shop with a banked charge and no revive.
 - `__tests__/monetization/revivalPackDeathScreenPurchase.test.ts` — 16 new ✓
 - Full suite: 681 passed / 8 776 tests ✓
 
+## Round 2 — the pack becomes a CONSUMABLE (owner, 2026-08-25: "yes it should be consumable")
+
+- [x] `iapConfig`: REVIVAL_PACK moved from `NON_CONSUMABLE_PRODUCTS` to `CONSUMABLE_PRODUCTS`,
+      so Restore never re-grants it (a spent charge is spent; an unspent one lives in the save).
+      Product copy rewritten — it banks a revive, it does not fire one on purchase.
+- [x] `IAPService`: the charge is skipped under `entitlementsOnly` (it is a quantity, not an
+      entitlement). `settings.hasRevivalPack` still written as the purchase RECORD, documented
+      as never a gate.
+- [x] Both surfaces gate on the CHARGE (`revivalPack`), not on `hasRevivalPack`: the death row
+      returns once the charge is spent; the shop card reads "Ready" while one is held.
+- [x] `PURCHASED_STATE_KEYS` += `revivalPack` — an unspent charge is paid inventory like
+      `youthPills`, and both prestige builders were destroying it silently.
+- [x] Docs: `IAP-SETUP.md`, `GOOGLE_PLAY_RELEASE_PLAN.md`, `IAP_LOCALIZATION_LIST.md`, CLAUDE.md.
+- [x] 10 more tests (26 in the file).
+
+**One at a time, deliberately.** `revivalPack` is a boolean, so the pack cannot be bought while
+a charge is unspent — a second purchase would be $2.99 for nothing. Both surfaces say so
+("Ready" / the row hides while the free "Use Revival Pack" row is showing). Stacking would need
+the field to become a count, i.e. a type change on a v30-registered field.
+
 ## Left to the owner
-- The pack is a NON-CONSUMABLE, so it is still buyable exactly once per store account. Making
-  the death-screen offer repeatable is a store-side product change (a consumable SKU), not a
-  code one — the row correctly hides itself once owned.
+- **Store consoles.** The SKU type is set there, not here. `revival_pack` must exist as a
+  CONSUMABLE in App Store Connect and Google Play. A product already created as
+  non-consumable cannot be converted — it needs a NEW id (Apple permanently reserves deleted
+  ids; the `deeplife_mindset` -> `deeplife_mindset_perk` precedent). Point
+  `IAP_PRODUCTS.REVIVAL_PACK` at whatever id ends up existing.

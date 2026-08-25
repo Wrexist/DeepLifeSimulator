@@ -65,14 +65,26 @@ describe('the pack banks instead of firing at purchase time', () => {
     path.join(__dirname, '..', '..', 'services/IAPService.ts'), 'utf8',
   );
   // The grant is one `case` in a switch; scope to it so a match cannot come
-  // from a comment or from a neighbouring product's branch.
+  // from a comment or from a neighbouring product's branch. Bounded by the
+  // case's own `break;` rather than a character count - a fixed window silently
+  // stops covering the branch the moment someone adds a line or a comment to
+  // it, which is exactly how this suite once started passing on half a case.
+  const CASE_START = IAP.indexOf('case IAP_PRODUCTS.REVIVAL_PACK:');
   const GRANT = IAP.slice(
-    IAP.indexOf('case IAP_PRODUCTS.REVIVAL_PACK:'),
-    IAP.indexOf('case IAP_PRODUCTS.REVIVAL_PACK:') + 1400,
+    CASE_START,
+    IAP.indexOf('break;', CASE_START),
   ).replace(/\/\/.*$/gm, '');
 
   it('banks a charge', () => {
     expect(GRANT).toMatch(/gameState\.revivalPack = true;/);
+  });
+
+  it('but not on an entitlements-only restore - the charge is a quantity', () => {
+    // The pack is a CONSUMABLE (2026-08-25), so both restore loops skip it and
+    // this branch is unreachable from a restore today. The guard is what keeps
+    // it unreachable BY RULE: without it, the day the pack gains a permanent
+    // entitlement flag, every Restore Purchases tap mints a free revive.
+    expect(GRANT).toMatch(/if \(!entitlementsOnly\) \{\s*gameState\.revivalPack = true;/);
   });
 
   it('and no longer revives inline', () => {

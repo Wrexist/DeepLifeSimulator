@@ -93,16 +93,17 @@ These products can be purchased multiple times and should NOT be restored on app
     - **Price:** $12.99
 
 14. **Product ID:** `revival_pack`
+    - **Type:** Consumable (one banked revive per purchase, re-buyable once spent)
     - **Name:** Revival Pack
-    - **Description:** Instantly revive your character when they die
+    - **Description:** One revive, banked until your character dies
     - **Price:** $2.99
     - **Popular:** Yes
     - **Features:**
-      - Instant revival on death
-      - Restore health to 50
-      - Restore happiness to 50
-      - Restore energy to 100
-      - Continue your progress
+      - One revive, ready when you die
+      - Restores health, happiness and energy to 100
+      - Cures whatever killed you
+      - Keeps your progress, money and family
+      - Buy another once you have used it
 
 ### Repeatable Perk
 

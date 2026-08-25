@@ -140,7 +140,8 @@ export const IAP_PRODUCTS = {
     android: 'deeplife_private_banking',
   }) || 'deeplife_private_banking',
 
-  // Revival Pack (Non-Consumable)
+  // Revival Pack (Consumable - one banked revive per purchase, re-buyable
+  // once it has been spent. See CONSUMABLE_PRODUCTS below.)
   REVIVAL_PACK: Platform.select({
     ios: 'revival_pack',
     android: 'revival_pack',
@@ -433,20 +434,24 @@ export const PRODUCT_CONFIGS = {
     ],
   },
 
-  // Revival Pack (Non-Consumable)
+  // Revival Pack (Consumable). One banked revive per purchase; buyable again
+  // once it has been spent. The copy has to say that - bought from the shop
+  // while alive it does NOT revive anything on the spot, it banks a charge that
+  // waits for the death screen. Promising an "instant revival" to a player in
+  // perfect health was the MON-5 no-op in words rather than code.
   [IAP_PRODUCTS.REVIVAL_PACK]: {
     name: 'Revival Pack',
-    description: 'Instantly revive your character when they die',
+    description: 'One revive, banked until your character dies',
     revival: true,
     price: '$2.99',
     popular: true,
     bestValue: false,
     features: [
-      'Instant revival on death',
-      'Restore health to 100',
-      'Restore happiness to 100',
-      'Restore energy to 100',
-      'Continue your progress',
+      'One revive, ready when you die',
+      'Restores health, happiness and energy to 100',
+      'Cures whatever killed you',
+      'Keeps your progress, money and family',
+      'Buy another once you have used it',
     ],
   },
 
@@ -572,6 +577,24 @@ export const CONSUMABLE_PRODUCTS = [
   // Work Pay Boost is a repeatable purchase (Consumable in App Store Connect),
   // so it is intentionally NOT restored on reinstall.
   IAP_PRODUCTS.WORK_BOOST,
+  // Revival Pack. It shipped as a Non-Consumable, which meant it could be
+  // bought exactly ONCE per store account, ever - so the death screen's offer
+  // vanished permanently after the first revive and the player's only remaining
+  // way back was 15,000 gems. Owner decision (2026-08-25): make it consumable.
+  //
+  // What that changes here: it must NOT be re-granted by Restore Purchases. A
+  // spent charge is spent, and the unspent one lives in the save (`revivalPack`)
+  // where it is already carried across a prestige - so there is nothing for a
+  // restore to repair, and re-granting would mint a free revive on every tap.
+  // It carries no permanent entitlement flag, so `hasPermanentEntitlements`
+  // (below) correctly reports nothing to restore.
+  //
+  // The store side is a product change, not a code one: the SKU must be
+  // recreated as Consumable in App Store Connect and Google Play. Apple
+  // permanently reserves deleted product ids, so iOS will need a NEW id (the
+  // `deeplife_mindset` -> `deeplife_mindset_perk` precedent above) - change it
+  // in IAP_PRODUCTS when that product exists.
+  IAP_PRODUCTS.REVIVAL_PACK,
 ];
 
 // Non-consumable products - These SHOULD be restored
@@ -587,7 +610,6 @@ export const NON_CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.FINANCIAL_PLANNING,
   IAP_PRODUCTS.BUSINESS_BANKING,
   IAP_PRODUCTS.PRIVATE_BANKING,
-  IAP_PRODUCTS.REVIVAL_PACK, // Revival pack (non-consumable - permanent feature)
 ];
 
 // Helper function to check if product is consumable
@@ -671,6 +693,10 @@ export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
   // Perk bundle — the four perks it unlocks (cheaper than buying each at $1.99).
   [IAP_PRODUCTS.UNLOCK_ALL_PERKS]: {
     contents: ['Work Pay Boost', 'Fast Learner', 'Good Credit Score', 'Mindset'],
+  },
+  // One charge, held until death - never an instant effect when bought alive.
+  [IAP_PRODUCTS.REVIVAL_PACK]: {
+    contents: ['One revive, banked until you die', 'Re-buyable after you use it'],
   },
 };
 

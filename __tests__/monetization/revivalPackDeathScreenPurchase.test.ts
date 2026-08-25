@@ -215,3 +215,108 @@ describe('the real action keeps the gates inside the updater', () => {
     expect(purchaseWaiver).toBeGreaterThan(deathGate);
   });
 });
+
+/**
+ * ── The pack is a CONSUMABLE (owner, 2026-08-25) ───────────────────────────
+ *
+ * It shipped as a Non-Consumable, which meant one purchase per store account
+ * ever: after the first revive the $2.99 offer disappeared permanently and a
+ * player's only remaining way back from death was 15,000 gems. Everything below
+ * is what "consumable" has to mean in the app, as opposed to in the store
+ * console.
+ */
+describe('the Revival Pack is a consumable', () => {
+  const { CONSUMABLE_PRODUCTS, NON_CONSUMABLE_PRODUCTS, isConsumableProduct, hasPermanentEntitlements, IAP_PRODUCTS } =
+    require('@/utils/iapConfig') as typeof import('@/utils/iapConfig');
+
+  it('is classified as one, and is no longer in the non-consumable list', () => {
+    expect(isConsumableProduct(IAP_PRODUCTS.REVIVAL_PACK)).toBe(true);
+    expect(CONSUMABLE_PRODUCTS as readonly string[]).toContain(IAP_PRODUCTS.REVIVAL_PACK);
+    expect(NON_CONSUMABLE_PRODUCTS as readonly string[]).not.toContain(IAP_PRODUCTS.REVIVAL_PACK);
+  });
+
+  it('and carries no permanent entitlement, so Restore has nothing to re-grant', () => {
+    // Both restore loops skip `isConsumableProduct(id) && !hasPermanentEntitlements(id)`.
+    // If this ever flipped, every Restore Purchases tap would mint a free
+    // revive - the charge is inventory, and a spent one is spent.
+    expect(hasPermanentEntitlements(IAP_PRODUCTS.REVIVAL_PACK)).toBe(false);
+  });
+
+  it('is still finished as a consumable transaction, so the store allows a re-buy', () => {
+    // Android will refuse a second purchase of an unconsumed product ("already
+    // owned"). Every non-subscription purchase is finished with
+    // isConsumable=true, which is what consumes it.
+    const IAP = read('services/IAPService.ts');
+    expect(IAP).toMatch(/finishTransactionAsync\(\s*purchase,\s*!isSubscriptionProduct\(purchase\.productId\),?\s*\)/);
+  });
+
+  it('is still a non-idempotent grant, so one purchase banks exactly one charge', () => {
+    const IAP = stripComments(read('services/IAPService.ts'));
+    const FN = IAP.slice(IAP.indexOf('function isNonIdempotentGrant'), IAP.indexOf('export class IAPService'));
+    expect(FN).toMatch(/IAP_PRODUCTS\.REVIVAL_PACK/);
+  });
+});
+
+describe('what decides whether the pack can be bought', () => {
+  it('the death screen offers it again once the charge is gone', () => {
+    // `settings.hasRevivalPack` used to be in this condition, which hid the row
+    // forever after the first purchase. Correct for a Non-Consumable; for a
+    // consumable it would leave a player who had spent their charge with the
+    // 15,000-gem route and nothing else.
+    const ACTIONS = DEATH.slice(DEATH.indexOf('<View style={styles.actions}>'));
+    expect(ACTIONS).toMatch(/\{!hasBankedRevive && revivalPackPrice \?/);
+    expect(ACTIONS).not.toMatch(/settings\.hasRevivalPack/);
+  });
+
+  it('and hides it only while a charge is in hand', () => {
+    // One at a time is deliberate: `revivalPack` is a boolean, so a second
+    // purchase stacked on an unspent one would be money for nothing. The row
+    // directly above it spends the charge, so nothing is lost.
+    expect(DEATH).toMatch(/const hasBankedRevive = gameState\.revivalPack === true;/);
+  });
+
+  it('the shop card closes on the charge, not on having ever bought one', () => {
+    // Bounded by the NEXT product entry, whichever it is - LIFETIME_PREMIUM
+    // also appears earlier in the file as a hero card, so indexing on it from
+    // the front produced an empty slice and a test that asserted nothing.
+    const start = SHOP.indexOf('id: IAP_PRODUCTS.REVIVAL_PACK');
+    const next = SHOP.indexOf('id: IAP_PRODUCTS.', start + 10);
+    expect(start).toBeGreaterThan(-1);
+    expect(next).toBeGreaterThan(start);
+    const CARD = SHOP.slice(start, next);
+    expect(CARD).toMatch(/owned: revivalCharged,/);
+    expect(CARD).not.toMatch(/hasRevivalPack/);
+  });
+});
+
+describe('an unspent charge is paid inventory and survives a life boundary', () => {
+  const {
+    PURCHASED_STATE_KEYS,
+    carryAccountLevelEntitlements,
+  } = require('@/lib/prestige/accountEntitlements') as typeof import('@/lib/prestige/accountEntitlements');
+
+  it('is listed alongside the other paid inventory', () => {
+    // Same category as `youthPills`. It was missing, so prestige and the
+    // death-screen "continue as your heir" path both destroyed an unspent
+    // $2.99 charge silently.
+    expect(PURCHASED_STATE_KEYS as readonly string[]).toContain('revivalPack');
+    expect(PURCHASED_STATE_KEYS as readonly string[]).toContain('youthPills');
+  });
+
+  it('and the carry actually moves it onto the new life', () => {
+    const old = createTestGameState({ revivalPack: true, youthPills: 3 });
+    const fresh = createTestGameState({ revivalPack: false, youthPills: 0 });
+
+    const carried = carryAccountLevelEntitlements(old, fresh);
+
+    expect(carried.revivalPack).toBe(true);
+    expect(carried.youthPills).toBe(3);
+  });
+
+  it('without inventing one for a player who never had a charge (the control)', () => {
+    const old = createTestGameState({ revivalPack: false });
+    const carried = carryAccountLevelEntitlements(old, createTestGameState({ revivalPack: false }));
+
+    expect(carried.revivalPack).toBe(false);
+  });
+});

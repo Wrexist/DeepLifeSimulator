@@ -388,6 +388,12 @@ including the crash screen.
   safe answer: inventing a charge would hand out a paid one-shot for free. The
   migration deliberately does NOT read `settings.hasRevivalPack` — that records
   the PURCHASE and survives prestige, while this records the unspent CHARGE.
+  Two later changes, no version bump (nothing about the shape moved): the SKU
+  became a **CONSUMABLE** (2026-08-25), so `revivalPack` — the charge — is what
+  decides whether the pack can be bought on either surface, and
+  `settings.hasRevivalPack` is a purchase record only, never a gate; and the
+  charge joined `PURCHASED_STATE_KEYS`, because an unspent one is paid inventory
+  like `youthPills` and both prestige builders were destroying it.
 - **v31 adds `overdueBalance` and `lastLoginRewardWeek`** — one bump, two fields
   with opposite treatment, which is exactly why they are worth reading together.
   `overdueBalance` is the arrears bucket that replaced the silent forgiveness of

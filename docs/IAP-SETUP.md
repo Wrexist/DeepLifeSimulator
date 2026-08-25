@@ -33,7 +33,7 @@ the Product ID below, the price, one localization (display name +
 description), attach a review screenshot (a screenshot of the in-game
 store is fine and can be reused), and mark it Cleared for Sale.
 
-### Type: Consumable (14)
+### Type: Consumable (15)
 
 | Product ID | Display name | Price |
 |---|---|---|
@@ -51,8 +51,9 @@ store is fine and can be reused), and mark it Cleared for Sale.
 | `deeplife_money_boost` | Money Boost | $7.99 |
 | `deeplife_skill_boost` | Skill Boost | $12.99 |
 | `deeplife_work_boost` | Work Pay Boost | $1.99 |
+| `revival_pack` | Revival Pack | $2.99 |
 
-### Type: Non-Consumable (11)
+### Type: Non-Consumable (10)
 
 | Product ID | Display name | Price |
 |---|---|---|
@@ -66,14 +67,27 @@ store is fine and can be reused), and mark it Cleared for Sale.
 | `deeplife_financial_planning` | Financial Planning | $2.99 |
 | `deeplife_business_banking` | Business Banking | $3.99 |
 | `deeplife_private_banking` | Private Banking | $9.99 |
-| `revival_pack` | Revival Pack | $2.99 |
 
-Two traps in this table:
+Two traps across these two tables:
 
 - **`deeplife_mindset_perk`** — iOS-only rename. Apple permanently reserves
   deleted product ids, so iOS cannot reuse `deeplife_mindset`. Google Play
   (if/when set up) keeps `deeplife_mindset`.
-- **`revival_pack`** — no `deeplife_` prefix. Create it exactly as written.
+- **`revival_pack`** (in the CONSUMABLE table) — no `deeplife_` prefix. Create it exactly as written.
+  It is a **Consumable** (owner decision, 2026-08-25). It shipped as a
+  Non-Consumable, which meant it could be bought once per Apple ID *ever*: after
+  the first revive the death screen's $2.99 offer disappeared for good and the
+  only way back was 15,000 gems. Each purchase now banks one revive
+  (`revivalPack` in the save), spent on the death screen, and the offer returns
+  once the charge is gone.
+
+  **If `revival_pack` already exists in App Store Connect as a Non-Consumable,
+  its type cannot be changed.** Create a NEW consumable product and point
+  `IAP_PRODUCTS.REVIVAL_PACK.ios` at it — Apple permanently reserves deleted
+  product ids, so the new id must differ (the `deeplife_mindset` →
+  `deeplife_mindset_perk` precedent above). Google Play is a separate catalog
+  with the same one-way rule; give it its own id there if `revival_pack` was
+  already created as a one-time non-consumable product.
 
 ## Part 2 — Subscriptions (DeepLife+)
 

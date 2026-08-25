@@ -1235,13 +1235,21 @@ function DeathPopup() {
                         handleBuyRevivalPack) and the character comes back on
                         success - it is a purchase, not a signpost to one.
 
-                        Shown only while the pack can still be bought. It is a
-                        NON-CONSUMABLE, so it is purchasable exactly once per
-                        Apple/Google account, ever - after that the row would be
-                        a button that cannot do anything, which is worse than no
-                        row. (Making it repeatable is a store-side product change,
-                        not a code one.) */}
-                    {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
+                        The pack is a CONSUMABLE (owner, 2026-08-25), so this
+                        offer comes back every time the player has no charge in
+                        hand. It used to hide itself forever after the first
+                        purchase - `settings.hasRevivalPack` was in this
+                        condition - which was right while the SKU was a
+                        Non-Consumable and wrong the moment it stopped being one:
+                        a player who had spent their charge would have been left
+                        with the 15,000-gem route and nothing else.
+
+                        The one thing that hides it is holding a charge already,
+                        because the row directly above spends it. One at a time
+                        is deliberate: `revivalPack` is a boolean, so a second
+                        purchase on top of an unspent one would be money for
+                        nothing. */}
+                    {!hasBankedRevive && revivalPackPrice ? (
                       <TouchableOpacity
                         style={[styles.optionRow, styles.optionRevive]}
                         onPress={handleBuyRevivalPack}

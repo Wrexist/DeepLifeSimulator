@@ -79,14 +79,24 @@ export const PURCHASED_SETTINGS_KEYS = [
 /**
  * Top-level GameState keys that are account-level rather than per-character.
  * `goldUpgrades` holds the nine gem-bought permanent upgrades; `perks` holds
- * purchased perk unlocks; `youthPills` is consumable inventory the player paid
- * for and has not spent yet.
+ * purchased perk unlocks; `youthPills` and `revivalPack` are consumable
+ * inventory the player paid for and has not spent yet.
+ *
+ * `revivalPack` is the unspent $2.99 revive charge (v30). It is the same
+ * category as `youthPills` and was missing here, so an unspent charge was
+ * destroyed by both builders — and the death screen is exactly where the two
+ * meet: a player holding a charge who picks "continue as your heir" instead of
+ * spending it lost it silently. That mattered more once the pack became a
+ * CONSUMABLE (2026-08-25), because a charge can now be re-bought and therefore
+ * held far more often. Carrying it is also the only safe direction: it is a
+ * boolean the player paid for, and dropping it is unrecoverable while keeping
+ * it is exactly what they bought.
  *
  * `lastLoginRewardWeek` is deliberately absent — see the week-marker note at
  * the end of `PURCHASED_SETTINGS_KEYS` for why a `weeksLived`-denominated
  * marker must not cross a life boundary.
  */
-export const PURCHASED_STATE_KEYS = ['goldUpgrades', 'perks', 'youthPills'] as const;
+export const PURCHASED_STATE_KEYS = ['goldUpgrades', 'perks', 'youthPills', 'revivalPack'] as const;
 
 /**
  * Copy every account-level entitlement from the outgoing life onto a freshly

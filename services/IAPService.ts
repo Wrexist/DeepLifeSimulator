@@ -288,11 +288,29 @@ export function applyProductBenefitsToState(
       // the grant BANKS it and `reviveWithPack` in GameStateContext spends it.
       // `revivalPack` has been on GameState since the beginning, defaulting to
       // false and read by nothing — this is the field finally being used.
-      gameState.revivalPack = true;
-      // Kept in step: `settings.hasRevivalPack` is the entitlement record that
-      // survives prestige (lib/prestige/accountEntitlements.ts), while
-      // `revivalPack` is the unspent charge. They answer different questions —
-      // "did they buy it" vs "do they still have one" — so both are written.
+      //
+      // The charge is a QUANTITY, not an entitlement, so a restore that is
+      // repairing only the permanent half of a mixed product must not mint one.
+      // Today the pack is a plain consumable and both restore loops skip it
+      // outright, so this branch is unreachable from a restore — the guard is
+      // here because the day it stops being unreachable, the failure is a free
+      // revive on every Restore Purchases tap.
+      if (!entitlementsOnly) {
+        gameState.revivalPack = true;
+      }
+      // Kept in step: `settings.hasRevivalPack` is the PURCHASE RECORD (it
+      // survives prestige, lib/prestige/accountEntitlements.ts), while
+      // `revivalPack` is the unspent CHARGE. They answer different questions —
+      // "have they ever bought one" vs "do they hold one right now" — so both
+      // are written.
+      //
+      // It is NOT a gate. It used to hide the store card and the death
+      // screen's buy row once set, which was right while the pack was a
+      // Non-Consumable (buyable once per store account, ever) and became wrong
+      // the moment it turned consumable: a player who had spent their charge
+      // would have been shown "Owned" and no way to buy another. Whether the
+      // pack can be bought is decided by `revivalPack` — the charge — in both
+      // surfaces.
       gameState.settings.hasRevivalPack = true;
       break;
   }

@@ -129,8 +129,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   const { buyGoldUpgrade } = useMoneyActions();
   const { saveGame } = useGameActions();
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
-  // MON-5: whether a Revival Pack CHARGE is currently banked. Distinct from
-  // `settings.hasRevivalPack`, which records the purchase and never clears.
+  // MON-5: whether a Revival Pack CHARGE is currently banked. This - not
+  // `settings.hasRevivalPack`, which records that a purchase ever happened and
+  // never clears - is what decides whether the pack can be bought, because the
+  // SKU is a consumable.
   const revivalCharged = useGameSelector((s) => s.revivalPack === true);
   const goldUpgrades = useGameSelector((s) => s.goldUpgrades);
   const perks = useGameSelector((s) => s.perks);
@@ -656,13 +658,18 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       accent: 'perks' as ShopAccent,
       image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],
       title: 'Revival Pack',
-      owned: settings?.hasRevivalPack === true,
-      // The pack is a NON-CONSUMABLE, so once bought it can never be bought
-      // again - "Owned" is accurate but says nothing about whether a charge is
-      // left. After the revive is spent that reads as though the player still
-      // has one. "Ready" / "Used" tells the truth without pretending the
-      // product can be repurchased.
-      ownedLabel: revivalCharged ? 'Ready' : 'Used',
+      // The pack is a CONSUMABLE (owner, 2026-08-25): one banked revive per
+      // purchase, buyable again as soon as it has been spent. So what closes
+      // the card is HOLDING a charge, not having ever bought one -
+      // `settings.hasRevivalPack` used to sit here and, once the SKU stopped
+      // being a Non-Consumable, it would have shown "Owned" to a player whose
+      // charge was long gone.
+      //
+      // One at a time is deliberate: `revivalPack` is a boolean, so a second
+      // purchase stacked on an unspent one would be $2.99 for nothing. "Ready"
+      // says the charge is in hand and waiting for the death screen.
+      owned: revivalCharged,
+      ownedLabel: 'Ready',
     },
     {
       id: IAP_PRODUCTS.LIFETIME_PREMIUM,

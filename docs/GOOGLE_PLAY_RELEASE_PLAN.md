@@ -437,6 +437,7 @@ distinguish consumable from non-consumable at creation — the app consumes or d
 | `deeplife_money_boost` | Money Boost | 7.99 |
 | `deeplife_skill_boost` | Skill Boost | 12.99 |
 | `deeplife_work_boost` | Work Pay Boost | 1.99 |
+| `revival_pack` | Revival Pack | 2.99 |
 
 **Permanent unlocks (never consumed):**
 
@@ -452,13 +453,18 @@ distinguish consumable from non-consumable at creation — the app consumes or d
 | `deeplife_financial_planning` | Financial Planning | 2.99 |
 | `deeplife_business_banking` | Business Banking | 3.99 |
 | `deeplife_private_banking` | Private Banking | 9.99 |
-| `revival_pack` | Revival Pack | 2.99 |
 
 > **Two ID traps — read twice:**
 > - **`deeplife_mindset`** on Play, **not** `deeplife_mindset_perk`. The `_perk`
 >   suffix is an iOS-only workaround (Apple permanently reserves deleted product
 >   IDs). The code resolves the right one per platform via `Platform.select`.
-> - **`revival_pack`** has **no `deeplife_` prefix**. Create it exactly as written.
+>
+> **`revival_pack` is NOT in the table above — it is a CONSUMABLE** (owner
+> decision, 2026-08-25), so create it with the gem packs and boosts, not here.
+> Each purchase banks one revive that the death screen spends; the offer comes
+> back once the charge is used. It also has **no `deeplife_` prefix** - create
+> it exactly as written. A product already created as a one-time non-consumable
+> cannot be converted, so it needs a new id in that case.
 
 Each product needs: ID, name, description, price, and status **Active**.
 
