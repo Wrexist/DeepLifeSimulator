@@ -141,7 +141,7 @@ describe('the authored growth pace drives promotion progress', () => {
   };
 
   it('multiplier: fast 1.3 / steady 1.0 / slow 0.7 / unprofiled 1.0', () => {
-    expect(growthProgressMultiplier('musician')).toBe(1.3);
+    expect(growthProgressMultiplier('fast_food')).toBe(1.3);
     expect(growthProgressMultiplier('chef')).toBe(1.0);
     expect(growthProgressMultiplier('farmer')).toBe(0.7);
     expect(growthProgressMultiplier('engineer')).toBe(1.0);
@@ -149,11 +149,15 @@ describe('the authored growth pace drives promotion progress', () => {
   });
 
   it('a "Climbs fast" ladder outpaces a "Climbs slow" one under identical conditions', () => {
-    const musician = progressFor('musician'); // 5 * 1.3 = 6.5 → 7
-    const farmer = progressFor('farmer'); // 5 * 0.7 = 3.5 → 4
+    // fast_food is the tier's FAST ladder (and its lowest ceiling); the
+    // musician is now its SLOWEST (and its highest) - the two ends of the same
+    // bet. Reassigned 2026-08-25 when the musician stopped being best on every
+    // axis at once; before that it held 'fast' AND the top ceiling.
+    const fastLadder = progressFor('fast_food'); // 5 * 1.3 = 6.5 → 7
+    const slowLadder = progressFor('musician');  // 5 * 0.7 = 3.5 → 4
     const engineer = progressFor('engineer'); // historical flat 5
-    expect(musician).toBeGreaterThan(engineer);
-    expect(engineer).toBeGreaterThan(farmer);
+    expect(fastLadder).toBeGreaterThan(engineer);
+    expect(engineer).toBeGreaterThan(slowLadder);
     expect(engineer).toBe(5); // unprofiled = exactly the historical rate
   });
 });

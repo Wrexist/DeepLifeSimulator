@@ -23,6 +23,7 @@
  */
 
 import type { GameState } from '@/contexts/game/types';
+import { miningIncomeCap } from '@/lib/economy/constants';
 import { MINER_REPAIR_COSTS } from './applyMiningWarehouse';
 import { calculateMiningEarnings } from '@/contexts/game/actions/MiningActions';
 
@@ -122,7 +123,15 @@ export function applyMiningCryptos(input: MiningCryptosInput): MiningCryptosResu
   // at $100K/week — the identical MINING_INCOME_CAP the cash side used. `totalEarnings`
   // is the USD value (cryptoEarned × price); scale both down together when over cap so
   // a tera fleet (16 BTC/wk ≈ $700K) can't dwarf every other income stream.
-  const MINING_USD_CAP = 100000;
+  // The cap SCALES with the hardware actually bought (2026-08-25 economy
+  // audit). A flat $100k made the giga and tera rigs unrecoverable by
+  // arithmetic - their gross exceeds the cap, so they paid back in 100 and 500
+  // weeks against the 71 every cheaper tier pays, and a second one earned
+  // nothing at all. `miningIncomeCap` keeps the $100k floor for every fleet
+  // under ~$7.1M (i.e. everyone this cap was written for) and above that
+  // bounds the return at capital/71 - mining still cannot out-run its own
+  // payback, it just stops being a trap at the top of the ladder.
+  const MINING_USD_CAP = miningIncomeCap(warehouse.miners);
   if (result.totalEarnings > MINING_USD_CAP && result.cryptoEarned > 0) {
     const scale = MINING_USD_CAP / result.totalEarnings;
     result.cryptoEarned = result.cryptoEarned * scale;

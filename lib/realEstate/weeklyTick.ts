@@ -18,6 +18,7 @@
  */
 
 import { RealEstate } from '@/contexts/game/types';
+import { RENTED_MAINTENANCE_ANNUAL_RATE } from './carryingCosts';
 import { cycleEffects, NeighborhoodCycle } from './market';
 import { tickProperty } from './operations';
 import { getUpgradeTier } from './housing';
@@ -89,9 +90,14 @@ export function runRealEstateWeeklyTick(input: RealEstateWeeklyTickInput): RealE
     // pure profit. ~1.2%/yr tax + ~1%/yr maintenance ≈ 2.2%/yr of value, charged
     // weekly (WEEKS_PER_YEAR ≈ 52). A vacant/owner-occupied unit (no rent received)
     // is left at 0 so owners aren't charged phantom rent on their own home.
+    // MAINTENANCE only. The other ~1.2%/yr of the old 0.022 was property TAX,
+    // which is now charged on every owned unit whether or not it earns rent
+    // (`lib/realEstate/carryingCosts.ts`) - the mandatory, wealth-scaling cost
+    // the economy was missing. Keeping it here as well would bill a landlord
+    // twice for the same tax. Total on a rented unit is unchanged.
     const carryingCost =
       tick.property.status === 'rented' && tick.rentReceived > 0
-        ? (safe(tick.property.currentValue, tick.property.price) * 0.022) / 52
+        ? (safe(tick.property.currentValue, tick.property.price) * RENTED_MAINTENANCE_ANNUAL_RATE) / 52
         : 0;
     // Route the upgrade-tier rent bonus through the realized (tenant-model) rent
     // so the legacy `processWeeklyHousing` figure — which previously carried this

@@ -66,3 +66,51 @@ export function calculateIncomeTax(weeklyIncome: number): number {
 
   return Math.round(tax);
 }
+
+// ---------------------------------------------------------------------------
+// Mining income cap
+// ---------------------------------------------------------------------------
+
+/**
+ * How long a mining rig takes to pay for itself, in weeks.
+ *
+ * The PRICE ladder above and the weekly-earnings ladder in `applyMiningCryptos`
+ * were authored consistently: every tier from basic to tera costs almost
+ * exactly 71 weeks of its own gross output. What broke the top of the ladder
+ * was the CAP, not the prices.
+ */
+export const MINING_PAYBACK_WEEKS = 71;
+
+/** The floor the cap never drops below - the historic flat cap. */
+export const MINING_INCOME_CAP_BASE = 100_000;
+
+/**
+ * Weekly ceiling on mining income for a given fleet.
+ *
+ * The cap used to be a flat $100,000/week, which made the two most expensive
+ * rigs unbuyable-by-arithmetic (2026-08-25 economy audit): a giga grosses
+ * $140k/wk and a tera $700k/wk, so the flat cap clipped them to $100k and
+ * turned their paybacks into 100 and 500 weeks against the 71 every other tier
+ * pays - and a second big rig added literally nothing. $50,000,000 of hardware
+ * you could buy and never recover. Two dead SKUs on the shop shelf.
+ *
+ * Scaling the cap with the capital actually deployed - the `companyIncomeCap`
+ * idiom of a base plus a per-unit allowance - restores one honest payback for
+ * the whole ladder without turning mining into free money: the ceiling is
+ * exactly `capital / MINING_PAYBACK_WEEKS`, so mining can never return faster
+ * than that no matter how much hardware is bought, and every dollar of that
+ * return had to be a dollar put at risk first. Fleets under ~$7.1M are
+ * unaffected - the $100k base still binds, exactly as before.
+ */
+export function miningIncomeCap(miners: Record<string, number> | undefined | null): number {
+  let capital = 0;
+  for (const [id, count] of Object.entries(miners ?? {})) {
+    const price = MINER_PRICES[id] ?? 0;
+    const safeCount =
+      typeof count === 'number' && isFinite(count) && count > 0 ? Math.floor(count) : 0;
+    capital += price * safeCount;
+  }
+  const earned = capital / MINING_PAYBACK_WEEKS;
+  if (!isFinite(earned) || earned <= 0) return MINING_INCOME_CAP_BASE;
+  return Math.max(MINING_INCOME_CAP_BASE, Math.round(earned));
+}

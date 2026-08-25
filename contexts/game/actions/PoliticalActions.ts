@@ -343,17 +343,7 @@ export const runForOffice = (
     return { success: false, message: 'You do not meet the requirements for this office' };
   }
 
-  // Calculate campaign cost (based on office level)
-  const campaignCosts = {
-    council_member: 5000,
-    mayor: 20000,
-    state_representative: 50000,
-    governor: 200000,
-    senator: 500000,
-    president: 2000000,
-  };
-
-  const campaignCost = campaignCosts[office];
+  const campaignCost = CAMPAIGN_COSTS[office];
   
   if (gameState.stats.money < campaignCost) {
     return {
@@ -407,17 +397,7 @@ export const runForOffice = (
     const newLevel = levelMap[office];
     const nextElection = getNextElectionWeek(currentWeek, newLevel as 0 | 1 | 2 | 3 | 4 | 5, currentWeek);
 
-    // Calculate election win reward based on office level
-    const electionRewards: Record<string, number> = {
-      council_member: 10000,
-      mayor: 50000,
-      state_representative: 150000,
-      governor: 500000,
-      senator: 1000000,
-      president: 5000000,
-    };
-
-    const reward = electionRewards[office] || 0;
+    const reward = electionVictoryFund(office);
 
     // Atomic: merge campaign cost + election reward + politics update into single update.
     // R-audit 2026-07-02: the outer age/reputation/money gates read the stale render-time
@@ -824,6 +804,42 @@ export const formAlliance = (
   }
   return { success: preview.ok, message: preview.message };
 };
+
+/**
+ * What it costs to run for each office.
+ *
+ * Hoisted to module scope 2026-08-25 so the victory fund below can be DERIVED
+ * from it. The two used to be separate hand-written tables and had drifted
+ * into a jackpot: every rung paid 2-3x its own campaign cost at up to 95%
+ * odds, so a presidential run was +$2.75M expected on one tap - positive-EV
+ * cash no civilian career in the game can match, for a decision that is
+ * supposed to be about the OFFICE.
+ */
+export const CAMPAIGN_COSTS: Record<string, number> = {
+  council_member: 5000,
+  mayor: 20000,
+  state_representative: 50000,
+  governor: 200000,
+  senator: 500000,
+  president: 2000000,
+};
+
+/**
+ * The victory fund, as a multiple of what the campaign cost.
+ *
+ * Winning now roughly RECOUPS the campaign rather than paying a prize: at the
+ * 95% ceiling on the win roll this leaves a small positive expectation
+ * (0.95 x 1.2 = 1.14), so running is not a punishment - it just stops being
+ * the best investment in the economy. The reasons to hold office are the
+ * salary, the policies, the appointments and the pension.
+ */
+export const ELECTION_VICTORY_FUND_MULTIPLIER = 1.2;
+
+/** Transition money a winner receives. Derived - never a second table. */
+export function electionVictoryFund(office: string): number {
+  const cost = CAMPAIGN_COSTS[office] ?? 0;
+  return Math.round(cost * ELECTION_VICTORY_FUND_MULTIPLIER);
+}
 
 export const campaign = (
   gameState: GameState,

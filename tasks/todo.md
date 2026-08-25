@@ -1,3 +1,86 @@
+# "Fix what's next" — the nine flagged items (owner, 2026-08-25)
+
+Owner: "Fix everything that's next you said in what's next". Working the nine
+items flagged in tasks/economy-audit-2026-08-25.md §6, plus the onboarding
+stat-colour inconsistency flagged when the Life Moment popup was recoloured.
+
+## [x] N1. Celebrate financial independence  [item 7 in the audit]
+FIRE is computed precisely (lib/statistics/fireTracker.ts) and consumed by ONE
+display + the age-45 early-retirement gate. Nothing marks the moment your
+assets pay for your life. Add (a) an achievement on the real mechanical
+condition (weekly passive income >= weekly expenses, both already computed by
+the canonical helpers) and (b) a DREAM goal so it is a visible forward target
+on the home feed, not a surprise. No schema change: the achievement system
+already stores what is earned/claimed.
+
+## [x] N2. Delete Company.electricalBill  [item 9]
+Zero readers, zero writers since it shipped. Remove the field + keep the
+deadStateFields ratchet honest.
+
+## [x] N3. Mining top tiers are a trap  [item 4]
+giga ($10M) and tera ($50M) can never pay back: the FLEET cap is $100k/wk, so
+hardware whose gross exceeds it earns nothing extra. Scale the cap with the
+fleet the player actually bought — the established companyIncomeCap idiom
+(base + per-unit) — so every tier has a coherent payback instead of two dead
+SKUs. Ratchet test: no purchasable tier may have an impossible payback.
+
+## [x] N4. Musician dominates the entry tier  [item 1]
+Best on all five axes: no hiring bar, lightest toll (-8 energy), the only
+POSITIVE happiness toll, 'fast' growth, and a $2,120 ceiling (next best $790).
+Fix the two that make it free rather than the fantasy: a reputation hiring bar
+(you need a name to get gigs) and experienceRequired tenure gates on the top
+three rungs, mirroring celebrity/politician. It stays the entry tier's highest
+ceiling — it becomes a long shot instead of a default.
+
+## [x] N5. Degree ladders are dominated  [item 2]
+A $48,000 business degree buys a $600/wk ceiling (teacher) while a free
+musician reaches $2,120 and a reputation-30 celebrity reaches $4,600. Tuition
+is the most expensive investment in the game and buys the worst ceiling —
+backwards. Raise the cheap-degree ceilings so tuition pays back, and stop the
+catalogue `politician` ladder impersonating the elections system (it tops at
+$3,400/wk THROUGH payroll multipliers while the actual elected President draws
+$1,923/wk flat). Reframe it as the political STAFF track it should always have
+been, with a ceiling below real office.
+
+## [x] N6. The $10M-$100M dead zone  [item 6]
+Chapters end at $10M; the dream goal jumps $10M -> $100M; Legacy Contracts
+jump $100M -> $1B -> $1T. Add the missing rungs so there is always a next
+target in the band where the money axis currently goes quiet.
+
+## [x] N7. No recurring cost scales with wealth  [item 5]
+The one real gap in the sink model: an owner-occupied home pays NOTHING (the
+2.2%/yr carrying cost applies only while rented, and catalog homes carry no
+upkeep), so a $8M penthouse is free to hold while a renter pays $950/wk.
+Add property tax + maintenance on owned residences, proportional to value —
+mandatory, predictable, understandable, and it finally gives buy-vs-rent a
+real carrying cost on both sides. Charged through chargeOrDefer (arrears, not
+forgiveness) and SHOWN in the expense breakdown (displayed == applied).
+
+## [x] N8. Election rewards are positive-EV cash  [item 8]
+Every rung pays 2-2.5x its campaign cost at up to 95% odds — a jackpot no
+civilian path matches. Now that campaign() no longer refunds itself, bring the
+reward down to roughly recouping the campaign so winning office is about the
+OFFICE, not the prize money.
+
+## [~] N9. Save->peek->reload market foresight  [item 3]
+Assess honestly and report. Determinism per week is what makes reloading
+save-scum-proof; any seed that changes on reload re-opens the farm it closed.
+Expected outcome: NOT fixable without a worse regression — say so plainly
+rather than ship a fake fix.
+
+## [x] N10. Onboarding perk cards contradict the HUD
+perksFlow.getStatColor paints happiness RED and energy AMBER — the HUD's
+colours on the wrong stats, seconds before the player meets the HUD. Point it
+at lib/config/statIdentity.ts.
+
+## Verify
+- [x] V1. Tests per item; type-check both trees; lint:errors + ratchet; routes.
+- [x] V2. Full Jest suite.
+- [x] V3. Commit + push; report per item, including what was NOT changed and why.
+
+---
+---
+
 # Ultimate economy audit — sources, sinks, dominance, exploits (owner program, 2026-08-25)
 
 Owner brief: the "ULTIMATE ECONOMY" master program — audit the entire

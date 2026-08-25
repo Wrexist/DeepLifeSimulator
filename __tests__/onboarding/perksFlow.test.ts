@@ -142,7 +142,17 @@ describe('getPerkBenefits', () => {
 // ---------------------------------------------------------------------------
 
 describe('getStatColor', () => {
-  it('returns red for happiness', () => expect(getStatColor('happiness')).toBe('#EF4444'));
-  it('returns green for health', () => expect(getStatColor('health')).toBe('#10B981'));
-  it('returns gray for unknown', () => expect(getStatColor('unknown')).toBe('#6B7280'));
+  // These read the HUD's pairings via lib/config/statIdentity (2026-08-25).
+  // They used to assert this function's OWN table, which had happiness RED and
+  // energy AMBER - the HUD's colours on the wrong stats, shown on the perk
+  // cards seconds before the player meets the HUD itself.
+  it('returns the HUD yellow for happiness', () => expect(getStatColor('happiness')).toBe('#F59E0B'));
+  it('returns the HUD blue for energy', () => expect(getStatColor('energy')).toBe('#3B82F6'));
+  it('returns the HUD red for health', () => expect(getStatColor('health')).toBe('#EF4444'));
+  it('keeps the perk-card labels that are not stats', () => {
+    expect(getStatColor('Starting Money')).toBe('#F7931A');
+    expect(getStatColor('Income Boost')).toBe('#10B981');
+  });
+  it('falls back to grey for anything unknown', () =>
+    expect(getStatColor('not_a_stat')).toBe('#6B7280'));
 });

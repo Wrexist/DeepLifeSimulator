@@ -17,6 +17,7 @@ import { calcGamingStreamingIncome } from './gamingStreamingIncome';
 import { logger } from '@/utils/logger';
 import { familyBrandIncomeMultiplier, findFamilyBusiness, legacyGenerationIncomeMultiplier } from '@/lib/business/familyBusinessEffects';
 import { minerFleetWeeklyPowerCost } from './minerPower';
+import { miningIncomeCap } from './constants';
 import {
   PROPERTY_THRESHOLD_1,
   PROPERTY_THRESHOLD_2, 
@@ -493,8 +494,19 @@ export function calcWeeklyPassiveIncome(
   // too paid the same hardware twice (capped cash AND uncapped crypto). The split is
   // now clean: company miners → cash (above); warehouse miners → crypto (elsewhere).
 
-  // ANTI-EXPLOIT: Hard cap on total mining income to prevent it from dominating all other income
-  const MINING_INCOME_CAP = 100000; // $100K/week maximum from all mining combined
+  // ANTI-EXPLOIT: cap total mining income so it cannot dominate every other
+  // stream. SCALED with the hardware bought since 2026-08-25 - see
+  // `miningIncomeCap`; a flat cap made the top two rigs unrecoverable. Company
+  // fleets are summed across companies, the same pool the earnings above use.
+  const companyMinerFleet: Record<string, number> = {};
+  for (const company of state.companies || []) {
+    for (const [id, count] of Object.entries(company?.miners || {})) {
+      if (typeof count === 'number' && isFinite(count) && count > 0) {
+        companyMinerFleet[id] = (companyMinerFleet[id] || 0) + count;
+      }
+    }
+  }
+  const MINING_INCOME_CAP = miningIncomeCap(companyMinerFleet);
   if (cryptoMiningIncome > MINING_INCOME_CAP) {
     cryptoMiningIncome = MINING_INCOME_CAP;
   }

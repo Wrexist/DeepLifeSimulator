@@ -34,6 +34,7 @@
  */
 
 import type { RealEstate, RealEstateActivityEntry, GameState } from '@/contexts/game/types';
+import { portfolioPropertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import * as housingModule from '@/lib/realEstate/housing';
 import { rentalIncomeMultiplier } from '@/lib/prestige/purchaseDiscounts';
@@ -150,6 +151,15 @@ export function applyRentAndHousing(
   const seen = new Set((prevActivity ?? []).map((e) => e.id));
   const freshUnique = newActivity.filter((e) => !seen.has(e.id));
   const realEstateActivity = [...(prevActivity ?? []), ...freshUnique].slice(-ACTIVITY_CAP);
+
+  // PROPERTY TAX - the mandatory cost that finally scales with wealth
+  // (2026-08-25 economy audit). Charged on every owned unit, earning or not,
+  // because you are taxed on what you own; the tenancy tick above no longer
+  // carries the tax half of its old 2.2%/yr, so a landlord is not billed
+  // twice. Folded into `housingUpkeep` so it settles through the SAME bills
+  // and arrears path as the rest of housing rather than a new debit nobody can
+  // defer, and so `calcWeeklyExpenses` shows exactly what the tick charges.
+  housingUpkeep += portfolioPropertyTaxWeekly(updatedRealEstate);
 
   // Life Skills: Budgeting (-5% weekly expenses) trims recurring housing costs
   // (rent paid + upkeep). Bounded mult ≤ 1; rental INCOME is never scaled.

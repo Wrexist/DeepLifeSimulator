@@ -4544,7 +4544,7 @@ exports[`pre-tick equivalence - applyRentAndHousing rented but owned: no rent pa
   "result": {
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
-    "housingUpkeep": 0,
+    "housingUpkeep": 46,
     "realEstateActivity": [],
     "updatedRealEstate": [
       {
@@ -4589,7 +4589,7 @@ exports[`pre-tick equivalence - applyRentAndHousing vacant status (no status fie
   "result": {
     "housingHappinessBonus": 0,
     "housingRentalIncome": 0,
-    "housingUpkeep": 0,
+    "housingUpkeep": 12,
     "realEstateActivity": [],
     "updatedRealEstate": [
       {

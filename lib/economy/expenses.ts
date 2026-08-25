@@ -3,6 +3,7 @@ import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
+import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
 import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
@@ -82,7 +83,11 @@ export function calcWeeklyExpenses(
       const propertyUpkeep = typeof p.upkeep === 'number' && isFinite(p.upkeep) && p.upkeep >= 0 ? p.upkeep : 0;
       const tierUpkeepBonus = typeof tier.upkeepBonus === 'number' && isFinite(tier.upkeepBonus) && tier.upkeepBonus >= 0 ? tier.upkeepBonus : 0;
       
-      const totalUpkeep = propertyUpkeep + tierUpkeepBonus;
+      // Property tax rides with upkeep because the TICK charges it through the
+      // same `housingUpkeep` line (applyRentAndHousing). Omitting it here would
+      // understate a homeowner's real weekly bill - the displayed-vs-applied
+      // class this file has been bitten by twice.
+      const totalUpkeep = propertyUpkeep + tierUpkeepBonus + propertyTaxWeekly(p);
       if (isFinite(totalUpkeep) && totalUpkeep > 0) {
         return sum + totalUpkeep;
       }

@@ -24,6 +24,44 @@ function probeStates(): GameState[] {
     createTestGameState({ stats: { money: 900, health: 55, happiness: 40 } }),
     createTestGameState({ stats: { money: 50_000 }, currentJob: 'tech' }),
     createTestGameState({ stats: { money: 5_000_000 }, currentJob: 'tech' }),
+    // Passive-income probes. Without one, any goal measured against what the
+    // player's ASSETS earn is eligible in zero states - which this file's own
+    // movement invariant calls a gap in the probes, not a pass. Three levels:
+    // two still climbing (so progress MOVES) and one already covering its
+    // costs (so the achieved/ineligible branch is exercised too).
+    createTestGameState({
+      stats: { money: 20_000 },
+      companies: [
+        {
+          id: 'probe-co-small', name: 'Probe Co', type: 'restaurant',
+          weeklyIncome: 120, baseWeeklyIncome: 120, upgrades: [], employees: 1,
+          workerSalary: 100, workerMultiplier: 1, marketingLevel: 0,
+          miners: {}, warehouseLevel: 0,
+        },
+      ],
+    }),
+    createTestGameState({
+      stats: { money: 400_000 },
+      companies: [
+        {
+          id: 'probe-co-mid', name: 'Probe Holdings', type: 'factory',
+          weeklyIncome: 250, baseWeeklyIncome: 250, upgrades: [], employees: 6,
+          workerSalary: 200, workerMultiplier: 1, marketingLevel: 0,
+          miners: {}, warehouseLevel: 0,
+        },
+      ],
+    }),
+    createTestGameState({
+      stats: { money: 900_000 },
+      companies: [
+        {
+          id: 'probe-co-fi', name: 'Probe Group', type: 'factory',
+          weeklyIncome: 9_000, baseWeeklyIncome: 9_000, upgrades: [], employees: 8,
+          workerSalary: 200, workerMultiplier: 1, marketingLevel: 0,
+          miners: {}, warehouseLevel: 0,
+        },
+      ],
+    }),
     createTestGameState({ overdueBalance: 500, stats: { money: 100 } }),
     createTestGameState({ overdueBalance: 500, stats: { money: 400 } }),
     createTestGameState({

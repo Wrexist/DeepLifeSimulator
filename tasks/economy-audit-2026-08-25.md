@@ -196,7 +196,13 @@ attention, which is the intended shape.
 - **Careers:** tolls/growth differentiation (H1, 2026-08-24) works; remaining
   dominance issues are flagged below rather than nerfed blind.
 
-## 6. Remaining risks — flagged to the owner, deliberately not changed
+## 6. Remaining risks — ALL FIXED in the follow-up pass, except one
+
+Owner's follow-up instruction was to fix everything listed here. Eight of the
+nine were fixed the same day (see `tasks/todo.md` "Fix what's next"); the
+resolution of each is recorded inline below. Item 3 is the exception and the
+reason is given in full — it cannot be closed without re-opening a worse hole.
+
 
 1. **Musician dominates the entry tier** on all five axes (pay ceiling
    $2,120, fast growth, −8 energy, +4 happiness, no gates). Options: an
@@ -225,6 +231,72 @@ attention, which is the intended shape.
 9. `Company.electricalBill` is a dead field (no reader, no writer) — remove or
    wire on next schema pass. `PER_SOURCE_CAPS.stocks` caps a hardcoded-zero
    stream (documented in place).
+   **FIXED.** The bet this job was built on — the worst wage for the best
+   ceiling — had lost its first half: `MIN_ENTRY_WEEKLY_SALARY` put the busker
+   on the same $110 as everyone else, leaving best ceiling, lightest toll,
+   only positive happiness toll and fastest growth, with no downside at all.
+   The downside is restored in TIME, not in a gate (the hiring bar stays open,
+   which `jobMarket.test.ts` requires so the bet exists on day one): slowest
+   pace in the tier, early rungs barely clearing minimum wage, and tenure
+   gates of 40/100/170 weeks on the top three rungs. `fast_food` takes over
+   the 'fast' pace — quickest climb, lowest ceiling — so the tier finally
+   spans a real curve.
+   **FIXED.** The rule is now THE GATE SETS THE CEILING, pinned by
+   `lib/careers/__tests__/gateSetsTheCeiling.test.ts`: teacher 600→1,100,
+   nurse 700→1,250, police 550→900, legal 660→950, so tuition finally buys
+   something no free ladder can reach. Nothing was nerfed to get there — the
+   dominated ladders were raised. The catalogue `politician` (which topped at
+   $3,400/wk THROUGH payroll multipliers while the actual elected President
+   draws $1,923 flat) is now the political STAFF track it should always have
+   been: Field Organizer → Chief of Staff, ceiling $1,500, and it no longer
+   claims offices you can only win at an election.
+   **NOT FIXED — and deliberately so.** Verified again in source: the walk is
+   seeded on `weeksLived` (+ the per-life salt), and the board is snapshotted
+   into the save and restored on load, so save → advance → read prices →
+   reload → advance replays the identical week. Every available fix is worse
+   than the disease. Seeding on anything that differs after a reload re-opens
+   the reload-until-a-good-week farm this determinism was built to close.
+   Hiding the outcome until after the commit is impossible when the player
+   owns the save file. Raising fees until a one-week peek stops paying taxes
+   every honest trade to punish a self-directed, single-player exploit that
+   costs nobody else anything. Left open, on purpose, with the reasoning here
+   so the next audit does not spend a cycle rediscovering it.
+   **FIXED.** The price ladder was never the problem — every tier from basic
+   to tera is authored at ~71 weeks of its own gross output. The FLAT $100k/wk
+   cap was: a giga grosses $140k and a tera $700k, so the cap clipped them to
+   100/500-week paybacks and a second big rig earned literally nothing.
+   `miningIncomeCap` now scales with the capital actually deployed
+   (capital ÷ 71), keeping the $100k floor for every fleet under ~$7.1M — i.e.
+   everyone the cap was written for — while making the whole ladder share one
+   honest payback. Mining still cannot out-run that payback however much
+   hardware is bought, which is what the cap was protecting.
+   **FIXED.** Property tax: 1.2%/yr of current value on every OWNED unit,
+   earning or not (`lib/realEstate/carryingCosts.ts`). A studio owner pays
+   ~$22/wk, a penthouse owner ~$1,846 — mandatory, predictable, proportional,
+   and it gives buy-vs-rent a carrying cost on both sides at last. The tenancy
+   tick's old 2.2%/yr was authored as "~1.2% tax + ~1% maintenance", so it now
+   keeps only the maintenance half and no landlord is billed twice. Charged
+   through `housingUpkeep`, so it settles via the existing bills/arrears path
+   and appears in the expense breakdown — displayed equals applied.
+   **FIXED (the guidance half).** The wealth ladder jumped $10M → $100M with
+   nothing in between, which is exactly the band that goes quiet; $25M and
+   $50M rungs now sit in the gap so there is always a next target. The deeper
+   content question — what a first-life player DOES between those numbers —
+   remains a design brief rather than a defect.
+   **FIXED.** `financialIndependence()` is the mechanical version of the
+   question — does weekly passive income cover the weekly cost of this life,
+   after tax on that income — built from the same canonical helpers the Cash
+   Flow card displays, and floored at this file's own baseline cost of living
+   so an empty life cannot qualify. Surfaced twice: a 250-gem achievement
+   ("Financially Independent") and a DREAM goal, so it is a visible target on
+   the home feed rather than a number on a stats screen.
+   **FIXED.** Cost and reward were separate hand-written tables and had
+   drifted to 2-3x, i.e. +$2.75M expected on a single presidential tap. The
+   victory fund is now DERIVED from the campaign cost at 1.2x, so winning
+   roughly recoups the campaign and running for office is about the office.
+   **FIXED.** Deleted. Company rig electricity is a real cost now, charged
+   where the income is paid rather than accrued as a bill nobody ever billed.
+   `PER_SOURCE_CAPS.stocks` stays as documented dead weight.
 
 ## 7. Scores (0–100, honest)
 

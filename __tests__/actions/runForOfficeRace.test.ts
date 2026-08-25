@@ -55,8 +55,10 @@ describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', ()
     runForOffice(snapshot, setState, 'council_member', deps);
     runForOffice(snapshot, setState, 'council_member', deps); // stale snapshot → double-tap
 
-    // one win: 5000 - 5000 + 10000 = 10000 (NOT 15000 from a double reward)
-    expect(get().stats.money).toBe(10000);
+    // one win: 5000 - 5000 + 6000 = 6000 (NOT 12000 from a double reward).
+    // The victory fund is 1.2x the campaign cost since 2026-08-25 - it recoups
+    // the campaign instead of paying a 2-3x prize.
+    expect(get().stats.money).toBe(6000);
     expect(get().politics?.electionsWon).toBe(1);
   });
 
@@ -83,8 +85,8 @@ describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', ()
     runForOffice(snapshot, setState, 'council_member', deps);
     runForOffice(snapshot, setState, 'council_member', deps);
 
-    // win only: 10000 - 5000 + 10000 = 15000; no extra loss-branch charge
-    expect(get().stats.money).toBe(15000);
+    // win only: 10000 - 5000 + 6000 = 11000; no extra loss-branch charge
+    expect(get().stats.money).toBe(11000);
     expect(get().politics?.electionsWon).toBe(1);
   });
 
@@ -96,7 +98,7 @@ describe('runForOffice same-batch race regression (weekly audit 2026-07-02)', ()
     const res = runForOffice(snapshot, setState, 'council_member', deps);
 
     expect(res.success).toBe(true);
-    expect(get().stats.money).toBe(10000);
+    expect(get().stats.money).toBe(6000);
     // Council Member is office RANK 1 (careerLevel is 1-based: 0=Citizen … 6=President).
     // This was previously 0, which mislabeled a winner as "Citizen" and left the
     // scandal engine + political events (all gated on careerLevel > 0) switched off.
