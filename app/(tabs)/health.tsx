@@ -8,6 +8,7 @@ import { HealthActivity } from '@/contexts/game/types';
 import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import EmptyState from '@/components/ui/EmptyState';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
@@ -310,6 +311,14 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
           </View>
           <Text style={sectionDescStyle}>{t('health.chooseAutomaticDaily')}</Text>
 
+          {(gameState.dietPlans ?? []).length === 0 && (
+            <EmptyState
+              compact
+              icon={<Utensils size={22} color="#34D399" />}
+              observation="No diet plans available yet"
+              nudge="Plans appear here as your life progresses — check back after a few weeks."
+            />
+          )}
           {(gameState.dietPlans ?? []).map(plan => {
             const weeklyCost = plan.dailyCost * 7;
             const deltas: HealthDelta[] = [

@@ -32,7 +32,7 @@ import {
   Car,
   Video,
   Mail,
-  Crown, Lock } from 'lucide-react-native';
+  Crown, Lock, LayoutGrid } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -473,6 +473,16 @@ export function ComputerScreenContent({
           <Text style={[styles.noComputerMessage, settings.darkMode && styles.noComputerMessageDark]}>
             {t('computer.noComputerMessage')}
           </Text>
+          {/* Not a dead end: point straight at the surface that sells one. */}
+          <TouchableOpacity
+            style={styles.noDeviceCta}
+            onPress={() => router.push({ pathname: '/(tabs)/life', params: { segment: 'shop' } })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Shop for a computer in the Market"
+          >
+            <Text style={styles.noDeviceCtaText}>Shop the Market</Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     );
@@ -537,6 +547,14 @@ export function ComputerScreenContent({
       colors={settings.darkMode ? ['#020617', '#020617'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
+      {/* Titled header - parity with mobile.tsx, which this launcher silently
+          replaces the moment a computer is bought. Same tab, same chrome. */}
+      <View style={styles.header}>
+        <LayoutGrid size={scale(18)} color={settings.darkMode ? '#F8FAFC' : '#0F172A'} />
+        <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
+          {t('tabs.apps') || 'Apps'}
+        </Text>
+      </View>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
@@ -659,6 +677,23 @@ const styles = StyleSheet.create({
   },
   loadingTextDark: {
     color: '#D1D5DB',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    paddingTop: responsivePadding.vertical,
+    paddingBottom: responsiveSpacing.sm,
+    paddingHorizontal: responsivePadding.horizontal,
+  },
+  headerTitle: {
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+  },
+  headerTitleDark: {
+    color: '#F8FAFC',
   },
   scrollView: {
     flex: 1,
@@ -842,6 +877,23 @@ const styles = StyleSheet.create({
   },
   noComputerMessageDark: {
     color: '#94A3B8',
+  },
+  noDeviceCta: {
+    marginTop: scale(20),
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: scale(12),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    minHeight: scale(44),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noDeviceCtaText: {
+    color: '#3B82F6',
+    fontSize: fontScale(14),
+    fontWeight: '700',
   },
   highlightedCardGlass: {
     ...Platform.select({

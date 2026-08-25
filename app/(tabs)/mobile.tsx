@@ -50,6 +50,7 @@ import {
   responsiveIconSize,
   isTablet,
   scale,
+  fontScale,
   getTabBarSafePadding,
 } from '@/utils/scaling';
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
@@ -276,6 +277,16 @@ export function MobileScreenContent({
           <Text style={[styles.noPhoneMessage, settings.darkMode && styles.noPhoneMessageDark]}>
             {t('mobile.noPhoneMessage')}
           </Text>
+          {/* Not a dead end: point straight at the surface that sells one. */}
+          <TouchableOpacity
+            style={styles.noDeviceCta}
+            onPress={() => router.push({ pathname: '/(tabs)/life', params: { segment: 'shop' } })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Shop for a phone in the Market"
+          >
+            <Text style={styles.noDeviceCtaText}>Shop the Market</Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     );
@@ -632,6 +643,23 @@ const styles = StyleSheet.create({
   },
   noPhoneMessageDark: {
     color: '#94A3B8',
+  },
+  noDeviceCta: {
+    marginTop: scale(20),
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: scale(12),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    minHeight: scale(44),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noDeviceCtaText: {
+    color: '#3B82F6',
+    fontSize: fontScale(14),
+    fontWeight: '700',
   },
 });
 

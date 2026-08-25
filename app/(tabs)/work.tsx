@@ -22,6 +22,7 @@ import { startScooterRental, endScooterRental } from '@/contexts/game/actions/Ve
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import EmptyState from '@/components/ui/EmptyState';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import type { PromotionDetails } from '@/contexts/game/types';
 import {
@@ -1178,7 +1179,16 @@ function WorkScreenContent() {
                                             }
                                         }}
                                     />
-                                    {legalStreetJobs.map(renderJobCard)}
+                                    {legalStreetJobs.length > 0 ? (
+                                        legalStreetJobs.map(renderJobCard)
+                                    ) : (
+                                        <EmptyState
+                                            compact
+                                            icon={<Zap size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            observation="No gigs on the board this week"
+                                            nudge="Quick jobs rotate as the weeks pass — advance the week and check back."
+                                        />
+                                    )}
                                 </View>
                             )}
 
@@ -1205,7 +1215,16 @@ function WorkScreenContent() {
                                             {' · '}new listings in {boardRefreshWeeks} {boardRefreshWeeks === 1 ? 'week' : 'weeks'}
                                         </Text>
                                     )}
-                                    {visibleBasicCareers.map(career => renderCareerCard(career))}
+                                    {visibleBasicCareers.length > 0 ? (
+                                        visibleBasicCareers.map(career => renderCareerCard(career))
+                                    ) : (
+                                        <EmptyState
+                                            compact
+                                            icon={<Briefcase size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            observation="No open positions right now"
+                                            nudge={`The job board rotates — new listings in ${boardRefreshWeeks} ${boardRefreshWeeks === 1 ? 'week' : 'weeks'}.`}
+                                        />
+                                    )}
                                     <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -1322,11 +1341,12 @@ function WorkScreenContent() {
                                     {criminalStreetJobs.length > 0 ? (
                                         criminalStreetJobs.map(renderJobCard)
                                     ) : (
-                                        <View style={{ padding: scale(16), alignItems: 'center' }}>
-                                            <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                                                No underground jobs available right now - raise your criminal level or check back later.
-                                            </Text>
-                                        </View>
+                                        <EmptyState
+                                            compact
+                                            icon={<Lock size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            observation="No underground jobs available right now"
+                                            nudge="Raise your criminal level to unlock more work, or check back later."
+                                        />
                                     )}
                                 </View>
                             )}

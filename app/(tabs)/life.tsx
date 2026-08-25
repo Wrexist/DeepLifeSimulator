@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Modal, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
@@ -48,6 +49,17 @@ function LifeScreen() {
 
   const statsLocked = !isFeatureUnlocked(gameState, 'tab:progression');
   const statsReason = unlockRequirement(gameState, 'tab:progression');
+
+  // Deep-link support: `/(tabs)/life?segment=shop` lands on a specific segment,
+  // so CTAs elsewhere ("buy a computer in the Market") can point straight at
+  // the Market instead of dead-ending on this shell's default segment.
+  const params = useLocalSearchParams<{ segment?: string }>();
+  useEffect(() => {
+    const target = params.segment;
+    if (target === 'health' || target === 'shop' || (target === 'stats' && !statsLocked)) {
+      setSegment(target);
+    }
+  }, [params.segment, statsLocked]);
 
   return (
     <ErrorBoundary>

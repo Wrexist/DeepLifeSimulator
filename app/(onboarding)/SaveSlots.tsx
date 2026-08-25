@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import RestoreBackupSheet from '@/components/onboarding/RestoreBackupSheet';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
+import Skeleton from '@/components/anim/Skeleton';
 // Leaf context, not the @/contexts/GameContext barrel - the barrel's eager
 // `export * from './game'` pulled the whole provider graph into this screen's
 // module init and caused a production require-cycle (undefined screen export).
@@ -525,6 +526,18 @@ export default function SaveSlots() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Slot metadata loads async; a blank list here is the app's highest-
+              anxiety blank screen ("did my saves survive?"). Show three slot-
+              shaped placeholders until the real cards arrive. */}
+          {!slotsLoaded &&
+            slots.length === 0 &&
+            [1, 2, 3].map((id) => (
+              <View key={`placeholder-${id}`} style={styles.card} accessibilityLabel="Loading save slots">
+                <Skeleton height={scale(18)} radius={6} style={{ width: '35%' }} />
+                <Skeleton height={scale(14)} radius={6} style={{ width: '60%' }} />
+                <Skeleton height={scale(30)} radius={8} />
+              </View>
+            ))}
           {slots.map((slot, index) => {
             const isSelected = selectedSlot === slot.id;
             // An error slot has unreadable data (hasData=false) - it must never
