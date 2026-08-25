@@ -4264,3 +4264,31 @@ catalogue clean.
   shipped with zero producers AND zero consumers, and nothing failed. When a
   schema field looks like a feature, grep for both halves before assuming it
   works — and after wiring it, pin BOTH halves in one test file.
+
+---
+
+## 2026-08-25 — Weekly audit (v48 balance triad + memory surfaces): clean, and one analyzer false-positive to stop re-investigating
+
+The routine weekly audit over the v48 change (`b603d34`: company-upgrade retune,
+food satiety, longevity pivot, sequel/RNG memory work, life timeline, death
+archive) plus the post-v48 commits (toast policy, playtest fixes, em-dash sweep)
+found **nothing blocking**. Static suite 🟡 PASS; two deep-review subagents over
+Economy/Longevity and Save/State/Logic both returned clean; dynamic suites all
+green (food/longevity 16, save-migration + longRunSaveLoad 42, moneyConservation
++ economy 33, timeline/chapters/legacy 23); type-check clean. The balance triad
+followed the house patterns exactly — atomic gate-inside-updater for the food
+charge and hustle energy, a bounded/guarded quadratic death ramp off a clamped
+`[72,92]` pivot, a v48 carve-out with a round-trip test.
+
+**The lesson (don't burn time on this next week).** `audit-save.cjs`'s
+`as GameState` test-drift check matches on the substring, so it also flags
+`as GameState['lifetimeStatistics']` / `['family']` / `['relationships']` — a
+narrow cast of ONE nested field slice layered on top of a `createTestGameState()`
+base. That is NOT the Hard Rule #3 violation the check exists for (a whole
+hand-built state bypassing the factory): the base is factory-built, so field
+presence and migration alignment are intact, and the slice cast is just the
+minimal way to shape a deep nested value in a focused assertion. The count rose
+5→7 only because three new v48 test files (`lifeTimeline`, `lateChapters`,
+`lifeRecord`) use that idiom. Backlog, not a fix: tighten the analyzer to ignore
+`as GameState[` (subscripted) so the WARN reflects real full-state fabrication —
+don't refactor the tests, and don't re-audit these seven lines each week.
