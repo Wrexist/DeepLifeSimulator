@@ -10,6 +10,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import EmptyState from '@/components/ui/EmptyState';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import ProgressRing from '@/components/ui/ProgressRing';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
@@ -205,26 +206,33 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
             compact
             summary={<VitalsSummary vitals={vitals} />}
           >
-          <View style={styles.vitalsList}>
+          {/* Rings, not bars - the same language the HUD uses for the same
+              three stats, so a player reads one vocabulary in both places
+              instead of learning a second one on this screen. Fitness is the
+              fourth ring here because this is the screen that changes it. */}
+          <View style={styles.vitalsRingRow}>
             {vitals.map(v => {
               const pct = Math.max(0, Math.min(100, v.value));
               return (
-                <View key={v.key} style={styles.vitalRow}>
-                  <View style={[styles.vitalIcon, { borderColor: v.color + '66', backgroundColor: v.color + '1A' }]}>
-                    <v.Icon size={scale(13)} color={v.color} />
-                  </View>
-                  <Text
-                    style={styles.vitalLabel}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
+                <View key={v.key} style={styles.vitalRingCell}>
+                  <ProgressRing
+                    value={pct}
+                    size={scale(46)}
+                    strokeWidth={scale(4)}
+                    ambient={false}
+                    showPill={false}
+                    accentColor={v.color}
+                    trackColor="rgba(148, 163, 184, 0.18)"
+                    label={`${v.label} level`}
                   >
+                    <v.Icon size={scale(16)} color={v.color} />
+                  </ProgressRing>
+                  <Text style={styles.vitalRingValue} numberOfLines={1}>
+                    {Math.round(v.value)}
+                  </Text>
+                  <Text style={styles.vitalRingLabel} numberOfLines={1}>
                     {v.label}
                   </Text>
-                  <View style={styles.vitalBarBg}>
-                    <View style={[styles.vitalBarFill, { width: `${pct}%`, backgroundColor: v.color }]} />
-                  </View>
-                  <Text style={styles.vitalValue} numberOfLines={1}>{Math.round(v.value)}</Text>
                 </View>
               );
             })}
@@ -404,8 +412,31 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: responsiveSpacing.md,
-    gap: verticalScale(12),
+    gap: verticalScale(4),
     ...getPlatformShadows(6, 0.25, 4, 14),
+  },
+  vitalsRingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: responsiveSpacing.xs,
+    paddingBottom: scale(2),
+  },
+  vitalRingCell: {
+    flex: 1,
+    alignItems: 'center',
+    gap: scale(4),
+  },
+  vitalRingValue: {
+    fontSize: fontScale(14),
+    fontWeight: '800',
+    color: '#F8FAFC',
+    marginTop: scale(5),
+  },
+  vitalRingLabel: {
+    fontSize: fontScale(10.5),
+    fontWeight: '600',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
   },
   vitalsSummary: {
     flexDirection: 'row',
@@ -414,58 +445,6 @@ const styles = StyleSheet.create({
   vitalsSummaryValue: {
     fontSize: fontScale(13),
     fontWeight: '800',
-  },
-  vitalsTitle: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
-    color: 'rgba(226, 232, 240, 0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  vitalsList: {
-    gap: verticalScale(10),
-  },
-  vitalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(10),
-  },
-  vitalIcon: {
-    width: scale(26),
-    height: scale(26),
-    borderRadius: scale(8),
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vitalLabel: {
-    // Sized for the longest label ("Happiness"); numberOfLines + adjustsFontSizeToFit
-    // guarantee it never wraps to "Happine\nss" on any resolution / font-scale.
-    width: scale(74),
-    fontSize: fontScale(12.5),
-    fontWeight: '600',
-    color: '#E2E8F0',
-  },
-  vitalBarBg: {
-    flex: 1,
-    height: scale(7),
-    borderRadius: scale(4),
-    backgroundColor: 'rgba(148, 163, 184, 0.18)',
-    overflow: 'hidden',
-  },
-  vitalBarFill: {
-    height: '100%',
-    borderRadius: scale(4),
-  },
-  vitalValue: {
-    // Wide enough for a 3-digit "100" with tabular figures so the value never
-    // wraps to "10\n0". Fixed width keeps every row's number right-aligned.
-    width: scale(38),
-    textAlign: 'right',
-    fontSize: fontScale(13),
-    fontWeight: '800',
-    color: '#F8FAFC',
-    fontVariant: ['tabular-nums'],
   },
   contentInner: {
     padding: responsiveSpacing.md,
