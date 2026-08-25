@@ -374,7 +374,10 @@ export const runForOffice = (
   // Pre-roll impure values before updater
   const electionRoll = Math.random() * 100;
 
-  // Calculate election success chance (based on approval rating, reputation, karma, and campaign funds)
+  // Calculate election success chance (based on approval rating, reputation and
+  // karma — `campaignFunds` is deliberately NOT an input: an earlier revision of
+  // this comment claimed it was, and that lie hid the campaign()→skim refund
+  // loop for a full audit cycle)
   const baseChance = 50;
   const approvalBonus = politics.approvalRating * 0.3;
   const reputationBonus = gameState.stats.reputation * 0.2;
@@ -868,7 +871,14 @@ export const campaign = (
         campaignFunds: 0,
       },
       approvalRating: Math.min(100, (prev.politics?.approvalRating ?? 50) + approvalGain),
-      campaignFunds: (prev.politics?.campaignFunds || 0) + amount,
+      // The spend is SPENT (ads, staff, events) — it must NOT land in
+      // `campaignFunds`. That pot is the party machine's money (weekly party
+      // funding) and it is what embezzlement skims 25%/wk from; banking the
+      // player's own spend there made every campaign deposit ~100% recoverable
+      // as a geometric series of skims, so approval 50→100 cost ~$0 net
+      // (2026-08-23 audit flagged the loop; closed 2026-08-25). PAC remains the
+      // deliberate "banked political money" channel — spending IT is what buys
+      // approval, so parking-and-skimming there earns nothing.
     },
     };
   });

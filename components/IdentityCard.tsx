@@ -18,10 +18,12 @@ import {
 import { styles } from '@/components/IdentityCardStyles';
 import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import { MINER_POWER_UNITS, minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState , Loan } from '@/contexts/game/types';
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { householdPartnerIncome } from '@/contexts/game/actions/weekly/applyIncome';
 import { paidWeeklyCareerSalary } from '@/lib/careers/weeklySalary';
 import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 import { getTotalLuxuryYield } from '@/lib/luxury/operations';
@@ -313,14 +315,14 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   const passive = Math.max(0, passiveInfo.total - officePay) + luxuryYield;
 
   // Partner / spouse weekly income (counts even after marriage) - 25% of the
-  // HIGHEST-earning qualifying partner. Mirrors computeWeeklyIncome (which caps
-  // to the top earner, not a sum) so the displayed cash flow matches reality.
-  const partnerIncome = useMemo(() => {
-    const top = (relationships || [])
-      .filter(rel => (rel.type === 'partner' || rel.type === 'spouse') && rel.income && rel.relationshipScore >= 50)
-      .reduce((max, rel) => Math.max(max, rel.income || 0), 0);
-    return Math.round(top * 0.25);
-  }, [relationships]);
+  // HIGHEST-earning qualifying partner. Reads the SAME `householdPartnerIncome`
+  // the paycheck credits (it exists precisely because a hand-rolled copy of
+  // this rule produced the 7× FamilyTab overstatement its docblock records;
+  // this card carried another copy - identical today, drift waiting to happen).
+  const partnerIncome = useMemo(
+    () => householdPartnerIncome(relationships),
+    [relationships]
+  );
 
   /**
    * What the week loop will actually take.
@@ -1219,107 +1221,43 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 </Text>
               </View>
               {(() => {
+                // Warehouse rigs only - company miner power is now CHARGED
+                // (netted inside the company mining income row in
+                // `calcWeeklyPassiveIncome`), so it no longer appears in the
+                // expense breakdown: the passive-income figure is already net
+                // of it, and listing it here too would double-count. The rate
+                // and per-miner power table come from the one shared source,
+                // `lib/economy/minerPower.ts` - this block used to carry its
+                // own literal copies at rates the tick never charged.
                 const miningExpenses: { name: string; cost: number; power?: number; miners?: { type: string; count: number; power: number }[] }[] = [];
-                const companyMinerPower: Record<string, number> = {
-                  basic: 10,
-                  advanced: 35,
-                  pro: 100,
-                  industrial: 250,
-                  quantum: 500,
-                };
-                
-                // Company miners
-                (gameState.companies || []).forEach(company => {
-                  if (!company || !company.miners || Object.keys(company.miners).length === 0) return;
-                  
-                  const totalPower = Object.entries(company.miners).reduce(
-                    (sum, [id, count]) => {
-                      const minerPower = companyMinerPower[id] || 0;
+
+                if (gameState.warehouse?.miners && Object.keys(gameState.warehouse.miners).length > 0) {
+                  const weeklyPowerCost = minerFleetWeeklyPowerCost(gameState.warehouse.miners);
+                  if (weeklyPowerCost > 0) {
+                    const minerCounts: { type: string; count: number; power: number }[] = [];
+                    let totalPower = 0;
+                    Object.entries(gameState.warehouse.miners).forEach(([id, count]) => {
+                      const minerPower = MINER_POWER_UNITS[id] || 0;
                       const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-                      return sum + (minerPower * minerCount);
-                    },
-                    0
-                  );
-                  
-                  if (totalPower > 0 && isFinite(totalPower)) {
-                    const monthlyBill = totalPower * 0.20 * 30;
-                    if (isFinite(monthlyBill) && monthlyBill > 0) {
-                      const weeklyBill = Math.round(monthlyBill / 4);
-                      if (weeklyBill > 0) {
-                        // Count miners by type
-                        const minerCounts: { type: string; count: number; power: number }[] = [];
-                        Object.entries(company.miners).forEach(([id, count]) => {
-                          const minerPower = companyMinerPower[id] || 0;
-                          const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-                          if (minerCount > 0 && minerPower > 0) {
-                            minerCounts.push({
-                              type: id.charAt(0).toUpperCase() + id.slice(1),
-                              count: minerCount,
-                              power: minerPower * minerCount,
-                            });
-                          }
-                        });
-                        
-                        miningExpenses.push({
-                          name: `${company.name || company.id} (Company)`,
-                          cost: weeklyBill,
-                          power: totalPower,
-                          miners: minerCounts,
+                      if (minerCount > 0 && minerPower > 0) {
+                        totalPower += minerPower * minerCount;
+                        minerCounts.push({
+                          type: id.charAt(0).toUpperCase() + id.slice(1),
+                          count: minerCount,
+                          power: minerPower * minerCount,
                         });
                       }
-                    }
-                  }
-                });
-                
-                // Warehouse miners
-                const warehouseMinerPower: Record<string, number> = {
-                  basic: 10,
-                  advanced: 35,
-                  pro: 100,
-                  industrial: 250,
-                  quantum: 500,
-                  mega: 2000,
-                  giga: 5000,
-                  tera: 15000,
-                };
-                
-                if (gameState.warehouse?.miners && Object.keys(gameState.warehouse.miners).length > 0) {
-                  const totalPower = Object.entries(gameState.warehouse.miners).reduce(
-                    (sum, [id, count]) => {
-                      const minerPower = warehouseMinerPower[id] || 0;
-                      const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-                      return sum + (minerPower * minerCount);
-                    },
-                    0
-                  );
-                  
-                  if (totalPower > 0 && isFinite(totalPower)) {
-                    const weeklyPowerCost = Math.round(totalPower * 0.60);
-                    if (weeklyPowerCost > 0) {
-                      // Count warehouse miners by type
-                      const minerCounts: { type: string; count: number; power: number }[] = [];
-                      Object.entries(gameState.warehouse.miners).forEach(([id, count]) => {
-                        const minerPower = warehouseMinerPower[id] || 0;
-                        const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-                        if (minerCount > 0 && minerPower > 0) {
-                          minerCounts.push({
-                            type: id.charAt(0).toUpperCase() + id.slice(1),
-                            count: minerCount,
-                            power: minerPower * minerCount,
-                          });
-                        }
-                      });
-                      
-                      miningExpenses.push({
-                        name: 'Warehouse Mining',
-                        cost: weeklyPowerCost,
-                        power: totalPower,
-                        miners: minerCounts,
-                      });
-                    }
+                    });
+
+                    miningExpenses.push({
+                      name: 'Warehouse Mining',
+                      cost: weeklyPowerCost,
+                      power: totalPower,
+                      miners: minerCounts,
+                    });
                   }
                 }
-                
+
                 return miningExpenses.length > 0 ? (
                   <View style={styles.modalSubSection}>
                     {miningExpenses.map((mining, idx) => (

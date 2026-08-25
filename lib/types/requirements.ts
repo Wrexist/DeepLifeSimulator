@@ -14,6 +14,16 @@ export interface CareerRequirements {
   fitness?: number;
   items?: string[];
   education?: string[];
+  /**
+   * Alternative education routes: completing ANY single programme listed here
+   * satisfies the education requirement even when the `education` list is not
+   * fully met (2026-08-25 economy audit). Added because two programmes gated
+   * NOTHING — `computer_science` promised a "Software engineering track" while
+   * software required only `masters_degree`, and `law_school` opened no career
+   * at all — making both $72k/$132k trap purchases. Evaluated in exactly one
+   * place (`lib/careers/careerRequirements.ts`), like every other field here.
+   */
+  educationAnyOf?: string[];
   reputation?: number;
 }
 

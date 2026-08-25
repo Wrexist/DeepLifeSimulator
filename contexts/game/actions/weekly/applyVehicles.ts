@@ -24,12 +24,14 @@
  *   - `ctx.preRolls.vehicleAccident[i]`        — accident-trigger probability
  *   - `ctx.preRolls.vehicleAccidentSeverity[i]` — severity tier pick
  *
- * `activeVehicleId` is an optional hint (the orchestrator currently calls with
- * two args, so it is `undefined` in live play → every vehicle rolls at the
- * passive base rate). When supplied it lets the active vehicle carry the
- * on-the-road accident premium. On a total loss of the active vehicle the
- * caller's `activeVehicleId` may point at the removed id; every consumer
- * resolves it via `.find()`/`=== id` and is null-safe.
+ * `activeVehicleId` — the orchestrator passes `prevState.activeVehicleId`
+ * (since 2026-08-25; it used to call with two args, leaving every vehicle on
+ * full fuel at the passive accident rate). The active vehicle pays full fuel
+ * and carries the on-the-road accident premium; idle vehicles pay 25% fuel
+ * (`lib/vehicles/runningCosts.ts` — shared with the expense panel and budget
+ * mirror). On a total loss of the active vehicle the caller's
+ * `activeVehicleId` may point at the removed id; every consumer resolves it
+ * via `.find()`/`=== id` and is null-safe.
  *
  * Returns the updated `Vehicle[]` (totaled vehicles removed). The caller writes
  * this back into the GameState (`vehicles: updatedVehicles`).
@@ -46,6 +48,7 @@ import {
   healthLossForSeverity,
   type AccidentSeverity,
 } from '@/lib/vehicles/accidents';
+import { vehicleWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import type { WeekContext } from './weekContext';
 import { chargeOrDefer } from './chargeOrDefer';
 
@@ -69,8 +72,15 @@ export function applyVehiclesForWeek(
     if (!vehicle || !vehicle.owned) return vehicle;
     const v = { ...vehicle };
 
-    // Deduct weekly maintenance + fuel cost
-    const weeklyCost = (v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0);
+    // isActive drives BOTH the fuel rule and the accident premium below. The
+    // orchestrator now passes `prevState.activeVehicleId` (it never did before
+    // 2026-08-25, so every vehicle burned full fuel at the passive accident
+    // rate while the expense panel promised 25% idle fuel — displayed ≠ applied).
+    const isActive = activeVehicleId != null && v.id === activeVehicleId;
+
+    // Deduct weekly maintenance + fuel (idle vehicles pay 25% fuel — the ONE
+    // formula, shared with the expense panel and the budget mirror).
+    const weeklyCost = vehicleWeeklyRunningCost(v, isActive);
     // Running costs are mandatory — defer what cannot be covered rather than
     // forgiving it. See chargeOrDefer.
     chargeOrDefer(ctx, weeklyCost);
@@ -116,9 +126,7 @@ export function applyVehiclesForWeek(
     // the severity pick). Wrapping keeps it StrictMode-deterministic.
     const accidentRoll = ctx.preRolls.vehicleAccident[vehIdx % ctx.preRolls.vehicleAccident.length];
     const severityRoll = ctx.preRolls.vehicleAccidentSeverity[vehIdx % ctx.preRolls.vehicleAccidentSeverity.length];
-    // isActive premium applies only when the caller passes activeVehicleId. In
-    // live play it's undefined → passive base rate for every vehicle.
-    const isActive = activeVehicleId != null && v.id === activeVehicleId;
+    // isActive (computed above) carries the on-the-road accident premium.
     if (accidentRoll < accidentChance(v, isActive)) {
       const severity = pickAccidentSeverity(v.condition, severityRoll);
       const damage = ACCIDENT_CONDITION_DAMAGE[severity];

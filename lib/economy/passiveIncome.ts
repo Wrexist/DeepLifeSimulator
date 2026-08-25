@@ -16,8 +16,9 @@ import { calculateGovernmentContractBonus } from '@/lib/politics/governmentContr
 import { calcGamingStreamingIncome } from './gamingStreamingIncome';
 import { logger } from '@/utils/logger';
 import { familyBrandIncomeMultiplier, findFamilyBusiness, legacyGenerationIncomeMultiplier } from '@/lib/business/familyBusinessEffects';
-import { 
-  PROPERTY_THRESHOLD_1, 
+import { minerFleetWeeklyPowerCost } from './minerPower';
+import {
+  PROPERTY_THRESHOLD_1,
   PROPERTY_THRESHOLD_2, 
   PROPERTY_THRESHOLD_3,
   PROPERTY_EFFICIENCY_TIER_1,
@@ -468,8 +469,19 @@ export function calcWeeklyPassiveIncome(
         },
         0
       ) * safeMiningBonusMultiplier;
-      if (isFinite(weeklyMiningEarnings) && weeklyMiningEarnings > 0) {
-        cryptoMiningIncome += Math.round(weeklyMiningEarnings);
+      // ELECTRICITY (2026-08-25 economy audit): company rigs were pure profit —
+      // the power bill existed only in the display layer (`expenses.ts`) and was
+      // never charged, the exact defect the warehouse fix H-2 closed for
+      // warehouse rigs. Net the fleet's weekly power cost here, in the same row
+      // that pays the income, at the same $0.40/unit/wk rate the warehouse
+      // actually pays (`lib/economy/minerPower.ts` — the one source both the
+      // tick and the expense UI now read). Floored at 0 per company: a fleet
+      // whose power exceeds its yield idles rather than draining cash, matching
+      // the warehouse's deduct-from-what-was-mined behaviour.
+      const powerCost = minerFleetWeeklyPowerCost(company.miners);
+      const netMiningEarnings = weeklyMiningEarnings - powerCost;
+      if (isFinite(netMiningEarnings) && netMiningEarnings > 0) {
+        cryptoMiningIncome += Math.round(netMiningEarnings);
       }
     }
   });

@@ -1,3 +1,78 @@
+# Ultimate economy audit — sources, sinks, dominance, exploits (owner program, 2026-08-25)
+
+Owner brief: the "ULTIMATE ECONOMY" master program — audit the entire
+TIME->WORK->MONEY->ASSETS->PROGRESSION loop, fix confirmed exploits and
+displayed-vs-applied lies, prefer structural fixes, simulate long horizons,
+and report with scores. Approach: automated audit layer first (clean), then
+five parallel deep audits (money flow, investments, careers/education/skills,
+exploit red team, late-game sinks), every load-bearing claim re-verified
+against source before any change (lessons.md rule), plus a NEW committed
+long-horizon strategy simulator driving the real tick.
+
+## P1 — honesty + faucet defects (verified in source, fix now)
+
+- [x] E1. Lucky bonus + play streak: untaxed, uncapped engagement income.
+      EV +32%/wk (1%%x10, 5%%x3, 14%%x0.5) + streak up to +20%%, credited AFTER
+      the tax base is fixed and after arrears settle, base = salary+passive
+      so it scales forever ($5M untaxed taps at $500k/wk). Fix: (a) cap the
+      qualifying base at the top tax threshold x1 ($25k/wk — the per-source-cap
+      idiom), (b) withhold marginal income tax on both bonuses via the ONE
+      canonical calculateIncomeTax (delta method). Probabilities/multipliers
+      unchanged — the delight stays, the bypass closes. Measured in the sim:
+      junior dev accumulates 126%% of gross salary.
+- [x] E2. Company crypto miners: income paid, power bill never charged.
+      The $0.20/unit/day electricity formula exists only in expenses.ts (UI)
+      + a literal copy in IdentityCard.tsx; no tick counterpart (warehouse
+      rigs got this exact fix, H-2). Fix: single source helper for company
+      miner power cost; net it inside the company-miner passive row (floor 0);
+      point expenses.ts + IdentityCard at the same helper.
+- [x] E3. sellCrypto (dev-only path) counts sale proceeds as lifetime money
+      EARNED (feeds Chapter 1 goals / contracts). Align with isIncomeReason.
+- [x] E4. Vehicles displayed != applied (3 ways): tick charges full fuel for
+      every vehicle, UI shows 25%% for idle; UI shows weekly insurance the tick
+      never charges; accident premium for the active vehicle never applies
+      (activeVehicleId never passed). Scope after reading; align tick and UI
+      on one shared calculator.
+
+## P2 — exploit closure + structural balance
+
+- [x] E5. campaign() approval-refund loop (flagged 2026-08-23, now closed per
+      this program): campaignFunds has NO positive consumer (election formula
+      does not read it despite its comment), deposits are ~100%% recoverable
+      via the 25%%/wk skim, so approval 50->100 costs ~$0 net. Fix: weekly cap
+      on campaign() approval purchases (politics.lastCampaignWeek marker,
+      STATE_VERSION 48->49 stub carve-out), + correct the false comment.
+- [x] E6. Cross-life universal market script: stock seed is weeksLived:index
+      with no per-save salt — every save/life/heir replays the same price
+      tape ("NVDA moons at week 700" works in every life). Salt with
+      lineageId:generationNumber (the C1 luck-roll precedent). Value-only,
+      future walks only.
+- [x] E7. Free-GPA merit farm: high_school costs $0, farms highestGpa to 4.0,
+      -> 80%% off every later programme ($180k PhD for $36k). Merit basis now
+      excludes zero-cost programmes.
+- [x] E8. computer_science ($72k) gates NOTHING (software wants masters; the
+      programme description promises "software engineering track"). Root-cause
+      fix: software accepts CS as an alternative to masters if requirements
+      support OR cheaply; else honest description + flag.
+
+## P3 — measurement + report
+
+- [x] E9. Committed long-horizon strategy simulator
+      (__tests__/simulation/economyStrategySim.manual.test.ts, env-gated):
+      GameProvider-mounted, drives real nextWeek() for 7 archetypes x 10y.
+      First results recorded in the report.
+- [x] E10. Regression pass: type-check both trees, lint:errors, routes, full
+      relevant suites; new tests per fix.
+- [x] E11. Final report tasks/economy-audit-2026-08-25.md: economic model,
+      flows, stage analysis, career/business/investment balance, dominant
+      strategies, exploits found/fixed, sim results, scores, remaining risks
+      (flagged-not-fixed: musician entry-tier dominance, celebrity/politician
+      vs degree ladders, wealth-scaling recurring costs, FIRE celebration,
+      $10M-$100M dead zone, tera miner dead content, peek-ahead determinism).
+
+---
+---
+
 # Future-improvements program — balance, content, memory surfaces (owner: "do all the good and fit the game", 2026-08-24)
 
 Owner approved the previously-flagged balance calls plus the top-10 future list.

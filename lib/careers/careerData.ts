@@ -159,7 +159,11 @@ export const INITIAL_CAREERS: Career[] = [
         ],
         level: 0,
         description: 'Develop software applications',
-        requirements: { items: ['computer'], education: ['masters_degree'] },
+        // computer_science is the direct route (its catalog description has
+        // always promised "Software engineering track" — until 2026-08-25 it
+        // gated nothing and was a $72k trap purchase); the masters remains the
+        // generalist route that also opens architect/vet/therapist.
+        requirements: { items: ['computer'], education: ['masters_degree'], educationAnyOf: ['computer_science'] },
         progress: 0,
         applied: false,
         accepted: false,
@@ -193,7 +197,10 @@ export const INITIAL_CAREERS: Career[] = [
         ],
         level: 0,
         description: 'Practice law and represent clients',
-        requirements: { items: ['suit'], education: ['legal_studies', 'masters_degree'] },
+        // law_school is the professional route (it cost $132k and gated no
+        // career at all until 2026-08-25 — only the Federal Judge appointment);
+        // the cheaper legal_studies+masters pairing stays valid.
+        requirements: { items: ['suit'], education: ['legal_studies', 'masters_degree'], educationAnyOf: ['law_school'] },
         progress: 0,
         applied: false,
         accepted: false,

@@ -2,8 +2,9 @@ import { GameState } from '@/contexts/game/types';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { calculateIncomeTax, PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
+import { minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
+import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
-import { WEEKS_PER_MONTH } from '@/lib/config/gameConstants';
 import { getTotalLuxuryUpkeep } from '@/lib/luxury/operations';
 import { PET_WEEKLY_FOOD_COST } from '@/lib/pets/lifecycle';
 import { totalSubscriptionWeeklyCharge } from '@/lib/subscription/billing';
@@ -124,124 +125,31 @@ export function calcWeeklyExpenses(
       }
     }, 0);
   
-  // Mining power costs
-  let miningPowerCosts = 0;
+  // Mining power costs — WAREHOUSE rigs only (2026-08-25 economy audit).
+  //
+  // This block used to display company rigs at $0.20/unit/DAY and warehouse
+  // rigs at $0.60/unit/wk — two rates the tick never charged (warehouse rigs
+  // actually pay $0.40/unit/wk, deducted in-crypto by `applyMiningCryptos`;
+  // company rigs paid NOTHING). Company power is now CHARGED — netted against
+  // company mining income inside `calcWeeklyPassiveIncome` — so listing it
+  // here again would double-count it in the player's ledger: the passive-income
+  // figure they see is already net of it. The warehouse fleet stays listed
+  // because its cost is deducted from mined crypto, not from the cash income
+  // shown elsewhere, and it now shows the rate that is really charged
+  // (`lib/economy/minerPower.ts`, flat-rate — power upgrades reduce the real
+  // in-crypto deduction below this, so this is a slightly conservative bound).
+  let miningPowerCosts = minerFleetWeeklyPowerCost(state.warehouse?.miners);
+  // Final validation
+  if (!isFinite(miningPowerCosts) || miningPowerCosts < 0) miningPowerCosts = 0;
   
-  // Company miner power costs (monthly, averaged to weekly)
-  const companyMinerPower: Record<string, number> = {
-    basic: 10,
-    advanced: 35,
-    pro: 100,
-    industrial: 250,
-    quantum: 500,
-  };
-  
-    (state.companies || []).forEach(company => {
-      if (!company) return; // Skip invalid companies
-      if (company.miners && Object.keys(company.miners).length > 0) {
-        const totalPower = Object.entries(company.miners).reduce(
-          (sum, [id, count]) => {
-            const minerPower = companyMinerPower[id] || 0;
-            const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-            const power = minerPower * minerCount;
-            if (isFinite(power) && power > 0) {
-              return sum + power;
-            }
-            return sum;
-          },
-          0
-        );
-        if (totalPower > 0 && isFinite(totalPower)) {
-          // ECONOMY FIX: Increased power costs by 67% to better balance mining profitability
-          // Monthly bill: totalPower * 0.20 * 30, averaged to weekly (was 0.12, now 0.20)
-          const monthlyBill = totalPower * 0.20 * 30;
-          if (isFinite(monthlyBill) && monthlyBill > 0) {
-            const weeklyBill = monthlyBill / WEEKS_PER_MONTH; // Average monthly cost to weekly
-            if (isFinite(weeklyBill) && weeklyBill > 0) {
-              miningPowerCosts += Math.round(weeklyBill);
-            }
-          }
-        }
-      }
-    });
-  
-  // Warehouse miner power costs (weekly)
-  const warehouseMinerPower: Record<string, number> = {
-    basic: 10,
-    advanced: 35,
-    pro: 100,
-    industrial: 250,
-    quantum: 500,
-    mega: 2000,
-    giga: 5000,
-    tera: 15000,
-  };
-  
-    if (state.warehouse?.miners && Object.keys(state.warehouse.miners).length > 0) {
-      const totalPower = Object.entries(state.warehouse.miners).reduce(
-        (sum, [id, count]) => {
-          const minerPower = warehouseMinerPower[id] || 0;
-          const minerCount = typeof count === 'number' && isFinite(count) && count >= 0 ? count : 0;
-          const power = minerPower * minerCount;
-          if (isFinite(power) && power > 0) {
-            return sum + power;
-          }
-          return sum;
-        },
-        0
-      );
-      if (totalPower > 0 && isFinite(totalPower)) {
-        // ECONOMY FIX: Increased power costs by 50% to better balance mining profitability
-        // Weekly power cost: $0.60 per power unit per week (was 0.40, now 0.60)
-        const weeklyPowerCost = totalPower * 0.60;
-        if (isFinite(weeklyPowerCost) && weeklyPowerCost > 0) {
-          miningPowerCosts += Math.round(weeklyPowerCost);
-        }
-      }
-    }
-    // Final validation
-    if (!isFinite(miningPowerCosts) || miningPowerCosts < 0) miningPowerCosts = 0;
-  
-    // Vehicle costs (maintenance, fuel, insurance)
-    let vehicleCosts = 0;
-    const vehicles = Array.isArray(state.vehicles) ? state.vehicles : [];
-    if (vehicles.length > 0) {
-      vehicles.forEach(vehicle => {
-        if (!vehicle) return; // Skip invalid vehicles
-        
-        // Weekly maintenance cost (all vehicles)
-        const maintenanceCost = typeof vehicle.weeklyMaintenanceCost === 'number' && isFinite(vehicle.weeklyMaintenanceCost) && vehicle.weeklyMaintenanceCost >= 0 ? vehicle.weeklyMaintenanceCost : 0;
-        if (maintenanceCost > 0) {
-          vehicleCosts += maintenanceCost;
-        }
-        
-        // ANTI-EXPLOIT: Charge fuel for active vehicle, and a reduced storage/idle cost for all others
-        // Prevents owning 100 vehicles with none active to avoid all fuel costs
-        if (state.activeVehicleId === vehicle.id) {
-          const fuelCost = typeof vehicle.weeklyFuelCost === 'number' && isFinite(vehicle.weeklyFuelCost) && vehicle.weeklyFuelCost >= 0 ? vehicle.weeklyFuelCost : 0;
-          if (fuelCost > 0) {
-            vehicleCosts += fuelCost;
-          }
-        } else {
-          // Storage/idle cost: 25% of fuel cost for non-active vehicles
-          const fuelCost = typeof vehicle.weeklyFuelCost === 'number' && isFinite(vehicle.weeklyFuelCost) && vehicle.weeklyFuelCost >= 0 ? vehicle.weeklyFuelCost : 0;
-          if (fuelCost > 0) {
-            vehicleCosts += Math.round(fuelCost * 0.25);
-          }
-        }
-        
-        // Insurance cost (monthly cost converted to weekly, only if active)
-        if (vehicle.insurance?.active) {
-          const monthlyCost = typeof vehicle.insurance.monthlyCost === 'number' && isFinite(vehicle.insurance.monthlyCost) && vehicle.insurance.monthlyCost >= 0 ? vehicle.insurance.monthlyCost : 0;
-          if (monthlyCost > 0) {
-            const weeklyInsuranceCost = monthlyCost / WEEKS_PER_MONTH; // Convert monthly to weekly
-            if (isFinite(weeklyInsuranceCost) && weeklyInsuranceCost > 0) {
-              vehicleCosts += weeklyInsuranceCost;
-            }
-          }
-        }
-      });
-    }
+    // Vehicle running costs — the SAME shared formula the tick charges
+    // (`lib/vehicles/runningCosts.ts`: active vehicle full fuel, idle 25%).
+    // This block used to add a weekly insurance line the tick never takes —
+    // the premium is a 26-week TERM paid upfront in purchaseInsurance(), not a
+    // recurring bill — so the panel overstated a garage owner's real weekly
+    // spend while the tick (until 2026-08-25) charged full fuel on idle cars
+    // the panel discounted. One formula now, both places.
+    let vehicleCosts = fleetWeeklyRunningCost(state.vehicles, state.activeVehicleId);
     // Final validation
     if (!isFinite(vehicleCosts) || vehicleCosts < 0) vehicleCosts = 0;
   

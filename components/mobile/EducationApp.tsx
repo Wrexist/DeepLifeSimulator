@@ -61,7 +61,7 @@ import {
   type CampusEvent,
   type CampusEventChoice,
 } from '@/lib/education/educationSystem';
-import { highestGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultiplier, GpaBand } from '@/lib/education/gpa';
+import { highestGpa, meritGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultiplier, GpaBand } from '@/lib/education/gpa';
 import { meritRate } from '@/lib/education/scholarships';
 
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -233,7 +233,13 @@ function EducationAppInner({ onBack }: EducationAppProps) {
     return groups;
   }, [availableForCatalog]);
 
-  const bestGpa = useMemo(() => highestGpa(educations), [educations]);
+  // One memo for both GPA bases: `bestGpa` (overall - drives hiring) and
+  // `scholarshipGpa` (PAID programmes only - the merit basis; the $0 High
+  // School GPA farm no longer discounts tuition, see meritGpa's docblock).
+  const { bestGpa, scholarshipGpa } = useMemo(
+    () => ({ bestGpa: highestGpa(educations), scholarshipGpa: meritGpa(educations) }),
+    [educations]
+  );
   const hiringMult = useMemo(() => jobOfferMultiplier(bestGpa), [bestGpa]);
   const bestGradeColor = BAND_COLOR[gpaBand(bestGpa)];
 
@@ -515,6 +521,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
             theme={theme}
             darkMode={darkMode}
             bestGpa={bestGpa}
+            scholarshipGpa={scholarshipGpa}
             study={computeStudyState(gameState, selectedCourse)}
             loan={findStudentLoan(gameState.loans, selectedCourse)}
             onStudy={() => handleStudy(selectedCourse.id)}
@@ -988,11 +995,13 @@ function TranscriptRow({ ed, theme, darkMode, onOpen }: {
 }
 
 /** Full course / transcript detail page (presentational sub-view). */
-function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTogglePause, onToggleStudyGroup, onWithdraw, canAffordStudyGroup }: {
+function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loan, onStudy, onTogglePause, onToggleStudyGroup, onWithdraw, canAffordStudyGroup }: {
   ed: Education;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
   bestGpa: number;
+  /** Best GPA among PAID programmes - the merit-scholarship basis. */
+  scholarshipGpa: number;
   study: StudyState;
   loan?: Loan;
   onStudy: () => void;
@@ -1009,7 +1018,9 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
   const failed = ed.examsFailed ?? 0;
   const exams = passed + failed;
   const passRate = exams > 0 ? Math.round((passed / exams) * 100) : null;
-  const currentMerit = Math.round(meritRate(bestGpa) * 100);
+  // Same basis the enrolment quote charges (meritGpa - paid programmes only),
+  // so the advertised rate equals the applied rate.
+  const currentMerit = Math.round(meritRate(scholarshipGpa) * 100);
   const classes = ed.enrolledClasses ?? [];
 
   return (
@@ -1065,7 +1076,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, study, loan, onStudy, onTo
         {!ed.completed && (
           <DetailStat theme={theme} darkMode={darkMode} icon={Zap} tint={accent.warning} label="Study budget" value={`${study.sessionsThisWeek}/3`} sub="sessions this week" />
         )}
-        <DetailStat theme={theme} darkMode={darkMode} icon={Percent} tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best GPA" />
+        <DetailStat theme={theme} darkMode={darkMode} icon={Percent} tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-programme GPA" />
       </View>
 
       {/* Enrolled classes - richest previously-hidden data. */}

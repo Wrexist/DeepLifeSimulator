@@ -66,14 +66,27 @@ function vehicle(overrides: Partial<Vehicle> = {}): Vehicle {
 }
 
 describe('applyVehiclesForWeek - baseline upkeep', () => {
-  it('deducts maintenance + fuel, decays condition, adds mileage', () => {
+  it('deducts maintenance + full fuel for the ACTIVE vehicle, decays condition, adds mileage', () => {
     const s = stats({ money: 1000 });
     const ctx = ctxWith(s);
-    const result = applyVehiclesForWeek([vehicle({ condition: 90, mileage: 1000 })], ctx);
+    const result = applyVehiclesForWeek(
+      [vehicle({ condition: 90, mileage: 1000 })],
+      ctx,
+      'v1',
+    );
     expect(result).toHaveLength(1);
     expect(result[0].condition).toBe(89); // 90 - 1% decay
     expect(result[0].mileage).toBe(1200); // +200/wk
     expect(ctx.newStats.money).toBe(920); // 1000 - (50 + 30)
+  });
+
+  it('charges an IDLE vehicle 25% fuel - the rate the expense panel has always advertised', () => {
+    const s = stats({ money: 1000 });
+    const ctx = ctxWith(s);
+    // No activeVehicleId (or a different one): storage/idle rate applies.
+    applyVehiclesForWeek([vehicle()], ctx);
+    // 1000 - (50 maintenance + round(30 * 0.25) fuel) = 1000 - 58
+    expect(ctx.newStats.money).toBe(942);
   });
 
   it('leaves an unowned vehicle untouched and rolls no accident', () => {

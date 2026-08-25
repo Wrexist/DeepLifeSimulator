@@ -74,6 +74,20 @@ export function checkCareerRequirements(
       }
     }
 
+    // Alternative routes: ANY completed programme in `educationAnyOf` satisfies
+    // the whole education block (software: computer_science OR the masters
+    // route; lawyer: law_school OR legal_studies+masters). Cleared as a unit —
+    // the card's single "Education met" chip stays truthful either way.
+    if (
+      missingEducation.length > 0 &&
+      'educationAnyOf' in req && req.educationAnyOf && req.educationAnyOf.length > 0
+    ) {
+      const anyAltCompleted = req.educationAnyOf.some(
+        (id) => (gameState?.educations || []).find(e => e.id === id)?.completed,
+      );
+      if (anyAltCompleted) missingEducation.length = 0;
+    }
+
     if ('items' in req && req.items && req.items.length > 0) {
       for (const itemId of req.items) {
         const item = (gameState?.items || []).find(i => i.id === itemId);

@@ -96,3 +96,30 @@ export function highestGpa(
   }
   return best;
 }
+
+/**
+ * The GPA that counts toward MERIT scholarships: the best GPA among PAID
+ * programmes only (2026-08-25 economy audit).
+ *
+ * High School costs $0 and its GPA is freely farmable (exams + study groups
+ * push it to 4.0 with no tuition at stake), and `meritRate(4.0)` covers 80% of
+ * any later programme — so the free diploma quietly discounted the $180k PhD
+ * to $36k for every player who ground it first, collapsing the education-cost
+ * axis of career choice. Merit now has to be earned where tuition was paid:
+ * the first paid programme still starts at GPA 3.0 (10% off the next one), so
+ * the ladder survives — only the $0 farm is closed. `highestGpa` above is
+ * unchanged and still drives the hiring multiplier: a good free-education GPA
+ * legitimately helps you get HIRED, it just doesn't discount tuition.
+ */
+export function meritGpa(
+  educations: { gpa?: number; cost?: number; completed?: boolean }[]
+): number {
+  let best = 0;
+  for (const e of educations ?? []) {
+    const cost = safe(e?.cost);
+    if (cost <= 0) continue;
+    const g = safe(e?.gpa);
+    if (g > best) best = g;
+  }
+  return best;
+}

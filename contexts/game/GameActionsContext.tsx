@@ -29,7 +29,7 @@ import { useUIUX } from '@/contexts/UIUXContext';
 import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { applyEventStatDeltas } from '@/lib/events/statEffects';
-import { rollWeeklyLuckSeed } from '@/lib/economy/luckyBonus';
+import { rollWeeklyLuckSeed, netEngagementBonus, ENGAGEMENT_BONUS_BASE_CAP } from '@/lib/economy/luckyBonus';
 import { longevityPivot } from '@/lib/statistics/lifeExpectancy';
 import { appendWeekToJournal } from '@/lib/lifeMoments/journalWriter';
 import { getTotalLuxuryYield, getLoanIncome , isLuxuryLifeComplete } from '@/lib/luxury';
@@ -126,6 +126,7 @@ import {
   PET_WEEKLY_FOOD_COST,
 } from './actions/weekly/applyPets';
 import { applyVehiclesForWeek } from './actions/weekly/applyVehicles';
+import { fleetWeeklyRunningCost } from '@/lib/vehicles/runningCosts';
 import { applyLuxuryItemsForWeek } from './actions/weekly/applyLuxuryItems';
 import { applySubscriptionsForWeek } from './actions/weekly/applySubscriptions';
 import { applyDiseasesForWeek } from './actions/weekly/applyDiseases';
@@ -612,7 +613,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  volatilityModifier: (policyEffects?.volatilityModifier ?? 1) * safeEventVolatility,
  };
  const currentWeeksLived = typeof gameState.weeksLived === 'number' ? gameState.weeksLived: 0;
- simulateWeek(combinedEffects, currentWeeksLived);
+ // Per-life salt (lineageId:generationNumber - the lucky-bonus precedent):
+ // without it every life replayed one universal price tape, so a repeat
+ // player had perfect market foresight in every new life. See hashSeed in
+ // lib/economy/stockMarket.ts.
+ simulateWeek(
+ combinedEffects,
+ currentWeeksLived,
+ `${gameState.lineageId || ''}:${gameState.generationNumber || 1}`
+ );
  } catch (simError) {
  logger.error('[WEEK PROGRESSION] Stock market simulation failed:', simError);
  // Continue progression even if stock sim fails
@@ -1994,7 +2003,7 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
 
  let updatedVehicles: ReturnType<typeof applyVehiclesForWeek> = Array.isArray(prevState.vehicles) ? prevState.vehicles : [];
  try {
- updatedVehicles = applyVehiclesForWeek(prevState.vehicles, weeklyCtx);
+ updatedVehicles = applyVehiclesForWeek(prevState.vehicles, weeklyCtx, prevState.activeVehicleId);
  } catch (vehErr) {
  logger.error('[VEHICLE TICK] Failed:', vehErr);
  }
@@ -2082,6 +2091,14 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  let luckyMessage = '';
  let luckyTier: 'small' | 'medium' | 'rare' | undefined;
  const weeklyIncome = careerSalary + passiveIncome;
+ // 2026-08-25 economy audit: the bonus BASE is capped and the payout is
+ // taxed at the marginal rate. These two engagement channels multiplied
+ // uncapped income and landed after the tax line, so together they were an
+ // untaxed expected +30-50% on every paycheck, growing with the player
+ // forever (a $5M untaxed tap at $500k/wk income). Probabilities and
+ // multipliers are unchanged - below $25k/wk of income the only difference
+ // is that the bonus now pays tax like every other dollar of income.
+ const engagementBase = Math.min(weeklyIncome, ENGAGEMENT_BONUS_BASE_CAP);
  if (weeklyIncome > 0) {
  // Deterministic per week (no save-scumming, StrictMode-safe) - but ACTUALLY
  // varied. The old inline seed was a fixed period-100 permutation shared by
@@ -2097,22 +2114,26 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const luckyCharmBoost = luckyCharmActive ? 10: 0; // +10% chance with lucky charm
  if (luckSeed < 1 + luckyCharmBoost) {
  // 1% (or 11% with charm): Rare lucky bonus
- luckyBonus = Math.round(weeklyIncome * 10);
+ luckyBonus = Math.round(engagementBase * 10);
  luckyMessage = 'Incredible luck! A rare opportunity paid off big!';
  luckyTier = 'rare';
  } else if (luckSeed < 6 + luckyCharmBoost) {
  // 5% (or 15%): Medium lucky bonus
- luckyBonus = Math.round(weeklyIncome * 3);
+ luckyBonus = Math.round(engagementBase * 3);
  luckyMessage = 'Lucky week! An unexpected bonus came your way.';
  luckyTier = 'medium';
  } else if (luckSeed < 20 + luckyCharmBoost) {
  // 15% (or 25%): Small lucky bonus
- luckyBonus = Math.round(weeklyIncome * 0.5);
+ luckyBonus = Math.round(engagementBase * 0.5);
  luckyMessage = 'A small windfall this week!';
  luckyTier = 'small';
  }
  }
  if (luckyBonus > 0) {
+ // Withhold marginal income tax (one formula - calculateIncomeTax - on top
+ // of the week's already-taxed base). `luckyBonus` becomes the NET credit,
+ // so the recap's luckyBonus/incomeEarned lines stay equal to what landed.
+ luckyBonus = netEngagementBonus(luckyBonus, taxableIncome, lifeSkillMods.taxMult);
  newStats.money = Math.max(0, newStats.money + luckyBonus);
  }
 
@@ -2124,8 +2145,16 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const streakContinues = hoursSinceLastPlay < 48;
  const newStreakCount = streakContinues ? (prevState.playStreak?.count || 0) + 1: 1;
  const streakBonusPercent = Math.min(newStreakCount * 2, 20); // +2% per streak, max +20%
- const streakBonusAmount = weeklyIncome > 0 ? Math.round(weeklyIncome * streakBonusPercent / 100): 0;
+ // Same treatment as the lucky bonus above: capped base, marginal tax
+ // withheld (stacked on top of the lucky bonus so the pair is taxed as one
+ // week's extra income), NET amount credited and reported.
+ let streakBonusAmount = weeklyIncome > 0 ? Math.round(engagementBase * streakBonusPercent / 100): 0;
  if (streakBonusAmount > 0) {
+ streakBonusAmount = netEngagementBonus(
+ streakBonusAmount,
+ taxableIncome + luckyBonus,
+ lifeSkillMods.taxMult
+ );
  newStats.money = Math.max(0, newStats.money + streakBonusAmount);
  }
  const updatedPlayStreak = {
@@ -2615,9 +2644,10 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  { category: 'lifestyle', amount: petFoodCharged },
  // Luxury upkeep: actual amount applyLuxuryItemsForWeek deducted above (floored).
  { category: 'lifestyle', amount: luxuryCharged },
- // Vehicle running costs: same owned-vehicle sum applyVehiclesForWeek deducted.
- { category: 'transport', amount: (prevState.vehicles || []).reduce(
- (sum: number, v) => sum + (v?.owned ? ((v.weeklyMaintenanceCost || 0) + (v.weeklyFuelCost || 0)) : 0), 0) },
+ // Vehicle running costs: the SAME shared formula applyVehiclesForWeek
+ // charged (active full fuel, idle 25% - lib/vehicles/runningCosts.ts),
+ // not a third inline copy that drifts.
+ { category: 'transport', amount: fleetWeeklyRunningCost(prevState.vehicles, prevState.activeVehicleId) },
  // In-game subscription fee (Pulse Verified Pro / Spark Premium) - appended only
  // when a fee was actually charged this tick, so the spendEvents array (and thus
  // banking.budgetSpend) is byte-identical when no in-game sub is active.
