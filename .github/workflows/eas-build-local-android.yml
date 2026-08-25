@@ -181,7 +181,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: expo/expo-github-action installs the LATEST eas-cli
+          # with yarn, and eas-cli's dependency tree now requires Node >=22
+          # (@oclif/plugin-autocomplete@3.3.0's engines field). Under Node 20
+          # the Expo/EAS login step hard-fails before the build starts
+          # (2026-08-25). GitHub runners have also deprecated Node 20.
+          node-version: '22'
           cache: 'npm'
 
       # Android/Gradle needs JDK 17 (Expo SDK 54 / RN 0.81). Pin it explicitly so
@@ -234,7 +239,9 @@ jobs:
       - name: Expo/EAS login
         uses: expo/expo-github-action@v8
         with:
-          expo-version: latest
+          # No expo-version: nothing here uses the global expo-cli (deprecated,
+          # 6.3.10, superseded by `npx expo`) - installing it costs ~25s and a
+          # wall of yarn deprecation warnings. Only eas-cli is needed for auth.
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
