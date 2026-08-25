@@ -52,7 +52,9 @@ jobs:
       - name: Expo/EAS login
         uses: expo/expo-github-action@v8
         with:
-          expo-version: latest
+          # No expo-version: nothing here uses the global expo-cli (deprecated,
+          # 6.3.10, superseded by `npx expo`) - installing it costs ~25s and a
+          # wall of yarn deprecation warnings. Only eas-cli is needed for auth.
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
