@@ -24,7 +24,7 @@ import {
 import { applyMoneyDelta } from './MoneyActions';
 import { quoteScholarship } from '@/lib/education/scholarships';
 import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
-import { highestGpa } from '@/lib/education/gpa';
+import { meritGpa } from '@/lib/education/gpa';
 import { calculatePeriodicPayment } from '@/lib/banking/amortization';
 import { trackBudgetSpend } from '@/lib/banking/operations';
 import { politicsAprReduction, POLITICS_LOAN_APR_FLOOR, debtProgress } from './LoanActions';
@@ -134,7 +134,10 @@ export function quoteEnrollment(
 } {
   const cash = state.stats?.money ?? 0;
   const perks = politicsEducationPerks(state);
-  const gpa = highestGpa(state.educations ?? []);
+  // MERIT basis: paid programmes only — the $0 High School GPA farm no longer
+  // discounts later tuition (see meritGpa's docblock). Hiring still reads
+  // highestGpa, so a good free-education GPA keeps its job-offer value.
+  const gpa = meritGpa(state.educations ?? []);
   const scholarship = quoteScholarship({
     bestGpa: gpa,
     tuitionCost: template.cost,

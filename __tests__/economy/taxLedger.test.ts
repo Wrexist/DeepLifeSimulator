@@ -159,7 +159,7 @@ describe('the rates the Tax tab quotes are the rates the ticks charge', () => {
     expect(CAPITAL_GAINS_TAX_RATE).toBe(0.25);
     expect(read('lib/crypto/weeklyTick.ts')).toMatch(/CAPITAL_GAINS_TAX_RATE \* clampTaxMult\(input\.taxMult\)/);
     expect(read('lib/stocks/weeklyTick.ts')).toMatch(
-      /STOCK_CAPITAL_GAINS_TAX_RATE \* clampTaxMult\(input\.taxMult\)/
+      /CAPITAL_GAINS_TAX_RATE \* clampTaxMult\(input\.taxMult\)/
     );
   });
 

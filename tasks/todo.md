@@ -1,3 +1,171 @@
+# "Fix what's next" — the nine flagged items (owner, 2026-08-25)
+
+Owner: "Fix everything that's next you said in what's next". Working the nine
+items flagged in tasks/economy-audit-2026-08-25.md §6, plus the onboarding
+stat-colour inconsistency flagged when the Life Moment popup was recoloured.
+
+## [x] N1. Celebrate financial independence  [item 7 in the audit]
+FIRE is computed precisely (lib/statistics/fireTracker.ts) and consumed by ONE
+display + the age-45 early-retirement gate. Nothing marks the moment your
+assets pay for your life. Add (a) an achievement on the real mechanical
+condition (weekly passive income >= weekly expenses, both already computed by
+the canonical helpers) and (b) a DREAM goal so it is a visible forward target
+on the home feed, not a surprise. No schema change: the achievement system
+already stores what is earned/claimed.
+
+## [x] N2. Delete Company.electricalBill  [item 9]
+Zero readers, zero writers since it shipped. Remove the field + keep the
+deadStateFields ratchet honest.
+
+## [x] N3. Mining top tiers are a trap  [item 4]
+giga ($10M) and tera ($50M) can never pay back: the FLEET cap is $100k/wk, so
+hardware whose gross exceeds it earns nothing extra. Scale the cap with the
+fleet the player actually bought — the established companyIncomeCap idiom
+(base + per-unit) — so every tier has a coherent payback instead of two dead
+SKUs. Ratchet test: no purchasable tier may have an impossible payback.
+
+## [x] N4. Musician dominates the entry tier  [item 1]
+Best on all five axes: no hiring bar, lightest toll (-8 energy), the only
+POSITIVE happiness toll, 'fast' growth, and a $2,120 ceiling (next best $790).
+Fix the two that make it free rather than the fantasy: a reputation hiring bar
+(you need a name to get gigs) and experienceRequired tenure gates on the top
+three rungs, mirroring celebrity/politician. It stays the entry tier's highest
+ceiling — it becomes a long shot instead of a default.
+
+## [x] N5. Degree ladders are dominated  [item 2]
+A $48,000 business degree buys a $600/wk ceiling (teacher) while a free
+musician reaches $2,120 and a reputation-30 celebrity reaches $4,600. Tuition
+is the most expensive investment in the game and buys the worst ceiling —
+backwards. Raise the cheap-degree ceilings so tuition pays back, and stop the
+catalogue `politician` ladder impersonating the elections system (it tops at
+$3,400/wk THROUGH payroll multipliers while the actual elected President draws
+$1,923/wk flat). Reframe it as the political STAFF track it should always have
+been, with a ceiling below real office.
+
+## [x] N6. The $10M-$100M dead zone  [item 6]
+Chapters end at $10M; the dream goal jumps $10M -> $100M; Legacy Contracts
+jump $100M -> $1B -> $1T. Add the missing rungs so there is always a next
+target in the band where the money axis currently goes quiet.
+
+## [x] N7. No recurring cost scales with wealth  [item 5]
+The one real gap in the sink model: an owner-occupied home pays NOTHING (the
+2.2%/yr carrying cost applies only while rented, and catalog homes carry no
+upkeep), so a $8M penthouse is free to hold while a renter pays $950/wk.
+Add property tax + maintenance on owned residences, proportional to value —
+mandatory, predictable, understandable, and it finally gives buy-vs-rent a
+real carrying cost on both sides. Charged through chargeOrDefer (arrears, not
+forgiveness) and SHOWN in the expense breakdown (displayed == applied).
+
+## [x] N8. Election rewards are positive-EV cash  [item 8]
+Every rung pays 2-2.5x its campaign cost at up to 95% odds — a jackpot no
+civilian path matches. Now that campaign() no longer refunds itself, bring the
+reward down to roughly recouping the campaign so winning office is about the
+OFFICE, not the prize money.
+
+## [~] N9. Save->peek->reload market foresight  [item 3]
+Assess honestly and report. Determinism per week is what makes reloading
+save-scum-proof; any seed that changes on reload re-opens the farm it closed.
+Expected outcome: NOT fixable without a worse regression — say so plainly
+rather than ship a fake fix.
+
+## [x] N10. Onboarding perk cards contradict the HUD
+perksFlow.getStatColor paints happiness RED and energy AMBER — the HUD's
+colours on the wrong stats, seconds before the player meets the HUD. Point it
+at lib/config/statIdentity.ts.
+
+## Verify
+- [x] V1. Tests per item; type-check both trees; lint:errors + ratchet; routes.
+- [x] V2. Full Jest suite.
+- [x] V3. Commit + push; report per item, including what was NOT changed and why.
+
+## Pre-PR sweep (owner: "do all that's left before opening pr")
+
+- [x] L1. IdentityCard projection through computeWeeklyIncome (multipliers in
+      the shown cash flow + tax; last displayed-vs-applied item).
+- [x] L2. Property tax as a NAMED breakdown row + Cash Flow modal section.
+- [x] L3. Capital-gains single source in taxLedger.ts, asymmetry documented
+      (stocks 25% at sale / crypto 25% at year-end / property 15% + closing).
+- [x] L4. Commercial property tax 2x - prices the within-class dominance.
+- [x] L5. Open the PR.
+
+---
+---
+
+# Ultimate economy audit — sources, sinks, dominance, exploits (owner program, 2026-08-25)
+
+Owner brief: the "ULTIMATE ECONOMY" master program — audit the entire
+TIME->WORK->MONEY->ASSETS->PROGRESSION loop, fix confirmed exploits and
+displayed-vs-applied lies, prefer structural fixes, simulate long horizons,
+and report with scores. Approach: automated audit layer first (clean), then
+five parallel deep audits (money flow, investments, careers/education/skills,
+exploit red team, late-game sinks), every load-bearing claim re-verified
+against source before any change (lessons.md rule), plus a NEW committed
+long-horizon strategy simulator driving the real tick.
+
+## P1 — honesty + faucet defects (verified in source, fix now)
+
+- [x] E1. Lucky bonus + play streak: untaxed, uncapped engagement income.
+      EV +32%/wk (1%%x10, 5%%x3, 14%%x0.5) + streak up to +20%%, credited AFTER
+      the tax base is fixed and after arrears settle, base = salary+passive
+      so it scales forever ($5M untaxed taps at $500k/wk). Fix: (a) cap the
+      qualifying base at the top tax threshold x1 ($25k/wk — the per-source-cap
+      idiom), (b) withhold marginal income tax on both bonuses via the ONE
+      canonical calculateIncomeTax (delta method). Probabilities/multipliers
+      unchanged — the delight stays, the bypass closes. Measured in the sim:
+      junior dev accumulates 126%% of gross salary.
+- [x] E2. Company crypto miners: income paid, power bill never charged.
+      The $0.20/unit/day electricity formula exists only in expenses.ts (UI)
+      + a literal copy in IdentityCard.tsx; no tick counterpart (warehouse
+      rigs got this exact fix, H-2). Fix: single source helper for company
+      miner power cost; net it inside the company-miner passive row (floor 0);
+      point expenses.ts + IdentityCard at the same helper.
+- [x] E3. sellCrypto (dev-only path) counts sale proceeds as lifetime money
+      EARNED (feeds Chapter 1 goals / contracts). Align with isIncomeReason.
+- [x] E4. Vehicles displayed != applied (3 ways): tick charges full fuel for
+      every vehicle, UI shows 25%% for idle; UI shows weekly insurance the tick
+      never charges; accident premium for the active vehicle never applies
+      (activeVehicleId never passed). Scope after reading; align tick and UI
+      on one shared calculator.
+
+## P2 — exploit closure + structural balance
+
+- [x] E5. campaign() approval-refund loop (flagged 2026-08-23, now closed per
+      this program): campaignFunds has NO positive consumer (election formula
+      does not read it despite its comment), deposits are ~100%% recoverable
+      via the 25%%/wk skim, so approval 50->100 costs ~$0 net. Fix: weekly cap
+      on campaign() approval purchases (politics.lastCampaignWeek marker,
+      STATE_VERSION 48->49 stub carve-out), + correct the false comment.
+- [x] E6. Cross-life universal market script: stock seed is weeksLived:index
+      with no per-save salt — every save/life/heir replays the same price
+      tape ("NVDA moons at week 700" works in every life). Salt with
+      lineageId:generationNumber (the C1 luck-roll precedent). Value-only,
+      future walks only.
+- [x] E7. Free-GPA merit farm: high_school costs $0, farms highestGpa to 4.0,
+      -> 80%% off every later programme ($180k PhD for $36k). Merit basis now
+      excludes zero-cost programmes.
+- [x] E8. computer_science ($72k) gates NOTHING (software wants masters; the
+      programme description promises "software engineering track"). Root-cause
+      fix: software accepts CS as an alternative to masters if requirements
+      support OR cheaply; else honest description + flag.
+
+## P3 — measurement + report
+
+- [x] E9. Committed long-horizon strategy simulator
+      (__tests__/simulation/economyStrategySim.manual.test.ts, env-gated):
+      GameProvider-mounted, drives real nextWeek() for 7 archetypes x 10y.
+      First results recorded in the report.
+- [x] E10. Regression pass: type-check both trees, lint:errors, routes, full
+      relevant suites; new tests per fix.
+- [x] E11. Final report tasks/economy-audit-2026-08-25.md: economic model,
+      flows, stage analysis, career/business/investment balance, dominant
+      strategies, exploits found/fixed, sim results, scores, remaining risks
+      (flagged-not-fixed: musician entry-tier dominance, celebrity/politician
+      vs degree ladders, wealth-scaling recurring costs, FIRE celebration,
+      $10M-$100M dead zone, tera miner dead content, peek-ahead determinism).
+
+---
+---
+
 # Future-improvements program — balance, content, memory surfaces (owner: "do all the good and fit the game", 2026-08-24)
 
 Owner approved the previously-flagged balance calls plus the top-10 future list.

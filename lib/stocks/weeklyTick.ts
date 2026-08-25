@@ -15,7 +15,7 @@ import { SectorSnapshot, sectorTiltFor } from './sectors';
 import { computePayouts, DIVIDEND_INTERVAL_WEEKS, isDividendWeek, sumPayouts } from './dividends';
 import { initialSectorSnapshots, processOpenOrders, tickSectors } from './operations';
 import { StockOrder } from './orderBook';
-import { clampTaxMult } from '@/lib/economy/taxLedger';
+import { CAPITAL_GAINS_TAX_RATE, clampTaxMult } from '@/lib/economy/taxLedger';
 
 const safe = (n: number | undefined, fb = 0): number =>
   typeof n === 'number' && isFinite(n) ? n : fb;
@@ -46,7 +46,10 @@ const STOCK_FEE = 0.02;
  * nothing ever taxed, so a $1M gain kept or lost $250k purely by whether the
  * player used the instant Sell button or a limit order (R3-M7).
  */
-export const STOCK_CAPITAL_GAINS_TAX_RATE = 0.25;
+// Re-exported from the ONE capital-gains source so the two 25% figures can
+// never drift apart (they were two hand-written literals until 2026-08-25).
+// The name survives because StockActions and the UI import it.
+export { CAPITAL_GAINS_TAX_RATE as STOCK_CAPITAL_GAINS_TAX_RATE } from '@/lib/economy/taxLedger';
 
 export interface StockHolding {
   symbol: string;
@@ -309,7 +312,7 @@ export function runStocksWeeklyTick(input: StocksTickInput): StocksTickResult {
   let capitalGainsTaxUnpaid = 0;
   const taxableThisTick = Math.max(0, realizedGains) + Math.max(0, dividendsUSD);
   if (taxableThisTick > 0) {
-    const effectiveRate = STOCK_CAPITAL_GAINS_TAX_RATE * clampTaxMult(input.taxMult);
+    const effectiveRate = CAPITAL_GAINS_TAX_RATE * clampTaxMult(input.taxMult);
     const tax = taxableThisTick * effectiveRate;
     const availableCash = safe(input.cashIn, 0) + cashDelta;
     capitalGainsTaxUSD = Math.max(0, Math.min(tax, availableCash));

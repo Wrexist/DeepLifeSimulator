@@ -1099,11 +1099,14 @@ export interface Company {
   selectedCrypto?: string;
   miners: Record<string, number>;
   warehouseLevel: number;
-  electricalBill?: {
-    monthlyAmount: number;
-    dueWeek: number;
-    paid: boolean;
-  };
+  // `electricalBill` deleted 2026-08-25 (economy audit follow-up). It shipped
+  // with zero readers AND zero writers — the same shape as `company.money` and
+  // `revivalPack`, both of which players reported as broken features when they
+  // were simply empty. Company rig electricity is a REAL cost now, but it is
+  // charged where the income is paid (netted inside the company mining row in
+  // `calcWeeklyPassiveIncome`, at the one rate in `lib/economy/minerPower.ts`),
+  // not accrued as a monthly bill nobody ever billed. A save that still carries
+  // the key simply ignores it.
   autoRepairEnabled?: boolean;
   autoRepairWeeklyCost?: number;
   autoRepairCryptoId?: string;

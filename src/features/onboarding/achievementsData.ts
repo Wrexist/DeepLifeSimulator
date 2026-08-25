@@ -1,6 +1,7 @@
 import { ImageSourcePropType } from 'react-native';
 import { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { financialIndependence } from '@/lib/statistics/fireTracker';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { isLuxuryLifeComplete, getOwnedLuxuryCount, getTotalLuxuryValue } from '@/lib/luxury';
 
@@ -1742,6 +1743,21 @@ export const achievements: Achievement[] = [
       },
     },
     goldReward: 150,
+    group: 'retirement',
+  },
+  {
+    id: 'financially_independent',
+    title: 'Financially Independent',
+    description: 'Earn more from your assets than your life costs to run.',
+    progressSpec: {
+      kind: 'boolean',
+      met: (gs: GameState) => financialIndependence(gs).achieved,
+    },
+    // The moment the money axis is actually about, and until 2026-08-25 the
+    // game computed it and marked it nowhere - `fireTracker` had one display
+    // consumer and the age-45 retirement gate. Priced above Golden Years: that
+    // one asks for a number, this one asks for a working machine.
+    goldReward: 250,
     group: 'retirement',
   },
 ];

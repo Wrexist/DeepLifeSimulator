@@ -43,6 +43,31 @@ import { INCOME_TAX_BRACKETS, calculateIncomeTax } from './constants';
 /** A game year. The crypto tick's year boundary uses the same number. */
 export const TAX_YEAR_WEEKS = 52;
 
+// ---------------------------------------------------------------------------
+// Capital gains - THE single source, and why the regimes differ
+// ---------------------------------------------------------------------------
+//
+// Three asset classes realize gains under three deliberately different
+// treatments (2026-08-25 economy audit: the asymmetry is intentional, and it
+// was undocumented, which made it read as drift - so the reasoning lives here,
+// next to the numbers):
+//
+//   - STOCKS: 25%, withheld at the moment of sale. Fully liquid, 2% commission
+//     each way, no other friction - the tax IS the friction.
+//   - CRYPTO: the same 25%, but settled once per game year at the 52-week
+//     boundary (`lib/crypto/weeklyTick.ts`). A timing difference, not a rate
+//     difference - it models annual filing, and the deferral is the asset's
+//     one small structural perk against its far higher variance.
+//   - PROPERTY: 15% on the realized gain - LOWER on purpose, because a sale
+//     already pays 6% closing costs (`lib/realEstate/operations.ts`) and the
+//     asset is illiquid for weeks of game time. Equalizing the rate on top of
+//     that friction would make property strictly tax-worse than paper assets.
+//
+// Anyone changing one of these should re-check the other two and the audit's
+// investment-balance table; a copy of either number anywhere else is a bug
+// (lib/stocks/weeklyTick re-exports the stock rate from here for exactly that
+// reason - it used to carry its own 0.25 literal).
+
 /** Realized gains + dividends on stocks and crypto. */
 export const CAPITAL_GAINS_TAX_RATE = 0.25;
 

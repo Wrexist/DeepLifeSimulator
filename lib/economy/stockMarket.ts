@@ -199,9 +199,19 @@ Object.entries(DEFAULT_PRICES).forEach(([symbol, data]) => {
 // here; they are now the shared primitives in `utils/seededRoll.ts` (audit
 // H7c). The arithmetic is bit-identical, so no stock price moved.
 
-// FNV-1a hash for combining weeksLived + stock index into a unique seed
-function hashSeed(weeksLived: number, index: number): number {
-  return fnv1a32(`${weeksLived}:${index}`);
+// FNV-1a hash for combining weeksLived + stock index (+ per-life salt) into a
+// unique seed.
+//
+// The salt (2026-08-25 economy audit) is `lineageId:generationNumber`, the same
+// per-life salt the lucky-bonus roll adopted (lib/economy/luckyBonus.ts). With
+// no salt the seed was `weeksLived:index` alone, so every save, life and
+// prestige heir replayed ONE universal price tape — a player who learned "NVDA
+// moons at week 700" had perfect foresight in every subsequent life. Salted,
+// each life walks its own market; determinism per week within a life (the
+// save-scum protection this seeding exists for) is unchanged. Value-only:
+// prices already persisted in saves are untouched, only future walks differ.
+function hashSeed(weeksLived: number, index: number, salt?: string): number {
+  return fnv1a32(salt ? `${weeksLived}:${index}:${salt}` : `${weeksLived}:${index}`);
 }
 
 // Pre-calculate volatility map to avoid recalculation every tick.
@@ -336,7 +346,7 @@ export function simulateWeek(policyEffects?: {
   volatilityModifier?: number;
   dividendBonus?: number;
   companyBoost?: string[];
-}, weeksLived?: number) {
+}, weeksLived?: number, lifeSalt?: string) {
   const symbols = Object.keys(stocks);
   const len = symbols.length;
 
@@ -372,8 +382,9 @@ export function simulateWeek(policyEffects?: {
     // Box-Muller transform (clamp u1 away from 0 to prevent Math.log(0) = -Infinity)
     let u1: number, u2: number;
     if (useSeededRng) {
-      // Seeded PRNG: same weeksLived + stock index = same price change every time
-      const rng = mulberry32(hashSeed(weeksLived, i));
+      // Seeded PRNG: same weeksLived + stock index (+ life salt) = same price
+      // change every time within a life; different lives walk different tapes.
+      const rng = mulberry32(hashSeed(weeksLived, i, lifeSalt));
       u1 = Math.max(Number.EPSILON, rng());
       u2 = rng();
     } else {

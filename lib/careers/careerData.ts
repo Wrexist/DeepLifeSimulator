@@ -44,8 +44,24 @@ import { Career } from '@/contexts/game/types';
  * than argued: `__tests__/economy/incomeScale.test.ts` prints the model and
  * fails if the relationships break. Run it after ANY change here.
  *
- * Ladders already at or above the floor — teacher, nurse, and the whole
- * professional tier — are untouched.
+ * Ladders already at or above the floor — the professional tier — were
+ * untouched by that rescale.
+ *
+ * ── 2026-08-25: what a GATE buys ──────────────────────────────────────────
+ *
+ * The economy audit found the ladder tops ordered backwards against their
+ * entry cost. A $48,000 business degree bought a $600/wk ceiling (teacher)
+ * while the free musician reached $2,120 and a reputation-30 celebrity reached
+ * $4,600 — tuition was the most expensive investment in the game and bought
+ * the worst ceiling, so no degree-gated ladder was ever the rational pick.
+ *
+ * The rule now: THE GATE SETS THE CEILING. Ungated entry work tops out below
+ * anything you had to pay or qualify for (the musician keeps its outlier
+ * ceiling but pays for it in tenure — see jobMarket's profile). Cheap
+ * certificates ($12k police academy, $18k legal studies) clear the free
+ * ladders; the $48k business degree clears the certificates; the $90k+ degrees
+ * own the professional tier. Nothing was nerfed to get there — the dominated
+ * ladders were raised.
  */
 
 /**
@@ -117,11 +133,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'teacher',
         levels: [
             { name: 'Teaching Assistant', salary: 220 },
-            { name: 'Substitute Teacher', salary: 280 },
-            { name: 'School Teacher', salary: 340 },
-            { name: 'Senior Teacher', salary: 400 },
-            { name: 'Department Head', salary: 480 },
-            { name: 'Principal', salary: 600 },
+            { name: 'Substitute Teacher', salary: 330 },
+            { name: 'School Teacher', salary: 450 },
+            { name: 'Senior Teacher', salary: 600 },
+            { name: 'Department Head', salary: 800 },
+            { name: 'Principal', salary: 1100 },
         ],
         level: 0,
         description: 'Educate the next generation',
@@ -134,11 +150,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'nurse',
         levels: [
             { name: 'Nursing Assistant', salary: 300 },
-            { name: 'LPN', salary: 360 },
-            { name: 'Registered Nurse', salary: 420 },
-            { name: 'Senior Nurse', salary: 480 },
-            { name: 'Nurse Practitioner', salary: 580 },
-            { name: 'Nurse Manager', salary: 700 },
+            { name: 'LPN', salary: 400 },
+            { name: 'Registered Nurse', salary: 530 },
+            { name: 'Senior Nurse', salary: 700 },
+            { name: 'Nurse Practitioner', salary: 940 },
+            { name: 'Nurse Manager', salary: 1250 },
         ],
         level: 0,
         description: 'Provide healthcare services',
@@ -159,7 +175,11 @@ export const INITIAL_CAREERS: Career[] = [
         ],
         level: 0,
         description: 'Develop software applications',
-        requirements: { items: ['computer'], education: ['masters_degree'] },
+        // computer_science is the direct route (its catalog description has
+        // always promised "Software engineering track" — until 2026-08-25 it
+        // gated nothing and was a $72k trap purchase); the masters remains the
+        // generalist route that also opens architect/vet/therapist.
+        requirements: { items: ['computer'], education: ['masters_degree'], educationAnyOf: ['computer_science'] },
         progress: 0,
         applied: false,
         accepted: false,
@@ -193,7 +213,10 @@ export const INITIAL_CAREERS: Career[] = [
         ],
         level: 0,
         description: 'Practice law and represent clients',
-        requirements: { items: ['suit'], education: ['legal_studies', 'masters_degree'] },
+        // law_school is the professional route (it cost $132k and gated no
+        // career at all until 2026-08-25 — only the Federal Judge appointment);
+        // the cheaper legal_studies+masters pairing stays valid.
+        requirements: { items: ['suit'], education: ['legal_studies', 'masters_degree'], educationAnyOf: ['law_school'] },
         progress: 0,
         applied: false,
         accepted: false,
@@ -219,11 +242,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'police',
         levels: [
             { name: 'Police Cadet', salary: 150 },
-            { name: 'Police Officer', salary: 230 },
-            { name: 'Senior Officer', salary: 290 },
-            { name: 'Sergeant', salary: 350 },
-            { name: 'Lieutenant', salary: 430 },
-            { name: 'Captain', salary: 550 },
+            { name: 'Police Officer', salary: 240 },
+            { name: 'Senior Officer', salary: 350 },
+            { name: 'Sergeant', salary: 480 },
+            { name: 'Lieutenant', salary: 660 },
+            { name: 'Captain', salary: 900 },
         ],
         level: 0,
         description: 'Protect and serve the community',
@@ -236,11 +259,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'legal',
         levels: [
             { name: 'Junior Legal Assistant', salary: 130 },
-            { name: 'Legal Assistant', salary: 190 },
-            { name: 'Senior Legal Assistant', salary: 270 },
-            { name: 'Paralegal Manager', salary: 370, experienceRequired: 40, description: 'Coordinate the paralegal team' },
-            { name: 'Legal Operations Lead', salary: 500, experienceRequired: 90, description: 'Run legal operations for the firm' },
-            { name: 'Director of Legal Services', salary: 660, experienceRequired: 150, description: 'Head the legal support division' },
+            { name: 'Legal Assistant', salary: 200 },
+            { name: 'Senior Legal Assistant', salary: 300 },
+            { name: 'Paralegal Manager', salary: 440, experienceRequired: 40, description: 'Coordinate the paralegal team' },
+            { name: 'Legal Operations Lead', salary: 650, experienceRequired: 90, description: 'Run legal operations for the firm' },
+            { name: 'Director of Legal Services', salary: 950, experienceRequired: 150, description: 'Head the legal support division' },
         ],
         level: 0,
         description: 'Support legal professionals',
@@ -287,14 +310,14 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'politician',
         levels: [
             { name: 'Campaign Volunteer', salary: 190 },
-            { name: 'City Council Member', salary: 470 },
-            { name: 'Mayor', salary: 980 },
-            { name: 'State Representative', salary: 1600, experienceRequired: 52, description: 'Represent your district at the state level' },
-            { name: 'Governor', salary: 2400, experienceRequired: 130, description: 'Lead the state' },
-            { name: 'National Party Leader', salary: 3400, experienceRequired: 220, description: 'Shape the national agenda' },
+            { name: 'Field Organizer', salary: 340 },
+            { name: 'Campaign Manager', salary: 560 },
+            { name: 'Legislative Aide', salary: 820, experienceRequired: 52, description: 'Draft the bills someone else signs' },
+            { name: 'Policy Director', salary: 1120, experienceRequired: 130, description: 'Own the platform behind the candidate' },
+            { name: 'Chief of Staff', salary: 1500, experienceRequired: 220, description: 'Run the office - the name on the door is not yours' },
         ],
         level: 0,
-        description: 'Serve the public through politics',
+        description: 'Work the machine behind the candidates - staff, not office',
         requirements: { reputation: 20 },
         progress: 0,
         applied: false,
@@ -441,11 +464,11 @@ export const INITIAL_CAREERS: Career[] = [
         id: 'musician',
         levels: [
             { name: 'Street Performer', salary: 110 },
-            { name: 'Session Musician', salary: 180 },
-            { name: 'Band Member', salary: 305 },
-            { name: 'Solo Artist', salary: 575 },
-            { name: 'Recording Artist', salary: 1090 },
-            { name: 'Rock Star', salary: 2120 },
+            { name: 'Session Musician', salary: 130 },
+            { name: 'Band Member', salary: 175 },
+            { name: 'Solo Artist', salary: 575, experienceRequired: 40, description: 'Your own name on the poster' },
+            { name: 'Recording Artist', salary: 1090, experienceRequired: 100, description: 'A label, a studio, a record' },
+            { name: 'Rock Star', salary: 2120, experienceRequired: 170, description: 'Arenas, and everyone knows the words' },
         ],
         level: 0,
         description: 'Make music and perform for audiences',

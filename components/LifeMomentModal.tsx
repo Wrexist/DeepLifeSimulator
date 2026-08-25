@@ -5,6 +5,8 @@ import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { safeSettings } from '@/utils/safeGameState';
 import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
+import { statIdentity, DIRECTION_COLOR, withAlpha } from '@/lib/config/statIdentity';
+import { scale, fontScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
 
@@ -180,22 +182,45 @@ export default function LifeMomentModal() {
                   </Text>
                   {choice.quickEffect.length > 0 && (
                     <View style={styles.effectsContainer}>
-                      {choice.quickEffect.map((effect, i) => (
-                        <View key={i} style={styles.effectItem}>
-                          {effect.amount > 0 ? (
-                            <ArrowUp size={12} color="#10B981" />
-                          ) : effect.amount < 0 ? (
-                            <ArrowDown size={12} color="#EF4444" />
-                          ) : null}
-                          <Text style={[
-                            styles.effectText,
-                            effect.amount > 0 ? styles.positiveEffect : styles.negativeEffect,
-                            settings.darkMode && styles.effectTextDark
-                          ]}>
-                            {effect.label}
-                          </Text>
-                        </View>
-                      ))}
+                      {/* One chip per effect. TWO readings, kept apart on
+                          purpose: the tint + icon say WHICH stat (the same
+                          pairings the HUD taught - red heart, yellow face,
+                          blue bolt), the arrow says WHICH WAY. Chips wrap, so
+                          a three-effect choice is two short lines instead of
+                          three stacked rows, and more choices stay on screen. */}
+                      {choice.quickEffect.map((effect, i) => {
+                        const { color, Icon } = statIdentity(effect.stat);
+                        const up = effect.amount > 0;
+                        const down = effect.amount < 0;
+                        return (
+                          <View
+                            key={i}
+                            style={[
+                              styles.effectChip,
+                              {
+                                backgroundColor: withAlpha(color, settings.darkMode ? 0.18 : 0.12),
+                                borderColor: withAlpha(color, settings.darkMode ? 0.45 : 0.35),
+                              },
+                            ]}
+                          >
+                            <Icon size={scale(14)} color={color} />
+                            <Text
+                              style={[
+                                styles.effectText,
+                                settings.darkMode && styles.effectTextDark,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {effect.label}
+                            </Text>
+                            {up ? (
+                              <ArrowUp size={scale(13)} color={DIRECTION_COLOR.positive} />
+                            ) : down ? (
+                              <ArrowDown size={scale(13)} color={DIRECTION_COLOR.negative} />
+                            ) : null}
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </TouchableOpacity>
@@ -288,26 +313,29 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
   },
   effectsContainer: {
-    gap: 4,
-    marginTop: 4,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: scale(6),
+    marginTop: scale(10),
   },
-  effectItem: {
+  effectChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: scale(5),
+    paddingVertical: scale(5),
+    paddingHorizontal: scale(9),
+    borderRadius: scale(999),
+    // Full border on all four sides - a one-sided accent stripe is banned
+    // app-wide (CLAUDE.md Hard Rule #7) and curls against a radius this tight.
+    borderWidth: 1,
   },
   effectText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  positiveEffect: {
-    color: '#10B981',
-  },
-  negativeEffect: {
-    color: '#EF4444',
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: '#0F172A',
   },
   effectTextDark: {
-    // Dark mode handled by positive/negative colors
+    color: '#F1F5F9',
   },
 });
 

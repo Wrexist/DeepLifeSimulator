@@ -3,6 +3,8 @@ import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 // Shared planning basis (income-producing / liquidatable assets only) — see
 // planningNetWorth.ts for why this is deliberately NOT the canonical netWorth().
 import { calculatePlanningNetWorth as calculateNetWorth } from './planningNetWorth';
+import { calcWeeklyPassiveIncome } from '@/lib/economy/passiveIncome';
+import { calcWeeklyExpenses } from '@/lib/economy/expenses';
 
 /**
  * FIRE (Financial Independence, Retire Early) tracking result
@@ -98,3 +100,59 @@ export function calculateFIRETracker(state: GameState): FIRETrackerResult {
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Financial independence, as a MECHANICAL fact rather than a stats readout
+// ---------------------------------------------------------------------------
+
+/**
+ * The weekly floor a life has to cost before "my assets cover it" means
+ * anything.
+ *
+ * Reuses this file's OWN baseline cost of living (`MIN_ANNUAL_EXPENSES`, the
+ * floor `calculateFIRETracker` already applies) rather than inventing a second
+ * number. Without a floor, a character with no rent and no job is "financially
+ * independent" on $1/week of passive income - the milestone has to mean a life
+ * is being paid for, not that nothing is.
+ */
+export const FI_MINIMUM_WEEKLY_COST = Math.round(15_600 / WEEKS_PER_YEAR);
+
+export interface FinancialIndependence {
+  /** Weekly passive income, the same projection the Cash Flow card shows. */
+  passiveWeekly: number;
+  /** Weekly cost of the life, INCLUDING the tax owed on that passive income. */
+  expensesWeekly: number;
+  /** Passive income covers the whole life. */
+  achieved: boolean;
+  /** 0..1 - how close the assets are to covering the life. */
+  progress: number;
+}
+
+/**
+ * Does this life pay for itself?
+ *
+ * The question the money axis is actually about, and until now the game
+ * computed it (`calculateFIRETracker`) and did nothing with it: one stats
+ * screen and the age-45 early-retirement gate, no achievement, no goal, no
+ * moment. This is the mechanical version - not the 25x rule of thumb, but the
+ * literal test a player can watch converge on the Cash Flow card.
+ *
+ * Both sides come from the canonical helpers the rest of the app displays, so
+ * what the player sees on that card is what this measures. Tax is charged on
+ * the passive income before the comparison, because the tick charges it too -
+ * declaring independence on a pre-tax figure would fire early and be a lie the
+ * next paycheck contradicts.
+ */
+export function financialIndependence(state: GameState): FinancialIndependence {
+  // Local requires would degrade these to `any`; both are pure lib modules.
+  const passive = calcWeeklyPassiveIncome(state);
+  const passiveWeekly = Math.max(0, Math.round(passive?.total ?? 0));
+  const expenses = calcWeeklyExpenses(state, passiveWeekly);
+  const rawExpenses = Math.max(0, Math.round(expenses?.total ?? 0));
+  const expensesWeekly = Math.max(FI_MINIMUM_WEEKLY_COST, rawExpenses);
+  const achieved = passiveWeekly > 0 && passiveWeekly >= expensesWeekly;
+  const progress = expensesWeekly > 0
+    ? Math.max(0, Math.min(1, passiveWeekly / expensesWeekly))
+    : 0;
+  return { passiveWeekly, expensesWeekly, achieved, progress };
+}

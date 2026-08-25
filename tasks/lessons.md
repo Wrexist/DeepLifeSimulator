@@ -4264,3 +4264,30 @@ catalogue clean.
   shipped with zero producers AND zero consumers, and nothing failed. When a
   schema field looks like a feature, grep for both halves before assuming it
   works — and after wiring it, pin BOTH halves in one test file.
+
+## 2026-08-25 — The economy audit: income credited after the tax line is untaxed by construction
+
+- The week tick computes `taxableIncome` once, mid-updater, and everything
+  credited to `newStats.money` AFTER that line ships untaxed. The lucky-bonus
+  and play-streak channels lived there for their whole life: +32% EV plus up
+  to +20%, on an uncapped base, invisible to tax, arrears and the passive
+  soft cap — the largest unpriced faucet in the game, and none of the three
+  static analyzers could see it because each looked at SOURCES and SINKS, not
+  at ORDER. The pattern to check in any tick review: for every `newStats.money
+  +=` after the tax computation, ask "who taxes this?"
+- A field can be real, maintained, and never delivered: `activeVehicleId` was
+  set on purchase, switched by a dedicated action, cleared on sale — and the
+  tick's parameter for it was simply never passed at the call site, so the
+  designed active/idle fuel split and accident premium were dead. Same class
+  as H1's authored career tolls. Grep the ORCHESTRATOR call for each optional
+  param a subsystem declares.
+- The sim harness taught the same lesson from the other side: seeding
+  `careers[].accepted = true` paid nothing, because the paycheck reads
+  `currentJob`. "Accepted a career" and "employed" are different facts.
+- A pot with no positive consumer is a refund waiting to be discovered:
+  `campaignFunds` was fed by campaign() and party funding, and read ONLY by
+  the embezzlement skim — so player deposits were ~100% recoverable while the
+  approval they bought remained. The election-formula comment CLAIMED it read
+  the funds, which is what kept the loop invisible. When auditing a currency,
+  list its consumers; a write-only pot (or one consumed only by a refund
+  path) is a finding even before you construct the exploit.

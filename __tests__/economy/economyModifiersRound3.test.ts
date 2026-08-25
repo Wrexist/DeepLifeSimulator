@@ -40,7 +40,9 @@ describe('R3-M9 - the economy modifiers reach the systems they name', () => {
 
     expect(source).toMatch(/gameState\.economy\?\.economyEvents\?\.modifiers\?\.stockVolatility/);
     expect(source).toMatch(/volatilityModifier: \(policyEffects\?\.volatilityModifier \?\? 1\) \* safeEventVolatility/);
-    expect(source).toMatch(/simulateWeek\(combinedEffects, currentWeeksLived\)/);
+    // The call is multi-line since the per-life seed salt was added
+    // (2026-08-25 economy audit) — match arguments across whitespace.
+    expect(source).toMatch(/simulateWeek\(\s*combinedEffects,\s*currentWeeksLived,/);
   });
 
   it('does not discard the political modifier while adding the event one', () => {

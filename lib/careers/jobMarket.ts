@@ -81,9 +81,22 @@ export const ENTRY_JOB_PROFILES: readonly EntryJobProfile[] = [
     careerId: 'musician',
     vibe: 'Busking for coins and uploading takes at 2am.',
     path: 'Session work → touring act → headliner',
+    // THE LONG SHOT (2026-08-25 economy audit). The bet this job was designed
+    // around was "the worst wage for the best ceiling" - and the salary rescale
+    // deleted the first half without noticing: MIN_ENTRY_WEEKLY_SALARY put the
+    // busker on the same $110 as everyone else, leaving best ceiling, lightest
+    // toll, the only POSITIVE happiness toll and 'fast' growth, with no
+    // downside at all. Best on five axes out of five.
+    //
+    // The downside is restored where it belongs - in TIME, not in a hiring bar.
+    // The bar stays open (a fresh character must be able to take this bet on
+    // day one, `jobMarket.test.ts`), the pace is now the slowest in the tier,
+    // the early rungs in careerData barely clear minimum wage, and the top
+    // three are tenure-gated at 40/100/170 weeks. Years of near-nothing for the
+    // highest ceiling in the tier and the only week that makes you happier.
     hiringBar: {},
     weeklyToll: { energy: -8, happiness: 4 },
-    growth: 'fast',
+    growth: 'slow',
   },
   {
     careerId: 'farmer',
@@ -107,7 +120,12 @@ export const ENTRY_JOB_PROFILES: readonly EntryJobProfile[] = [
     path: 'Crew → shift lead → district manager',
     hiringBar: {},
     weeklyToll: { energy: -12, happiness: -3 },
-    growth: 'slow',
+    // The FAST ladder, and the tier's lowest ceiling ($230). Promotions come
+    // quickly because the whole ladder is short - the opposite bet to the
+    // musician, who climbs slowest to the highest ceiling. Before 2026-08-25
+    // the musician held 'fast' AND the top ceiling, so no other pace was worth
+    // choosing and nothing in the tier was actually quick.
+    growth: 'fast',
   },
   {
     careerId: 'janitor',

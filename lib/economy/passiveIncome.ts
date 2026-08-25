@@ -16,8 +16,10 @@ import { calculateGovernmentContractBonus } from '@/lib/politics/governmentContr
 import { calcGamingStreamingIncome } from './gamingStreamingIncome';
 import { logger } from '@/utils/logger';
 import { familyBrandIncomeMultiplier, findFamilyBusiness, legacyGenerationIncomeMultiplier } from '@/lib/business/familyBusinessEffects';
-import { 
-  PROPERTY_THRESHOLD_1, 
+import { minerFleetWeeklyPowerCost } from './minerPower';
+import { miningIncomeCap } from './constants';
+import {
+  PROPERTY_THRESHOLD_1,
   PROPERTY_THRESHOLD_2, 
   PROPERTY_THRESHOLD_3,
   PROPERTY_EFFICIENCY_TIER_1,
@@ -468,8 +470,19 @@ export function calcWeeklyPassiveIncome(
         },
         0
       ) * safeMiningBonusMultiplier;
-      if (isFinite(weeklyMiningEarnings) && weeklyMiningEarnings > 0) {
-        cryptoMiningIncome += Math.round(weeklyMiningEarnings);
+      // ELECTRICITY (2026-08-25 economy audit): company rigs were pure profit —
+      // the power bill existed only in the display layer (`expenses.ts`) and was
+      // never charged, the exact defect the warehouse fix H-2 closed for
+      // warehouse rigs. Net the fleet's weekly power cost here, in the same row
+      // that pays the income, at the same $0.40/unit/wk rate the warehouse
+      // actually pays (`lib/economy/minerPower.ts` — the one source both the
+      // tick and the expense UI now read). Floored at 0 per company: a fleet
+      // whose power exceeds its yield idles rather than draining cash, matching
+      // the warehouse's deduct-from-what-was-mined behaviour.
+      const powerCost = minerFleetWeeklyPowerCost(company.miners);
+      const netMiningEarnings = weeklyMiningEarnings - powerCost;
+      if (isFinite(netMiningEarnings) && netMiningEarnings > 0) {
+        cryptoMiningIncome += Math.round(netMiningEarnings);
       }
     }
   });
@@ -481,8 +494,19 @@ export function calcWeeklyPassiveIncome(
   // too paid the same hardware twice (capped cash AND uncapped crypto). The split is
   // now clean: company miners → cash (above); warehouse miners → crypto (elsewhere).
 
-  // ANTI-EXPLOIT: Hard cap on total mining income to prevent it from dominating all other income
-  const MINING_INCOME_CAP = 100000; // $100K/week maximum from all mining combined
+  // ANTI-EXPLOIT: cap total mining income so it cannot dominate every other
+  // stream. SCALED with the hardware bought since 2026-08-25 - see
+  // `miningIncomeCap`; a flat cap made the top two rigs unrecoverable. Company
+  // fleets are summed across companies, the same pool the earnings above use.
+  const companyMinerFleet: Record<string, number> = {};
+  for (const company of state.companies || []) {
+    for (const [id, count] of Object.entries(company?.miners || {})) {
+      if (typeof count === 'number' && isFinite(count) && count > 0) {
+        companyMinerFleet[id] = (companyMinerFleet[id] || 0) + count;
+      }
+    }
+  }
+  const MINING_INCOME_CAP = miningIncomeCap(companyMinerFleet);
   if (cryptoMiningIncome > MINING_INCOME_CAP) {
     cryptoMiningIncome = MINING_INCOME_CAP;
   }

@@ -25,14 +25,12 @@ import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import { nonMirrorDeposits } from '@/lib/banking/operations';
 import Gradient from '@/components/ui/Gradient';
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
 import {
- Heart,
- Smile,
- Zap,
  Wallet,
  PiggyBank,
  Gem,
@@ -523,10 +521,13 @@ function TopStatsBarComponent() {
  return [
  {
  key:'health',
- icon: Heart,
+ icon: STAT_IDENTITY.health.Icon,
  value: stats.health,
+ // The RING colour still grades by value (green at 80+, red when critical);
+ // the BAR carries the stat's identity colour, which is what the rest of the
+ // app now matches (lib/config/statIdentity.ts).
  color: statColors.health,
- gradient: ['#EF4444', '#F87171'] as [string, string],
+ gradient: [STAT_IDENTITY.health.color, '#F87171'] as [string, string],
  max: 100,
  netChange: statNetChanges.health,
  quickActions: [
@@ -536,10 +537,10 @@ function TopStatsBarComponent() {
  },
  {
  key: 'happiness',
- icon: Smile,
+ icon: STAT_IDENTITY.happiness.Icon,
  value: stats.happiness,
- color: '#F59E0B', // Yellow to match bar color
- gradient: ['#F59E0B', '#FBBF24'] as [string, string],
+ color: STAT_IDENTITY.happiness.color,
+ gradient: [STAT_IDENTITY.happiness.color, '#FBBF24'] as [string, string],
  max: 100,
  netChange: statNetChanges.happiness,
  quickActions: [
@@ -549,10 +550,10 @@ function TopStatsBarComponent() {
  },
  {
  key: 'energy',
- icon: Zap,
+ icon: STAT_IDENTITY.energy.Icon,
  value: stats.energy,
- color: '#3B82F6', // Blue to match bar color
- gradient: ['#3B82F6', '#60A5FA'] as [string, string],
+ color: STAT_IDENTITY.energy.color,
+ gradient: [STAT_IDENTITY.energy.color, '#60A5FA'] as [string, string],
  max: 100,
  netChange: statNetChanges.energy,
  quickActions: [

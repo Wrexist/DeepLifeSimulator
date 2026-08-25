@@ -17,6 +17,7 @@
  */
 import type { GameState } from '@/contexts/game/types';
 import { netWorth } from '@/lib/progress/achievements';
+import { financialIndependence } from '@/lib/statistics/fireTracker';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { visibleContracts, getContractProgress } from '@/lib/legacy/contracts';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
@@ -54,7 +55,11 @@ const SAVINGS_RUNGS = [1_000, 5_000, 25_000, 100_000, 500_000, 1_000_000];
 const activeSavingsRung = (s: GameState): number =>
   SAVINGS_RUNGS.find((r) => liquid(s) < r) ?? SAVINGS_RUNGS[SAVINGS_RUNGS.length - 1];
 
-const NET_WORTH_RUNGS = [100_000, 1_000_000, 10_000_000, 100_000_000];
+// $25M and $50M added 2026-08-25: the ladder used to jump 10M -> 100M, which
+// is the exact band the economy audit found goes quiet (chapters end at $10M,
+// Legacy Contracts resume at $100M). A dream you cannot see yourself
+// approaching is not a dream - the same finding as tasks/lessons.md 2026-08-19.
+const NET_WORTH_RUNGS = [100_000, 1_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000];
 
 const activeNetWorthRung = (s: GameState): number =>
   NET_WORTH_RUNGS.find((r) => netWorth(s) < r) ?? NET_WORTH_RUNGS[NET_WORTH_RUNGS.length - 1];
@@ -281,6 +286,26 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     priority: () => 80,
     format: moneyPair,
     achievementLevel: (s) => s.prestige?.prestigeLevel ?? 0,
+  },
+  {
+    id: 'dream_financial_independence',
+    horizon: 'dream',
+    title: 'Make the money work for you',
+    rationale: 'When your assets out-earn your bills, working becomes a choice.',
+    route: '/(tabs)/computer',
+    // Only once there is something to measure - offering "live off your assets"
+    // to a character with no assets is noise, the dream_dynasty rule.
+    isEligible: (s) => {
+      const fi = financialIndependence(s);
+      return fi.passiveWeekly > 0 && !fi.achieved;
+    },
+    measure: (s) => {
+      const fi = financialIndependence(s);
+      return { current: fi.passiveWeekly, target: fi.expensesWeekly };
+    },
+    priority: () => 75,
+    format: moneyPair,
+    achievementLevel: (s) => (financialIndependence(s).achieved ? 1 : 0),
   },
   {
     id: 'dream_family',

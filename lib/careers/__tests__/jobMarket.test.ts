@@ -64,8 +64,15 @@ describe('entry job profiles', () => {
   });
 
   it('keeps the lowest-paying job open to anyone, and worth taking', () => {
-    // Musician is $25/wk — the worst wage and the best ceiling ($1,000). It has
-    // to stay takeable on day one for that bet to be available at all.
+    // The musician is the tier's long shot: the best ceiling ($2,120 against
+    // the next-best $790) bought with TIME - the slowest pace in the tier,
+    // early rungs that barely clear minimum wage, and tenure gates on the top
+    // three rungs. It has to stay takeable on day one for that bet to be
+    // available at all, which is why the bar stays open even though the audit
+    // found this profile dominant: the fix belonged in the payoff curve, not
+    // in a gate. (The old comment here said "$25/wk, the worst wage" - true
+    // before MIN_ENTRY_WEEKLY_SALARY put every entry ladder on $110 and
+    // silently deleted the downside half of the bet.)
     const musician = getEntryJobProfile('musician');
     expect(musician?.hiringBar).toEqual({});
     expect(evaluateHiring(musician, freshState()).eligible).toBe(true);

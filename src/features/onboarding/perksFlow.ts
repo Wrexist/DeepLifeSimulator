@@ -4,6 +4,8 @@
  * Extracted from Perks.tsx — pure functions for sorting, locking, and benefit display.
  */
 
+import { STAT_IDENTITY } from '@/lib/config/statIdentity';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -156,25 +158,26 @@ export function getPerkBenefits(perk: PerkDefinition): PerkBenefit[] {
 // Stat display helpers
 // ---------------------------------------------------------------------------
 
-/** Map a stat name to its display color. */
+/**
+ * Map a stat name to its display color.
+ *
+ * Delegates to `lib/config/statIdentity.ts` - the pairings the HUD taught the
+ * player. This function used to carry its OWN table, and it disagreed with the
+ * HUD on the two stats a player looks at most: happiness was RED and energy was
+ * AMBER, i.e. the HUD's colours on the wrong stats, shown on the onboarding
+ * perk cards seconds before the player meets the HUD itself. The extra keys
+ * below ('Starting Money', 'Income Boost') are perk-card labels rather than
+ * stats, so they stay here.
+ */
 export function getStatColor(stat: string): string {
   switch (stat) {
-    case 'happiness':
-      return '#EF4444';
-    case 'health':
-      return '#10B981';
-    case 'energy':
-      return '#F59E0B';
-    case 'fitness':
-      return '#3B82F6';
-    case 'reputation':
-      return '#8B5CF6';
     case 'money':
     case 'Starting Money':
       return '#F7931A';
     case 'Income Boost':
       return '#10B981';
     default:
-      return '#6B7280';
+      return STAT_IDENTITY[stat]?.color ?? '#6B7280';
   }
 }
+

@@ -136,11 +136,17 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
         };
       }
 
-      // Track statistics
+      // Track statistics. Positive deltas count toward lifetime EARNED only for
+      // genuine income (same isIncomeReason gate the dailySummary line above
+      // uses) - a withdrawal / asset sale / loan is existing money moving, and
+      // `totalMoneyEarned` feeds Chapter 1's "Earn $X" goal and the Legacy
+      // Contract metrics, so shuffling money must not tick them (2026-08-25
+      // economy audit; the P1-4 dailySummary fix half-landed and left this
+      // sibling counting every positive delta).
       const currentStats = prevState.lifetimeStatistics || getDefaultStatistics();
       let updatedStats = currentStats;
 
-      if (amount > 0) {
+      if (amount > 0 && isIncomeReason(reason)) {
         updatedStats = trackMoneyEarned(currentStats, amount);
       } else if (amount < 0) {
         updatedStats = trackMoneySpent(currentStats, amount);
@@ -404,8 +410,11 @@ export function MoneyActionsProvider({ children }: MoneyActionsProviderProps) {
       // could push the balance past Number.MAX_SAFE_INTEGER, where integer
       // arithmetic stops being exact and later debits silently no-op.
       const newMoney = Math.min(MONEY_CEILING, prev.stats.money + saleValue);
-      const currentStats = prev.lifetimeStatistics || getDefaultStatistics();
-      const updatedStats = trackMoneyEarned(currentStats, saleValue);
+      // A sale converts an existing asset to cash - NOT lifetime income
+      // (isIncomeReason excludes "sold"); the shipping crypto UI's path
+      // (CryptoTradingActions → applyMoneyDelta 'Sold …') never counted it,
+      // so this dev-only path must not either (2026-08-25 economy audit).
+      const updatedStats = prev.lifetimeStatistics || getDefaultStatistics();
 
       return {
         ...prev,
