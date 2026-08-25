@@ -41,6 +41,7 @@ import { getReputationStanding } from '@/lib/reputation/reputationTier';
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
 import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 const LinearGradient = Gradient;
 
@@ -102,7 +103,12 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
                 {title}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.modalCloseButton}
+              hitSlop={hitSlopToMinTarget(scale(40))}
+              {...CLOSE_BUTTON_A11Y}
+            >
               <X size={scale(24)} color={darkMode ? '#fff' : '#000'} />
             </TouchableOpacity>
           </View>

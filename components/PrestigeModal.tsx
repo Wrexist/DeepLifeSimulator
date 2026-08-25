@@ -12,7 +12,7 @@ import ConfettiBurst from '@/components/ui/ConfettiBurst';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { haptic } from '@/utils/haptics';
 import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
-import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
+import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScale } from '@/utils/scaling';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 
@@ -1309,7 +1309,7 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize.md,
     color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: fontScale(22),
     marginBottom: responsiveSpacing.xl,
   },
   celebrationButton: {

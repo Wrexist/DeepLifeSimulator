@@ -11,6 +11,7 @@ import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 interface WeddingPlanningModalProps {
@@ -115,11 +116,12 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               <Heart size={scale(24)} color={isDarkMode ? '#F472B6' : '#EC4899'} />
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>Plan Wedding</Text>
             </View>
-            <TouchableOpacity 
-              onPress={onClose} 
+            <TouchableOpacity
+              onPress={onClose}
               style={styles.closeButton}
               accessibilityLabel="Close wedding planning modal"
               accessibilityRole="button"
+              hitSlop={hitSlopToMinTarget(scale(32))}
             >
               <X size={scale(24)} color={isDarkMode ? '#fff' : '#000'} />
             </TouchableOpacity>

@@ -32,6 +32,7 @@ import { getAllContractProgress, getClaimableContracts } from '@/lib/legacy/cont
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import DynastyBoard from '@/components/prestige/DynastyBoard';
 import { scale, fontScale } from '@/utils/scaling';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 
@@ -239,10 +240,12 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                   </Text>
                 )}
               </View>
-              <TouchableOpacity 
-                onPress={onClose} 
+              <TouchableOpacity
+                onPress={onClose}
                 style={styles.closeButton}
                 activeOpacity={0.7}
+                hitSlop={hitSlopToMinTarget(36)}
+                {...CLOSE_BUTTON_A11Y}
               >
                 <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>
                   <X size={18} color={isDarkMode ? '#FFFFFF' : '#1E293B'} />

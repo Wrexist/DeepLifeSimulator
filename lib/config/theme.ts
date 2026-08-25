@@ -134,7 +134,13 @@ export const accent = {
   purple: '#A855F7',
   gold: '#FACC15',
   amber: '#F97316',
-  muted: palette.dark500,         // for inactive states
+  // Inactive/neutral tint. NOT dark500 (#64748B): that is the exact value the
+  // contrast pass above condemns at ~3.0:1 on dark cards, and it survived here.
+  // #7C8BA1 is the midpoint that clears WCAG's 3:1 UI-component bar on BOTH
+  // themes (4.2:1 on dark800, 3.3:1 on light50) — a single static accent can't
+  // reach 4.5:1 both ways, so keep it to icons, large text, and states that are
+  // also signified by something other than color.
+  muted: '#7C8BA1',
 } as const;
 
 // ---------------------------------------------------------------------------

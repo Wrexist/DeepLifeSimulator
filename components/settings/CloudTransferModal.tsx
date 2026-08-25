@@ -22,6 +22,7 @@ import {
 import { claimTransferCode, mintTransferCode } from '@/lib/progress/cloud';
 import { resolveDeviceId } from '@/utils/deviceIdentity';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 
 export type TransferMode = 'show' | 'enter';
 
@@ -157,7 +158,12 @@ export default function CloudTransferModal({ visible, mode, onClose, onClaimed }
 
           {message ? <Text style={styles.message}>{message}</Text> : null}
 
-          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.close}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={onClose}
+            style={styles.close}
+            hitSlop={hitSlopToMinTarget(scale(30))}
+          >
             <Text style={styles.closeText}>Close</Text>
           </TouchableOpacity>
         </View>

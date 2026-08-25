@@ -19,6 +19,7 @@ import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS, isManageableDisease } from '@/lib/diseases/chronicCare';
 import { logger } from '@/utils/logger';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -328,10 +329,12 @@ function SicknessModal() {
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity 
-                  onPress={handleClose} 
+                <TouchableOpacity
+                  onPress={handleClose}
                   style={styles.closeButton}
                   activeOpacity={0.7}
+                  hitSlop={hitSlopToMinTarget(36)}
+                  {...CLOSE_BUTTON_A11Y}
                 >
                   <View style={[styles.closeButtonInner, darkMode && styles.closeButtonInnerDark]}>
                     <X size={18} color={darkMode ? '#FFFFFF' : '#1E293B'} />

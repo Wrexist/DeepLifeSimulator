@@ -23,6 +23,7 @@ import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import EmptyState from '@/components/ui/EmptyState';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import type { PromotionDetails } from '@/contexts/game/types';
 import {
@@ -828,7 +829,13 @@ function WorkScreenContent() {
                 );
             } else if (canPromote) {
                 footer = (
-                    <TouchableOpacity onPress={() => setShowQuitJobConfirm(true)} style={{ alignSelf: 'center', paddingVertical: 4 }}>
+                    <TouchableOpacity
+                        onPress={() => setShowQuitJobConfirm(true)}
+                        style={{ alignSelf: 'center', paddingVertical: scale(8), minHeight: scale(32), justifyContent: 'center' }}
+                        hitSlop={hitSlopToMinTarget(scale(32))}
+                        accessibilityRole="button"
+                        accessibilityLabel="Quit this job instead of promoting"
+                    >
                         <Text style={{ color: 'rgba(248, 113, 113, 0.85)', fontSize: fontScale(12), fontWeight: '600' }}>
                             Quit instead
                         </Text>
@@ -1389,9 +1396,11 @@ function WorkScreenContent() {
                 <TouchableOpacity
                     style={local.sheetOverlay}
                     activeOpacity={1}
+                    accessible={false}
+                    importantForAccessibility="no"
                     onPress={() => setManageJobId(null)}
                 >
-                    <View style={local.sheet}>
+                    <View style={local.sheet} accessibilityViewIsModal>
                         <View style={local.sheetHandle} />
                         <Text style={local.sheetTitle}>Your Job</Text>
                         <Text style={local.sheetSubtitle}>What would you like to do?</Text>
@@ -1400,6 +1409,8 @@ function WorkScreenContent() {
                             style={local.sheetAction}
                             activeOpacity={0.85}
                             onPress={() => { if (manageJobId) handleAskForRaise(manageJobId); }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Ask for a raise"
                         >
                             <TrendingUp size={scale(17)} color="#34D399" />
                             <Text style={local.sheetActionText}>Ask for a Raise</Text>
@@ -1409,6 +1420,8 @@ function WorkScreenContent() {
                             style={local.sheetAction}
                             activeOpacity={0.85}
                             onPress={() => { setManageJobId(null); setShowQuitJobConfirm(true); }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Quit job"
                         >
                             <X size={scale(17)} color="#F87171" />
                             <Text style={[local.sheetActionText, { color: '#F87171' }]}>Quit Job</Text>
@@ -1418,6 +1431,8 @@ function WorkScreenContent() {
                             style={local.sheetCancel}
                             activeOpacity={0.85}
                             onPress={() => setManageJobId(null)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Cancel"
                         >
                             <Text style={local.sheetCancelText}>Cancel</Text>
                         </TouchableOpacity>

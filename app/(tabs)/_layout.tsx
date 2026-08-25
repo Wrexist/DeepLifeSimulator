@@ -271,6 +271,10 @@ export default function TabLayout() {
         // on each "Next Week" press. Frozen screens catch up on focus.
         freezeOnBlur: true,
         tabBarShowLabel: true,
+        // The bar is a fixed scale(56) tall; unbounded Dynamic Type (up to
+        // ~3.1x on iOS accessibility sizes) clips the labels out of it. Icons
+        // carry the meaning at that point - native iOS tab bars do the same.
+        tabBarAllowFontScaling: false,
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',

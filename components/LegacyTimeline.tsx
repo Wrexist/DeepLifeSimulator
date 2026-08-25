@@ -41,6 +41,7 @@ import {
   fontScale,
 } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 
 const LinearGradient = Gradient;
 
@@ -168,7 +169,12 @@ export default function LegacyTimeline({ visible, onClose, onOpenFamilyTree }: L
                 Legacy Timeline
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={hitSlopToMinTarget(scale(40))}
+              {...CLOSE_BUTTON_A11Y}
+            >
               <X size={scale(24)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
             </TouchableOpacity>
           </View>

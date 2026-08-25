@@ -134,9 +134,13 @@ export default function BaseModal({
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Overlay - tap to close */}
+        {/* Overlay - tap to close. Hidden from screen readers: announcing a
+            giant unlabeled button wrapping the whole dialog only adds noise -
+            VoiceOver/TalkBack users dismiss via the labelled Close button. */}
         <TouchableOpacity
           activeOpacity={1}
+          accessible={false}
+          importantForAccessibility="no"
           style={[
             styles.overlay,
             themed.overlay,
@@ -145,9 +149,12 @@ export default function BaseModal({
           ]}
           onPress={onClose}
         >
-          {/* Container - stop propagation */}
+          {/* Container - stop propagation. accessibilityViewIsModal keeps
+              VoiceOver from wandering to content behind the dialog. */}
           <TouchableOpacity
             activeOpacity={1}
+            accessible={false}
+            accessibilityViewIsModal
             style={[
               styles.container,
               themed.container,
@@ -172,12 +179,20 @@ export default function BaseModal({
               <View style={[styles.header, themed.header]}>
                 <View style={styles.headerText}>
                   {title && (
-                    <Text style={[styles.title, themed.title]} numberOfLines={1}>
+                    <Text
+                      style={[styles.title, themed.title]}
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={1.4}
+                    >
                       {title}
                     </Text>
                   )}
                   {subtitle && (
-                    <Text style={[styles.subtitle, themed.subtitle]} numberOfLines={1}>
+                    <Text
+                      style={[styles.subtitle, themed.subtitle]}
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={1.4}
+                    >
                       {subtitle}
                     </Text>
                   )}

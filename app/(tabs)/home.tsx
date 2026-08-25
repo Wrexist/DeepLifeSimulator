@@ -718,6 +718,9 @@ function HomeScreenContent() {
                 style={styles.findJobCta}
                 onPress={() => router.push('/(tabs)/work')}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Find your first job"
+                accessibilityHint="Opens the Work tab"
               >
                 <View style={styles.findJobIconBubble}>
                   <Briefcase size={scale(20)} color="#34D399" />
@@ -813,6 +816,7 @@ function HomeScreenContent() {
             activeOpacity={0.85}
             style={styles.progressLinkCard}
             accessibilityRole="button"
+            accessibilityLabel="Your Progress"
             accessibilityState={{ disabled: progressLocked }}
           >
             <View style={styles.progressLinkIcon}>

@@ -49,7 +49,7 @@ export default function AnimatedMoney({
   suffix = '',
 }: AnimatedMoneyProps) {
   return (
-    <Text
+    <Text maxFontSizeMultiplier={1.3}
       style={[styles.text, style]}
       numberOfLines={1}
       adjustsFontSizeToFit={true}
@@ -70,7 +70,7 @@ export function AnimatedMoneyNative({
   suffix = '',
 }: Omit<AnimatedMoneyProps, 'useNativeDriver'>) {
   return (
-    <Text
+    <Text maxFontSizeMultiplier={1.3}
       style={[styles.text, style]}
       numberOfLines={1}
       adjustsFontSizeToFit={true}

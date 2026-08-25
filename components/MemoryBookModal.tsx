@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { Memory } from '@/lib/legacy/memories';
 import { scale, fontScale } from '@/utils/scaling';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
@@ -282,6 +283,8 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
               <TouchableOpacity
                 style={styles.detailCloseButton}
                 onPress={() => setSelectedMemory(null)}
+                hitSlop={hitSlopToMinTarget(scale(36))}
+                {...CLOSE_BUTTON_A11Y}
               >
                 <X size={scale(20)} color="#FFFFFF" />
               </TouchableOpacity>
@@ -366,7 +369,12 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={hitSlopToMinTarget(scale(40))}
+              {...CLOSE_BUTTON_A11Y}
+            >
               <X size={scale(24)} color={settings.darkMode ? '#FFFFFF' : '#000000'} />
             </TouchableOpacity>
           </View>
