@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
   Image,
@@ -49,6 +48,7 @@ import { haptic } from '@/utils/haptics';
 // the heavy Settings graph into MainMenu's module init the way SettingsModal did.
 import WhatsNewModal from '@/components/WhatsNewModal';
 import { hasUnseenWhatsNew } from '@/utils/whatsNewSeen';
+import { gameAlert } from '@/utils/gameAlert';
 
 // SettingsModal eagerly pulls in DevToolsModal + several heavy modals. Nothing
 // imports MainMenu (so this isn't a require cycle) - but a failed module-eval of
@@ -513,14 +513,14 @@ export default function MainMenu() {
       const lastSlot = await AsyncStorage.getItem('lastSlot');
       if (!lastSlot) {
         log.error('No lastSlot found when trying to continue');
-        Alert.alert('No Save Found', 'No save game found. Please start a new game.', [{ text: 'OK' }]);
+        gameAlert('No Save Found', 'No save game found. Please start a new game.', [{ text: 'OK' }]);
         return;
       }
 
       const slotNumber = parseInt(lastSlot, 10);
       if (isNaN(slotNumber) || slotNumber < 1 || slotNumber > 3) {
         log.error('Invalid lastSlot value:', lastSlot);
-        Alert.alert(
+        gameAlert(
           'Invalid Save Slot',
           'The save slot information is invalid. Please select a save slot from the Save Slots menu.',
           [{ text: 'OK' }]
@@ -539,7 +539,7 @@ export default function MainMenu() {
         // avoid. Re-throw that one case so it reaches its handler.
         if (isSaveFromFutureError(loadError)) throw loadError;
         log.error('loadGame threw an error:', loadError);
-        Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
+        gameAlert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
           { text: 'OK' },
         ]);
         return;
@@ -547,7 +547,7 @@ export default function MainMenu() {
 
       if (!loadedState) {
         log.error('loadGame returned null - no save data found');
-        Alert.alert('No Save Found', 'No save data found. Please try loading from Save Slots or start a new game.', [
+        gameAlert('No Save Found', 'No save data found. Please try loading from Save Slots or start a new game.', [
           { text: 'OK' },
         ]);
         return;
@@ -569,18 +569,18 @@ export default function MainMenu() {
           const versionError =
             validation.errors.find((e) => e.includes('version')) ||
             `This save is from version ${loadedState.version || 'unknown'}, which is incompatible with the current game version.`;
-          Alert.alert('Version Incompatible', `${versionError}\n\nPlease update the game or start a new game.`, [
+          gameAlert('Version Incompatible', `${versionError}\n\nPlease update the game or start a new game.`, [
             { text: 'OK' },
           ]);
         } else if (!validation.stateComplete) {
-          Alert.alert(
+          gameAlert(
             'Incomplete Save',
             validation.errors[0] ||
               'Your save file is incomplete and cannot be loaded. Please try loading from a backup or start a new game.',
             [{ text: 'OK' }]
           );
         } else {
-          Alert.alert(
+          gameAlert(
             'Invalid Save',
             validation.errors[0] ||
               'Your save file is invalid and cannot be loaded. Please try loading from a backup or start a new game.',
@@ -612,11 +612,11 @@ export default function MainMenu() {
       // 2026-07-29 audit MR-4.
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version');
-        Alert.alert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
+        gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE, [{ text: 'OK' }]);
         return;
       }
       log.error('Error in continueGame:', error);
-      Alert.alert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
+      gameAlert('Load Error', 'An error occurred while loading your game. Please try again or start a new game.', [
         { text: 'OK' },
       ]);
     } finally {
@@ -658,7 +658,7 @@ export default function MainMenu() {
     try {
       const targetSlot = await findFirstEmptySlot();
       if (targetSlot === null) {
-        Alert.alert(
+        gameAlert(
           'All Save Slots Full',
           'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
           [{ text: 'OK' }]
@@ -685,11 +685,11 @@ export default function MainMenu() {
         router.push('/(onboarding)/Perks');
       } else {
         log.error('Router not available for navigation');
-        Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+        gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
       }
     } catch (error) {
       log.error('Quick start failed', error);
-      Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+      gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
     }
   };
 
@@ -703,7 +703,7 @@ export default function MainMenu() {
       // (they land in slot 1) while protecting returning players' saves.
       const targetSlot = await findFirstEmptySlot();
       if (targetSlot === null) {
-        Alert.alert(
+        gameAlert(
           'All Save Slots Full',
           'You cannot create a new game because all 3 save slots are full. Please delete a save slot first to make room for a new game.',
           [{ text: 'OK' }]
@@ -717,11 +717,11 @@ export default function MainMenu() {
         router.push('/(onboarding)/Scenarios');
       } else {
         log.error('Router not available for navigation');
-        Alert.alert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
+        gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
       }
     } catch (error) {
       log.error('Error starting new game:', error);
-      Alert.alert('Error', 'An error occurred while starting a new game. Please try again.', [{ text: 'OK' }]);
+      gameAlert('Error', 'An error occurred while starting a new game. Please try again.', [{ text: 'OK' }]);
     }
   };
 

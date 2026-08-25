@@ -51,14 +51,17 @@ describe('the updater is pure', () => {
     const updater = COMMIT.slice(COMMIT.indexOf('setGameState('));
     const updaterEnd = updater.indexOf('\n    if (preview.purchased)');
     const inside = updater.slice(0, updaterEnd > 0 ? updaterEnd : undefined);
-    expect(inside).not.toMatch(/Alert\.alert/);
+    // Channel note: these asserted the OS `Alert.alert`. The game's alerts are
+    // now `gameAlert` (themed, in-app) - see
+    // __tests__/tooling/noNativeAlertInGameUI.test.ts.
+    expect(inside).not.toMatch(/gameAlert/);
     expect(inside).not.toMatch(/haptic\./);
   });
 
   it('the side effects are driven by a PREVIEW run on the snapshot', () => {
     expect(COMMIT).toMatch(/const preview = purchaseLifeSkill\(gameState, args\)/);
     expect(COMMIT).toMatch(/setGameState\(prev => purchaseLifeSkill\(prev, args\)\.state\)/);
-    expect(COMMIT).toMatch(/if \(preview\.purchased\)[\s\S]{0,200}Alert\.alert\('Skill Unlocked'/);
+    expect(COMMIT).toMatch(/if \(preview\.purchased\)[\s\S]{0,200}gameAlert\('Skill Unlocked'/);
   });
 });
 

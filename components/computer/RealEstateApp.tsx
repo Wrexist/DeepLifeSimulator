@@ -22,7 +22,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ImageSourcePropType } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
 import Svg, { Polyline, Circle } from 'react-native-svg';
 import {
   ArrowLeft,
@@ -79,6 +79,8 @@ import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
@@ -694,13 +696,13 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
   const handleRent = useCallback((tierId: string) => {
     const result = rentHome(setGameState, gameState, tierId);
-    Alert.alert(result.success ? 'Moved in' : 'Cannot rent that', result.message);
+    gameAlert(result.success ? 'Moved in' : 'Cannot rent that', result.message);
     if (result.success) void saveGame();
   }, [gameState, setGameState, saveGame]);
 
   const handleEndRental = useCallback(() => {
     const result = endRental(setGameState, gameState);
-    Alert.alert(result.success ? 'Moved out' : 'Not renting', result.message);
+    gameAlert(result.success ? 'Moved out' : 'Not renting', result.message);
     if (result.success) void saveGame();
   }, [gameState, setGameState, saveGame]);
 
@@ -1116,7 +1118,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             });
             // Signing a mortgage is a life milestone - celebrate it (and explain
             // rejections, which previously vanished into the log).
-            Alert.alert(result.success ? '🏠 Sold!' : 'Purchase', result.message);
+            gameAlert(result.success ? '🏠 Sold!' : 'Purchase', result.message);
             // On success the catalog detail would still read "For sale" with a
             // live Buy CTA (its source is the immutable CATALOG). Drop back to the
             // list so the now-owned property reflects its portfolio state.
@@ -1163,7 +1165,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
            * silently emptied the unit.
            */
           const tenantName = manageTarget.tenant?.name ?? 'your tenant';
-          Alert.alert(
+          gameAlert(
             'Evict tenant?',
             `${tenantName} will be removed from ${manageTarget.name ?? 'this property'} and the rent stops immediately. You will have to wait for a new tenant.`,
             [
@@ -1182,7 +1184,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         onMaintain={() => {
           if (manageTarget) {
             const r = maintainProperty(gameState, setGameState, manageTarget.id);
-            if (!r.success) Alert.alert('Maintenance', r.message);
+            if (!r.success) gameAlert('Maintenance', r.message);
             queueSave();
           }
         }}
@@ -1203,21 +1205,21 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         onInstallDecor={(decorId) => {
           if (manageTarget) {
             const r = installPropertyDecor(gameState, setGameState, manageTarget.id, decorId);
-            if (!r.success) Alert.alert('Improve', r.message);
+            if (!r.success) gameAlert('Improve', r.message);
             queueSave();
           }
         }}
         onAddRoom={(roomId) => {
           if (manageTarget) {
             const r = addPropertyRoom(gameState, setGameState, manageTarget.id, roomId);
-            if (!r.success) Alert.alert('Improve', r.message);
+            if (!r.success) gameAlert('Improve', r.message);
             queueSave();
           }
         }}
         onUpgrade={() => {
           if (manageTarget) {
             const r = upgradePropertyTier(gameState, setGameState, manageTarget.id);
-            if (!r.success) Alert.alert('Improve', r.message);
+            if (!r.success) gameAlert('Improve', r.message);
             queueSave();
           }
         }}
@@ -1308,22 +1310,6 @@ function DetailStat({ label, value, valueColor, theme }: { label: string; value:
 
 function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({
-  theme,
-  darkMode,
-  children,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  darkMode: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
-    </View>
-  );
 }
 
 export default function RealEstateApp(props: RealEstateAppProps) {

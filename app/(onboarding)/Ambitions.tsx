@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -50,6 +49,7 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
@@ -263,7 +263,7 @@ export default function Ambitions() {
         title="Life Ambition"
         onBack={handleBack}
         onInfo={() =>
-          Alert.alert(
+          gameAlert(
             'Life Ambition',
             'An ambition is a lifelong goal with staged milestones and a one-time reward when you fulfil it. It only points you in a direction - it changes no starting stats. Optional: tap "Continue" to play freeform.'
           )

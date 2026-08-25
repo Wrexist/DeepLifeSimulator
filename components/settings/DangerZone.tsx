@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
-import { View, Text, TouchableOpacity, Modal, Alert, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Shield, Bug, RotateCcw, X } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useRouter, type Href } from 'expo-router';
@@ -18,6 +18,7 @@ import { safeRemoveItem } from '@/utils/safeStorage';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
 import { responsivePadding, responsiveFontSize, responsiveBorderRadius, responsiveSpacing, scale, fontScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 interface Props {
@@ -98,7 +99,7 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
       router.push(mainMenuPath);
     } catch (error) {
       logger.error('Failed to restart game:', error);
-      Alert.alert('Error', 'Failed to restart game. Please try again.');
+      gameAlert('Error', 'Failed to restart game. Please try again.');
     }
   };
 

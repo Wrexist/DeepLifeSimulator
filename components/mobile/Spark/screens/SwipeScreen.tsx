@@ -10,7 +10,6 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -41,6 +40,7 @@ import EmptyState from '../components/EmptyState';
 import { SPARK_ACTION, SPARK_GRADIENT, SPARK_COLORS, SPARK_MOTION } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import { useTimerManager } from '@/hooks/useTimerManager';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -286,7 +286,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
       doRewind();
       return;
     }
-    Alert.alert('Rewind last swipe', `Undo your last swipe for ${REWIND_GEM_COST} gems?`, [
+    gameAlert('Rewind last swipe', `Undo your last swipe for ${REWIND_GEM_COST} gems?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: `Rewind (${REWIND_GEM_COST} gems)`, onPress: doRewind },
     ]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Alert, Linking, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,9 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
-import { X, Volume2, VolumeX, Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+import { X, Vibrate,
+  VibrateOff,
+  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -20,7 +22,6 @@ import WhatsNewModal from './WhatsNewModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
-import { setSoundEnabled } from '@/utils/soundManager';
 import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
 import { iapService } from '@/services/IAPService';
@@ -39,6 +40,7 @@ import {
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 // Dev/QA tooling is gated behind a build-time flag so the heavy simulator +
@@ -199,19 +201,18 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   // is dark-first and immersive) and produced a broken half-themed look. Saves
   // are coerced back to dark on load (utils/saveValidation.ts).
   const settingItems = [
-    {
-      id: 'soundEnabled',
-      title: t('settings.soundEffects'),
-      description: t('settings.soundEffectsDescription'),
-      icon: settings.soundEnabled ? Volume2 : VolumeX,
-      type: 'toggle' as const,
-      value: settings.soundEnabled,
-    },
+    // Sound Effects toggle REMOVED, for the same reason as the group named
+    // above: it controlled nothing. The app ships no audio backend and no
+    // audio assets, so `playSound` is a no-op in every build - a switch the
+    // player can flip that changes nothing is worse than no switch. The
+    // `soundEnabled` FIELD stays on GameState (removing it would need a
+    // migration, and it is the natural home for the setting if audio ever
+    // ships); only the misleading control is gone.
     {
       id: 'hapticFeedback',
       title: t('settings.hapticFeedback'),
       description: t('settings.hapticFeedbackDescription'),
-      icon: settings.hapticFeedback ? Volume2 : VolumeX,
+      icon: settings.hapticFeedback ? Vibrate : VibrateOff,
       type: 'toggle' as const,
       value: settings.hapticFeedback,
     },
@@ -252,10 +253,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       },
     }));
 
-    // Handle sound-specific settings
-    if (settingId === 'soundEnabled') {
-      setSoundEnabled(value);
-    }
     // Sync standalone haptic utility
     if (settingId === 'hapticFeedback') {
       setHapticsEnabled(value);
@@ -278,13 +275,13 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         await iapService.loadPurchases();
 
         // Say HOW MANY - see MON-11.
-        Alert.alert(
+        gameAlert(
           'Purchases Restored',
           `Restored ${restoredCount} purchase${restoredCount === 1 ? '' : 's'}.`,
           [{ text: 'OK', style: 'default' }]
         );
       } else {
-        Alert.alert(
+        gameAlert(
           'Nothing To Restore',
           'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
           [{ text: 'OK', style: 'default' }]
@@ -292,7 +289,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       }
     } catch (error) {
       logger.error('Restore purchases error:', error);
-      Alert.alert(
+      gameAlert(
         'Restore Failed',
         'Unable to restore purchases. Please try again or contact support.',
         [{ text: 'OK', style: 'default' }]
@@ -392,7 +389,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         if (canOpen) {
           await Linking.openURL(discordUrl);
         } else {
-          Alert.alert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
+          gameAlert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
         }
         return;
       }
@@ -407,7 +404,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       const begun = await beginDiscordClaim(amount);
       if (!begun) {
         logger.warn('Could not persist Discord reward claim; granting nothing');
-        Alert.alert("Couldn't save your claim", 'Please try again in a moment.');
+        gameAlert("Couldn't save your claim", 'Please try again in a moment.');
         return;
       }
       setDiscordRewardClaimed(true);
@@ -445,7 +442,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
       );
     } catch (error) {
       logger.error('Error joining Discord:', error);
-      Alert.alert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
+      gameAlert('Error', `Could not open Discord link. Please visit ${DISCORD_URL} in your browser.`);
     }
   };
 
@@ -639,7 +636,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                       }, 150);
                     } catch (error) {
                       logger.error('Error opening tutorial:', error);
-                      Alert.alert('Error', 'Failed to open tutorial. Please try again.');
+                      gameAlert('Error', 'Failed to open tutorial. Please try again.');
                     }
                   }}
                 />
@@ -752,7 +749,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accent="#94A3B8"
                   onPress={() => {
                     Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
-                      Alert.alert('Error', `Could not open privacy policy. Please visit ${PRIVACY_POLICY_URL} in your browser.`);
+                      gameAlert('Error', `Could not open privacy policy. Please visit ${PRIVACY_POLICY_URL} in your browser.`);
                     });
                   }}
                 />

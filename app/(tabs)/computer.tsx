@@ -8,8 +8,7 @@ import {
   Dimensions,
   Platform,
   Image,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
@@ -88,8 +87,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -547,14 +548,14 @@ export function ComputerScreenContent({
       colors={settings.darkMode ? ['#020617', '#020617'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
-      {/* Titled header - parity with mobile.tsx, which this launcher silently
-          replaces the moment a computer is bought. Same tab, same chrome. */}
-      <View style={styles.header}>
-        <LayoutGrid size={scale(18)} color={settings.darkMode ? '#F8FAFC' : '#0F172A'} />
-        <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-          {t('tabs.apps') || 'Apps'}
-        </Text>
-      </View>
+      {/* Parity with mobile.tsx, which this launcher silently replaces the
+          moment a computer is bought. Same tab, same chrome. */}
+      <ScreenHeader
+        title={t('tabs.apps') || 'Apps'}
+        subtitle="Your phone and desktop software"
+        icon={<LayoutGrid size={scale(18)} color="#60A5FA" />}
+        tint="#60A5FA"
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
@@ -585,7 +586,7 @@ export function ComputerScreenContent({
                     if (app.locked) {
                       // Tapping a locked app explains itself rather than doing
                       // nothing - a dead tap reads as a bug, not a gate.
-                      Alert.alert(app.name, app.lockReason || 'Not available yet.');
+                      gameAlert(app.name, app.lockReason || 'Not available yet.');
                       return;
                     }
                     setActiveApp(app.id);
@@ -677,23 +678,6 @@ const styles = StyleSheet.create({
   },
   loadingTextDark: {
     color: '#CBD5E1',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-    paddingTop: responsivePadding.vertical,
-    paddingBottom: responsiveSpacing.sm,
-    paddingHorizontal: responsivePadding.horizontal,
-  },
-  headerTitle: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.5,
-  },
-  headerTitleDark: {
-    color: '#F8FAFC',
   },
   scrollView: {
     flex: 1,

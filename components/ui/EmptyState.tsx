@@ -19,6 +19,7 @@ import { fontScale, responsiveSpacing, responsiveBorderRadius, scale } from '@/u
 import { useTheme } from '@/hooks/useTheme';
 import { accent } from '@/lib/config/theme';
 import { haptic } from '@/utils/haptics';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 
 interface EmptyStateProps {
   /** Lucide icon element (already sized/colored by the caller), optional. */
@@ -137,5 +138,55 @@ const styles = StyleSheet.create({
   },
   ctaWrap: {
     marginTop: responsiveSpacing.md,
+  },
+});
+
+/**
+ * EmptyCard - the compact "nothing here yet" card used inside the phone and
+ * desktop mini-apps.
+ *
+ * Seven byte-identical copies of this ten-line component were defined locally
+ * in PoliticalApp, RealEstateApp, VehicleApp, BitcoinMiningApp, StocksApp,
+ * EducationApp and BankApp. Same glass card, same muted text, same reasoning
+ * (an empty section keeps the rhythm of a populated one instead of floating as
+ * bare text between elevated rows) - so it lives here once.
+ *
+ * The prop shape is unchanged from those copies, deliberately: every call site
+ * already passes `theme` and `darkMode`, so adopting this is an import swap
+ * with no call-site edits and nothing to get wrong.
+ */
+export function EmptyCard({
+  theme,
+  darkMode,
+  children,
+}: {
+  theme: { surface: string; border: string; textMuted: string };
+  darkMode: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View
+      style={[
+        getGlassCard(darkMode, 6),
+        emptyCardStyles.card,
+        { backgroundColor: theme.surface, borderColor: theme.border },
+      ]}
+    >
+      <Text style={[emptyCardStyles.text, { color: theme.textMuted }]}>{children}</Text>
+    </View>
+  );
+}
+
+const emptyCardStyles = StyleSheet.create({
+  card: {
+    padding: responsiveSpacing.lg,
+    borderRadius: responsiveBorderRadius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  text: {
+    fontSize: fontScale(13),
+    textAlign: 'center',
+    lineHeight: fontScale(18),
   },
 });

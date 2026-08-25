@@ -16,7 +16,7 @@
  * SocialActionsContext via the Family tab.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowLeft, AlertTriangle, Briefcase, DollarSign, GraduationCap, Heart, MapPin, MessageCircle, ShieldCheck, Sparkles, UserX } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
@@ -32,6 +32,7 @@ import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from '../styles/spa
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
 import type { SparkMessage } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -61,7 +62,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   const catfishSuspected = profile ? isCatfish(profile, gameState.lineageId ?? 'initial') : false;
 
   const handleUnmatch = useCallback(() => {
-    Alert.alert(
+    gameAlert(
       'Unmatch?',
       profile
         ? `Unmatch ${profile.name}? This removes the conversation and they won't see you again.`
@@ -84,7 +85,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
 
   const handleReport = useCallback(() => {
     if (!profile) return;
-    Alert.alert(
+    gameAlert(
       'Report profile?',
       `Report ${profile.name}? They'll be unmatched and you won't see them again.`,
       [
@@ -109,7 +110,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   // out the fake profile. Mirrors handleReport's confirm → act → save → close.
   const handleExpose = useCallback(() => {
     if (!profile) return;
-    Alert.alert(
+    gameAlert(
       'Expose catfish?',
       `Call out ${profile.name} as a fake profile? You'll unmatch and gain reputation for protecting other users.`,
       [
@@ -134,7 +135,7 @@ export default function PartnerProfileScreen({ matchId, onBack, onClosed }: Part
   // Loses money + reputation (the scam downside) via the existing action.
   const handleSendMoney = useCallback(() => {
     if (!profile) return;
-    Alert.alert(
+    gameAlert(
       'Send money?',
       `${profile.name} is asking you to send $${CATFISH_SCAM_LOSS}. If this is a scam, the money is gone for good.`,
       [

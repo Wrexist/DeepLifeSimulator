@@ -52,6 +52,7 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -460,7 +461,7 @@ export default function Scenarios() {
   const continueToCustomize = () => {
     if (!canContinueFromScenarioSelection(selectedScenario)) {
       haptic.error();
-      Alert.alert('Pick A Scenario', 'Choose a life path or challenge before continuing.');
+      gameAlert('Pick A Scenario', 'Choose a life path or challenge before continuing.');
       return;
     }
     haptic.medium();
@@ -482,7 +483,7 @@ export default function Scenarios() {
         title="Choose Scenario"
         onBack={handleBack}
         onInfo={() =>
-          Alert.alert(
+          gameAlert(
             activeTab === 'life_paths' ? 'Life Paths' : 'Challenges',
             activeTab === 'life_paths'
               ? 'Life Paths define your starting age, cash, and inventory.'

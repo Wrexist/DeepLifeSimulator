@@ -30,8 +30,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { colors, typography, radii, shadows } from '@/lib/config/theme';
-import { responsiveSpacing, scale } from '@/utils/scaling';
+import { colors, typography, shadows } from '@/lib/config/theme';
+import { responsiveBorderRadius, responsiveFontSize, responsiveSpacing, scale } from '@/utils/scaling';
 import { useTheme } from '@/hooks/useTheme';
 
 /**
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 460,
-    borderRadius: radii.xl,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     overflow: 'hidden',
     ...shadows.xl,
@@ -271,8 +271,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    borderTopLeftRadius: radii.xxl,
-    borderTopRightRadius: radii.xxl,
+    borderTopLeftRadius: responsiveBorderRadius['2xl'],
+    borderTopRightRadius: responsiveBorderRadius['2xl'],
   },
   containerFullscreen: {
     flex: 1,
@@ -295,17 +295,17 @@ const styles = StyleSheet.create({
     marginRight: sp.md,
   },
   title: {
-    fontSize: typography.size.xl,
+    fontSize: responsiveFontSize.xl,
     fontWeight: typography.weight.bold,
   },
   subtitle: {
-    fontSize: typography.size.sm,
+    fontSize: responsiveFontSize.sm,
     marginTop: sp.xxs,
   },
   closeButton: {
     width: 32,
     height: 32,
-    borderRadius: radii.round,
+    borderRadius: responsiveBorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

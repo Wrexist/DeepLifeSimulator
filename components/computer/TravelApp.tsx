@@ -29,8 +29,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import Svg, { Line, Rect } from 'react-native-svg';
 import {
   ArrowLeft,
@@ -108,6 +107,7 @@ import {
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -254,10 +254,10 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     (dest: TravelDestination) => {
       const quote = quoteTrip(dest.id, gameState, week);
       if (!quote.ok) {
-        Alert.alert('Cannot book', quote.message);
+        gameAlert('Cannot book', quote.message);
         return;
       }
-      Alert.alert(
+      gameAlert(
         `Travel to ${dest.name}?`,
         `Cost ${formatMoney(quote.adjustedCost)} • ${quote.adjustedDuration} week${quote.adjustedDuration > 1 ? 's' : ''}` +
           (quote.adjustedCost !== quote.baseCost
@@ -274,7 +274,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 setDetailId(null);
                 setActiveTab('trip');
               } else {
-                Alert.alert('Error', r.message);
+                gameAlert('Error', r.message);
               }
             },
           },
@@ -291,19 +291,19 @@ export default function TravelApp({ onBack }: TravelAppProps) {
       saveGame();
       setReturnEvents(r);
     } else {
-      Alert.alert('Still traveling', r.message);
+      gameAlert('Still traveling', r.message);
     }
   }, [currentTrip, gameState, setGameState, saveGame]);
 
   const handlePassport = useCallback(() => {
-    Alert.alert('Purchase passport?', 'Costs $500 and unlocks international destinations.', [
+    gameAlert('Purchase passport?', 'Costs $500 and unlocks international destinations.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Buy',
         onPress: () => {
           const r = purchasePassport(gameState, setGameState, { updateMoney });
           if (r.success) saveGame();
-          else Alert.alert('Error', r.message);
+          else gameAlert('Error', r.message);
         },
       },
     ]);
@@ -313,7 +313,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     (opportunityId: string) => {
       const opp = travel.businessOpportunities?.[opportunityId];
       if (!opp) return;
-      Alert.alert(
+      gameAlert(
         `Invest in ${opp.name}?`,
         `${formatMoney(opp.cost)} for ${formatMoney(opp.weeklyIncome)}/week passive.`,
         [
@@ -325,7 +325,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 updateMoney,
               });
               if (r.success) saveGame();
-              else Alert.alert('Error', r.message);
+              else gameAlert('Error', r.message);
             },
           },
         ]
@@ -338,12 +338,12 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     (activity: TravelActivity) => {
       const q = quoteActivity(activity.id, gameState);
       if (!q.ok) {
-        Alert.alert('Cannot do this yet', q.message);
+        gameAlert('Cannot do this yet', q.message);
         return;
       }
       const costLine = activity.cost > 0 ? formatMoney(activity.cost) : 'Free';
       const energyLine = activity.energyCost > 0 ? ` • −${activity.energyCost} energy` : '';
-      Alert.alert(
+      gameAlert(
         activity.name,
         `${activity.description}\n\n${costLine}${energyLine}`,
         [
@@ -357,9 +357,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               });
               if (r.success) {
                 saveGame();
-                if (r.souvenir) Alert.alert(r.activityName || 'Nice!', r.souvenir);
+                if (r.souvenir) gameAlert(r.activityName || 'Nice!', r.souvenir);
               } else {
-                Alert.alert('Error', r.message);
+                gameAlert('Error', r.message);
               }
             },
           },

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Platform,
@@ -48,6 +47,7 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 
 const BlurView = BlurViewFallback;
 const LinearGradient = Gradient;
@@ -254,14 +254,14 @@ export default function Customize() {
   const handleContinue = useCallback(() => {
     if (!state.scenario) {
       haptic.error();
-      Alert.alert('Missing Scenario', 'Choose a scenario before customizing identity.');
+      gameAlert('Missing Scenario', 'Choose a scenario before customizing identity.');
       router.replace('/(onboarding)/Scenarios');
       return;
     }
 
     if (!canContinueFromIdentityDraft({ firstName, lastName })) {
       haptic.error();
-      Alert.alert('Missing Name', 'Enter both first and last name to continue.');
+      gameAlert('Missing Name', 'Enter both first and last name to continue.');
       return;
     }
 
@@ -298,7 +298,7 @@ export default function Customize() {
         title="Create Character"
         onBack={handleBack}
         onInfo={() =>
-          Alert.alert(
+          gameAlert(
             'Create Your Character',
             'Build a face that is yours - it ages with you across the whole life, and your children will inherit it. Name, sex and sexuality shape your story and relationships, not difficulty.'
           )

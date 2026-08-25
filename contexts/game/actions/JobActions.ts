@@ -5,6 +5,7 @@ import React from 'react';
 import { wantedArrestBonus, hiringPenalty, criminalXpForNextLevel, CRIMINAL_XP_PER_ILLEGAL_JOB } from '@/lib/crime/criminalRecord';
 import { GameState, CrimeSkillId, PromotionDetails } from '../types';
 import { logger } from '@/utils/logger';
+import { showLevelUpToast } from '@/utils/achievementToast';
 import { updateMoney } from './MoneyActions';
 import { updateStats } from './StatsActions';
 import { commitDeterministicRolls, getDeterministicRoll } from '@/lib/randomness/deterministicRng';
@@ -308,20 +309,32 @@ export const performStreetJob = (
   }
   const success = guaranteedSuccess ? true : ((successRoll || 0) * 100 < successChance);
 
-  // Celebratory feedback for crime-skill / criminal level-ups, which were
-  // previously silent. Computed from the snapshot, mirroring applyStreetJobXp's
-  // leveling math (+15 XP on success / +5 on fail for the skill; +10 criminal XP
-  // per illegal job; level up at level*100). Best-effort UI text only.
-  let levelUpText = '';
+  // Celebratory feedback for crime-skill / criminal level-ups. Computed from
+  // the snapshot, mirroring applyStreetJobXp's leveling math (+15 XP on success
+  // / +5 on fail for the skill; +10 criminal XP per illegal job; level up at
+  // level*100).
+  //
+  // These used to be CONCATENATED onto the end of the ordinary earnings toast
+  // (" Pickpocketing lv.4."), giving a progression milestone the same weight as
+  // "you earned $40". They now raise the branded LEVEL UP banner - the medium
+  // celebration tier - while the earnings toast stays about the money. The
+  // banner is fired after the state commit below, never from inside an updater.
+  const pendingLevelUps: { title: string; detail: string }[] = [];
   if (job.skill && gameState.crimeSkills[job.skill]) {
     const sk = gameState.crimeSkills[job.skill];
     if (sk.xp + (success ? 15 : 5) >= sk.level * 100) {
       const label = job.skill.charAt(0).toUpperCase() + job.skill.slice(1);
-      levelUpText += ` ${label} lv.${sk.level + 1}.`;
+      pendingLevelUps.push({
+        title: `${label} level ${sk.level + 1}`,
+        detail: 'Higher-paying jobs and better odds unlocked.',
+      });
     }
   }
   if (job.illegal && (gameState.criminalXp || 0) + 10 >= (gameState.criminalLevel || 1) * 100) {
-    levelUpText += ` Criminal lv.${(gameState.criminalLevel || 1) + 1}.`;
+    pendingLevelUps.push({
+      title: `Criminal level ${(gameState.criminalLevel || 1) + 1}`,
+      detail: 'New underground work is available.',
+    });
   }
 
   // Calculate money - store original money BEFORE any changes
@@ -653,12 +666,12 @@ export const performStreetJob = (
     if (success) {
       const rankUpText = rankIncreased ? ` Rank ${job.rank + 1}.` : '';
       message = job.illegal
-        ? `Crime paid off: +$${moneyGained}.${rankUpText}${levelUpText}${penaltyText}`
-        : `Earned $${moneyGained}.${rankUpText}${levelUpText}${penaltyText}`;
+        ? `Crime paid off: +$${moneyGained}.${rankUpText}${penaltyText}`
+        : `Earned $${moneyGained}.${rankUpText}${penaltyText}`;
     } else {
       message = job.illegal
-        ? `Crime failed. Wanted level up.${levelUpText}${penaltyText}`
-        : `No luck this time.${levelUpText}${penaltyText}`;
+        ? `Crime failed. Wanted level up.${penaltyText}`
+        : `No luck this time.${penaltyText}`;
     }
 
     // Handle combined cases (only if not caught)
@@ -667,6 +680,13 @@ export const performStreetJob = (
     } else if (moneyLost > 0) {
       message = `Robbed of $${moneyLost}.${penaltyText}`;
     }
+  }
+
+  // Raise the level-up banners AFTER the state commit above, never from inside
+  // an updater (an updater can be invoked twice in a React batch, which would
+  // fire the banner twice for one level).
+  for (const levelUp of pendingLevelUps) {
+    showLevelUpToast(levelUp.title, levelUp.detail, job.illegal ? 'special' : 'work');
   }
 
   return {

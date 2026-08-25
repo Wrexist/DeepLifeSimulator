@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { ArrowLeft, BarChart3, Briefcase, Clock, X, Star } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +50,8 @@ import {
 } from '@/contexts/game/actions/StockActions';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
@@ -526,7 +528,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
                   order={o}
                   isLast={i === openOrders.length - 1}
                   onCancel={() => {
-                    Alert.alert('Cancel order?', `${o.side} ${o.symbol}`, [
+                    gameAlert('Cancel order?', `${o.side} ${o.symbol}`, [
                       { text: 'Keep', style: 'cancel' },
                       {
                         text: 'Cancel',
@@ -771,14 +773,6 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
 function SectionTitle({ theme, children }: { theme: Theme; children: React.ReactNode }) {
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({ theme, darkMode, children }: { theme: Theme; darkMode: boolean; children: React.ReactNode }) {
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{children}</Text>
-    </View>
-  );
 }
 
 function StatCard({

@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Alert,
   Platform,
   KeyboardAvoidingView,
   StyleSheet,
@@ -25,6 +24,7 @@ import {
   shareDiagnosticReport,
   openSupportDiscord,
 } from '@/utils/diagnosticReport';
+import { gameAlert } from '@/utils/gameAlert';
 
 interface Props {
   visible: boolean;
@@ -47,7 +47,7 @@ export default function BugReportSheet({ visible, onClose }: Props) {
   const finishWith = (message: string) => {
     setBugReportText('');
     onClose();
-    Alert.alert('Thank you!', message);
+    gameAlert('Thank you!', message);
   };
 
   const handleEmail = () => {
@@ -56,14 +56,14 @@ export default function BugReportSheet({ visible, onClose }: Props) {
         if (opened) {
           finishWith('Your report (with diagnostic details) is ready in your email app - just hit send.');
         } else {
-          Alert.alert(
+          gameAlert(
             'Could not open email',
             `Please email ${SUPPORT_EMAIL} directly, or use Share / Discord instead.`
           );
         }
       })
       .catch(() => {
-        Alert.alert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
+        gameAlert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
       });
   };
 

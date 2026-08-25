@@ -26,7 +26,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Platform,
   StyleProp,
   ViewStyle,
@@ -74,6 +73,7 @@ import {
 import { JOB_TEMPLATES, stageSuccessProbability } from '@/lib/darkweb/jobs';
 import { MIXER_TIERS, effectiveMixerParams } from '@/lib/darkweb/laundering';
 import { RAID_SHARE_OF_POLICE_EVENTS } from '@/lib/darkweb/weeklyTick';
+import { gameAlert } from '@/utils/gameAlert';
 
 // ---------------------------------------------------------------------------
 // Terminal design language (local - a deliberate single-look dark console
@@ -432,7 +432,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const scamPct = Math.round(vendorScamProbability(vendor.reputation) * 100);
     const verdict =
       scamPct >= 60 ? 'Very likely a scam.' : scamPct >= 30 ? 'Risky.' : scamPct >= 10 ? 'Fairly safe.' : 'Trusted.';
-    Alert.alert(
+    gameAlert(
       'Confirm purchase',
       `Buy "${listing.title}" from ${vendor.handle} for ${listing.costBtc.toFixed(4)} ₿?\n\n` +
         `Vendor rep ${vendor.reputation}/100 · scam risk ${scamPct}% - ${verdict}\n` +
@@ -446,7 +446,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             queueSave();
             // Surface the outcome - a scam debits the full cost and grants
             // nothing, which read as a silent BTC drain without this.
-            Alert.alert(res.outcome === 'scam' ? 'Scammed!' : res.success ? 'Purchase Complete' : 'Purchase Failed', res.message);
+            gameAlert(res.outcome === 'scam' ? 'Scammed!' : res.success ? 'Purchase Complete' : 'Purchase Failed', res.message);
           },
         },
       ]
@@ -457,16 +457,16 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const res = runJobStage(gameState, setGameState, job.id);
     queueSave();
     if (!res.success) {
-      Alert.alert('Cannot Run Stage', res.message);
+      gameAlert('Cannot Run Stage', res.message);
     } else if (res.outcome === 'completed') {
-      Alert.alert('Job Complete', res.message);
+      gameAlert('Job Complete', res.message);
     } else if (res.outcome === 'fail') {
-      Alert.alert('Stage Failed', res.message);
+      gameAlert('Stage Failed', res.message);
     }
   };
 
   const confirmIdentity = () => {
-    Alert.alert(
+    gameAlert(
       'Burn this identity?',
       // R3-C5: quote what will actually be spent, including the debt
       // settlement, rather than the base cost the player cannot act on.
@@ -797,7 +797,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       .sort((a, b) => (a.costBtc ?? 0) - (b.costBtc ?? 0));
 
     const buy = (item: { id: string; name: string; costBtc: number }) => {
-      Alert.alert(
+      gameAlert(
         'Confirm purchase',
         `Buy "${item.name}" for ${item.costBtc.toFixed(4)} ₿?`,
         [

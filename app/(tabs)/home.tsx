@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Alert, Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
@@ -59,6 +59,8 @@ import { applyWelcomeBackBonus, welcomeBackClaimed, refreshSessionClock } from '
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
+import { gameAlert } from '@/utils/gameAlert';
+import SectionGroup from '@/components/ui/SectionGroup';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
@@ -694,6 +696,7 @@ function HomeScreenContent() {
 
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
+        <SectionGroup label="This week">
         <FadeInUp delay={20}>
           <LastWeekRecap />
         </FadeInUp>
@@ -760,12 +763,15 @@ function HomeScreenContent() {
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
+        </SectionGroup>
+
         {/* What next / what is coming - the two derived surfaces.
             They sit ABOVE the fixed ladders on purpose: Life Chapters and the
             Ambition are the same for everyone at the same point, while these
             two read the player's own situation, so they are the lines most
             likely to be true for THIS save. Both render null when they have
             nothing to say, so a quiet early week is not padded with cards. */}
+        <SectionGroup label="What you're working toward">
         <FadeInUp delay={45}>
           <NextGoalsCard />
           <WeekAheadCard />
@@ -793,6 +799,7 @@ function HomeScreenContent() {
         <FadeInUp delay={57}>
           <ElderCard />
         </FadeInUp>
+        </SectionGroup>
 
         {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
             skill tree, lifetime stats) was hidden from the tab bar with no
@@ -808,7 +815,7 @@ function HomeScreenContent() {
               // Shown-but-locked rather than hidden: the destination stays
               // discoverable, and the requirement is stated.
               if (progressLocked) {
-                Alert.alert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
+                gameAlert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
                 return;
               }
               router.push('/(tabs)/progression');

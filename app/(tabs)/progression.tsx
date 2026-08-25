@@ -50,6 +50,7 @@ import {
 } from '@/lib/legacyPass/legacyPass';
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { fontScale, scale, verticalScale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 
 function ProgressionScreen() {
   return (
@@ -155,15 +156,13 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         {/* Header - hidden when embedded in the Life tab, which supplies its own
             title + segmented control above this content. */}
         {!embedded && (
-          <View style={styles.header}>
-            <View style={[styles.headerIcon, { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.35)' }]}>
-              <Trophy size={scale(18)} color={accent.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: theme.text }]}>Your Progress</Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Achievements, prestige & lifetime stats</Text>
-            </View>
-          </View>
+          <ScreenHeader
+            title="Your Progress"
+            subtitle="Achievements, prestige & lifetime stats"
+            icon={<Trophy size={scale(18)} color={accent.warning} />}
+            tint={accent.warning}
+            style={styles.embeddedHeaderReset}
+          />
         )}
 
         {/* Hero: Prestige + Legacy Pass */}
@@ -353,10 +352,9 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     gap: verticalScale(16),
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(12),
+  embeddedHeaderReset: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   headerIcon: {
     width: scale(38),

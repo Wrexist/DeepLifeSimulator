@@ -92,7 +92,10 @@ describe('R3-S3 - a newer save is refused, not reported as missing', () => {
     // Guards the assertion above: re-throwing into nothing would be worse.
     const source = read('app/(onboarding)/MainMenu.tsx');
 
-    expect(source).toMatch(/Alert\.alert\('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE/);
+    // Channel note: these asserted the OS `Alert.alert`. The game's alerts are
+    // now `gameAlert` (themed, in-app) - see
+    // __tests__/tooling/noNativeAlertInGameUI.test.ts.
+    expect(source).toMatch(/gameAlert\('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE/);
   });
 });
 

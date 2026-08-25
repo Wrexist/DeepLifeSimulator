@@ -109,6 +109,7 @@ import { getLifeSkillModifiers } from '@/lib/skillTrees/lifeSkillEffects';
 import TaxStatement from '@/components/banking/TaxStatement';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -279,7 +280,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   // CURRENT credit score (and adds a hard inquiry), so a player who has built
   // credit since taking the loan can cut their rate.
   const openLoanActions = useCallback((loan: { id: string; name?: string; type: string; rateAPR: number }) => {
-    Alert.alert(
+    gameAlert(
       loan.name || 'Loan',
       `Current rate: ${(loan.rateAPR * 100).toFixed(2)}% APR`,
       [
@@ -287,7 +288,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
         {
           text: 'Refinance',
           onPress: () => {
-            Alert.alert(
+            gameAlert(
               'Refinance term',
               'Re-price this loan at your current credit score. Adds a hard inquiry.',
               [
@@ -305,7 +306,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
-      Alert.alert(
+      gameAlert(
         'Close account?',
         `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
         [
@@ -337,19 +338,19 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
   const startTransfer = useCallback(() => {
     const sources = transferableAccounts.filter((a) => a.balance > 0);
     if (sources.length === 0) {
-      Alert.alert('Nothing to transfer', 'None of your accounts have a balance to move.');
+      gameAlert('Nothing to transfer', 'None of your accounts have a balance to move.');
       return;
     }
-    Alert.alert('Transfer from…', undefined, [
+    gameAlert('Transfer from…', undefined, [
       ...sources.map((a) => ({
         text: `${a.name} · ${formatMoney(a.balance)}`,
         onPress: () => {
           const dests = transferableAccounts.filter((d) => d.id !== a.id);
           if (dests.length === 0) {
-            Alert.alert('No destination', 'Open a second account to transfer into.');
+            gameAlert('No destination', 'Open a second account to transfer into.');
             return;
           }
-          Alert.alert('Transfer to…', undefined, [
+          gameAlert('Transfer to…', undefined, [
             ...dests.map((d) => ({
               text: `${d.name} · ${formatMoney(d.balance)}`,
               onPress: () => {
@@ -669,13 +670,13 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           icon={Target}
           meta={banking.savingsGoals.length > 0 ? `${formatMoney(goalsSaved)} of ${formatMoney(goalsTarget)} saved` : undefined}
           addLabel="New"
-          onAdd={() => Alert.alert('What are you saving for?', undefined, [
+          onAdd={() => gameAlert('What are you saving for?', undefined, [
               { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
               { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
               {
                 text: 'More…',
                 onPress: () =>
-                  Alert.alert('What are you saving for?', undefined, [
+                  gameAlert('What are you saving for?', undefined, [
                     { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
                     { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
                     { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
@@ -781,7 +782,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
                       const redeemed = Math.min(pending, 10_000);
                       redeemRewards(setGameState, c.id);
                       queueSave();
-                      Alert.alert('Rewards redeemed', `${formatMoney(redeemed)} in cashback added to your cash.`);
+                      gameAlert('Rewards redeemed', `${formatMoney(redeemed)} in cashback added to your cash.`);
                     }}
                     disabled={pending <= 0}
                     accessibilityRole="button"
@@ -1308,7 +1309,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
           // the player tapped Open, the sheet closed, and no account appeared.
           const result = openNewAccount(gameState, setGameState, spec);
           if (!result.success) {
-            Alert.alert('Could not open account', result.message);
+            gameAlert('Could not open account', result.message);
             return;
           }
           queueSave();
@@ -1526,7 +1527,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             prepayLoan(setGameState, prepayLoanId, checking.id, amt);
             queueSave();
           } else if (prepayLoanId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first - loan payments are drawn from checking.');
+            gameAlert('No checking account', 'Open a checking account first - loan payments are drawn from checking.');
           }
           setPrepayLoanId(null);
         }}
@@ -1547,7 +1548,7 @@ function AdvancedBankAppInner({ onBack }: AdvancedBankAppProps) {
             payDownCard(setGameState, payCardId, checking.id, amt);
             queueSave();
           } else if (payCardId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
+            gameAlert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
           }
           setPayCardId(null);
         }}

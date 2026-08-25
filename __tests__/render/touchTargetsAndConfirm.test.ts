@@ -191,10 +191,15 @@ describe('a life skill is confirmed before the point is spent', () => {
 
   it('still reports success (the control)', () => {
     // Moving the report out of the updater must not have deleted it. WP-A: the
-    // Alert and the haptic fire from a PREVIEW run of the same pure reducer on
+    // alert and the haptic fire from a PREVIEW run of the same pure reducer on
     // the snapshot - inside the updater they were double-fired by StrictMode's
     // double-invoke (two buzzes, two stacked alerts, one purchase).
-    expect(CODE).toMatch(/Alert\.alert\('Skill Unlocked'/);
+    //
+    // The channel is `gameAlert` (the themed in-app dialog), not the OS
+    // `Alert.alert` this once asserted - see
+    // __tests__/tooling/noNativeAlertInGameUI.test.ts. What is pinned here is
+    // that a success is still REPORTED, and still from the preview run.
+    expect(CODE).toMatch(/gameAlert\('Skill Unlocked'/);
     expect(CODE).toMatch(/if \(preview\.purchased\)/);
   });
 

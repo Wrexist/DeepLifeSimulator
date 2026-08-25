@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { X, Calendar, Users, DollarSign, Check, MapPin, Heart } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -12,6 +12,7 @@ import { getShadow } from '@/utils/shadow';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 interface WeddingPlanningModalProps {
@@ -70,17 +71,17 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
 
   const handlePlanWedding = useCallback(() => {
     if (!selectedVenueId) {
-      Alert.alert('Select Venue', 'Please select a wedding venue first.');
+      gameAlert('Select Venue', 'Please select a wedding venue first.');
       return;
     }
 
     if (guestCountNum < 1) {
-      Alert.alert('Invalid Guest Count', 'Please enter a valid number of guests.');
+      gameAlert('Invalid Guest Count', 'Please enter a valid number of guests.');
       return;
     }
 
     if (!canAfford) {
-      Alert.alert('Insufficient Funds', `You need $${deposit.toLocaleString()} for the deposit.`);
+      gameAlert('Insufficient Funds', `You need $${deposit.toLocaleString()} for the deposit.`);
       return;
     }
 
@@ -96,13 +97,13 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
 
     if (result.success) {
       saveGame();
-      Alert.alert(
+      gameAlert(
         'Wedding Planned!',
         `Your wedding at ${selectedVenue?.name} is scheduled for 4 weeks from now! Deposit paid: $${deposit.toLocaleString()}`,
         [{ text: 'OK', onPress: onClose }]
       );
     } else {
-      Alert.alert('Error', result.message);
+      gameAlert('Error', result.message);
     }
   }, [selectedVenueId, guestCountNum, catering, photography, music, decorations, canAfford, deposit, gameState, setGameState, partnerId, selectedVenue, saveGame, onClose]);
 

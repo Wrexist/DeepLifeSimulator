@@ -19,7 +19,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import {
   ArrowLeft,
   Heart,
@@ -95,6 +95,7 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -366,7 +367,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
 
   const handleRemoveContact = useCallback(
     (rel: Relationship) => {
-      Alert.alert(
+      gameAlert(
         'Remove contact',
         `Cut ${rel.name} out of your life? This cannot be undone.`,
         [
@@ -510,7 +511,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         saveGame();
         flash(r.message);
       } else {
-        Alert.alert('Cannot redeem', r.message);
+        gameAlert('Cannot redeem', r.message);
       }
     },
     [gameState, setGameState, saveGame, flash]
@@ -523,7 +524,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
         saveGame();
         flash(r.message);
       } else {
-        Alert.alert('Cannot repay', r.message);
+        gameAlert('Cannot repay', r.message);
       }
     },
     [gameState, setGameState, saveGame, flash]
@@ -565,7 +566,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       });
       if (r.success) saveGame();
       if (r.accepted) {
-        Alert.alert('Congratulations! 💍', `${r.message}\n\nNext step: plan the wedding!`);
+        gameAlert('Congratulations! 💍', `${r.message}\n\nNext step: plan the wedding!`);
       } else {
         flash(r.message, contactId);
       }

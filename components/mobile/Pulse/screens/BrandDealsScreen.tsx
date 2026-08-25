@@ -6,7 +6,7 @@
  * History shows completed/failed/breached deals.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View , Alert } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View  } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -16,6 +16,7 @@ import EmptyState from '../components/EmptyState';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { acceptBrandDeal, brandDealBreachPenalty, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import type { PulseBrandOffer, PulseActiveBrandDeal, PulseDealHistoryEntry, PulseRecentPost } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -66,7 +67,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       const penalty = brandDealBreachPenalty(gameState, id) ?? 0;
 
       if ((gameState.stats?.money ?? 0) < penalty) {
-        Alert.alert(
+        gameAlert(
           'Not enough cash',
           `Breaching ${name} costs $${penalty.toLocaleString()}. Withdraw from your bank or sell something first.`,
           [{ text: 'OK' }],
@@ -74,7 +75,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
         return;
       }
 
-      Alert.alert(
+      gameAlert(
         `Breach ${name}?`,
         `You'll lose $${penalty.toLocaleString()} and the deal will be marked as breached in your history.`,
         [
@@ -94,7 +95,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       const recent: PulseRecentPost[] = sm?.recentPosts ?? [];
       const candidate = recent.find((p) => !p.sponsoredByDealId);
       if (!candidate) {
-        Alert.alert(
+        gameAlert(
           'No post to deliver',
           'Compose a post first, then return here to tag it as the sponsored delivery.',
         );
@@ -102,7 +103,7 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
       }
       const r = deliverBrandDealPost(gameState, setGameState, dealId, candidate.id);
       if (!r.success) {
-        Alert.alert('Delivery failed', r.message);
+        gameAlert('Delivery failed', r.message);
         return;
       }
       persist();

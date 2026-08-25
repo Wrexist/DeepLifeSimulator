@@ -84,6 +84,7 @@ import {
  type NurtureStatKey,
 } from '@/lib/parenting';
 import type { ChildInfo, Relationship } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 const c = colors.dark;
@@ -342,7 +343,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  if (!partner) return;
 
  if (partner.relationshipScore < SCORE_TO_PROPOSE) {
- Alert.alert(
+ gameAlert(
  'Not Ready',
  `Your relationship with ${partner.name} needs to be stronger before proposing. Current: ${partner.relationshipScore}/100`,
  [{ text: 'OK' }]
@@ -363,11 +364,11 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  });
  saveGame();
  if (result.accepted) {
- Alert.alert('Congratulations! 💍', `${result.message}\n\nNext step: plan the wedding!`);
+ gameAlert('Congratulations! 💍', `${result.message}\n\nNext step: plan the wedding!`);
  } else if (result.success) {
- Alert.alert('Rejected', result.message);
+ gameAlert('Rejected', result.message);
  } else {
- Alert.alert('Cannot Propose', result.message);
+ gameAlert('Cannot Propose', result.message);
  }
  }, [partner, gameState, setGameState, saveGame]);
 
@@ -388,7 +389,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const handleCancelEngagement = useCallback(() => {
  if (!partner) return;
 
- Alert.alert(
+ gameAlert(
  'Call Off the Engagement',
  `Call off your engagement to ${partner.name}?\n\nYou stay together - the wedding is off, not the relationship. It will cost you 15 happiness and 20% of your bond.`,
  [
@@ -402,9 +403,9 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  });
  if (result.success) {
  saveGame();
- Alert.alert('Engagement Called Off', result.message);
+ gameAlert('Engagement Called Off', result.message);
  } else {
- Alert.alert('Cannot Call It Off', result.message);
+ gameAlert('Cannot Call It Off', result.message);
  }
  },
  },
@@ -416,7 +417,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  if (!partner) return;
 
  if (partner.relationshipScore < SCORE_TO_MOVE_IN) {
- Alert.alert(
+ gameAlert(
  'Not Ready',
  `You should strengthen your relationship before moving in together. Current: ${partner.relationshipScore}/100`,
  [{ text: 'OK' }]
@@ -424,7 +425,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  return;
  }
 
- Alert.alert(
+ gameAlert(
  'Move In Together',
  `Would you like to move in with ${partner.name}?`,
  [
@@ -435,9 +436,9 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  const result = moveInTogether(partner.id);
  if (result?.success) {
  saveGame();
- Alert.alert('New Home!', result.message);
+ gameAlert('New Home!', result.message);
  } else {
- Alert.alert('Cannot Move In', result?.message || 'Something went wrong.');
+ gameAlert('Cannot Move In', result?.message || 'Something went wrong.');
  }
  },
  },
@@ -447,24 +448,24 @@ function FamilyTab({ onClose }: FamilyTabProps) {
 
  const handleHaveChild = useCallback(() => {
  if (!babyTarget) {
- Alert.alert('Partner Required', 'You need a partner or spouse before having children.');
+ gameAlert('Partner Required', 'You need a partner or spouse before having children.');
  return;
  }
 
  if (gameState.date.age < AGE_TO_TRY_FOR_BABY) {
- Alert.alert('Too Young', 'You must be at least 18 years old to have children.');
+ gameAlert('Too Young', 'You must be at least 18 years old to have children.');
  return;
  }
 
  if (babyTarget.relationshipScore < SCORE_TO_TRY_FOR_BABY) {
- Alert.alert(
+ gameAlert(
  'Not Ready',
  `Your relationship with ${babyTarget.name} needs to be stronger before starting a family. Current: ${babyTarget.relationshipScore}/100`
  );
  return;
  }
 
- Alert.alert(
+ gameAlert(
  'Have a Child',
  `Are you and ${babyTarget.name} ready to start or expand your family?`,
  [
@@ -679,7 +680,7 @@ function FamilyTab({ onClose }: FamilyTabProps) {
  // Pre-check against the current snapshot purely for user feedback.
  const pre = canPerformParentingAction(snapChild, action, weeksLived, money, energy);
  if (!pre.ok) {
- Alert.alert(
+ gameAlert(
  action.label,
  describeRejectReason(pre.reason, { cooldownUntilWeek: pre.cooldownUntilWeek, weeksLived }),
  [{ text: 'OK' }]

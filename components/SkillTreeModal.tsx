@@ -43,6 +43,7 @@ import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/ut
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { purchaseLifeSkill } from '@/lib/skillTrees/lifeSkillEffects';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -531,7 +532,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     setGameState(prev => purchaseLifeSkill(prev, args).state);
     if (preview.purchased) {
       haptic.success();
-      Alert.alert('Skill Unlocked', `${node.name} - ${node.effect}`, [{ text: 'Nice' }]);
+      gameAlert('Skill Unlocked', `${node.name} - ${node.effect}`, [{ text: 'Nice' }]);
     }
   }, [gameState, setGameState]);
 
@@ -541,18 +542,18 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
     // Friendly pre-checks against the current snapshot (the authoritative
     // re-checks happen atomically inside the updater below).
     if (gameState.date.age < node.levelRequired) {
-      Alert.alert('Locked', `You need to be at least age ${node.levelRequired} to learn ${node.name}.`, [{ text: 'OK' }]);
+      gameAlert('Locked', `You need to be at least age ${node.levelRequired} to learn ${node.name}.`, [{ text: 'OK' }]);
       return;
     }
     if (node.requires && !node.requires.every(req => isNodeUnlocked(req))) {
       const names = node.requires
         .map(r => SKILL_CATEGORIES.flatMap(c => c.nodes).find(n => n.id === r)?.name || r)
         .join(', ');
-      Alert.alert('Locked', `First unlock: ${names}.`, [{ text: 'OK' }]);
+      gameAlert('Locked', `First unlock: ${names}.`, [{ text: 'OK' }]);
       return;
     }
     if (gameState.stats.money < node.cost) {
-      Alert.alert('Not enough money', `${node.name} costs $${node.cost.toLocaleString()}. You have $${Math.floor(gameState.stats.money).toLocaleString()}.`, [{ text: 'OK' }]);
+      gameAlert('Not enough money', `${node.name} costs $${node.cost.toLocaleString()}. You have $${Math.floor(gameState.stats.money).toLocaleString()}.`, [{ text: 'OK' }]);
       return;
     }
 
@@ -569,7 +570,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
      * have not read yet. The effect string exists - it was only ever shown in
      * the SUCCESS alert, after the purchase.
      */
-    Alert.alert(
+    gameAlert(
       `Unlock ${node.name}?`,
       `${node.effect}\n\nCost: $${node.cost.toLocaleString()}`,
       [

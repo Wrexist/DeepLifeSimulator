@@ -13,7 +13,7 @@
  * for the upgrade economy - Hustle layers premium systems on top.
  */
 import React, { useCallback, useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   AlertTriangle, ArrowLeft, Award, Briefcase, Building2, ChevronRight, Crown,
   DollarSign, FileText, FlaskConical, Gem, History, Megaphone, Package, Rocket, Star, TrendingUp,
@@ -46,6 +46,7 @@ import { generateBoardSeats, generateSuppliers , companyIncomeFactors } from '@/
 import { companyWeeklyIncomeFor } from '@/lib/economy/passiveIncome';
 import type { HustleCompanyOverlay, HustleIndustry } from '@/contexts/game/types';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -115,7 +116,7 @@ export default function CompanyDetailScreen({
     const quote = quoteCompanySaleValue(gameState, companyId);
     if (quote == null) return;
     hustleHaptics.tap();
-    Alert.alert(
+    gameAlert(
       'Sell company',
       `Sell for ${formatMoney(quote)} (50% of what you've invested)? Staff, upgrades, and any IPO position are gone for good.`,
       [
@@ -131,7 +132,7 @@ export default function CompanyDetailScreen({
               onBack();
             } else {
               hustleHaptics.error();
-              if (r.message) Alert.alert('Sale failed', r.message);
+              if (r.message) gameAlert('Sale failed', r.message);
             }
           },
         },
@@ -146,7 +147,7 @@ export default function CompanyDetailScreen({
       saveGame?.();
     } else {
       hustleHaptics.error();
-      Alert.alert('Upgrade', r.message);
+      gameAlert('Upgrade', r.message);
     }
   }, [gameState, setGameState, companyId, saveGame]);
 
@@ -172,25 +173,25 @@ export default function CompanyDetailScreen({
   const handleBuildLab = useCallback((labType: LabType) => {
     const r = buildRDLab(gameState, setGameState, companyId, labType, { updateMoney });
     if (r.success) { hustleHaptics.success(); saveGame?.(); }
-    else { hustleHaptics.error(); Alert.alert('R&D Lab', r.message); }
+    else { hustleHaptics.error(); gameAlert('R&D Lab', r.message); }
   }, [gameState, setGameState, companyId, saveGame]);
 
   const handleStartResearch = useCallback((technologyId: string) => {
     const r = startResearch(gameState, setGameState, companyId, technologyId, { updateMoney });
     if (r.success) { hustleHaptics.success(); saveGame?.(); }
-    else { hustleHaptics.error(); Alert.alert('Research', r.message); }
+    else { hustleHaptics.error(); gameAlert('Research', r.message); }
   }, [gameState, setGameState, companyId, saveGame]);
 
   const handleFilePatent = useCallback((technologyId: string) => {
     const r = filePatent(gameState, setGameState, companyId, technologyId, { updateMoney });
     if (r.success) { hustleHaptics.success(); saveGame?.(); }
-    else { hustleHaptics.error(); Alert.alert('Patent', r.message); }
+    else { hustleHaptics.error(); gameAlert('Patent', r.message); }
   }, [gameState, setGameState, companyId, saveGame]);
 
   const handleEnterCompetition = useCallback((competitionId: string) => {
     const r = enterCompetition(gameState, setGameState, companyId, competitionId, { updateMoney });
     if (r.success) { hustleHaptics.success(); saveGame?.(); }
-    else { hustleHaptics.error(); Alert.alert('Competition', r.message); }
+    else { hustleHaptics.error(); gameAlert('Competition', r.message); }
   }, [gameState, setGameState, companyId, saveGame]);
 
   // ───────── Family-business handlers - canonical CompanyActionsContext actions ─────────
@@ -207,7 +208,7 @@ export default function CompanyDetailScreen({
   const handleManageFamilyBusiness = useCallback((action: 'marketing' | 'branding' | 'reputation') => {
     const r = manageFamilyBusiness(companyId, action);
     if (r.success) { hustleHaptics.success(); saveGame?.(); }
-    else { hustleHaptics.error(); Alert.alert('Family Business', r.message); }
+    else { hustleHaptics.error(); gameAlert('Family Business', r.message); }
   }, [manageFamilyBusiness, companyId, saveGame]);
 
   if (!company) {

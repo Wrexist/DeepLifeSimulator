@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Alert,
   Animated,
 } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -21,6 +20,7 @@ import { logger } from '@/utils/logger';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 import { scale } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -412,12 +412,12 @@ function SicknessModal() {
                         handleClose();
                         setTimeout(() => {
                           if (result) {
-                            Alert.alert('Doctor Visit', result.message);
+                            gameAlert('Doctor Visit', result.message);
                           }
                         }, 350);
                       } catch (error) {
                         logger.error('[SicknessModal] Error performing doctor visit:', error);
-                        Alert.alert('Error', 'Failed to perform doctor visit. Please try again.');
+                        gameAlert('Error', 'Failed to perform doctor visit. Please try again.');
                         setIsClosing(false);
                       }
                     }}
@@ -448,12 +448,12 @@ function SicknessModal() {
                         handleClose();
                         setTimeout(() => {
                           if (result) {
-                            Alert.alert('Hospital Stay', result.message);
+                            gameAlert('Hospital Stay', result.message);
                           }
                         }, 350);
                       } catch (error) {
                         logger.error('[SicknessModal] Error performing hospital stay:', error);
-                        Alert.alert('Error', 'Failed to perform hospital stay. Please try again.');
+                        gameAlert('Error', 'Failed to perform hospital stay. Please try again.');
                         setIsClosing(false);
                       }
                     }}

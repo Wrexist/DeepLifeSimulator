@@ -469,7 +469,10 @@ describe('the grid shows locked apps rather than hiding them', () => {
 
   it('tapping a locked app explains itself instead of doing nothing', () => {
     // A dead tap reads as a bug, not as a gate.
-    expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}Alert\.alert\(app\.name, app\.lockReason/);
+    // Channel note: these asserted the OS `Alert.alert`. The game's alerts are
+    // now `gameAlert` (themed, in-app) - see
+    // __tests__/tooling/noNativeAlertInGameUI.test.ts.
+    expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}gameAlert\(app\.name, app\.lockReason/);
   });
 
   it('and a screen reader is told it is locked', () => {
@@ -639,7 +642,7 @@ describe('the phone grid gates too, not just the computer', () => {
   it('with the same dim, badge and explain-on-tap as the computer', () => {
     expect(PHONE).toMatch(/locked && \{ opacity: 0\.45 \}/);
     expect(PHONE).toMatch(/locked && \(\s*<View style=\{styles\.appLockBadge\}>/);
-    expect(PHONE).toMatch(/if \(locked\) \{[\s\S]{0,200}Alert\.alert\(app\.name, lockReason/);
+    expect(PHONE).toMatch(/if \(locked\) \{[\s\S]{0,200}gameAlert\(app\.name, lockReason/);
     expect(PHONE).toMatch(/accessibilityState=\{\{ disabled: locked \}\}/);
   });
 });
@@ -704,7 +707,7 @@ describe("Life's Stats segment is the one gated surface outside the grids", () =
   });
 
   it('and explains itself on tap rather than dying quietly', () => {
-    expect(LIFE).toMatch(/onLockedPress=\{\([\s\S]{0,120}Alert\.alert\('Stats', reason/);
+    expect(LIFE).toMatch(/onLockedPress=\{\([\s\S]{0,120}gameAlert\('Stats', reason/);
   });
 
   it('a fresh player cannot reach it; a chapter-1 player can', () => {

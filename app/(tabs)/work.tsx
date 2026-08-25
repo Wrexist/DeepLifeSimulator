@@ -23,6 +23,7 @@ import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import EmptyState from '@/components/ui/EmptyState';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import type { PromotionDetails } from '@/contexts/game/types';
@@ -1027,6 +1028,12 @@ function WorkScreenContent() {
                 <JailScreen />
             ) : (
                 <>
+                    <ScreenHeader
+                        title="Work"
+                        subtitle="Careers, quick gigs & the underground"
+                        icon={<Briefcase size={scale(18)} color="#34D399" />}
+                        tint="#34D399"
+                    />
                     {/* One page-level scroll: the Current Job card and the
                         Street/Career/Crime sub-tabs scroll away with the list
                         instead of pinning a cramped inner scroll region. */}

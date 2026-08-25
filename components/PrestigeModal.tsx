@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, Alert } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
 import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
@@ -15,6 +15,7 @@ import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
 import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScale, scale } from '@/utils/scaling';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
 
 interface PrestigeModalProps {
   visible: boolean;
@@ -165,7 +166,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     const threshold = getPrestigeThreshold(prestigeLevel);
     
     if (currentNetWorth < threshold) {
-      Alert.alert(
+      gameAlert(
         'Cannot Prestige',
         `You need at least $${(threshold / 1_000_000).toFixed(0)}M net worth to prestige.\n\nCurrent: $${(currentNetWorth / 1_000_000).toFixed(2)}M\nRequired: $${(threshold / 1_000_000).toFixed(0)}M`
       );

@@ -49,6 +49,7 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 // Keep always-rendered components as eager imports to reduce bundler memory pressure
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
+import AlertHost from '@/components/ui/AlertHost';
 import { Component, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
@@ -1439,6 +1440,9 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
         </ErrorBoundary>
       )}
       <UIUXOverlay />
+      {/* In-game alerts. Renders whatever `gameAlert()` raises - the themed
+          replacement for the OS `Alert.alert` dialog. */}
+      <AlertHost />
       {/* StatusBar is always StatusBarFallback (safe no-op component) */}
       <StatusBar style="light" />
 

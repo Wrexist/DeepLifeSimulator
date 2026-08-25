@@ -27,7 +27,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Image,
   ImageBackground,
   ImageSourcePropType,
@@ -103,6 +102,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import ImageScrim from '@/components/ui/ImageScrim';
 import Gradient from '@/components/ui/Gradient';
 import { GamingStreamingState, Video } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -367,7 +367,7 @@ export default function GamingApp({ onBack }: Props) {
     if (r.success) {
       saveGame();
       setTitle('');
-      Alert.alert(r.outcome?.viral ? 'Viral hit!' : 'Uploaded', r.message);
+      gameAlert(r.outcome?.viral ? 'Viral hit!' : 'Uploaded', r.message);
     } else {
       flash(r.message);
     }

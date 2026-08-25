@@ -19,7 +19,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
   ArrowLeft,
   Briefcase,
@@ -108,6 +108,8 @@ import type { Lobbyist, PoliticalAlliance } from '@/contexts/game/types';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
@@ -389,7 +391,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   const handleRunForOffice = useCallback(() => {
     if (!nextOfficeKey) return;
     const result = runForOffice(gameState, setGameState, nextOfficeKey as Parameters<typeof runForOffice>[2], { updateMoney });
-    Alert.alert(result.success ? '🗳️ Election Night' : 'Cannot run yet', result.message);
+    gameAlert(result.success ? '🗳️ Election Night' : 'Cannot run yet', result.message);
     if (result.success) queueSave();
   }, [gameState, setGameState, nextOfficeKey, queueSave]);
 
@@ -397,20 +399,20 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     const result = joinParty(gameState, setGameState, party);
     // Crossing the floor costs approval and standing, so the outcome is
     // reported either way rather than silently applied.
-    Alert.alert(result.success ? 'Party membership' : 'Could not join', result.message);
+    gameAlert(result.success ? 'Party membership' : 'Could not join', result.message);
     if (result.success) queueSave();
   }, [gameState, setGameState, queueSave]);
 
   const handleTakeAppointment = useCallback((appointmentId: string) => {
     const result = takeAppointment(gameState, setGameState, appointmentId);
-    Alert.alert(result.success ? 'Appointment' : 'Not offered', result.message);
+    gameAlert(result.success ? 'Appointment' : 'Not offered', result.message);
     if (result.success) queueSave();
   }, [gameState, setGameState, queueSave]);
 
   const handleResignAppointment = useCallback(() => {
     const result = resignAppointment(gameState, setGameState);
     if (result.success) queueSave();
-    else Alert.alert('Appointment', result.message);
+    else gameAlert('Appointment', result.message);
   }, [gameState, setGameState, queueSave]);
 
   /**
@@ -428,7 +430,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       weeksInOffice,
     });
     if (blocker) {
-      Alert.alert('Cannot retire yet', blocker);
+      gameAlert('Cannot retire yet', blocker);
       return;
     }
     const pension = calculatePension({
@@ -436,7 +438,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       termsServed: gameState.politics?.electionsWon,
       approvalRating: gameState.politics?.approvalRating,
     });
-    Alert.alert(
+    gameAlert(
       'Stand down?',
       `You will leave office for good and draw ${formatMoney(pension)}/wk for life. `
       + 'Getting the seat back means winning another election.',
@@ -447,7 +449,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           style: 'destructive',
           onPress: () => {
             const result = retireFromPolitics(gameState, setGameState);
-            Alert.alert(result.success ? 'Retired' : 'Could not retire', result.message);
+            gameAlert(result.success ? 'Retired' : 'Could not retire', result.message);
             if (result.success) queueSave();
           },
         },
@@ -457,7 +459,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   const handleEnactPolicy = useCallback((policyId: string) => {
     const result = enactPolicy(gameState, setGameState, policyId, { updateMoney, updateStats });
-    Alert.alert(result.success ? 'Policy enacted' : 'Could not enact', result.message);
+    gameAlert(result.success ? 'Policy enacted' : 'Could not enact', result.message);
     if (result.success) {
       setShowEnactPolicy(false);
       queueSave();
@@ -468,7 +470,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   // and raises policy influence by the lobbyist's rating (atomic, in one updater).
   const handleHireLobbyist = useCallback((lobbyistId: string) => {
     const result = hireLobbyist(gameState, setGameState, lobbyistId, { updateMoney });
-    Alert.alert(result.success ? 'Lobbyist hired' : 'Cannot hire', result.message);
+    gameAlert(result.success ? 'Lobbyist hired' : 'Cannot hire', result.message);
     if (result.success) {
       queueSave();
       setSubView(null);
@@ -479,7 +481,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   // approval bump (formAlliance). Targets come from the local ALLIANCE_TARGETS bloc.
   const handleFormAlliance = useCallback((characterId: string, characterName: string) => {
     const result = formAlliance(gameState, setGameState, characterId, characterName);
-    Alert.alert(result.success ? 'Alliance formed' : 'Cannot form alliance', result.message);
+    gameAlert(result.success ? 'Alliance formed' : 'Cannot form alliance', result.message);
     if (result.success) {
       queueSave();
       setSubView(null);
@@ -1462,7 +1464,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         darkMode={darkMode}
         onClose={() => setShowRaiseDirty(false)}
         onConfirm={(amt) => {
-          Alert.alert(
+          gameAlert(
             'Confirm dirty funnel',
             `This adds ~${formatMoney(amt * btcPrice)} to the PAC, but ${formatMoney(amt * btcPrice)} of dirty money gets logged against you forever. Continue?`,
             [
@@ -1527,7 +1529,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         onConfirm={(amt) => {
           const result = campaign(gameState, setGameState, amt, { updateMoney });
           if (result.success) queueSave();
-          else Alert.alert('Campaign', result.message);
+          else gameAlert('Campaign', result.message);
           setShowCampaign(false);
         }}
       />
@@ -1548,7 +1550,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         onConfirm={(amt) => {
           const result = embezzleCampaignFunds(gameState, setGameState, amt);
           if (result.success) queueSave();
-          Alert.alert(result.success ? 'Funds moved' : 'Cannot move that', result.message);
+          gameAlert(result.success ? 'Funds moved' : 'Cannot move that', result.message);
           setShowEmbezzle(false);
         }}
       />
@@ -1813,14 +1815,6 @@ function AggStat({ label, value, theme }: { label: string; value: string; theme:
 
 function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
-    </View>
-  );
 }
 
 function StatCard({

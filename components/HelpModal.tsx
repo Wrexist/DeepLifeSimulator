@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { logger } from '@/utils/logger';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, TextInput, Linking } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
 import { X, Mail, Crown } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 // as the constant did and would have gone stale the moment it moved - which it
 // just did.
 import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
+import { gameAlert } from '@/utils/gameAlert';
 
 /**
  * The Onion Browser explainer, shared by the two FAQ sections that both ask
@@ -712,12 +713,12 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
 
     Linking.openURL(emailUrl)
       .then(() => {
-        Alert.alert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
+        gameAlert('Email Prepared', 'Your email app will open with a pre-filled message. Please send the email to contact our support team.');
       })
       .catch((error) => {
         // Log the failure (never the body - it contains player details).
         logger.error('[HelpModal] failed to open support email', { error });
-        Alert.alert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
+        gameAlert('Error', `Could not open email app. Please email ${SUPPORT_EMAIL} directly.`);
       });
   }, [gameState]);
 
