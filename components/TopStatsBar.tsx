@@ -1003,7 +1003,6 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // Handle both iPhone Pro Max (428px+) and large Android devices (600px+)
  const isExtraLargeDevice = width > 428 || isAndroidXLarge(); // iPhone 15 Pro Max and large Android phones
  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale();
- const settings = useGameSelector((s) => s?.settings, shallowEqual);
  // For the interstitial breakpoint: current in-game week + whether ads are removed.
  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
  // The grace half of the gate measures weeks into THIS life (CLAUDE.md §4.2);

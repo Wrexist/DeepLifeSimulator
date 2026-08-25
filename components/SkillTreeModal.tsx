@@ -12,8 +12,7 @@ import { Platform, View,
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
-  Alert } from 'react-native';
+  Dimensions } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import {

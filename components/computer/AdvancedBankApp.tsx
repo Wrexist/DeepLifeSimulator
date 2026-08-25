@@ -26,8 +26,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import {
   ArrowLeft,

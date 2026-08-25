@@ -36,13 +36,13 @@ import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
+import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 // Rarely-opened modals - lazy-loaded and only mounted when open, so their
 // code + element tree isn't built on every home-tab render.
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
-import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
-import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
-import CollapsibleSection from '@/components/ui/CollapsibleSection';
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 const LinearGradient = Gradient;
 

@@ -159,7 +159,7 @@ const MAX_ERRORS = 0;
  * the formAlliance rewrite, comment cleanups). Lowered in the commit that
  * measured it, per the ratchet rule.
  */
-const MAX_WARNINGS = 786;
+const MAX_WARNINGS = 779;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

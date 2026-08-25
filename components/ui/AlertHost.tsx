@@ -69,8 +69,13 @@ export default function AlertHost() {
   }, []);
 
   const scaleAnim = useRef(new Animated.Value(ENTER_SCALE)).current;
+  // Keyed on the id alone, deliberately: the entrance should replay when a
+  // DIFFERENT alert takes the screen, not when this one's object identity
+  // happens to change. Reading only `currentId` here is what makes that
+  // dependency list honest rather than suppressed.
+  const currentId = current?.id;
   useEffect(() => {
-    if (!current) return;
+    if (currentId === undefined) return;
     scaleAnim.setValue(reducedMotion ? 1 : ENTER_SCALE);
     const anim = Animated.timing(scaleAnim, {
       toValue: 1,
@@ -80,7 +85,7 @@ export default function AlertHost() {
     });
     anim.start();
     return () => anim.stop();
-  }, [current?.id, reducedMotion, scaleAnim]);
+  }, [currentId, reducedMotion, scaleAnim]);
 
   // Dismiss FIRST, then run the handler: a handler that raises another alert
   // must land behind this one in the queue, not be dropped by this shift.

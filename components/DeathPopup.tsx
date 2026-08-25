@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
-  Alert,
   Share,
   Dimensions,
   type LayoutChangeEvent,

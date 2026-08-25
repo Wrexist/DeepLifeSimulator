@@ -173,7 +173,6 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: '#A78BFA', Icon: Dumbbell },
   ];
 
-  const sectionTitleStyle = [styles.sectionTitle, settings.darkMode && styles.sectionTitleDark];
   const visibleActivityCount = mergedHealthActivities.filter(a => a.id !== 'vacation').length;
 
   // Vaccinations the player bought + immunities they earned by recovering.

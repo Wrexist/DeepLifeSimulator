@@ -14,12 +14,12 @@ import {
   Gem,
   ShoppingCart,
   Users,
-  CheckCircle
+  CheckCircle,
+  TrendingUp
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { setAchievementToastRef } from '@/utils/achievementToast';
 import { haptic } from '@/utils/haptics';
-import { TrendingUp } from 'lucide-react-native';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');

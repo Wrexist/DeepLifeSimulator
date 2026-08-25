@@ -17,7 +17,7 @@
  * "overwrite anyway" escape hatch, which would only ever destroy progress.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CloudUpload, CloudDownload, Smartphone, KeyRound, Trash2 } from 'lucide-react-native';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Gradient from '@/components/ui/Gradient';
