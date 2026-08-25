@@ -50,6 +50,7 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
 import AlertHost from '@/components/ui/AlertHost';
+import { hydrateSectionCollapse } from '@/utils/sectionCollapse';
 import { Component, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
@@ -806,6 +807,14 @@ export default function RootLayout() {
 
   // Track first frame rendered state
   const [isFirstFrameRendered, setIsFirstFrameRendered] = useState(false);
+
+  // Remembered collapse state for the game's collapsible sections. Hydrated
+  // here, at boot, because the sections read it SYNCHRONOUSLY on their first
+  // render - an async read inside each section would paint them all open and
+  // then snap them shut a frame later.
+  useEffect(() => {
+    void hydrateSectionCollapse();
+  }, []);
 
   // Check circuit breaker status on mount
   useEffect(() => {

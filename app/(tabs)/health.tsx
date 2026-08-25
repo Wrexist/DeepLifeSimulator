@@ -9,12 +9,32 @@ import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from '
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import EmptyState from '@/components/ui/EmptyState';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
+
+type Vital = { key: string; label: string; value: number; color: string };
+
+/**
+ * The vitals in one line, for the collapsed header. Same four colours as the
+ * expanded bars, so the reading survives the fold - a collapsed section that
+ * hides the number the player opened the screen for is a worse screen.
+ */
+function VitalsSummary({ vitals }: { vitals: Vital[] }) {
+  return (
+    <View style={styles.vitalsSummary}>
+      {vitals.map((v) => (
+        <Text key={v.key} style={[styles.vitalsSummaryValue, { color: v.color }]}>
+          {Math.round(v.value)}
+        </Text>
+      ))}
+    </View>
+  );
+}
 
 function HealthScreen() {
   return (
@@ -153,6 +173,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   ];
 
   const sectionTitleStyle = [styles.sectionTitle, settings.darkMode && styles.sectionTitleDark];
+  const visibleActivityCount = mergedHealthActivities.filter(a => a.id !== 'vacation').length;
 
   // Vaccinations the player bought + immunities they earned by recovering.
   // Named from the same catalogues the prevention logic keys off, so a rename
@@ -174,9 +195,16 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Vitals overview - current health/energy/happiness/fitness at a glance */}
+        {/* Vitals overview - current health/energy/happiness/fitness at a glance.
+            Collapsible, and the numbers ride along in the header when it is
+            closed, so folding it away never costs the player the reading. */}
         <View style={styles.vitalsCard}>
-          <Text style={styles.vitalsTitle}>Your Vitals</Text>
+          <CollapsibleSection
+            id="health.vitals"
+            title="Your Vitals"
+            compact
+            summary={<VitalsSummary vitals={vitals} />}
+          >
           <View style={styles.vitalsList}>
             {vitals.map(v => {
               const pct = Math.max(0, Math.min(100, v.value));
@@ -201,6 +229,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               );
             })}
           </View>
+          </CollapsibleSection>
         </View>
 
         {/* Disease status - quiet warning card, no left bar */}
@@ -238,12 +267,13 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
         {/* Activities */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { borderColor: 'rgba(248, 113, 113, 0.4)' }]}>
-              <Activity size={scale(15)} color="#F87171" />
-            </View>
-            <Text style={sectionTitleStyle}>{t('health.healthActivities')}</Text>
-          </View>
+          <CollapsibleSection
+            id="health.activities"
+            title={t('health.healthActivities')}
+            icon={<Activity size={scale(15)} color="#F87171" />}
+            tint="#F87171"
+            summary={`${visibleActivityCount} available`}
+          >
           <Text style={sectionDescStyle}>{t('health.investMentalPhysical')}</Text>
 
           {/* Protection you have already bought or earned.
@@ -299,16 +329,18 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
                 />
               );
             })}
+          </CollapsibleSection>
         </View>
 
         {/* Diet plans */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { borderColor: 'rgba(52, 211, 153, 0.4)' }]}>
-              <Utensils size={scale(15)} color="#34D399" />
-            </View>
-            <Text style={sectionTitleStyle}>{t('health.dietPlans')}</Text>
-          </View>
+          <CollapsibleSection
+            id="health.diet"
+            title={t('health.dietPlans')}
+            icon={<Utensils size={scale(15)} color="#34D399" />}
+            tint="#34D399"
+            summary={activeDietPlan ? activeDietPlan.name : 'None active'}
+          >
           <Text style={sectionDescStyle}>{t('health.chooseAutomaticDaily')}</Text>
 
           {(gameState.dietPlans ?? []).length === 0 && (
@@ -350,6 +382,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}
             </Text>
           ) : null}
+          </CollapsibleSection>
         </View>
       </ScrollView>
     </View>
@@ -373,6 +406,14 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     gap: verticalScale(12),
     ...getPlatformShadows(6, 0.25, 4, 14),
+  },
+  vitalsSummary: {
+    flexDirection: 'row',
+    gap: scale(10),
+  },
+  vitalsSummaryValue: {
+    fontSize: fontScale(13),
+    fontWeight: '800',
   },
   vitalsTitle: {
     fontSize: fontScale(13),

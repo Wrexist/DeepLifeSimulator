@@ -51,6 +51,7 @@ import {
 import { getThemeColors, accent } from '@/lib/config/theme';
 import { fontScale, scale, verticalScale, responsiveSpacing, responsiveBorderRadius, getTabBarSafePadding } from '@/utils/scaling';
 import ScreenHeader from '@/components/ui/ScreenHeader';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 
 function ProgressionScreen() {
   return (
@@ -244,12 +245,19 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         </View>
 
         {/* Life Stats */}
+        <CollapsibleSection
+          id="progression.lifeStats"
+          title="Life Stats"
+          compact
+          summary={`Age ${Math.floor(gameState.date?.age ?? 18)} · ${gameState.weeksLived} weeks`}
+        >
         <View style={styles.statsGrid}>
           <StatCard theme={theme} icon={TrendingUp} color={accent.info} value={String(Math.floor(gameState.date?.age ?? 18))} label="Age" />
           <StatCard theme={theme} icon={CalendarDays} color={accent.success} value={String(gameState.weeksLived)} label="Weeks Lived" />
           <StatCard theme={theme} icon={Star} color={accent.purple} value={String((gameState.relationships || []).length)} label="Relationships" />
           <StatCard theme={theme} icon={Zap} color={accent.gold} value={String((gameState.items || []).filter(i => i.owned).length)} label="Items Owned" />
         </View>
+        </CollapsibleSection>
 
         {/* Achievement browser (searchable, by category) */}
         <ProgressOverview />
@@ -259,7 +267,12 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
 
         {/* Tools & More - compact launcher tiles */}
         <View style={styles.toolsSection}>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Tools & More</Text>
+          <CollapsibleSection
+            id="progression.tools"
+            title="Tools & More"
+            compact
+            summary={`${tools.length} tools`}
+          >
           <View style={styles.toolsGrid}>
             {tools.map(tool => {
               const ToolIcon = tool.icon;
@@ -280,6 +293,7 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
               );
             })}
           </View>
+          </CollapsibleSection>
         </View>
       </ScrollView>
 

@@ -42,6 +42,7 @@ const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
 import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
 import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 const LinearGradient = Gradient;
 
@@ -695,6 +696,16 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           {scenario?.title || t('common.unknown')}
         </Text>
         
+        {/* The five identity facts. Collapsible because they are REFERENCE, not
+            news - a player who knows their own age and job can fold them away
+            and get the actionable cards higher up the feed. The summary keeps
+            the two that change (job, relationship) on screen either way. */}
+        <CollapsibleSection
+          id="identity.facts"
+          title="Details"
+          compact
+          summary={`${job} · ${relationshipStatus}`}
+        >
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>
@@ -754,6 +765,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </Text>
           </View>
         </View>
+        </CollapsibleSection>
 
         {/* Daily gem drop - 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
         <DailyGemClaim />

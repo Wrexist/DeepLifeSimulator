@@ -696,7 +696,7 @@ function HomeScreenContent() {
 
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
-        <SectionGroup label="This week">
+        <SectionGroup label="This week" collapsibleId="home.thisWeek">
         <FadeInUp delay={20}>
           <LastWeekRecap />
         </FadeInUp>
@@ -771,7 +771,7 @@ function HomeScreenContent() {
             two read the player's own situation, so they are the lines most
             likely to be true for THIS save. Both render null when they have
             nothing to say, so a quiet early week is not padded with cards. */}
-        <SectionGroup label="What you're working toward">
+        <SectionGroup label="What you're working toward" collapsibleId="home.goals">
         <FadeInUp delay={45}>
           <NextGoalsCard />
           <WeekAheadCard />

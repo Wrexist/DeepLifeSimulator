@@ -24,6 +24,7 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import EmptyState from '@/components/ui/EmptyState';
 import ScreenHeader from '@/components/ui/ScreenHeader';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import type { PromotionDetails } from '@/contexts/game/types';
@@ -984,6 +985,10 @@ function WorkScreenContent() {
     // hidden by the board - the board only curates what you can newly apply to.
     const boardIds = new Set(getJobBoard(gameState).map(o => o.careerId));
     const boardRefreshWeeks = weeksUntilBoardRefresh(gameState);
+    const crimeSkillSummary = Object.entries(gameState.crimeSkills || {})
+        .map(([id, skill]) => `${id.charAt(0).toUpperCase()}${skill.level}`)
+        .join(' · ');
+
     const visibleBasicCareers = basicCareers.filter(c => {
         if (!isEntryTierCareer(c.id)) return true;
         if (c.accepted || c.applied || gameState.currentJob === c.id) return true;
@@ -1222,7 +1227,12 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>Standard Careers</Text>
+                                    <CollapsibleSection
+                                        id="work.standardCareers"
+                                        title="Standard Careers"
+                                        compact
+                                        summary={`${visibleBasicCareers.length} listed`}
+                                    >
                                     {openingsCount > 0 && (
                                         <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
                                             {openingsCount} {openingsCount === 1 ? 'opening' : 'openings'} on the board
@@ -1239,7 +1249,13 @@ function WorkScreenContent() {
                                             nudge={`The job board rotates - new listings in ${boardRefreshWeeks} ${boardRefreshWeeks === 1 ? 'week' : 'weeks'}.`}
                                         />
                                     )}
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>
+                                    </CollapsibleSection>
+                                    <CollapsibleSection
+                                        id="work.advancedCareers"
+                                        title="Advanced Careers"
+                                        compact
+                                        summary={`${(ADVANCED_CAREERS as AdvancedCareer[]).length} listed`}
+                                    >
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         const { calculateNetWorth } = require('@/lib/statistics/statisticsTracker');
@@ -1299,6 +1315,7 @@ function WorkScreenContent() {
                                             return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
                                         });
                                     })()}
+                                    </CollapsibleSection>
                                 </View>
                             )}
 
@@ -1314,6 +1331,12 @@ function WorkScreenContent() {
                                         />
                                     </View>
 
+                                    <CollapsibleSection
+                                        id="work.crimeSkills"
+                                        title="Your Skills"
+                                        compact
+                                        summary={crimeSkillSummary}
+                                    >
                                     <View>
                                         {Object.entries(gameState.crimeSkills || {}).map(([id, skill]) => {
                                             const skillId = id as CrimeSkillId;
@@ -1348,10 +1371,14 @@ function WorkScreenContent() {
                                             );
                                         })}
                                     </View>
+                                    </CollapsibleSection>
 
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>
-                                        Crime Jobs (Level {gameState.criminalLevel})
-                                    </Text>
+                                    <CollapsibleSection
+                                        id="work.crimeJobs"
+                                        title={`Crime Jobs (Level ${gameState.criminalLevel})`}
+                                        compact
+                                        summary={`${criminalStreetJobs.length} available`}
+                                    >
                                     {criminalStreetJobs.length > 0 ? (
                                         criminalStreetJobs.map(renderJobCard)
                                     ) : (
@@ -1362,6 +1389,7 @@ function WorkScreenContent() {
                                             nudge="Raise your criminal level to unlock more work, or check back later."
                                         />
                                     )}
+                                    </CollapsibleSection>
                                 </View>
                             )}
 
