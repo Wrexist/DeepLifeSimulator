@@ -81,8 +81,14 @@ export const LEGACY_CONTRACTS: LegacyContract[] = [
   { id: 'contract_weeks_10000', name: 'Time Served', description: 'Live 10,000 weeks across every life.', metric: 'weeksLivedTotal', target: 10_000, reward: 900, tier: 2 },
 
   // ── Enterprise ────────────────────────────────────────────────────────────
-  { id: 'contract_companies_5', name: 'Founder', description: 'Found 5 companies across every life.', metric: 'companiesFounded', target: 5, reward: 120, tier: 1 },
-  { id: 'contract_companies_20', name: 'Serial Founder', description: 'Found 20 companies across every life.', metric: 'companiesFounded', target: 20, reward: 800, tier: 2 },
+  // "in a single life", because that is what the metric MEASURES:
+  // `companiesFounded` reads `lifetimeStatistics.totalCompaniesOwned`, which
+  // resets on every prestige. The old copy said "across every life" — a
+  // cross-life sum no counter in the save actually keeps — so the board
+  // promised credit for companies the bar would silently forget at the next
+  // prestige (2026-08-25 retention audit; displayed-vs-applied class).
+  { id: 'contract_companies_5', name: 'Founder', description: 'Found 5 companies in a single life.', metric: 'companiesFounded', target: 5, reward: 120, tier: 1 },
+  { id: 'contract_companies_20', name: 'Serial Founder', description: 'Found 20 companies in a single life.', metric: 'companiesFounded', target: 20, reward: 800, tier: 2 },
 ];
 
 /**
@@ -133,8 +139,12 @@ const num = (v: unknown): number =>
 /**
  * Read a contract metric off the save.
  *
- * Every one of these is cross-life and monotonically increasing, which is what
- * makes derived progress safe. Missing fields read as 0 rather than NaN.
+ * Every one of these is cross-life and monotonically increasing — with one
+ * documented exception: `companiesFounded` is per-life (its counter resets on
+ * prestige), which is why its contracts' copy says "in a single life". A
+ * claimed contract stays claimed either way (`claimedIds` is the stored
+ * record); only unclaimed progress can restart. Missing fields read as 0
+ * rather than NaN.
  */
 export function readMetric(state: GameState | undefined | null, metric: ContractMetric): number {
   if (!state) return 0;

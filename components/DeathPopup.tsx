@@ -208,6 +208,38 @@ function DeathPopup() {
     }
   }, [gameState]);
 
+  // Dynasty context for the Legacy tab — the sell for the NEXT life. Both
+  // numbers were always computed and never shown at life end: the ribbon
+  // catalogue is a 26-strong collection whose count rendered only inside a
+  // modal behind IdentityCard, and the best-previous-life comparison existed
+  // solely in LegacyTimeline. This is the one moment the player is deciding
+  // whether a next life is worth starting (2026-08-25 retention audit).
+  const dynastyContext = useMemo(() => {
+    try {
+      const { RIBBONS } = require('@/lib/legacy/ribbonSystem');
+      const { netWorth } = require('@/lib/progress/achievements');
+      const discovered = (gameState.ribbonCollection?.discoveredIds ?? []).length;
+      const lives = gameState.previousLives ?? [];
+      const bestLife = lives.reduce<{ netWorth: number; generation: number } | null>(
+        (best, life) => {
+          const value = typeof life?.netWorth === 'number' ? life.netWorth : 0;
+          return !best || value > best.netWorth
+            ? { netWorth: value, generation: life?.generation ?? 1 }
+            : best;
+        },
+        null,
+      );
+      return {
+        ribbonsDiscovered: discovered,
+        ribbonsTotal: RIBBONS.length as number,
+        bestLife,
+        thisLifeNetWorth: Math.round(netWorth(gameState)),
+      };
+    } catch {
+      return null;
+    }
+  }, [gameState]);
+
   const handleContinueLegacy = useCallback(async () => {
     if (!selectedHeirId) {
       Alert.alert('No Heir Selected', 'Please select a child to continue your legacy.');
@@ -1031,7 +1063,17 @@ function DeathPopup() {
                               {earnedPoints.toLocaleString()} pts
                             </Text>
                             <Text style={styles.prestigeHint}>
-                              Use prestige points to start your next life stronger
+                              {/* Honest about the mechanics: neither button on
+                                  THIS screen awards these points. Prestige is a
+                                  while-alive action (executePrestige, reached
+                                  from the home screen); the heir path below
+                                  carries your existing balance unchanged and
+                                  the fresh start wipes it. The old caption —
+                                  "use prestige points to start your next life
+                                  stronger" — promised a payout no death-screen
+                                  path delivers. */}
+                              What prestiging this life would have banked — prestige happens while
+                              alive, from the home screen. An heir keeps points you already have.
                             </Text>
                             <View style={styles.prestigeBuyList}>
                               {canBuySmallInheritance && (
@@ -1236,6 +1278,58 @@ function DeathPopup() {
               {activeTab === 'legacy' && (
                 <>
                   <View style={styles.pageContent}>
+                    {/* Your Dynasty — what continuing is FOR. Ribbon collection
+                        progress and the family record to beat, both already
+                        computed elsewhere and never shown at life end. Hidden
+                        entirely when there is nothing to say (first life, no
+                        ribbons yet). */}
+                    {dynastyContext &&
+                      (dynastyContext.ribbonsDiscovered > 0 || dynastyContext.bestLife) && (
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>Your Dynasty</Text>
+                          <View style={styles.breakdownCard}>
+                            {dynastyContext.ribbonsDiscovered > 0 && (
+                              <View style={styles.breakdownRow}>
+                                <Text style={styles.breakdownLabel}>Ribbons discovered</Text>
+                                <Text style={styles.breakdownValue}>
+                                  {dynastyContext.ribbonsDiscovered} / {dynastyContext.ribbonsTotal}
+                                </Text>
+                              </View>
+                            )}
+                            {dynastyContext.bestLife && (
+                              <View style={styles.breakdownRow}>
+                                <Text style={styles.breakdownLabel}>
+                                  Family record (Gen {dynastyContext.bestLife.generation})
+                                </Text>
+                                <Text style={styles.breakdownValue}>
+                                  {formatMoney(dynastyContext.bestLife.netWorth)}
+                                </Text>
+                              </View>
+                            )}
+                            {dynastyContext.bestLife && (
+                              <View style={styles.breakdownRow}>
+                                <Text style={styles.breakdownLabel}>This life</Text>
+                                <Text
+                                  style={[
+                                    styles.breakdownValue,
+                                    dynastyContext.thisLifeNetWorth >
+                                      dynastyContext.bestLife.netWorth && {
+                                      color: accent.success,
+                                    },
+                                  ]}
+                                >
+                                  {formatMoney(dynastyContext.thisLifeNetWorth)}
+                                  {dynastyContext.thisLifeNetWorth >
+                                  dynastyContext.bestLife.netWorth
+                                    ? ' · new record'
+                                    : ''}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
                     {/* Inheritance Breakdown */}
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>Inheritance Breakdown</Text>

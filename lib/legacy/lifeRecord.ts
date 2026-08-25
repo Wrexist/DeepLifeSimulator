@@ -104,6 +104,29 @@ function memorableEvents(state: GameState): string[] {
     .filter((d): d is string => typeof d === 'string' && d.length > 0);
 }
 
+/**
+ * Bound on `previousLives`. It was the last unbounded append in the cross-life
+ * carry set (prestigeHistory caps at 50, ribbons at 200, the device archive at
+ * 50) — every prestige and every heir transition added up to ~16 fields plus
+ * arrays, forever, inside the save blob. Newest-first survivorship: the most
+ * recent lives are the ones LegacyTimeline compares against and renders.
+ */
+export const MAX_PREVIOUS_LIVES = 50;
+
+/**
+ * Append a finished life, keeping the newest `MAX_PREVIOUS_LIVES`. The ONE
+ * append both prestige paths use, so the cap cannot be forgotten on one of
+ * them (the applyOfficeExit lesson: count the entry points).
+ */
+export function appendLifeRecord(
+  // The stored field's own (looser) entry shape, so both prestige paths can
+  // hand `oldState.previousLives` straight in without a cast.
+  previousLives: GameState['previousLives'] | null,
+  record: PreviousLifeRecord,
+): NonNullable<GameState['previousLives']> {
+  return [...(previousLives || []), record].slice(-MAX_PREVIOUS_LIVES);
+}
+
 export function buildLifeRecord(oldState: GameState): PreviousLifeRecord {
   const name =
     [oldState.userProfile?.firstName, oldState.userProfile?.lastName].filter(Boolean).join(' ') ||

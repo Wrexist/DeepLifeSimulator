@@ -31,7 +31,7 @@ import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBo
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
 import { computeInheritance } from '@/lib/legacy/inheritance';
-import { buildLifeRecord } from '@/lib/legacy/lifeRecord';
+import { appendLifeRecord, buildLifeRecord } from '@/lib/legacy/lifeRecord';
 
 
 /**
@@ -356,11 +356,9 @@ function createResetGameState(
   // the ONE shared builder (lib/legacy/lifeRecord.ts) so this path and the
   // heir path below cannot drift - and so the life-quality score, ribbon,
   // career history and family facts the death screen computes stop being
-  // discarded at the only moment they can still be captured.
-  newState.previousLives = [
-    ...(oldState.previousLives || []),
-    buildLifeRecord(oldState),
-  ];
+  // discarded at the only moment they can still be captured. Capped at
+  // MAX_PREVIOUS_LIVES inside the shared append.
+  newState.previousLives = appendLifeRecord(oldState.previousLives, buildLifeRecord(oldState));
 
   // Preserve ribbon collection across prestiges
   newState.ribbonCollection = oldState.ribbonCollection;
@@ -688,11 +686,8 @@ function createChildGameState(
 
   // Preserve previous lives AND append the life that just ended (heir path),
   // so the Legacy Timeline and generations counter populate across generations.
-  // Same shared builder as the reset path - see lib/legacy/lifeRecord.ts.
-  newState.previousLives = [
-    ...(oldState.previousLives || []),
-    buildLifeRecord(oldState),
-  ];
+  // Same shared builder and same capped append as the reset path.
+  newState.previousLives = appendLifeRecord(oldState.previousLives, buildLifeRecord(oldState));
 
   // Preserve ribbon collection and discovered secrets across legacy transitions
   newState.ribbonCollection = oldState.ribbonCollection;

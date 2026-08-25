@@ -19,7 +19,9 @@ import {
   getScenario,
 } from '@/lib/scenarios/scenarioDefinitions';
 
-function ragsToRichesState(overrides: Partial<GameState> = {}): GameState {
+function ragsToRichesState(
+  overrides: Parameters<typeof createTestGameState>[0] = {},
+): GameState {
   return createTestGameState({ scenarioId: 'rags_to_riches', ...overrides });
 }
 

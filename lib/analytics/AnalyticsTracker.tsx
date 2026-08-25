@@ -28,6 +28,12 @@ export function AnalyticsTracker(): null {
   const lifeStartWeek = useGameSelector((s) => s.lifeStartWeek);
   const weeksThisLife = weeksSinceLifeStart(weeksLived, lifeStartWeek);
   const generation = useGameSelector((s) => s.generationNumber ?? 1);
+  // The prestige edge watches the PRESTIGE COUNTER, not the generation number:
+  // the reset path deliberately does not increment generation (same character,
+  // fresh start — prestigeExecution.ts:321), so a generation-edge made every
+  // "start fresh" prestige invisible while counting heir continuations from
+  // death — which award nothing — as prestiges. Half the funnel, mislabeled.
+  const totalPrestiges = useGameSelector((s) => s.prestige?.totalPrestiges ?? 0);
   const showDeathPopup = useGameSelector((s) => !!s.showDeathPopup);
   const deathReason = useGameSelector((s) => s.deathReason ?? '');
   const age = useGameSelector((s) => s.date?.age ?? 0);
@@ -39,7 +45,7 @@ export function AnalyticsTracker(): null {
   const ready = !isLoading;
 
   const prevWeeks = useRef(weeksLived);
-  const prevGeneration = useRef(generation);
+  const prevPrestiges = useRef(totalPrestiges);
   const prevDeath = useRef(showDeathPopup);
   const firstWeekFired = useRef(weeksThisLife >= 1); // already past week 1 on load → don't fire
 
@@ -78,17 +84,19 @@ export function AnalyticsTracker(): null {
     prevDeath.current = showDeathPopup;
   }, [showDeathPopup, weeksLived, age, deathReason, ready]);
 
-  // prestige - fire when the generation counter advances.
+  // prestige - fire when the prestige counter advances (both paths increment
+  // it; see the totalPrestiges selector note). Generation rides along as a
+  // property so heir-vs-reset is still distinguishable downstream.
   useEffect(() => {
     if (!ready) {
-      prevGeneration.current = generation;
+      prevPrestiges.current = totalPrestiges;
       return;
     }
-    if (generation > prevGeneration.current) {
-      track('prestige', { generation, weeksLived });
+    if (totalPrestiges > prevPrestiges.current) {
+      track('prestige', { generation, totalPrestiges, weeksLived });
     }
-    prevGeneration.current = generation;
-  }, [generation, weeksLived, ready]);
+    prevPrestiges.current = totalPrestiges;
+  }, [totalPrestiges, generation, weeksLived, ready]);
 
   // session_end + flush when the app backgrounds.
   //
