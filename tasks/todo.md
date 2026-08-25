@@ -1,3 +1,36 @@
+# Round 5 - adversarial review of the subscription-visibility system (owner: "look for bugs and errors", 2026-08-25)
+
+- [x] B1 (real bug, found+fixed): the never-subscribed latch. Session 1 wrote
+      {phase:'none'} to storage, so from session 2 on `prev` was non-null and
+      EVERY free player emitted `subscription_state: none` on EVERY launch -
+      a noise flood in the one series meant to be all signal. Never-subscribed
+      now stays silent and latch-free; the one legitimate 'none' row (a
+      subscriber's record vanishing - account switch) still passes. Regression
+      test drives three consecutive free sessions.
+- [x] B2 (real bug, found+fixed, doc-verified): `unsubscribeDetectedAt` is a
+      detection TIMESTAMP ("non-null when canceled") with no documented reset
+      on re-subscribe, while `willRenew` tracks the CURRENT auto-renew state.
+      OR-ing them branded a RECOVERED member 'cancelling' forever:
+      subscription_recovered could never fire (silently zeroing the exact
+      metric the win-back is judged by) and the win-back line nagged someone
+      who already came back. A boolean willRenew is now authoritative; the
+      timestamp is the fallback for SDK shapes where it is absent/malformed.
+- [x] B3 (robustness, fixed): the once-per-JS-process boolean latch. An app
+      LAUNCHING offline burned its one check on a null fetch and stayed blind
+      all session; an app resident for a week never re-checked at all. Now a
+      6h re-check window + in-flight promise guard; a FAILED check never
+      stamps the throttle; AnalyticsTracker re-triggers on foreground resume.
+- [x] F1 (improvement, implemented): the billing_issue surface. The phase
+      existed only as analytics; it is involuntary churn - a declined/expired
+      card the player never chose and may not know about. DailyGemClaim now
+      shows "Payment issue with DeepLife+ · update payment to keep your daily
+      gems" → Customer Center. The most defensible revenue surface in the
+      app: fixing it is strictly in the player's own interest.
+- [x] Gates + full suite + push.
+
+---
+---
+
 # Subscription visibility — round 4 (owner: "yes do that — I want as many people as renew as possible", 2026-08-25)
 
 The finding this round answers: the app cannot SEE a cancellation. RevenueCat

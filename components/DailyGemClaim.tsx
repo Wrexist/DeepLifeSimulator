@@ -337,6 +337,34 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
           Customer Center, where auto-renew can be turned back on). No
           countdown theatrics, no guilt copy: a true statement to someone who
           already made a decision, and the shortest path to reversing it. */}
+      {/* Involuntary churn: the store reported a payment problem (declined /
+          expired card). The player chose nothing here and may not even know -
+          without this line the first they hear of it is losing access. The
+          single most defensible revenue surface in the app: fixing it is
+          strictly in the player's own interest. */}
+      {active && subHealth?.phase === 'billing_issue' && (
+        <TouchableOpacity
+          onPress={() => void revenueCatService.presentCustomerCenter()}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="There is a payment issue with your DeepLife Plus subscription. Update payment"
+          style={[styles.teaser, light && styles.teaserLight]}
+        >
+          <View style={[styles.iconWrapMuted, light && styles.iconWrapMutedLight]}>
+            <Crown size={scale(16)} color={light ? AMBER_BRAND : GOLD} />
+          </View>
+          <View style={styles.teaserCopy}>
+            <Text style={[styles.teaserText, light && styles.teaserTextLight]}>
+              Payment issue with DeepLife+
+            </Text>
+            <Text style={[styles.teaserSub, light && styles.teaserSubLight]}>
+              Update payment to keep your daily gems
+            </Text>
+          </View>
+          <ChevronRight size={fontScale(16)} color={light ? AMBER_BRAND : GOLD_SOFT} />
+        </TouchableOpacity>
+      )}
+
       {active && subHealth?.phase === 'cancelling' && (
         <TouchableOpacity
           onPress={() => void revenueCatService.presentCustomerCenter()}

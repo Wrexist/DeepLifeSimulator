@@ -48,12 +48,25 @@ describe('readSubscriptionHealth phases', () => {
     expect(h.daysUntilExpiry).toBe(10);
   });
 
-  it('cancelling: unsubscribeDetectedAt catches a lagging willRenew flag', () => {
+  it('a boolean willRenew is AUTHORITATIVE over a stale unsubscribeDetectedAt', () => {
+    // The recovery case: a member cancelled (timestamp set), then re-enabled
+    // auto-renew (willRenew back to true). The SDK docs give the timestamp no
+    // documented reset on re-subscribe, so OR-ing the two signals branded a
+    // RECOVERED member 'cancelling' forever - subscription_recovered could
+    // never fire and the win-back line nagged someone who already came back.
     const h = readSubscriptionHealth(
       activeInfo({ willRenew: true, unsubscribeDetectedAt: new Date(NOW - DAY).toISOString(), expirationDate: inTenDays }),
       NOW,
     );
-    expect(h.phase).toBe('cancelling');
+    expect(h.phase).toBe('renewing');
+  });
+
+  it('unsubscribeDetectedAt is the FALLBACK when willRenew is absent or malformed', () => {
+    const withTimestamp = { unsubscribeDetectedAt: new Date(NOW - DAY).toISOString(), expirationDate: inTenDays };
+    expect(readSubscriptionHealth(activeInfo(withTimestamp), NOW).phase).toBe('cancelling');
+    expect(
+      readSubscriptionHealth(activeInfo({ ...withTimestamp, willRenew: 'yes' }), NOW).phase,
+    ).toBe('cancelling');
   });
 
   it('billing_issue outranks cancelling - the player may not KNOW access is at risk', () => {

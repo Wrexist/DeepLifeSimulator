@@ -88,9 +88,28 @@ describe('gating', () => {
     expect(firedNames()).not.toContain('subscription_lapsed');
   });
 
-  it('never-subscribed players emit nothing at all', async () => {
-    await observe({ entitlements: { active: {}, all: {} } });
+  it('never-subscribed players emit nothing at all - on EVERY session, not just the first', async () => {
+    // Review finding B1: the first draft wrote the latch on session 1, which
+    // made `prev` non-null from session 2 on and turned every free player
+    // into a `subscription_state: none` row on every launch, forever.
+    const nobody = { entitlements: { active: {}, all: {} } };
+    await observe(nobody);
+    await observe(nobody);
+    await observe(nobody);
     expect(mockTrack).not.toHaveBeenCalled();
+  });
+
+  it('an offline LAUNCH recovers within the same session once connectivity returns', async () => {
+    // Review finding B3: a boolean once-per-process latch burned the session's
+    // one check on a null fetch. A failed check must not stamp the throttle,
+    // so the foreground re-trigger can retry.
+    __resetSubscriptionHealthMonitorForTests();
+    rcInfo = null;
+    await checkSubscriptionHealth();
+    expect(mockTrack).not.toHaveBeenCalled();
+    rcInfo = activeInfo({ willRenew: true, expirationDate: soon(10) });
+    await checkSubscriptionHealth(); // same process, NO reset - the resume retry
+    expect(firedNames()).toContain('subscription_state');
   });
 });
 

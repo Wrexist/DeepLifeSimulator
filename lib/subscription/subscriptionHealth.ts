@@ -111,9 +111,22 @@ export function readSubscriptionHealth(
       if (readDateMs(active.billingIssueDetectedAt) !== undefined) {
         return { phase: 'billing_issue', ...base };
       }
-      // `willRenew === false` is the deliberate signal; `unsubscribeDetectedAt`
-      // catches SDK versions/edge cases where the flag lags the store event.
-      if (active.willRenew === false || readDateMs(active.unsubscribeDetectedAt) !== undefined) {
+      // `willRenew` is AUTHORITATIVE whenever it is a real boolean - it tracks
+      // the CURRENT auto-renew state and flips back to true when a cancelled
+      // member re-enables renewal. `unsubscribeDetectedAt` is only a detection
+      // TIMESTAMP ("non-null when canceled", per the SDK docs) with no
+      // documented reset on re-subscribe - so OR-ing the two, as the first
+      // draft did, could brand a RECOVERED member 'cancelling' forever:
+      // subscription_recovered would never fire (silently zeroing the metric
+      // the win-back effort is judged by) and the win-back line would nag
+      // someone who already came back. The timestamp is therefore only the
+      // FALLBACK for an SDK shape where willRenew is absent or malformed.
+      const willRenew = active.willRenew;
+      const cancelled =
+        typeof willRenew === 'boolean'
+          ? willRenew === false
+          : readDateMs(active.unsubscribeDetectedAt) !== undefined;
+      if (cancelled) {
         return { phase: 'cancelling', ...base };
       }
       const period = typeof active.periodType === 'string' ? active.periodType.toUpperCase() : '';

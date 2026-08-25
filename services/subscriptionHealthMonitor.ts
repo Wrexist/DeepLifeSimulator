@@ -52,13 +52,26 @@ interface StoredHealth {
   expiresAt?: number;
 }
 
-let checkedThisSession = false;
+/**
+ * Re-check window. A plain "once per JS process" boolean had two failure
+ * modes the review caught: an app that LAUNCHES offline burned its one check
+ * on a null fetch and stayed blind for the whole session, and an app kept
+ * resident for a week never re-checked at all - so a renewal or cancel in
+ * that week went unseen until the next cold start. A successful check stamps
+ * `lastCheckedAt`; a failed one deliberately does not, so the foreground
+ * re-trigger retries the moment connectivity is back.
+ */
+const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+let lastCheckedAt = 0;
+let inFlight: Promise<void> | null = null;
 let lastObserved: SubscriptionHealth | null = null;
 const listeners = new Set<(h: SubscriptionHealth) => void>();
 
 /** Test hook: reset module state between cases. */
 export function __resetSubscriptionHealthMonitorForTests(): void {
-  checkedThisSession = false;
+  lastCheckedAt = 0;
+  inFlight = null;
   lastObserved = null;
   listeners.clear();
 }
@@ -144,18 +157,25 @@ function emitEdges(prev: StoredHealth | null, next: SubscriptionHealth): void {
  * safe (all failure paths swallow - analytics must never break the app).
  */
 export async function checkSubscriptionHealth(): Promise<void> {
-  try {
-    if (checkedThisSession) return;
-    if (!revenueCatService.isEnabled()) return;
-    // Latched BEFORE the awaits so a second caller in the same session cannot
-    // race into a duplicate emission (the §4.4 gate-then-grant shape, applied
-    // to events).
-    checkedThisSession = true;
+  if (Date.now() - lastCheckedAt < RECHECK_INTERVAL_MS) return;
+  if (!revenueCatService.isEnabled()) return;
+  // A single in-flight promise is the concurrency guard (the §4.4
+  // gate-then-grant shape, applied to events): two callers in one tick share
+  // one run instead of racing into duplicate emissions.
+  if (inFlight) return inFlight;
+  inFlight = runCheck().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
 
+async function runCheck(): Promise<void> {
+  try {
     const info = await revenueCatService.getCustomerInfoSnapshot();
-    // Could not ask (offline, SDK error): say nothing and - critically - do
-    // not overwrite the latch, or the next successful read would mis-detect a
-    // lapse against a blank baseline.
+    // Could not ask (offline, SDK error): say nothing, do not stamp
+    // `lastCheckedAt` (so the foreground re-trigger can retry), and -
+    // critically - do not overwrite the latch, or the next successful read
+    // would mis-detect a lapse against a blank baseline.
     if (info === null) return;
 
     const health = readSubscriptionHealth(info, Date.now(), [
@@ -164,23 +184,31 @@ export async function checkSubscriptionHealth(): Promise<void> {
     ]);
     const prev = parseStored(await safeGetItem(LAST_STATE_KEY));
 
+    // Never-subscribed and still never-subscribed: nothing to say and nothing
+    // worth remembering. The first draft wrote the latch here, which made
+    // `prev` non-null from session 2 on and turned every FREE player into a
+    // `subscription_state: none` row on every launch, forever - a noise flood
+    // in exactly the series meant to be all signal (review finding B1). The
+    // one legitimate 'none' row - a subscriber's record vanishing entirely
+    // (account switch/logout) - still passes: its `prev` phase is not 'none'.
+    if (health.phase === 'none' && (prev === null || prev.phase === 'none')) {
+      lastCheckedAt = Date.now();
+      return;
+    }
+
     emitEdges(prev, health);
 
-    // The time-series snapshot. 'none' with no history is every free player on
-    // every launch - noise; 'none' AFTER history is a churned subscriber and
-    // stays in the series.
-    if (health.phase !== 'none' || prev !== null) {
-      track('subscription_state', {
-        phase: health.phase,
-        daysUntilExpiry: health.daysUntilExpiry ?? null,
-        productId: health.productId ?? null,
-      });
-    }
+    track('subscription_state', {
+      phase: health.phase,
+      daysUntilExpiry: health.daysUntilExpiry ?? null,
+      productId: health.productId ?? null,
+    });
 
     await safeSetItem(
       LAST_STATE_KEY,
       JSON.stringify({ phase: health.phase, expiresAt: health.expiresAt } satisfies StoredHealth),
     );
+    lastCheckedAt = Date.now();
 
     lastObserved = health;
     for (const cb of listeners) {

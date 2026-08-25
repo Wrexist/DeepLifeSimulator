@@ -143,6 +143,11 @@ export function AnalyticsTracker(): null {
         // spent backgrounded as play.
         sessionEnded.current = false;
         sessionStart.current = Date.now();
+        // Re-check subscription health on resume: the monitor self-throttles
+        // (6h window, and a FAILED check never stamps), so this is what lets
+        // an offline launch recover visibility once connectivity returns and
+        // a week-resident process still see a renewal happen.
+        void checkSubscriptionHealth();
       } else if (next === 'inactive') {
         void analytics.flush();
       }
