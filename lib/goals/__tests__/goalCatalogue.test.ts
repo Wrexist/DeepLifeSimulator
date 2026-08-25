@@ -200,6 +200,20 @@ function probeStates(): GameState[] {
         { id: 'co3', name: 'C', type: 'restaurant', weeklyIncome: 2600, level: 1 } as never,
       ],
     }),
+    // A small and a mid-sized market portfolio — the investor bar between
+    // rungs, at two distinct values.
+    createTestGameState({
+      stocks: { holdings: [{ symbol: 'AAA', shares: 100, currentPrice: 20 }] } as never,
+    }),
+    createTestGameState({
+      stocks: { holdings: [{ symbol: 'AAA', shares: 1000, currentPrice: 30 }] } as never,
+    }),
+    // One entry-tier luxury item, then a finished entry set with a premium
+    // piece — the collection bar on two different sets at two values.
+    createTestGameState({ luxuryItems: ['rare_watch_collection'] }),
+    createTestGameState({
+      luxuryItems: ['rare_watch_collection', 'museum_diamond', 'fine_art_collection'],
+    }),
     // A prestiged dynasty with nothing claimed, then with two contracts in —
     // the legacy-contracts bar off its floor.
     createTestGameState({

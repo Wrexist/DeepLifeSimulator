@@ -20,6 +20,7 @@ import {
   Zap,
   Mail,
   BookOpen,
+  CalendarClock,
 } from 'lucide-react-native';
 import { useGameState } from '@/contexts/GameContext';
 import { safeSettings } from "@/utils/safeGameState";
@@ -27,6 +28,9 @@ import { scale, responsivePadding, responsiveBorderRadius, responsiveFontSize, r
 import { formatMoney } from '@/utils/moneyFormatting';
 import { computeWelcomeBackBonus } from '@/utils/welcomeBackBonus';
 import { primaryGoal } from '@/lib/goals';
+import { upcomingEvents } from '@/lib/anticipation';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
+import { track } from '@/lib/analytics';
 const LinearGradient = Gradient;
 
 const { width: _screenWidth } = Dimensions.get('window');
@@ -46,6 +50,20 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
   const daysAway = Math.floor((Date.now() - lastLogin) / MS_PER_DAY);
   const weeksAway = Math.floor(daysAway / 7);
   const hoursAway = Math.floor((Date.now() - lastLogin) / (1000 * 60 * 60));
+
+  // Top of the return funnel: record that the summary actually PRESENTED (it
+  // can lose the interruption slot and never show), carrying the absence
+  // length. Once per popup appearance, not per render.
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (!visible) {
+      trackedRef.current = false;
+      return;
+    }
+    if (trackedRef.current) return;
+    trackedRef.current = true;
+    track('return_summary_viewed', { daysAway });
+  }, [visible, daysAway]);
 
   // Animations
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -285,7 +303,12 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                       Net Worth
                     </Text>
                     <Text style={[styles.statValue, isDarkMode && styles.statValueDark]}>
-                      {formatMoney((gameState.stats.money || 0) + (gameState.bankSavings || 0))}
+                      {/* The canonical net-worth calculator, not cash+savings:
+                          the popup used to understate for anyone holding
+                          property, stocks, crypto or a company - on the one
+                          screen summarising their life. Same source as the
+                          home dashboard, so the two cannot disagree. */}
+                      {formatMoney(calculateNetWorth(gameState))}
                     </Text>
                   </View>
                 </View>
@@ -318,6 +341,14 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                   const streakCount = gameState.playStreak?.count || 0;
                   const pendingEventsCount = (gameState.pendingEvents || []).length;
                   const hasCliffhanger = !!gameState.pendingCliffhanger;
+                  // What's COMING, from the same anticipation engine as the
+                  // home dashboard's Week Ahead card. The game does not
+                  // simulate while closed, so the honest return summary is not
+                  // a fabricated delta - it is where you stand plus what is
+                  // already scheduled to land. Two rows: enough to create a
+                  // reason to press Next Week, not enough to push the Continue
+                  // button off-screen.
+                  const coming = upcomingEvents(gameState, { limit: 2 });
                   // The same derived recommendation the home screen shows, so the
                   // return screen and the dashboard cannot tell the player two
                   // different things. Pure and cheap; nothing is stored or paid.
@@ -344,10 +375,31 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                             <TrendingUp size={scale(18)} color="#F59E0B" />
                           </View>
                           <Text style={[styles.infoText, isDarkMode && styles.infoTextDark]}>
-                            Play streak: {streakCount} days (+{Math.min(streakCount * 2, 20)}% income)
+                            {/* The counter counts consecutive WEEKS PLAYED
+                                (week-advances under 48h apart), not calendar
+                                days - the old "N days" label promised a daily
+                                habit the code never measured. */}
+                            Play streak: {streakCount} weeks in a row (+{Math.min(streakCount * 2, 20)}% income)
                           </Text>
                         </View>
                       )}
+                      {coming.map((u) => (
+                        <View style={styles.infoRow} key={u.id}>
+                          <View style={styles.infoIcon}>
+                            <CalendarClock size={scale(18)} color="#0EA5E9" />
+                          </View>
+                          <Text
+                            style={[styles.infoText, isDarkMode && styles.infoTextDark]}
+                            numberOfLines={2}
+                          >
+                            {u.weeksAway <= 0
+                              ? `This week: ${u.title}`
+                              : u.weeksAway === 1
+                                ? `Next week: ${u.title}`
+                                : `In ${u.weeksAway} weeks: ${u.title}`}
+                          </Text>
+                        </View>
+                      ))}
                       {pendingEventsCount > 0 && (
                         <View style={styles.infoRow}>
                           <View style={styles.infoIcon}>

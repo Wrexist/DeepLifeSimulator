@@ -26,6 +26,12 @@ import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import { trackFirstPremiumValue } from '@/utils/premiumValueTracking';
+import {
+  lastObservedSubscriptionHealth,
+  subscribeSubscriptionHealth,
+} from '@/services/subscriptionHealthMonitor';
+import { revenueCatService } from '@/services/RevenueCatService';
+import type { SubscriptionHealth } from '@/lib/subscription/subscriptionHealth';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { haptic } from '@/utils/haptics';
 import { scale, fontScale } from '@/utils/scaling';
@@ -144,6 +150,15 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
   const { saveGame } = useGameActions();
   const reducedMotion = useReducedMotion();
   const { active, open, present, close } = useDeepLifePlusUpsell('daily_gems');
+
+  // Win-back window: the session's subscription-health parse, when it lands.
+  // `cancelling` means still entitled, auto-renew OFF - the one state where a
+  // renewal can still be recovered. Null on non-RevenueCat builds and until
+  // the monitor's once-per-session check completes.
+  const [subHealth, setSubHealth] = useState<SubscriptionHealth | null>(
+    lastObservedSubscriptionHealth(),
+  );
+  useEffect(() => subscribeSubscriptionHealth(setSubHealth), []);
   const lastClaim = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaim, shallowEqual);
   const lastClaimAt = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaimAt);
   const lastClaimWeek = useGameSelector((s) => s.settings?.deepLifePlusLastGemClaimWeek);
@@ -315,6 +330,66 @@ export default function DailyGemClaim({ onDarkSurface = false }: { onDarkSurface
           <SubscriptionModal visible={open} onClose={close} />
         </>
       ) : null}
+
+      {/* Win-back: shown ONLY to a member who has already cancelled but is
+          still entitled. One factual line - the end date and that the daily
+          drop continues until then - plus the door back (RevenueCat's
+          Customer Center, where auto-renew can be turned back on). No
+          countdown theatrics, no guilt copy: a true statement to someone who
+          already made a decision, and the shortest path to reversing it. */}
+      {/* Involuntary churn: the store reported a payment problem (declined /
+          expired card). The player chose nothing here and may not even know -
+          without this line the first they hear of it is losing access. The
+          single most defensible revenue surface in the app: fixing it is
+          strictly in the player's own interest. */}
+      {active && subHealth?.phase === 'billing_issue' && (
+        <TouchableOpacity
+          onPress={() => void revenueCatService.presentCustomerCenter()}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="There is a payment issue with your DeepLife Plus subscription. Update payment"
+          style={[styles.teaser, light && styles.teaserLight]}
+        >
+          <View style={[styles.iconWrapMuted, light && styles.iconWrapMutedLight]}>
+            <Crown size={scale(16)} color={light ? AMBER_BRAND : GOLD} />
+          </View>
+          <View style={styles.teaserCopy}>
+            <Text style={[styles.teaserText, light && styles.teaserTextLight]}>
+              Payment issue with DeepLife+
+            </Text>
+            <Text style={[styles.teaserSub, light && styles.teaserSubLight]}>
+              Update payment to keep your daily gems
+            </Text>
+          </View>
+          <ChevronRight size={fontScale(16)} color={light ? AMBER_BRAND : GOLD_SOFT} />
+        </TouchableOpacity>
+      )}
+
+      {active && subHealth?.phase === 'cancelling' && (
+        <TouchableOpacity
+          onPress={() => void revenueCatService.presentCustomerCenter()}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Your DeepLife Plus subscription is set to end. Manage subscription"
+          style={[styles.teaser, light && styles.teaserLight]}
+        >
+          <View style={[styles.iconWrapMuted, light && styles.iconWrapMutedLight]}>
+            <Crown size={scale(16)} color={light ? AMBER_BRAND : GOLD} />
+          </View>
+          <View style={styles.teaserCopy}>
+            <Text style={[styles.teaserText, light && styles.teaserTextLight]}>
+              DeepLife+ ends{' '}
+              {typeof subHealth.expiresAt === 'number'
+                ? new Date(subHealth.expiresAt).toLocaleDateString()
+                : 'soon'}
+            </Text>
+            <Text style={[styles.teaserSub, light && styles.teaserSubLight]}>
+              Daily gems continue until then · manage subscription
+            </Text>
+          </View>
+          <ChevronRight size={fontScale(16)} color={light ? AMBER_BRAND : GOLD_SOFT} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

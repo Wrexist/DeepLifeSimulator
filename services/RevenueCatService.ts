@@ -220,6 +220,25 @@ class RevenueCatService {
     }
   }
 
+  /**
+   * The raw customerInfo object, for readers that need MORE than the two
+   * entitlement booleans - the subscription-health monitor reads willRenew /
+   * expirationDate / periodType / billing flags off it. Null when disabled or
+   * on any error; also refreshes the entitlement cache, since the info is in
+   * hand anyway.
+   */
+  async getCustomerInfoSnapshot(): Promise<unknown | null> {
+    if (!(await this.configure())) return null;
+    try {
+      const info = await loadPurchases().getCustomerInfo();
+      this.cacheFrom(info);
+      return info;
+    } catch (error) {
+      log.warn('getCustomerInfoSnapshot failed', { error });
+      return null;
+    }
+  }
+
   /** Current entitlements (all false if disabled / on any error). */
   async getEntitlements(): Promise<RcEntitlements> {
     if (!(await this.configure())) return { adsRemoved: false, premium: false };

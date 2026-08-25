@@ -1,3 +1,277 @@
+# Round 5 - adversarial review of the subscription-visibility system (owner: "look for bugs and errors", 2026-08-25)
+
+- [x] B1 (real bug, found+fixed): the never-subscribed latch. Session 1 wrote
+      {phase:'none'} to storage, so from session 2 on `prev` was non-null and
+      EVERY free player emitted `subscription_state: none` on EVERY launch -
+      a noise flood in the one series meant to be all signal. Never-subscribed
+      now stays silent and latch-free; the one legitimate 'none' row (a
+      subscriber's record vanishing - account switch) still passes. Regression
+      test drives three consecutive free sessions.
+- [x] B2 (real bug, found+fixed, doc-verified): `unsubscribeDetectedAt` is a
+      detection TIMESTAMP ("non-null when canceled") with no documented reset
+      on re-subscribe, while `willRenew` tracks the CURRENT auto-renew state.
+      OR-ing them branded a RECOVERED member 'cancelling' forever:
+      subscription_recovered could never fire (silently zeroing the exact
+      metric the win-back is judged by) and the win-back line nagged someone
+      who already came back. A boolean willRenew is now authoritative; the
+      timestamp is the fallback for SDK shapes where it is absent/malformed.
+- [x] B3 (robustness, fixed): the once-per-JS-process boolean latch. An app
+      LAUNCHING offline burned its one check on a null fetch and stayed blind
+      all session; an app resident for a week never re-checked at all. Now a
+      6h re-check window + in-flight promise guard; a FAILED check never
+      stamps the throttle; AnalyticsTracker re-triggers on foreground resume.
+- [x] F1 (improvement, implemented): the billing_issue surface. The phase
+      existed only as analytics; it is involuntary churn - a declined/expired
+      card the player never chose and may not know about. DailyGemClaim now
+      shows "Payment issue with DeepLife+ · update payment to keep your daily
+      gems" → Customer Center. The most defensible revenue surface in the
+      app: fixing it is strictly in the player's own interest.
+- [x] Gates + full suite + push.
+
+---
+---
+
+# Subscription visibility — round 4 (owner: "yes do that — I want as many people as renew as possible", 2026-08-25)
+
+The finding this round answers: the app cannot SEE a cancellation. RevenueCat
+hands over `willRenew` / `expirationDate` / `periodType` /
+`unsubscribeDetectedAt` / `billingIssueDetectedAt` in the same customerInfo
+the service already fetches, and `readEntitlements` keeps two booleans and
+discards the rest. Zero renewal/cancel/lapse events exist in the catalogue,
+so a subscriber who cancelled yesterday and a delighted one look identical
+until the entitlement silently lapses. Renewals cannot be maximised while
+they are invisible - and `willRenew: false` while still active IS the
+win-back window.
+
+- [x] S1. lib/subscription/subscriptionHealth.ts - pure parser from a raw
+      customerInfo shape to a typed phase machine: none / trial / intro /
+      renewing / cancelling / billing_issue / lapsed / lifetime, plus
+      expiresAt + daysUntilExpiry. Fully defensive (SDK object off the wire).
+- [x] S2. RevenueCatService.getCustomerInfoSnapshot() - guarded raw fetch
+      beside getEntitlements, so the monitor never re-implements configure().
+- [x] S3. services/subscriptionHealthMonitor.ts - device-local last-state
+      latch (the premiumValueTracking AsyncStorage pattern; NOT save format)
+      that emits `subscription_state` once per session plus the EDGES:
+      subscription_cancel_detected (renewing→cancelling - THE churn signal),
+      subscription_renewed (expiry advanced), subscription_recovered
+      (cancelling→renewing - the win-back worked), subscription_lapsed.
+- [x] S4. Catalogue: the five names above.
+- [x] S5. Wiring: fire-and-forget from AnalyticsTracker on mount (the one
+      render-free component that owns transition instrumentation), RC builds
+      only.
+- [x] S6. The action layer: when phase is `cancelling`, DailyGemClaim - the
+      surface where the paid perk is FELT daily - states the fact once:
+      "DeepLife+ ends <date>; daily gems continue until then", tap → the
+      Customer Center. Honest by construction: a true statement, no countdown
+      theatrics, no guilt copy, shown only to someone who already cancelled.
+- [x] S7. Tests: the phase machine (every branch), the monitor's edge
+      emission + once-per-session behaviour with mocked storage/track.
+- [x] S8. Full gates, push.
+
+NOT in this round: server-side RevenueCat webhooks (authoritative, but needs
+infra the owner must host - the client-observed signal covers the decision
+need first) and any discount/offer win-back (a pricing decision).
+
+---
+---
+
+# Endgame depth — round 3 (owner picked "Endgame content depth", 2026-08-25)
+
+The mapped ceiling: Life Chapters stop at 7 (week 250 / $10M / age 60), the
+luxury catalog tops out at $500M, the Dynasty Seat's last wing is $5B, and
+PRESTIGE_UNLOCKS has nothing above tier 5 — so a long life runs out of
+direction and prestige 6 is mechanically identical to prestige 5. The brief's
+rule governs the fix: "do not rely on larger numbers alone."
+
+Reachability checked FIRST (tasks/lessons.md 2026-08-10 — two content goals
+shipped unreachable): life-expectancy ceiling is 92 (LONGEVITY_PIVOT_MAX), so
+age goals stop at 85; 159 achievements exist, so 100 claimed is demanding but
+real; the economy already names $5B (Seat) and $1T (Archive), so $10B is
+inside its own vocabulary; chapters pay ONLY on full completion, so every goal
+in a chapter must be co-achievable in one life.
+
+- [x] E1. Life Chapters 8-10, continuing the ch6→ch7 escalation ratio
+      (x10 wealth, x2 achievements, +15-20 age). Ch8 The Long Reign
+      [400 wks]: $100M / 60 achievements / 5 companies / age 75. Ch9 The
+      Great House [600]: $1B / 80 achievements / 8 properties / age 85.
+      Ch10 Written in Stone [900]: $10B / 100 achievements / life quality 85 /
+      10 companies — deliberately no age goal, so the 92 ceiling can never
+      make the capstone unreachable.
+- [x] E2. Ancestor events (lib/events/ancestorEvents.ts): a pack that reads
+      the player's OWN previousLives and names them. This is the piece that
+      makes life N feel unlike life 1 — the brief's "player history matters"
+      and the answer to "why start another life". Every record field needed
+      (name, generation, netWorth, ageAtDeath, careerHistory, ribbonName,
+      spouseName) is already stored and read by nothing but the timeline.
+      Gated on dynasty DEPTH (previousLives), not on a prestige tier.
+- [x] E3. One ancestor event ties the round-2 records board to the event
+      system: an ancestor's net worth quoted back as a challenge to beat.
+- [x] E4. Tests: chapter ladder invariants (monotonic targets, no duplicate
+      ids, every goal reachable-shaped), ancestor pack determinism + the
+      "never fires without an ancestor" gate.
+- [x] E5. Full gates: both type trees, lint + ratchet, routes, full suite,
+      push.
+
+## Deliberately NOT doing
+
+- Raising UnlockTier / PrestigeTier past 5. It is a type-level cap with
+  Math.min(5, ...) call sites, and a new tier is only worth adding when it
+  gates something that EXISTS. Ancestor content is gated on dynasty depth
+  instead, which is the truer trigger: what summons your ancestors is having
+  ancestors, not a prestige counter.
+- More luxury catalog entries above $500M. That is the "larger numbers alone"
+  the brief rules out, and a purchase is not a reason to return.
+
+---
+---
+
+# Retention program round 2 — the flagged recommendations (owner: "continue, do your recommendations", 2026-08-25)
+
+Working the §16 "remaining issues" from the round-1 report, each per my stated
+recommendation:
+
+- [x] F1. Heirless-death honesty: "Start New Life" wipes prestige, legacy
+      points, the Dynasty Tree, contracts, ribbons and gems with NO warning.
+      Add a confirm that says exactly what is kept (device memorial archive,
+      purchased entitlements) and what is lost. No economy change.
+- [x] F2. Records surface: lib/legacy/records.ts deriving family bests from
+      previousLives + the live life (best net worth, best life quality,
+      longest life, most companies/children, generations) + a FamilyRecordsCard
+      on the Progression tab. Derived only — no schema change; sidesteps the
+      stale prestige.lifetimeStats.maxNetWorth rather than trusting it.
+- [x] F3. Heir-path lifetime stats: continueAsChild (death → heir) passes
+      lifetimeStats through UNCHANGED, so a dynasty played through deaths
+      (never prestiging) accrues nothing toward 'A Long Life' / weeks / peak
+      contracts. Accumulate via the same calculateLifetimeStats the prestige
+      path uses (no double-count: the two paths are disjoint).
+- [x] F4. Weekly-challenge rotation: floor(w/4)%12 is the same 12-challenge
+      order for every player and every life. Per-life seeded permutation
+      (lineageId:generationNumber, the cliffhanger/market salt precedent) —
+      deterministic within a life, different across lives.
+- [x] F5. Event rarity (display-only): optional `rarity` on EventTemplate,
+      tag the secret events legendary + top wealth/milestone one-shots rare,
+      badge in WeeklyEventModal. Discovery signalling; NO selection change.
+- [x] F6. Delete dead schema: `Scenario.timeLimit` deleted (advertised
+      nowhere, enforced nowhere — the rewards.achievement/title precedent).
+      `GameState.completedGoals` deliberately NOT deleted: types.ts documents
+      keeping it as the prior audit's explicit call ("a migration is the
+      riskiest kind of no-op — leave it alone"); respected, not re-litigated.
+- [x] F7. Fill the post-$1B contract gap: wealth $10B rung between the $1B
+      and $1T contracts (derived board, one row).
+- [ ] F8. Tests per item; type-check both trees; lint; routes; full suite;
+      push.
+
+---
+---
+
+# Retention program — return loop, direction, variety, memory (owner program, 2026-08-25)
+
+Owner brief: the "MASTER PROGRAM 5 — RETENTION" prompt. Audit the player
+lifecycle, implement the highest-impact improvements, no dark patterns, no
+fake urgency — the player's own life is the retention mechanic. Approach:
+four parallel deep audits (return experience, goals/direction, events/content,
+replayability/meta), every load-bearing claim re-verified against source
+before any change (lessons.md rule). The game is tick-on-tap with no offline
+simulation and no push notifications (removed after a TurboModule crash), so
+the return loop must be built from honest in-save state: anticipation, an
+accurate summary, and direction — not fabricated deltas.
+
+## P1 — The return loop (D1): make coming back land
+
+- [x] R1. Honest session clock. `lastLogin` is stamped ONLY at life creation
+      and on welcome-back grant, so "Last played: X ago" reads the last CLAIM,
+      not the last session — a player returning within 24h for a week then
+      leaving 30h is told "1 week ago" and paid 7 days of salary for a 1-day
+      absence. Fix: stamp `lastLogin = now` once per Home mount when
+      `hoursAway <= 24` (below the popup threshold, so a genuine day-plus
+      absence is never overwritten before the popup/grant resolves it). No
+      save-format change; the v44 game-week gate stays as-is.
+- [x] R2. Welcome-back popup becomes a real return summary: net worth via the
+      canonical `calculateNetWorth` (today `money + bankSavings`, understating
+      for owners), add a "Coming up" section from the anticipation engine
+      (`upcomingEvents`, today consumed by exactly one scroll-down card), keep
+      the goal line. No fabricated "while you were away" deltas — the world
+      doesn't move offline, so the honest content is where you stand + what's
+      coming.
+- [x] R3. Fix the popup race: the welcome-back spawner refuses to run while the
+      daily-gem popup is up, and the daily popup fires 700ms earlier — so on
+      the exact session type it was built for, the return summary usually never
+      shows. Remove the suppression (the declarative interruption queue already
+      sequences claimants) and rank WELCOME_BACK above DAILY_REWARD so the
+      returning player sees their life first, gems second.
+- [x] R4. Continue card on MainMenu shows "Last played X ago · Week N" —
+      `saveSlotMeta` already stores `updatedAt` and `weeksLived`; the card
+      drops both today.
+- [x] R5. Analytics: `return_summary_viewed` (typed catalogue) fired from the
+      welcome-back popup, so the return funnel is measurable.
+
+## P2 — Direction (D3–D30): goals that fit the player
+
+- [x] G1. Playstyle-weighted goals. `lib/goals/playstyle.ts`: pure classifier
+      over GameState (career / business / investor / social / criminal
+      emphases, scored not bucketed). Catalogue priorities consume it so a
+      founder's SOON goal is the second location, an investor's the next
+      portfolio rung — today every priority is a constant literal. Engine
+      stays stateless (no storage, no migration).
+- [x] G2. New state-conditioned goals using existing derived "next target"
+      helpers that have no goal consumer today: luxury collection progress
+      (`getNextCollectionTarget`), plus investor/social SOON goals so every
+      playstyle has a lane.
+- [x] G3. Scenario challenge visibility. 23 authored challenge scenarios
+      (win conditions + time limits) are evaluated ONLY at first prestige and
+      surface NOWHERE during play. Add pure per-condition progress
+      (`lib/scenarios/progress.ts`) + a home-feed card shown while the run is
+      live. The content exists; it needs its consumer.
+
+## P3 — Variety (D30+): stop verbatim repetition
+
+- [x] V1. Per-event-id recency suppression, derived from `eventLog` (no new
+      state): the generic weighted pool drops templates that fired within the
+      last N weeks unless that empties the pool. Today only 16 of ~374
+      templates have ANY repeat guard.
+- [x] V2. Life Moments off `Math.random()` → the seeded weekly roll every
+      other content path uses (CLAUDE.md §4.3 class), + prefer-unseen
+      selection against `choiceHistory`.
+
+## P4 — Memory & honesty (long-term + trust)
+
+- [x] M1. Death screen sells the next life: ribbon collection progress
+      ("N of 26 discovered") and the best-previous-life comparison — both
+      already computed, rendered only in a modal behind IdentityCard.
+      Fix the death-screen prestige-points caption that promises points on
+      paths that never award them.
+- [x] M2. Cap `previousLives` at append (50, like prestigeHistory) — today
+      unbounded.
+- [x] M3. Prestige analytics blind spot: `track('prestige')` watches
+      `generationNumber`, which the reset path deliberately does not
+      increment — every "start fresh" prestige is invisible. Watch
+      `prestige.totalPrestiges` instead.
+- [x] M4. Copy honesty: the "across every life" Legacy Contract reads a
+      per-life metric (align copy with what's measured); "N day streak" labels
+      a counter that counts week-advances, not days.
+
+## Verify + ship
+
+- [x] T1. Tests per item; type-check both trees; lint:errors; routes.
+- [x] T2. Full Jest suite.
+- [x] T3. Commit + push to claude/deep-life-retention-9jcr6u; final report.
+
+## Deliberately NOT doing (Impact × Value ÷ Complexity)
+
+- Push notifications — removed after the iOS 26 TurboModule crash; re-adding a
+  native module is an owner/platform decision, not a retention drive-by.
+- Offline/absence simulation — the game is deliberately tick-on-tap; paying
+  out for wall-clock absence is the exact exploit class v28/v35/v44 closed.
+  The return loop is built on anticipation instead.
+- Daily chores / streak escalation / FOMO timers — against the brief's own
+  philosophy; existing streaks audited as non-punitive and left that way.
+- A live-ops server content pipeline — the content system is already
+  data-driven in-repo (templates, catalogues, one-line sequels); a remote
+  layer adds failure modes the brief warns about with no content to feed it.
+
+---
+---
+
 # "Fix what's next" — the nine flagged items (owner, 2026-08-25)
 
 Owner: "Fix everything that's next you said in what's next". Working the nine

@@ -33,6 +33,7 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import ScenarioChallengeCard from '@/components/ScenarioChallengeCard';
 import NextGoalsCard from '@/components/NextGoalsCard';
 import WeekAheadCard from '@/components/WeekAheadCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
@@ -55,7 +56,7 @@ import {
 import { DISCORD_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
-import { applyWelcomeBackBonus, welcomeBackClaimed } from '@/utils/welcomeBackBonus';
+import { applyWelcomeBackBonus, welcomeBackClaimed, refreshSessionClock } from '@/utils/welcomeBackBonus';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
@@ -399,6 +400,24 @@ function HomeScreenContent() {
   // which would re-render this screen on every unrelated settings mutation.
   const lastWelcomeBackWeek = useGameSelector((s) => s?.settings?.lastWelcomeBackWeek);
 
+  // Honest session clock. `lastLogin` used to be stamped ONLY at life creation
+  // and on welcome-back grant - so for a player who kept returning inside the
+  // 24h window it went stale for as long as the habit lasted, and the next
+  // day-plus absence was reported (and PAID) as the whole stale span: "Last
+  // played: 1 week ago" plus seven days of salary for a one-day absence. Stamp
+  // it once per Home mount, but only while inside the 24h window - a genuine
+  // day-plus absence is left untouched so the popup can still measure it and
+  // the grant can still close it (`applyWelcomeBackBonus` stamps on close).
+  const sessionClockStampedRef = useRef(false);
+  useEffect(() => {
+    if (sessionClockStampedRef.current) return;
+    sessionClockStampedRef.current = true;
+    // All gates re-checked against `prev` inside the pure helper: a stale
+    // stamp inside 24h is refreshed; a day-plus absence and a rewound clock
+    // are both left untouched (the former belongs to the return summary).
+    setGameState(prev => refreshSessionClock(prev, Date.now()));
+  }, [setGameState]);
+
   // Show welcome back popup for returning players
   useEffect(() => {
     if (weeksThisLife > 1 && gameState.lastLogin) {
@@ -413,21 +432,29 @@ function HomeScreenContent() {
       // `applyWelcomeBackBonus` (the AdRewardOrb spawner pattern, v35): once the
       // bonus has been paid in this `weeksLived`, the popup is not offered at
       // all, so the player never sees one that would credit nothing.
+      //
+      // Deliberately NOT gated on `showDailyRewardPopup` any more: both may
+      // want the slot on the same session, and the interruption queue orders
+      // them (WELCOME_BACK 55 > DAILY_REWARD 50) - the old gate meant the
+      // return summary was silently suppressed on exactly the session type it
+      // was built for, because the daily popup's spawner fired 700ms earlier.
       if (
         hoursAway > 24 &&
         !welcomeBackClaimed({ settings: { lastWelcomeBackWeek }, weeksLived: gameState.weeksLived }) &&
-        !gameState.showDailyRewardPopup &&
         !showWelcomeBack &&
         hasCompletedTutorial
       ) {
+        // 600ms: ahead of the daily popup's 800ms spawn, so the higher-priority
+        // summary claims the slot before the gem popup ever presents - the
+        // player sees summary → gems, not a gem flash replaced mid-animation.
         const timer = setTimeout(() => {
           setShowWelcomeBack(true);
-        }, 1500);
+        }, 600);
         return () => clearTimeout(timer);
       }
     }
     return undefined;
-  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, gameState.showDailyRewardPopup, showWelcomeBack, hasCompletedTutorial]);
+  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, showWelcomeBack, hasCompletedTutorial]);
 
   // ENGAGEMENT: one-time, low-key invite to join the Discord for a cash reward.
   // Subtle by design - only once the player is settled in (tutorial done + a few
@@ -754,6 +781,10 @@ function HomeScreenContent() {
         <FadeInUp delay={55}>
           <AmbitionCard />
           <AmbitionPickerCard />
+          {/* The challenge-scenario run chosen at onboarding - win conditions
+              were previously invisible between onboarding and first prestige.
+              Renders null for non-challenge lives and prestiged dynasties. */}
+          <ScenarioChallengeCard />
           <WeeklyChallengeCard />
         </FadeInUp>
 
@@ -860,7 +891,7 @@ function HomeScreenContent() {
       {/* NOISE: light popup coordination. The root layout owns blocking modals
           (death/wedding) - no celebration/reward popup may present on top of
           them. Within this screen, popups present strictly one at a time in
-          priority order (daily reward > welcome back > community) instead of
+          priority order (welcome back > daily reward > community) instead of
           whichever setTimeout won the race.
 
           Each is MOUNTED only while it holds the slot, which is the pattern the

@@ -21,8 +21,10 @@ import { financialIndependence } from '@/lib/statistics/fireTracker';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { visibleContracts, getContractProgress } from '@/lib/legacy/contracts';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
+import { getNextCollectionTarget, getCompletedCollections } from '@/lib/luxury/collections';
 
 import type { GoalDefinition } from './types';
+import { playstyleEmphasis, investedValue, strongRelationshipCount } from './playstyle';
 
 /** Liquid cash + bank. The "can I actually spend this" number, which is what a
  *  savings goal should measure — net worth counts illiquid property. */
@@ -63,6 +65,26 @@ const NET_WORTH_RUNGS = [100_000, 1_000_000, 10_000_000, 25_000_000, 50_000_000,
 
 const activeNetWorthRung = (s: GameState): number =>
   NET_WORTH_RUNGS.find((r) => netWorth(s) < r) ?? NET_WORTH_RUNGS[NET_WORTH_RUNGS.length - 1];
+
+/**
+ * The portfolio ladder for the investor lane, same shape as SAVINGS_RUNGS:
+ * the lowest rung not yet reached, so the target always moves ahead of the
+ * player rather than ticking off behind them.
+ */
+const PORTFOLIO_RUNGS = [10_000, 50_000, 250_000, 1_000_000];
+
+const activePortfolioRung = (s: GameState): number =>
+  PORTFOLIO_RUNGS.find((r) => investedValue(s) < r) ?? PORTFOLIO_RUNGS[PORTFOLIO_RUNGS.length - 1];
+
+/**
+ * Playstyle weighting (2026-08-25 retention pass). Every priority below used
+ * to be a constant literal, so a founder, a landlord and a careerist saw
+ * identical SOON/DREAM goals in identical order. `playstyleEmphasis` is 0..1
+ * per lane and the coefficients are small (≤30), so it REORDERS within a
+ * horizon and never buries anything: NOW priorities (arrears 200, health 120+)
+ * are untouched and no goal's base priority is reduced.
+ */
+const emphasis = (s: GameState) => playstyleEmphasis(s);
 
 export const GOAL_CATALOGUE: GoalDefinition[] = [
   // ── NOW - actionable inside one or two weeks ──────────────────────────────
@@ -166,7 +188,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
       const c = (s.careers ?? []).find((x) => x?.id === s.currentJob);
       return { current: Math.max(0, Math.min(100, c?.progress ?? 0)), target: 100 };
     },
-    priority: () => 90,
+    priority: (s) => 90 + 15 * emphasis(s).career,
     format: (c, t) => `${Math.round(c)}% / ${Math.round(t)}%`,
     achievementLevel: (s) => {
       const c = (s.careers ?? []).find((x) => x?.id === s.currentJob);
@@ -222,6 +244,8 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     isEligible: (s) => (s.companies ?? []).length === 0 && liquid(s) >= 5_000,
     measure: (s) => ({ current: liquid(s), target: 25_000 }),
     priority: () => 60,
+    // No business emphasis term here on purpose: eligibility requires ZERO
+    // companies, so the signal that would boost it cannot exist yet.
     format: moneyPair,
     achievementLevel: (s) => (s.companies ?? []).length,
   },
@@ -241,7 +265,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
         .reduce((max, r) => Math.max(max, r.relationshipScore ?? 0), 0);
       return { current: Math.max(0, Math.min(100, best)), target: 100 };
     },
-    priority: () => 50,
+    priority: (s) => 50 + 25 * emphasis(s).social,
     format: (c) =>
       c <= 0 ? 'Nobody special yet' : `Closest relationship at ${Math.round(c)}%`,
     achievementLevel: (s) => (s.family?.spouse ? 1 : 0),
@@ -268,7 +292,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     route: '/(tabs)/market',
     isEligible: (s) => ownedProperties(s) >= 1 && ownedProperties(s) < 5,
     measure: (s) => ({ current: ownedProperties(s), target: 5 }),
-    priority: () => 70,
+    priority: (s) => 70 + 15 * emphasis(s).investor,
     format: countPair,
     achievementLevel: (s) => ownedProperties(s),
   },
@@ -303,7 +327,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
       const fi = financialIndependence(s);
       return { current: fi.passiveWeekly, target: fi.expensesWeekly };
     },
-    priority: () => 75,
+    priority: (s) => 75 + 15 * emphasis(s).investor,
     format: moneyPair,
     achievementLevel: (s) => (financialIndependence(s).achieved ? 1 : 0),
   },
@@ -315,7 +339,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     route: '/(tabs)/life',
     isEligible: (s) => (s.family?.children ?? []).length < 2,
     measure: (s) => ({ current: (s.family?.children ?? []).length, target: 2 }),
-    priority: (s) => (s.family?.spouse ? 65 : 30),
+    priority: (s) => (s.family?.spouse ? 65 : 30) + 15 * emphasis(s).social,
     format: countPair,
     achievementLevel: (s) => (s.family?.children ?? []).length,
   },
@@ -332,7 +356,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     route: '/(tabs)/computer',
     isEligible: (s) => (s.companies ?? []).length >= 1 && (s.companies ?? []).length < 5,
     measure: (s) => ({ current: (s.companies ?? []).length, target: 5 }),
-    priority: () => 68,
+    priority: (s) => 68 + 20 * emphasis(s).business,
     format: countPair,
     achievementLevel: (s) => (s.companies ?? []).length,
   },
@@ -371,5 +395,60 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     priority: () => 55,
     format: (c, t) => `${Math.round(c)} / ${t} life quality`,
     achievementLevel: (s) => Math.floor(lifeQuality(s).score / 20),
+  },
+
+  // ── Playstyle lanes (2026-08-25 retention pass). Three goals so the
+  // investor, the social player and the collector each have a lane that speaks
+  // their language — before this, SOON offered them a promotion, a property
+  // and a business regardless of how they actually played. Each reuses a
+  // derived "next target" the codebase already computed with no goal-engine
+  // consumer (the audit's finding on `getNextCollectionTarget`). ─────────────
+  {
+    id: 'soon_grow_portfolio',
+    horizon: 'soon',
+    title: 'Grow your portfolio',
+    rationale: 'Markets compound while a salary only repeats.',
+    route: '/(tabs)/computer',
+    // Only once the player has CHOSEN to invest — offering a portfolio ladder
+    // to someone with no holdings is the dream_dynasty noise rule.
+    isEligible: (s) =>
+      investedValue(s) > 0 && investedValue(s) < PORTFOLIO_RUNGS[PORTFOLIO_RUNGS.length - 1],
+    measure: (s) => ({ current: investedValue(s), target: activePortfolioRung(s) }),
+    priority: (s) => 60 + 30 * emphasis(s).investor,
+    format: moneyPair,
+    achievementLevel: (s) => PORTFOLIO_RUNGS.filter((r) => investedValue(s) >= r).length,
+  },
+  {
+    id: 'soon_deepen_friendships',
+    horizon: 'soon',
+    title: 'Deepen your friendships',
+    rationale: 'Three real friendships carry a life further than thirty contacts.',
+    route: '/(tabs)/life',
+    isEligible: (s) =>
+      weeksInThisLife(s) >= 8 &&
+      (s.relationships ?? []).length >= 1 &&
+      strongRelationshipCount(s) < 3,
+    measure: (s) => ({ current: strongRelationshipCount(s), target: 3 }),
+    priority: (s) => 45 + 30 * emphasis(s).social,
+    format: (c, t) => `${Math.round(c)} / ${Math.round(t)} close bonds`,
+    achievementLevel: (s) => strongRelationshipCount(s),
+  },
+  {
+    id: 'dream_luxury_collection',
+    horizon: 'dream',
+    title: 'Complete a collection',
+    rationale: 'A finished set is a statement no single purchase makes.',
+    route: '/(tabs)/computer',
+    // Only for a player who has started collecting; the first luxury purchase
+    // is its own decision, not a goal we assign.
+    isEligible: (s) =>
+      (s.luxuryItems ?? []).length >= 1 && getNextCollectionTarget(s.luxuryItems) !== undefined,
+    measure: (s) => {
+      const next = getNextCollectionTarget(s.luxuryItems);
+      return { current: next?.owned ?? 0, target: Math.max(1, next?.total ?? 1) };
+    },
+    priority: (s) => 50 + 4 * Math.min(5, (s.luxuryItems ?? []).length),
+    format: countPair,
+    achievementLevel: (s) => getCompletedCollections(s.luxuryItems).length,
   },
 ];

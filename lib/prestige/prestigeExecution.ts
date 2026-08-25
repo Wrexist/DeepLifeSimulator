@@ -18,10 +18,10 @@ import { collectNewlyEarnedPrestigeAchievements } from './prestigeAchievements';
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import { initialGameState } from '@/contexts/game/initialState';
 import { netWorth } from '@/lib/progress/achievements';
-import { nonMirrorDeposits } from '@/lib/banking/operations';
-import { getEarnedAchievementCount, getEarnedAchievementNames, getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
+import { getEarnedAchievementCount, getEarnedAchievementNames } from '@/lib/progress/earnedAchievements';
 import { FamilyMemberNode , FamilyTree } from '@/lib/legacy/familyTree';
 import { SCENARIOS, isScenarioCompleted } from '@/lib/scenarios/scenarioDefinitions';
+import { projectScenarioState } from '@/lib/scenarios/progress';
 import { MAX_PRESTIGE_HISTORY } from './prestigeConstants';
 import { ADULTHOOD_AGE, computeWeeksLived } from '@/lib/config/gameConstants';
 import { simulateChildToAge } from '@/lib/legacy/childSimulation';
@@ -31,7 +31,7 @@ import { applyStartingBonuses, applyLegacyBonuses } from '@/lib/prestige/applyBo
 import { applyUnlockBonuses } from '@/lib/prestige/applyUnlocks';
 import { generateChildMemories, calculateChildInheritance, calculateChildStats } from './childStats';
 import { computeInheritance } from '@/lib/legacy/inheritance';
-import { buildLifeRecord } from '@/lib/legacy/lifeRecord';
+import { appendLifeRecord, buildLifeRecord } from '@/lib/legacy/lifeRecord';
 
 
 /**
@@ -144,58 +144,21 @@ export function executePrestige(
   // Award challenge scenario gems only on first prestige
   let gemsToAward = 0;
   const isFirstPrestige = prestigeData.totalPrestiges === 0;
-  
+
   if (isFirstPrestige) {
-    // Check all challenge scenarios and award gems for completed ones
+    // Check all challenge scenarios and award gems for completed ones.
+    //
+    // The projection is SHARED with the live ScenarioChallengeCard
+    // (`projectScenarioState`, lib/scenarios/progress.ts) so what the card
+    // shows as met during play is exactly what pays here. The mapping used to
+    // be inlined at this site and carries three hard-won fixes documented on
+    // the shared function: careers keep `level` (GL-4 — Political Dynasty was
+    // unwinnable without it), achievements come from the live earned system
+    // (the deprecated catalogue's `completed` flag has no writer), and
+    // bankSavings uses `nonMirrorDeposits` (R4 — a raw account sum
+    // double-counted the two mirror accounts).
+    const scenarioState = projectScenarioState(gameState);
     SCENARIOS.forEach(scenario => {
-      const scenarioState = {
-        stats: { money: gameState.stats.money, reputation: gameState.stats.reputation },
-        age: gameState.date?.age || 18,
-        education: (gameState.educations || []).map(e => ({ id: e.id, completed: e.completed })),
-        // GL-4: `level` must survive the projection. The Political Dynasty
-        // scenario's "Become President" condition is checked with
-        // `'level' in politicalCareer && politicalCareer.level >= 5`, and this
-        // map dropped the field — so `'level' in ...` was false, `isPresident`
-        // was always false, and the 200-gem expert scenario could never score
-        // at prestige no matter how the player played.
-        careers: (gameState.careers || []).map(c => ({
-          id: c.id,
-          accepted: c.accepted,
-          level: c.level,
-        })),
-        relationships: (gameState.relationships || []).map(r => ({ type: r.type })),
-        // Project from the LIVE achievement system, not `gameState.achievements`.
-        //
-        // That array is the deprecated catalogue in `initialState.ts`; its
-        // `completed` flag has NO writer in shipping code — `evaluateAchievements`
-        // is an explicit no-op stub (`lib/progress/achievements.ts:232`). So every
-        // `type: 'achievement'` win condition evaluated against an all-false list
-        // and could never be met, whichever id it named. The real system is
-        // `src/features/onboarding/achievementsData`, where completion is derived
-        // from each achievement's `progressSpec` against current state.
-        //
-        // "Earned", not "claimed": `claimedProgressAchievements` records which
-        // rewards were collected, which is a different question from whether the
-        // life met the condition. 2026-07-31 audit round 3.
-        achievements: getSatisfiedAchievementIds(gameState).map(id => ({ id, completed: true })),
-        companies: (gameState.companies || []).map(c => ({ weeklyIncome: c.weeklyIncome || 0 })),
-        realEstate: (gameState.realEstate || []).map(r => ({ owned: r.owned, value: r.price || 0 })),
-        weeksLived: gameState.weeksLived || 0,
-        // Bank balances count toward the five net-worth scenarios. The
-        // evaluator always read this; nothing ever passed it. Legacy pool plus
-        // the modern per-account balances, which is where savings actually
-        // lives since STATE_VERSION 14.
-        //
-        // R4 correction: `nonMirrorDeposits`, not a raw sum. `banking.accounts`
-        // always holds `checking-default` and `savings-default`, which
-        // `mirrorAccountsFromLegacy` overwrites with `stats.money` and
-        // `bankSavings` on every tick. The evaluator computes
-        // `stats.money + bankSavings + …`, so a raw sum counted BOTH legacy
-        // pools twice and handed out the five net-worth scenarios' gems to
-        // players at roughly half the stated threshold.
-        bankSavings:
-          (gameState.bankSavings || 0) + nonMirrorDeposits(gameState.banking?.accounts ?? []),
-      };
       if (isScenarioCompleted(scenario.id, scenarioState)) {
         gemsToAward += scenario.rewards?.gems || 0;
       }
@@ -393,11 +356,9 @@ function createResetGameState(
   // the ONE shared builder (lib/legacy/lifeRecord.ts) so this path and the
   // heir path below cannot drift - and so the life-quality score, ribbon,
   // career history and family facts the death screen computes stop being
-  // discarded at the only moment they can still be captured.
-  newState.previousLives = [
-    ...(oldState.previousLives || []),
-    buildLifeRecord(oldState),
-  ];
+  // discarded at the only moment they can still be captured. Capped at
+  // MAX_PREVIOUS_LIVES inside the shared append.
+  newState.previousLives = appendLifeRecord(oldState.previousLives, buildLifeRecord(oldState));
 
   // Preserve ribbon collection across prestiges
   newState.ribbonCollection = oldState.ribbonCollection;
@@ -514,8 +475,19 @@ export function continueAsChild(
     selectedChild = simulateChildToAge(selectedChild, gameState, ADULTHOOD_AGE);
   }
 
-  // Preserve prestige data WITHOUT incrementing it
-  const prestigeData = gameState.prestige || defaultPrestigeData;
+  // Preserve prestige data WITHOUT incrementing it - no points, no prestige
+  // count, no new record. But the LIFETIME ledger must still absorb the life
+  // that just ended: `lifetimeStats` previously updated only inside
+  // `executePrestige`, so a dynasty played through deaths (never prestiging)
+  // accrued NOTHING toward the weeks/peak-net-worth Legacy Contracts and
+  // `maxNetWorth` under-reported forever (2026-08-25 retention audit). The
+  // two paths are disjoint - a life ends through exactly one of them - so
+  // accumulating here cannot double-count.
+  const basePrestige = gameState.prestige || defaultPrestigeData;
+  const prestigeData: PrestigeData = {
+    ...basePrestige,
+    lifetimeStats: calculateLifetimeStats(gameState, basePrestige.lifetimeStats),
+  };
 
   // Create new state using createChildGameState but with preserved prestige
   return createChildGameState(gameState, prestigeData, childId);
@@ -725,11 +697,8 @@ function createChildGameState(
 
   // Preserve previous lives AND append the life that just ended (heir path),
   // so the Legacy Timeline and generations counter populate across generations.
-  // Same shared builder as the reset path - see lib/legacy/lifeRecord.ts.
-  newState.previousLives = [
-    ...(oldState.previousLives || []),
-    buildLifeRecord(oldState),
-  ];
+  // Same shared builder and same capped append as the reset path.
+  newState.previousLives = appendLifeRecord(oldState.previousLives, buildLifeRecord(oldState));
 
   // Preserve ribbon collection and discovered secrets across legacy transitions
   newState.ribbonCollection = oldState.ribbonCollection;

@@ -29,6 +29,8 @@ import { HeirGenerator } from '@/lib/legacy/heirGeneration';
 import { calculatePrestigePoints } from '@/lib/prestige/prestigePoints';
 import { defaultPrestigeData } from '@/lib/prestige/prestigeTypes';
 import { computeInheritance } from '@/lib/legacy/inheritance';
+import { RIBBONS } from '@/lib/legacy/ribbonSystem';
+import { netWorth as computeNetWorth } from '@/lib/progress/achievements';
 import { simulateChildrenToAdulthood } from '@/lib/legacy/childSimulation';
 import { MindsetId } from '@/lib/mindset/config';
 import { logger } from '@/utils/logger';
@@ -203,6 +205,36 @@ function DeathPopup() {
     try {
       const { classifyLife } = require('@/lib/legacy/ribbonSystem');
       return classifyLife(gameState);
+    } catch {
+      return null;
+    }
+  }, [gameState]);
+
+  // Dynasty context for the Legacy tab - the sell for the NEXT life. Both
+  // numbers were always computed and never shown at life end: the ribbon
+  // catalogue is a 26-strong collection whose count rendered only inside a
+  // modal behind IdentityCard, and the best-previous-life comparison existed
+  // solely in LegacyTimeline. This is the one moment the player is deciding
+  // whether a next life is worth starting (2026-08-25 retention audit).
+  const dynastyContext = useMemo(() => {
+    try {
+      const discovered = (gameState.ribbonCollection?.discoveredIds ?? []).length;
+      const lives = gameState.previousLives ?? [];
+      const bestLife = lives.reduce<{ netWorth: number; generation: number } | null>(
+        (best, life) => {
+          const value = typeof life?.netWorth === 'number' ? life.netWorth : 0;
+          return !best || value > best.netWorth
+            ? { netWorth: value, generation: life?.generation ?? 1 }
+            : best;
+        },
+        null,
+      );
+      return {
+        ribbonsDiscovered: discovered,
+        ribbonsTotal: RIBBONS.length,
+        bestLife,
+        thisLifeNetWorth: Math.round(computeNetWorth(gameState)),
+      };
     } catch {
       return null;
     }
@@ -394,7 +426,7 @@ function DeathPopup() {
     }
   }, [gameState, setGameState, saveGame, bridgeToStore]);
 
-  const handleStartNewGame = useCallback(async () => {
+  const performStartNewGame = useCallback(async () => {
     try {
       setGameState(prev => ({
         ...prev,
@@ -465,6 +497,44 @@ function DeathPopup() {
       }));
     }
   }, [setGameState, currentSlot, router, setOnboardingState, gameState]);
+
+  // Say what "Start New Life" actually costs BEFORE doing it. Unlike prestige
+  // and the heir path (which carry prestige data, gems and entitlements
+  // through their builders), this path rebuilds from onboarding and the whole
+  // meta layer dies with the slot: prestige points and level, the Dynasty
+  // Tree, Legacy Contracts, ribbons, and every unspent gem. Nothing on the
+  // screen said so - a player could torch hundreds of hours of dynasty (and
+  // paid-for gems) believing "new life" meant what the prestige button means.
+  // Store purchases are the one recoverable thing (receipt restore), and the
+  // life itself is remembered in the device memorial archive. The warning
+  // scales down to a light confirm when there is no meta to lose.
+  const handleStartNewGame = useCallback(() => {
+    const gems = safeStats(gameState).gems || 0;
+    const hasMeta =
+      (gameState.prestige?.totalPrestiges ?? 0) > 0 ||
+      (gameState.legacyPoints ?? 0) > 0 ||
+      (gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0 ||
+      gems > 0;
+    if (!hasMeta) {
+      void performStartNewGame();
+      return;
+    }
+    const lost: string[] = [];
+    if ((gameState.prestige?.totalPrestiges ?? 0) > 0) lost.push('your prestige level and points');
+    if ((gameState.legacyPoints ?? 0) > 0) lost.push('legacy points and the Dynasty Tree');
+    if ((gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0) lost.push('your ribbon collection');
+    if (gems > 0) lost.push(`${gems.toLocaleString()} gems`);
+    Alert.alert(
+      'Start a completely new life?',
+      `This is a fresh start, not an heir: it permanently erases ${lost.join(', ')}. ` +
+        'This life will be remembered in your archive, and store purchases can be restored from Settings. ' +
+        'To keep your dynasty, choose an heir or prestige instead.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Erase and start over', style: 'destructive', onPress: () => void performStartNewGame() },
+      ],
+    );
+  }, [gameState, performStartNewGame]);
 
   const handleShareObituary = useCallback(async () => {
     try {
@@ -1031,7 +1101,17 @@ function DeathPopup() {
                               {earnedPoints.toLocaleString()} pts
                             </Text>
                             <Text style={styles.prestigeHint}>
-                              Use prestige points to start your next life stronger
+                              {/* Honest about the mechanics: neither button on
+                                  THIS screen awards these points. Prestige is a
+                                  while-alive action (executePrestige, reached
+                                  from the home screen); the heir path below
+                                  carries your existing balance unchanged and
+                                  the fresh start wipes it. The old caption -
+                                  "use prestige points to start your next life
+                                  stronger" - promised a payout no death-screen
+                                  path delivers. */}
+                              What prestiging this life would have banked - prestige happens while
+                              alive, from the home screen. An heir keeps points you already have.
                             </Text>
                             <View style={styles.prestigeBuyList}>
                               {canBuySmallInheritance && (
@@ -1236,6 +1316,58 @@ function DeathPopup() {
               {activeTab === 'legacy' && (
                 <>
                   <View style={styles.pageContent}>
+                    {/* Your Dynasty - what continuing is FOR. Ribbon collection
+                        progress and the family record to beat, both already
+                        computed elsewhere and never shown at life end. Hidden
+                        entirely when there is nothing to say (first life, no
+                        ribbons yet). */}
+                    {dynastyContext &&
+                      (dynastyContext.ribbonsDiscovered > 0 || dynastyContext.bestLife) && (
+                        <View style={styles.section}>
+                          <Text style={styles.sectionTitle}>Your Dynasty</Text>
+                          <View style={styles.breakdownCard}>
+                            {dynastyContext.ribbonsDiscovered > 0 && (
+                              <View style={styles.breakdownRow}>
+                                <Text style={styles.breakdownLabel}>Ribbons discovered</Text>
+                                <Text style={styles.breakdownValue}>
+                                  {dynastyContext.ribbonsDiscovered} / {dynastyContext.ribbonsTotal}
+                                </Text>
+                              </View>
+                            )}
+                            {dynastyContext.bestLife && (
+                              <View style={styles.breakdownRow}>
+                                <Text style={styles.breakdownLabel}>
+                                  Family record (Gen {dynastyContext.bestLife.generation})
+                                </Text>
+                                <Text style={styles.breakdownValue}>
+                                  {formatMoney(dynastyContext.bestLife.netWorth)}
+                                </Text>
+                              </View>
+                            )}
+                            {dynastyContext.bestLife && (
+                              <View style={styles.breakdownRow}>
+                                <Text style={styles.breakdownLabel}>This life</Text>
+                                <Text
+                                  style={[
+                                    styles.breakdownValue,
+                                    dynastyContext.thisLifeNetWorth >
+                                      dynastyContext.bestLife.netWorth && {
+                                      color: accent.success,
+                                    },
+                                  ]}
+                                >
+                                  {formatMoney(dynastyContext.thisLifeNetWorth)}
+                                  {dynastyContext.thisLifeNetWorth >
+                                  dynastyContext.bestLife.netWorth
+                                    ? ' · new record'
+                                    : ''}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
                     {/* Inheritance Breakdown */}
                     <View style={styles.section}>
                       <Text style={styles.sectionTitle}>Inheritance Breakdown</Text>

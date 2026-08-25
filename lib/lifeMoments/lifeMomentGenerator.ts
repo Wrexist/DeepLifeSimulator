@@ -1,6 +1,8 @@
 import type { GameState } from '@/contexts/game/types';
 import type { LifeMoment } from './types';
 import { logger } from '@/utils/logger';
+import { fnv1a32, makeWeeklyRoll } from '@/utils/seededRoll';
+import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 const log = logger.scope('LifeMomentGenerator');
 
@@ -503,6 +505,48 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
  * per week with a long pity window. Players asked for far fewer of these,
  * so the cadence is dialled right down from the old 10%/8-week pace.
  */
+/**
+ * Stable per-template key, hashed from the situation copy. Templates carry no
+ * authored id, and array index would silently re-key every template on a
+ * reorder — the copy IS the identity a player would recognise repeating.
+ * Embedded in the generated moment id (`life_moment_<key>_<week>`), which is
+ * what lets `recentMomentKeys` derive "seen lately" from the choice history
+ * the resolver already writes, with no new stored state.
+ */
+export function lifeMomentTemplateKey(template: Pick<LifeMomentTemplate, 'situation'>): string {
+  return fnv1a32(template.situation).toString(36);
+}
+
+/** Two game-years: at ~1.5%/week a player sees 2-3 moments a year from a
+ *  20-template pool, so anything shorter barely suppresses. */
+export const LIFE_MOMENT_REPEAT_COOLDOWN_WEEKS = 104;
+
+/**
+ * Template keys the player answered within the cooldown window, parsed from
+ * `consequenceState.choiceHistory` — the record `resolveLifeMoment` already
+ * writes. Legacy ids (`life_moment_<timestamp>_<rand>`) parse to keys no
+ * template hashes to, so old saves simply start with an empty set.
+ */
+export function recentMomentKeys(
+  state: Pick<GameState, 'consequenceState' | 'weeksLived'>,
+): Set<string> {
+  const out = new Set<string>();
+  const history = state.consequenceState?.choiceHistory;
+  if (!Array.isArray(history)) return out;
+  const now = state.weeksLived || 0;
+  for (const record of history) {
+    if (!record || typeof record.eventId !== 'string') continue;
+    if (!record.eventId.startsWith('life_moment_')) continue;
+    const at = typeof record.weeksLived === 'number' ? record.weeksLived : undefined;
+    if (at === undefined) continue;
+    const delta = now - at;
+    if (delta < 0 || delta >= LIFE_MOMENT_REPEAT_COOLDOWN_WEEKS) continue;
+    const key = record.eventId.split('_')[2];
+    if (key) out.add(key);
+  }
+  return out;
+}
+
 export function generateLifeMoment(state: GameState): LifeMoment | null {
   // Don't generate if already have one pending
   if (state.lifeMoments?.pendingMoment) {
@@ -510,16 +554,36 @@ export function generateLifeMoment(state: GameState): LifeMoment | null {
   }
 
   const lastMomentWeek = state.lifeMoments?.lastMomentWeek || 0;
-  const weeksSinceLastMoment = (state.weeksLived || 0) - lastMomentWeek;
+  // Until the first moment fires, the drought is measured from the START OF
+  // THIS LIFE, not from the raw counter against a zero baseline: `weeksLived`
+  // is seeded from starting age ((age-18)*52), so `weeksLived - 0 >= 52` was
+  // already true on the FIRST TICK of every scenario starting past 19 — the
+  // pity system's "very long drought" fired an interruptive popup in the
+  // opening minutes of exactly the lives meant to open quietly. The fourth
+  // instance of the CLAUDE.md §4.2 baseline class.
+  const weeksSinceLastMoment =
+    lastMomentWeek > 0
+      ? (state.weeksLived || 0) - lastMomentWeek
+      : weeksSinceLifeStart(state.weeksLived || 0, state.lifeStartWeek);
 
   // Guaranteed moment only after a very long drought (pity system), otherwise
   // a small per-week chance. Keeps them special instead of constant.
-  const shouldGenerate = weeksSinceLastMoment >= 52 || Math.random() < 0.015;
-  
+  //
+  // DETERMINISM: this was the last content path on `Math.random()` — every
+  // other roll baked into a save goes through the seeded weekly RNG
+  // (CLAUDE.md §4.3; the cliffhanger/luck-roll fixes). A random draw here ran
+  // fresh on each React 19 double-invocation of the updater, so which render
+  // committed decided whether a moment existed. Same week + same life now
+  // always answers the same.
+  const rollFor = makeWeeklyRoll(state.weeksLived || 0);
+  const lifeSalt = `${state.lineageId || ''}:${state.generationNumber || 1}`;
+  const shouldGenerate =
+    weeksSinceLastMoment >= 52 || rollFor(`life-moment-fire:${lifeSalt}`) < 0.015;
+
   if (!shouldGenerate) {
     return null;
   }
-  
+
   // Filter templates to those whose state gate (if any) is satisfied, so the
   // moment reflects the life the player is actually living.
   const availableTemplates = LIFE_MOMENT_TEMPLATES.filter(template => {
@@ -530,15 +594,27 @@ export function generateLifeMoment(state: GameState): LifeMoment | null {
 
   if (availableTemplates.length === 0) return null;
 
-  // Select random template, then drop the (non-serializable) condition fn.
-  const { condition: _condition, ...template } = availableTemplates[
-    Math.floor(Math.random() * availableTemplates.length)
-  ];
+  // Prefer a moment the player has NOT lived within the cooldown window; if
+  // they have somehow answered everything eligible recently, repeat rather
+  // than starve (20 templates at 2-3/year makes that practically unreachable).
+  const recent = recentMomentKeys(state);
+  const fresh = availableTemplates.filter((t) => !recent.has(lifeMomentTemplateKey(t)));
+  const pool = fresh.length > 0 ? fresh : availableTemplates;
+
+  // Seeded pick, then drop the (non-serializable) condition fn.
+  const pickIndex = Math.min(
+    pool.length - 1,
+    Math.floor(rollFor(`life-moment-pick:${lifeSalt}`) * pool.length),
+  );
+  const { condition: _condition, ...template } = pool[pickIndex];
   void _condition;
 
   return {
     ...template,
-    id: `life_moment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    // Deterministic id: template key + the week it fired. One moment per week
+    // (the tick calls this once and stamps `lastMomentWeek`), so the pair is
+    // unique — and a double-invoked updater now builds the SAME moment.
+    id: `life_moment_${lifeMomentTemplateKey(template)}_${state.weeksLived || 0}`,
     createdAt: Date.now(),
   };
 }

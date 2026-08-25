@@ -75,14 +75,26 @@ export const LEGACY_CONTRACTS: LegacyContract[] = [
   { id: 'contract_networth_10m', name: 'Eight Figures', description: 'Reach $10,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 10_000_000, reward: 120, tier: 1 },
   { id: 'contract_networth_100m', name: 'Nine Figures', description: 'Reach $100,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 100_000_000, reward: 500, tier: 2 },
   { id: 'contract_networth_1b', name: 'Ten Figures', description: 'Reach $1,000,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 1_000_000_000, reward: 1_800, tier: 3 },
+  // Fills the quiet band the 2026-08-25 retention audit mapped: after the
+  // Dynasty Seat's last wing ($5B) and the $1B contract above, the next named
+  // wealth target was the Archive's $1T - three orders of magnitude away with
+  // nothing in between. One rung, on the reward curve between its neighbours
+  // (1,800 at $1B, 6,000+ in the Archive).
+  { id: 'contract_networth_10b', name: 'Eleven Figures', description: 'Reach $10,000,000,000 net worth in a single life.', metric: 'peakNetWorth', target: 10_000_000_000, reward: 3_200, tier: 4 },
 
   // ── Endurance ─────────────────────────────────────────────────────────────
   { id: 'contract_weeks_2000', name: 'A Long Life', description: 'Live 2,000 weeks across every life.', metric: 'weeksLivedTotal', target: 2_000, reward: 150, tier: 1 },
   { id: 'contract_weeks_10000', name: 'Time Served', description: 'Live 10,000 weeks across every life.', metric: 'weeksLivedTotal', target: 10_000, reward: 900, tier: 2 },
 
   // ── Enterprise ────────────────────────────────────────────────────────────
-  { id: 'contract_companies_5', name: 'Founder', description: 'Found 5 companies across every life.', metric: 'companiesFounded', target: 5, reward: 120, tier: 1 },
-  { id: 'contract_companies_20', name: 'Serial Founder', description: 'Found 20 companies across every life.', metric: 'companiesFounded', target: 20, reward: 800, tier: 2 },
+  // "in a single life", because that is what the metric MEASURES:
+  // `companiesFounded` reads `lifetimeStatistics.totalCompaniesOwned`, which
+  // resets on every prestige. The old copy said "across every life" — a
+  // cross-life sum no counter in the save actually keeps — so the board
+  // promised credit for companies the bar would silently forget at the next
+  // prestige (2026-08-25 retention audit; displayed-vs-applied class).
+  { id: 'contract_companies_5', name: 'Founder', description: 'Found 5 companies in a single life.', metric: 'companiesFounded', target: 5, reward: 120, tier: 1 },
+  { id: 'contract_companies_20', name: 'Serial Founder', description: 'Found 20 companies in a single life.', metric: 'companiesFounded', target: 20, reward: 800, tier: 2 },
 ];
 
 /**
@@ -133,8 +145,12 @@ const num = (v: unknown): number =>
 /**
  * Read a contract metric off the save.
  *
- * Every one of these is cross-life and monotonically increasing, which is what
- * makes derived progress safe. Missing fields read as 0 rather than NaN.
+ * Every one of these is cross-life and monotonically increasing — with one
+ * documented exception: `companiesFounded` is per-life (its counter resets on
+ * prestige), which is why its contracts' copy says "in a single life". A
+ * claimed contract stays claimed either way (`claimedIds` is the stored
+ * record); only unclaimed progress can restart. Missing fields read as 0
+ * rather than NaN.
  */
 export function readMetric(state: GameState | undefined | null, metric: ContractMetric): number {
   if (!state) return 0;

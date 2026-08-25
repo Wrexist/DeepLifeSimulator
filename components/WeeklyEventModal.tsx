@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Dimensions } from 'react-native';
-import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, XCircle, Leaf, Sun, Snowflake, X, TrendingUp, TrendingDown, DollarSign, ArrowUp, ArrowDown, Sparkles } from 'lucide-react-native';
 import type { EnhancedEventChoice, EventSpecial } from '@/lib/events/engine';
 import { useGameState, useGameActions } from '@/contexts/GameContext';
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
@@ -280,6 +280,28 @@ export default function WeeklyEventModal() {
  {notificationStyle.title}
  </Text>
  </View>
+
+ {/* Rarity find - display-only, stamped from the template at pick time.
+ The discovery beat: a secret or a narrative one-shot should FEEL
+ like a needle found, not read identically to a parking ticket. */}
+ {event.rarity && (
+ <View
+ style={[
+ styles.rarityChip,
+ event.rarity === 'legendary' ? styles.rarityLegendary : styles.rarityRare,
+ ]}
+ >
+ <Sparkles size={scale(12)} color={event.rarity === 'legendary' ? '#FBBF24' : '#A78BFA'} />
+ <Text
+ style={[
+ styles.rarityText,
+ { color: event.rarity === 'legendary' ? '#FBBF24' : '#A78BFA' },
+ ]}
+ >
+ {event.rarity === 'legendary' ? 'LEGENDARY EVENT' : 'RARE EVENT'}
+ </Text>
+ </View>
+ )}
 
  <Text style={styles.notificationDescription}>
  {event.description || 'An event has occurred.'}
@@ -616,6 +638,30 @@ const styles = StyleSheet.create({
  color: '#F8FAFC',
  flex: 1,
  letterSpacing: -0.3,
+ },
+ rarityChip: {
+ flexDirection: 'row',
+ alignItems: 'center',
+ alignSelf: 'flex-start',
+ gap: scale(5),
+ paddingHorizontal: scale(9),
+ paddingVertical: scale(4),
+ borderRadius: scale(8),
+ borderWidth: 1,
+ marginBottom: scale(10),
+ },
+ rarityRare: {
+ backgroundColor: 'rgba(167, 139, 250, 0.12)',
+ borderColor: 'rgba(167, 139, 250, 0.4)',
+ },
+ rarityLegendary: {
+ backgroundColor: 'rgba(251, 191, 36, 0.12)',
+ borderColor: 'rgba(251, 191, 36, 0.4)',
+ },
+ rarityText: {
+ fontSize: fontScale(10),
+ fontWeight: '800',
+ letterSpacing: 0.6,
  },
  notificationDescription: {
  fontSize: fontScale(15),

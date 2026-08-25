@@ -62,8 +62,16 @@ export const INTERRUPTION_PRIORITY = {
   // 60 was GOAL_COMPLETE, retired with the linear goal system (its completion
   // predicates were unreachable, so the popup could never present). The gap is
   // left deliberately: renumbering would silently reorder every surface below.
+  /**
+   * The return summary for a day-plus absence. Deliberately ABOVE the daily
+   * gem popup: on a returning player's first session of a new day both want
+   * the slot, and the session should open on "here is your life and what's
+   * coming", not on a gem count. The daily reward keeps its claim while
+   * outranked (its `wants` flag is game state, not a timer) and presents the
+   * moment the summary closes - nothing is lost, only ordered.
+   */
+  WELCOME_BACK: 55,
   DAILY_REWARD: 50,
-  WELCOME_BACK: 45,
   COMMUNITY_REWARD: 42,
   /** The end-of-week payoff beat. Loses to anything the player must act on. */
   WEEK_RESULT: 40,

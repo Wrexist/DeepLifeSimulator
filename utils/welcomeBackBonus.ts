@@ -78,6 +78,31 @@ function resolveWeek(weeksLived: unknown): number {
  * result — only reachable if the amount is non-finite — rejects the WHOLE grant,
  * marker included, so nothing is stamped for a payment that never happened.
  */
+/**
+ * Keep `lastLogin` honest while the player is AROUND (the session clock).
+ *
+ * `lastLogin` used to be written only at life creation and on welcome-back
+ * grant, so for a player who kept returning inside the 24h popup window it
+ * went stale indefinitely — and the next genuine day-plus absence was reported
+ * ("Last played: 1 week ago") and PAID (`min(daysAway, 7)` weeks of half
+ * salary) as the whole stale span. Called once per Home mount.
+ *
+ * Refuses to touch the clock when:
+ * - there is no stamp at all (a life mid-creation; nothing to refresh), or
+ * - the player has been away MORE than 24h — that absence belongs to the
+ *   return summary, which must still be able to measure it before
+ *   `applyWelcomeBackBonus` closes it on dismiss, or
+ * - the stamp reads from the future (a rewound device clock): stamping `now`
+ *   would legitimise the rewind; leave it for real time to catch up.
+ */
+export function refreshSessionClock(prev: GameState, now: number): GameState {
+  const last = prev.lastLogin;
+  if (!last) return prev;
+  const hoursAway = (now - last) / (1000 * 60 * 60);
+  if (hoursAway > 24 || hoursAway < 0) return prev;
+  return { ...prev, lastLogin: now };
+}
+
 export function applyWelcomeBackBonus(prev: GameState, now: number): GameState {
   const last = prev.lastLogin || now;
   const daysAway = Math.floor((now - last) / MS_PER_DAY);

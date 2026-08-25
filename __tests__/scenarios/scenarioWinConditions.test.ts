@@ -160,27 +160,37 @@ describe('the projection reads the LIVE achievement system', () => {
     expect(getSatisfiedAchievementIds(claimed)).toContain('first_child');
   });
 
-  it('prestigeExecution projects from it, not from the deprecated array', () => {
-    const fs = require('fs') as typeof import('fs');
-    const path = require('path') as typeof import('path');
-    const source = fs.readFileSync(
-      path.join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'),
-      'utf8',
-    );
+  // The projection was extracted to lib/scenarios/progress.ts (2026-08-25
+  // retention pass) so the live ScenarioChallengeCard and the prestige payout
+  // read ONE mapping. The three hard-won projection fixes are asserted against
+  // the shared module's source, plus one assertion that prestigeExecution
+  // actually routes through it — otherwise a re-inlined divergent projection
+  // would pass all three.
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const projectionSource = () =>
+    fs.readFileSync(path.join(__dirname, '..', '..', 'lib/scenarios/progress.ts'), 'utf8');
+  const prestigeSource = () =>
+    fs.readFileSync(path.join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'), 'utf8');
 
+  it('the shared projection derives from the live system, not the deprecated array', () => {
+    const source = projectionSource();
     expect(source).toMatch(/achievements: getSatisfiedAchievementIds\(gameState\)/);
     expect(source).not.toMatch(/achievements: \(gameState\.achievements \|\| \[\]\)\.map/);
   });
 
   it('passes bank balances through for the net-worth scenarios', () => {
-    const source = require('fs').readFileSync(
-      require('path').join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'),
-      'utf8',
-    ) as string;
-
     // The evaluator always read `bankSavings`; the wrapper's type omitted it so
     // nothing could pass it, and savings counted as $0 toward five scenarios.
-    expect(source).toMatch(/bankSavings:/);
+    expect(projectionSource()).toMatch(/bankSavings:/);
+    expect(projectionSource()).toMatch(/nonMirrorDeposits/);
+  });
+
+  it('prestigeExecution routes through the shared projection', () => {
+    const source = prestigeSource();
+    expect(source).toMatch(/projectScenarioState\(gameState\)/);
+    // A re-inlined projection is the drift this extraction closed.
+    expect(source).not.toMatch(/achievements: getSatisfiedAchievementIds/);
   });
 });
 
@@ -190,11 +200,11 @@ describe('the prestige projection carries level through', () => {
 
   it('maps careers with level, not just id and accepted', () => {
     const source = fs.readFileSync(
-      path.join(__dirname, '..', '..', 'lib/prestige/prestigeExecution.ts'),
+      path.join(__dirname, '..', '..', 'lib/scenarios/progress.ts'),
       'utf8',
     );
 
-    expect(source).toMatch(/careers:\s*\(gameState\.careers \|\| \[\]\)\.map\(c => \(\{[\s\S]*?level: c\.level/);
+    expect(source).toMatch(/careers:\s*\(gameState\.careers \|\| \[\]\)\.map\(\(c\) => \(\{[\s\S]*?level: c\.level/);
   });
 });
 

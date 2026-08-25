@@ -15,6 +15,7 @@ import { usePathname } from 'expo-router';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { useGameUI } from '@/contexts/game/GameUIContext';
 import { track, analytics } from '@/lib/analytics';
+import { checkSubscriptionHealth } from '@/services/subscriptionHealthMonitor';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 export function AnalyticsTracker(): null {
@@ -28,6 +29,12 @@ export function AnalyticsTracker(): null {
   const lifeStartWeek = useGameSelector((s) => s.lifeStartWeek);
   const weeksThisLife = weeksSinceLifeStart(weeksLived, lifeStartWeek);
   const generation = useGameSelector((s) => s.generationNumber ?? 1);
+  // The prestige edge watches the PRESTIGE COUNTER, not the generation number:
+  // the reset path deliberately does not increment generation (same character,
+  // fresh start - prestigeExecution.ts:321), so a generation-edge made every
+  // "start fresh" prestige invisible while counting heir continuations from
+  // death - which award nothing - as prestiges. Half the funnel, mislabeled.
+  const totalPrestiges = useGameSelector((s) => s.prestige?.totalPrestiges ?? 0);
   const showDeathPopup = useGameSelector((s) => !!s.showDeathPopup);
   const deathReason = useGameSelector((s) => s.deathReason ?? '');
   const age = useGameSelector((s) => s.date?.age ?? 0);
@@ -39,7 +46,7 @@ export function AnalyticsTracker(): null {
   const ready = !isLoading;
 
   const prevWeeks = useRef(weeksLived);
-  const prevGeneration = useRef(generation);
+  const prevPrestiges = useRef(totalPrestiges);
   const prevDeath = useRef(showDeathPopup);
   const firstWeekFired = useRef(weeksThisLife >= 1); // already past week 1 on load → don't fire
 
@@ -78,17 +85,29 @@ export function AnalyticsTracker(): null {
     prevDeath.current = showDeathPopup;
   }, [showDeathPopup, weeksLived, age, deathReason, ready]);
 
-  // prestige - fire when the generation counter advances.
+  // prestige - fire when the prestige counter advances (both paths increment
+  // it; see the totalPrestiges selector note). Generation rides along as a
+  // property so heir-vs-reset is still distinguishable downstream.
   useEffect(() => {
     if (!ready) {
-      prevGeneration.current = generation;
+      prevPrestiges.current = totalPrestiges;
       return;
     }
-    if (generation > prevGeneration.current) {
-      track('prestige', { generation, weeksLived });
+    if (totalPrestiges > prevPrestiges.current) {
+      track('prestige', { generation, totalPrestiges, weeksLived });
     }
-    prevGeneration.current = generation;
-  }, [generation, weeksLived, ready]);
+    prevPrestiges.current = totalPrestiges;
+  }, [totalPrestiges, generation, weeksLived, ready]);
+
+  // Subscription health - once per session, after the save has hydrated.
+  // Reads willRenew/expiry off the customerInfo RevenueCat already fetches and
+  // emits the state snapshot + cancel/renew/recover/lapse edges. Fire-and-
+  // forget: the monitor is internally idempotent per session, no-ops on
+  // non-RevenueCat builds, and swallows every failure path.
+  useEffect(() => {
+    if (!ready) return;
+    void checkSubscriptionHealth();
+  }, [ready]);
 
   // session_end + flush when the app backgrounds.
   //
@@ -124,6 +143,11 @@ export function AnalyticsTracker(): null {
         // spent backgrounded as play.
         sessionEnded.current = false;
         sessionStart.current = Date.now();
+        // Re-check subscription health on resume: the monitor self-throttles
+        // (6h window, and a FAILED check never stamps), so this is what lets
+        // an offline launch recover visibility once connectivity returns and
+        // a week-resident process still see a renewal happen.
+        void checkSubscriptionHealth();
       } else if (next === 'inactive') {
         void analytics.flush();
       }

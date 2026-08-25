@@ -9,6 +9,7 @@ import { legalEventTemplates } from './legalEvents';
 import { inboxEventTemplates } from './inboxEvents';
 import { careerEventTemplates } from './careerEvents';
 import { travelEventTemplates } from './travelEvents';
+import { ancestorEventTemplates } from './ancestorEvents';
 import { nearMissEventTemplates } from './nearMissEvents';
 import { fameEventTemplates } from './fameEvents';
 import { secretEventTemplates } from './secretEvents';
@@ -158,7 +159,20 @@ export interface WeeklyEvent {
    * event cannot be deferred, so it cannot expire.
    */
   expiresAtWeek?: number;
+  /**
+   * DISPLAY-ONLY rarity, stamped from the template at pick time so the modal
+   * can mark a genuinely uncommon find ("you found something rare" is the
+   * discovery beat the event system never signalled — 2026-08-25 retention
+   * audit). Deliberately NOT read by selection: weights and conditions decide
+   * what fires; this only tells the player they hit one of the needles.
+   * Appended optional data on a persisted object — no migration (the
+   * `relationId` precedent).
+   */
+  rarity?: EventRarity;
 }
+
+/** See WeeklyEvent.rarity — labelling, never selection. */
+export type EventRarity = 'rare' | 'legendary';
 
 /**
  * Life-stage pack an event belongs to. Purely a SELECTION-WEIGHT tag: when a
@@ -189,6 +203,11 @@ export interface EventTemplate {
    * repetition is fine and conditions already pace things.
    */
   oncePerLife?: boolean;
+  /**
+   * Display-only rarity label carried onto the generated WeeklyEvent at pick
+   * time (see WeeklyEvent.rarity). Selection ignores it entirely.
+   */
+  rarity?: EventRarity;
   // v13+ Pulse: when present, the event should also surface inside the in-game
   // social platform (notification + trending hashtag injection). Decoupled
   // from `category` so non-economy fame events can still surface to Pulse.
@@ -1735,6 +1754,7 @@ const milestoneBirthday30: EventTemplate = {
   // `age === 30` stays true for 52 straight weeks - without oncePerLife the
   // player could "turn 30" several times in one year (2026-08-24).
   oncePerLife: true,
+  rarity: 'rare',
   condition: state => state.date?.age === 30,
   generate: () => ({
     id: 'milestone_birthday_30',
@@ -1751,7 +1771,8 @@ const milestoneBirthday50: EventTemplate = {
   id: 'milestone_birthday_50',
   category: 'general',
   weight: 0.9,
-  oncePerLife: true, // same 52-week window as the 30th birthday above
+  oncePerLife: true,
+  rarity: 'rare', // same 52-week window as the 30th birthday above
   condition: state => state.date?.age === 50,
   generate: () => ({
     id: 'milestone_birthday_50',
@@ -1790,6 +1811,7 @@ const oldFriendReturns: EventTemplate = {
   // A first reunion can only happen once - the same friend "just moved back"
   // arbitrarily many times was the audit's example of fiction-breaking repeats.
   oncePerLife: true,
+  rarity: 'rare',
   generate: state => {
     const names = ['Alex', 'Jamie', 'Morgan', 'Taylor', 'Jordan', 'Casey', 'Riley', 'Quinn'];
     const name = pickSeeded(names, payloadRoll(state, 'old_friend_returns'), 'name');
@@ -1911,7 +1933,8 @@ const distantRelativeInheritance: EventTemplate = {
   id: 'distant_relative_inheritance',
   category: 'economy',
   weight: 0.15,
-  oncePerLife: true, // one surprise inheritance per life - also caps the faucet
+  oncePerLife: true,
+  rarity: 'rare', // one surprise inheritance per life - also caps the faucet
   generate: (state) => {
     // ECONOMY FIX: Scale inheritance with net worth to prevent exploit
     // At low net worth: Floor ensures minimum $5K (same as before)
@@ -3231,12 +3254,19 @@ export const eventTemplates: EventTemplate[] = [
   ...careerEventTemplates,
   // Travel events (experiences while on trips)
   ...travelEventTemplates,
+  // Beats that name the player's OWN finished lives. Gated on `previousLives`,
+  // so a first life never sees them and a deep dynasty meets a world that
+  // remembers it (2026-08-25 endgame round).
+  ...ancestorEventTemplates,
   // Near-miss events (tension builders - "you almost died!")
   ...nearMissEventTemplates,
   // Fame tier events (paparazzi, talk shows, stalkers - fame = double-edged sword)
   ...fameEventTemplates,
   // Secret/Easter egg events (hidden triggers, community discovery)
-  ...secretEventTemplates,
+  // Legendary by construction: razor-thin conditions authored as community
+  // discovery bait (money === 777777 and kin). Tagged at registration so a new
+  // secret cannot ship unlabelled.
+  ...secretEventTemplates.map((t) => ({ ...t, rarity: 'legendary' as const })),
   // Hobby-mastery events (fire for the hobbies you actively practice)
   ...hobbyEventTemplates,
   // Life-stage event packs (each strictly gated so it only fires in its own
@@ -3289,6 +3319,45 @@ export function oncePerLifeSpent(
   if (!template.oncePerLife) return false;
   if (!Array.isArray(eventLog)) return false;
   return eventLog.some(e => e && e.id === template.id);
+}
+
+/**
+ * How long the SAME template is kept out of the weighted pool after firing.
+ *
+ * Until this existed, only the 16 `oncePerLife` templates had ANY repeat
+ * guard — every other template could be picked again the very next eligible
+ * week, and "the exact same thing happened twice in a month" is the single
+ * cheapest way for ~340 authored events to read as 40 (2026-08-25 retention
+ * audit). Half a game-year: at the late-game cadence (~1 event / 15 weeks)
+ * this suppresses roughly the last two events lived, which is enough to stop
+ * verbatim repeats without meaningfully shrinking a ~300-template pool.
+ */
+export const EVENT_REPEAT_COOLDOWN_WEEKS = 26;
+
+/**
+ * Template ids lived within the cooldown window, derived from `eventLog` —
+ * the memory the game already writes — so this needs no new state, no
+ * migration, and cannot drift from what actually happened (the same
+ * derive-don't-store reasoning as the seasonal repeat fix, which replaced a
+ * stored guard nobody wrote). Entries without a `weeksLived` stamp are
+ * ignored rather than guessed at; a rewound-looking stamp (negative delta)
+ * never suppresses.
+ */
+export function recentlyLivedEventIds(
+  eventLog: GameState['eventLog'] | undefined | null,
+  currentWeeksLived: number,
+  cooldownWeeks: number = EVENT_REPEAT_COOLDOWN_WEEKS,
+): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(eventLog)) return out;
+  for (const e of eventLog) {
+    if (!e || typeof e.id !== 'string') continue;
+    const at = (e as { weeksLived?: unknown }).weeksLived;
+    if (typeof at !== 'number' || !Number.isFinite(at)) continue;
+    const delta = currentWeeksLived - at;
+    if (delta >= 0 && delta < cooldownWeeks) out.add(e.id);
+  }
+  return out;
 }
 
 export function generateEventById(id: string, state: GameState): WeeklyEvent | null {
@@ -4126,7 +4195,15 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
   // deterministic weighted-random pick so the whole pool gets airtime instead
   // of the same highest-weight template every time.
   if (events.length < MAX_EVENTS_PER_WEEK) {
-    const eligible = baseEventTemplates
+    // REPETITION GUARD: drop templates lived within the cooldown window
+    // (derived from eventLog — see recentlyLivedEventIds). Falls back to the
+    // unfiltered pool if the filter would empty it, so the pity guarantee can
+    // never starve on a life that has somehow lived everything recently.
+    const recentIds = recentlyLivedEventIds(state.eventLog, currentWeeksLived);
+    const freshTemplates = baseEventTemplates.filter(t => !recentIds.has(t.id));
+    const pickPool = freshTemplates.length > 0 ? freshTemplates : baseEventTemplates;
+
+    const eligible = pickPool
       .filter(t => !t.condition || t.condition(state))
       .map(template => {
         const weight = typeof template.weight === 'function' ? template.weight(state) : template.weight;
@@ -4146,7 +4223,11 @@ export function rollWeeklyEvents(state: GameState): WeeklyEvent[] {
 
     const chosen = pickWeighted(eligible, weeklyEventRoll('event-pick'));
     if (chosen) {
-      events.push(chosen.generate(state));
+      // Carry the template's display-only rarity onto the generated event so
+      // the modal can mark the find. Stamped here rather than in each
+      // generator so no template author has to remember it.
+      const generated = chosen.generate(state);
+      events.push(chosen.rarity ? { ...generated, rarity: chosen.rarity } : generated);
     } else if (guaranteedEvent) {
       // Defensive: pity must not starve - fall back to any general event.
       const generalEvent = baseEventTemplates.find(t => t.category === 'general');

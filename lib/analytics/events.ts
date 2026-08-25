@@ -58,6 +58,13 @@ export type AnalyticsEventName =
   // that says whether the mid-game flattens.
   | 'goal_reached'
   | 'week_ahead_shown'
+  // Fired when the welcome-back return summary is actually SEEN (it holds the
+  // interruption slot), carrying how long the player was away in days. This is
+  // the top of the return funnel: without it, "do returning players who see the
+  // summary retain better" is unanswerable, because nothing records that the
+  // summary rendered at all — the popup can lose the slot race and silently
+  // never show.
+  | 'return_summary_viewed'
   // ── Rotating offers ──
   //
   // The full funnel for the weekly rotation: opened → the featured offer was
@@ -113,6 +120,28 @@ export type AnalyticsEventName =
   | 'premium_activated'
   // The first time a subscriber uses a perk they are paying for.
   | 'first_premium_value'
+  // ── Subscription lifecycle (client-observed via RevenueCat customerInfo) ──
+  //
+  // The gap these close: the app could not SEE a cancellation. Cancelling
+  // happens in the store, outside the app, and nothing read `willRenew` off
+  // the customerInfo the service already fetched - so a subscriber who
+  // cancelled yesterday and a delighted one were indistinguishable until the
+  // entitlement silently lapsed, and no retention change could be judged
+  // against the metric it exists to move (renewals).
+  //
+  // `subscription_state` is the once-per-session snapshot (phase +
+  // daysUntilExpiry) that gives the time series; the four edges are the
+  // actionable moments. `subscription_cancel_detected` fires when auto-renew
+  // turns OFF while still entitled - the win-back window opens.
+  // `subscription_recovered` fires when it turns back ON - the win-back
+  // WORKED, which is the number the whole effort is judged by.
+  // Client-observed, so edges are detected at next app open, not in real
+  // time; a RevenueCat webhook would be the authoritative upgrade.
+  | 'subscription_state'
+  | 'subscription_cancel_detected'
+  | 'subscription_renewed'
+  | 'subscription_recovered'
+  | 'subscription_lapsed'
   | 'ad_shown'
   | 'ad_rewarded'
   // ── Navigation ──
@@ -155,6 +184,7 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'goal_tapped',
   'goal_reached',
   'week_ahead_shown',
+  'return_summary_viewed',
   'offer_center_opened',
   'offer_shown',
   'offer_cta_tapped',
@@ -173,6 +203,11 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'restore_failed',
   'premium_activated',
   'first_premium_value',
+  'subscription_state',
+  'subscription_cancel_detected',
+  'subscription_renewed',
+  'subscription_recovered',
+  'subscription_lapsed',
   'ad_shown',
   'ad_rewarded',
   'screen_view',
