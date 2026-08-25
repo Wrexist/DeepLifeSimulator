@@ -33,6 +33,7 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import ScenarioChallengeCard from '@/components/ScenarioChallengeCard';
 import NextGoalsCard from '@/components/NextGoalsCard';
 import WeekAheadCard from '@/components/WeekAheadCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
@@ -780,6 +781,10 @@ function HomeScreenContent() {
         <FadeInUp delay={55}>
           <AmbitionCard />
           <AmbitionPickerCard />
+          {/* The challenge-scenario run chosen at onboarding — win conditions
+              were previously invisible between onboarding and first prestige.
+              Renders null for non-challenge lives and prestiged dynasties. */}
+          <ScenarioChallengeCard />
           <WeeklyChallengeCard />
         </FadeInUp>
 
