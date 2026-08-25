@@ -55,6 +55,8 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
 
   const onPressOut = useCallback(() => {
     if (spring) {
+      // `gentle` (stiffness 150) is deliberately softer than the old inline
+      // 200: press-in snaps, release settles - the standard asymmetry.
       Animated.spring(scaleAnim, {
         toValue: 1,
         ...animation.spring.gentle,

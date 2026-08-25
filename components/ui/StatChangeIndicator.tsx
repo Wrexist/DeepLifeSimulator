@@ -121,7 +121,12 @@ function FloatingText({ change, index, onComplete }: FloatingTextProps) {
         } catch {
             // announcement is best-effort
         }
-    }, [change.id, change.stat, change.amount, isPositive]);
+        // Deliberately keyed on the pill's identity only: the provider REWRITES
+        // a pill's amount when a second change to the same stat lands within
+        // 500ms, and re-announcing the combined total right after the first
+        // announcement reads as two separate gains to a screen-reader player.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [change.id]);
 
     return (
         <Animated.View

@@ -244,7 +244,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                 onPress={onClose}
                 style={styles.closeButton}
                 activeOpacity={0.7}
-                hitSlop={hitSlopToMinTarget(36)}
+                hitSlop={hitSlopToMinTarget(scale(36))}
                 {...CLOSE_BUTTON_A11Y}
               >
                 <View style={[styles.closeButtonInner, isDarkMode && styles.closeButtonInnerDark]}>

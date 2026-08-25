@@ -156,7 +156,7 @@ export function ComputerScreenContent({
   const { settings } = gameState;
   // Haptic parity with the phone grid - opening an app on mobile buzzed,
   // opening one on the computer was silent.
-  const { buttonPress } = useFeedback(settings?.hapticFeedback ?? false);
+  const { buttonPress } = useFeedback();
   const router = useRouter();
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
@@ -476,7 +476,7 @@ export function ComputerScreenContent({
           {/* Not a dead end: point straight at the surface that sells one. */}
           <TouchableOpacity
             style={styles.noDeviceCta}
-            onPress={() => router.push({ pathname: '/(tabs)/life', params: { segment: 'shop' } })}
+            onPress={() => router.navigate({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } })}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Shop for a computer in the Market"

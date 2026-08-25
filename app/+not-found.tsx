@@ -15,7 +15,7 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
         <View style={styles.iconBubble}>
-          <Compass size={scale(32)} color={colors.light.textMuted} />
+          <Compass size={scale(32)} color={colors.dark.textMuted} />
         </View>
         <Text style={styles.title}>This screen doesn&apos;t exist</Text>
         <Text style={styles.body}>The road you took leads nowhere - but your life is still waiting.</Text>

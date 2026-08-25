@@ -50,7 +50,7 @@ export default function ToastNotification({
   persistent = false,
   stackIndex = 0,
 }: ToastNotificationProps) {
-  const { buttonPress } = useFeedback(hapticEnabled);
+  const { buttonPress } = useFeedback();
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-100)).current;

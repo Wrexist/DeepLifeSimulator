@@ -8,14 +8,14 @@ import { logger } from '@/utils/logger';
 // audio backend or asset, playSound() is a silent no-op. Haptics live solely
 // in `utils/haptics.ts`.
 
-// Optional import for expo-av - fallback to haptics if not available.
+// Optional import for expo-av - without it every playSound() is a silent no-op.
 // Typed as `any` because expo-av is not in package.json; the static
 // `typeof import('expo-av').Audio` annotation can't resolve.
 let Audio: any | null = null;
 try {
   Audio = require('expo-av').Audio;
 } catch (error) {
-  logger.warn('expo-av not available, using haptic feedback only');
+  logger.warn('expo-av not available - sound effects are disabled');
 }
 
 class SoundManager {

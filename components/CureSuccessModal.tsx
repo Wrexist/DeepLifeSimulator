@@ -24,7 +24,7 @@ export default function CureSuccessModal() {
   const curedDiseases = gameState.curedDiseases || [];
   // R2-A: rare-path modal - bail safely if settings is undefined.
   const settings = safeSettings(gameState);
-  const { buttonPress, haptic } = useFeedback(settings.hapticFeedback);
+  const { buttonPress, haptic } = useFeedback();
 
   // Only show modal when in an active game (week > 0 indicates active game)
   const isInActiveGame = week > 0;

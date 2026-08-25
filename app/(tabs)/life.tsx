@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
@@ -53,13 +53,24 @@ function LifeScreen() {
   // Deep-link support: `/(tabs)/life?segment=shop` lands on a specific segment,
   // so CTAs elsewhere ("buy a computer in the Market") can point straight at
   // the Market instead of dead-ending on this shell's default segment.
-  const params = useLocalSearchParams<{ segment?: string }>();
+  //
+  // Consume-once: the params stick to the route entry for its whole life, so
+  // without the ref this effect would re-fire on unrelated re-runs (e.g. the
+  // stats gate unlocking mid-game) and yank a player who had manually switched
+  // segments back to the deep-linked one. Senders include a `ts` nonce so a
+  // REPEATED tap of the same CTA still lands.
+  const params = useLocalSearchParams<{ segment?: string; ts?: string }>();
+  const consumedDeepLinkRef = useRef<string | null>(null);
   useEffect(() => {
     const target = params.segment;
+    if (!target) return;
+    const key = `${target}|${params.ts ?? ''}`;
+    if (consumedDeepLinkRef.current === key) return;
+    consumedDeepLinkRef.current = key;
     if (target === 'health' || target === 'shop' || (target === 'stats' && !statsLocked)) {
       setSegment(target);
     }
-  }, [params.segment, statsLocked]);
+  }, [params.segment, params.ts, statsLocked]);
 
   return (
     <ErrorBoundary>

@@ -41,7 +41,7 @@ export default function SmartNotificationCenter({
   onClose,
 }: SmartNotificationCenterProps) {
   const { gameState } = useGame();
-  const { buttonPress, haptic } = useFeedback(gameState?.settings?.hapticFeedback || false);
+  const { buttonPress, haptic } = useFeedback();
   
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'unread' | 'achievement' | 'warning' | 'tip'>('all');
   const [showSettings, setShowSettings] = useState(false);

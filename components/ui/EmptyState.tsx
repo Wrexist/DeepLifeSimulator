@@ -32,7 +32,7 @@ interface EmptyStateProps {
   onCtaPress?: () => void;
   /** Or bring your own CTA element instead. */
   children?: React.ReactNode;
-  /** Compact variant for inside cards/sections (tighter padding, no icon bubble). */
+  /** Compact variant for inside cards/sections (tighter padding, smaller icon bubble). */
   compact?: boolean;
 }
 

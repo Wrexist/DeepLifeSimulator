@@ -12,7 +12,7 @@ import ConfettiBurst from '@/components/ui/ConfettiBurst';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { haptic } from '@/utils/haptics';
 import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
-import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScale } from '@/utils/scaling';
+import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScale, scale } from '@/utils/scaling';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 
@@ -148,6 +148,13 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     haptic.success();
     return () => endCelebration();
   }, [celebration]);
+
+  // If the parent hides the modal while the celebration is up, the component
+  // stays mounted returning null - the effect above would never clean up and
+  // the celebration gate would stay held for the session. Clear it explicitly.
+  useEffect(() => {
+    if (!visible && celebration) setCelebration(null);
+  }, [visible, celebration]);
 
   const handleConfirm = () => {
     if (selectedPath === 'child' && !selectedChildId && children.length > 0) {
@@ -703,7 +710,7 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
             <ConfettiBurst play={!reducedMotion} />
             <View style={styles.celebrationCard}>
               <View style={styles.celebrationCrest}>
-                <Crown size={44} color="#FBBF24" />
+                <Crown size={scale(44)} color="#FBBF24" />
               </View>
               <Text style={styles.celebrationKicker}>
                 {celebration.heir ? 'THE LEGACY CONTINUES' : 'A NEW LIFE BEGINS'}
@@ -1265,19 +1272,19 @@ const styles = StyleSheet.create({
   },
   celebrationFill: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.97)',
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
     padding: responsiveSpacing.lg,
   },
   celebrationCard: {
     alignItems: 'center',
-    maxWidth: 420,
+    maxWidth: scale(420),
     width: '100%',
   },
   celebrationCrest: {
-    width: 96,
-    height: 96,
+    width: scale(96),
+    height: scale(96),
     borderRadius: responsiveBorderRadius.full,
     backgroundColor: 'rgba(251, 191, 36, 0.12)',
     borderWidth: 1,
@@ -1313,8 +1320,8 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xl,
   },
   celebrationButton: {
-    minHeight: 52,
-    borderRadius: 12,
+    minHeight: scale(52),
+    borderRadius: responsiveBorderRadius.lg,
     backgroundColor: '#F59E0B',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1322,7 +1329,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   celebrationButtonText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.2,

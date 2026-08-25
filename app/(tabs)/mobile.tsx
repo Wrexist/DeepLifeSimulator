@@ -146,7 +146,7 @@ export function MobileScreenContent({
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();
-  const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+  const { buttonPress, haptic } = useFeedback();
   const { logRender } = usePerformanceMonitor();
 
   // Android hardware back exits the open sub-app rather than popping the tab
@@ -280,7 +280,7 @@ export function MobileScreenContent({
           {/* Not a dead end: point straight at the surface that sells one. */}
           <TouchableOpacity
             style={styles.noDeviceCta}
-            onPress={() => router.push({ pathname: '/(tabs)/life', params: { segment: 'shop' } })}
+            onPress={() => router.navigate({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } })}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Shop for a phone in the Market"

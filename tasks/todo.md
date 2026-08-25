@@ -60,8 +60,8 @@ not by inventing a parallel one.
 
 ## Phase 5 — Validation
 - [x] 5.1 `npm run preflight:quick` + `type-check:tests` + `lint:errors`
-- [ ] 5.2 Targeted suites: startup (screenImports), save (settings default change),
+- [x] 5.2 Targeted suites: startup (screenImports), save (settings default change),
       render, any suites touching edited files
-- [ ] 5.3 Full `npm test`
-- [ ] 5.4 Second independent visual/consistency audit pass
+- [x] 5.3 Full `npm test`
+- [x] 5.4 Second independent visual/consistency audit pass
 - [ ] 5.5 Final report + push

@@ -269,13 +269,13 @@ export class FeedbackSystem {
   }
 }
 
-// Hook for easy access with game settings.
+// Hook for easy access to the feedback singleton.
 //
-// The parameter is accepted for call-site compatibility but IGNORED: the haptic
-// enabled state lives solely in `utils/haptics.ts` (set on save load and by the
-// settings toggle). Passing it here used to mutate the global singleton during
-// render, so the last component to render won for the entire app.
-export const useFeedback = (_hapticEnabled?: boolean) => {
+// Takes no arguments: the haptic enabled state lives solely in
+// `utils/haptics.ts` (set on save load and by the settings toggle). This hook
+// used to take the setting as a parameter and mutate the global singleton
+// during render, so the last component to render won for the entire app.
+export const useFeedback = () => {
   const feedbackSystem = FeedbackSystem.getInstance();
 
   return {

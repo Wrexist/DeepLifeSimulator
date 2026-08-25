@@ -28,9 +28,14 @@ export function setHapticsEnabled(enabled: boolean) {
   _enabled = enabled;
 }
 
-function fire(fn: () => void) {
+function fire(fn: () => unknown) {
   if (!_enabled || !load()) return;
-  try { fn(); } catch { /* device doesn't support haptics */ }
+  try {
+    // expo-haptics calls return Promises; a device without a Taptic Engine
+    // rejects asynchronously, which a bare try/catch cannot see.
+    const result = fn() as { catch?: (h: () => void) => void } | undefined;
+    result?.catch?.(() => { /* device doesn't support haptics */ });
+  } catch { /* device doesn't support haptics */ }
 }
 
 // ---------------------------------------------------------------------------

@@ -108,7 +108,7 @@ function TopStatsBarComponent() {
 
  const showStatArrows = settings?.showStatArrows!== false; // Default to true
 
- const { success, info, buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+ const { success, info, buttonPress, haptic } = useFeedback();
  const { logRender } = usePerformanceMonitor();
  // App-level IAP store launcher (single mount lives in GemStoreProvider).
  const { openStore } = useGemStore();
@@ -1027,7 +1027,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  );
  const blockedRef = useRef(blockingModalActive);
  blockedRef.current = blockingModalActive;
- const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+ const { buttonPress, haptic } = useFeedback();
  const reduced = useReducedMotion();
 
  // All hooks must be called before any early returns (Rules of Hooks)

@@ -17,10 +17,9 @@ import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { getGlassTabBar } from '@/utils/glassmorphismStyles';
 import { haptic } from '@/utils/haptics';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useStatChanges, StatChangeTracker } from '@/contexts/StatChangeContext';
+import { StatChangeOverlay } from '@/contexts/StatChangeContext';
 import SmartNotificationTicker from '@/components/SmartNotificationTicker';
 import PremiumPassPromo from '@/components/PremiumPassPromo';
-import { StatChangeIndicator } from '@/components/ui/StatChangeIndicator';
 import AdRewardOrb from '@/components/AdRewardOrb';
 import { resumeLifeAutosave } from '@/utils/autosaveSuspension';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
@@ -150,7 +149,6 @@ export default function TabLayout() {
   const segments = useSegments();
   
   const { isDark } = useTheme();
-  const { changes, clearChange } = useStatChanges();
 
   // R3-S1: being inside the tab tree means a life is in play, so the ambient
   // autosave must be live. Entering the pre-game stack suspends it; this is the
@@ -439,11 +437,11 @@ export default function TabLayout() {
         onPress={() => setEventInboxOpen(true)}
       />
     ) : null}
-    {/* ENGAGEMENT: Floating stat change indicators on week advance. The
-        tracker lives here (not on Home) so money earned on Work / Apps / Life
-        registers a pill on whichever tab the player is on. */}
-    <StatChangeTracker />
-    <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
+    {/* ENGAGEMENT: Floating stat change indicators on week advance. Tracker +
+        indicator live in one leaf overlay here (not on Home) so pills fire on
+        whichever tab the player is on WITHOUT subscribing this layout to
+        every stat mutation. */}
+    <StatChangeOverlay />
     {/* Floating "watch ad → cash / vitality" reward orb - mounted at the
         tab-group level so it drifts in over ANY game tab (Home / Work / Apps /
         Life), not just Home. Self-manages its own appear/hide scheduling and
