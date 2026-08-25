@@ -1,3 +1,111 @@
+# Retention program — return loop, direction, variety, memory (owner program, 2026-08-25)
+
+Owner brief: the "MASTER PROGRAM 5 — RETENTION" prompt. Audit the player
+lifecycle, implement the highest-impact improvements, no dark patterns, no
+fake urgency — the player's own life is the retention mechanic. Approach:
+four parallel deep audits (return experience, goals/direction, events/content,
+replayability/meta), every load-bearing claim re-verified against source
+before any change (lessons.md rule). The game is tick-on-tap with no offline
+simulation and no push notifications (removed after a TurboModule crash), so
+the return loop must be built from honest in-save state: anticipation, an
+accurate summary, and direction — not fabricated deltas.
+
+## P1 — The return loop (D1): make coming back land
+
+- [ ] R1. Honest session clock. `lastLogin` is stamped ONLY at life creation
+      and on welcome-back grant, so "Last played: X ago" reads the last CLAIM,
+      not the last session — a player returning within 24h for a week then
+      leaving 30h is told "1 week ago" and paid 7 days of salary for a 1-day
+      absence. Fix: stamp `lastLogin = now` once per Home mount when
+      `hoursAway <= 24` (below the popup threshold, so a genuine day-plus
+      absence is never overwritten before the popup/grant resolves it). No
+      save-format change; the v44 game-week gate stays as-is.
+- [ ] R2. Welcome-back popup becomes a real return summary: net worth via the
+      canonical `calculateNetWorth` (today `money + bankSavings`, understating
+      for owners), add a "Coming up" section from the anticipation engine
+      (`upcomingEvents`, today consumed by exactly one scroll-down card), keep
+      the goal line. No fabricated "while you were away" deltas — the world
+      doesn't move offline, so the honest content is where you stand + what's
+      coming.
+- [ ] R3. Fix the popup race: the welcome-back spawner refuses to run while the
+      daily-gem popup is up, and the daily popup fires 700ms earlier — so on
+      the exact session type it was built for, the return summary usually never
+      shows. Remove the suppression (the declarative interruption queue already
+      sequences claimants) and rank WELCOME_BACK above DAILY_REWARD so the
+      returning player sees their life first, gems second.
+- [ ] R4. Continue card on MainMenu shows "Last played X ago · Week N" —
+      `saveSlotMeta` already stores `updatedAt` and `weeksLived`; the card
+      drops both today.
+- [ ] R5. Analytics: `return_summary_viewed` (typed catalogue) fired from the
+      welcome-back popup, so the return funnel is measurable.
+
+## P2 — Direction (D3–D30): goals that fit the player
+
+- [ ] G1. Playstyle-weighted goals. `lib/goals/playstyle.ts`: pure classifier
+      over GameState (career / business / investor / social / criminal
+      emphases, scored not bucketed). Catalogue priorities consume it so a
+      founder's SOON goal is the second location, an investor's the next
+      portfolio rung — today every priority is a constant literal. Engine
+      stays stateless (no storage, no migration).
+- [ ] G2. New state-conditioned goals using existing derived "next target"
+      helpers that have no goal consumer today: luxury collection progress
+      (`getNextCollectionTarget`), plus investor/social SOON goals so every
+      playstyle has a lane.
+- [ ] G3. Scenario challenge visibility. 23 authored challenge scenarios
+      (win conditions + time limits) are evaluated ONLY at first prestige and
+      surface NOWHERE during play. Add pure per-condition progress
+      (`lib/scenarios/progress.ts`) + a home-feed card shown while the run is
+      live. The content exists; it needs its consumer.
+
+## P3 — Variety (D30+): stop verbatim repetition
+
+- [ ] V1. Per-event-id recency suppression, derived from `eventLog` (no new
+      state): the generic weighted pool drops templates that fired within the
+      last N weeks unless that empties the pool. Today only 16 of ~374
+      templates have ANY repeat guard.
+- [ ] V2. Life Moments off `Math.random()` → the seeded weekly roll every
+      other content path uses (CLAUDE.md §4.3 class), + prefer-unseen
+      selection against `choiceHistory`.
+
+## P4 — Memory & honesty (long-term + trust)
+
+- [ ] M1. Death screen sells the next life: ribbon collection progress
+      ("N of 26 discovered") and the best-previous-life comparison — both
+      already computed, rendered only in a modal behind IdentityCard.
+      Fix the death-screen prestige-points caption that promises points on
+      paths that never award them.
+- [ ] M2. Cap `previousLives` at append (50, like prestigeHistory) — today
+      unbounded.
+- [ ] M3. Prestige analytics blind spot: `track('prestige')` watches
+      `generationNumber`, which the reset path deliberately does not
+      increment — every "start fresh" prestige is invisible. Watch
+      `prestige.totalPrestiges` instead.
+- [ ] M4. Copy honesty: the "across every life" Legacy Contract reads a
+      per-life metric (align copy with what's measured); "N day streak" labels
+      a counter that counts week-advances, not days.
+
+## Verify + ship
+
+- [ ] T1. Tests per item; type-check both trees; lint:errors; routes.
+- [ ] T2. Full Jest suite.
+- [ ] T3. Commit + push to claude/deep-life-retention-9jcr6u; final report.
+
+## Deliberately NOT doing (Impact × Value ÷ Complexity)
+
+- Push notifications — removed after the iOS 26 TurboModule crash; re-adding a
+  native module is an owner/platform decision, not a retention drive-by.
+- Offline/absence simulation — the game is deliberately tick-on-tap; paying
+  out for wall-clock absence is the exact exploit class v28/v35/v44 closed.
+  The return loop is built on anticipation instead.
+- Daily chores / streak escalation / FOMO timers — against the brief's own
+  philosophy; existing streaks audited as non-punitive and left that way.
+- A live-ops server content pipeline — the content system is already
+  data-driven in-repo (templates, catalogues, one-line sequels); a remote
+  layer adds failure modes the brief warns about with no content to feed it.
+
+---
+---
+
 # "Fix what's next" — the nine flagged items (owner, 2026-08-25)
 
 Owner: "Fix everything that's next you said in what's next". Working the nine

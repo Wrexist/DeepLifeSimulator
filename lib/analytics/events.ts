@@ -58,6 +58,13 @@ export type AnalyticsEventName =
   // that says whether the mid-game flattens.
   | 'goal_reached'
   | 'week_ahead_shown'
+  // Fired when the welcome-back return summary is actually SEEN (it holds the
+  // interruption slot), carrying how long the player was away in days. This is
+  // the top of the return funnel: without it, "do returning players who see the
+  // summary retain better" is unanswerable, because nothing records that the
+  // summary rendered at all — the popup can lose the slot race and silently
+  // never show.
+  | 'return_summary_viewed'
   // ── Rotating offers ──
   //
   // The full funnel for the weekly rotation: opened → the featured offer was
@@ -155,6 +162,7 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'goal_tapped',
   'goal_reached',
   'week_ahead_shown',
+  'return_summary_viewed',
   'offer_center_opened',
   'offer_shown',
   'offer_cta_tapped',

@@ -40,6 +40,7 @@ import { logger } from '@/utils/logger';
 import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { lastPlayedLabel } from '@/utils/lastPlayed';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 import { haptic } from '@/utils/haptics';
 
@@ -74,6 +75,8 @@ interface SaveSummary {
   name: string;
   age: number;
   money: number;
+  /** Wall-clock ms of the last save write, from the slot meta cache. */
+  updatedAt?: number;
 }
 
 // One image per app launch, cycled in order via a tiny AsyncStorage counter;
@@ -386,7 +389,7 @@ export default function MainMenu() {
     if (!isMountedRef.current) return;
     setHasSave(true);
     // Name may be an empty string on a valid save - fall back at render time.
-    setSaveSummary({ name: meta.name, age: meta.age, money: meta.money });
+    setSaveSummary({ name: meta.name, age: meta.age, money: meta.money, updatedAt: meta.updatedAt });
   }, []);
 
   const clearSave = useCallback(() => {
@@ -791,7 +794,12 @@ export default function MainMenu() {
                   badge={
                     <View style={styles.savedBadge}>
                       <View style={styles.savedDot} />
-                      <Text style={styles.savedBadgeText}>SAVED PROGRESS</Text>
+                      <Text style={styles.savedBadgeText}>
+                        {(() => {
+                          const played = lastPlayedLabel(saveSummary?.updatedAt);
+                          return played ? `PLAYED ${played}` : 'SAVED PROGRESS';
+                        })()}
+                      </Text>
                     </View>
                   }
                 />
