@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     borderRadius: scale(20),

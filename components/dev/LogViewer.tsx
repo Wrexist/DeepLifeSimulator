@@ -37,11 +37,11 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
 
   const getLevelColor = (level: string) => {
     switch (level) {
-      case 'DEBUG': return '#9CA3AF';
+      case 'DEBUG': return '#94A3B8';
       case 'INFO': return '#3B82F6';
       case 'WARN': return '#F59E0B';
       case 'ERROR': return '#EF4444';
-      default: return '#6B7280';
+      default: return '#64748B';
     }
   };
 
@@ -87,20 +87,20 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
           <Text style={styles.title}>Log Viewer</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
-              <Share2 size={20} color="#374151" />
+              <Share2 size={20} color="#334155" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => remoteLogger.clearLogs()} style={styles.iconButton}>
               <Trash2 size={20} color="#EF4444" />
             </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.iconButton}>
-              <X size={24} color="#374151" />
+              <X size={24} color="#334155" />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Search size={16} color="#9CA3AF" />
+            <Search size={16} color="#94A3B8" />
             <TextInput
               style={styles.searchInput}
               placeholder="Search logs..."
@@ -147,7 +147,7 @@ export default function LogViewer({ visible, onClose }: LogViewerProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
   },
   header: {
     flexDirection: 'row',
@@ -156,12 +156,12 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E2E8F0',
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#0F172A',
   },
   headerButtons: {
     flexDirection: 'row',
@@ -175,23 +175,23 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E2E8F0',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#111827',
+    color: '#0F172A',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -246,18 +246,18 @@ const styles = StyleSheet.create({
   },
   logTime: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   logMessage: {
     fontSize: 14,
-    color: '#374151',
+    color: '#334155',
     marginBottom: 4,
   },
   logContext: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
     fontFamily: 'monospace',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     padding: 8,
     borderRadius: 4,
     marginTop: 4,

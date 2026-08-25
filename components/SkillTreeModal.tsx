@@ -611,7 +611,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
               colors={(isActive ? category.color : ['transparent', 'transparent']) as unknown as readonly [string, string, ...string[]]}
               style={styles.categoryTabGradient}
             >
-              <CategoryIcon size={20} color={isActive ? '#FFF' : settings.darkMode ? '#94A3B8' : '#6B7280'} />
+              <CategoryIcon size={20} color={isActive ? '#FFF' : settings.darkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[
                 styles.categoryTabText,
                 isActive && styles.categoryTabTextActive,
@@ -664,7 +664,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
         >
           {status === 'locked' && (
             <View style={styles.lockOverlay}>
-              <Lock size={16} color="#6B7280" />
+              <Lock size={16} color="#64748B" />
             </View>
           )}
           {status === 'unlocked' && (
@@ -674,7 +674,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
           )}
           <NodeIcon
             size={24}
-            color={status === 'unlocked' ? '#FFF' : status === 'available' ? '#60A5FA' : '#6B7280'}
+            color={status === 'unlocked' ? '#FFF' : status === 'available' ? '#60A5FA' : '#64748B'}
           />
         </LinearGradient>
         <Text style={[
@@ -858,7 +858,7 @@ export default function SkillTreeModal({ visible, onClose }: SkillTreeModalProps
                 hitSlop={hitSlopToMinTarget(scale(24))}
                 {...CLOSE_BUTTON_A11Y}
               >
-              <X size={24} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
+              <X size={24} color={settings.darkMode ? '#F8FAFC' : '#0F172A'} />
             </TouchableOpacity>
           </View>
 
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
   categoryTabText: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   categoryTabTextActive: {
     color: '#FFF',
@@ -1069,12 +1069,12 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   nodeNameLocked: {
-    color: '#6B7280',
+    color: '#64748B',
   },
   detailsPanel: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E2E8F0',
     // Was `maxHeight: scale(200)` - a flat cap on a column ending in the Unlock
     // button, which is the shape `__tests__/render/modalListsShrink.test.ts`
     // exists to keep out: a fixed cap cannot give space back, so the overflow
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
   },
   detailsDescription: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(8),
   },
   detailsEffect: {
@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   textDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   textMuted: {
     color: '#94A3B8',

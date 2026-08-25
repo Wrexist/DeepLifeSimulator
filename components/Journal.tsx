@@ -305,7 +305,7 @@ export default function Journal({ compact = false }: JournalProps) {
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, settings.darkMode && styles.searchContainerDark]}>
-        <Search size={18} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
+        <Search size={18} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
         <TextInput
           style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
           placeholder="Search entries..."
@@ -320,7 +320,7 @@ export default function Journal({ compact = false }: JournalProps) {
           accessibilityLabel="Filter entries by category"
           accessibilityState={{ expanded: showFilters }}
         >
-          <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? '#94A3B8' : '#6B7280')} />
+          <Filter size={18} color={showFilters ? '#6366F1' : (settings.darkMode ? '#94A3B8' : '#64748B')} />
         </TouchableOpacity>
       </View>
 
@@ -361,14 +361,14 @@ export default function Journal({ compact = false }: JournalProps) {
             style={styles.sortButton}
             onPress={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
           >
-            <Clock size={14} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
+            <Clock size={14} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
             <Text style={[styles.sortButtonText, settings.darkMode && styles.textMuted]}>
               {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
             </Text>
             {sortOrder === 'newest' ? (
-              <ChevronDown size={14} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
+              <ChevronDown size={14} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
             ) : (
-              <ChevronUp size={14} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
+              <ChevronUp size={14} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
             )}
           </TouchableOpacity>
         </View>
@@ -377,7 +377,7 @@ export default function Journal({ compact = false }: JournalProps) {
       {/* Entries List - C-1: Virtualized with FlatList to prevent OOM on large journals */}
       {filteredEntries.length === 0 ? (
         <View style={[styles.entriesContainer, styles.emptyState]}>
-          <BookOpen size={48} color={settings.darkMode ? '#475569' : '#D1D5DB'} />
+          <BookOpen size={48} color={settings.darkMode ? '#475569' : '#CBD5E1'} />
           <Text style={[styles.emptyStateTitle, settings.darkMode && styles.textDark]}>
             {searchQuery || selectedCategory !== 'all'
               ? 'No matching entries'
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: scale(16),
     marginBottom: scale(8),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: scale(12),
     paddingHorizontal: scale(12),
     paddingVertical: scale(10),
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     marginRight: scale(10),
   },
   searchInputDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   filterButton: {
     padding: scale(4),
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: scale(12),
     paddingVertical: scale(8),
     borderRadius: scale(20),
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#475569',
     marginLeft: scale(6),
   },
   categoryChipTextActive: {
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   },
   sortButtonText: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginHorizontal: scale(4),
   },
   entriesContainer: {
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   yearLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
   },
   yearLineDark: {
     backgroundColor: '#334155',
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   yearText: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
     marginHorizontal: scale(12),
   },
   entryCard: {
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     marginTop: scale(4),
   },
   timelineLineDark: {
@@ -649,12 +649,12 @@ const styles = StyleSheet.create({
   },
   entryMeta: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
   entryDetails: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(8),
     lineHeight: fontScale(18),
   },
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(8),
     textAlign: 'center',
   },
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: scale(10),
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F1F5F9',
   },
   compactEntryDark: {
     borderBottomColor: '#334155',
@@ -733,18 +733,18 @@ const styles = StyleSheet.create({
   },
   compactEntryMeta: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
   moreEntriesText: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     marginTop: scale(12),
   },
   emptyText: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
   },
   // Modal styles
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
   },
   modalSectionLabel: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(8),
   },
   categoryBadge: {
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     marginLeft: scale(6),
   },
   textDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   textMuted: {
     color: '#94A3B8',

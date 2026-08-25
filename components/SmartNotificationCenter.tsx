@@ -119,10 +119,10 @@ export default function SmartNotificationCenter({
       case 'milestone': return <Calendar size={20} color="#3B82F6" />;
       case 'warning': return <AlertCircle size={20} color="#F59E0B" />;
       case 'tip': return <Lightbulb size={20} color="#F59E0B" />;
-      case 'reminder': return <Bell size={20} color="#6B7280" />;
+      case 'reminder': return <Bell size={20} color="#64748B" />;
       case 'celebration': return <PartyPopper size={20} color="#8B5CF6" />;
       case 'suggestion': return <MessageSquare size={20} color="#06B6D4" />;
-      default: return <Info size={20} color="#6B7280" />;
+      default: return <Info size={20} color="#64748B" />;
     }
   };
 
@@ -131,8 +131,8 @@ export default function SmartNotificationCenter({
       case 'critical': return '#DC2626';
       case 'high': return '#EF4444';
       case 'medium': return '#F59E0B';
-      case 'low': return '#6B7280';
-      default: return '#6B7280';
+      case 'low': return '#64748B';
+      default: return '#64748B';
     }
   };
 
@@ -144,8 +144,8 @@ export default function SmartNotificationCenter({
       case 'career': return '#F59E0B';
       case 'family': return '#8B5CF6';
       case 'education': return '#06B6D4';
-      case 'general': return '#6B7280';
-      default: return '#6B7280';
+      case 'general': return '#64748B';
+      default: return '#64748B';
     }
   };
 
@@ -252,7 +252,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showTips ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#6B7280" />
+                        <X size={20} color="#64748B" />
                       )}
                     </TouchableOpacity>
 
@@ -269,7 +269,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showMilestones ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#6B7280" />
+                        <X size={20} color="#64748B" />
                       )}
                     </TouchableOpacity>
 
@@ -286,7 +286,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showWarnings ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#6B7280" />
+                        <X size={20} color="#64748B" />
                       )}
                     </TouchableOpacity>
 
@@ -303,7 +303,7 @@ export default function SmartNotificationCenter({
                       {notificationPreferences.showSuggestions ? (
                         <Check size={20} color="#10B981" />
                       ) : (
-                        <X size={20} color="#6B7280" />
+                        <X size={20} color="#64748B" />
                       )}
                     </TouchableOpacity>
                   </View>
@@ -353,7 +353,7 @@ export default function SmartNotificationCenter({
               <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
                 {filteredNotifications.length === 0 ? (
                   <View style={styles.emptyState}>
-                    <BellOff size={48} color="#6B7280" />
+                    <BellOff size={48} color="#64748B" />
                     <Text style={[styles.emptyStateText, gameState.settings.darkMode && styles.emptyStateTextDark]}>
                       No notifications
                     </Text>
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   settingsPanel: {
     marginHorizontal: 20,
     marginBottom: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 16,
   },
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: 20,
   },
   filterButtonActive: {
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 4,
     textAlign: 'center',
   },
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
   },
   notificationMessage: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: 20,
   },
   notificationMessageDark: {
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
   notificationCategory: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#64748B',
     textTransform: 'capitalize',
   },
   notificationCategoryDark: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   notificationPriority: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#64748B',
     textTransform: 'capitalize',
   },
   notificationPriorityDark: {

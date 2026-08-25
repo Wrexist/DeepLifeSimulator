@@ -103,7 +103,7 @@ export default function LifeStoryModal({ visible, onClose }: Props) {
             {story.chapters.length === 0 ? (
               <FadeInUp delay={0}>
                 <View style={styles.emptyState}>
-                  <BookOpen size={48} color="#4B5563" />
+                  <BookOpen size={48} color="#475569" />
                   <Text style={styles.emptyTitle}>Your story is just beginning</Text>
                   <Text style={styles.emptyText}>
                     Keep living your life - every week adds to your story. Make choices, build relationships, and pursue your dreams.
@@ -164,7 +164,7 @@ function ChapterCard({ chapter, index }: { chapter: StoryChapter; index: number 
 
       {chapter.paragraphs.map((p, i) => (
         <View key={i} style={styles.paragraphRow}>
-          <ChevronRight size={14} color="#6B7280" style={{ marginTop: 3 }} />
+          <ChevronRight size={14} color="#64748B" style={{ marginTop: 3 }} />
           <Text style={styles.paragraph}>{p}</Text>
         </View>
       ))}
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
@@ -283,11 +283,11 @@ const styles = StyleSheet.create({
   chapterTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#F3F4F6',
+    color: '#F1F5F9',
   },
   chapterAge: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
   },
   paragraphRow: {
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   closingText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     fontStyle: 'italic',
     textAlign: 'center',
   },

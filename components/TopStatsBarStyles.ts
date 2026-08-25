@@ -84,7 +84,7 @@ export const styles = StyleSheet.create({
  },
  generationBadgeDark: {
  backgroundColor: 'rgba(255, 255, 255, 0.08)',
- color: '#E5E7EB',
+ color: '#E2E8F0',
  borderWidth: 0,
  shadowColor: 'transparent',
  },

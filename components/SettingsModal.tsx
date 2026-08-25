@@ -587,7 +587,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                             value={item.value}
                             onValueChange={(value) => handleToggle(item.id, value)}
                             trackColor={{ false: '#475569', true: '#10B981' }}
-                            thumbColor={item.value ? '#FFFFFF' : '#F3F4F6'}
+                            thumbColor={item.value ? '#FFFFFF' : '#F1F5F9'}
                             ios_backgroundColor="#475569"
                             accessibilityLabel={item.title}
                             accessibilityHint={`Toggle ${item.title.toLowerCase()}. Currently ${item.value ? 'enabled' : 'disabled'}`}

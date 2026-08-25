@@ -598,11 +598,11 @@ function TopStatsBarComponent() {
  darkMode && styles.containerDark,
  { paddingHorizontal: containerPadding, minHeight: containerMinHeight }
  ];
- const iconColor = darkMode ? '#E5E7EB': '#111827';
+ const iconColor = darkMode ? '#E2E8F0': '#0F172A';
 
  const controlButtonGradient: [string, string] = darkMode
- ? ['#1F2937', '#111827']
-: ['#FFFFFF', '#F3F4F6'];
+ ? ['#1E293B', '#0F172A']
+: ['#FFFFFF', '#F1F5F9'];
 
  const formatGems = (amount: number) => {
  const a = Math.floor(amount || 0);
@@ -1308,7 +1308,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  accessibilityLabel={isAdvancingWeek ? 'Advancing to next week' : 'Advance to next week'}
  accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek }}
  >
- <LinearGradient colors={isAdvancingWeek ? ['#6B7280','#9CA3AF'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <LinearGradient colors={isAdvancingWeek ? ['#64748B','#94A3B8'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
  {isAdvancingWeek ? (
  <Animated.View
  style={{

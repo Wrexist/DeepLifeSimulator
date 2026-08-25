@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     padding: scale(8),
@@ -276,16 +276,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   assetCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     padding: scale(16),
     marginBottom: scale(12),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   assetCardDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   assetHeader: {
     flexDirection: 'row',
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   },
   assetPercentage: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
   },
   assetPercentageDark: {
     color: '#94A3B8',
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   assetItemName: {
     flex: 1,
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
   },
   assetItemNameDark: {
     color: '#94A3B8',
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   summaryCard: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: scale(12),
     padding: scale(16),
     marginTop: scale(8),
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: fontScale(20),
   },
   summaryTextDark: {

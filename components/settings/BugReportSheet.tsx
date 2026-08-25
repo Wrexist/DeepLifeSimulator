@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.xl,
     fontWeight: 'bold',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     borderRadius: scale(20),
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     padding: responsivePadding.medium,
     fontSize: responsiveFontSize.base,
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     minHeight: 120,
   },
   actions: {

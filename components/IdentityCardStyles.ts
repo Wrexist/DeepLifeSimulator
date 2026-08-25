@@ -91,7 +91,7 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   nameDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     textShadowColor: 'transparent',
   },
   scenarioText: {
@@ -212,7 +212,7 @@ export const styles = StyleSheet.create({
     marginLeft: responsiveSpacing.sm,
   },
   listLabelDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   modalOverlay: {
     flex: 1,
@@ -258,7 +258,7 @@ export const styles = StyleSheet.create({
     flexShrink: 1,
   },
   modalTitleNewDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   modalCloseButton: {
     padding: scale(8),
@@ -280,7 +280,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   modalContent: {
     flex: 1,
@@ -306,13 +306,13 @@ export const styles = StyleSheet.create({
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     padding: scale(18),
     marginBottom: scale(14),
     gap: scale(10),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     minHeight: scale(50),
   },
   modalItemDark: {
@@ -331,7 +331,7 @@ export const styles = StyleSheet.create({
   },
   modalSubText: {
     fontSize: fontScale(15),
-    color: '#6B7280',
+    color: '#64748B',
     flex: 1,
     lineHeight: fontScale(22),
   },
@@ -366,12 +366,12 @@ export const styles = StyleSheet.create({
 
   // Trait bonus styles
   traitContainer: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     padding: scale(18),
     marginBottom: scale(14),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     minHeight: scale(60),
   },
   traitContainerDark: {
@@ -391,7 +391,7 @@ export const styles = StyleSheet.create({
     lineHeight: fontScale(24),
   },
   traitNameDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   traitBonuses: {
     marginLeft: responsiveSpacing.lg,
@@ -401,7 +401,7 @@ export const styles = StyleSheet.create({
   },
   bonusText: {
     fontSize: fontScale(15),
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: fontScale(22),
   },
   modalSubSection: {

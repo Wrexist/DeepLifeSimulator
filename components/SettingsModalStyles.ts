@@ -158,7 +158,7 @@ export const styles = StyleSheet.create({
     color: '#1E293B',
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     borderRadius: scale(20),
@@ -236,11 +236,11 @@ export const styles = StyleSheet.create({
     marginBottom: 2,
   },
   settingTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   settingDescription: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#64748B',
     // Scaled font in a raw line box clips on a tablet; scale it at the same ratio.
     lineHeight: fontScale(18),
     ...Platform.select({
@@ -280,9 +280,9 @@ export const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     paddingHorizontal: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   languageButtonDark: {
     backgroundColor: '#334155',
@@ -306,7 +306,7 @@ export const styles = StyleSheet.create({
   },
   languageButtonText: {
     fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
     ...Platform.select({
       web: { textShadow: '-1px 1px 2px rgba(0, 0, 0, 0.75)' } as any,
@@ -336,7 +336,7 @@ export const styles = StyleSheet.create({
   // Enhanced Tab Styles
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: responsiveBorderRadius.lg,
     padding: 4,
     marginBottom: responsiveSpacing.lg,
@@ -393,7 +393,7 @@ export const styles = StyleSheet.create({
   settingsTabText: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#64748B',
   },
   settingsTabTextDark: {
     color: '#94A3B8',
@@ -443,7 +443,7 @@ export const styles = StyleSheet.create({
   },
   glassActionLabel: {
     flex: 1,
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     fontWeight: '600',
     fontSize: responsiveFontSize.base,
   },
@@ -623,7 +623,7 @@ export const styles = StyleSheet.create({
   },
   lifeGoalReward: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: fontScale(18),
     fontWeight: '500',
   },
@@ -643,7 +643,7 @@ export const styles = StyleSheet.create({
   },
   lifeGoalRequirementText: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '600',
     flex: 1,
   },
@@ -662,7 +662,7 @@ export const styles = StyleSheet.create({
   lifeGoalProgressLabel: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -715,7 +715,7 @@ export const styles = StyleSheet.create({
   },
   lifeGoalProgressText: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
   },
   lifeGoalProgressTextDark: {
@@ -784,7 +784,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
   },
   upcomingTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   upcomingItem: {
     backgroundColor: '#F8FAFC',
@@ -806,11 +806,11 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
   },
   upcomingItemTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   upcomingItemDesc: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: 18,
   },
   upcomingItemDescDark: {
@@ -850,7 +850,7 @@ export const styles = StyleSheet.create({
   },
   bugReportDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -859,12 +859,12 @@ export const styles = StyleSheet.create({
   },
   bugReportInput: {
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: '#475569',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     backgroundColor: '#334155',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     minHeight: 120,
     maxHeight: 200,
     marginBottom: 12,
@@ -876,7 +876,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E2E8F0',
   },
   bugReportActionsDark: {
     borderTopColor: '#334155',
@@ -888,7 +888,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBugButtonText: {
-    color: '#6B7280',
+    color: '#64748B',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -900,7 +900,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabledSendButton: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
   },
   sendBugButtonText: {
     color: '#FFFFFF',
@@ -945,18 +945,18 @@ export const styles = StyleSheet.create({
   featureSuggestionInput: {
     backgroundColor: '#334155',
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: '#475569',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     marginBottom: 16,
     minHeight: 100,
   },
   featureSuggestionInputDark: {
     backgroundColor: '#334155',
     borderColor: '#94A3B8',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   featureSuggestionButton: {
     backgroundColor: '#3B82F6',
@@ -1073,7 +1073,7 @@ export const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.xs,
     paddingHorizontal: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.md,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     alignItems: 'center',
   },
   disclosureLevelButtonActive: {

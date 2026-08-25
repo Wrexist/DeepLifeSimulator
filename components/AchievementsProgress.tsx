@@ -72,7 +72,7 @@ const CATEGORIES: CategoryInfo[] = [
 ];
 
 const RARITY_CONFIG: Record<RarityType, { label: string; color: string; bgColor: string }> = {
-  common: { label: 'Common', color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.15)' },
+  common: { label: 'Common', color: '#64748B', bgColor: 'rgba(107, 114, 128, 0.15)' },
   rare: { label: 'Rare', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.15)' },
   epic: { label: 'Epic', color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.15)' },
   legendary: { label: 'Legendary', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.15)' },
@@ -346,7 +346,7 @@ export default function AchievementsProgress() {
           onPress={() => setShowFilters(!showFilters)}
           style={[styles.filterToggle, showFilters && styles.filterToggleActive]}
         >
-          <Filter size={scale(16)} color={showFilters ? '#FFF' : (darkMode ? '#94A3B8' : '#6B7280')} />
+          <Filter size={scale(16)} color={showFilters ? '#FFF' : (darkMode ? '#94A3B8' : '#64748B')} />
           <Text style={[
             styles.filterToggleText,
             showFilters && styles.filterToggleTextActive,
@@ -416,7 +416,7 @@ export default function AchievementsProgress() {
             {showSecret ? (
               <Eye size={scale(14)} color="#F59E0B" />
             ) : (
-              <EyeOff size={scale(14)} color={darkMode ? '#6B7280' : '#94A3B8'} />
+              <EyeOff size={scale(14)} color={darkMode ? '#64748B' : '#94A3B8'} />
             )}
             <Text style={[
               styles.secretToggleText,
@@ -433,7 +433,7 @@ export default function AchievementsProgress() {
       <View>
         {sortedAchievements.length === 0 && (
           <View style={styles.emptyState}>
-            <Trophy size={scale(40)} color={darkMode ? '#4B5563' : '#D1D5DB'} />
+            <Trophy size={scale(40)} color={darkMode ? '#475569' : '#CBD5E1'} />
             <Text style={[styles.empty, darkMode && styles.cardDescDark]}>
               No achievements found in this category.
             </Text>
@@ -643,10 +643,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: responsiveFontSize.lg,
     fontWeight: '600',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   statsText: {
     fontSize: 12,
@@ -727,13 +727,13 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: fontScale(12),
     fontWeight: '500',
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   categoryChipTextActive: {
     color: '#FFFFFF',
   },
   categoryChipTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   secretToggle: {
     flexDirection: 'row',
@@ -745,13 +745,13 @@ const styles = StyleSheet.create({
   secretToggleDark: {},
   secretToggleText: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
   },
   secretToggleTextActive: {
     color: '#F59E0B',
   },
   secretToggleTextDark: {
-    color: '#6B7280',
+    color: '#64748B',
   },
   emptyState: {
     alignItems: 'center',
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     textAlign: 'center',
-    color: '#6B7280',
+    color: '#64748B',
   },
   card: {
     marginBottom: responsiveSpacing.md,
@@ -844,10 +844,10 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   cardTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   secretBadge: {
     flexDirection: 'row',
@@ -894,16 +894,16 @@ const styles = StyleSheet.create({
   },
   cardDesc: {
     fontSize: responsiveFontSize.sm,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     marginBottom: responsiveSpacing.sm,
     lineHeight: fontScale(18),
   },
   cardDescDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   nextText: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: responsiveSpacing.xs,
   },
   progressContainer: {
@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: scale(10),
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
     borderRadius: responsiveBorderRadius.sm,
     overflow: 'hidden',
     shadowColor: '#6366F1',
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
   },
   narrativeText: {
     fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
+    color: '#64748B',
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 4,

@@ -338,7 +338,7 @@ function RedeemCodeModal({ visible, onClose }: RedeemCodeModalProps) {
               accessibilityLabel="Close"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X size={18} color="#F9FAFB" />
+              <X size={18} color="#F8FAFC" />
             </TouchableOpacity>
           </View>
 
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     width: 36,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
     backgroundColor: '#0F172A',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   messageRow: {
     flexDirection: 'row',
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     marginBottom: 14,
   },
   rewardPill: {

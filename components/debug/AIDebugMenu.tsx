@@ -506,7 +506,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
           <View style={styles.header}>
             <Text style={styles.title}>Debug Suite</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={responsiveIconSize.xl} color={darkMode ? '#9CA3AF' : '#6B7280'} />
+              <X size={responsiveIconSize.xl} color={darkMode ? '#94A3B8' : '#64748B'} />
             </TouchableOpacity>
           </View>
 
@@ -521,7 +521,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                   style={[styles.tab, isActive && styles.activeTab]}
                   onPress={() => setActiveTab(tab.key)}
                 >
-                  <Icon size={responsiveIconSize.sm} color={isActive ? '#FFF' : (darkMode ? '#9CA3AF' : '#6B7280')} />
+                  <Icon size={responsiveIconSize.sm} color={isActive ? '#FFF' : (darkMode ? '#94A3B8' : '#64748B')} />
                   <Text style={[styles.tabText, isActive && styles.activeTabText]}>
                     {tab.label}
                   </Text>
@@ -584,7 +584,7 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                     icon={<DollarSign size={responsiveIconSize.xs} color="#FFF" />}
                     onPress={() => handleLoadPreset('broke')}
                     disabled={isLoading}
-                    colors={['#6B7280', '#4B5563']}
+                    colors={['#64748B', '#475569']}
                   />
                   <QuickButton
                     label="Millionaire"
@@ -615,13 +615,13 @@ export default function AIDebugMenu({ visible, onClose }: AIDebugMenuProps) {
                     placeholder="Search actions..."
                     value={searchQuery}
                     onChangeText={setSearchQuery}
-                    placeholderTextColor={darkMode ? '#9CA3AF' : '#6B7280'}
+                    placeholderTextColor={darkMode ? '#94A3B8' : '#64748B'}
                   />
                   <TouchableOpacity
                     style={[styles.filterButton, selectedCategory === 'all' && styles.activeFilter]}
                     onPress={() => setSelectedCategory('all')}
                   >
-                    <Filter size={responsiveIconSize.xs} color={selectedCategory === 'all' ? '#FFF' : (darkMode ? '#9CA3AF' : '#6B7280')} />
+                    <Filter size={responsiveIconSize.xs} color={selectedCategory === 'all' ? '#FFF' : (darkMode ? '#94A3B8' : '#64748B')} />
                   </TouchableOpacity>
                 </View>
 
@@ -791,7 +791,7 @@ function QuickButton({ label, icon, onPress, disabled, colors, fullWidth }: Quic
       activeOpacity={0.7}
     >
       <LinearGradient
-        colors={disabled ? ['#6B7280', '#4B5563'] : colors}
+        colors={disabled ? ['#64748B', '#475569'] : colors}
         style={buttonStyles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -841,7 +841,7 @@ function createStyles(darkMode: boolean) {
       backgroundColor: darkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
     },
     modal: {
-      backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
+      backgroundColor: darkMode ? '#1E293B' : '#FFFFFF',
       borderRadius: responsiveBorderRadius.xl,
       width: '100%',
       maxHeight: '85%',
@@ -874,8 +874,8 @@ function createStyles(darkMode: boolean) {
       alignItems: 'center',
       padding: responsiveSpacing.xl,
       borderBottomWidth: 1,
-      borderBottomColor: darkMode ? '#374151' : 'rgba(0,0,0,0.08)',
-      backgroundColor: darkMode ? '#111827' : '#FAFAFA',
+      borderBottomColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
+      backgroundColor: darkMode ? '#0F172A' : '#FAFAFA',
       // Light mode: subtle gradient for elegance
       ...(!darkMode && {
         backgroundColor: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
@@ -884,7 +884,7 @@ function createStyles(darkMode: boolean) {
     title: {
       fontSize: responsiveFontSize['2xl'],
       fontWeight: 'bold',
-      color: darkMode ? '#F9FAFB' : '#0F172A',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
     },
     closeButton: {
       padding: responsiveSpacing.xs,
@@ -896,8 +896,8 @@ function createStyles(darkMode: boolean) {
     tabBar: {
       flexDirection: 'row',
       borderBottomWidth: 1,
-      borderBottomColor: darkMode ? '#374151' : 'rgba(0,0,0,0.06)',
-      backgroundColor: darkMode ? '#111827' : '#F8FAFC',
+      borderBottomColor: darkMode ? '#334155' : 'rgba(0,0,0,0.06)',
+      backgroundColor: darkMode ? '#0F172A' : '#F8FAFC',
     },
     tab: {
       flex: 1,
@@ -921,7 +921,7 @@ function createStyles(darkMode: boolean) {
     tabText: {
       fontSize: responsiveFontSize.xs,
       fontWeight: '500',
-      color: darkMode ? '#9CA3AF' : '#64748B',
+      color: darkMode ? '#94A3B8' : '#64748B',
     },
     activeTabText: {
       color: '#FFFFFF',
@@ -933,13 +933,13 @@ function createStyles(darkMode: boolean) {
       marginHorizontal: responsiveSpacing.xl,
       marginTop: responsiveSpacing.md,
       padding: responsiveSpacing.sm,
-      backgroundColor: darkMode ? '#374151' : '#F1F5F9',
+      backgroundColor: darkMode ? '#334155' : '#F1F5F9',
       borderRadius: responsiveBorderRadius.md,
       borderWidth: darkMode ? 0 : 1,
       borderColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.04)',
     },
     statusText: {
-      color: darkMode ? '#D1D5DB' : '#334155',
+      color: darkMode ? '#CBD5E1' : '#334155',
       fontSize: responsiveFontSize.sm,
       fontWeight: '500',
     },
@@ -953,7 +953,7 @@ function createStyles(darkMode: boolean) {
     sectionTitle: {
       fontSize: responsiveFontSize.xl,
       fontWeight: '600',
-      color: darkMode ? '#F9FAFB' : '#0F172A',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
       marginBottom: responsiveSpacing.lg,
       // Light mode: subtle text shadow for depth
       ...(darkMode ? {} : {
@@ -983,13 +983,13 @@ function createStyles(darkMode: boolean) {
     searchInput: {
       flex: 1,
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.12)',
+      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.12)',
       borderRadius: responsiveBorderRadius.lg,
       paddingHorizontal: responsiveSpacing.md,
       paddingVertical: responsiveSpacing.sm,
       fontSize: responsiveFontSize.base,
-      color: darkMode ? '#F9FAFB' : '#0F172A',
-      backgroundColor: darkMode ? '#111827' : '#FFFFFF',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
+      backgroundColor: darkMode ? '#0F172A' : '#FFFFFF',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1005,8 +1005,8 @@ function createStyles(darkMode: boolean) {
       padding: responsiveSpacing.sm,
       borderRadius: responsiveBorderRadius.lg,
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.12)',
-      backgroundColor: darkMode ? '#111827' : '#FFFFFF',
+      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.12)',
+      backgroundColor: darkMode ? '#0F172A' : '#FFFFFF',
       alignItems: 'center',
       justifyContent: 'center',
       ...Platform.select({
@@ -1040,8 +1040,8 @@ function createStyles(darkMode: boolean) {
       paddingVertical: responsiveSpacing.xs,
       borderRadius: responsiveBorderRadius.lg,
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.12)',
-      backgroundColor: darkMode ? '#111827' : '#F8FAFC',
+      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.12)',
+      backgroundColor: darkMode ? '#0F172A' : '#F8FAFC',
       ...Platform.select({
         web: { boxShadow: '0px 1px 2px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1064,7 +1064,7 @@ function createStyles(darkMode: boolean) {
     },
     categoryText: {
       fontSize: responsiveFontSize.xs,
-      color: darkMode ? '#9CA3AF' : '#475569',
+      color: darkMode ? '#94A3B8' : '#475569',
       fontWeight: '500',
     },
     activeCategoryText: {
@@ -1074,9 +1074,9 @@ function createStyles(darkMode: boolean) {
     actionList: {
       maxHeight: 300,
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.08)',
+      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
       borderRadius: responsiveBorderRadius.lg,
-      backgroundColor: darkMode ? '#111827' : '#FFFFFF',
+      backgroundColor: darkMode ? '#0F172A' : '#FFFFFF',
       padding: responsiveSpacing.sm,
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
@@ -1092,7 +1092,7 @@ function createStyles(darkMode: boolean) {
     actionItem: {
       padding: responsiveSpacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: darkMode ? '#374151' : 'rgba(0,0,0,0.06)',
+      borderBottomColor: darkMode ? '#334155' : 'rgba(0,0,0,0.06)',
       borderRadius: responsiveBorderRadius.sm,
       marginBottom: responsiveSpacing.xs,
       backgroundColor: darkMode ? 'transparent' : 'rgba(0,0,0,0.01)',
@@ -1105,7 +1105,7 @@ function createStyles(darkMode: boolean) {
     actionName: {
       fontSize: responsiveFontSize.base,
       fontWeight: '500',
-      color: darkMode ? '#F9FAFB' : '#0F172A',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
     },
     actionCategory: {
       fontSize: responsiveFontSize.xs,
@@ -1120,12 +1120,12 @@ function createStyles(darkMode: boolean) {
 
     // Simulation styles
     simulationStatus: {
-      backgroundColor: darkMode ? '#111827' : '#F0F9FF',
+      backgroundColor: darkMode ? '#0F172A' : '#F0F9FF',
       borderRadius: responsiveBorderRadius.lg,
       padding: responsiveSpacing.lg,
       marginBottom: responsiveSpacing.lg,
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(59, 130, 246, 0.2)',
+      borderColor: darkMode ? '#334155' : 'rgba(59, 130, 246, 0.2)',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1140,12 +1140,12 @@ function createStyles(darkMode: boolean) {
     simulationTitle: {
       fontSize: responsiveFontSize.lg,
       fontWeight: '600',
-      color: darkMode ? '#F9FAFB' : '#0F172A',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
       marginBottom: responsiveSpacing.xs,
     },
     simulationProgress: {
       fontSize: responsiveFontSize.sm,
-      color: darkMode ? '#9CA3AF' : '#64748B',
+      color: darkMode ? '#94A3B8' : '#64748B',
       marginBottom: responsiveSpacing.md,
       fontWeight: '500',
     },
@@ -1154,7 +1154,7 @@ function createStyles(darkMode: boolean) {
       gap: responsiveSpacing.sm,
     },
     controlButton: {
-      backgroundColor: darkMode ? '#374151' : '#E2E8F0',
+      backgroundColor: darkMode ? '#334155' : '#E2E8F0',
       borderRadius: responsiveBorderRadius.md,
       padding: responsiveSpacing.sm,
       alignItems: 'center',
@@ -1181,12 +1181,12 @@ function createStyles(darkMode: boolean) {
       elevation: 3,
     },
     scenarioItem: {
-      backgroundColor: darkMode ? '#111827' : '#FEFEFE',
+      backgroundColor: darkMode ? '#0F172A' : '#FEFEFE',
       borderRadius: responsiveBorderRadius.lg,
       padding: responsiveSpacing.lg,
       marginBottom: responsiveSpacing.md,
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.08)',
+      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1207,7 +1207,7 @@ function createStyles(darkMode: boolean) {
     scenarioName: {
       fontSize: responsiveFontSize.lg,
       fontWeight: '600',
-      color: darkMode ? '#F9FAFB' : '#0F172A',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
     },
     scenarioCount: {
       fontSize: responsiveFontSize.xs,
@@ -1220,7 +1220,7 @@ function createStyles(darkMode: boolean) {
     },
     scenarioDesc: {
       fontSize: responsiveFontSize.sm,
-      color: darkMode ? '#9CA3AF' : '#64748B',
+      color: darkMode ? '#94A3B8' : '#64748B',
       lineHeight: responsiveFontSize.lg,
     },
 
@@ -1233,12 +1233,12 @@ function createStyles(darkMode: boolean) {
     monitorItem: {
       flex: 1,
       minWidth: 120,
-      backgroundColor: darkMode ? '#111827' : '#FEFEFE',
+      backgroundColor: darkMode ? '#0F172A' : '#FEFEFE',
       borderRadius: responsiveBorderRadius.lg,
       padding: responsiveSpacing.lg,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: darkMode ? '#374151' : 'rgba(0,0,0,0.08)',
+      borderColor: darkMode ? '#334155' : 'rgba(0,0,0,0.08)',
       ...Platform.select({
         web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 1)' } as any,
         default: {
@@ -1252,7 +1252,7 @@ function createStyles(darkMode: boolean) {
     },
     monitorLabel: {
       fontSize: responsiveFontSize.xs,
-      color: darkMode ? '#9CA3AF' : '#64748B',
+      color: darkMode ? '#94A3B8' : '#64748B',
       marginTop: responsiveSpacing.sm,
       fontWeight: '500',
       textTransform: 'uppercase',
@@ -1261,7 +1261,7 @@ function createStyles(darkMode: boolean) {
     monitorValue: {
       fontSize: responsiveFontSize.xl,
       fontWeight: 'bold',
-      color: darkMode ? '#F9FAFB' : '#0F172A',
+      color: darkMode ? '#F8FAFC' : '#0F172A',
       marginTop: responsiveSpacing.xs,
       // Light mode: subtle text shadow for important values
       ...(darkMode ? {} : {

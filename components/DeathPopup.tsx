@@ -1574,7 +1574,7 @@ function DeathPopup() {
                       activeOpacity={0.8}
                     >
                       <LinearGradient
-                        colors={!canContinueLegacy ? ['#94A3B8', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
+                        colors={!canContinueLegacy ? ['#94A3B8', '#64748B'] : [theme.palette.primary, theme.palette.primaryDark]}
                         style={styles.buttonGradient}
                       >
                         <Crown size={18} color="#FFF" />

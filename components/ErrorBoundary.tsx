@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     marginBottom: 30,
     lineHeight: 22,
@@ -953,7 +953,7 @@ const styles = StyleSheet.create({
   },
   retryInfo: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
   },
   recoveryContainer: {
@@ -1019,7 +1019,7 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     marginBottom: 12,
     paddingHorizontal: 20,

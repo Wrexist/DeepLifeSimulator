@@ -110,7 +110,7 @@ export default function LoadingButton({
       accessibilityState={accessibilityProps.accessibilityState}
     >
       <LinearGradient
-        colors={(isDisabled ? ['#9CA3AF', '#6B7280'] : colors) as unknown as readonly [string, string]}
+        colors={(isDisabled ? ['#94A3B8', '#64748B'] : colors) as unknown as readonly [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[

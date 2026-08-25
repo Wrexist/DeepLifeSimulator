@@ -37,7 +37,7 @@ export default function LegacyOverviewTab({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
+          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -269,11 +269,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   actionButtonDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   actionText: {
     fontWeight: '600',
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   traitCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     padding: 12,
     borderRadius: 8,
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   traitDesc: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
   },
   bonusRow: {
     flexDirection: 'row',
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   bonusLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: 4,
   },
   bonusValue: {
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDarkSecondary: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
 });
 

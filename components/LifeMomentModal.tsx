@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   situation: {
     fontSize: 16,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   situationDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   scrollArea: {
     flexShrink: 1,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   choiceTextDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   effectsContainer: {
     flexDirection: 'row',

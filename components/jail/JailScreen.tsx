@@ -221,12 +221,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       case 'prison_job': return ['#10B981', '#34D399'];
       case 'library_study': return ['#8B5CF6', '#A78BFA'];
       case 'prison_workshop': return ['#F59E0B', '#FBBF24'];
-      case 'legal_appeal': return ['#1E293B', '#6B7280'];
+      case 'legal_appeal': return ['#1E293B', '#64748B'];
       case 'good_behavior': return ['#059669', '#34D399'];
       case 'prison_meditation': return ['#6366F1', '#818CF8'];
       case 'prison_exercise': return ['#EF4444', '#F87171'];
       case 'prison_yoga': return ['#EC4899', '#F472B6'];
-      default: return ['#6B7280', '#94A3B8'];
+      default: return ['#64748B', '#94A3B8'];
     }
   };
 
@@ -338,7 +338,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               style={styles.bailButton}
             >
               <LinearGradient
-                colors={stats.money < bailCost ? ['#6B7280', '#4B5563'] : ['#10B981', '#34D399']}
+                colors={stats.money < bailCost ? ['#64748B', '#475569'] : ['#10B981', '#34D399']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bailButtonGradient}
@@ -437,7 +437,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       style={styles.foodCardGradient}
                     >
                       <View style={styles.foodCardHeader}>
-                        <Utensils size={16} color={canAfford ? '#F59E0B' : '#6B7280'} />
+                        <Utensils size={16} color={canAfford ? '#F59E0B' : '#64748B'} />
                         <Text style={[styles.foodPrice, !canAfford && styles.disabledText]}>
                           ${price}
                         </Text>
@@ -496,9 +496,9 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       style={styles.activityGradient}
                     >
                       <View style={styles.activityHeader}>
-                        <Icon size={20} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#6B7280'} />
+                        <Icon size={20} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#64748B'} />
                         <View style={styles.energyCost}>
-                          <Zap size={12} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#6B7280'} />
+                          <Zap size={12} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#64748B'} />
                           <Text style={[styles.energyText, (!canPerform || onCooldown || doneThisWeek) && styles.disabledText]}>
                             {activity.energyCost}
                           </Text>
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     fontSize: 11,
-    color: '#E5E7EB',
+    color: '#E2E8F0',
     marginBottom: 10,
     lineHeight: 14,
   },
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   disabledText: {
-    color: '#6B7280',
+    color: '#64748B',
   },
   cooldownIndicator: {
     flexDirection: 'row',

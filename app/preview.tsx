@@ -91,7 +91,7 @@ function PreviewContent({ apply }: { apply: (w?: number, h?: number) => void }) 
           </TouchableOpacity>
         </View>
 
-        {/* Själva appen renderas nedan med full layout. */}
+        {/* The app itself renders below with its full layout. */}
         <View style={styles.frameOuter}>
           <View style={styles.frame}>
             <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
@@ -101,7 +101,7 @@ function PreviewContent({ apply }: { apply: (w?: number, h?: number) => void }) 
         </View>
 
         <Text style={styles.hint}>
-          Tips: Klicka på en preset för att gå till spelet med den upplösningen. Du kan också sätta ?w=393&h=852 i URL:en.
+          Tip: tap a preset to open the game at that resolution. You can also set ?w=393&h=852 in the URL.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -119,11 +119,11 @@ const styles = StyleSheet.create({
   container: { padding: 16, gap: 16 },
   title: { fontSize: 18, fontWeight: '700' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  button: { backgroundColor: '#111827', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
-  reset: { backgroundColor: '#374151' },
+  button: { backgroundColor: '#0F172A', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 },
+  reset: { backgroundColor: '#334155' },
   buttonText: { color: '#fff', fontWeight: '700' },
   frameOuter: {
-    borderWidth: 1, borderColor: '#e5e7eb', padding: 8, borderRadius: 12, backgroundColor: '#f9fafb'
+    borderWidth: 1, borderColor: '#E2E8F0', padding: 8, borderRadius: 12, backgroundColor: '#F8FAFC'
   },
   frame: { width: '100%', flex: 1 },
   hint: { opacity: 0.7, marginTop: 8 },

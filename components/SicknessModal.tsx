@@ -173,7 +173,7 @@ function SicknessModal() {
       case 'mild': return '#F59E0B';
       case 'serious': return '#EF4444';
       case 'critical': return '#DC2626';
-      default: return '#6B7280';
+      default: return '#64748B';
     }
   };
 
@@ -192,7 +192,7 @@ function SicknessModal() {
       case 'energy': return <Zap size={16} color="#F59E0B" />;
       case 'happiness': return <Smile size={16} color="#10B981" />;
       case 'fitness': return <Dumbbell size={16} color="#8B5CF6" />;
-      default: return <Activity size={16} color="#6B7280" />;
+      default: return <Activity size={16} color="#64748B" />;
     }
   };
 

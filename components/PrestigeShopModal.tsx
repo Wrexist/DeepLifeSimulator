@@ -159,7 +159,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
       case 'special':
         return ['#EF4444', '#DC2626'];
       default:
-        return ['#6B7280', '#4B5563'];
+        return ['#64748B', '#475569'];
     }
   };
 
@@ -176,7 +176,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
       case 'legendary':
         return '#F59E0B';
       default:
-        return '#6B7280';
+        return '#64748B';
     }
   };
 
@@ -282,7 +282,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                         end={{ x: 1, y: 1 }}
                         style={[styles.categoryTab, isSelected && styles.categoryTabSelected]}
                       >
-                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#CBD5E1' : '#6B7280')} />
+                        <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#CBD5E1' : '#64748B')} />
                         <Text style={[styles.categoryTabText, isSelected && styles.categoryTabTextSelected, !isSelected && isDarkMode && styles.categoryTabTextDark]}>
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
@@ -452,7 +452,7 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                             ) : unlocked ? (
                               <Sparkles size={16} color="#D97706" />
                             ) : (
-                              <Lock size={16} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+                              <Lock size={16} color={isDarkMode ? '#94A3B8' : '#64748B'} />
                             )}
                             <View style={{ flex: 1 }}>
                               <Text style={[styles.emptyText, isDarkMode && styles.emptyTextDark, { textAlign: 'left', fontWeight: '700' }]}>
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
   pointsLabel: {
     fontSize: fontScale(12),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(2),
   },
   pointsLabelDark: {
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   categoryTabText: {
     fontSize: fontScale(13),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   categoryTabTextSelected: {
     color: '#FFFFFF',
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: fontScale(16),
-    color: '#6B7280',
+    color: '#64748B',
   },
   emptyTextDark: {
     color: '#94A3B8',
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   },
   bonusDescription: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: fontScale(20),
     marginBottom: scale(8),
     marginTop: scale(4),
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '600',
   },
   levelTextDark: {

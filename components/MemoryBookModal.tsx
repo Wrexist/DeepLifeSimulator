@@ -217,7 +217,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
                 {/* Inherited By Indicator */}
                 {inheritedBy.length > 0 && (
                   <View style={styles.inheritedContainer}>
-                    <Users size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#6B7280'} />
+                    <Users size={scale(12)} color={settings.darkMode ? '#94A3B8' : '#64748B'} />
                     <Text style={[styles.inheritedText, settings.darkMode && styles.textDarkSecondary]}>
                       Passed to: {inheritedBy.join(', ')}
                     </Text>
@@ -353,7 +353,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <LinearGradient
-          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
+          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
           style={styles.content}
         >
           {/* Header */}
@@ -412,9 +412,9 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
                 ]}
                 onPress={() => setFilter(f)}
               >
-                {f === 'unlocked' && <Unlock size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#6B7280')} />}
-                {f === 'locked' && <Lock size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#6B7280')} />}
-                {f === 'all' && <BookOpen size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#6B7280')} />}
+                {f === 'unlocked' && <Unlock size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#64748B')} />}
+                {f === 'locked' && <Lock size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#64748B')} />}
+                {f === 'all' && <BookOpen size={scale(14)} color={filter === f ? '#FFF' : (settings.darkMode ? '#94A3B8' : '#64748B')} />}
                 <Text
                   style={[
                     styles.filterText,
@@ -434,7 +434,7 @@ export default function MemoryBookModal({ visible, onClose }: Props) {
               filteredMemories.map((memory, index) => renderMemoryCard(memory, index))
             ) : (
               <View style={styles.emptyState}>
-                <Sparkles size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#D1D5DB'} />
+                <Sparkles size={scale(48)} color={settings.darkMode ? '#94A3B8' : '#CBD5E1'} />
                 <Text style={[styles.emptyTitle, settings.darkMode && styles.textDark]}>
                   No Memories Found
                 </Text>
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
   closeButton: {
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   statsBar: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: scale(16),
     padding: scale(12),
     marginBottom: scale(16),
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
   },
   statDivider: {
     width: 1,
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
     paddingHorizontal: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
   },
   filterButtonDark: {
     backgroundColor: '#334155',
@@ -558,7 +558,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: fontScale(13),
-    color: '#4B5563',
+    color: '#475569',
     fontWeight: '500',
   },
   filterTextActive: {
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
   },
   ancestorSource: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
   genTag: {
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: fontScale(14),
-    color: '#4B5563',
+    color: '#475569',
     lineHeight: fontScale(20),
     marginBottom: scale(10),
   },
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
   inheritedText: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
   },
   viewMoreContainer: {
     flexDirection: 'row',
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   lockedCardInner: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: scale(16),
     padding: scale(16),
     flexDirection: 'row',
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   lockedTitle: {
     fontSize: fontScale(15),
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#475569',
   },
   lockedDescription: {
     fontSize: fontScale(12),
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#475569',
     marginTop: scale(16),
   },
   emptyText: {
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(8),
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   effectCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     padding: scale(12),
     borderRadius: scale(12),
   },
@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
   },
   effectCardLabel: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
 });

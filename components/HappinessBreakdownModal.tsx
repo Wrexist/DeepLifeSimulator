@@ -139,7 +139,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
   return (
     <BaseModal visible={visible} onClose={onClose} title="Happiness Breakdown">
       {/* Current Happiness */}
-      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
+      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
         <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Current Happiness</Text>
         <Text style={[styles.totalValue, { color: theme.text }]}>
           {Math.round(breakdown.currentHappiness)} / 100
@@ -170,7 +170,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
           {breakdown.incomes.map((income, index) => {
             const Icon = income.icon;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F8FAFC', borderColor: isDark ? '#475569' : '#E2E8F0' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: `${income.color}20` }]}>
                     <Icon size={scale(16)} color={income.color} />
@@ -208,7 +208,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
           {breakdown.drains.map((drain, index) => {
             const Icon = drain.icon;
             return (
-              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F9FAFB', borderColor: isDark ? '#4B5563' : '#E5E7EB' }]}>
+              <View key={index} style={[styles.itemCard, { backgroundColor: isDark ? '#334155' : '#F8FAFC', borderColor: isDark ? '#475569' : '#E2E8F0' }]}>
                 <View style={styles.itemHeader}>
                   <View style={[styles.itemIconContainer, { backgroundColor: `${drain.color}20` }]}>
                     <Icon size={scale(16)} color={drain.color} />
@@ -234,7 +234,7 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
       )}
 
       {/* Summary */}
-      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
+      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
         <Text style={[styles.summaryTitle, { color: theme.text }]}>
           How Happiness Works
         </Text>

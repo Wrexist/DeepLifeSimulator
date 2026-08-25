@@ -810,14 +810,14 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
           <View style={styles.header}>
             <Text style={[styles.title, settings.darkMode && styles.titleDark]}>Help</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
+              <X size={24} color={settings.darkMode ? '#CBD5E1' : '#64748B'} />
             </TouchableOpacity>
           </View>
 
           <TextInput
             style={[styles.searchInput, settings.darkMode && styles.searchInputDark]}
             placeholder="Search..."
-            placeholderTextColor={settings.darkMode ? '#94A3B8' : '#6B7280'}
+            placeholderTextColor={settings.darkMode ? '#94A3B8' : '#64748B'}
             value={search}
             onChangeText={setSearch}
           />
@@ -899,14 +899,14 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     padding: 4,
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#CBD5E1',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
   searchInputDark: {
     borderColor: '#334155',
     backgroundColor: '#0F172A',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   content: {
     flexGrow: 0,
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   item: {
     marginBottom: 8,
@@ -941,15 +941,15 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   itemTextDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   answer: {
     marginTop: 4,
     fontSize: 13,
-    color: '#4B5563',
+    color: '#475569',
   },
   answerDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   contactButton: {
     flexDirection: 'row',

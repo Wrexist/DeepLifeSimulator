@@ -71,7 +71,7 @@ export default function RingSelectionModal({
               <Text style={[styles.title, darkMode && styles.textDark]}>Choose a Ring</Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <X size={24} color={darkMode ? '#F9FAFB' : '#0F172A'} />
+              <X size={24} color={darkMode ? '#F8FAFC' : '#0F172A'} />
             </TouchableOpacity>
           </View>
 
@@ -123,7 +123,7 @@ export default function RingSelectionModal({
             style={[styles.proposeButton, !selected && { opacity: 0.5 }]}
           >
             <LinearGradient
-              colors={selected ? getTierGradient(selected.ring.qualityTier) : ['#6B7280', '#4B5563']}
+              colors={selected ? getTierGradient(selected.ring.qualityTier) : ['#64748B', '#475569']}
               style={styles.proposeGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(12),
   },
   list: {
@@ -186,10 +186,10 @@ const styles = StyleSheet.create({
   ringCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     padding: scale(12),
     marginBottom: scale(8),
   },
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   ringDescription: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
   ringStatsRow: {
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   textDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   textMuted: {
     color: '#94A3B8',

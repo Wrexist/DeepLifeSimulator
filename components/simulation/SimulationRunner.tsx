@@ -448,7 +448,7 @@ export default function SimulationRunner({ onComplete }: SimulationRunnerProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     padding: responsivePadding.medium,
   },
   header: {
@@ -462,17 +462,17 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: responsiveFontSize.base,
-    color: '#9CA3AF',
+    color: '#94A3B8',
   },
   progressContainer: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
@@ -483,12 +483,12 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: responsiveFontSize.base,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     marginBottom: 8,
   },
   currentStep: {
     fontSize: responsiveFontSize.xs,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontStyle: 'italic',
   },
   loader: {
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   startText: {
     fontSize: responsiveFontSize.lg,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   summary: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: responsiveFontSize.xs,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginBottom: 4,
   },
   summaryValue: {
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   appResult: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
@@ -574,11 +574,11 @@ const styles = StyleSheet.create({
   },
   appStatText: {
     fontSize: responsiveFontSize.sm,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   appProgressBar: {
     height: 4,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderRadius: 2,
     overflow: 'hidden',
     marginTop: 8,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: '#334155',
   },
   failuresTitle: {
     fontSize: responsiveFontSize.sm,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   failureItem: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: 6,
     padding: 10,
     marginBottom: 8,
@@ -618,13 +618,13 @@ const styles = StyleSheet.create({
   },
   failureDuration: {
     fontSize: responsiveFontSize.xs,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
   },
   allFailuresContainer: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1E293B',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#EF4444',
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   detailedFailure: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 6,
     padding: 12,
     marginBottom: 10,
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   },
   detailedFailureFeature: {
     fontSize: responsiveFontSize.sm,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
     marginBottom: 4,
   },
   detailedFailureError: {
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   },
   detailedFailureTime: {
     fontSize: responsiveFontSize.xs,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     marginTop: 4,
   },
   modeSelector: {
@@ -679,9 +679,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
     borderWidth: 1,
-    borderColor: '#4B5563',
+    borderColor: '#475569',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   modeButtonText: {
     fontSize: responsiveFontSize.sm,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryResult: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   },
   categoryStatText: {
     fontSize: responsiveFontSize.sm,
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
 });
 

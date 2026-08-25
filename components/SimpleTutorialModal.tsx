@@ -149,12 +149,12 @@ const styles = StyleSheet.create({
   stepCounter: {
     fontSize: responsiveFontSize.sm,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: responsiveSpacing.xs,
   },
   progressBar: {
     height: scale(4),
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     borderRadius: scale(2),
     overflow: 'hidden',
   },
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: responsiveFontSize.base * 1.5,
   },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   messageDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   footer: {
     flexDirection: 'row',
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
   },
   skipTextDark: {

@@ -465,7 +465,7 @@ export function ComputerScreenContent({
       >
         <View style={styles.noComputerContainer}>
           <View style={styles.noComputerIconContainer}>
-            <Monitor size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+            <Monitor size={80} color={settings.darkMode ? '#64748B' : '#94A3B8'} />
           </View>
           <Text style={[styles.noComputerTitle, settings.darkMode && styles.noComputerTitleDark]}>
             {t('computer.noComputerAvailable')}
@@ -673,10 +673,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: responsiveSpacing.md,
     fontSize: responsiveFontSize.md,
-    color: '#6B7280',
+    color: '#64748B',
   },
   loadingTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   header: {
     flexDirection: 'row',
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   appDescription: {
     fontSize: fontScale(10.5),
-    color: '#4B5563',
+    color: '#475569',
     textAlign: 'center',
     lineHeight: fontScale(10.5) * 1.35,
     fontWeight: '500',
@@ -867,11 +867,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noComputerTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   noComputerMessage: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: responsiveFontSize.base * 1.4,
   },

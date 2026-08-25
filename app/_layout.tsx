@@ -1457,14 +1457,14 @@ const styles = StyleSheet.create({
     // #020617 matches the app's canvas (MainMenu, home). The ONLY visible part
     // of this background is the bottom home-indicator inset strip (edges pad
     // 'bottom'), which read as a stray gray bar under every screen when it was
-    // the lighter #111827.
+    // the lighter #0F172A.
     backgroundColor: '#020617',
   },
   statusBar: {
     backgroundColor: '#fff',
   },
   statusBarDark: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
   },
   safeAreaFatal: {
     backgroundColor: '#0f172a',

@@ -100,7 +100,7 @@ export default function FamilyTreeModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
+          colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
           style={styles.content}
         >
           <View style={styles.header}>
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#64748B',
   },
   generationRow: {
     marginBottom: 24,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   genText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#4B5563',
+    color: '#475569',
     marginRight: 10,
     width: 100,
   },
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     marginBottom: 8,
   },
   nodeSelected: {
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   nodeDetails: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
   },
   expandedDetails: {
     marginTop: 8,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 12,
-    color: '#4B5563',
+    color: '#475569',
     marginBottom: 2,
   },
   textDark: {

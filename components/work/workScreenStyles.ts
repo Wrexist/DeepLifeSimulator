@@ -124,7 +124,7 @@ export const styles = StyleSheet.create({
     },
     comingSoonText: {
         fontSize: 16,
-        color: '#6B7280',
+        color: '#64748B',
         marginBottom: 10,
     },
     comingSoonTextDark: {
@@ -144,7 +144,7 @@ export const styles = StyleSheet.create({
     lockedCareerText: {
         flex: 1,
         fontSize: fontScale(14),
-        color: '#6B7280',
+        color: '#64748B',
         lineHeight: fontScale(20),
     },
     lockedCareerTextDark: {
@@ -824,7 +824,7 @@ export const styles = StyleSheet.create({
     },
     salaryHidden: {
         fontSize: responsiveFontSize.sm,
-        color: '#6B7280',
+        color: '#64748B',
         marginLeft: scale(6),
     },
     salaryHiddenDark: {
@@ -896,7 +896,7 @@ export const styles = StyleSheet.create({
     },
     jobDescription: {
         fontSize: responsiveFontSize.sm,
-        color: '#6B7280',
+        color: '#64748B',
         marginBottom: responsiveSpacing.sm,
         // Same pairing as `sectionDescription` above — scale the line box with
         // the text it holds, not against it.
@@ -1008,7 +1008,7 @@ export const styles = StyleSheet.create({
     negativeStatsModalSubtitle: {
         fontSize: getResponsiveValue(14, 16, 18, 20),
         fontWeight: '500',
-        color: '#6B7280',
+        color: '#64748B',
     },
     negativeStatsModalSubtitleDark: {
         color: '#94A3B8',
@@ -1026,7 +1026,7 @@ export const styles = StyleSheet.create({
     },
     negativeStatsModalDescription: {
         fontSize: getResponsiveValue(14, 16, 18, 20),
-        color: '#6B7280',
+        color: '#64748B',
         marginBottom: getResponsiveValue(16, 20, 24, 28),
         lineHeight: getResponsiveValue(20, 24, 28, 32),
     },
@@ -1134,7 +1134,7 @@ export const styles = StyleSheet.create({
     },
     lockedHint: {
         marginTop: 6,
-        color: '#6B7280',
+        color: '#64748B',
         fontSize: 12,
     },
     lockedHintDark: {
@@ -1224,7 +1224,7 @@ export const styles = StyleSheet.create({
         color: '#CBD5E1',
     },
     activeDivisionTabText: {
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     highlightedTeam: {
         color: '#3B82F6',
@@ -1261,7 +1261,7 @@ export const styles = StyleSheet.create({
         color: '#F8FAFC',
     },
     upgradeDesc: {
-        color: '#4B5563',
+        color: '#475569',
         fontSize: 14,
         fontFamily: 'System',
     },
@@ -1415,7 +1415,7 @@ export const styles = StyleSheet.create({
     },
     progressLabel: {
         fontSize: responsiveFontSize.sm,
-        color: '#6B7280',
+        color: '#64748B',
     },
     progressLabelDark: {
         color: '#94A3B8',
@@ -1548,7 +1548,7 @@ export const styles = StyleSheet.create({
     costText: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#6B7280',
+        color: '#64748B',
     },
     unlockedUpgrade: {
         opacity: 0.7,
@@ -1707,7 +1707,7 @@ export const styles = StyleSheet.create({
     },
     skillProgressText: {
         fontSize: responsiveFontSize.xs,
-        color: '#6B7280',
+        color: '#64748B',
         fontWeight: '500',
     },
     skillProgressTextDark: {
@@ -3272,7 +3272,7 @@ export const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: '#F1F5F9',
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
@@ -3300,14 +3300,14 @@ export const styles = StyleSheet.create({
     },
     playModalSubtitle: {
         fontSize: 18,
-        color: '#6B7280',
+        color: '#64748B',
         fontWeight: '500',
     },
     playModalCloseButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: '#F1F5F9',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -3315,12 +3315,12 @@ export const styles = StyleSheet.create({
         flex: 1,
     },
     playModalInfoBox: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: '#F8FAFC',
         borderRadius: 16,
         padding: 20,
         marginBottom: 32,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: '#E2E8F0',
     },
     playModalInfoText: {
         fontSize: 16,
@@ -3332,7 +3332,7 @@ export const styles = StyleSheet.create({
     },
     playModalInfoSubtext: {
         fontSize: 14,
-        color: '#6B7280',
+        color: '#64748B',
         textAlign: 'center',
         lineHeight: 20,
     },

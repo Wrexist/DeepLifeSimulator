@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   title: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     fontSize: fontScale(15),
     fontWeight: '700',
   },

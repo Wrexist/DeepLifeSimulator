@@ -19,7 +19,7 @@ export default function GemsBreakdownModal({ visible, onClose }: GemsBreakdownMo
   return (
     <BaseModal visible={visible} onClose={onClose} title="Gems">
       {/* Current Gems */}
-      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
+      <View style={[styles.totalCard, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
         <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>Current Gems</Text>
         <Text style={[styles.totalValue, { color: isDark ? '#818CF8' : '#6366F1' }]}>
           {gems.toLocaleString()}
@@ -27,7 +27,7 @@ export default function GemsBreakdownModal({ visible, onClose }: GemsBreakdownMo
       </View>
 
       {/* Info Card */}
-      <View style={[styles.infoCard, { backgroundColor: isDark ? '#334155' : '#F3F4F6' }]}>
+      <View style={[styles.infoCard, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
         <Text style={[styles.infoTitle, { color: theme.text }]}>
           About Gems
         </Text>

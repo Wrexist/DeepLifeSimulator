@@ -63,7 +63,7 @@ export default function InfoButton({
       >
         <HelpCircle 
           size={sizeStyles.iconSize} 
-          color={darkMode ? '#94A3B8' : '#6B7280'} 
+          color={darkMode ? '#94A3B8' : '#64748B'} 
         />
       </TouchableOpacity>
 
@@ -79,7 +79,7 @@ export default function InfoButton({
             darkMode && styles.modalContainerDark,
           ]}>
             <LinearGradient
-              colors={darkMode ? ['#334155', '#1E293B'] : ['#F8FAFC', '#E5E7EB']}
+              colors={darkMode ? ['#334155', '#1E293B'] : ['#F8FAFC', '#E2E8F0']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.modalHeader}
@@ -97,7 +97,7 @@ export default function InfoButton({
                 accessibilityLabel="Close"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <X size={20} color={darkMode ? '#D1D5DB' : '#6B7280'} />
+                <X size={20} color={darkMode ? '#CBD5E1' : '#64748B'} />
               </TouchableOpacity>
             </LinearGradient>
 
@@ -182,10 +182,10 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: responsiveFontSize.base,
     lineHeight: responsiveFontSize.base * 1.5,
-    color: '#4B5563',
+    color: '#475569',
   },
   modalTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
 });
 

@@ -24,13 +24,13 @@ export default function AncestorProfileModal({ member, visible, onClose }: Props
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.container}>
         <LinearGradient
-           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F3F4F6', '#FFFFFF']}
+           colors={settings.darkMode ? ['#0F172A', '#1E293B'] : ['#F1F5F9', '#FFFFFF']}
            style={styles.content}
         >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitle}>
-               <User size={24} color={settings.darkMode ? '#94A3B8' : '#4B5563'} />
+               <User size={24} color={settings.darkMode ? '#94A3B8' : '#475569'} />
                <Text style={[styles.title, settings.darkMode && styles.textDark]}>
                  {member.firstName} {member.lastName}
                </Text>
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 15,
-    color: '#6B7280',
+    color: '#64748B',
   },
   value: {
     fontSize: 15,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDarkSecondary: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
 });
 

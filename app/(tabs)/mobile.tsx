@@ -269,7 +269,7 @@ export function MobileScreenContent({
       >
         <View style={styles.noPhoneContainer}>
           <View style={styles.noPhoneIconContainer}>
-            <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+            <Smartphone size={80} color={settings.darkMode ? '#64748B' : '#94A3B8'} />
           </View>
           <Text style={[styles.noPhoneTitle, settings.darkMode && styles.noPhoneTitleDark]}>
             {t('mobile.noPhoneAvailable')}
@@ -342,7 +342,7 @@ export function MobileScreenContent({
       style={styles.container}
     >
       <View style={styles.header}>
-        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
+        <Smartphone size={scale(18)} color={settings.darkMode ? '#F8FAFC' : '#0F172A'} />
         <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
           {t('mobile.mobileApps')}
         </Text>
@@ -454,10 +454,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: responsiveSpacing.md,
     fontSize: responsiveFontSize.md,
-    color: '#6B7280',
+    color: '#64748B',
   },
   loadingTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   header: {
     flexDirection: 'row',
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   headerTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   scrollView: {
     flex: 1,
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   },
   appDescription: {
     fontSize: responsiveFontSize.xs,
-    color: '#4B5563',
+    color: '#475569',
     textAlign: 'center',
     lineHeight: responsiveFontSize.xs * 1.4,
     fontWeight: '500',
@@ -633,11 +633,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noPhoneTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   noPhoneMessage: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: responsiveFontSize.base * 1.4,
   },
