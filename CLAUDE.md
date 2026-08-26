@@ -675,6 +675,25 @@ including the crash screen.
 - **v24 adds `luxuryHoldings`** — per-item luxury state, an additive SIDECAR keyed
   by the same ids as `luxuryItems`, which stays the ownership source of truth. Both
   the migration and `repairGameState` backfill a holding for every already-owned id.
+- **`checkpoints` is persisted in a SIDECAR, not in the slot payload**
+  (2026-08-26, no version bump). Time Machine checkpoints measured 62% of a
+  late-game save (291KB of 469KB) while changing once per game-YEAR, so the
+  save queue strips them from the serialized slot payload and writes them to a
+  per-slot signed envelope (`checkpoint_sidecar_slot_N`,
+  `utils/checkpointSidecar.ts`), written only when they change. `loadGame`
+  reattaches the sidecar ONLY when the parsed save has no `checkpoints` key —
+  inline always wins, so old saves, backups and cloud states (which all still
+  carry checkpoints inline, serialized from the in-memory state) are
+  untouched. The in-memory GameState keeps `checkpoints` exactly as before.
+  Deliberately NO STATE_VERSION bump: the field has always been optional and
+  every reader defaults an absent key, so a checkpoint-less payload is legal
+  under every version back to v10; a bump would only make TestFlight
+  downgrades refuse a save the old app could read (the v38 trade). A stale
+  sidecar from a previous life in the same slot is defused twice: the first
+  save of every session rewrites the sidecar, and the load-time filter drops
+  any checkpoint whose `weeksLived` or snapshot `lifeStartWeek` cannot belong
+  to the loaded save. `deleteSaveSlot` removes the sidecar key (spelled
+  literally there to avoid an import cycle — a parity test pins the two).
 - **A carve-out still has to survive the LOAD.** "No backfill needed" is a claim
   about the save FORMAT; it says nothing about the round trip. `loadGame` merges
   `stats`, `date`, `settings` and `userProfile` key-by-key, and that merge used to

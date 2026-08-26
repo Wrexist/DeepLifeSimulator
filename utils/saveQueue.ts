@@ -49,6 +49,22 @@ class SaveQueue {
   private toastCallback: ToastCallback | null = null;
   private log = logger.scope('SaveQueue');
 
+  /**
+   * In-memory mirror of the `lastSaveTime` AsyncStorage key, so status consumers
+   * (AutoSaveIndicator polls every 2s while mounted) can read it without a disk
+   * round-trip each time. AsyncStorage stays the durable copy for the next
+   * launch; this is only the live-session cache. Null until the first save of
+   * this session — consumers seed from AsyncStorage once and fall back to that.
+   */
+  private lastSaveTimeMs: number | null = null;
+
+  /** Stamp both the durable key and the in-memory mirror after a successful write. */
+  private async recordSaveTimestamp(): Promise<void> {
+    const now = Date.now();
+    this.lastSaveTimeMs = now;
+    await safeSetItem('lastSaveTime', now.toString());
+  }
+
   // Register toast callback
   setToastCallback(callback: ToastCallback) {
     this.toastCallback = callback;
@@ -324,8 +340,17 @@ class SaveQueue {
     // This prevents bypass by deleting AsyncStorage protected_state keys
     const dataWithProtection = await this.embedProtectedState(operation.slot, operation.data);
 
+    // PERF (2026-08-26): checkpoints are persisted in their own signed sidecar
+    // key, written only when they change (~once per game-year), instead of
+    // riding inside every weekly save — they measured 62% of a late-game
+    // payload. The live state object is untouched; only this serialized copy
+    // drops the key (the rest-spread never mutates its source, and
+    // `JSON.stringify` omits the absent key entirely, which `loadGame` reads
+    // as "consult the sidecar"). See utils/checkpointSidecar.ts.
+    const { checkpoints: liveCheckpoints, ...persistableData } = dataWithProtection ?? {};
+
     // Prune save data to reduce size
-    const prunedData = this.pruneSaveData(dataWithProtection);
+    const prunedData = this.pruneSaveData(persistableData);
     let serializedData: string;
 
     // R6 H-2: yield to the event loop before the expensive JSON.stringify so
@@ -403,12 +428,20 @@ class SaveQueue {
       // ever got written) and left the anti-exploit layer inert.
       await this.advanceProtectedState(operation.slot, operation.data);
 
+      // Persist the checkpoint sidecar the stripped payload relies on. AFTER
+      // the slot write on purpose: if this write is lost, the stored save
+      // pairs with an older sidecar whose extra/missing entries the load-time
+      // filter and the first-save-of-session rewrite both handle. No-op unless
+      // the checkpoints actually changed.
+      const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
+      await persistCheckpointSidecar(operation.slot, liveCheckpoints);
+
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
       await safeSetItem('lastSlot', slotToSave.toString());
 
       // Save timestamp for auto-save indicator (non-critical, can use regular save)
-      await safeSetItem('lastSaveTime', Date.now().toString());
+      await this.recordSaveTimestamp();
 
       await this.refreshSlotMeta(operation.slot, operation.data);
 
@@ -444,9 +477,11 @@ class SaveQueue {
               // L10: this branch returns SUCCESS, so it owes the same post-success
               // bookkeeping as the happy path - it used to skip it entirely.
               await this.advanceProtectedState(operation.slot, operation.data);
+              const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
+              await persistCheckpointSidecar(operation.slot, liveCheckpoints);
               const slotToSave = (typeof operation.slot === 'number' && !isNaN(operation.slot)) ? operation.slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
-              await safeSetItem('lastSaveTime', Date.now().toString());
+              await this.recordSaveTimestamp();
               await this.refreshSlotMeta(operation.slot, operation.data);
               this.log.info('Save succeeded after cleanup');
               return; // Success after cleanup
@@ -525,10 +560,14 @@ class SaveQueue {
     // embed for `loadGame`'s anti-exploit restore to read.
     const dataWithProtection = await this.embedProtectedState(slot, data);
 
+    // PERF (2026-08-26): same checkpoint-sidecar strip as `performSave` — see
+    // the comment there and utils/checkpointSidecar.ts.
+    const { checkpoints: liveCheckpoints, ...persistableData } = dataWithProtection ?? {};
+
     // Prune save data to reduce size
-    const prunedData = this.pruneSaveData(dataWithProtection);
+    const prunedData = this.pruneSaveData(persistableData);
     let serializedData: string;
-    
+
     // Protect JSON.stringify from circular references and other errors
     try {
       serializedData = JSON.stringify(prunedData);
@@ -597,12 +636,17 @@ class SaveQueue {
       // derived from game state rather than from a previous save's embed.
       await this.advanceProtectedState(slot, data);
 
+      // Checkpoint sidecar for the stripped payload — same ordering rationale
+      // as `performSave`.
+      const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
+      await persistCheckpointSidecar(slot, liveCheckpoints);
+
       // Also save the last slot reference (non-critical, can use regular save)
       const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
       await safeSetItem('lastSlot', slotToSave.toString());
 
       // Save timestamp for auto-save indicator (non-critical, can use regular save)
-      await safeSetItem('lastSaveTime', Date.now().toString());
+      await this.recordSaveTimestamp();
 
       await this.refreshSlotMeta(slot, data);
 
@@ -629,9 +673,11 @@ class SaveQueue {
               // L10: same as the `performSave` retry - a branch that reports
               // success owes the same post-success bookkeeping.
               await this.advanceProtectedState(slot, data);
+              const { persistCheckpointSidecar } = await import('@/utils/checkpointSidecar');
+              await persistCheckpointSidecar(slot, liveCheckpoints);
               const slotToSave = (typeof slot === 'number' && !isNaN(slot)) ? slot : 1;
               await safeSetItem('lastSlot', slotToSave.toString());
-              await safeSetItem('lastSaveTime', Date.now().toString());
+              await this.recordSaveTimestamp();
               await this.refreshSlotMeta(slot, data);
               this.log.info('Force save succeeded after cleanup');
               return; // Success after cleanup
@@ -675,6 +721,12 @@ class SaveQueue {
     return {
       queueLength: this.queue.length,
       isProcessing: this.isProcessing,
+      /**
+       * Timestamp of the last successful save THIS SESSION, or null before the
+       * first one. In-memory mirror of the `lastSaveTime` AsyncStorage key —
+       * lets pollers skip the disk round-trip (see `lastSaveTimeMs`).
+       */
+      lastSaveTime: this.lastSaveTimeMs,
     };
   }
 

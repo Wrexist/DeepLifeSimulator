@@ -1,67 +1,69 @@
-# UI/UX Polish Master Pass — plan (branch claude/deep-life-ui-ux-polish-y7nbgw)
+# Performance Master Pass — plan (branch claude/deep-life-perf-optimization-t5brac)
 
-Grounded in four audits (design tokens, screens/UX states, game feel, accessibility).
-Principle: fix root causes by wiring up the good infrastructure that already exists,
-not by inventing a parallel one.
+Principle: MEASURE → IDENTIFY → OPTIMIZE → MEASURE → VERIFY. Bit-identical
+behavior everywhere; save reliability outranks speed.
 
-## Phase 1 — Game feel foundation (highest impact:effort)
-- [x] 1.1 Install `expo-haptics` (SDK-54 matched). All 107 `haptic.*` call sites are
-      currently dead code because the package was never a dependency. `utils/haptics.ts`
-      already lazy-requires it in try/catch, so builds without it stay safe.
-- [x] 1.2 Flip `settings.hapticFeedback` default to `true` (initialState, safeGameState,
-      saveValidation repair) — `utils/haptics.ts` already defaults `_enabled = true`;
-      the two systems currently disagree and haptics-on is the genre default.
-- [x] 1.3 Unify the two haptic systems: `utils/feedbackSystem.ts` uses raw
-      `Vibration.vibrate` (flat buzz) and reconfigures a global singleton during render.
-      Route its haptic path through `utils/haptics.ts` intents.
-- [x] 1.4 Stat-change pills work on every tab, not just Home: move
-      `useStatChangeTracker(gameState)` from `app/(tabs)/home.tsx` to the tabs layout;
-      delete the shadowing dead duplicate hook in `components/ui/StatChangeIndicator.tsx`.
-- [x] 1.5 Adopt the dead `theme.animation` tokens: wire into `MotiStub` default duration
-      and `usePressableScale`.
-- [x] 1.6 Prestige celebration parity with PromotionCelebrationModal: ConfettiBurst,
-      haptic, `useReducedMotion`, `celebrationGate` registration in `PrestigeModal`.
+## Phase 1 — Baseline
+- [x] 1.1 Tick benchmark (`tickTiming.bench`): early mean 5.63ms / late mean 3.28ms
+      (Node, pessimistic), state 469KB at week 600.
+- [x] 1.2 State composition at week 600: checkpoints 291KB (62%), cryptoMarket 37.5KB,
+      mail 37.5KB, careers 14KB — growth is bounded (mail cap 50, priceHistory capped,
+      checkpoints capped at 3 and slimmed).
+- [x] 1.3 Save-signing microbench on a 469KB payload: HMAC 129.8ms, CRC32 18.7ms,
+      JSON.stringify 4.9ms (Node/JIT — Hermes interprets, so device cost is a multiple).
+      Signing runs on EVERY save, EVERY load, queue persist, and backup creation.
+- [x] 1.4 CPU profile of 600 ticks: top game-code self-time is fnv1a32 (~0.35ms/tick),
+      the updater, rollWeeklyEvents (~0.17ms/tick) — tick itself is healthy.
 
-## Phase 2 — UX primitives + the empty/loading holes
-- [x] 2.1 Create `components/ui/EmptyState.tsx` (promote the identical Pulse/Spark/Hustle
-      API: observation + nudge + optional CTA), themed, accessible.
-- [x] 2.2 Wire it into the tab-screen holes: work street jobs + career board,
-      health activities + diet plans; market food/housing if cheap.
-- [x] 2.3 Device empty states get a CTA: "no computer / no phone" screens link to Market
-      instead of dead-ending.
-- [x] 2.4 SaveSlots loading: show themed loading placeholders instead of an empty list
-      while slots load (highest-anxiety blank screen in the app).
-- [x] 2.5 Screen chrome parity: `computer.tsx` gets the same titled header as
-      `mobile.tsx` (same tab swaps chrome today when a computer is bought).
+## Phase 2 — Optimizations (highest impact first)
+- [x] 2.1 P0: rewrite the pure-JS SHA-256/HMAC core onto typed arrays (one padded
+      allocation, hoisted K, reused schedule; both padding modes + CESU-8 preserved).
+      Result: 129.8ms → 8.9ms per signature (14.6×), bit-identical digests.
+- [x] 2.2 P0: table-driven CRC32, preserving the signed-hex output exactly
+      (half of all existing checksums serialize with a leading minus sign).
+      Result: 18.7ms → 1.7ms (11×).
+- [x] 2.3 P1: AutoSaveIndicator polled AsyncStorage every 2s forever; saveQueue now
+      mirrors lastSaveTime in memory via getStatus(), indicator reads disk once.
+- [x] 2.4 Equivalence pins: `__tests__/save/saveSigningEquivalence.test.ts` — reference
+      copies of the old implementations vs new across adversarial corpus (byte ranges,
+      >0xFF charCodes, astral/CESU-8, block boundaries, both paddings, legacy HMAC
+      verification path, node:crypto cross-check, emoji round-trip).
 
-## Phase 3 — Accessibility (concentrated, audit-verified gaps)
-- [x] 3.1 `BaseModal`: `accessibilityViewIsModal`, labelled backdrop, neutralized
-      propagation-stop wrapper.
-- [x] 3.2 `maxFontSizeMultiplier` caps on chrome text: tab bar labels, TopStatsBar pills,
-      BaseModal title/subtitle (fixed-height containers clip at accessibility type sizes).
-- [x] 3.3 Touch-target rollout: apply `utils/touchTargets.ts` helpers to the 8 undersized
-      close buttons found (PrestigeShopModal, SicknessModal, MemoryBookModal,
-      LegacyTimeline, ShareLifeCard, WeddingPlanningModal, CloudTransferModal,
-      IdentityCard styles).
-- [x] 3.4 `app/(tabs)/work.tsx`: fix raw `paddingVertical: 4` on "Quit instead"
-      (~22pt destructive target), label the Manage Job action sheet, label home CTAs.
-- [x] 3.5 `StatChangeIndicator`: announce stat changes to screen readers (the game's
-      primary feedback channel is currently silent for VoiceOver).
-- [x] 3.6 Fix `accent.muted` contrast (the ~3.0:1 survivor of the documented contrast
-      pass) after checking its 12 usages' surfaces.
+## Phase 3 — Audited, no change needed (evidence recorded)
+- [x] 3.1 Timers/intervals: all bounded or AppState-paused (prior crash-fix passes).
+- [x] 3.2 Animations: HUD loops native-driver + bounded + cleaned up.
+- [x] 3.3 Render subscriptions: 13 broad `useGameState()` users left, all rarely-mounted
+      modals; hot paths on useGameSelector.
+- [x] 3.4 Analytics/cloud-sync/remote-logging intervals: no-op when idle, pause on background.
+- [x] 3.5 doubleBufferSave read-back verify: deliberate crash-safety, kept.
+- [x] 3.6 Startup: staged init already in place; load-path verify got the 10×+ signing win.
 
-## Phase 4 — Visual consistency + debt removal
-- [x] 4.1 Kill the second neutral ramp: mechanical gray→slate hex normalization across
-      app/ components/ src/ (650 occurrences, perceptually near-identical mapping).
-- [x] 4.2 Theme `app/+not-found.tsx` (stock white Expo template today).
-- [x] 4.3 Translate `app/preview.tsx` Swedish strings to English.
-- [x] 4.4 Delete dead components: `components/onboarding/OnboardingScreenShell.tsx` (v1,
-      0 importers); decide `components/anim/Skeleton.tsx` (0 importers — use in 2.4 or delete).
+## Phase 4 — Validation
+- [x] 4.1 type-check + type-check:tests + lint:errors
+- [x] 4.2 save + integration + stress + performance + unit suites
+- [x] 4.3 Tick benchmark re-run: no regression (late mean 3.24ms vs 3.28ms baseline)
+- [x] 4.4 Final report + push
 
-## Phase 5 — Validation
-- [x] 5.1 `npm run preflight:quick` + `type-check:tests` + `lint:errors`
-- [x] 5.2 Targeted suites: startup (screenImports), save (settings default change),
-      render, any suites touching edited files
-- [x] 5.3 Full `npm test`
-- [x] 5.4 Second independent visual/consistency audit pass
-- [x] 5.5 Final report + push
+## Phase 5 — Checkpoint sidecar (the deferred follow-up, owner-authorized)
+- [x] 5.1 Map every path touching checkpoints: performSave/forceSave (+quota
+      retries), loadGame (+backup fallback), createBackupFromState, CloudSync
+      (both serialize in-memory state → stay self-contained), persistQueue,
+      deleteSaveSlot callers (SaveSlots, DeathPopup, DangerZone, phantom
+      cleanup, gameInitializer), quota/cache sweeps (key-name collision check).
+- [x] 5.2 `utils/checkpointSidecar.ts`: per-slot signed envelope
+      (`checkpoint_sidecar_slot_N`), fingerprint-gated writes (first save of a
+      session, then only on change), verify-or-absent reads, wrong-life filter
+      (`weeksLived` ≤ save's, snapshot `lifeStartWeek` match).
+- [x] 5.3 Strip `checkpoints` from the serialized slot payload in performSave +
+      forceSave (all four success branches persist the sidecar); reattach in
+      loadGame ONLY when the parsed payload has no `checkpoints` key — inline
+      (old saves, backups, cloud) always wins. Live state never touched.
+- [x] 5.4 No STATE_VERSION bump — decision documented in CLAUDE.md §7
+      (optional key, every reader defaults it; a bump would only break
+      TestFlight downgrades). `deleteSaveSlot` removes the sidecar.
+- [x] 5.5 14-test suite (`checkpointSidecar.test.ts`): strip+persist parity on
+      both save paths, change-only writes, stale-sidecar clearing, reattach
+      seam, inline precedence, tamper→absent, wrong-life filter, delete parity.
+- [x] 5.6 Measured: weekly slot write 202KB → 62KB on the test state
+      (469KB → ~178KB at bench week 600, −62%); sidecar (~167KB) written once
+      per game-year instead of ~52×.

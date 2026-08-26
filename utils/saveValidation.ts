@@ -75,13 +75,39 @@ const ALLOW_UNSIGNED_LEGACY_SAVES = saveSigningRuntime.allowUnsignedLegacySaves;
 /**
  * Calculate CRC32 checksum for data integrity (error detection, NOT tamper detection)
  */
+// Table-driven CRC32. Bit-identical to the previous bit-at-a-time loop for
+// EVERY input, including charCodes above 0xFF (the old code XORed the full
+// UTF-16 code unit into the register; eight shift rounds over the whole
+// register are exactly `(crc >>> 8) ^ table[crc & 0xff]` by linearity, so the
+// table form preserves that behavior). ~8x faster, and this runs over the
+// full save payload on every save AND every load.
+//
+// ⚠️ The final `(crc ^ 0xffffffff).toString(16)` is SIGNED on purpose: `^`
+// yields an int32, so roughly half of all checksums serialize with a leading
+// minus sign (e.g. "-174841bd"). That is what every existing save stores, so
+// normalizing with `>>> 0` here would invalidate them all at once. Keep the
+// expression exactly as the bit-at-a-time version had it.
+let crc32Table: Int32Array | null = null;
+function getCrc32Table(): Int32Array {
+  if (crc32Table) return crc32Table;
+  const table = new Int32Array(256);
+  for (let b = 0; b < 256; b++) {
+    let c = b;
+    for (let j = 0; j < 8; j++) {
+      c = (c >>> 1) ^ (c & 1 ? 0xedb88320 : 0);
+    }
+    table[b] = c;
+  }
+  crc32Table = table;
+  return table;
+}
+
 export function calculateChecksum(data: string): string {
+  const table = getCrc32Table();
   let crc = 0xffffffff;
   for (let i = 0; i < data.length; i++) {
-    crc ^= data.charCodeAt(i);
-    for (let j = 0; j < 8; j++) {
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-    }
+    crc = crc ^ data.charCodeAt(i);
+    crc = (crc >>> 8) ^ table[crc & 0xff];
   }
   return (crc ^ 0xffffffff).toString(16).padStart(8, '0');
 }
@@ -165,72 +191,91 @@ type Sha256Padding = 'correct' | 'legacy';
  * save carrying an astral character. A verifier outside this module must
  * replicate this encoding (CESU-8), not use a stock UTF-8 encoder.
  */
-function utf8Bytes(message: string): number[] {
-  const bytes: number[] = [];
+// Encoded output is a Uint8Array now, sized once (3 bytes is the worst case
+// per UTF-16 code unit under CESU-8) instead of grown push-by-push — the old
+// number[] version allocated and re-grew a ~500k-element boxed array per save.
+// The BYTES produced are identical.
+function utf8Bytes(message: string): Uint8Array {
+  const out = new Uint8Array(message.length * 3);
+  let n = 0;
   for (let i = 0; i < message.length; i++) {
     const c = message.charCodeAt(i);
-    if (c < 0x80) bytes.push(c);
-    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)); }
-    else { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
+    if (c < 0x80) out[n++] = c;
+    else if (c < 0x800) { out[n++] = 0xc0 | (c >> 6); out[n++] = 0x80 | (c & 0x3f); }
+    else { out[n++] = 0xe0 | (c >> 12); out[n++] = 0x80 | ((c >> 6) & 0x3f); out[n++] = 0x80 | (c & 0x3f); }
   }
-  return bytes;
+  return out.subarray(0, n);
 }
 
 function sha256(message: string, padding: Sha256Padding = 'correct'): string {
   return sha256Bytes(utf8Bytes(message), padding);
 }
 
-function sha256Bytes(input: number[], padding: Sha256Padding = 'correct'): string {
-  // SHA-256 constants
-  const K = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-  ];
+// SHA-256 round constants, hoisted so they are built once per module load
+// instead of once per digest.
+const SHA256_ROUND_K = new Int32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
 
-  const rr = (v: number, n: number) => (v >>> n) | (v << (32 - n));
+// PERF (2026-08-26): the hashing core runs over the FULL save payload on every
+// save and every load — ~470KB late-game — and the previous number[]-based
+// implementation (per-call K array, per-block `new Array(64)`, push-grown
+// message copy) measured ~130ms per signature even under Node's JIT; Hermes
+// interprets, so on device it was several times worse, on the JS thread, after
+// every Next Week tap. This version is the SAME algorithm on typed arrays with
+// one padded allocation and a reused message schedule. Digests are
+// bit-identical in both padding modes — pinned by saveSigningEquivalence.test.
+function sha256Bytes(input: Uint8Array | number[], padding: Sha256Padding = 'correct'): string {
+  const bytes = input instanceof Uint8Array ? input : Uint8Array.from(input);
+  const len = bytes.length;
+  const bitLen = len * 8;
 
-  // Pre-processing: convert message to bytes
-  const bytes: number[] = input.slice();
-
-  const bitLen = bytes.length * 8;
-  bytes.push(0x80);
-  while (bytes.length % 64 !== 56) bytes.push(0);
-  // Append 64-bit big-endian length. The high word is always zero for any
-  // message under 2^32 bits, which is every save we will ever write.
+  // One allocation: message + 0x80 + zero pad to 56 mod 64 + 8 length bytes.
+  const paddedLen = (((len + 9 + 63) >> 6) << 6);
+  const padded = new Uint8Array(paddedLen);
+  padded.set(bytes);
+  padded[len] = 0x80;
+  const b3 = (bitLen >>> 24) & 0xff, b2 = (bitLen >>> 16) & 0xff, b1 = (bitLen >>> 8) & 0xff, b0 = bitLen & 0xff;
   if (padding === 'legacy') {
-    for (let i = 56; i >= 0; i -= 8) bytes.push((bitLen >>> i) & 0xff);
-  } else {
-    bytes.push(0, 0, 0, 0);
-    bytes.push((bitLen >>> 24) & 0xff, (bitLen >>> 16) & 0xff, (bitLen >>> 8) & 0xff, bitLen & 0xff);
+    // The legacy 64-bit length: shift counts masked to 5 bits made the high
+    // word repeat the low word — [b3,b2,b1,b0,b3,b2,b1,b0]. Reproduced verbatim
+    // so legacy-signed saves keep verifying. See the Sha256Padding comment.
+    padded[paddedLen - 8] = b3; padded[paddedLen - 7] = b2; padded[paddedLen - 6] = b1; padded[paddedLen - 5] = b0;
   }
+  // High word stays zero in 'correct' mode (any message under 2^32 bits).
+  padded[paddedLen - 4] = b3; padded[paddedLen - 3] = b2; padded[paddedLen - 2] = b1; padded[paddedLen - 1] = b0;
+
+  const K = SHA256_ROUND_K;
+  const w = new Int32Array(64);
 
   let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
   let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
 
-  for (let offset = 0; offset < bytes.length; offset += 64) {
-    const w = new Array(64);
+  for (let offset = 0; offset < paddedLen; offset += 64) {
     for (let i = 0; i < 16; i++) {
-      w[i] = (bytes[offset + i * 4] << 24) | (bytes[offset + i * 4 + 1] << 16) |
-             (bytes[offset + i * 4 + 2] << 8) | bytes[offset + i * 4 + 3];
+      const o = offset + i * 4;
+      w[i] = (padded[o] << 24) | (padded[o + 1] << 16) | (padded[o + 2] << 8) | padded[o + 3];
     }
     for (let i = 16; i < 64; i++) {
-      const s0 = rr(w[i - 15], 7) ^ rr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
-      const s1 = rr(w[i - 2], 17) ^ rr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      const x = w[i - 15], y = w[i - 2];
+      const s0 = ((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3);
+      const s1 = ((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10);
       w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
     }
 
     let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
     for (let i = 0; i < 64; i++) {
-      const S1 = rr(e, 6) ^ rr(e, 11) ^ rr(e, 25);
+      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
       const ch = (e & f) ^ (~e & g);
       const t1 = (h + S1 + ch + K[i] + w[i]) | 0;
-      const S0 = rr(a, 2) ^ rr(a, 13) ^ rr(a, 22);
+      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const t2 = (S0 + maj) | 0;
       h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
@@ -239,9 +284,16 @@ function sha256Bytes(input: number[], padding: Sha256Padding = 'correct'): strin
     h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + h) | 0;
   }
 
-  return [h0, h1, h2, h3, h4, h5, h6, h7]
-    .map(v => (v >>> 0).toString(16).padStart(8, '0'))
-    .join('');
+  return (
+    ((h0 >>> 0).toString(16).padStart(8, '0')) +
+    ((h1 >>> 0).toString(16).padStart(8, '0')) +
+    ((h2 >>> 0).toString(16).padStart(8, '0')) +
+    ((h3 >>> 0).toString(16).padStart(8, '0')) +
+    ((h4 >>> 0).toString(16).padStart(8, '0')) +
+    ((h5 >>> 0).toString(16).padStart(8, '0')) +
+    ((h6 >>> 0).toString(16).padStart(8, '0')) +
+    ((h7 >>> 0).toString(16).padStart(8, '0'))
+  );
 }
 
 /**
@@ -285,22 +337,27 @@ export function calculateHmacSignature(data: string): string {
 function hmacWith(data: string, key: string): string {
   // HMAC: H((key XOR opad) || H((key XOR ipad) || message))
   const blockSize = 64;
-  let keyBytes: number[] = [];
-  for (let i = 0; i < key.length; i++) keyBytes.push(key.charCodeAt(i) & 0xff);
-  if (keyBytes.length > blockSize) {
-    keyBytes = hexToBytes(sha256Bytes(keyBytes, 'correct'));
+  let rawKey: Uint8Array = new Uint8Array(key.length);
+  for (let i = 0; i < key.length; i++) rawKey[i] = key.charCodeAt(i) & 0xff;
+  if (rawKey.length > blockSize) {
+    rawKey = hexToBytes(sha256Bytes(rawKey, 'correct'));
   }
-  while (keyBytes.length < blockSize) keyBytes.push(0);
+  // Zero-padded to the block size by construction (Uint8Array init).
+  const keyBytes = new Uint8Array(blockSize);
+  keyBytes.set(rawKey);
 
-  const ipad: number[] = new Array(blockSize);
-  const opad: number[] = new Array(blockSize);
-  for (let i = 0; i < blockSize; i++) {
-    ipad[i] = keyBytes[i] ^ 0x36;
-    opad[i] = keyBytes[i] ^ 0x5c;
-  }
+  // One allocation for (ipad || message) instead of concat-copying the whole
+  // encoded payload through a boxed array — this is the full save payload.
+  const dataBytes = utf8Bytes(data);
+  const innerMsg = new Uint8Array(blockSize + dataBytes.length);
+  for (let i = 0; i < blockSize; i++) innerMsg[i] = keyBytes[i] ^ 0x36;
+  innerMsg.set(dataBytes, blockSize);
+  const innerHash = sha256Bytes(innerMsg, 'correct');
 
-  const innerHash = sha256Bytes(ipad.concat(utf8Bytes(data)), 'correct');
-  return sha256Bytes(opad.concat(hexToBytes(innerHash)), 'correct');
+  const outerMsg = new Uint8Array(blockSize + 32);
+  for (let i = 0; i < blockSize; i++) outerMsg[i] = keyBytes[i] ^ 0x5c;
+  outerMsg.set(hexToBytes(innerHash), blockSize);
+  return sha256Bytes(outerMsg, 'correct');
 }
 
 /**
@@ -338,9 +395,9 @@ function hmacLegacyExact(data: string, key: string): string {
 }
 
 /** Hex digest → raw bytes. */
-function hexToBytes(hex: string): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < hex.length; i += 2) out.push(parseInt(hex.substr(i, 2), 16));
+function hexToBytes(hex: string): Uint8Array {
+  const out = new Uint8Array(hex.length >> 1);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
   return out;
 }
 
@@ -2652,6 +2709,11 @@ export async function deleteSaveSlot(
     `${key}_A`,       // buffer A
     `${key}_B`,       // buffer B
     `${key}_active`,  // pointer
+    // Checkpoint sidecar (utils/checkpointSidecar.ts). Written literally here
+    // rather than imported because checkpointSidecar imports THIS module for
+    // the envelope helpers; checkpointSidecarKeyParity.test pins the two
+    // spellings together.
+    `checkpoint_sidecar_slot_${slot}`,
   ];
   await storage.multiRemove(keysToRemove);
 }

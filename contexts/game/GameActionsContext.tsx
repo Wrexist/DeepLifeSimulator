@@ -4827,6 +4827,29 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  }
  }
 
+ // PERF (2026-08-26): slot payloads no longer carry `checkpoints` - the save
+ // queue strips them into a signed per-slot sidecar (utils/checkpointSidecar.ts)
+ // so ~52 weekly saves a year stop re-signing a snapshot set that changes once
+ // a year. Reattach here, BEFORE migrations/repair, so the rest of the load
+ // pipeline sees exactly the shape it always has. Inline checkpoints win when
+ // present: old saves, and backup restores (backups serialize the in-memory
+ // state, so they stay self-contained), never consult the sidecar. The filter
+ // drops any sidecar entry that cannot belong to this save (a stale sidecar
+ // from a previous life in the same slot - see the module comment).
+ try {
+ if (parsed && typeof parsed === 'object' && parsed.checkpoints === undefined) {
+ const { readCheckpointSidecar, filterCheckpointsForState } = await import('@/utils/checkpointSidecar');
+ const sidecarCheckpoints = await readCheckpointSidecar(slot);
+ if (sidecarCheckpoints && sidecarCheckpoints.length > 0) {
+ parsed.checkpoints = filterCheckpointsForState(sidecarCheckpoints, parsed);
+ }
+ }
+ } catch (sidecarError) {
+ // Checkpoints are a convenience rewind target - a load must never fail
+ // because of them.
+ logger.warn('[LOAD_GAME] Checkpoint sidecar reattach failed (non-critical):', { error: sidecarError });
+ }
+
  // A-4: Run version migrations BEFORE repair (migrations handle renames/restructures,
  // repair fills remaining defaults)
  try {
