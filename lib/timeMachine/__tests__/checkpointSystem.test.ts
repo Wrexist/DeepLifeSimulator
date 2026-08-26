@@ -173,6 +173,40 @@ describe('checkpointSystem - create → rewind round-trip', () => {
     live.checkpoints = [cp];
     expect(rewindToCheckpoint(live, cp.id)).toBeNull();
   });
+
+  it('carries account-level purchases from the LIVE state onto the restore (F3)', () => {
+    // A checkpoint captured before a real-money purchase (or a purchase landing
+    // while the rewind dialog is open) must not be erased by the full-snapshot
+    // restore. The account-entitlement whitelist carries them off the live
+    // state, exactly as prestige/heir-continuation do.
+    const captured = heavyState();
+    // The snapshot predates every purchase below.
+    captured.settings = { ...captured.settings, adsRemoved: false, lifetimePremium: false, privateBanking: false } as never;
+    captured.goldUpgrades = {};
+    const cp = createCheckpoint(captured, 'Age 19');
+
+    const live = heavyState();
+    live.stats = { ...live.stats, gems: 100_000 };
+    live.checkpoints = [cp];
+    // Purchases the player owns NOW (after the checkpoint).
+    live.settings = {
+      ...live.settings,
+      adsRemoved: true,
+      lifetimePremium: true,
+      privateBanking: true,
+    } as never;
+    live.goldUpgrades = { multiplier: true, immortality: true };
+    live.perks = { ...(live.perks ?? {}), workBoost: true };
+
+    const r = rewindToCheckpoint(live, cp.id)!;
+
+    expect(r.settings?.adsRemoved).toBe(true);
+    expect(r.settings?.lifetimePremium).toBe(true);
+    expect(r.settings?.privateBanking).toBe(true);
+    expect(r.goldUpgrades?.multiplier).toBe(true);
+    expect(r.goldUpgrades?.immortality).toBe(true);
+    expect(r.perks?.workBoost).toBe(true);
+  });
 });
 
 describe('checkpointSystem - getRewindCost tiers', () => {

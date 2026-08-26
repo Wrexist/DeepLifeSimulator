@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
 import { runMigrations } from '@/utils/saveMigrations';
 import { repairGameState } from '@/utils/saveValidation';
+import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
 
 /**
  * How many rewind targets a life keeps.
@@ -301,6 +302,16 @@ export function rewindToCheckpoint(
     restored.discoveredSecrets = currentState.discoveredSecrets;
     restored.checkpoints = currentState.checkpoints; // Keep full checkpoint list
     restored.timeMachineUsesThisLife = (currentState.timeMachineUsesThisLife ?? 0) + 1;
+
+    // Carry account-level PURCHASES from the live state onto the restored
+    // snapshot - the same whitelist prestige and heir-continuation use. A
+    // checkpoint captured before a Remove Ads / Lifetime / banking purchase (or
+    // one that lands in the window between opening the rewind dialog and
+    // confirming it) would otherwise be silently reverted by the full-snapshot
+    // restore, erasing a real-money entitlement with no retry. Gems already
+    // carry as `currentState.gems - cost` below; this covers the boolean
+    // unlocks, gold upgrades, perks and unspent youth pills.
+    carryAccountLevelEntitlements(currentState, restored);
 
     // Deduct gem cost from CURRENT state's gems, carry into restored state
     // This prevents negative gems when the checkpoint was saved with fewer gems than the cost

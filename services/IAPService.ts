@@ -2096,19 +2096,32 @@ export class IAPService {
           // product carries a non-idempotent grant. Boolean entitlement flags
           // re-apply freely - that is what lets a restore repair a wiped
           // entitlement. The two grants that could not safely re-apply are both
-          // out of the picture now: subscriptions are skipped above (their term
-          // is RevenueCat's to reconstruct), and REVIVAL_PACK restores with
+          // out of the picture: subscriptions are skipped above (their term is
+          // RevenueCat's to reconstruct), and REVIVAL_PACK restores with
           // `entitlementsOnly` so `settings.hasRevivalPack` (the purchase
           // record) is re-asserted while the spendable charge is never
-          // re-banked. The old ledger gate here keyed on the synthetic
-          // `rc_restore:` id, which the ORIGINAL purchase never wrote - so the
-          // first Restore tap after spending the revive minted a fresh one.
-          //
+          // re-banked. The old ledger gate here keyed on `rc_restore:`, which
+          // the ORIGINAL purchase never wrote - so the first Restore tap after
+          // spending the revive minted a fresh one.
+          const entitlementsOnly =
+            isConsumableProduct(productId) || productId === IAP_PRODUCTS.REVIVAL_PACK;
+          // For the pack, re-asserting the purchase RECORD once is the whole
+          // job, so ledger-gate the SYNTHETIC id to skip it on every later
+          // Restore tap - otherwise `applyBenefit` (true for any configured
+          // SKU) would inflate `restoredCount` on each tap even though nothing
+          // changed. The synthetic id can never collide with the real purchase
+          // txid, so this cannot suppress a genuine grant. Consumables are not
+          // gated: re-applying their (dropped) quantities is already a no-op
+          // and their permanent halves must repair a wipe.
+          if (
+            productId === IAP_PRODUCTS.REVIVAL_PACK &&
+            (await this.isTransactionProcessed(transactionId))
+          ) {
+            continue;
+          }
           // Count only what actually landed - `applyBenefit` returns false when
           // nothing was applied, and an inflated count would undo the whole
           // point of reporting a real number to the player.
-          const entitlementsOnly =
-            isConsumableProduct(productId) || productId === IAP_PRODUCTS.REVIVAL_PACK;
           if (await this.applyBenefit(productId, transactionId, entitlementsOnly)) restoredCount++;
         }
         const e = revenueCatService.cachedEntitlements();
@@ -2183,20 +2196,35 @@ export class IAPService {
           if (isSubscriptionProduct(productId)) {
             continue;
           }
+          // REVIVAL_PACK restores the purchase RECORD only, under its own
+          // SYNTHETIC ledger id - it must NOT be granted under `transactionId`,
+          // the REAL store id. `applyBenefit`'s final step records whatever id
+          // it is handed (the grant is idempotent here, so no reservation), and
+          // the purchase listener dedups redelivery on that SAME real id
+          // (setupPurchaseListener). So recording the real id from a restore
+          // would mark an UNFULFILLED pack purchase as done and stop the store
+          // redelivering it - the player is charged, the record is set, and the
+          // spendable charge is never banked (MON-6's retry, defeated). The
+          // synthetic id re-asserts `hasRevivalPack` at most once per install
+          // and leaves the real transaction free to complete its retry.
+          if (productId === IAP_PRODUCTS.REVIVAL_PACK) {
+            const restoreId = 'native_restore:revival_pack';
+            if (!(await this.isTransactionProcessed(restoreId))) {
+              if (await this.applyBenefit(productId, restoreId, /* entitlementsOnly */ true)) {
+                restoredCount++;
+              }
+            }
+            continue;
+          }
           // Idempotent entitlement flags re-apply freely - that is what makes a
-          // restore able to repair a wiped entitlement. The two non-idempotent
-          // grants never reach `applyBenefit` in re-bankable form here:
-          // subscriptions are skipped above, and REVIVAL_PACK restores with
-          // `entitlementsOnly` so the purchase record (`hasRevivalPack`) is
-          // re-asserted while the spendable charge is never re-banked - the
-          // local ledger is wiped by a reinstall, so gating the charge on it
-          // was a free revive per reinstall. See the RevenueCat loop above.
+          // restore able to repair a wiped entitlement. Subscriptions and the
+          // revival pack are both handled above, so everything here is either a
+          // permanent boolean or a mixed consumable restored entitlements-only.
           if (
             await this.applyBenefit(
               purchase.productId,
               transactionId,
-              isConsumableProduct(purchase.productId) ||
-                purchase.productId === IAP_PRODUCTS.REVIVAL_PACK,
+              isConsumableProduct(purchase.productId),
             )
           ) restoredCount++;
         }

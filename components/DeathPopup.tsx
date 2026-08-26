@@ -75,6 +75,18 @@ function DeathPopup() {
   );
   const [activeTab, setActiveTab] = useState<'summary' | 'legacy'>('summary');
 
+  // The Revival Pack row prefers the store's localized price. The catalog loads
+  // async, and a first death can render before it resolves, so subscribe to the
+  // IAP service and re-render when the products land - otherwise the row is
+  // stuck on the config USD fallback until some unrelated re-render (the
+  // GemShopModal.tsx:160 pattern). Presentation only.
+  const [iapProducts, setIapProducts] = useState(() => iapService.getProducts());
+  useEffect(() => {
+    setIapProducts(iapService.getProducts());
+    const unsubscribe = iapService.addListener((s) => setIapProducts(s.products));
+    return unsubscribe;
+  }, []);
+
   // Theme-aware styles + color tokens (lib/config/theme.ts). Rebuilt only when
   // the player toggles dark mode so colors stay centrally managed.
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
@@ -404,20 +416,35 @@ function DeathPopup() {
           {
             text: 'Rewind',
             onPress: async () => {
-              const restored = rewindToCheckpoint(gameState, checkpointId);
-              if (restored) {
-                setGameState(() => restored);
-                // saveGame reads gameStateRef, which is only synced by a
-                // post-commit effect - calling it in this same synchronous
-                // segment persists the PRE-rewind (dead) state, and the gems
-                // were already spent. Yield one macrotask so React commits and
-                // the ref catches up first (the 2026-07-14 stale-save-after-
-                // commit lesson; 2026-07-28 audit save-1).
-                await new Promise<void>((resolve) => setTimeout(resolve, 0));
-                await saveGame(true);
-              } else {
+              // Corruption pre-check only (the snapshot may be unparseable) -
+              // NOT the authoritative rewind. This path is user-initiated and
+              // rare, so recomputing is cheap.
+              if (!rewindToCheckpoint(gameState, checkpointId)) {
                 gameAlert('Error', 'Failed to rewind. Checkpoint may be corrupted.');
+                return;
               }
+              // Charge and restore ATOMICALLY, against `prev`, not the stale
+              // render snapshot. `rewindToCheckpoint` reads the gem cost,
+              // re-checks affordability and debits inside this updater, so a
+              // double-tap in one batch cannot double-charge (the `reviveWithPack`
+              // pattern, §4.4). The `showDeathPopup` guard is what makes the
+              // second tap a no-op: the first rewind clears it. And because the
+              // restore now merges account entitlements off `prev`
+              // (carryAccountLevelEntitlements), a purchase that landed while
+              // this dialog was open is preserved rather than wiped by the old
+              // `setGameState(() => restored)` full replace off a dead snapshot.
+              setGameState((prev) => {
+                if (!prev.showDeathPopup) return prev;
+                return rewindToCheckpoint(prev, checkpointId) ?? prev;
+              });
+              // saveGame reads gameStateRef, which is only synced by a
+              // post-commit effect - calling it in this same synchronous
+              // segment persists the PRE-rewind (dead) state, and the gems
+              // were already spent. Yield one macrotask so React commits and
+              // the ref catches up first (the 2026-07-14 stale-save-after-
+              // commit lesson; 2026-07-28 audit save-1).
+              await new Promise<void>((resolve) => setTimeout(resolve, 0));
+              await saveGame(true);
             },
           },
         ]
@@ -672,9 +699,7 @@ function DeathPopup() {
   // behavior) only when the catalog has not loaded; a missing price hides the
   // row rather than rendering a purchase button with no price on it. Same
   // preference order as the store modal's resolveDisplayPrice.
-  const revivalStoreProduct = iapService
-    .getProducts()
-    .find((p) => p?.productId === IAP_PRODUCTS.REVIVAL_PACK);
+  const revivalStoreProduct = iapProducts.find((p) => p?.productId === IAP_PRODUCTS.REVIVAL_PACK);
   const revivalLocalizedPrice =
     revivalStoreProduct?.displayPrice ?? revivalStoreProduct?.localizedPrice ?? revivalStoreProduct?.price;
   const revivalPackPrice =

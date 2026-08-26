@@ -142,6 +142,14 @@ describe('buying the Mega Pack grants what the config promises', () => {
 });
 
 describe('a mixed product restores its permanent half and nothing else', () => {
+  // Read the service source once and share it across the source-scan cases
+  // below - one require pair instead of one per test.
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const IAP_SRC = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'services', 'IAPService.ts'), 'utf8',
+  );
+
   it('the Mega Pack really is a consumable (the premise)', () => {
     // This is why restore skipped it, and it must STAY a consumable - the
     // 40,000 gems are the reason.
@@ -195,23 +203,28 @@ describe('a mixed product restores its permanent half and nothing else', () => {
   });
 
   it('both restore loops let a mixed product through', () => {
-    const fs = require('fs') as typeof import('fs');
-    const path = require('path') as typeof import('path');
-    const src = fs.readFileSync(
-      path.join(__dirname, '..', '..', 'services', 'IAPService.ts'), 'utf8',
-    );
+    const src = IAP_SRC;
 
     const guards = src.match(/isConsumableProduct\(productId\) && !hasPermanentEntitlements\(productId\)/g) ?? [];
     expect(guards).toHaveLength(2);
-    // And each passes the flag when applying, so the quantities stay skipped.
-    // (REVIVAL_PACK rides the same flag: its charge is a quantity in boolean
-    // clothing, so a restore re-asserts the purchase record only - see
-    // revivalPackBanked.test.ts.)
+    // And a mixed consumable is restored entitlements-only (its quantities
+    // stay skipped) in each loop: the RC loop passes the flag directly, the
+    // native loop passes it after the REVIVAL_PACK branch has been peeled off.
     expect(src).toMatch(
       /isConsumableProduct\(productId\) \|\| productId === IAP_PRODUCTS\.REVIVAL_PACK;/,
     );
-    expect(src).toMatch(
-      /isConsumableProduct\(purchase\.productId\) \|\|\s*purchase\.productId === IAP_PRODUCTS\.REVIVAL_PACK,/,
-    );
+    expect(src).toMatch(/isConsumableProduct\(purchase\.productId\),/);
+  });
+
+  it('the native restore loop never grants the revival pack under the real store txid', () => {
+    // Finding A: recording the REAL transaction id from a restore marks an
+    // UNFULFILLED pack purchase as done and stops the store redelivering it -
+    // charged, record set, charge never banked. The pack restores under its
+    // own synthetic id instead.
+    const src = IAP_SRC;
+    expect(src).toMatch(/const restoreId = 'native_restore:revival_pack';/);
+    // The synthetic id is applied entitlements-only, and gated so a repeat
+    // Restore neither re-grants nor inflates the count.
+    expect(src).toMatch(/this\.applyBenefit\(productId, restoreId, \/\* entitlementsOnly \*\/ true\)/);
   });
 });

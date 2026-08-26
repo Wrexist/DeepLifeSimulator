@@ -202,28 +202,36 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   // ── Funnel events: the consumable-IAP funnel used to begin at
   // `purchase_started`, so shop view → buy tap (its largest drop) was
   // unmeasurable. One view per open with the tab it opened to; one dismissal
-  // with dwell + the tab the player LEFT from (a ref, so a tab change mid-visit
-  // does not refire the effect). Keyed on `visible` rather than wrapped around
-  // `onClose`, because the death-screen bridge and the backdrop both close this
-  // modal through paths that never call the close button.
+  // with dwell + the tab the player LEFT from.
+  //
+  // Fired on MOUNT / UNMOUNT, not on a `visible` transition. The sole mount
+  // site (contexts/GemStoreContext) renders `<GemShopModal visible ... />`
+  // only while `openTab !== null` and unmounts it on close - `visible` is a
+  // literal `true` that never flips, so a visible-keyed dismissal would never
+  // fire. Empty deps also mean a deep-link retarget of `initialTab` on the
+  // live instance cannot double-fire the view. `tabRef` (updated in its own
+  // effect, never in render) carries the exit tab into the unmount cleanup.
   const shopOpenedAt = useRef(0);
   const tabRef = useRef(tab);
-  tabRef.current = tab;
   useEffect(() => {
-    if (visible) {
-      shopOpenedAt.current = Date.now();
-      track('iap_shop_viewed', { tab: initialTab ?? 'gems', storeReady });
-    } else if (shopOpenedAt.current > 0) {
+    tabRef.current = tab;
+  }, [tab]);
+  useEffect(() => {
+    if (!visible) return;
+    shopOpenedAt.current = Date.now();
+    track('iap_shop_viewed', { tab: initialTab ?? 'gems', storeReady });
+    return () => {
+      if (shopOpenedAt.current === 0) return;
       track('iap_shop_dismissed', {
         tab: tabRef.current,
         dwellMs: Date.now() - shopOpenedAt.current,
       });
       shopOpenedAt.current = 0;
-    }
-    // `storeReady` is a view-time property, deliberately not a trigger: the
-    // catalog finishing its load mid-visit must not fire a second view event.
+    };
+    // Mount/unmount only: `initialTab` and `storeReady` are view-time
+    // snapshots, deliberately not triggers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, initialTab]);
+  }, []);
 
   // Per-SKU availability: an IAP is buyable only if THIS product id actually
   // loaded from the store. `storeReady` (any product loaded) still drives the

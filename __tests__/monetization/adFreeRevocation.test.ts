@@ -52,14 +52,14 @@ describe('the cold-start case that revoked a paid purchase', () => {
     const out = reconcileSubscriptionBenefits(state, false, false, /* authoritative */ false);
 
     expect(adFree(out)).toBe(true);
-    // 2026-08-26: the whole lapse is HELD, not just ad-free. This used to
-    // assert `deepLifePlusActivated === false` - clearing the activation on a
-    // check that could not run stripped an offline subscriber's salary
-    // multiplier, 250-gem drop and member discount until the next successful
-    // fetch, against the very principle the parameter documents. "Could not
-    // ask" is not "lapsed".
-    expect(out.settings?.deepLifePlusActivated).toBe(true);
-    expect(out).toBe(state); // held wholesale, no partial write
+    // The paid ad-free is HELD (unknown != "does not own"). The DERIVED
+    // DeepLife+ gameplay benefits are cleared, though: they self-heal on the
+    // next authoritative reconcile that sees an active entitlement (the common
+    // offline case, since the RC SDK returns cached customerInfo), so the
+    // bounded clear is right. Holding `deepLifePlusActivated` here instead - an
+    // earlier revision did - turned "keep RevenueCat unreachable" into an
+    // unbounded free premium tier, because `everFetched` resets per process.
+    expect(out.settings?.deepLifePlusActivated).toBe(false);
   });
 
   it('still revokes when the check DID run and really found nothing', () => {

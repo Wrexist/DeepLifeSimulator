@@ -372,17 +372,6 @@ export function reconcileSubscriptionBenefits(
     return state;
   }
 
-  // "Could not ask" must hold EVERYTHING, not just ad-free. This used to fall
-  // through and clear `deepLifePlusActivated` while guarding only `adsRemoved`
-  // below - so a subscriber launching offline lost the salary multiplier, the
-  // 250-gem drop and the member discount until the next successful entitlement
-  // fetch, against the very principle documented on the parameter. Holding a
-  // lapsed non-payer's benefits for one offline launch is the cheap error;
-  // revoking a payer's is the expensive one.
-  if (!entitlementCheckAuthoritative) {
-    return state;
-  }
-
   // The union the doc always claimed: the Remove Ads IAP, plus the two other
   // non-subscription entitlements that grant ad-free in
   // `applyProductBenefitsToState` and were simply never folded in here.
@@ -391,15 +380,32 @@ export function reconcileSubscriptionBenefits(
     state.settings?.lifetimePremium === true ||
     state.settings?.everythingUnlocked === true;
 
+  // Clearing `deepLifePlusActivated` here is deliberately the BOUNDED response
+  // to a non-authoritative check, NOT holding every benefit forever.
+  //
+  // The DeepLife+ gameplay benefits (250-gem drop, +25% salary, 20% member
+  // discount) are DERIVED from this flag, and re-granted in full by the very
+  // next reconcile that authoritatively sees an active entitlement - which is
+  // the common offline case, because the RevenueCat SDK returns CACHED
+  // customerInfo when offline (so `authoritative` is usually true from cache).
+  // They cost nothing to restore and self-heal. Holding them instead (an
+  // earlier revision did) turned "launch with RevenueCat unreachable" into an
+  // UNBOUNDED free premium tier: a cancelled member who keeps the SDK from ever
+  // fetching (airplane mode / a blocked host) renews the hold on every process
+  // start, since `everFetched` resets per process. The bounded clear closes
+  // that; only `adsRemoved` is held below, and only when a PERMANENT purchase
+  // (not the lapsed subscription) justifies it - wrongly revoking a bought
+  // Remove Ads is the one error that is expensive and unrecoverable.
   return {
     ...state,
     settings: {
       ...state.settings,
       deepLifePlusActivated: false,
-      // Revoke ONLY what DeepLife+ granted - never ad-free that a permanent
-      // purchase justifies. (The "check could not run" case held everything
-      // and returned above, so reaching this line means the lapse is real.)
-      adsRemoved: paidAdFree,
+      adsRemoved: paidAdFree
+        ? true
+        : entitlementCheckAuthoritative
+          ? false
+          : state.settings?.adsRemoved === true,
     },
   };
 }

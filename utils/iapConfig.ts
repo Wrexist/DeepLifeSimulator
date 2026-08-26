@@ -385,13 +385,16 @@ export const PRODUCT_CONFIGS = {
   //   - upgrade discount: contexts/game/actions/CompanyActions.ts (0.15)
   [IAP_PRODUCTS.PREMIUM_CREDIT_CARD]: {
     name: 'Premium Credit Card',
-    description: '10% cashback on all card spending',
+    description: '10% cashback floor on card spending',
     premiumCreditCard: true,
     price: '$4.99',
     popular: true,
     bestValue: false,
     features: [
-      'Guaranteed 10% cashback on every credit card purchase',
+      // The grant is a cashback FLOOR credited when the card is paid off
+      // (BankingActions accrues at settlement, an anti-exploit choice), not a
+      // flat rebate at swipe - so the copy says "at least" and "when you pay".
+      'At least 10% cashback, credited when you pay the card',
       'Applies to all your cards, forever',
     ],
   },
@@ -695,7 +698,7 @@ export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
   // (0.15), and PRIVATE_BANKING_APR_CAP in LoanActions (6%). Change a
   // constant, change the bullet in the same commit.
   [IAP_PRODUCTS.PREMIUM_CREDIT_CARD]: {
-    contents: ['10% cashback on every card purchase', 'Permanent, survives prestige'],
+    contents: ['At least 10% cashback, credited at payment', 'Permanent, survives prestige'],
   },
   [IAP_PRODUCTS.FINANCIAL_PLANNING]: {
     contents: ['5% savings APR (base rate 3%)', 'No 740+ credit score needed', 'Permanent, survives prestige'],
