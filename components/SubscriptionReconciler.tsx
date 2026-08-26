@@ -62,8 +62,17 @@ export function SubscriptionReconciler(): null {
         typeof iapService.isAdsRemoved === 'function' ? iapService.isAdsRemoved() : false;
       // Whether that answer means anything. FALSE = "could not ask", which must
       // never be treated as "owns nothing".
-      const authoritative =
-        typeof iapService.hasAuthoritativeEntitlementSource === 'function'
+      //
+      // When RevenueCat drives subscriptions, only a successful RC fetch
+      // counts. `hasAuthoritativeEntitlementSource()` also returns true on the
+      // strength of the NATIVE ledger alone - but with RC enabled,
+      // `getSubscriptionTier()` reads ONLY the RC cache, so an offline launch
+      // where StoreKit's local history loaded while RC never fetched would
+      // claim authority from one source while consulting another, and revoke a
+      // paying subscriber's benefits until they next came back online.
+      const authoritative = revenueCatService.isEnabled()
+        ? revenueCatService.entitlementsEverFetched()
+        : typeof iapService.hasAuthoritativeEntitlementSource === 'function'
           ? iapService.hasAuthoritativeEntitlementSource()
           : false;
 

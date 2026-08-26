@@ -204,7 +204,14 @@ describe('a mixed product restores its permanent half and nothing else', () => {
     const guards = src.match(/isConsumableProduct\(productId\) && !hasPermanentEntitlements\(productId\)/g) ?? [];
     expect(guards).toHaveLength(2);
     // And each passes the flag when applying, so the quantities stay skipped.
-    expect(src).toMatch(/isConsumableProduct\(productId\)\)\) restoredCount\+\+;/);
-    expect(src).toMatch(/isConsumableProduct\(purchase\.productId\),/);
+    // (REVIVAL_PACK rides the same flag: its charge is a quantity in boolean
+    // clothing, so a restore re-asserts the purchase record only - see
+    // revivalPackBanked.test.ts.)
+    expect(src).toMatch(
+      /isConsumableProduct\(productId\) \|\| productId === IAP_PRODUCTS\.REVIVAL_PACK;/,
+    );
+    expect(src).toMatch(
+      /isConsumableProduct\(purchase\.productId\) \|\|\s*purchase\.productId === IAP_PRODUCTS\.REVIVAL_PACK,/,
+    );
   });
 });

@@ -122,6 +122,26 @@ function emitEdges(prev: StoredHealth | null, next: SubscriptionHealth): void {
   if (next.phase === 'cancelling' && prev?.phase !== 'cancelling') {
     track('subscription_cancel_detected', { ...base, firstObservation: prev === null });
   }
+  // A trial began. The `firstObservation` marker matters more here than on any
+  // other edge: most trials START while the paywall session is still open, so
+  // the first health fetch after subscribing is often the first sighting.
+  if (next.phase === 'trial' && prev?.phase !== 'trial') {
+    track('trial_started', { ...base, firstObservation: prev === null });
+  }
+  // Trial → paid: the conversion the free trial's whole rationale is argued
+  // from (DEEP_LIFE_PLUS_FREE_TRIAL_DAYS documents it), previously computable
+  // from nothing. `renewing` is the paid outcome; a trial that lapses instead
+  // is already covered by `subscription_lapsed` (prev carries the phase).
+  if (prev?.phase === 'trial' && next.phase === 'renewing') {
+    track('trial_converted', base);
+  }
+  // The dunning window OPENED - card declined while still entitled. Its
+  // successful close is `subscription_recovered`; its failure is
+  // `subscription_lapsed`. Both already existed; the open did not, so
+  // recovery RATE had no denominator.
+  if (next.phase === 'billing_issue' && prev?.phase !== 'billing_issue') {
+    track('subscription_billing_issue', { ...base, firstObservation: prev === null });
+  }
   // Auto-renew back ON after a cancel or billing scare - the win-back worked.
   if (
     isRenewTrack(next.phase) &&

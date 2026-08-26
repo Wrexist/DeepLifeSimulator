@@ -42,13 +42,21 @@ describe('the catalogue really has the products these assertions rely on', () =>
   });
 });
 
+// The synthetic term carries a 3-day billing-retry buffer (2026-08-26): on
+// this no-RevenueCat path a renewal in the store's billing retry produces no
+// new purchase record, so a hard cutoff at exactly day 30 revoked a subscriber
+// whose card hiccuped on renewal morning. Far short of Apple's 16-day grace on
+// purpose - here the buffer is also free access for a genuinely lapsed
+// subscriber until the ledger catches up.
+const GRACE = 3 * DAY;
+
 describe('a subscription term is finite', () => {
-  it('gives monthly 30 days from the purchase', () => {
-    expect(subscriptionExpiryFor(MONTHLY, NOW)).toBe(NOW + 30 * DAY);
+  it('gives monthly 30 days (plus the retry buffer) from the purchase', () => {
+    expect(subscriptionExpiryFor(MONTHLY, NOW)).toBe(NOW + 30 * DAY + GRACE);
   });
 
-  it('gives yearly 365 days from the purchase', () => {
-    expect(subscriptionExpiryFor(YEARLY, NOW)).toBe(NOW + 365 * DAY);
+  it('gives yearly 365 days (plus the retry buffer) from the purchase', () => {
+    expect(subscriptionExpiryFor(YEARLY, NOW)).toBe(NOW + 365 * DAY + GRACE);
   });
 
   it('gives yearly a materially longer term than monthly', () => {
@@ -60,8 +68,8 @@ describe('a subscription term is finite', () => {
 });
 
 describe('an expired term is not active', () => {
-  it('refuses a monthly bought 31 days ago - the Restore exploit', () => {
-    const expiry = subscriptionExpiryFor(MONTHLY, NOW - 31 * DAY);
+  it('refuses a monthly bought 34 days ago - the Restore exploit', () => {
+    const expiry = subscriptionExpiryFor(MONTHLY, NOW - 34 * DAY);
 
     expect(isSubscriptionActiveAt(expiry, NOW)).toBe(false);
   });
@@ -72,10 +80,18 @@ describe('an expired term is not active', () => {
     expect(isSubscriptionActiveAt(expiry, NOW)).toBe(false);
   });
 
-  it('refuses at the exact moment the term ends', () => {
-    const expiry = subscriptionExpiryFor(MONTHLY, NOW - 30 * DAY);
+  it('refuses at the exact moment the term (with its buffer) ends', () => {
+    const expiry = subscriptionExpiryFor(MONTHLY, NOW - 30 * DAY - GRACE);
 
     expect(isSubscriptionActiveAt(expiry, NOW)).toBe(false);
+  });
+});
+
+describe('the billing-retry buffer', () => {
+  it('keeps a monthly whose renewal charge is a day late', () => {
+    // Day 31: the term is over but the charge may be in billing retry - the
+    // exact subscriber the hard day-30 cutoff used to strip.
+    expect(isSubscriptionActiveAt(subscriptionExpiryFor(MONTHLY, NOW - 31 * DAY), NOW)).toBe(true);
   });
 });
 

@@ -20,6 +20,7 @@ import { NEW_LIFE_SLOT_UNSET } from '@/src/features/onboarding/slotSafety';
 import { useGame } from '@/contexts/GameContext';
 import { useGemStore, type GemStoreTab } from '@/contexts/GemStoreContext';
 import { getProductConfig, IAP_PRODUCTS } from '@/utils/iapConfig';
+import { iapService } from '@/services/IAPService';
 import { safeSettings, safeStats, safeDate, safeUserProfile } from '@/utils/safeGameState';
 import { Heart, RotateCcw, Brain, Check, Crown, Sparkles, TrendingUp, DollarSign, Users, Award, Briefcase, GraduationCap, Home, Building2, Trophy, Calendar, BookOpen, Share2, Gem, ChevronRight } from 'lucide-react-native';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
@@ -664,10 +665,22 @@ function DeathPopup() {
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
   const hasBankedRevive = gameState.revivalPack === true;
 
-  // The config USD price. The live localized price lives in the store modal -
-  // this is the death screen's label, and a missing config price hides the row
-  // rather than rendering a purchase button with no price on it.
-  const revivalPackPrice = getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
+  // Prefer the store SDK's LOCALIZED price when the catalog has loaded - this
+  // row navigates to the store rather than charging, but a hardcoded "$2.99"
+  // shown to a non-US player next to a different real charge is still a wrong
+  // price on the screen. Fall back to the config USD label (the pre-existing
+  // behavior) only when the catalog has not loaded; a missing price hides the
+  // row rather than rendering a purchase button with no price on it. Same
+  // preference order as the store modal's resolveDisplayPrice.
+  const revivalStoreProduct = iapService
+    .getProducts()
+    .find((p) => p?.productId === IAP_PRODUCTS.REVIVAL_PACK);
+  const revivalLocalizedPrice =
+    revivalStoreProduct?.displayPrice ?? revivalStoreProduct?.localizedPrice ?? revivalStoreProduct?.price;
+  const revivalPackPrice =
+    (typeof revivalLocalizedPrice === 'string' && revivalLocalizedPrice.trim().length > 0
+      ? revivalLocalizedPrice
+      : undefined) ?? getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
 

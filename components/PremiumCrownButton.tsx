@@ -16,6 +16,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import { subscriptionService } from '@/services/SubscriptionService';
 import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS, isDeepLifePlusActive } from '@/lib/subscription/deepLifePlus';
+import { useTrialClaimPlausible } from '@/hooks/useTrialClaimPlausible';
 
 const GOLD = '#FACC15';
 const GOLD_SOFT = '#FDE68A';
@@ -29,6 +30,10 @@ interface Props {
 
 export default function PremiumCrownButton({ variant = 'full', style }: Props) {
   const reducedMotion = useReducedMotion();
+  // False once this session has observed a current/prior subscription - a
+  // lapsed member has burned the intro offer, so the flag would promise a
+  // trial the paywall immediately withdraws.
+  const trialPlausible = useTrialClaimPlausible();
   const [open, setOpen] = useState(false);
   // Re-checked whenever the paywall closes so the crown disappears right after
   // a successful subscribe.
@@ -90,7 +95,7 @@ export default function PremiumCrownButton({ variant = 'full', style }: Props) {
     transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.25] }) }],
   };
   const crownScale = { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }] };
-  const showTrial = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0;
+  const showTrial = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0 && trialPlausible;
 
   return (
     <>

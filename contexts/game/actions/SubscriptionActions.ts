@@ -372,6 +372,17 @@ export function reconcileSubscriptionBenefits(
     return state;
   }
 
+  // "Could not ask" must hold EVERYTHING, not just ad-free. This used to fall
+  // through and clear `deepLifePlusActivated` while guarding only `adsRemoved`
+  // below - so a subscriber launching offline lost the salary multiplier, the
+  // 250-gem drop and the member discount until the next successful entitlement
+  // fetch, against the very principle documented on the parameter. Holding a
+  // lapsed non-payer's benefits for one offline launch is the cheap error;
+  // revoking a payer's is the expensive one.
+  if (!entitlementCheckAuthoritative) {
+    return state;
+  }
+
   // The union the doc always claimed: the Remove Ads IAP, plus the two other
   // non-subscription entitlements that grant ad-free in
   // `applyProductBenefitsToState` and were simply never folded in here.
@@ -385,16 +396,10 @@ export function reconcileSubscriptionBenefits(
     settings: {
       ...state.settings,
       deepLifePlusActivated: false,
-      // Revoke ONLY what DeepLife+ granted. When the entitlement check could
-      // not run, keep whatever is persisted rather than guessing `false` —
-      // wrongly re-enabling ads for a lapsed non-buyer costs one launch of
-      // banner ads, wrongly revoking a purchase is permanent and unrecoverable
-      // without the player finding Restore Purchases unprompted.
-      adsRemoved: paidAdFree
-        ? true
-        : entitlementCheckAuthoritative
-          ? false
-          : state.settings?.adsRemoved === true,
+      // Revoke ONLY what DeepLife+ granted - never ad-free that a permanent
+      // purchase justifies. (The "check could not run" case held everything
+      // and returned above, so reaching this line means the lapse is real.)
+      adsRemoved: paidAdFree,
     },
   };
 }

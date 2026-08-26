@@ -19,6 +19,8 @@
  * the bank, registered at v30.
  */
 import { runMigrations, CURRENT_STATE_VERSION } from '@/utils/saveMigrations';
+import { getProductConfig, IAP_PRODUCTS } from '@/utils/iapConfig';
+import { applyProductBenefitsToState } from '@/services/IAPService';
 import { repairGameState } from '@/utils/saveValidation';
 import { STATE_VERSION, initialGameState } from '@/contexts/game/initialState';
 import { createTestGameState } from '../helpers/createTestGameState';
@@ -68,11 +70,20 @@ describe('the pack banks instead of firing at purchase time', () => {
   // from a comment or from a neighbouring product's branch.
   const GRANT = IAP.slice(
     IAP.indexOf('case IAP_PRODUCTS.REVIVAL_PACK:'),
-    IAP.indexOf('case IAP_PRODUCTS.REVIVAL_PACK:') + 1400,
+    IAP.indexOf('case IAP_PRODUCTS.REVIVAL_PACK:') + 2600,
   ).replace(/\/\/.*$/gm, '');
 
   it('banks a charge', () => {
     expect(GRANT).toMatch(/gameState\.revivalPack = true;/);
+  });
+
+  it('but only on a PURCHASE - a restore must never re-bank a spent revive', () => {
+    // The charge is a quantity in boolean clothing: banking it twice gives the
+    // player more than they bought. Restore passes `entitlementsOnly`, and the
+    // local ledger it used to lean on is wiped by a reinstall (and the RC loop
+    // keyed it on a synthetic id the original purchase never wrote), so the
+    // guard must live in the grant itself.
+    expect(GRANT).toMatch(/if \(!entitlementsOnly\) \{\s*gameState\.revivalPack = true;/);
   });
 
   it('and no longer revives inline', () => {
@@ -88,6 +99,34 @@ describe('the pack banks instead of firing at purchase time', () => {
     // `revivalPack` is the unspent CHARGE. Both are written, and they answer
     // different questions — dropping the first would lose the entitlement.
     expect(GRANT).toMatch(/gameState\.settings\.hasRevivalPack = true;/);
+  });
+});
+
+describe('restore semantics: purchase record yes, spendable charge no', () => {
+  // Driven through the real grant function, not a source scan. `entitlementsOnly`
+  // is what both restore loops pass for the pack; the local dedupe ledger they
+  // used to lean on is wiped by a reinstall (and the RC loop keyed it on a
+  // synthetic `rc_restore:` id the original purchase never wrote), so restoring
+  // had become a free-revive mint. The charge is the ONLY quantity this product
+  // grants, so entitlements-only must reduce it to the purchase record alone.
+  const grant = (entitlementsOnly: boolean) => {
+    const state = createTestGameState({ revivalPack: false });
+    const config = getProductConfig(IAP_PRODUCTS.REVIVAL_PACK);
+    if (!config) throw new Error('no product config for the revival pack');
+    applyProductBenefitsToState(state, config, IAP_PRODUCTS.REVIVAL_PACK, { entitlementsOnly });
+    return state;
+  };
+
+  it('a PURCHASE banks the charge and records the entitlement', () => {
+    const s = grant(false);
+    expect(s.revivalPack).toBe(true);
+    expect(s.settings.hasRevivalPack).toBe(true);
+  });
+
+  it('a RESTORE re-asserts the entitlement without re-banking a charge', () => {
+    const s = grant(true);
+    expect(s.revivalPack).toBe(false);
+    expect(s.settings.hasRevivalPack).toBe(true);
   });
 });
 

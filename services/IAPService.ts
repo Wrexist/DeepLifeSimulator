@@ -288,7 +288,17 @@ export function applyProductBenefitsToState(
       // the grant BANKS it and `reviveWithPack` in GameStateContext spends it.
       // `revivalPack` has been on GameState since the beginning, defaulting to
       // false and read by nothing — this is the field finally being used.
-      gameState.revivalPack = true;
+      //
+      // The CHARGE is a quantity in boolean clothing: banking it twice gives
+      // the player more than they bought. So it respects `entitlementsOnly`
+      // exactly like gems do - a RESTORE re-asserts the purchase record below
+      // but must never re-bank a spendable revive. Before this guard, Restore
+      // Purchases keyed its ledger gate on a synthetic `rc_restore:` id the
+      // original purchase never wrote, so the first Restore tap after spending
+      // the revive minted a fresh one - repeatable per reinstall.
+      if (!entitlementsOnly) {
+        gameState.revivalPack = true;
+      }
       // Kept in step: `settings.hasRevivalPack` is the entitlement record that
       // survives prestige (lib/prestige/accountEntitlements.ts), while
       // `revivalPack` is the unspent charge. They answer different questions —
@@ -925,7 +935,20 @@ export class IAPService {
   // things, and CTA→purchase is normally the largest drop-off on the funnel, so
   // it is the one step that must be readable.
   async purchaseProduct(productId: string): Promise<PurchaseResult> {
-    track('purchase_started', { productId });
+    // Attach the loaded store product's localized price so revenue is readable
+    // from the event stream itself. Until this, `paywall_cta_tapped` was the
+    // ONLY event in the app that carried a price - ARPU/LTV questions had to
+    // be reconstructed from RevenueCat instead of the funnel. Absent when the
+    // catalog has not loaded; never fall back to config USD here, an analytics
+    // row claiming a price the store did not charge is worse than a gap.
+    const storeProduct = this.state.products.find((p) => p?.productId === productId);
+    const displayPrice = storeProduct?.displayPrice ?? storeProduct?.localizedPrice;
+    const currency = storeProduct?.currency ?? storeProduct?.currencyCode;
+    const priceProps = {
+      ...(typeof displayPrice === 'string' && displayPrice ? { displayPrice } : {}),
+      ...(typeof currency === 'string' && currency ? { currency } : {}),
+    };
+    track('purchase_started', { productId, ...priceProps });
     try {
       const result = await this.runPurchaseFlow(productId);
       const outcome = result.success
@@ -933,10 +956,10 @@ export class IAPService {
         : result.cancelled
           ? 'purchase_cancelled'
           : 'purchase_failed';
-      track(outcome, { productId });
+      track(outcome, { productId, ...priceProps });
       return result;
     } catch (error) {
-      track('purchase_failed', { productId, error: 'exception' });
+      track('purchase_failed', { productId, error: 'exception', ...priceProps });
       throw error;
     }
   }
@@ -1626,14 +1649,18 @@ export class IAPService {
     // Inlined here because IAP fulfillment runs against a fetched gameState
     // (no setGameState available) - the action and the inline path must stay
     // in sync for shape, signup-bonus rule, and perks.
-    // Detect by SKU rather than IAP_PRODUCTS enum because subscription SKUs
-    // live in SUBSCRIPTION_PRODUCTS (utils/iapConfig.ts) - Platform.select'd
-    // strings that vary by iOS/Android storefront.
+    // Detect against SUBSCRIPTION_PRODUCTS (via isSubscriptionProduct), the
+    // same predicate every other subscription branch uses - this block used to
+    // hardcode its own regex of the two current SKUs, a second source of truth
+    // that would have silently granted NOTHING for any subscription tier added
+    // to the config later. The dot-form legacy SKUs (deeplife.premium.*) are
+    // kept as an explicit fallback: they shipped in early TestFlight builds
+    // and can still arrive through Restore/history, but they are deliberately
+    // NOT in the live catalog.
     if (
       typeof purchase.productId === 'string' &&
-      /^(deeplife_premium_monthly|deeplife_premium_yearly|deeplife\.premium\.monthly|deeplife\.premium\.yearly)$/i.test(
-        purchase.productId,
-      )
+      (isSubscriptionProduct(purchase.productId) ||
+        /^deeplife\.premium\.(monthly|yearly)$/i.test(purchase.productId))
     ) {
       const isYearly = /yearly/i.test(purchase.productId);
       const durationMs = (isYearly ? 365 : 30) * MS_PER_DAY;
@@ -1945,19 +1972,10 @@ export class IAPService {
     return this.hasPurchased(IAP_PRODUCTS.REMOVE_ADS);
   }
 
-  // Check if premium pass is active
-  // NOTE: PREMIUM_PASS product is not currently defined in IAP_PRODUCTS
-  // This method is disabled until the product is added to iapConfig.ts
-  isPremiumPassActive(): boolean {
-    // const purchase = this.state.purchases.find(p => p.productId === IAP_PRODUCTS.PREMIUM_PASS);
-    // if (!purchase) return false;
-
-    // // Check if 30 days have passed since purchase
-    // const purchaseDate = new Date(purchase.purchaseTime);
-    // const expiryDate = new Date(purchaseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-    // return new Date() < expiryDate;
-    return false; // Disabled until PREMIUM_PASS is added to IAP_PRODUCTS
-  }
+  // (isPremiumPassActive() deleted 2026-08-26: a commented-out body returning
+  // false, referencing a PREMIUM_PASS product that does not exist in
+  // IAP_PRODUCTS, with zero callers. The live pass is the Legacy Pass, gated
+  // through DeepLife+ - see lib/legacyPass/legacyPass.ts.)
 
   // Get product by ID
   getProduct(productId: string): any | undefined {
@@ -2019,9 +2037,14 @@ export class IAPService {
    * restore was structurally incapable of repairing it. Non-consumable grants
    * are idempotent boolean flags, so re-applying them unconditionally is safe.
    *
-   * REVIVAL_PACK is carved out: it is a bankable one-shot, so re-granting it
-   * after the player has spent it would mint a free revive per restore.
-   * 2026-07-30 audit MON-11.
+   * REVIVAL_PACK restores ENTITLEMENTS-ONLY: `settings.hasRevivalPack` (the
+   * purchase record) re-applies freely, while the spendable charge is never
+   * re-banked. It used to be ledger-gated instead - but the ledger is LOCAL
+   * (AsyncStorage + the save envelope), so a reinstall started empty and the
+   * first Restore minted a free revive; worse, the RC loop keyed the gate on a
+   * synthetic `rc_restore:` id the original purchase never wrote, so even one
+   * Restore tap on an intact install re-banked a spent revive.
+   * 2026-07-30 audit MON-11; charge/record split 2026-08-26.
    */
   async restorePurchases(): Promise<{ success: boolean; restoredCount: number }> {
     try {
@@ -2066,24 +2089,27 @@ export class IAPService {
           if (isSubscriptionProduct(productId)) {
             continue;
           }
-          // RC verifies ownership server-side; dedupe so a benefit is applied at
-          // most once even across repeated restores.
+          // RC verifies ownership server-side; a restore applies only
+          // idempotent entitlement flags (see below), so it can safely re-run.
           const transactionId = `rc_restore:${productId}`;
-          // Ledger-gate anything whose grant is NOT idempotent. Boolean
-          // entitlement flags can be re-applied freely - that is what lets a
-          // restore repair a wiped entitlement - but two kinds cannot:
-          //   - REVIVAL_PACK banks a one-shot revive, so re-granting it after
-          //     the player spends it mints a free revive per restore;
-          //   - a SUBSCRIPTION sets `expiresTimestamp: Date.now() + duration`,
-          //     so re-applying it renews the term. Without this gate, tapping
-          //     Restore Purchases repeatedly was an unlimited free renewal.
-          if (isNonIdempotentGrant(productId) && (await this.isTransactionProcessed(transactionId))) {
-            continue;
-          }
+          // Everything reaching this point restores ENTITLEMENTS-ONLY where the
+          // product carries a non-idempotent grant. Boolean entitlement flags
+          // re-apply freely - that is what lets a restore repair a wiped
+          // entitlement. The two grants that could not safely re-apply are both
+          // out of the picture now: subscriptions are skipped above (their term
+          // is RevenueCat's to reconstruct), and REVIVAL_PACK restores with
+          // `entitlementsOnly` so `settings.hasRevivalPack` (the purchase
+          // record) is re-asserted while the spendable charge is never
+          // re-banked. The old ledger gate here keyed on the synthetic
+          // `rc_restore:` id, which the ORIGINAL purchase never wrote - so the
+          // first Restore tap after spending the revive minted a fresh one.
+          //
           // Count only what actually landed - `applyBenefit` returns false when
           // nothing was applied, and an inflated count would undo the whole
           // point of reporting a real number to the player.
-          if (await this.applyBenefit(productId, transactionId, isConsumableProduct(productId))) restoredCount++;
+          const entitlementsOnly =
+            isConsumableProduct(productId) || productId === IAP_PRODUCTS.REVIVAL_PACK;
+          if (await this.applyBenefit(productId, transactionId, entitlementsOnly)) restoredCount++;
         }
         const e = revenueCatService.cachedEntitlements();
         this.setState({ isLoading: false });
@@ -2158,17 +2184,19 @@ export class IAPService {
             continue;
           }
           // Idempotent entitlement flags re-apply freely - that is what makes a
-          // restore able to repair a wiped entitlement. Non-idempotent grants
-          // (banked revive, subscription term) stay ledger-gated; see the
-          // RevenueCat loop above.
-          if (isNonIdempotentGrant(productId) && (await this.isTransactionProcessed(transactionId))) {
-            continue;
-          }
+          // restore able to repair a wiped entitlement. The two non-idempotent
+          // grants never reach `applyBenefit` in re-bankable form here:
+          // subscriptions are skipped above, and REVIVAL_PACK restores with
+          // `entitlementsOnly` so the purchase record (`hasRevivalPack`) is
+          // re-asserted while the spendable charge is never re-banked - the
+          // local ledger is wiped by a reinstall, so gating the charge on it
+          // was a free revive per reinstall. See the RevenueCat loop above.
           if (
             await this.applyBenefit(
               purchase.productId,
               transactionId,
-              isConsumableProduct(purchase.productId),
+              isConsumableProduct(purchase.productId) ||
+                purchase.productId === IAP_PRODUCTS.REVIVAL_PACK,
             )
           ) restoredCount++;
         }
@@ -2258,7 +2286,13 @@ export class IAPService {
     // redelivers it. Idempotent entitlement flags keep the original order,
     // because re-applying one is exactly how a restore repairs a wiped
     // entitlement. 2026-07-30 audit SAVE-3.
-    const needsReservation = transactionId != null && isNonIdempotentGrant(productId);
+    // An `entitlementsOnly` grant is idempotent BY CONSTRUCTION - every
+    // quantity (gems, money, pills, the banked revive charge) is dropped and
+    // only boolean flags land - so it needs no reservation, and reserving it
+    // would write a ledger entry claiming a non-idempotent grant happened when
+    // it deliberately did not.
+    const needsReservation =
+      transactionId != null && isNonIdempotentGrant(productId) && !entitlementsOnly;
     if (needsReservation && !(await this.markTransactionProcessed(transactionId))) {
       logger.error('[IAP] Could not record the dedupe ledger; refusing a non-idempotent grant', {
         productId,

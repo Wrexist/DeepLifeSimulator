@@ -371,36 +371,42 @@ export const PRODUCT_CONFIGS = {
     ],
   },
   
-  // Bank Services IAP (Computer Banking App Services)
-
-  // Computer Banking App Services (to sync with mobile)
+  // Bank Services IAP.
+  //
+  // Every description and feature line below is checked against the CODE that
+  // grants it - these four sat unbuyable for months and their copy drifted
+  // into fiction (a "15% interest" that the economy rebalance cut to 5%, a
+  // "3% APR" that the arbitrage fix raised to a 6% cap, plus flavor services
+  // no line of code implements). If a constant changes, this copy changes in
+  // the same commit:
+  //   - cashback floor: contexts/game/actions/BankingActions.ts (0.1)
+  //   - savings APR:    lib/economy/constants.ts (SAVINGS_APR_* 3% → 5%)
+  //   - loan APR cap:   contexts/game/actions/LoanActions.ts (PRIVATE_BANKING_APR_CAP 6%)
+  //   - upgrade discount: contexts/game/actions/CompanyActions.ts (0.15)
   [IAP_PRODUCTS.PREMIUM_CREDIT_CARD]: {
     name: 'Premium Credit Card',
-    description: '10% cashback on all purchases',
+    description: '10% cashback on all card spending',
     premiumCreditCard: true,
     price: '$4.99',
     popular: true,
     bestValue: false,
     features: [
-      '10% cashback on all purchases',
-      'No annual fee',
-      'Travel insurance',
-      '24/7 customer support',
+      'Guaranteed 10% cashback on every credit card purchase',
+      'Applies to all your cards, forever',
     ],
   },
 
   [IAP_PRODUCTS.FINANCIAL_PLANNING]: {
     name: 'Financial Planning',
-    description: '15% interest on bank savings',
+    description: 'High-yield savings: 5% APR instead of 3%',
     financialPlanning: true,
     price: '$2.99',
     popular: false,
     bestValue: false,
     features: [
-      '15% interest on bank savings',
-      'Expert financial advice',
-      'Investment portfolio optimization',
-      'Monthly financial reports',
+      '5% APR on bank savings (base rate is 3%)',
+      'Active immediately - no 740+ credit score needed',
+      'Permanent, survives prestige',
     ],
   },
 
@@ -412,24 +418,22 @@ export const PRODUCT_CONFIGS = {
     popular: false,
     bestValue: false,
     features: [
-      '15% off all company upgrades',
-      'Business account management',
-      'Dedicated business advisor',
+      '15% off every company upgrade, forever',
+      'Applies to all your businesses',
     ],
   },
 
   [IAP_PRODUCTS.PRIVATE_BANKING]: {
     name: 'Private Banking',
-    description: 'VIP 3% APR loans',
+    description: 'Loan rates capped at 6% APR',
     privateBanking: true,
     price: '$9.99',
     popular: false,
     bestValue: false,
     features: [
-      '3% APR loans (vs 5.5%)',
-      'Up to $200,000 loan limit',
-      'Personal wealth manager',
-      'Priority customer support',
+      'Every loan APR capped at 6% (base rates run ~8%)',
+      'Applies to new loans automatically',
+      'Permanent, survives prestige',
     ],
   },
 
@@ -476,7 +480,12 @@ export const SUBSCRIPTION_CONFIGS: Record<string, { name: string; price: string;
   [SUBSCRIPTION_PRODUCTS.PREMIUM_YEARLY]: {
     name: 'Premium Yearly',
     price: '$49.99',
-    description: 'Yearly premium subscription (save 17%)',
+    // No savings claim here: any "save N%" must be COMPUTED from live store
+    // prices in the player's own currency (lib/subscription/planPricing.ts
+    // yearlySavingsPercent), never asserted from USD config. This string used
+    // to read "(save 17%)" - a hardcoded USD-derived claim, exactly the class
+    // the planPricing work exists to eliminate.
+    description: 'Yearly premium subscription',
     type: 'subscription',
   },
 };
@@ -569,8 +578,16 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.YOUTH_PILL_PACK,
   IAP_PRODUCTS.MONEY_BOOST,
   IAP_PRODUCTS.SKILL_BOOST,
-  // Work Pay Boost is a repeatable purchase (Consumable in App Store Connect),
-  // so it is intentionally NOT restored on reinstall.
+  // Work Pay Boost is a Consumable in App Store Connect (a product's type can
+  // never be changed there, so the classification is frozen) - but its grant
+  // is a PERMANENT boolean perk, not a quantity. Two consequences, both
+  // handled elsewhere and worth knowing about here:
+  //   - the shop marks it Owned once `perks.workBoost` is set, so a second
+  //     purchase (which would charge again and grant nothing) is blocked in UI;
+  //   - `hasPermanentEntitlements` lists `workBoost`, so restore DOES bring it
+  //     back via the mixed-product entitlements-only path where the store
+  //     reports it. (An earlier comment here claimed it was "intentionally not
+  //     restored" - that was stale, not a decision.)
   IAP_PRODUCTS.WORK_BOOST,
 ];
 
@@ -671,6 +688,23 @@ export const PRODUCT_DISPLAY_META: Record<string, ProductDisplayMeta> = {
   // Perk bundle — the four perks it unlocks (cheaper than buying each at $1.99).
   [IAP_PRODUCTS.UNLOCK_ALL_PERKS]: {
     contents: ['Work Pay Boost', 'Fast Learner', 'Good Credit Score', 'Mindset'],
+  },
+  // Banking services - each bullet mirrors the code that grants it: the
+  // cashback floor in BankingActions (0.1), SAVINGS_APR_* in
+  // lib/economy/constants (3% → 5%), the CompanyActions upgrade discount
+  // (0.15), and PRIVATE_BANKING_APR_CAP in LoanActions (6%). Change a
+  // constant, change the bullet in the same commit.
+  [IAP_PRODUCTS.PREMIUM_CREDIT_CARD]: {
+    contents: ['10% cashback on every card purchase', 'Permanent, survives prestige'],
+  },
+  [IAP_PRODUCTS.FINANCIAL_PLANNING]: {
+    contents: ['5% savings APR (base rate 3%)', 'No 740+ credit score needed', 'Permanent, survives prestige'],
+  },
+  [IAP_PRODUCTS.BUSINESS_BANKING]: {
+    contents: ['15% off every company upgrade', 'Permanent, survives prestige'],
+  },
+  [IAP_PRODUCTS.PRIVATE_BANKING]: {
+    contents: ['Loan rates capped at 6% APR (base ~8%)', 'Permanent, survives prestige'],
   },
 };
 

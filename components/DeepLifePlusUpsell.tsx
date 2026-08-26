@@ -18,6 +18,7 @@ import SubscriptionModal from '@/components/SubscriptionModal';
 import { useDeepLifePlusUpsell } from '@/hooks/useDeepLifePlusUpsell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { DEEP_LIFE_PLUS_FREE_TRIAL_DAYS } from '@/lib/subscription/deepLifePlus';
+import { useTrialClaimPlausible } from '@/hooks/useTrialClaimPlausible';
 import { scale, fontScale } from '@/utils/scaling';
 
 // Bespoke banner art: a glowing gold crown anchored left over a dark navy field,
@@ -57,6 +58,10 @@ interface Props {
 export default function DeepLifePlusUpsell({ variant = 'banner', surface, style }: Props) {
   const { active, open, present, close } = useDeepLifePlusUpsell(surface);
   const reducedMotion = useReducedMotion();
+  // False once this session has observed a current/prior subscription - a
+  // lapsed member has burned the intro offer, so advertising "N-DAY FREE"
+  // here would promise a trial the paywall immediately withdraws.
+  const trialPlausible = useTrialClaimPlausible();
   const pulse = useRef(new Animated.Value(0)).current;     // glow halo breathe
   const breathe = useRef(new Animated.Value(0)).current;   // coin scale breathe
   const twinkle = useRef(new Animated.Value(0)).current;   // periodic sparkle
@@ -109,7 +114,7 @@ export default function DeepLifePlusUpsell({ variant = 'banner', surface, style 
   // Never upsell an existing member (unless the QA force flag is on).
   if (memberHidden) return null;
 
-  const showTrial = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0;
+  const showTrial = DEEP_LIFE_PLUS_FREE_TRIAL_DAYS > 0 && trialPlausible;
   const trialText = showTrial ? `${DEEP_LIFE_PLUS_FREE_TRIAL_DAYS}-DAY FREE` : 'PREMIUM';
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.75] });
   const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.25] });

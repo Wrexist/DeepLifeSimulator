@@ -275,9 +275,16 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
     }
     openedAt.current = Date.now();
     if (once.fire('viewed')) {
-      track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
+      // `defaultProductId` = the pre-selected plan. `paywall_plan_selected`
+      // fires only on a TAP, so without this the default's share of purchases
+      // was invisible - most buyers never touch the selector.
+      track('paywall_viewed', {
+        surface: 'deeplife_plus',
+        alreadyActive: active,
+        defaultProductId: selected.productId,
+      });
     }
-  }, [visible, active, once]);
+  }, [visible, active, once, selected.productId]);
 
   // Record that a trial was actually PRESENTED, and in which form. Without this
   // the trial cannot be evaluated: a conditional mention and a hard promise
