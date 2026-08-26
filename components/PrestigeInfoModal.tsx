@@ -274,7 +274,7 @@ export default function PrestigeInfoModal({ visible, onClose }: PrestigeInfoModa
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F3F4F6']}
+            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
   },
   summaryLabelDark: {
     color: '#94A3B8',
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   categoryCount: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
   },
   categoryCountDark: {
     color: '#94A3B8',
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   bonusEffect: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
     marginLeft: 24,
   },
   bonusEffectDark: {
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
   },
   emptyTextDark: {

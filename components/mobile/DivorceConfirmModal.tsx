@@ -190,7 +190,7 @@ export default function DivorceConfirmModal({
                       <LinearGradient
                         colors={isSelected 
                           ? (isDarkMode ? ['#475569', '#334155'] : tierColor)
-                          : (isDarkMode ? ['#334155', '#1E293B'] : ['#F9FAFB', '#F3F4F6'])
+                          : (isDarkMode ? ['#334155', '#1E293B'] : ['#F8FAFC', '#F1F5F9'])
                         }
                         style={styles.lawyerCardGradient}
                       >
@@ -469,7 +469,7 @@ export default function DivorceConfirmModal({
               disabled={!canAffordFinal}
             >
               <LinearGradient
-                colors={!canAffordFinal ? ['#94A3B8', '#6B7280'] : ['#EF4444', '#DC2626']}
+                colors={!canAffordFinal ? ['#94A3B8', '#64748B'] : ['#EF4444', '#DC2626']}
                 style={styles.confirmButtonGradient}
               >
                 <Text style={styles.confirmButtonText}>
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     padding: scale(4),
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: fontScale(15),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(16),
     lineHeight: fontScale(21),
   },
@@ -593,11 +593,11 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   infoCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     padding: scale(20),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   infoCardDark: {
     backgroundColor: '#334155',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     flex: 1,
     fontSize: fontScale(15),
-    color: '#6B7280',
+    color: '#64748B',
   },
   infoLabelDark: {
     color: '#94A3B8',
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     marginVertical: scale(12),
   },
   totalRow: {
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   },
   lawyerTagline: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     fontStyle: 'italic',
   },
   lawyerTaglineDark: {
@@ -777,7 +777,7 @@ const styles = StyleSheet.create({
   },
   lawyerStatLabel: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
     flex: 1,
   },
   lawyerStatLabelDark: {
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
   },
   lawyerOutcomeLabel: {
     fontSize: fontScale(13),
-    color: '#6B7280',
+    color: '#64748B',
   },
   lawyerOutcomeLabelDark: {
     color: '#94A3B8',
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
   noLawyerOption: {
     padding: scale(12),
     borderRadius: scale(10),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   noLawyerText: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   noLawyerTextDark: {
     color: '#94A3B8',
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   effectsList: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     padding: scale(12),
   },
@@ -923,7 +923,7 @@ const styles = StyleSheet.create({
   },
   effectText: {
     fontSize: fontScale(15),
-    color: '#6B7280',
+    color: '#64748B',
   },
   effectTextDark: {
     color: '#94A3B8',
@@ -960,7 +960,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: scale(16),
     borderRadius: scale(12),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
   },
   cancelButtonDark: {
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: fontScale(18),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   cancelButtonTextDark: {
     color: '#94A3B8',

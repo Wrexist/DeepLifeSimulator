@@ -20,7 +20,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent } from 'react-native';
 import Svg, { Polyline, Path } from 'react-native-svg';
 import {
   ArrowLeft,
@@ -91,6 +91,8 @@ import {
 } from '@/contexts/game/actions/CryptoTradingActions';
 
 import { formatMoneyCompact } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
@@ -362,7 +364,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleBuyMiner = (tierId: string) => {
     const price = MINER_PRICES[tierId];
     if (price == null || cash < price) {
-      Alert.alert('Insufficient funds', `Need ${formatMoneyCompact(price)} to buy this miner.`);
+      gameAlert('Insufficient funds', `Need ${formatMoneyCompact(price)} to buy this miner.`);
       return;
     }
     setGameState((prev) => {
@@ -400,18 +402,18 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     if (price == null) return;
     const owned = gameState.warehouse?.miners?.[tierId] ?? 0;
     if (owned <= 0) {
-      Alert.alert('Nothing to sell', `You don't own a ${label}.`);
+      gameAlert('Nothing to sell', `You don't own a ${label}.`);
       return;
     }
     const proceeds = Math.floor(price * 0.5);
-    Alert.alert('Sell rig', `Sell one ${label} for ${formatMoneyCompact(proceeds)}?`, [
+    gameAlert('Sell rig', `Sell one ${label} for ${formatMoneyCompact(proceeds)}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sell',
         style: 'destructive',
         onPress: () => {
           const res = sellMiner(gameState, setGameState, tierId, label, price);
-          Alert.alert(res.success ? 'Rig sold' : 'Cannot sell', res.message ?? '');
+          gameAlert(res.success ? 'Rig sold' : 'Cannot sell', res.message ?? '');
           if (res.success) queueSave();
         },
       },
@@ -433,7 +435,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleRepairRig = (tierId: string) => {
     const res = repairRig(gameState, setGameState, tierId);
     if (!res.success) {
-      if (res.message) Alert.alert('Repair', res.message);
+      if (res.message) gameAlert('Repair', res.message);
       return;
     }
     queueSave();
@@ -491,7 +493,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
       cryptoId: autoRepairCryptoId,
     });
     if (!res.success) {
-      if (res.message) Alert.alert('Auto-repair', res.message);
+      if (res.message) gameAlert('Auto-repair', res.message);
       return;
     }
     queueSave();
@@ -499,7 +501,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleSelectAutoRepairCrypto = (coinId: string) => {
     const res = setAutoRepair(gameState, setGameState, { enabled: true, cryptoId: coinId });
     if (!res.success) {
-      if (res.message) Alert.alert('Auto-repair', res.message);
+      if (res.message) gameAlert('Auto-repair', res.message);
       return;
     }
     queueSave();
@@ -511,7 +513,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleBuyMinerUpgrade = (upgradeId: string, minerId: string) => {
     const res = buyMinerUpgrade(gameState, setGameState, upgradeId, minerId);
     if (!res.success) {
-      if (res.message) Alert.alert('Miner upgrade', res.message);
+      if (res.message) gameAlert('Miner upgrade', res.message);
       return;
     }
     queueSave();
@@ -519,7 +521,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleJoinPool = (poolId: string) => {
     const res = joinMiningPool(gameState, setGameState, poolId);
     if (!res.success) {
-      if (res.message) Alert.alert('Mining pool', res.message);
+      if (res.message) gameAlert('Mining pool', res.message);
       return;
     }
     queueSave();
@@ -527,7 +529,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleLeavePool = () => {
     const res = leaveMiningPool(gameState, setGameState);
     if (!res.success) {
-      if (res.message) Alert.alert('Mining pool', res.message);
+      if (res.message) gameAlert('Mining pool', res.message);
       return;
     }
     queueSave();
@@ -546,20 +548,20 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
     const amount = fraction >= 1 ? owned : Math.min(owned, owned * fraction);
     const res = stakeCrypto(gameState, setGameState, coinId, amount, stakeLockWeeks);
     if (!res.success) {
-      if (res.message) Alert.alert('Staking', res.message);
+      if (res.message) gameAlert('Staking', res.message);
       return;
     }
     queueSave();
   };
   const handleClaimStaking = () => {
     const res = claimStakingRewards(gameState, setGameState);
-    if (res.message) Alert.alert('Staking', res.message);
+    if (res.message) gameAlert('Staking', res.message);
     if (res.success) queueSave();
   };
   const handleUpgradeEnergy = (energyType: 'solar' | 'wind' | 'hybrid') => {
     const res = upgradeEnergySystem(gameState, setGameState, energyType);
     if (!res.success) {
-      if (res.message) Alert.alert('Energy system', res.message);
+      if (res.message) gameAlert('Energy system', res.message);
       return;
     }
     queueSave();
@@ -567,7 +569,7 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const handleUpgradeAutomation = () => {
     const res = upgradeAutomation(gameState, setGameState);
     if (!res.success) {
-      if (res.message) Alert.alert('Automation', res.message);
+      if (res.message) gameAlert('Automation', res.message);
       return;
     }
     queueSave();
@@ -1943,16 +1945,6 @@ function PrimaryCTA({
 
 function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
-  // Give empty sections a card so they share the same rhythm as populated rows
-  // instead of floating as bare text between elevated cards.
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{children}</Text>
-    </View>
-  );
 }
 
 function StatCard({

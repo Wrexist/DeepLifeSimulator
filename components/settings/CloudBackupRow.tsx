@@ -17,7 +17,7 @@
  * "overwrite anyway" escape hatch, which would only ever destroy progress.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CloudUpload, CloudDownload, Smartphone, KeyRound, Trash2 } from 'lucide-react-native';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Gradient from '@/components/ui/Gradient';
@@ -32,6 +32,7 @@ import CloudTransferModal, { type TransferMode } from '@/components/settings/Clo
 import { deleteCloudSave } from '@/lib/progress/cloud';
 import { resolveDeviceId } from '@/utils/deviceIdentity';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -78,7 +79,7 @@ export default function CloudBackupRow() {
     try {
       const result = await backUpToCloud();
       await refreshStatus();
-      Alert.alert(result.success ? 'Cloud Backup' : 'Backup Failed', result.message);
+      gameAlert(result.success ? 'Cloud Backup' : 'Backup Failed', result.message);
     } finally {
       setBusy(null);
     }
@@ -89,7 +90,7 @@ export default function CloudBackupRow() {
     setBusy('restore');
     try {
       const outcome = await restoreFromCloud();
-      Alert.alert(restoreAlertTitle(outcome), outcome.message);
+      gameAlert(restoreAlertTitle(outcome), outcome.message);
     } finally {
       setBusy(null);
     }
@@ -103,12 +104,12 @@ export default function CloudBackupRow() {
       if (!userId) {
         // No identity means nothing was ever uploaded under one, so there is
         // nothing to erase - and saying "deleted" would be a lie.
-        Alert.alert('Nothing To Delete', 'This device has no cloud backup.');
+        gameAlert('Nothing To Delete', 'This device has no cloud backup.');
         return;
       }
       const result = await deleteCloudSave(userId);
       await refreshStatus();
-      Alert.alert(
+      gameAlert(
         result.success ? 'Cloud Backup Deleted' : 'Delete Failed',
         result.success
           ? 'Your cloud backup and any leaderboard entries for this device have been erased. Your local save is untouched.'
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
   },
   title: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
     fontSize: fontScale(15),
     fontWeight: '700',
   },

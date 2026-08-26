@@ -9,7 +9,7 @@
  * active tier and a Cancel control.
  */
 import React, { useCallback, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X, Check, Crown, Zap, type LucideIcon } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
@@ -21,6 +21,7 @@ import { subscribeSparkPremium, cancelSparkPremium } from '@/contexts/game/actio
 import { SPARK_TIER_PRICING } from '@/lib/dating/sparkLogic';
 import { SPARK_GRADIENT, SPARK_GRADIENT_GOLD, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -65,14 +66,14 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
         saveGame();
         onDismiss();
       } else {
-        Alert.alert('Spark Premium', result.message);
+        gameAlert('Spark Premium', result.message);
       }
     },
     [setGameState, gameState, saveGame, onDismiss, plan],
   );
 
   const handleCancel = useCallback(() => {
-    Alert.alert(
+    gameAlert(
       'Cancel Spark Premium?',
       'You will drop back to the free tier and lose your premium perks. You can resubscribe any time.',
       [

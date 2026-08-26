@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { X, Calendar, Users, DollarSign, Check, MapPin, Heart } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -11,6 +11,8 @@ import { scale, fontScale } from '@/utils/scaling';
 import { getShadow } from '@/utils/shadow';
 import { logger } from '@/utils/logger';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 interface WeddingPlanningModalProps {
@@ -69,17 +71,17 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
 
   const handlePlanWedding = useCallback(() => {
     if (!selectedVenueId) {
-      Alert.alert('Select Venue', 'Please select a wedding venue first.');
+      gameAlert('Select Venue', 'Please select a wedding venue first.');
       return;
     }
 
     if (guestCountNum < 1) {
-      Alert.alert('Invalid Guest Count', 'Please enter a valid number of guests.');
+      gameAlert('Invalid Guest Count', 'Please enter a valid number of guests.');
       return;
     }
 
     if (!canAfford) {
-      Alert.alert('Insufficient Funds', `You need $${deposit.toLocaleString()} for the deposit.`);
+      gameAlert('Insufficient Funds', `You need $${deposit.toLocaleString()} for the deposit.`);
       return;
     }
 
@@ -95,13 +97,13 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
 
     if (result.success) {
       saveGame();
-      Alert.alert(
+      gameAlert(
         'Wedding Planned!',
         `Your wedding at ${selectedVenue?.name} is scheduled for 4 weeks from now! Deposit paid: $${deposit.toLocaleString()}`,
         [{ text: 'OK', onPress: onClose }]
       );
     } else {
-      Alert.alert('Error', result.message);
+      gameAlert('Error', result.message);
     }
   }, [selectedVenueId, guestCountNum, catering, photography, music, decorations, canAfford, deposit, gameState, setGameState, partnerId, selectedVenue, saveGame, onClose]);
 
@@ -115,11 +117,12 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               <Heart size={scale(24)} color={isDarkMode ? '#F472B6' : '#EC4899'} />
               <Text style={[styles.title, isDarkMode && styles.titleDark]}>Plan Wedding</Text>
             </View>
-            <TouchableOpacity 
-              onPress={onClose} 
+            <TouchableOpacity
+              onPress={onClose}
               style={styles.closeButton}
               accessibilityLabel="Close wedding planning modal"
               accessibilityRole="button"
+              hitSlop={hitSlopToMinTarget(scale(32))}
             >
               <X size={scale(24)} color={isDarkMode ? '#fff' : '#000'} />
             </TouchableOpacity>
@@ -194,7 +197,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                         isDarkMode && styles.venueCardContentDark,
                         isSelected && { borderColor: venueColor, borderWidth: 2 }
                       ]}>
-                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? '#94A3B8' : '#6B7280')} />
+                        <MapPin size={scale(20)} color={isSelected ? venueColor : (isDarkMode ? '#94A3B8' : '#64748B')} />
                         <Text style={[
                           styles.venueName, 
                           isDarkMode && styles.venueNameDark,
@@ -235,14 +238,14 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
                   Guest Count
                 </Text>
                 <View style={[styles.guestInputContainer, isDarkMode && styles.guestInputContainerDark]}>
-                  <Users size={scale(20)} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+                  <Users size={scale(20)} color={isDarkMode ? '#94A3B8' : '#64748B'} />
                   <TextInput
                     style={[styles.guestInput, isDarkMode && styles.guestInputDark]}
                     value={guestCount}
                     onChangeText={setGuestCount}
                     keyboardType="numeric"
                     placeholder="Enter number of guests"
-                    placeholderTextColor={isDarkMode ? '#94A3B8' : '#6B7280'}
+                    placeholderTextColor={isDarkMode ? '#94A3B8' : '#64748B'}
                     maxLength={3}
                   />
                   <Text style={[styles.guestHint, isDarkMode && styles.guestHintDark]}>
@@ -333,7 +336,7 @@ export default function WeddingPlanningModal({ visible, onClose, partnerId, part
               disabled={!selectedVenueId || !canAfford}
             >
               <LinearGradient
-                colors={(!selectedVenueId || !canAfford) ? ['#94A3B8', '#6B7280'] : ['#EC4899', '#DB2777']}
+                colors={(!selectedVenueId || !canAfford) ? ['#94A3B8', '#64748B'] : ['#EC4899', '#DB2777']}
                 style={styles.confirmButtonGradient}
               >
                 <Heart size={scale(18)} color="#FFFFFF" />
@@ -387,7 +390,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   titleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   closeButton: {
     padding: scale(4),
@@ -398,7 +401,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: scale(16),
     paddingVertical: scale(10),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
   },
   statsBarDark: {
     backgroundColor: '#334155',
@@ -410,7 +413,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
   },
   textMuted: {
@@ -461,7 +464,7 @@ const styles = StyleSheet.create({
     color: '#92400E',
   },
   textDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   section: {
     marginBottom: scale(24),
@@ -486,7 +489,7 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: scale(20),
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: scale(12),
   },
   emptyStateDark: {
@@ -494,7 +497,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
   },
   emptyStateTextDark: {
     color: '#94A3B8',
@@ -509,7 +512,7 @@ const styles = StyleSheet.create({
   venueCardContent: {
     padding: scale(16),
     borderRadius: scale(12),
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',
@@ -531,7 +534,7 @@ const styles = StyleSheet.create({
   },
   venueCapacity: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(4),
   },
   venueCapacityDark: {
@@ -560,14 +563,14 @@ const styles = StyleSheet.create({
     marginTop: scale(12),
     padding: scale(12),
     borderRadius: scale(10),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
   },
   venueDescriptionCardDark: {
     backgroundColor: '#334155',
   },
   venueDescription: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
     fontStyle: 'italic',
     lineHeight: fontScale(20),
   },
@@ -580,9 +583,9 @@ const styles = StyleSheet.create({
     gap: scale(12),
     padding: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   guestInputContainerDark: {
     backgroundColor: '#334155',
@@ -598,7 +601,7 @@ const styles = StyleSheet.create({
   },
   guestHint: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
   },
   guestHintDark: {
     color: '#94A3B8',
@@ -608,10 +611,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: scale(12),
     borderRadius: scale(12),
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     marginBottom: scale(8),
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   serviceOptionDark: {
     backgroundColor: '#334155',
@@ -645,7 +648,7 @@ const styles = StyleSheet.create({
   },
   serviceDescription: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
   },
   serviceDescriptionDark: {
     color: '#94A3B8',
@@ -661,7 +664,7 @@ const styles = StyleSheet.create({
   costBreakdown: {
     padding: scale(16),
     borderRadius: scale(12),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
   },
   costBreakdownDark: {
     backgroundColor: '#334155',
@@ -679,7 +682,7 @@ const styles = StyleSheet.create({
   },
   costLabel: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
   },
   costLabelDark: {
     color: '#94A3B8',
@@ -706,7 +709,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: scale(14),
     borderRadius: scale(12),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
   },
   cancelButtonDark: {
@@ -715,7 +718,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   cancelButtonTextDark: {
     color: '#94A3B8',

@@ -25,7 +25,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import {
   ArrowLeft, Car, ShoppingBag, Shield, Fuel, Wrench, AlertCircle, IdCard,
   ChevronRight, Gauge, Zap, Star,
@@ -69,6 +69,8 @@ import { companyIncomePaidWeekly } from '@/lib/economy/passiveIncome';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 // Identity accent - orange (#F97316 / rgb 249,115,22 / accent.amber). Per the
 // Slate Glass accent budget: solid only on small CTAs/badges; everywhere else
@@ -197,12 +199,12 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   // --- Garage actions ----------------------------------------------------
   const handleRefuel = (v: Vehicle) => {
     const result = refuelVehicle(gameState, setGameState, v.id, { updateMoney });
-    if (!result.success) Alert.alert('Refuel', result.message);
+    if (!result.success) gameAlert('Refuel', result.message);
     queueSave();
   };
   const handleRepair = (v: Vehicle) => {
     const result = repairVehicle(gameState, setGameState, v.id, { updateMoney });
-    if (!result.success) Alert.alert('Repair', result.message);
+    if (!result.success) gameAlert('Repair', result.message);
     queueSave();
   };
   const handleSetActive = (v: Vehicle) => {
@@ -210,7 +212,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
     queueSave();
   };
   const handleSell = (v: Vehicle) => {
-    Alert.alert(
+    gameAlert(
       'Sell vehicle?',
       `${v.name} - sells for about ${formatMoney(calculateVehicleSellPrice(v))} based on age + condition.`,
       [
@@ -220,7 +222,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           style: 'destructive',
           onPress: () => {
             const result = sellVehicle(gameState, setGameState, v.id, { updateMoney, updateStats });
-            if (!result.success) Alert.alert('Sell', result.message);
+            if (!result.success) gameAlert('Sell', result.message);
             else if (detailVehicleId === v.id) setDetailVehicleId(null);
             queueSave();
           },
@@ -230,7 +232,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
   };
   const handleBuyInsurance = (v: Vehicle, type: 'basic' | 'comprehensive' | 'premium') => {
     const result = purchaseInsurance(gameState, setGameState, v.id, type, { updateMoney });
-    if (!result.success) Alert.alert('Insurance', result.message);
+    if (!result.success) gameAlert('Insurance', result.message);
     queueSave();
   };
   const handleCancelInsurance = (v: Vehicle) => {
@@ -260,7 +262,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
         accessibilityLabel={`Pay ${DRIVERS_LICENSE.cost} dollars for a driver's license`}
         onPress={() => {
           const result = getDriversLicense(gameState, setGameState, { updateMoney });
-          if (!result.success) Alert.alert('License', result.message);
+          if (!result.success) gameAlert('License', result.message);
           queueSave();
         }}
         style={[
@@ -308,7 +310,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
           accessibilityLabel={`Pay ${PILOT_LICENSE.cost} dollars for a pilot's license`}
           onPress={() => {
             const result = getPilotLicense(gameState, setGameState);
-            if (!result.success) Alert.alert('License', result.message);
+            if (!result.success) gameAlert('License', result.message);
             queueSave();
           }}
           style={[
@@ -1031,7 +1033,7 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
             });
             // Celebrate the win too - buying a car is one of the game's most
             // aspirational purchases and used to complete in total silence.
-            Alert.alert(result.success ? '🚗 New Ride!' : 'Purchase', result.message);
+            gameAlert(result.success ? '🚗 New Ride!' : 'Purchase', result.message);
             queueSave();
             setActiveTab('garage');
           }
@@ -1046,16 +1048,6 @@ function VehicleAppInner({ onBack }: VehicleAppProps) {
 
 function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
-  // Give empty sections a card so they share the same rhythm as populated rows
-  // instead of floating as bare text on the canvas.
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
-    </View>
-  );
 }
 
 function SpecChip({

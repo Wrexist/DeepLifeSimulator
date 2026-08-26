@@ -5,7 +5,7 @@
  * Verified Pro triples the reward (50 → 150 followers).
  */
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { logger } from '@/utils/logger';
 import { X, Play, Users } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -17,6 +17,7 @@ import { Z_INDEX } from '@/utils/zIndexConstants';
 import { watchAdForFollowerBoost, canBoostFollowersWithAd } from '@/contexts/game/actions/PulseActions';
 import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -90,7 +91,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       if (!canBoostFollowersWithAd(gameState)) {
         pulseHaptics.error();
         onDismiss();
-        Alert.alert(
+        gameAlert(
           'Already boosted this week',
           'You have used your ad boost for this week. Come back next week.',
           [{ text: 'OK' }],
@@ -135,7 +136,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
         // 30-second ad and received nothing got a buzz and no explanation,
         // with the sheet already dismissed so there was nowhere to show one.
         // 2026-07-30 audit UX-1.
-        Alert.alert(
+        gameAlert(
           isGranted(outcome) ? 'Boost not applied' : 'No reward',
           result.message ||
             (isGranted(outcome)
@@ -150,7 +151,7 @@ export default function RewardedAdModal({ visible, onDismiss }: RewardedAdModalP
       // just closed. Review of UX-1.
       logger.error('[Pulse] Rewarded ad failed', adErr);
       pulseHaptics.error();
-      Alert.alert(
+      gameAlert(
         'Ad unavailable',
         'The ad could not be shown right now. Nothing was charged - try again in a moment.',
         [{ text: 'OK' }],

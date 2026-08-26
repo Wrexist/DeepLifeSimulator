@@ -37,3 +37,23 @@ export const showSecretAchievementToast = (title: string, reward: number) => {
     achievementToastRef.show(achievementData);
   }
 };
+/**
+ * The MEDIUM celebration tier: a level-up banner.
+ *
+ * Deliberately bypasses the `reward > 0` gate above, which exists to stop
+ * tips and generic messages hijacking the branded ACHIEVEMENT popup. A
+ * level-up is a genuine progression milestone with its own wording ("LEVEL
+ * UP!") and glyph, so it earns the banner without pretending to be an
+ * achievement. It carries no gem reward, which is exactly why it cannot go
+ * through `showAchievementToast`.
+ */
+export const showLevelUpToast = (title: string, detail?: string, category: string = 'work') => {
+  if (!achievementToastRef) return;
+  achievementToastRef.show({
+    title,
+    category,
+    reward: 0,
+    kind: 'levelup',
+    detail,
+  } as AchievementData);
+};

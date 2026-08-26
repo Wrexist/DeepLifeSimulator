@@ -44,7 +44,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
       <View style={styles.overlay}>
         <View style={[styles.modal, settings.darkMode && styles.modalDark]}>
           <LinearGradient
-            colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F9FAFB']}
+            colors={settings.darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F8FAFC']}
             style={styles.modalGradient}
           >
             {/* Header */}
@@ -65,7 +65,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={settings.darkMode ? '#D1D5DB' : '#6B7280'} />
+                <X size={24} color={settings.darkMode ? '#CBD5E1' : '#64748B'} />
               </TouchableOpacity>
             </View>
 
@@ -138,7 +138,7 @@ export default function YouthPillModal({ visible, onClose }: YouthPillModalProps
                 disabled={youthPills <= 0}
               >
                 <LinearGradient
-                  colors={youthPills > 0 ? ['#8B5CF6', '#7C3AED'] : ['#94A3B8', '#6B7280']}
+                  colors={youthPills > 0 ? ['#8B5CF6', '#7C3AED'] : ['#94A3B8', '#64748B']}
                   style={styles.useButtonGradient}
                 >
                   <Image 
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 2,
   },
   subtitleDark: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '600',
   },
   infoLabelDark: {
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   descriptionText: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: responsiveFontSize.sm * 1.5,
   },
   descriptionTextDark: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.md,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
   },
   cancelButtonDark: {
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: responsiveFontSize.base,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   cancelButtonTextDark: {
     color: '#94A3B8',

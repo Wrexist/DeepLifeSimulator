@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: scale(16),
   },
-  textLight: { color: '#F9FAFB' },
+  textLight: { color: '#F8FAFC' },
   textMuted: { color: '#94A3B8' },
   row: {
     flexDirection: 'row',
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
   },
   valuePositive: {
     fontSize: fontScale(15),
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     marginVertical: scale(10),
   },
   dividerDark: {
@@ -267,12 +267,12 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(4),
   },
   progressBarBg: {
     height: scale(8),
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     borderRadius: scale(4),
     overflow: 'hidden',
   },

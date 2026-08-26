@@ -26,7 +26,7 @@
  *      commit is one atomic updater in `playConversationOption`.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowLeft,
   CalendarHeart,
@@ -67,6 +67,7 @@ import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
 import type { SparkMessage } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -235,7 +236,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   const handleBefriend = useCallback(() => {
     setError(null);
     const who = profile?.name.split(' ')[0] ?? 'them';
-    Alert.alert(
+    gameAlert(
       `Add ${who} as a friend?`,
       `Friends stay in your contacts for good - but this ends the romance with ${who}. You will not be able to ask them to go steady afterwards.`,
       [

@@ -38,7 +38,7 @@ interface CareerPathCardProps {
 
 // Career tier colors and labels
 const CAREER_TIERS = {
-    entry: { label: 'Entry Level', color: '#6B7280', bgColor: '#6B728020' },
+    entry: { label: 'Entry Level', color: '#64748B', bgColor: '#64748B20' },
     mid: { label: 'Mid Career', color: '#3B82F6', bgColor: '#3B82F620' },
     senior: { label: 'Senior', color: '#8B5CF6', bgColor: '#8B5CF620' },
     executive: { label: 'Executive', color: '#F59E0B', bgColor: '#F59E0B20' },
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     compactTitle: {
         fontSize: fontScale(14),
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: '#F8FAFC',
         marginLeft: 8,
         flex: 1,
     },
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: fontScale(16),
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: '#F8FAFC',
         marginLeft: responsiveSpacing.sm,
         flex: 1,
     },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     careerName: {
         fontSize: fontScale(14),
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: '#F8FAFC',
     },
     currentBadge: {
         backgroundColor: '#10B98130',

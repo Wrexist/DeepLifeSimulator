@@ -177,7 +177,7 @@ export function getStatColor(stat: string): string {
     case 'Income Boost':
       return '#10B981';
     default:
-      return STAT_IDENTITY[stat]?.color ?? '#6B7280';
+      return STAT_IDENTITY[stat]?.color ?? '#64748B';
   }
 }
 

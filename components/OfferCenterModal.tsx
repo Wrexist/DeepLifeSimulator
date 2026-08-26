@@ -26,8 +26,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import { Check, Clock, Gift, X } from 'lucide-react-native';
 import { iapService } from '@/services/IAPService';
 import { track } from '@/lib/analytics';
@@ -41,6 +40,7 @@ import type { OfferDefinition, ResolvedOfferPrice } from '@/lib/offers';
 import { offerBenefits } from '@/lib/offers/benefits';
 import { iapArtFor } from '@/utils/iapArt';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 
 interface OfferCenterModalProps {
   visible: boolean;
@@ -139,7 +139,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
     // shop takes the same stance for the same reason: a buy button next to a
     // price we could not confirm is worse than no button.
     if (!price.purchasable) {
-      Alert.alert('Unavailable', 'This offer could not be loaded from the App Store right now.');
+      gameAlert('Unavailable', 'This offer could not be loaded from the App Store right now.');
       return;
     }
     track('offer_cta_tapped', {
@@ -150,7 +150,7 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
     setPurchasingId(offer.productId);
     try {
       const result = await iapService.purchaseProduct(offer.productId);
-      if (!result.success && result.message) Alert.alert('Purchase', result.message);
+      if (!result.success && result.message) gameAlert('Purchase', result.message);
     } finally {
       setPurchasingId(null);
     }

@@ -19,7 +19,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Image,
   ImageSourcePropType,
 } from 'react-native';
@@ -86,6 +85,7 @@ import {
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -317,7 +317,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
       if (r.success) {
         saveGame();
         if (autoStopped) flash(r.message);
-        else Alert.alert(r.outcome?.hypeTrain ? 'HYPE TRAIN' : 'Stream ended', r.message);
+        else gameAlert(r.outcome?.hypeTrain ? 'HYPE TRAIN' : 'Stream ended', r.message);
       }
     },
     [setGameState, saveGame, flash]

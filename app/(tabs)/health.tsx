@@ -8,12 +8,34 @@ import { HealthActivity } from '@/contexts/game/types';
 import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import EmptyState from '@/components/ui/EmptyState';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import ProgressRing from '@/components/ui/ProgressRing';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
+
+type Vital = { key: string; label: string; value: number; color: string };
+
+/**
+ * The vitals in one line, for the collapsed header. Same four colours as the
+ * expanded bars, so the reading survives the fold - a collapsed section that
+ * hides the number the player opened the screen for is a worse screen.
+ */
+function VitalsSummary({ vitals }: { vitals: Vital[] }) {
+  return (
+    <View style={styles.vitalsSummary}>
+      {vitals.map((v) => (
+        <Text key={v.key} style={[styles.vitalsSummaryValue, { color: v.color }]}>
+          {Math.round(v.value)}
+        </Text>
+      ))}
+    </View>
+  );
+}
 
 function HealthScreen() {
   return (
@@ -151,7 +173,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
     { key: 'fitness', label: t('game.fitness'), value: stats.fitness ?? 0, color: '#A78BFA', Icon: Dumbbell },
   ];
 
-  const sectionTitleStyle = [styles.sectionTitle, settings.darkMode && styles.sectionTitleDark];
+  const visibleActivityCount = mergedHealthActivities.filter(a => a.id !== 'vacation').length;
 
   // Vaccinations the player bought + immunities they earned by recovering.
   // Named from the same catalogues the prevention logic keys off, so a rename
@@ -173,33 +195,48 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
         contentContainerStyle={[styles.contentInner, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Vitals overview - current health/energy/happiness/fitness at a glance */}
+        {/* Vitals overview - current health/energy/happiness/fitness at a glance.
+            Collapsible, and the numbers ride along in the header when it is
+            closed, so folding it away never costs the player the reading. */}
         <View style={styles.vitalsCard}>
-          <Text style={styles.vitalsTitle}>Your Vitals</Text>
-          <View style={styles.vitalsList}>
+          <CollapsibleSection
+            id="health.vitals"
+            title="Your Vitals"
+            compact
+            summary={<VitalsSummary vitals={vitals} />}
+          >
+          {/* Rings, not bars - the same language the HUD uses for the same
+              three stats, so a player reads one vocabulary in both places
+              instead of learning a second one on this screen. Fitness is the
+              fourth ring here because this is the screen that changes it. */}
+          <View style={styles.vitalsRingRow}>
             {vitals.map(v => {
               const pct = Math.max(0, Math.min(100, v.value));
               return (
-                <View key={v.key} style={styles.vitalRow}>
-                  <View style={[styles.vitalIcon, { borderColor: v.color + '66', backgroundColor: v.color + '1A' }]}>
-                    <v.Icon size={scale(13)} color={v.color} />
-                  </View>
-                  <Text
-                    style={styles.vitalLabel}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.85}
+                <View key={v.key} style={styles.vitalRingCell}>
+                  <ProgressRing
+                    value={pct}
+                    size={scale(46)}
+                    strokeWidth={scale(4)}
+                    ambient={false}
+                    showPill={false}
+                    accentColor={v.color}
+                    trackColor="rgba(148, 163, 184, 0.18)"
+                    label={`${v.label} level`}
                   >
+                    <v.Icon size={scale(16)} color={v.color} />
+                  </ProgressRing>
+                  <Text style={styles.vitalRingValue} numberOfLines={1}>
+                    {Math.round(v.value)}
+                  </Text>
+                  <Text style={styles.vitalRingLabel} numberOfLines={1}>
                     {v.label}
                   </Text>
-                  <View style={styles.vitalBarBg}>
-                    <View style={[styles.vitalBarFill, { width: `${pct}%`, backgroundColor: v.color }]} />
-                  </View>
-                  <Text style={styles.vitalValue} numberOfLines={1}>{Math.round(v.value)}</Text>
                 </View>
               );
             })}
           </View>
+          </CollapsibleSection>
         </View>
 
         {/* Disease status - quiet warning card, no left bar */}
@@ -237,12 +274,13 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
 
         {/* Activities */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { borderColor: 'rgba(248, 113, 113, 0.4)' }]}>
-              <Activity size={scale(15)} color="#F87171" />
-            </View>
-            <Text style={sectionTitleStyle}>{t('health.healthActivities')}</Text>
-          </View>
+          <CollapsibleSection
+            id="health.activities"
+            title={t('health.healthActivities')}
+            icon={<Activity size={scale(15)} color="#F87171" />}
+            tint="#F87171"
+            summary={`${visibleActivityCount} available`}
+          >
           <Text style={sectionDescStyle}>{t('health.investMentalPhysical')}</Text>
 
           {/* Protection you have already bought or earned.
@@ -298,18 +336,28 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
                 />
               );
             })}
+          </CollapsibleSection>
         </View>
 
         {/* Diet plans */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { borderColor: 'rgba(52, 211, 153, 0.4)' }]}>
-              <Utensils size={scale(15)} color="#34D399" />
-            </View>
-            <Text style={sectionTitleStyle}>{t('health.dietPlans')}</Text>
-          </View>
+          <CollapsibleSection
+            id="health.diet"
+            title={t('health.dietPlans')}
+            icon={<Utensils size={scale(15)} color="#34D399" />}
+            tint="#34D399"
+            summary={activeDietPlan ? activeDietPlan.name : 'None active'}
+          >
           <Text style={sectionDescStyle}>{t('health.chooseAutomaticDaily')}</Text>
 
+          {(gameState.dietPlans ?? []).length === 0 && (
+            <EmptyState
+              compact
+              icon={<Utensils size={22} color="#34D399" />}
+              observation="No diet plans available yet"
+              nudge="Plans appear here as your life progresses - check back after a few weeks."
+            />
+          )}
           {(gameState.dietPlans ?? []).map(plan => {
             const weeklyCost = plan.dailyCost * 7;
             const deltas: HealthDelta[] = [
@@ -341,6 +389,7 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               {t('health.activePlan')} {activeDietPlan.name} · {t('health.weeklyCost')} ${activeDietPlan.dailyCost * 7}
             </Text>
           ) : null}
+          </CollapsibleSection>
         </View>
       </ScrollView>
     </View>
@@ -362,60 +411,39 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: responsiveSpacing.md,
-    gap: verticalScale(12),
+    gap: verticalScale(4),
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
-  vitalsTitle: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
-    color: 'rgba(226, 232, 240, 0.6)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  vitalsList: {
-    gap: verticalScale(10),
-  },
-  vitalRow: {
+  vitalsRingRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(10),
+    justifyContent: 'space-between',
+    paddingTop: responsiveSpacing.xs,
+    paddingBottom: scale(2),
   },
-  vitalIcon: {
-    width: scale(26),
-    height: scale(26),
-    borderRadius: scale(8),
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vitalLabel: {
-    // Sized for the longest label ("Happiness"); numberOfLines + adjustsFontSizeToFit
-    // guarantee it never wraps to "Happine\nss" on any resolution / font-scale.
-    width: scale(74),
-    fontSize: fontScale(12.5),
-    fontWeight: '600',
-    color: '#E2E8F0',
-  },
-  vitalBarBg: {
+  vitalRingCell: {
     flex: 1,
-    height: scale(7),
-    borderRadius: scale(4),
-    backgroundColor: 'rgba(148, 163, 184, 0.18)',
-    overflow: 'hidden',
+    alignItems: 'center',
+    gap: scale(4),
   },
-  vitalBarFill: {
-    height: '100%',
-    borderRadius: scale(4),
-  },
-  vitalValue: {
-    // Wide enough for a 3-digit "100" with tabular figures so the value never
-    // wraps to "10\n0". Fixed width keeps every row's number right-aligned.
-    width: scale(38),
-    textAlign: 'right',
-    fontSize: fontScale(13),
+  vitalRingValue: {
+    fontSize: fontScale(14),
     fontWeight: '800',
     color: '#F8FAFC',
-    fontVariant: ['tabular-nums'],
+    marginTop: scale(5),
+  },
+  vitalRingLabel: {
+    fontSize: fontScale(10.5),
+    fontWeight: '600',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
+  },
+  vitalsSummary: {
+    flexDirection: 'row',
+    gap: scale(10),
+  },
+  vitalsSummaryValue: {
+    fontSize: fontScale(13),
+    fontWeight: '800',
   },
   contentInner: {
     padding: responsiveSpacing.md,

@@ -5,8 +5,9 @@
  * Subscribes to game state changes and generates floating notifications.
  */
 
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { StatChange } from '@/components/ui/StatChangeIndicator';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { StatChangeIndicator, StatChange } from '@/components/ui/StatChangeIndicator';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 
 interface StatChangeContextType {
     changes: StatChange[];
@@ -90,8 +91,15 @@ export function StatChangeProvider({ children }: StatChangeProviderProps) {
         setChanges([]);
     }, []);
 
+    // Memoized so consumers only re-render when the pill list actually changes,
+    // not on every provider render.
+    const value = useMemo(
+        () => ({ changes, addChange, clearChange, clearAllChanges }),
+        [changes, addChange, clearChange, clearAllChanges]
+    );
+
     return (
-        <StatChangeContext.Provider value={{ changes, addChange, clearChange, clearAllChanges }}>
+        <StatChangeContext.Provider value={value}>
             {children}
         </StatChangeContext.Provider>
     );
@@ -162,6 +170,39 @@ export function useStatChangeTracker(gameState: {
         gameState?.stats?.fitness,
         addChange,
     ]);
+}
+
+/**
+ * Null-rendering tracker mounted once at the tab-group level (inside
+ * `StatChangeOverlay`). It used to live inside the Home screen, so money
+ * earned on Work / Apps / Life only produced a floating pill if Home happened
+ * to still be mounted. A leaf component with narrow selectors keeps the heavy
+ * tabs layout itself unsubscribed from stat mutations.
+ */
+export function StatChangeTracker() {
+    const health = useGameSelector((s) => s?.stats?.health);
+    const happiness = useGameSelector((s) => s?.stats?.happiness);
+    const energy = useGameSelector((s) => s?.stats?.energy);
+    const money = useGameSelector((s) => s?.stats?.money);
+    const gems = useGameSelector((s) => s?.stats?.gems);
+    const fitness = useGameSelector((s) => s?.stats?.fitness);
+    useStatChangeTracker({ stats: { health, happiness, energy, money, gems, fitness } });
+    return null;
+}
+
+/**
+ * The complete floating-pill surface: tracker + indicator in one leaf, so the
+ * component that mounts it (the tabs layout) never subscribes to stat changes
+ * itself - only this overlay re-renders as pills come and go.
+ */
+export function StatChangeOverlay() {
+    const { changes, clearChange } = useStatChanges();
+    return (
+        <>
+            <StatChangeTracker />
+            <StatChangeIndicator changes={changes} onAnimationComplete={clearChange} />
+        </>
+    );
 }
 
 export default StatChangeProvider;

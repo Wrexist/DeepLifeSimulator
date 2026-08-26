@@ -95,7 +95,7 @@ export default function WatchAdRewardButton({
   if (adsRemoved) return null;
 
   const inactive = disabled || busy;
-  const gradient = (inactive ? ['#9CA3AF', '#6B7280'] : colors) as unknown as string[];
+  const gradient = (inactive ? ['#94A3B8', '#64748B'] : colors) as unknown as string[];
   const primaryText = busy ? 'Loading ad…' : disabled && disabledLabel ? disabledLabel : label;
 
   return (

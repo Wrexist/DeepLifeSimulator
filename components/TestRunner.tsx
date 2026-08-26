@@ -156,8 +156,8 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
       case 'critical': return '#EF4444';
       case 'high': return '#F59E0B';
       case 'medium': return '#3B82F6';
-      case 'low': return '#6B7280';
-      default: return '#6B7280';
+      case 'low': return '#64748B';
+      default: return '#64748B';
     }
   };
 
@@ -295,7 +295,7 @@ export default function TestRunner({ onClose }: TestRunnerProps = {}) {
                   Medium: {report.bugs.filter(b => b.severity === 'medium').length}
                 </Text>
               </View>
-              <View style={[styles.bugCountBadge, { backgroundColor: '#6B7280' }]}>
+              <View style={[styles.bugCountBadge, { backgroundColor: '#64748B' }]}>
                 <Text style={styles.bugCountText}>
                   Low: {report.bugs.filter(b => b.severity === 'low').length}
                 </Text>
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonDisabled: {
-    backgroundColor: '#6B7280',
+    backgroundColor: '#64748B',
   },
   buttonText: {
     color: '#FFF',

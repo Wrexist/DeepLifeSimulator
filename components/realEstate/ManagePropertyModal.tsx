@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { askRentOverage } from '@/lib/realEstate/askRentGuidance';
-import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, StyleSheet, ScrollView } from 'react-native';
 import { X, Wrench, Users, DoorOpen, Trash2, Building2, Sparkles, Plus, ArrowUpCircle } from 'lucide-react-native';
 import { RealEstate } from '@/contexts/game/types';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale } from '@/utils/scaling';
@@ -11,6 +11,7 @@ import { DECOR_ITEMS, ROOM_ADDITIONS, getUpgradeTier } from '@/lib/realEstate/ho
 import { RENT_MODE_PARAMS, RentMode } from '@/lib/realEstate/tenancy';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
 
 interface Props {
   visible: boolean;
@@ -347,7 +348,7 @@ export default function ManagePropertyModal({
               </Text>
               <TouchableOpacity
                 onPress={() => {
-                  Alert.alert(
+                  gameAlert(
                     'Sell property?',
                     `${property.name} for ${formatMoney(value)}. Mortgage payoff ${formatMoney(mortgageRemaining ?? 0)}. Net to you: ${formatMoney(equity)}.`,
                     [

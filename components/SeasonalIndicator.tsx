@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     padding: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
   },
   holidayName: {
@@ -299,11 +299,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   holidayNameDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   holidayDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
   },
   holidayDescriptionDark: {
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: 2,
   },
   infoLabelDark: {
@@ -335,10 +335,10 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   infoValueDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   tipSection: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: 12,
     padding: 16,
   },
@@ -352,15 +352,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tipTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   tipText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: 20,
   },
   tipTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
 });
 

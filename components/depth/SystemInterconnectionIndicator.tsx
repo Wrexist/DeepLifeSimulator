@@ -117,9 +117,9 @@ export default function SystemInterconnectionIndicator({
           </Text>
           {!compact && (
             expanded ? (
-              <ChevronUp size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
+              <ChevronUp size={scale(16)} color={darkMode ? '#94A3B8' : '#64748B'} />
             ) : (
-              <ChevronDown size={scale(16)} color={darkMode ? '#94A3B8' : '#6B7280'} />
+              <ChevronDown size={scale(16)} color={darkMode ? '#94A3B8' : '#64748B'} />
             )
           )}
         </View>
@@ -150,13 +150,13 @@ function InterconnectionItem({
   const isPositive = interconnection.effectType === 'positive';
   const SourceIcon = SYSTEM_ICONS[interconnection.sourceSystem] || LinkIcon;
   const TargetIcon = SYSTEM_ICONS[interconnection.targetSystem] || LinkIcon;
-  const iconColor = darkMode ? '#D1D5DB' : '#334155';
+  const iconColor = darkMode ? '#CBD5E1' : '#334155';
 
   return (
     <View style={[styles.item, darkMode && styles.itemDark]}>
       <View style={styles.itemContent}>
         <SourceIcon size={scale(14)} color={iconColor} />
-        <ArrowRight size={scale(12)} color={darkMode ? '#94A3B8' : '#6B7280'} />
+        <ArrowRight size={scale(12)} color={darkMode ? '#94A3B8' : '#64748B'} />
         <TargetIcon size={scale(14)} color={iconColor} />
         <View style={styles.effectIndicator}>
           {isPositive ? (
@@ -175,7 +175,7 @@ function InterconnectionItem({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     borderRadius: responsiveBorderRadius.md,
     overflow: 'hidden',
     marginVertical: responsiveSpacing.xs,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   interconnectionsList: {
     paddingHorizontal: responsivePadding.small,
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.xs,
   },
   itemDark: {
-    backgroundColor: '#4B5563',
+    backgroundColor: '#475569',
   },
   itemContent: {
     flexDirection: 'row',
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: fontScale(11),
-    color: '#6B7280',
+    color: '#64748B',
     flex: 1,
   },
   itemTextDark: {

@@ -50,8 +50,8 @@ export default function ImageWithFallback({
   uri,
   fallback,
   style,
-  placeholderColor = '#E5E7EB',
-  placeholderTextColor = '#6B7280',
+  placeholderColor = '#E2E8F0',
+  placeholderTextColor = '#64748B',
   face,
 }: ImageWithFallbackProps) {
   const [errored, setErrored] = useState(false);

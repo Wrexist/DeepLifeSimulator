@@ -30,7 +30,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
@@ -97,6 +96,7 @@ import {
 } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { Pet } from '@/contexts/game/types';
+import { gameAlert } from '@/utils/gameAlert';
 
 const WEEKS_PER_YEAR = 52; // display constant only - mirrors lib/pets/lifecycle
 
@@ -266,7 +266,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       );
       if (r.success) {
         saveGame();
-        Alert.alert(r.won ? '🏆 Victory!' : 'Better luck next time', r.message);
+        gameAlert(r.won ? '🏆 Victory!' : 'Better luck next time', r.message);
       } else {
         flash(r.message);
       }

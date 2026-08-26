@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 10,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 2,
   },
   availableLabel: {

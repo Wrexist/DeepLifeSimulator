@@ -22,6 +22,10 @@ import { startScooterRental, endScooterRental } from '@/contexts/game/actions/Ve
 import CrimeSkillCard from '@/components/work/CrimeSkillCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import EmptyState from '@/components/ui/EmptyState';
+import ScreenHeader from '@/components/ui/ScreenHeader';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import type { PromotionDetails } from '@/contexts/game/types';
 import {
@@ -827,7 +831,13 @@ function WorkScreenContent() {
                 );
             } else if (canPromote) {
                 footer = (
-                    <TouchableOpacity onPress={() => setShowQuitJobConfirm(true)} style={{ alignSelf: 'center', paddingVertical: 4 }}>
+                    <TouchableOpacity
+                        onPress={() => setShowQuitJobConfirm(true)}
+                        style={{ alignSelf: 'center', paddingVertical: scale(8), minHeight: scale(32), justifyContent: 'center' }}
+                        hitSlop={hitSlopToMinTarget(scale(32))}
+                        accessibilityRole="button"
+                        accessibilityLabel="Quit this job instead of promoting"
+                    >
                         <Text style={{ color: 'rgba(248, 113, 113, 0.85)', fontSize: fontScale(12), fontWeight: '600' }}>
                             Quit instead
                         </Text>
@@ -975,6 +985,10 @@ function WorkScreenContent() {
     // hidden by the board - the board only curates what you can newly apply to.
     const boardIds = new Set(getJobBoard(gameState).map(o => o.careerId));
     const boardRefreshWeeks = weeksUntilBoardRefresh(gameState);
+    const crimeSkillSummary = Object.entries(gameState.crimeSkills || {})
+        .map(([id, skill]) => `${id.charAt(0).toUpperCase()}${skill.level}`)
+        .join(' · ');
+
     const visibleBasicCareers = basicCareers.filter(c => {
         if (!isEntryTierCareer(c.id)) return true;
         if (c.accepted || c.applied || gameState.currentJob === c.id) return true;
@@ -1019,6 +1033,12 @@ function WorkScreenContent() {
                 <JailScreen />
             ) : (
                 <>
+                    <ScreenHeader
+                        title="Work"
+                        subtitle="Careers, quick gigs & the underground"
+                        icon={<Briefcase size={scale(18)} color="#34D399" />}
+                        tint="#34D399"
+                    />
                     {/* One page-level scroll: the Current Job card and the
                         Street/Career/Crime sub-tabs scroll away with the list
                         instead of pinning a cramped inner scroll region. */}
@@ -1178,7 +1198,16 @@ function WorkScreenContent() {
                                             }
                                         }}
                                     />
-                                    {legalStreetJobs.map(renderJobCard)}
+                                    {legalStreetJobs.length > 0 ? (
+                                        legalStreetJobs.map(renderJobCard)
+                                    ) : (
+                                        <EmptyState
+                                            compact
+                                            icon={<Zap size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            observation="No gigs on the board this week"
+                                            nudge="Quick jobs rotate as the weeks pass - advance the week and check back."
+                                        />
+                                    )}
                                 </View>
                             )}
 
@@ -1198,15 +1227,35 @@ function WorkScreenContent() {
                                             darkMode={settings.darkMode}
                                         />
                                     </View>
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>Standard Careers</Text>
+                                    <CollapsibleSection
+                                        id="work.standardCareers"
+                                        title="Standard Careers"
+                                        compact
+                                        summary={`${visibleBasicCareers.length} listed`}
+                                    >
                                     {openingsCount > 0 && (
                                         <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
                                             {openingsCount} {openingsCount === 1 ? 'opening' : 'openings'} on the board
                                             {' · '}new listings in {boardRefreshWeeks} {boardRefreshWeeks === 1 ? 'week' : 'weeks'}
                                         </Text>
                                     )}
-                                    {visibleBasicCareers.map(career => renderCareerCard(career))}
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>Advanced Careers</Text>
+                                    {visibleBasicCareers.length > 0 ? (
+                                        visibleBasicCareers.map(career => renderCareerCard(career))
+                                    ) : (
+                                        <EmptyState
+                                            compact
+                                            icon={<Briefcase size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            observation="No open positions right now"
+                                            nudge={`The job board rotates - new listings in ${boardRefreshWeeks} ${boardRefreshWeeks === 1 ? 'week' : 'weeks'}.`}
+                                        />
+                                    )}
+                                    </CollapsibleSection>
+                                    <CollapsibleSection
+                                        id="work.advancedCareers"
+                                        title="Advanced Careers"
+                                        compact
+                                        summary={`${(ADVANCED_CAREERS as AdvancedCareer[]).length} listed`}
+                                    >
                                     {(() => {
                                         // eslint-disable-next-line @typescript-eslint/no-require-imports
                                         const { calculateNetWorth } = require('@/lib/statistics/statisticsTracker');
@@ -1266,6 +1315,7 @@ function WorkScreenContent() {
                                             return renderAdvancedCareerCard(career, { isLocked, isApplied, isAccepted, lockReqs });
                                         });
                                     })()}
+                                    </CollapsibleSection>
                                 </View>
                             )}
 
@@ -1281,6 +1331,12 @@ function WorkScreenContent() {
                                         />
                                     </View>
 
+                                    <CollapsibleSection
+                                        id="work.crimeSkills"
+                                        title="Your Skills"
+                                        compact
+                                        summary={crimeSkillSummary}
+                                    >
                                     <View>
                                         {Object.entries(gameState.crimeSkills || {}).map(([id, skill]) => {
                                             const skillId = id as CrimeSkillId;
@@ -1315,19 +1371,25 @@ function WorkScreenContent() {
                                             );
                                         })}
                                     </View>
+                                    </CollapsibleSection>
 
-                                    <Text style={[styles.subheader, styles.subheaderDark]}>
-                                        Crime Jobs (Level {gameState.criminalLevel})
-                                    </Text>
+                                    <CollapsibleSection
+                                        id="work.crimeJobs"
+                                        title={`Crime Jobs (Level ${gameState.criminalLevel})`}
+                                        compact
+                                        summary={`${criminalStreetJobs.length} available`}
+                                    >
                                     {criminalStreetJobs.length > 0 ? (
                                         criminalStreetJobs.map(renderJobCard)
                                     ) : (
-                                        <View style={{ padding: scale(16), alignItems: 'center' }}>
-                                            <Text style={[styles.jobDescription, settings.darkMode && styles.jobDescriptionDark]}>
-                                                No underground jobs available right now - raise your criminal level or check back later.
-                                            </Text>
-                                        </View>
+                                        <EmptyState
+                                            compact
+                                            icon={<Lock size={22} color={settings.darkMode ? '#94A3B8' : '#64748B'} />}
+                                            observation="No underground jobs available right now"
+                                            nudge="Raise your criminal level to unlock more work, or check back later."
+                                        />
                                     )}
+                                    </CollapsibleSection>
                                 </View>
                             )}
 
@@ -1369,9 +1431,11 @@ function WorkScreenContent() {
                 <TouchableOpacity
                     style={local.sheetOverlay}
                     activeOpacity={1}
+                    accessible={false}
+                    importantForAccessibility="no"
                     onPress={() => setManageJobId(null)}
                 >
-                    <View style={local.sheet}>
+                    <View style={local.sheet} accessibilityViewIsModal>
                         <View style={local.sheetHandle} />
                         <Text style={local.sheetTitle}>Your Job</Text>
                         <Text style={local.sheetSubtitle}>What would you like to do?</Text>
@@ -1380,6 +1444,8 @@ function WorkScreenContent() {
                             style={local.sheetAction}
                             activeOpacity={0.85}
                             onPress={() => { if (manageJobId) handleAskForRaise(manageJobId); }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Ask for a raise"
                         >
                             <TrendingUp size={scale(17)} color="#34D399" />
                             <Text style={local.sheetActionText}>Ask for a Raise</Text>
@@ -1389,6 +1455,8 @@ function WorkScreenContent() {
                             style={local.sheetAction}
                             activeOpacity={0.85}
                             onPress={() => { setManageJobId(null); setShowQuitJobConfirm(true); }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Quit job"
                         >
                             <X size={scale(17)} color="#F87171" />
                             <Text style={[local.sheetActionText, { color: '#F87171' }]}>Quit Job</Text>
@@ -1398,6 +1466,8 @@ function WorkScreenContent() {
                             style={local.sheetCancel}
                             activeOpacity={0.85}
                             onPress={() => setManageJobId(null)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Cancel"
                         >
                             <Text style={local.sheetCancelText}>Cancel</Text>
                         </TouchableOpacity>

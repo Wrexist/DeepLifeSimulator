@@ -1600,7 +1600,7 @@ export function repairGameState(state: unknown): { repaired: boolean; repairs: s
       repaired = true;
     }
     if (typeof s.settings.hapticFeedback !== 'boolean') {
-      s.settings.hapticFeedback = false;
+      s.settings.hapticFeedback = true;
       repairs.push('Set missing settings.hapticFeedback');
       repaired = true;
     }

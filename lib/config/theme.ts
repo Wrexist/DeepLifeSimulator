@@ -2,15 +2,19 @@ import { Platform } from 'react-native';
 /**
  * Design Token System — DeepLifeSim
  *
- * Single source of truth for colors, typography, and radii. Spacing lives in
- * `@/utils/scaling` (`responsiveSpacing`, `scale`) and deliberately NOT here —
- * see the note where its ladder used to be.
- * Components should import from here instead of hardcoding values.
+ * Single source of truth for COLOR, motion, elevation and type weight.
+ *
+ * The three geometric scales - spacing, font size and radius - deliberately do
+ * NOT live here. They live in `@/utils/scaling` (`responsiveSpacing`,
+ * `responsiveFontSize`, `responsiveBorderRadius`, `scale`, `fontScale`),
+ * because a token that does not scale with the device is a bug on a tablet.
+ * Each of the three had a raw twin in this file with the same key names and
+ * different values; all three are gone, and the notes below record why so the
+ * mistake is not made a fourth time.
  *
  * Usage:
- *   import { colors, typography, radii } from '@/lib/config/theme';
- *   // or with dark mode:
- *   const c = colors.dark; // or colors.light
+ *   import { colors, accent, animation } from '@/lib/config/theme';
+ *   import { responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
  */
 
 // ---------------------------------------------------------------------------
@@ -134,7 +138,13 @@ export const accent = {
   purple: '#A855F7',
   gold: '#FACC15',
   amber: '#F97316',
-  muted: palette.dark500,         // for inactive states
+  // Inactive/neutral tint. NOT dark500 (#64748B): that is the exact value the
+  // contrast pass above condemns at ~3.0:1 on dark cards, and it survived here.
+  // #7C8BA1 is the midpoint that clears WCAG's 3:1 UI-component bar on BOTH
+  // themes (4.2:1 on dark800, 3.3:1 on light50) — a single static accent can't
+  // reach 4.5:1 both ways, so keep it to icons, large text, and states that are
+  // also signified by something other than color.
+  muted: '#7C8BA1',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -166,18 +176,19 @@ export const accent = {
 // Typography
 // ---------------------------------------------------------------------------
 
+/**
+ * Typography. `size` is GONE - see the `spacing` note above, which is the same
+ * failure repeated: it was a RAW ladder whose keys collided with
+ * `responsiveFontSize` in `utils/scaling.ts` at different values (`md` was 14
+ * here, `fontScale(15)` there; `lg` 16 vs `fontScale(16)`), so `size.lg` meant
+ * two things depending on the import line and only one of them scaled with the
+ * device. It had two importers when it was measured. `responsiveFontSize` /
+ * `fontScale()` are the one type scale.
+ *
+ * `weight` and `lineHeight` stay: `utils/scaling.ts` has no competing ladder
+ * for either, so there is nothing for them to collide with.
+ */
 export const typography = {
-  size: {
-    xs: 10,
-    sm: 12,
-    md: 14,
-    lg: 16,
-    xl: 18,
-    xxl: 22,
-    xxxl: 28,
-    display: 34,
-  },
-
   weight: {
     regular: '400' as const,
     medium: '500' as const,
@@ -197,15 +208,13 @@ export const typography = {
 // Border Radii
 // ---------------------------------------------------------------------------
 
-export const radii = {
-  none: 0,
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  xxl: 20,
-  round: 9999,
-} as const;
+/**
+ * `radii` is GONE - the third instance of the collision documented above.
+ * `radii.lg` was a raw 12 while `responsiveBorderRadius.lg` is `scale(12)`;
+ * `radii.xl` 16 vs `scale(16)`. Same names, different values, only one scaling
+ * with the device. It had ONE importer (BaseModal), now migrated.
+ * `responsiveBorderRadius` in `utils/scaling.ts` is the one radius scale.
+ */
 
 // ---------------------------------------------------------------------------
 // Shadows
@@ -297,7 +306,12 @@ export const shadows = {
 // Animation Timing
 // ---------------------------------------------------------------------------
 
+// Motion tiers: micro = press/selection feedback, fast = small state changes,
+// normal = screen/content transitions, slow = emphasis. `MotiStub` and
+// `usePressableScale` read these as their defaults, so most of the app's motion
+// follows this scale without each call site naming a number.
 export const animation = {
+  micro: 100,
   fast: 150,
   normal: 300,
   slow: 500,

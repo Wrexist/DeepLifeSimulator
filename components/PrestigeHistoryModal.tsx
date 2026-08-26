@@ -78,7 +78,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
           ]}
         >
           <LinearGradient
-            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F3F4F6']}
+            colors={darkMode ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.content}
@@ -131,7 +131,7 @@ export default function PrestigeHistoryModal({ visible, onClose }: PrestigeHisto
                             ? ['#F59E0B', '#D97706']
                             : darkMode
                             ? ['#334155', '#1E293B']
-                            : ['#F3F4F6', '#E5E7EB']
+                            : ['#F1F5F9', '#E2E8F0']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 4,
   },
   subtitleDark: {
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 16,
   },
   emptyTextDark: {
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptySubtextDark: {
-    color: '#6B7280',
+    color: '#64748B',
   },
   historyCard: {
     marginBottom: 16,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   historyDate: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
   },
   historyDateDark: {
     color: '#94A3B8',
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#64748B',
   },
   statLabelDark: {
     color: '#94A3B8',
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   achievementsTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: 8,
   },
   achievementsTitleDark: {

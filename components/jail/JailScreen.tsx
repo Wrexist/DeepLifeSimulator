@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
@@ -26,6 +26,7 @@ import {
   Flower2,
   Smile
 } from 'lucide-react-native';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 interface JailScreenProps {
@@ -69,10 +70,10 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   const handlePayBail = () => {
     if (stats.money >= bailCost) {
       payBail();
-      Alert.alert('Bail Posted', 'You have been released from jail!');
+      gameAlert('Bail Posted', 'You have been released from jail!');
       if (onClose) onClose();
     } else {
-      Alert.alert('Insufficient Funds', `You need $${bailCost} to post bail.`);
+      gameAlert('Insufficient Funds', `You need $${bailCost} to post bail.`);
     }
   };
 
@@ -84,7 +85,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
   // sentence, with no cost. This is the fix for the "freezes after working 2
   // jobs" report (2 crime jobs → caught → jail with no obvious way out).
   const handleServeTime = () => {
-    Alert.alert(
+    gameAlert(
       'Serve Your Time',
       `Advance one week to serve part of your sentence (${jailWeeks} week${jailWeeks !== 1 ? 's' : ''} remaining). You'll be released once it reaches zero.`,
       [
@@ -112,7 +113,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     const currentWeek = gameState.weeksLived;
     const lastDoneWeek = weeklyActivities[activityId];
     if (lastDoneWeek === currentWeek) {
-      Alert.alert(
+      gameAlert(
         'Activity Already Done',
         `You've already completed "${activity.name}" this week. Advance to next week to do more activities.`,
         [{ text: 'OK' }]
@@ -122,7 +123,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     
     // Check energy
     if (stats.energy < activity.energyCost) {
-      Alert.alert(
+      gameAlert(
         'Not Enough Energy',
         `You need ${activity.energyCost} energy to perform this activity. You currently have ${stats.energy} energy.`
       );
@@ -131,7 +132,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     
     // Check cost
     if (activity.cost && stats.money < activity.cost) {
-      Alert.alert(
+      gameAlert(
         'Insufficient Funds',
         `This activity costs $${activity.cost}. You currently have $${stats.money}.`
       );
@@ -140,7 +141,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     
     // Check if requires minimum weeks remaining
     if (activity.requiresWeeks && jailWeeks < activity.requiresWeeks) {
-      Alert.alert(
+      gameAlert(
         'Requirement Not Met',
         `This activity requires at least ${activity.requiresWeeks} weeks remaining in jail. You have ${jailWeeks} weeks remaining.`
       );
@@ -152,7 +153,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     const lastUsed = activityCooldowns[activityId] || 0;
     if (currentTime - lastUsed < cooldownTime) {
       const remainingTime = Math.ceil((cooldownTime - (currentTime - lastUsed)) / 1000);
-      Alert.alert('Cooldown', `Please wait ${remainingTime} second(s) before trying again.`);
+      gameAlert('Cooldown', `Please wait ${remainingTime} second(s) before trying again.`);
       return;
     }
 
@@ -165,7 +166,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       const confirmBody = isChanceBased
         ? `${activity.name} has a ${Math.round((activity.successRate ?? 0) * 100)}% chance to get you released.${activity.risk ? `\n\n${activity.risk}` : ''}`
         : 'This activity will complete your sentence and release you from jail!';
-      Alert.alert(
+      gameAlert(
         confirmTitle,
         confirmBody,
         [
@@ -180,7 +181,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               const result = performJailActivity(activityId);
               if (result) {
                 const title = result.success ? ' Activity Completed' : ' Activity Failed';
-                Alert.alert(title, result.message);
+                gameAlert(title, result.message);
               }
             }
           }
@@ -198,7 +199,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
     const result = performJailActivity(activityId);
     if (result) {
       const title = result.success ? ' Activity Completed' : ' Activity Failed';
-      Alert.alert(title, result.message);
+      gameAlert(title, result.message);
     }
   };
 
@@ -221,12 +222,12 @@ export default function JailScreen({ onClose }: JailScreenProps) {
       case 'prison_job': return ['#10B981', '#34D399'];
       case 'library_study': return ['#8B5CF6', '#A78BFA'];
       case 'prison_workshop': return ['#F59E0B', '#FBBF24'];
-      case 'legal_appeal': return ['#1E293B', '#6B7280'];
+      case 'legal_appeal': return ['#1E293B', '#64748B'];
       case 'good_behavior': return ['#059669', '#34D399'];
       case 'prison_meditation': return ['#6366F1', '#818CF8'];
       case 'prison_exercise': return ['#EF4444', '#F87171'];
       case 'prison_yoga': return ['#EC4899', '#F472B6'];
-      default: return ['#6B7280', '#94A3B8'];
+      default: return ['#64748B', '#94A3B8'];
     }
   };
 
@@ -338,7 +339,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
               style={styles.bailButton}
             >
               <LinearGradient
-                colors={stats.money < bailCost ? ['#6B7280', '#4B5563'] : ['#10B981', '#34D399']}
+                colors={stats.money < bailCost ? ['#64748B', '#475569'] : ['#10B981', '#34D399']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.bailButtonGradient}
@@ -399,7 +400,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                     key={food.id}
                     onPress={() => {
                       if (!canAfford) {
-                        Alert.alert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
+                        gameAlert('Insufficient Funds', `You need $${price} to buy ${food.name}.`);
                         return;
                       }
                       // Use custom prison food handler with reduced benefits.
@@ -421,7 +422,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                             },
                           };
                         });
-                        Alert.alert(
+                        gameAlert(
                           'Food Purchased',
                           `You ate ${food.name}!\n+${healthRestore} Health\n+${happinessRestore} Happiness\n+${foodItem.energyRestore} Energy`
                         );
@@ -437,7 +438,7 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       style={styles.foodCardGradient}
                     >
                       <View style={styles.foodCardHeader}>
-                        <Utensils size={16} color={canAfford ? '#F59E0B' : '#6B7280'} />
+                        <Utensils size={16} color={canAfford ? '#F59E0B' : '#64748B'} />
                         <Text style={[styles.foodPrice, !canAfford && styles.disabledText]}>
                           ${price}
                         </Text>
@@ -496,9 +497,9 @@ export default function JailScreen({ onClose }: JailScreenProps) {
                       style={styles.activityGradient}
                     >
                       <View style={styles.activityHeader}>
-                        <Icon size={20} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#6B7280'} />
+                        <Icon size={20} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#64748B'} />
                         <View style={styles.energyCost}>
-                          <Zap size={12} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#6B7280'} />
+                          <Zap size={12} color={canPerform && !onCooldown && !doneThisWeek ? '#FFFFFF' : '#64748B'} />
                           <Text style={[styles.energyText, (!canPerform || onCooldown || doneThisWeek) && styles.disabledText]}>
                             {activity.energyCost}
                           </Text>
@@ -773,7 +774,7 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     fontSize: 11,
-    color: '#E5E7EB',
+    color: '#E2E8F0',
     marginBottom: 10,
     lineHeight: 14,
   },
@@ -807,7 +808,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   disabledText: {
-    color: '#6B7280',
+    color: '#64748B',
   },
   cooldownIndicator: {
     flexDirection: 'row',

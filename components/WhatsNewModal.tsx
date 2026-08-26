@@ -137,7 +137,7 @@ function WhatsNewModal({ visible, onClose }: WhatsNewModalProps) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 testID="whats-new-close"
               >
-                <X size={scale(18)} color="#F9FAFB" />
+                <X size={scale(18)} color="#F8FAFC" />
               </TouchableOpacity>
             </View>
 
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontScale(18),
     fontWeight: '800',
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   subtitle: {
     fontSize: fontScale(12),

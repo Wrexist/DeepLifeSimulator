@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import RestoreBackupSheet from '@/components/onboarding/RestoreBackupSheet';
 import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
+import Skeleton from '@/components/anim/Skeleton';
 // Leaf context, not the @/contexts/GameContext barrel - the barrel's eager
 // `export * from './game'` pulled the whole provider graph into this screen's
 // module init and caused a production require-cycle (undefined screen export).
@@ -46,6 +47,7 @@ import {
   scale,
   verticalScale,
 } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 
 // Near-black base matched to the in-game home screen (#020617) and the main
 // menu so the whole pre-game flow reads as one dark aesthetic.
@@ -289,7 +291,7 @@ export default function SaveSlots() {
       setIsBusy(true);
       try {
         const outcome = await restoreCloudSaveToSlot(slotId, localWeeksForSlot(slotId));
-        Alert.alert(
+        gameAlert(
           outcome.status === 'applied'
             ? 'Cloud Backup Restored'
             : outcome.status === 'older'
@@ -348,19 +350,19 @@ export default function SaveSlots() {
           slotValidation.errors[0] ||
           'This save file cannot be loaded.';
 
-        Alert.alert('Save Unavailable', errorMessage);
+        gameAlert('Save Unavailable', errorMessage);
         return;
       }
 
       const loadedState = await loadGame(selectedSlot);
       if (!loadedState) {
-        Alert.alert('No Save Found', 'No save data found for this slot. Please select another slot.');
+        gameAlert('No Save Found', 'No save data found for this slot. Please select another slot.');
         return;
       }
 
       const validation = validateGameEntry(loadedState);
       if (!validation.canEnter) {
-        Alert.alert('Invalid Save', validation.errors[0] || 'This save cannot be loaded right now.');
+        gameAlert('Invalid Save', validation.errors[0] || 'This save cannot be loaded right now.');
         return;
       }
 
@@ -370,11 +372,11 @@ export default function SaveSlots() {
     } catch (error) {
       if (isSaveFromFutureError(error)) {
         log.warn('Save is from a newer app version', { slot: selectedSlot });
-        Alert.alert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE);
+        gameAlert('Newer Save Found', SAVE_FROM_FUTURE_MESSAGE);
         return;
       }
       log.error('Error continuing game', error);
-      Alert.alert('Load Error', 'An error occurred while loading your save. Please try again.');
+      gameAlert('Load Error', 'An error occurred while loading your save. Please try again.');
     } finally {
       setIsBusy(false);
       continueInFlightRef.current = false;
@@ -442,7 +444,7 @@ export default function SaveSlots() {
       await loadSlots();
     } catch (error) {
       log.error('Failed deleting slot', error);
-      Alert.alert('Delete Failed', 'Could not delete this slot. Please try again.');
+      gameAlert('Delete Failed', 'Could not delete this slot. Please try again.');
     } finally {
       setShowDeleteConfirm(null);
     }
@@ -453,7 +455,7 @@ export default function SaveSlots() {
     if (isBusy) return;
 
     if (selectedCard?.hasData) {
-      Alert.alert('Slot Occupied', 'Please pick an empty slot to start a new game.');
+      gameAlert('Slot Occupied', 'Please pick an empty slot to start a new game.');
       return;
     }
 
@@ -464,7 +466,7 @@ export default function SaveSlots() {
     try {
       const allSlotsFull = await checkIfAllSlotsFull();
       if (allSlotsFull) {
-        Alert.alert(
+        gameAlert(
           'All Save Slots Full',
           'All 3 save slots are full. Delete one to create a new life.'
         );
@@ -480,7 +482,7 @@ export default function SaveSlots() {
 
   const primaryAction = async () => {
     if (!selectedSlot) {
-      Alert.alert('Select A Slot', 'Choose a slot first to continue.');
+      gameAlert('Select A Slot', 'Choose a slot first to continue.');
       return;
     }
     if (selectedCard?.hasData) {
@@ -513,7 +515,7 @@ export default function SaveSlots() {
           title="Save Slots"
           onBack={handleBack}
           onInfo={() =>
-            Alert.alert(
+            gameAlert(
               'Save Slots',
               'Pick an empty slot for a new life or select an existing slot to continue.'
             )
@@ -525,6 +527,18 @@ export default function SaveSlots() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Slot metadata loads async; a blank list here is the app's highest-
+              anxiety blank screen ("did my saves survive?"). Show three slot-
+              shaped placeholders until the real cards arrive. */}
+          {!slotsLoaded &&
+            slots.length === 0 &&
+            [1, 2, 3].map((id) => (
+              <View key={`placeholder-${id}`} style={styles.card} accessibilityLabel="Loading save slots">
+                <Skeleton height={scale(18)} radius={6} style={{ width: '35%' }} />
+                <Skeleton height={scale(14)} radius={6} style={{ width: '60%' }} />
+                <Skeleton height={scale(30)} radius={8} />
+              </View>
+            ))}
           {slots.map((slot, index) => {
             const isSelected = selectedSlot === slot.id;
             // An error slot has unreadable data (hasData=false) - it must never

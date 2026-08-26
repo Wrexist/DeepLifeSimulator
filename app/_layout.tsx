@@ -49,6 +49,8 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 // Keep always-rendered components as eager imports to reduce bundler memory pressure
 import AchievementToast from '@/components/anim/AchievementToast';
 import UIUXOverlay from '@/components/UIUXOverlay';
+import AlertHost from '@/components/ui/AlertHost';
+import { hydrateSectionCollapse } from '@/utils/sectionCollapse';
 import { Component, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { iapService } from '@/services/IAPService';
 import { useSaveNotifications } from '@/hooks/useSaveNotifications';
@@ -806,6 +808,14 @@ export default function RootLayout() {
   // Track first frame rendered state
   const [isFirstFrameRendered, setIsFirstFrameRendered] = useState(false);
 
+  // Remembered collapse state for the game's collapsible sections. Hydrated
+  // here, at boot, because the sections read it SYNCHRONOUSLY on their first
+  // render - an async read inside each section would paint them all open and
+  // then snap them shut a frame later.
+  useEffect(() => {
+    void hydrateSectionCollapse();
+  }, []);
+
   // Check circuit breaker status on mount
   useEffect(() => {
     const checkCircuitBreaker = async () => {
@@ -1439,6 +1449,9 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
         </ErrorBoundary>
       )}
       <UIUXOverlay />
+      {/* In-game alerts. Renders whatever `gameAlert()` raises - the themed
+          replacement for the OS `Alert.alert` dialog. */}
+      <AlertHost />
       {/* StatusBar is always StatusBarFallback (safe no-op component) */}
       <StatusBar style="light" />
 
@@ -1457,14 +1470,14 @@ const styles = StyleSheet.create({
     // #020617 matches the app's canvas (MainMenu, home). The ONLY visible part
     // of this background is the bottom home-indicator inset strip (edges pad
     // 'bottom'), which read as a stray gray bar under every screen when it was
-    // the lighter #111827.
+    // the lighter #0F172A.
     backgroundColor: '#020617',
   },
   statusBar: {
     backgroundColor: '#fff',
   },
   statusBarDark: {
-    backgroundColor: '#111827',
+    backgroundColor: '#0F172A',
   },
   safeAreaFatal: {
     backgroundColor: '#0f172a',

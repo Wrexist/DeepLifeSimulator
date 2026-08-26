@@ -19,6 +19,7 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
+import { animation } from '@/lib/config/theme';
 
 interface TransitionConfig {
   type?: 'timing' | 'spring';
@@ -118,11 +119,13 @@ function useAnimatedValues(
       if (!av) return null;
       const toValue = toNumber(key, animate[key]);
 
+      // Defaults come from the design system's motion tokens (`gentle` spring,
+      // `normal` duration) so unconfigured transitions share one motion voice.
       if (transition?.type === 'spring') {
         return Animated.spring(av, {
           toValue,
-          damping: transition.damping ?? 15,
-          stiffness: transition.stiffness ?? 150,
+          damping: transition.damping ?? animation.spring.gentle.damping,
+          stiffness: transition.stiffness ?? animation.spring.gentle.stiffness,
           mass: transition.mass ?? 1,
           delay: transition.delay ?? 0,
           useNativeDriver: useNative,
@@ -131,7 +134,7 @@ function useAnimatedValues(
 
       return Animated.timing(av, {
         toValue,
-        duration: transition?.duration ?? 300,
+        duration: transition?.duration ?? animation.normal,
         delay: transition?.delay ?? 0,
         useNativeDriver: useNative,
       });

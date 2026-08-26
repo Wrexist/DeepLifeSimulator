@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Alert, Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
@@ -45,7 +45,6 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { useStatChangeTracker } from '@/contexts/StatChangeContext';
 import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import {
   readDiscordClaim,
@@ -60,6 +59,8 @@ import { applyWelcomeBackBonus, welcomeBackClaimed, refreshSessionClock } from '
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
 import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/InterruptionContext';
+import { gameAlert } from '@/utils/gameAlert';
+import SectionGroup from '@/components/ui/SectionGroup';
 
 // Lazy load heavy modals and popups
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
@@ -176,8 +177,6 @@ function HomeScreenContent() {
   const { dismissWelcomePopup } = useItemActions();
   const { theme, isDark } = useTheme();
   const { hasCompletedTutorial, startTutorial } = useTutorial();
-  // ENGAGEMENT: Track stat changes for floating indicators on week advance
-  useStatChangeTracker(gameState);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
@@ -697,6 +696,7 @@ function HomeScreenContent() {
 
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
+        <SectionGroup label="This week" collapsibleId="home.thisWeek">
         <FadeInUp delay={20}>
           <LastWeekRecap />
         </FadeInUp>
@@ -721,6 +721,9 @@ function HomeScreenContent() {
                 style={styles.findJobCta}
                 onPress={() => router.push('/(tabs)/work')}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Find your first job"
+                accessibilityHint="Opens the Work tab"
               >
                 <View style={styles.findJobIconBubble}>
                   <Briefcase size={scale(20)} color="#34D399" />
@@ -760,12 +763,15 @@ function HomeScreenContent() {
           <PrestigePreviewCard onPress={() => setShowPrestigeModal(true)} />
         )}
 
+        </SectionGroup>
+
         {/* What next / what is coming - the two derived surfaces.
             They sit ABOVE the fixed ladders on purpose: Life Chapters and the
             Ambition are the same for everyone at the same point, while these
             two read the player's own situation, so they are the lines most
             likely to be true for THIS save. Both render null when they have
             nothing to say, so a quiet early week is not padded with cards. */}
+        <SectionGroup label="What you're working toward" collapsibleId="home.goals">
         <FadeInUp delay={45}>
           <NextGoalsCard />
           <WeekAheadCard />
@@ -793,6 +799,7 @@ function HomeScreenContent() {
         <FadeInUp delay={57}>
           <ElderCard />
         </FadeInUp>
+        </SectionGroup>
 
         {/* NAV: the Progression screen (prestige, Legacy Pass, life story,
             skill tree, lifetime stats) was hidden from the tab bar with no
@@ -808,7 +815,7 @@ function HomeScreenContent() {
               // Shown-but-locked rather than hidden: the destination stays
               // discoverable, and the requirement is stated.
               if (progressLocked) {
-                Alert.alert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
+                gameAlert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
                 return;
               }
               router.push('/(tabs)/progression');
@@ -816,6 +823,7 @@ function HomeScreenContent() {
             activeOpacity={0.85}
             style={styles.progressLinkCard}
             accessibilityRole="button"
+            accessibilityLabel="Your Progress"
             accessibilityState={{ disabled: progressLocked }}
           >
             <View style={styles.progressLinkIcon}>

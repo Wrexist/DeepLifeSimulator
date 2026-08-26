@@ -125,7 +125,7 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
       case 'error':
         return '#EF4444';
       default:
-        return '#6B7280';
+        return '#64748B';
     }
   };
 
@@ -279,14 +279,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E2E8F0',
   },
   detailsContainerDark: {
     borderTopColor: '#334155',
   },
   detailText: {
     fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 4,
   },
   detailTextDark: {

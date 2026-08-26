@@ -8,6 +8,7 @@
 import { useRef, useCallback } from 'react';
 import { Animated } from 'react-native';
 import { haptic } from '@/utils/haptics';
+import { animation } from '@/lib/config/theme';
 
 interface UsePressableScaleOptions {
   /** Scale factor on press (default 0.96) */
@@ -27,7 +28,7 @@ interface UsePressableScaleOptions {
 export default function usePressableScale(options: UsePressableScaleOptions = {}) {
   const {
     scale = 0.96,
-    duration = 100,
+    duration = animation.micro,
     haptic: doHaptic = true,
     spring = false,
   } = options;
@@ -40,8 +41,7 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
     if (spring) {
       Animated.spring(scaleAnim, {
         toValue: scale,
-        damping: 20,
-        stiffness: 300,
+        ...animation.spring.snappy,
         useNativeDriver: true,
       }).start();
     } else {
@@ -55,10 +55,11 @@ export default function usePressableScale(options: UsePressableScaleOptions = {}
 
   const onPressOut = useCallback(() => {
     if (spring) {
+      // `gentle` (stiffness 150) is deliberately softer than the old inline
+      // 200: press-in snaps, release settles - the standard asymmetry.
       Animated.spring(scaleAnim, {
         toValue: 1,
-        damping: 15,
-        stiffness: 200,
+        ...animation.spring.gentle,
         useNativeDriver: true,
       }).start();
     } else {

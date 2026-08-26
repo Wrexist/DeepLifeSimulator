@@ -230,7 +230,10 @@ describe('F8 - eviction asks first', () => {
   });
 
   it('the handler confirms before evicting', () => {
-    expect(APP).toMatch(/Alert\.alert\(\s*'Evict tenant\?'/);
+    // Channel note: these asserted the OS `Alert.alert`. The game's alerts are
+    // now `gameAlert` (themed, in-app) - see
+    // __tests__/tooling/noNativeAlertInGameUI.test.ts.
+    expect(APP).toMatch(/gameAlert\(\s*'Evict tenant\?'/);
     expect(APP).toMatch(/\{ text: 'Cancel', style: 'cancel' \}/);
     expect(APP).toMatch(/style: 'destructive'/);
   });

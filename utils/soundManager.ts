@@ -1,36 +1,21 @@
 import { Platform } from 'react-native';
-// CRITICAL: Lazy-load expo-haptics to prevent TurboModule crash at module load
-// import * as Haptics from 'expo-haptics'; // REMOVED - lazy load instead
 import { logger } from '@/utils/logger';
 
-// Lazy-loaded Haptics module
-let Haptics: any = null;
-let hapticsLoadAttempted = false;
+// NOTE: this manager used to "fall back" to expo-haptics whenever a sound was
+// missing — which, with no audio backend installed, meant every playSound()
+// fired a haptic that bypassed the player's haptic setting and doubled the one
+// the feedback system already pairs with each sound. Sound is sound: with no
+// audio backend or asset, playSound() is a silent no-op. Haptics live solely
+// in `utils/haptics.ts`.
 
-function loadHapticsModule(): boolean {
-  if (hapticsLoadAttempted) {
-    return Haptics !== null;
-  }
-  
-  hapticsLoadAttempted = true;
-  
-  try {
-    Haptics = require('expo-haptics');
-    return true;
-  } catch (error) {
-    // Module not available - will skip haptics
-    return false;
-  }
-}
-
-// Optional import for expo-av - fallback to haptics if not available.
+// Optional import for expo-av - without it every playSound() is a silent no-op.
 // Typed as `any` because expo-av is not in package.json; the static
 // `typeof import('expo-av').Audio` annotation can't resolve.
 let Audio: any | null = null;
 try {
   Audio = require('expo-av').Audio;
 } catch (error) {
-  logger.warn('expo-av not available, using haptic feedback only');
+  logger.warn('expo-av not available - sound effects are disabled');
 }
 
 class SoundManager {
@@ -68,11 +53,6 @@ class SoundManager {
         } catch (error) {
           logger.warn('Failed to set audio mode:', { error });
         }
-      }
-
-      // Test haptics to ensure it's working
-      if (Platform.OS !== 'web' && loadHapticsModule()) {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
       this.isInitialized = true;
@@ -114,42 +94,14 @@ class SoundManager {
     try {
       if (!this.isEnabled || !this.isInitialized) return;
 
-      if (Platform.OS !== 'web') {
-        // Try to play audio sound first (if expo-av is available)
-        if (Audio) {
-          const sound = this.sounds.get(soundId);
-          if (sound) {
-            try {
-              await sound.replayAsync();
-              return;
-            } catch (error) {
-              logger.warn(`Failed to play sound ${soundId}:`, { error });
-            }
+      if (Platform.OS !== 'web' && Audio) {
+        const sound = this.sounds.get(soundId);
+        if (sound) {
+          try {
+            await sound.replayAsync();
+          } catch (error) {
+            logger.warn(`Failed to play sound ${soundId}:`, { error });
           }
-        }
-
-        // Fallback to haptic feedback if sound not loaded or expo-av not available
-        switch (soundId) {
-          case 'button_click':
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            break;
-          case 'success':
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            break;
-          case 'error':
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            break;
-          case 'notification':
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            break;
-          case 'money':
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            break;
-          case 'level_up':
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            break;
-          default:
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }
     } catch (error) {

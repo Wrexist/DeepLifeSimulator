@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Alert, Modal, StyleSheet, View } from 'react-native';
-import { Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { Activity, Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { responsivePadding, scale } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
@@ -10,6 +12,7 @@ import { HealthScreenContent } from './health';
 import { MarketScreenContent } from './market';
 import { ProgressionScreenContent } from './progression';
 import FamilyTab from '@/components/FamilyTab';
+import { gameAlert } from '@/utils/gameAlert';
 
 /**
  * Life - the merged personal tab.
@@ -36,10 +39,21 @@ import FamilyTab from '@/components/FamilyTab';
  * food lives in Market, so locking either could strand a player.
  */
 type LifeSegment = 'health' | 'shop' | 'stats';
+
+/** Subtitle tracks the active segment so the header stays true to the content. */
+const SEGMENT_SUBTITLE: Record<LifeSegment, string> = {
+  health: 'Vitals, activities & diet',
+  shop: 'Items, food & housing',
+  stats: 'Achievements, prestige & lifetime stats',
+};
 type LifeControl = LifeSegment | 'family';
 
 function LifeScreen() {
   const [segment, setSegment] = useState<LifeSegment>('health');
+  // Mount-on-first-visit: an unopened segment costs nothing.
+  const [visitedSegments, setVisitedSegments] = useState<Set<LifeSegment>>(
+    () => new Set<LifeSegment>(['health'])
+  );
   const [showFamily, setShowFamily] = useState(false);
   // This shell re-renders with game state, but all three of its children are
   // already subscribed and only one is mounted, so the added cost is a
@@ -49,9 +63,41 @@ function LifeScreen() {
   const statsLocked = !isFeatureUnlocked(gameState, 'tab:progression');
   const statsReason = unlockRequirement(gameState, 'tab:progression');
 
+  // Deep-link support: `/(tabs)/life?segment=shop` lands on a specific segment,
+  // so CTAs elsewhere ("buy a computer in the Market") can point straight at
+  // the Market instead of dead-ending on this shell's default segment.
+  //
+  // Consume-once: the params stick to the route entry for its whole life, so
+  // without the ref this effect would re-fire on unrelated re-runs (e.g. the
+  // stats gate unlocking mid-game) and yank a player who had manually switched
+  // segments back to the deep-linked one. Senders include a `ts` nonce so a
+  // REPEATED tap of the same CTA still lands.
+  const params = useLocalSearchParams<{ segment?: string; ts?: string }>();
+  const consumedDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const target = params.segment;
+    if (!target) return;
+    const key = `${target}|${params.ts ?? ''}`;
+    if (consumedDeepLinkRef.current === key) return;
+    consumedDeepLinkRef.current = key;
+    if (target === 'health' || target === 'shop' || (target === 'stats' && !statsLocked)) {
+      setSegment(target);
+      setVisitedSegments((prev) => (prev.has(target) ? prev : new Set(prev).add(target)));
+    }
+  }, [params.segment, params.ts, statsLocked]);
+
   return (
     <ErrorBoundary>
       <View style={styles.container}>
+        {/* This shell owns the title: its three children suppress their own
+            headers when embedded, which used to leave the tab with a bare
+            segmented control floating over unlabelled content. */}
+        <ScreenHeader
+          title="Your Life"
+          subtitle={SEGMENT_SUBTITLE[segment]}
+          icon={<Activity size={scale(18)} color="#F472B6" />}
+          tint="#F472B6"
+        />
         <View style={styles.controlWrap}>
           <SegmentedControl<LifeControl>
             value={segment}
@@ -62,10 +108,13 @@ function LifeScreen() {
                 setShowFamily(true);
               } else {
                 setSegment(next);
+                setVisitedSegments((prev) =>
+                  prev.has(next) ? prev : new Set(prev).add(next)
+                );
               }
             }}
             onLockedPress={(_key, reason) => {
-              Alert.alert('Stats', reason || 'Keep playing to unlock this.');
+              gameAlert('Stats', reason || 'Keep playing to unlock this.');
             }}
             segments={[
               { key: 'health', label: 'Health', icon: Heart },
@@ -75,14 +124,34 @@ function LifeScreen() {
             ]}
           />
         </View>
+        {/* Each segment is mounted ONCE, on first visit, then kept alive but
+            hidden. Switching used to unmount the outgoing screen, so Market
+            lost its sub-tab and filters and Progression lost its scroll every
+            time the player looked at Health. `display: none` keeps the tree
+            alive without painting or laying it out, and a segment the player
+            has never opened is never mounted at all. */}
         <View style={styles.body}>
-          {segment === 'health' ? (
-            <HealthScreenContent embedded />
-          ) : segment === 'shop' ? (
-            <MarketScreenContent embedded />
-          ) : (
-            <ProgressionScreenContent embedded />
-          )}
+          {(['health', 'shop', 'stats'] as const)
+            .filter((key) => visitedSegments.has(key))
+            .map((key) => (
+              <View
+                key={key}
+                style={segment === key ? styles.segmentActive : styles.segmentHidden}
+                // Hidden segments must be invisible to screen readers too,
+                // otherwise VoiceOver walks three screens' worth of content.
+                accessibilityElementsHidden={segment !== key}
+                importantForAccessibility={segment === key ? 'auto' : 'no-hide-descendants'}
+                pointerEvents={segment === key ? 'auto' : 'none'}
+              >
+                {key === 'health' ? (
+                  <HealthScreenContent embedded />
+                ) : key === 'shop' ? (
+                  <MarketScreenContent embedded />
+                ) : (
+                  <ProgressionScreenContent embedded />
+                )}
+              </View>
+            ))}
         </View>
         {/*
           `statusBarTranslucent` so Android matches iOS's fullScreen
@@ -116,6 +185,12 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  segmentActive: {
+    flex: 1,
+  },
+  segmentHidden: {
+    display: 'none',
   },
 });
 

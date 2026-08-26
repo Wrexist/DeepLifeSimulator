@@ -31,7 +31,7 @@ function PrestigePreviewCard({ onPress }: PrestigePreviewCardProps) {
         colors={
           darkMode
             ? ['#1E293B', '#0F172A']
-            : ['#FFFFFF', '#F3F4F6']
+            : ['#FFFFFF', '#F1F5F9']
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 2,
   },
   subtitleDark: {
@@ -191,11 +191,11 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 13,
-    color: '#4B5563',
+    color: '#475569',
     lineHeight: 18,
   },
   descriptionDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   progressSection: {
     marginBottom: 16,
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   progressLabelDark: {
     color: '#94A3B8',
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressTextDark: {
-    color: '#6B7280',
+    color: '#64748B',
   },
   progressBar: {
     height: 8,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   progressPercent: {
     fontSize: 10,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'right',
   },
   progressPercentDark: {
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: '#64748B',
     flex: 1,
     lineHeight: 16,
   },

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Animated, Easing } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useMoneyActions } from '@/contexts/game/MoneyActionsContext';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
@@ -28,6 +28,7 @@ import { IAP_ART } from '@/utils/iapArt';
 import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
 import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
+import { gameAlert } from '@/utils/gameAlert';
 
 /**
  * Presentation-only companions to the gem-upgrade catalogue (M8). Artwork and
@@ -285,13 +286,13 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   // Confirm step + purchase. Transaction logic is unchanged - presentation only.
   const handlePurchase = async (id: string, name: string, displayPrice: string) => {
     if (iapBusy) {
-      Alert.alert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
+      gameAlert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
       return;
     }
     // Refuse before touching iapService when THIS SKU didn't load - its price on
     // the card is a config fallback, not a real store price, so it isn't buyable.
     if (!isProductAvailable(id)) {
-      Alert.alert(
+      gameAlert(
         'Item Unavailable',
         'This item isn’t available right now. Please check your connection and try again in a moment.',
       );
@@ -300,7 +301,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
     const priceText = displayPrice || resolveDisplayPrice(id);
 
-    Alert.alert(
+    gameAlert(
       'Confirm Purchase',
       `Buy ${name}${priceText ? ` for ${priceText}` : ''}?`,
       [
@@ -314,14 +315,14 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               const result = await iapService.purchaseProduct(id);
               if (result.success) {
                 // IAPService already applies benefits - do not re-apply here.
-                Alert.alert(
+                gameAlert(
                   'Purchase Successful!',
                   result.message || 'Purchase completed! Your items have been added to your account.',
                 );
               } else {
                 const errorMessage = result.message || 'Unable to complete purchase. Please try again.';
                 if (!errorMessage.includes('cancelled')) {
-                  Alert.alert('Purchase Failed', errorMessage);
+                  gameAlert('Purchase Failed', errorMessage);
                 }
               }
             } catch (error) {
@@ -330,7 +331,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               if (error instanceof Error) {
                 errorMsg = error.message;
               }
-              Alert.alert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
+              gameAlert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
             } finally {
               setPurchasingId(null);
             }
@@ -343,12 +344,12 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   // Gem-spend upgrades (in-game currency, NOT an IAP).
   const handleBuyUpgrade = async (id: string, price: number) => {
     if (gems < price) {
-      Alert.alert('Insufficient Gems', 'You need more gems to purchase this upgrade.');
+      gameAlert('Insufficient Gems', 'You need more gems to purchase this upgrade.');
       return;
     }
     const isOwned = goldUpgrades?.[id as keyof typeof goldUpgrades];
     if (isOwned) {
-      Alert.alert('Already Owned', 'You already own this upgrade.');
+      gameAlert('Already Owned', 'You already own this upgrade.');
       return;
     }
     // M8: only claim success when the reducer says it APPLIED. This used to
@@ -365,10 +366,10 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     // state change stands, and the periodic autosave will retry the write.
     try {
       await saveGame();
-      Alert.alert('Purchase Successful', 'Your upgrade has been activated!');
+      gameAlert('Purchase Successful', 'Your upgrade has been activated!');
     } catch (error) {
       logger.error('Failed to save after gem upgrade purchase:', error);
-      Alert.alert(
+      gameAlert(
         'Purchase Successful',
         'Your upgrade has been activated. We couldn’t save just now, but it will be saved automatically in a moment.',
       );
@@ -377,7 +378,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
 
   const handleRestorePurchases = async () => {
     if (iapBusy) {
-      Alert.alert('Please Wait', 'A purchase operation is already in progress.');
+      gameAlert('Please Wait', 'A purchase operation is already in progress.');
       return;
     }
     setRestoring(true);
@@ -389,13 +390,13 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
         // Say HOW MANY. Reporting bare success on a restore that restored
         // nothing is what made a genuinely-empty restore indistinguishable from
         // a working one. 2026-07-30 audit MON-11.
-        Alert.alert(
+        gameAlert(
           'Purchases Restored',
           `Restored ${restoredCount} purchase${restoredCount === 1 ? '' : 's'}.`,
           [{ text: 'OK', style: 'default' }],
         );
       } else {
-        Alert.alert(
+        gameAlert(
           'Nothing To Restore',
           'No previous purchases were found for this Apple ID. If you bought something on another account, sign in to that one and try again.',
           [{ text: 'OK', style: 'default' }],
@@ -403,7 +404,7 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       }
     } catch (error) {
       logger.error('Restore purchases error:', error);
-      Alert.alert('Restore Failed', 'Unable to restore purchases. Please try again or contact support.', [
+      gameAlert('Restore Failed', 'Unable to restore purchases. Please try again or contact support.', [
         { text: 'OK', style: 'default' },
       ]);
     } finally {

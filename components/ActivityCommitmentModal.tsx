@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Platform, View, Text, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { X, Target, Briefcase, Heart, Dumbbell, GraduationCap, Clock, TrendingUp
 import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -78,7 +79,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
   const handleSave = () => {
     // Validate: secondary cannot be same as primary
     if (selectedPrimary && selectedSecondary && selectedPrimary === selectedSecondary) {
-      Alert.alert('Invalid Selection', 'Primary and secondary commitments must be different.');
+      gameAlert('Invalid Selection', 'Primary and secondary commitments must be different.');
       return;
     }
 
@@ -86,7 +87,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
     // would have thrown TypeError on tap. Inline the state mutation here
     // (the canChange validation already ran in the useMemo above).
     if (!canChange) {
-      Alert.alert(
+      gameAlert(
         'Cannot Change',
         `Commitments locked. ${weeksUntilChange} week${weeksUntilChange === 1 ? '' : 's'} until you can change them again.`
       );
@@ -102,7 +103,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
         lastChangedWeek: prev.weeksLived,
       },
     }));
-    Alert.alert('Success', 'Activity commitments updated.');
+    gameAlert('Success', 'Activity commitments updated.');
     onClose();
   };
 
@@ -339,7 +340,7 @@ export default function ActivityCommitmentModal({ visible, onClose }: ActivityCo
               >
                 <LinearGradient
                   colors={(!canChange || (selectedPrimary === commitments?.primary && selectedSecondary === commitments?.secondary)) 
-                    ? ['#94A3B8', '#6B7280'] 
+                    ? ['#94A3B8', '#64748B'] 
                     : ['#10B981', '#059669']}
                   style={styles.saveButtonGradient}
                 >
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E2E8F0',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: scale(2),
   },
   closeButton: {
@@ -457,7 +458,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoCard: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     padding: scale(16),
     borderRadius: scale(12),
     marginBottom: scale(20),
@@ -473,7 +474,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: fontScale(14),
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: fontScale(20),
   },
   areasContainer: {
@@ -485,11 +486,11 @@ const styles = StyleSheet.create({
     borderRadius: scale(12),
     padding: scale(16),
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   areaCardDark: {
     backgroundColor: '#334155',
-    borderColor: '#4B5563',
+    borderColor: '#475569',
   },
   areaHeader: {
     flexDirection: 'row',
@@ -515,7 +516,7 @@ const styles = StyleSheet.create({
   },
   areaDescription: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
   },
   badge: {
     paddingHorizontal: scale(8),
@@ -537,12 +538,12 @@ const styles = StyleSheet.create({
   },
   levelLabel: {
     fontSize: fontScale(12),
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: scale(4),
   },
   levelBar: {
     height: scale(8),
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     borderRadius: scale(4),
     overflow: 'hidden',
   },
@@ -575,13 +576,13 @@ const styles = StyleSheet.create({
     paddingTop: scale(16),
     paddingBottom: scale(20),
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E2E8F0',
   },
   cancelButton: {
     flex: 1,
     paddingVertical: scale(14),
     borderRadius: scale(12),
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   saveButton: {
     flex: 1,
@@ -612,10 +613,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   textDarkSecondary: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
 });
 

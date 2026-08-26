@@ -36,11 +36,13 @@ import AutoSaveIndicator from './AutoSaveIndicator';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getUpgradeTier } from '@/lib/realEstate/housing';
 import { getReputationStanding } from '@/lib/reputation/reputationTier';
+import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 // Rarely-opened modals - lazy-loaded and only mounted when open, so their
 // code + element tree isn't built on every home-tab render.
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
-import { hasRememberedLives, readLifeArchiveCount } from '@/utils/lifeArchive';
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
 const LinearGradient = Gradient;
 
@@ -102,7 +104,12 @@ function InfoModal({ visible, title, onClose, darkMode, children, t }: InfoModal
                 {title}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.modalCloseButton}
+              hitSlop={hitSlopToMinTarget(scale(40))}
+              {...CLOSE_BUTTON_A11Y}
+            >
               <X size={scale(24)} color={darkMode ? '#fff' : '#000'} />
             </TouchableOpacity>
           </View>
@@ -689,6 +696,16 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           {scenario?.title || t('common.unknown')}
         </Text>
         
+        {/* The five identity facts. Collapsible because they are REFERENCE, not
+            news - a player who knows their own age and job can fold them away
+            and get the actionable cards higher up the feed. The summary keeps
+            the two that change (job, relationship) on screen either way. */}
+        <CollapsibleSection
+          id="identity.facts"
+          title="Details"
+          compact
+          summary={`${job} · ${relationshipStatus}`}
+        >
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={[styles.statLabel, styles.statLabelDark]}>
@@ -748,6 +765,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
             </Text>
           </View>
         </View>
+        </CollapsibleSection>
 
         {/* Daily gem drop - 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
         <DailyGemClaim />
@@ -858,7 +876,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               marginLeft: scale(8),
               fontSize: fontScale(15),
               fontWeight: '700',
-              color: isDarkMode ? '#F9FAFB' : '#0F172A',
+              color: isDarkMode ? '#F8FAFC' : '#0F172A',
             }}
           >
             {`Health Issues${healthIssues.length > 0 ? ` (${healthIssues.length})` : ''}`}
@@ -866,7 +884,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
         </View>
 
         {healthIssues.length === 0 ? (
-          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#94A3B8' : '#6B7280' }}>
+          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#94A3B8' : '#64748B' }}>
             You&apos;re in good shape - no health issues right now.
           </Text>
         ) : (
@@ -893,7 +911,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                     style={{
                       fontSize: fontScale(13.5),
                       fontWeight: '600',
-                      color: isDarkMode ? '#F3F4F6' : '#1E293B',
+                      color: isDarkMode ? '#F1F5F9' : '#1E293B',
                     }}
                   >
                     {issue.title}
@@ -901,7 +919,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                   <Text
                     style={{
                       fontSize: fontScale(12),
-                      color: isDarkMode ? '#94A3B8' : '#6B7280',
+                      color: isDarkMode ? '#94A3B8' : '#64748B',
                       marginTop: scale(1),
                     }}
                   >
@@ -978,7 +996,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           </Text>
           {passiveInfo.breakdown.stocks > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <TrendingUp size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <TrendingUp size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Stocks: {formatMoney(passiveInfo.breakdown.stocks)}
               </Text>
@@ -986,7 +1004,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.realEstate > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Home size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Home size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Real Estate: {formatMoney(passiveInfo.breakdown.realEstate)}
               </Text>
@@ -994,7 +1012,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.companies > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Building2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Building2 size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Companies: {formatMoney(passiveInfo.breakdown.companies)}
               </Text>
@@ -1009,7 +1027,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.socialMedia > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Smartphone size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Smartphone size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Social Media: {formatMoney(passiveInfo.breakdown.socialMedia)}
               </Text>
@@ -1017,7 +1035,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.patents > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <FlaskConical size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <FlaskConical size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Patents: {formatMoney(passiveInfo.breakdown.patents)}
               </Text>
@@ -1025,7 +1043,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.businessOpportunities > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Business Opportunities: {formatMoney(passiveInfo.breakdown.businessOpportunities)}
               </Text>
@@ -1036,7 +1054,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
               list money the section total no longer contains. */}
           {luxuryYield > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Sparkles size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Luxury Yield: {formatMoney(luxuryYield)}
               </Text>
@@ -1044,7 +1062,7 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           )}
           {passiveInfo.breakdown.gamingStreaming > 0 && (
             <View style={[styles.modalItem, isDarkMode && styles.modalItemDark]}>
-              <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+              <Gamepad2 size={14} color={isDarkMode ? '#94A3B8' : '#64748B'} />
               <Text style={[styles.modalSubText, isDarkMode && styles.modalSubTextDark]}>
                 Gaming/Streaming: {formatMoney(passiveInfo.breakdown.gamingStreaming)}
               </Text>

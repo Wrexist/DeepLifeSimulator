@@ -154,5 +154,7 @@ describe('getStatColor', () => {
     expect(getStatColor('Income Boost')).toBe('#10B981');
   });
   it('falls back to grey for anything unknown', () =>
-    expect(getStatColor('not_a_stat')).toBe('#6B7280'));
+    // slate-500 - the app's one neutral ramp (the old value was Tailwind
+    // gray-500, part of a second undocumented ramp normalized away 2026-08-25)
+    expect(getStatColor('not_a_stat')).toBe('#64748B'));
 });

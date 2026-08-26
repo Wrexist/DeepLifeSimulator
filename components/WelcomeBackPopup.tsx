@@ -285,7 +285,7 @@ export default function WelcomeBackPopup({ visible, onClose }: WelcomeBackPopupP
                   {getWelcomeMessage()}
                 </Text>
                 <View style={styles.timeAwayContainer}>
-                  <Clock size={scale(16)} color={isDarkMode ? '#94A3B8' : '#6B7280'} />
+                  <Clock size={scale(16)} color={isDarkMode ? '#94A3B8' : '#64748B'} />
                   <Text style={[styles.timeAway, isDarkMode && styles.timeAwayDark]}>
                     Last played: {getTimeAwayText()}
                   </Text>
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   },
   timeAway: {
     fontSize: responsiveFontSize.sm,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: responsiveFontSize.xs,
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
     marginBottom: scale(2),
   },
@@ -693,12 +693,12 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: responsiveFontSize.sm,
-    color: '#4B5563',
+    color: '#475569',
     flex: 1,
     fontWeight: '500',
   },
   infoTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   continueButton: {
     width: '100%',

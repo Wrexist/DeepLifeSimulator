@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, Alert } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { Crown, X, Sparkles, RotateCcw, Users, Award, Calendar, DollarSign, Check, BookOpen } from 'lucide-react-native';
 import LifeStoryModal from './LifeStoryModal';
 import { useGame } from '@/contexts/game';
@@ -8,9 +8,14 @@ import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 import { childParentSources } from '@/lib/avatar/family';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize } from '@/utils/scaling';
+import ConfettiBurst from '@/components/ui/ConfettiBurst';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { haptic } from '@/utils/haptics';
+import { beginCelebration, endCelebration } from '@/utils/celebrationGate';
+import { responsiveBorderRadius, responsiveSpacing, responsiveFontSize, fontScale, scale } from '@/utils/scaling';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
 
 interface PrestigeModalProps {
   visible: boolean;
@@ -23,6 +28,14 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
   const [selectedChildId, setSelectedChildId] = useState<string | undefined>();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showLifeStory, setShowLifeStory] = useState(false);
+  // The apex moment of the whole game. Values are CAPTURED at confirm time
+  // because executePrestige resets the state this modal reads from.
+  const [celebration, setCelebration] = useState<{
+    points: number;
+    level: number;
+    heir: boolean;
+  } | null>(null);
+  const reducedMotion = useReducedMotion();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -74,6 +87,13 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
         }),
       ]).start();
 
+      // Reduced motion: keep the entrance fade (state change information) but
+      // skip the two infinite decoration loops entirely.
+      if (reducedMotion) {
+        glowAnim.setValue(0.5);
+        return;
+      }
+
       // Gentle glow animation (opacity - safe for native driver)
       const glow = Animated.loop(
         Animated.sequence([
@@ -119,7 +139,23 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
       shimmerAnim.setValue(0);
     }
     return;
-  }, [visible, fadeAnim, scaleAnim, glowAnim, shimmerAnim]);
+  }, [visible, fadeAnim, scaleAnim, glowAnim, shimmerAnim, reducedMotion]);
+
+  // Hold the review prompt (and anything else that respects the gate) while
+  // the celebration owns the screen - same contract as PromotionCelebrationModal.
+  useEffect(() => {
+    if (!celebration) return;
+    beginCelebration();
+    haptic.success();
+    return () => endCelebration();
+  }, [celebration]);
+
+  // If the parent hides the modal while the celebration is up, the component
+  // stays mounted returning null - the effect above would never clean up and
+  // the celebration gate would stay held for the session. Clear it explicitly.
+  useEffect(() => {
+    if (!visible && celebration) setCelebration(null);
+  }, [visible, celebration]);
 
   const handleConfirm = () => {
     if (selectedPath === 'child' && !selectedChildId && children.length > 0) {
@@ -130,15 +166,27 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
     const threshold = getPrestigeThreshold(prestigeLevel);
     
     if (currentNetWorth < threshold) {
-      Alert.alert(
+      gameAlert(
         'Cannot Prestige',
         `You need at least $${(threshold / 1_000_000).toFixed(0)}M net worth to prestige.\n\nCurrent: $${(currentNetWorth / 1_000_000).toFixed(2)}M\nRequired: $${(threshold / 1_000_000).toFixed(0)}M`
       );
       return;
     }
 
+    // Capture the celebration numbers BEFORE executing - the prestige resets
+    // the very state they are derived from.
+    const earnedPoints = pointsBreakdown?.total ?? 0;
+    const newLevel = prestigeLevel + 1;
+    const heir = selectedPath === 'child' && !!selectedChildId;
+
+    haptic.heavy();
     executePrestige(selectedPath, selectedChildId);
     setShowConfirmation(false);
+    setCelebration({ points: earnedPoints, level: newLevel, heir });
+  };
+
+  const handleCelebrationDone = () => {
+    setCelebration(null);
     onClose();
   };
 
@@ -155,7 +203,12 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={celebration ? handleCelebrationDone : onClose}
+    >
       <View style={styles.overlay}>
         <Animated.View
           style={[
@@ -650,6 +703,40 @@ function PrestigeModal({ visible, onClose }: PrestigeModalProps) {
             </View>
           </View>
         </Animated.View>
+        {/* Post-prestige celebration - the game's apex moment. Rendered on top
+            of everything in this modal (the state behind it has already been
+            reset, so the ordinary content is meaningless now). */}
+        {celebration && (
+          <View style={styles.celebrationFill}>
+            <ConfettiBurst play={!reducedMotion} />
+            <View style={styles.celebrationCard}>
+              <View style={styles.celebrationCrest}>
+                <Crown size={scale(44)} color="#FBBF24" />
+              </View>
+              <Text style={styles.celebrationKicker}>
+                {celebration.heir ? 'THE LEGACY CONTINUES' : 'A NEW LIFE BEGINS'}
+              </Text>
+              <Text style={styles.celebrationTitle}>Prestige {celebration.level}</Text>
+              <Text style={styles.celebrationPoints}>
+                +{celebration.points.toLocaleString()} Prestige Points
+              </Text>
+              <Text style={styles.celebrationBody}>
+                {celebration.heir
+                  ? 'Your heir takes up everything you built. Spend your points in the Prestige Shop.'
+                  : 'Everything you earned echoes forward. Spend your points in the Prestige Shop.'}
+              </Text>
+              <TouchableOpacity
+                style={styles.celebrationButton}
+                onPress={handleCelebrationDone}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Continue to your new life"
+              >
+                <Text style={styles.celebrationButtonText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
       <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
     </Modal>
@@ -1183,6 +1270,70 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
     backgroundColor: '#475569',
+  },
+  celebrationFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0F172A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: responsiveSpacing.lg,
+  },
+  celebrationCard: {
+    alignItems: 'center',
+    maxWidth: scale(420),
+    width: '100%',
+  },
+  celebrationCrest: {
+    width: scale(96),
+    height: scale(96),
+    borderRadius: responsiveBorderRadius.full,
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: responsiveSpacing.lg,
+  },
+  celebrationKicker: {
+    fontSize: responsiveFontSize.xs,
+    fontWeight: '800',
+    letterSpacing: 2,
+    color: '#FBBF24',
+    marginBottom: responsiveSpacing.sm,
+  },
+  celebrationTitle: {
+    fontSize: responsiveFontSize['4xl'],
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: responsiveSpacing.sm,
+  },
+  celebrationPoints: {
+    fontSize: responsiveFontSize.xl,
+    fontWeight: '700',
+    color: '#FBBF24',
+    marginBottom: responsiveSpacing.md,
+  },
+  celebrationBody: {
+    fontSize: responsiveFontSize.md,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: fontScale(22),
+    marginBottom: responsiveSpacing.xl,
+  },
+  celebrationButton: {
+    minHeight: scale(52),
+    borderRadius: responsiveBorderRadius.lg,
+    backgroundColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: responsiveSpacing['2xl'],
+    alignSelf: 'stretch',
+  },
+  celebrationButtonText: {
+    fontSize: fontScale(16),
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
 });
 

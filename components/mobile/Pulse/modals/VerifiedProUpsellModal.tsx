@@ -9,7 +9,7 @@
  * Cancel control.
  */
 import React, { useCallback } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { X, Check, Crown } from 'lucide-react-native';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
@@ -24,6 +24,7 @@ import {
 import { subscribeVerifiedPro, cancelVerifiedPro } from '@/contexts/game/actions/PulseActions';
 import { PULSE_GRADIENT } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
+import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
@@ -72,14 +73,14 @@ export default function VerifiedProUpsellModal({ visible, onDismiss }: VerifiedP
         onDismiss();
       } else {
         pulseHaptics.error?.();
-        Alert.alert('Verified Pro', result.message);
+        gameAlert('Verified Pro', result.message);
       }
     },
     [setGameState, gameState, saveGame, onDismiss],
   );
 
   const handleCancel = useCallback(() => {
-    Alert.alert(
+    gameAlert(
       'Cancel Verified Pro?',
       // F7: "ad-free feed" removed here too - there is no in-feed ad to lose.
       'You will lose the blue check, post boost, analytics, slower follower decay, and longer posts. You can resubscribe any time.',

@@ -8,8 +8,7 @@ import {
   Dimensions,
   Platform,
   Image,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
@@ -50,6 +49,7 @@ import {
   responsiveIconSize,
   isTablet,
   scale,
+  fontScale,
   getTabBarSafePadding,
 } from '@/utils/scaling';
 import { getGlassAppCard } from '@/utils/glassmorphismStyles';
@@ -62,9 +62,11 @@ import { usePerformanceMonitor } from '@/utils/performanceOptimization';
 import { useFeedback } from '@/utils/feedbackSystem';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -145,7 +147,7 @@ export function MobileScreenContent({
   
   const { settings } = gameState;
   const navigation = useNavigation<any>();
-  const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+  const { buttonPress, haptic } = useFeedback();
   const { logRender } = usePerformanceMonitor();
 
   // Android hardware back exits the open sub-app rather than popping the tab
@@ -268,7 +270,7 @@ export function MobileScreenContent({
       >
         <View style={styles.noPhoneContainer}>
           <View style={styles.noPhoneIconContainer}>
-            <Smartphone size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+            <Smartphone size={80} color={settings.darkMode ? '#64748B' : '#94A3B8'} />
           </View>
           <Text style={[styles.noPhoneTitle, settings.darkMode && styles.noPhoneTitleDark]}>
             {t('mobile.noPhoneAvailable')}
@@ -276,6 +278,16 @@ export function MobileScreenContent({
           <Text style={[styles.noPhoneMessage, settings.darkMode && styles.noPhoneMessageDark]}>
             {t('mobile.noPhoneMessage')}
           </Text>
+          {/* Not a dead end: point straight at the surface that sells one. */}
+          <TouchableOpacity
+            style={styles.noDeviceCta}
+            onPress={() => router.navigate({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Shop for a phone in the Market"
+          >
+            <Text style={styles.noDeviceCtaText}>Shop the Market</Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     );
@@ -330,12 +342,12 @@ export function MobileScreenContent({
       colors={settings.darkMode ? ['#020617', '#020617'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Smartphone size={scale(18)} color={settings.darkMode ? '#F9FAFB' : '#0F172A'} />
-        <Text style={[styles.headerTitle, settings.darkMode && styles.headerTitleDark]}>
-          {t('mobile.mobileApps')}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={t('mobile.mobileApps')}
+        subtitle="Everything on your phone"
+        icon={<Smartphone size={scale(18)} color="#60A5FA" />}
+        tint="#60A5FA"
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -360,7 +372,7 @@ export function MobileScreenContent({
                 buttonPress();
                 haptic('light');
                 if (locked) {
-                  Alert.alert(app.name, lockReason || 'Not available yet.');
+                  gameAlert(app.name, lockReason || 'Not available yet.');
                   return;
                 }
                 setActiveApp(app.id);
@@ -443,27 +455,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: responsiveSpacing.md,
     fontSize: responsiveFontSize.md,
-    color: '#6B7280',
+    color: '#64748B',
   },
   loadingTextDark: {
-    color: '#D1D5DB',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-    paddingTop: responsivePadding.vertical,
-    paddingBottom: responsiveSpacing.sm,
-    paddingHorizontal: responsivePadding.horizontal,
-  },
-  headerTitle: {
-    fontSize: responsiveFontSize.xl,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.5,
-  },
-  headerTitleDark: {
-    color: '#F9FAFB',
+    color: '#CBD5E1',
   },
   scrollView: {
     flex: 1,
@@ -597,7 +592,7 @@ const styles = StyleSheet.create({
   },
   appDescription: {
     fontSize: responsiveFontSize.xs,
-    color: '#4B5563',
+    color: '#475569',
     textAlign: 'center',
     lineHeight: responsiveFontSize.xs * 1.4,
     fontWeight: '500',
@@ -622,16 +617,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noPhoneTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   noPhoneMessage: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: responsiveFontSize.base * 1.4,
   },
   noPhoneMessageDark: {
     color: '#94A3B8',
+  },
+  noDeviceCta: {
+    marginTop: scale(20),
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: scale(12),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    minHeight: scale(44),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noDeviceCtaText: {
+    color: '#3B82F6',
+    fontSize: fontScale(14),
+    fontWeight: '700',
   },
 });
 

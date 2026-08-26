@@ -462,7 +462,7 @@ export function ContextualTip({ type, onDismiss }: ContextualTipProps) {
             </View>
             <Text style={styles.tipText}>{tipContent.message}</Text>
             <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X size={14} color="#6B7280" />
+                <X size={14} color="#64748B" />
             </TouchableOpacity>
         </View>
     );
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: fontScale(14),
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: '#F8FAFC',
         marginLeft: 8,
     },
     closeButton: {
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#4B5563',
+        backgroundColor: '#475569',
     },
     progressDotActive: {
         backgroundColor: '#F59E0B',
@@ -628,13 +628,13 @@ const styles = StyleSheet.create({
     stepTitle: {
         fontSize: fontScale(18),
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: '#F8FAFC',
         marginBottom: 8,
         textAlign: 'center',
     },
     stepDescription: {
         fontSize: fontScale(14),
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         textAlign: 'center',
         // Scaled font + raw line box clips descenders on a tablet (fontScale
         // clamps at 1.6, so 14 → 22 inside a box still fixed at 20).
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     },
     stepCounter: {
         fontSize: fontScale(11),
-        color: '#6B7280',
+        color: '#64748B',
         textAlign: 'center',
         marginTop: responsiveSpacing.sm,
     },
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     tipText: {
         flex: 1,
         fontSize: fontScale(12),
-        color: '#D1D5DB',
+        color: '#CBD5E1',
         lineHeight: fontScale(16),
     },
 });

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
-  Alert,
   Share,
   Dimensions,
   type LayoutChangeEvent,
@@ -45,6 +44,7 @@ import { lifeQuality } from '@/lib/legacy/lifeQuality';
 import DeathHero from '@/components/death/DeathHero';
 import LifeQualityGauge from '@/components/death/LifeQualityGauge';
 import { scale } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const { height: windowHeight } = Dimensions.get('window');
 
@@ -242,7 +242,7 @@ function DeathPopup() {
 
   const handleContinueLegacy = useCallback(async () => {
     if (!selectedHeirId) {
-      Alert.alert('No Heir Selected', 'Please select a child to continue your legacy.');
+      gameAlert('No Heir Selected', 'Please select a child to continue your legacy.');
       return;
     }
 
@@ -274,7 +274,7 @@ function DeathPopup() {
       await saveGame(true);
     } catch (error) {
       logger.error('Failed to start new life from legacy:', error);
-      Alert.alert('Error', 'Failed to continue legacy. Please try again.');
+      gameAlert('Error', 'Failed to continue legacy. Please try again.');
       setGameState(prev => ({
         ...prev,
         showDeathPopup: true,
@@ -382,7 +382,7 @@ function DeathPopup() {
       );
       const gems = gameState.stats?.gems ?? 0;
       if (gems < cost) {
-        Alert.alert(
+        gameAlert(
           'Not Enough Gems',
           `You need ${cost.toLocaleString()} gems to rewind.`,
           [
@@ -395,7 +395,7 @@ function DeathPopup() {
         );
         return;
       }
-      Alert.alert(
+      gameAlert(
         'Rewind Time',
         `Spend ${cost.toLocaleString()} gems to rewind? You'll lose all progress after this checkpoint.`,
         [
@@ -415,7 +415,7 @@ function DeathPopup() {
                 await new Promise<void>((resolve) => setTimeout(resolve, 0));
                 await saveGame(true);
               } else {
-                Alert.alert('Error', 'Failed to rewind. Checkpoint may be corrupted.');
+                gameAlert('Error', 'Failed to rewind. Checkpoint may be corrupted.');
               }
             },
           },
@@ -524,7 +524,7 @@ function DeathPopup() {
     if ((gameState.legacyPoints ?? 0) > 0) lost.push('legacy points and the Dynasty Tree');
     if ((gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0) lost.push('your ribbon collection');
     if (gems > 0) lost.push(`${gems.toLocaleString()} gems`);
-    Alert.alert(
+    gameAlert(
       'Start a completely new life?',
       `This is a fresh start, not an heir: it permanently erases ${lost.join(', ')}. ` +
         'This life will be remembered in your archive, and store purchases can be restored from Settings. ' +
@@ -1574,7 +1574,7 @@ function DeathPopup() {
                       activeOpacity={0.8}
                     >
                       <LinearGradient
-                        colors={!canContinueLegacy ? ['#94A3B8', '#6B7280'] : [theme.palette.primary, theme.palette.primaryDark]}
+                        colors={!canContinueLegacy ? ['#94A3B8', '#64748B'] : [theme.palette.primary, theme.palette.primaryDark]}
                         style={styles.buttonGradient}
                       >
                         <Crown size={18} color="#FFF" />

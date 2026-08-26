@@ -7,8 +7,7 @@ import {
   ScrollView,
   Image,
   Platform,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
 import { useRouter, useNavigation } from 'expo-router';
@@ -76,6 +75,7 @@ import { validateGameEntry } from '@/utils/gameEntryValidation';
 import { forceSave } from '@/utils/saveQueue';
 import { isSaveSigningConfigError } from '@/utils/saveValidation';
 import { IAPService } from '@/services/IAPService';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -475,7 +475,7 @@ export default function Perks() {
         logOnboardingValidationError('Perks', inputCheck.errorTitle || 'input_invalid', {
           message: inputCheck.errorMessage,
         });
-        Alert.alert(inputCheck.errorTitle!, inputCheck.errorMessage!, [{ text: 'OK' }]);
+        gameAlert(inputCheck.errorTitle!, inputCheck.errorMessage!, [{ text: 'OK' }]);
         return;
       }
 
@@ -544,7 +544,7 @@ export default function Perks() {
           // slot choice, so take them to where that choice is made. Their
           // scenario, name, perks and mindset stay in the draft, so coming
           // back is a couple of taps, not a restart.
-          Alert.alert(result.errorTitle!, result.errorMessage!, [
+          gameAlert(result.errorTitle!, result.errorMessage!, [
             {
               text: 'Choose Slot',
               onPress: () => router.replace('/(onboarding)/SaveSlots'),
@@ -552,7 +552,7 @@ export default function Perks() {
           ]);
           return;
         }
-        Alert.alert(result.errorTitle!, result.errorMessage!, [{ text: 'OK' }]);
+        gameAlert(result.errorTitle!, result.errorMessage!, [{ text: 'OK' }]);
         return;
       }
 
@@ -589,7 +589,7 @@ export default function Perks() {
           title="Choose Perks"
           onBack={handleBack}
           onInfo={() =>
-            Alert.alert(
+            gameAlert(
               'Perks & Mindset',
               'Perks give small head-starts and mostly unlock by earning achievements as you play - so most will be locked on your first game, which is normal. A mindset is one optional trait that shapes your run with bonuses and trade-offs. Both are optional: tap "Start Your Life" whenever you are ready.'
             )

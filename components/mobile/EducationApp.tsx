@@ -65,6 +65,7 @@ import { highestGpa, meritGpa, gpaLetter, gpaBand, gpaBandLabel, jobOfferMultipl
 import { meritRate } from '@/lib/education/scholarships';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
@@ -1270,16 +1271,6 @@ function DetailStat({ theme, darkMode, icon: Icon, tint, label, value, sub }: {
 
 function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
   return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function EmptyText({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
-  // Give empty sections a card so they share the same rhythm as populated ones
-  // instead of floating as bare text between elevated rows (Recipe A, muted).
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
-    </View>
-  );
 }
 
 export default function EducationApp(props: EducationAppProps) {

@@ -33,6 +33,7 @@ import { getThemeColors } from '@/lib/config/theme';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { logger } from '@/utils/logger';
 import { APP_STORE_URL } from '@/lib/config/appConfig';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
 const BlurView = BlurViewFallback;
 
 interface ShareLifeCardProps {
@@ -296,7 +297,12 @@ ${APP_STORE_URL}
  <View style={styles.card}>
  {/* Close button */}
  {onClose && (
- <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+ <TouchableOpacity
+   style={styles.closeButton}
+   onPress={onClose}
+   hitSlop={hitSlopToMinTarget(scale(40))}
+   {...CLOSE_BUTTON_A11Y}
+ >
  <Text style={{ fontSize: fontScale(24), color: themeColors.text }}>×</Text>
  </TouchableOpacity>
  )}

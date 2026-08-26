@@ -41,7 +41,7 @@ const OPTION_BLURBS: Record<
   silence: {
     title: 'Stay silent',
     Icon: MessageCircleOff,
-    iconColor: '#9CA3AF',
+    iconColor: '#94A3B8',
     preview: 'No active recovery · weekly tick continues to chip away at severity',
   },
   gems: {

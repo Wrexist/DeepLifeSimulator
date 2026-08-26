@@ -3,6 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextS
 import Gradient from '@/components/ui/Gradient';
 import { responsiveSpacing, responsiveFontSize, responsiveBorderRadius } from '@/utils/scaling';
 import { getButtonAccessibilityProps } from '@/utils/accessibility';
+import { haptic } from '@/utils/haptics';
 const LinearGradient = Gradient;
 
 interface LoadingButtonProps {
@@ -92,8 +93,12 @@ export default function LoadingButton({
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={() => {
+        haptic.light();
+        return onPress();
+      }}
       disabled={isDisabled}
+      activeOpacity={0.85}
       style={[
         styles.button,
         { opacity: isDisabled ? 0.6 : 1 },
@@ -105,7 +110,7 @@ export default function LoadingButton({
       accessibilityState={accessibilityProps.accessibilityState}
     >
       <LinearGradient
-        colors={(isDisabled ? ['#9CA3AF', '#6B7280'] : colors) as unknown as readonly [string, string]}
+        colors={(isDisabled ? ['#94A3B8', '#64748B'] : colors) as unknown as readonly [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[

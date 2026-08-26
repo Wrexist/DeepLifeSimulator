@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Alert,
   Animated,
 } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
@@ -19,6 +18,9 @@ import { getDiseaseTemplate } from '@/lib/diseases/diseaseDefinitions';
 import { DOCTOR_MANAGEMENT_WEEKS, HOSPITAL_MANAGEMENT_WEEKS, isManageableDisease } from '@/lib/diseases/chronicCare';
 import { logger } from '@/utils/logger';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
+import { hitSlopToMinTarget, CLOSE_BUTTON_A11Y } from '@/utils/touchTargets';
+import { scale } from '@/utils/scaling';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -172,7 +174,7 @@ function SicknessModal() {
       case 'mild': return '#F59E0B';
       case 'serious': return '#EF4444';
       case 'critical': return '#DC2626';
-      default: return '#6B7280';
+      default: return '#64748B';
     }
   };
 
@@ -191,7 +193,7 @@ function SicknessModal() {
       case 'energy': return <Zap size={16} color="#F59E0B" />;
       case 'happiness': return <Smile size={16} color="#10B981" />;
       case 'fitness': return <Dumbbell size={16} color="#8B5CF6" />;
-      default: return <Activity size={16} color="#6B7280" />;
+      default: return <Activity size={16} color="#64748B" />;
     }
   };
 
@@ -328,10 +330,12 @@ function SicknessModal() {
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity 
-                  onPress={handleClose} 
+                <TouchableOpacity
+                  onPress={handleClose}
                   style={styles.closeButton}
                   activeOpacity={0.7}
+                  hitSlop={hitSlopToMinTarget(scale(36))}
+                  {...CLOSE_BUTTON_A11Y}
                 >
                   <View style={[styles.closeButtonInner, darkMode && styles.closeButtonInnerDark]}>
                     <X size={18} color={darkMode ? '#FFFFFF' : '#1E293B'} />
@@ -408,12 +412,12 @@ function SicknessModal() {
                         handleClose();
                         setTimeout(() => {
                           if (result) {
-                            Alert.alert('Doctor Visit', result.message);
+                            gameAlert('Doctor Visit', result.message);
                           }
                         }, 350);
                       } catch (error) {
                         logger.error('[SicknessModal] Error performing doctor visit:', error);
-                        Alert.alert('Error', 'Failed to perform doctor visit. Please try again.');
+                        gameAlert('Error', 'Failed to perform doctor visit. Please try again.');
                         setIsClosing(false);
                       }
                     }}
@@ -444,12 +448,12 @@ function SicknessModal() {
                         handleClose();
                         setTimeout(() => {
                           if (result) {
-                            Alert.alert('Hospital Stay', result.message);
+                            gameAlert('Hospital Stay', result.message);
                           }
                         }, 350);
                       } catch (error) {
                         logger.error('[SicknessModal] Error performing hospital stay:', error);
-                        Alert.alert('Error', 'Failed to perform hospital stay. Please try again.');
+                        gameAlert('Error', 'Failed to perform hospital stay. Please try again.');
                         setIsClosing(false);
                       }
                     }}

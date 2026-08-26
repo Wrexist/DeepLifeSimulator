@@ -8,8 +8,7 @@ import {
   Dimensions,
   Platform,
   Image,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import {
@@ -32,7 +31,7 @@ import {
   Car,
   Video,
   Mail,
-  Crown, Lock } from 'lucide-react-native';
+  Crown, Lock, LayoutGrid } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useFeedback } from '@/utils/feedbackSystem';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
@@ -88,8 +87,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
+import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -156,7 +157,7 @@ export function ComputerScreenContent({
   const { settings } = gameState;
   // Haptic parity with the phone grid - opening an app on mobile buzzed,
   // opening one on the computer was silent.
-  const { buttonPress } = useFeedback(settings?.hapticFeedback ?? false);
+  const { buttonPress } = useFeedback();
   const router = useRouter();
   const segments = useSegments();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
@@ -465,7 +466,7 @@ export function ComputerScreenContent({
       >
         <View style={styles.noComputerContainer}>
           <View style={styles.noComputerIconContainer}>
-            <Monitor size={80} color={settings.darkMode ? '#6B7280' : '#94A3B8'} />
+            <Monitor size={80} color={settings.darkMode ? '#64748B' : '#94A3B8'} />
           </View>
           <Text style={[styles.noComputerTitle, settings.darkMode && styles.noComputerTitleDark]}>
             {t('computer.noComputerAvailable')}
@@ -473,6 +474,16 @@ export function ComputerScreenContent({
           <Text style={[styles.noComputerMessage, settings.darkMode && styles.noComputerMessageDark]}>
             {t('computer.noComputerMessage')}
           </Text>
+          {/* Not a dead end: point straight at the surface that sells one. */}
+          <TouchableOpacity
+            style={styles.noDeviceCta}
+            onPress={() => router.navigate({ pathname: '/(tabs)/life', params: { segment: 'shop', ts: String(Date.now()) } })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Shop for a computer in the Market"
+          >
+            <Text style={styles.noDeviceCtaText}>Shop the Market</Text>
+          </TouchableOpacity>
         </View>
       </LinearGradient>
     );
@@ -537,6 +548,14 @@ export function ComputerScreenContent({
       colors={settings.darkMode ? ['#020617', '#020617'] : ['#F0F4F8', '#E2E8F0', '#CBD5E1']}
       style={styles.container}
     >
+      {/* Parity with mobile.tsx, which this launcher silently replaces the
+          moment a computer is bought. Same tab, same chrome. */}
+      <ScreenHeader
+        title={t('tabs.apps') || 'Apps'}
+        subtitle="Your phone and desktop software"
+        icon={<LayoutGrid size={scale(18)} color="#60A5FA" />}
+        tint="#60A5FA"
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabBarSafePadding(insets.bottom) }]}
@@ -567,7 +586,7 @@ export function ComputerScreenContent({
                     if (app.locked) {
                       // Tapping a locked app explains itself rather than doing
                       // nothing - a dead tap reads as a bug, not a gate.
-                      Alert.alert(app.name, app.lockReason || 'Not available yet.');
+                      gameAlert(app.name, app.lockReason || 'Not available yet.');
                       return;
                     }
                     setActiveApp(app.id);
@@ -655,10 +674,10 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: responsiveSpacing.md,
     fontSize: responsiveFontSize.md,
-    color: '#6B7280',
+    color: '#64748B',
   },
   loadingTextDark: {
-    color: '#D1D5DB',
+    color: '#CBD5E1',
   },
   scrollView: {
     flex: 1,
@@ -806,7 +825,7 @@ const styles = StyleSheet.create({
   },
   appDescription: {
     fontSize: fontScale(10.5),
-    color: '#4B5563',
+    color: '#475569',
     textAlign: 'center',
     lineHeight: fontScale(10.5) * 1.35,
     fontWeight: '500',
@@ -832,16 +851,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noComputerTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   noComputerMessage: {
     fontSize: responsiveFontSize.base,
-    color: '#6B7280',
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: responsiveFontSize.base * 1.4,
   },
   noComputerMessageDark: {
     color: '#94A3B8',
+  },
+  noDeviceCta: {
+    marginTop: scale(20),
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: scale(12),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    minHeight: scale(44),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noDeviceCtaText: {
+    color: '#3B82F6',
+    fontSize: fontScale(14),
+    fontWeight: '700',
   },
   highlightedCardGlass: {
     ...Platform.select({

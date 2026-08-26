@@ -591,7 +591,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  accessibilityRole="button"
  accessibilityLabel="Back"
  >
- <ArrowLeft size={scale(24)} color="#F9FAFB" />
+ <ArrowLeft size={scale(24)} color="#F8FAFC" />
  </TouchableOpacity>
  <Text style={styles.headerTitle}>Messages</Text>
  {totalUnread > 0 && (
@@ -701,7 +701,7 @@ export default function DMSystem({ onBack }: DMSystemProps) {
  accessibilityRole="button"
  accessibilityLabel="Back to messages"
  >
- <ArrowLeft size={scale(24)} color="#F9FAFB" />
+ <ArrowLeft size={scale(24)} color="#F8FAFC" />
  </TouchableOpacity>
  <View style={styles.threadHeaderInfo}>
  <Text style={styles.threadHeaderName}>{selectedConversation.senderName}</Text>
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
  flex: 1,
  fontSize: fontScale(20),
  fontWeight: 'bold',
- color: '#F9FAFB',
+ color: '#F8FAFC',
  },
  unreadBadge: {
  backgroundColor: '#3B82F6',
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
  },
  searchInput: {
  flex: 1,
- color: '#F9FAFB',
+ color: '#F8FAFC',
  fontSize: fontScale(14),
  marginLeft: scale(10),
  },
@@ -982,7 +982,7 @@ const styles = StyleSheet.create({
  conversationName: {
  fontSize: fontScale(15),
  fontWeight: '600',
- color: '#F9FAFB',
+ color: '#F8FAFC',
  },
  conversationHandle: {
  fontSize: fontScale(13),
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
  emptyStateText: {
  fontSize: fontScale(18),
  fontWeight: '600',
- color: '#F9FAFB',
+ color: '#F8FAFC',
  marginTop: scale(16),
  },
  emptyStateSubtext: {
@@ -1058,7 +1058,7 @@ const styles = StyleSheet.create({
  threadHeaderName: {
  fontSize: fontScale(16),
  fontWeight: 'bold',
- color: '#F9FAFB',
+ color: '#F8FAFC',
  },
  threadHeaderHandle: {
  fontSize: fontScale(13),
@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
  },
  messageText: {
  fontSize: fontScale(14),
- color: '#F9FAFB',
+ color: '#F8FAFC',
  lineHeight: fontScale(20),
  },
  playerMessageText: {
@@ -1167,7 +1167,7 @@ const styles = StyleSheet.create({
  borderRadius: scale(20),
  paddingHorizontal: scale(16),
  paddingVertical: scale(10),
- color: '#F9FAFB',
+ color: '#F8FAFC',
  fontSize: fontScale(14),
  maxHeight: scale(100),
  },
@@ -1211,7 +1211,7 @@ const styles = StyleSheet.create({
  clueModalType: {
  fontSize: fontScale(18),
  fontWeight: 'bold',
- color: '#F9FAFB',
+ color: '#F8FAFC',
  },
  clueModalContent: {
  backgroundColor: 'rgba(0,0,0,0.3)',
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
  },
  clueModalHint: {
  fontSize: fontScale(16),
- color: '#F9FAFB',
+ color: '#F8FAFC',
  fontWeight: '600',
  marginBottom: scale(16),
  },

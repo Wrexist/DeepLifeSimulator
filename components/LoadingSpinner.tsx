@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 16,
-    color: '#374151',
+    color: '#334155',
     textAlign: 'center',
     fontWeight: '500',
   },

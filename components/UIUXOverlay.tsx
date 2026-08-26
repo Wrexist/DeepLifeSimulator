@@ -1,11 +1,12 @@
 import React, { useCallback } from 'react';
-import { Alert, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useUIUX } from '@/contexts/UIUXContext';
 import { useGameSelector, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorMessage from './ErrorMessage';
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { emailDiagnosticReport, openSupportDiscord } from '@/utils/diagnosticReport';
+import { gameAlert } from '@/utils/gameAlert';
 
 export default function UIUXOverlay() {
   const {
@@ -49,7 +50,7 @@ export default function UIUXOverlay() {
       emailDiagnosticReport({ gameState: getGameState(), error, source: 'In-game error banner' })
         .then((opened) => {
           if (!opened) {
-            Alert.alert(
+            gameAlert(
               'Report sent another way',
               'We could not open your email app. Tap "Join Discord" to report it there instead.',
               [

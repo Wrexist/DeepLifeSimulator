@@ -14,7 +14,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { displayedDepositAPR, depositAPRNote } from '@/lib/banking/displayRates';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import {
   ArrowLeft,
@@ -85,6 +85,8 @@ import WatchAdRewardButton from '@/components/WatchAdRewardButton';
 import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 import { formatMoney } from '@/utils/moneyFormatting';
+import { gameAlert } from '@/utils/gameAlert';
+import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
@@ -200,7 +202,7 @@ function BankAppInner({ onBack }: BankAppProps) {
 
   const confirmCloseAccount = useCallback(
     (acct: BankAccount) => {
-      Alert.alert(
+      gameAlert(
         'Close account?',
         `Close "${acct.name}"? Its balance of ${formatMoney(acct.balance)} will be returned to your cash.`,
         [
@@ -746,13 +748,13 @@ function BankAppInner({ onBack }: BankAppProps) {
         )}
 
         <SectionHeader theme={theme} title="Savings Goals" onAdd={() =>
-            Alert.alert('What are you saving for?', undefined, [
+            gameAlert('What are you saving for?', undefined, [
               { text: 'Emergency Fund', onPress: () => setAddGoalPick({ name: 'Emergency Fund', category: 'emergency' }) },
               { text: 'House', onPress: () => setAddGoalPick({ name: 'House Fund', category: 'house' }) },
               {
                 text: 'More…',
                 onPress: () =>
-                  Alert.alert('What are you saving for?', undefined, [
+                  gameAlert('What are you saving for?', undefined, [
                     { text: 'Vacation', onPress: () => setAddGoalPick({ name: 'Vacation', category: 'vacation' }) },
                     { text: 'Retirement', onPress: () => setAddGoalPick({ name: 'Retirement', category: 'retirement' }) },
                     { text: 'Custom Goal', onPress: () => setAddGoalPick({ name: 'Custom Goal', category: 'other' }) },
@@ -860,7 +862,7 @@ function BankAppInner({ onBack }: BankAppProps) {
           // happening at all.
           const result = openNewAccount(gameState, setGameState, spec);
           if (!result.success) {
-            Alert.alert('Could not open account', result.message);
+            gameAlert('Could not open account', result.message);
             return;
           }
           queueSave();
@@ -1030,7 +1032,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             prepayLoan(setGameState, prepayLoanId, checking.id, amt);
             queueSave();
           } else if (prepayLoanId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first - loan payments are drawn from checking.');
+            gameAlert('No checking account', 'Open a checking account first - loan payments are drawn from checking.');
           }
           setPrepayLoanId(null);
         }}
@@ -1051,7 +1053,7 @@ function BankAppInner({ onBack }: BankAppProps) {
             payDownCard(setGameState, payCardId, checking.id, amt);
             queueSave();
           } else if (payCardId && !checking) {
-            Alert.alert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
+            gameAlert('No checking account', 'Open a checking account first - card payments are drawn from checking.');
           }
           setPayCardId(null);
         }}
@@ -1162,24 +1164,6 @@ function SectionHeader({
           <Text style={styles.addChipText}>{addLabel ?? 'Add'}</Text>
         </TouchableOpacity>
       )}
-    </View>
-  );
-}
-
-function EmptyText({
-  theme,
-  darkMode,
-  children,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  darkMode: boolean;
-  children: React.ReactNode;
-}) {
-  // Give empty sections a card so they share the same rhythm as populated ones
-  // instead of floating as bare text between elevated rows.
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Text style={[styles.emptyText, { color: theme.textMuted }]}>{children}</Text>
     </View>
   );
 }

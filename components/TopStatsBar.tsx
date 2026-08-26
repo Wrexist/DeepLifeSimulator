@@ -108,7 +108,7 @@ function TopStatsBarComponent() {
 
  const showStatArrows = settings?.showStatArrows!== false; // Default to true
 
- const { success, info, buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+ const { success, info, buttonPress, haptic } = useFeedback();
  const { logRender } = usePerformanceMonitor();
  // App-level IAP store launcher (single mount lives in GemStoreProvider).
  const { openStore } = useGemStore();
@@ -598,11 +598,11 @@ function TopStatsBarComponent() {
  darkMode && styles.containerDark,
  { paddingHorizontal: containerPadding, minHeight: containerMinHeight }
  ];
- const iconColor = darkMode ? '#E5E7EB': '#111827';
+ const iconColor = darkMode ? '#E2E8F0': '#0F172A';
 
  const controlButtonGradient: [string, string] = darkMode
- ? ['#1F2937', '#111827']
-: ['#FFFFFF', '#F3F4F6'];
+ ? ['#1E293B', '#0F172A']
+: ['#FFFFFF', '#F1F5F9'];
 
  const formatGems = (amount: number) => {
  const a = Math.floor(amount || 0);
@@ -672,7 +672,7 @@ function TopStatsBarComponent() {
  {/* Left: generation badge + controls + stats */}
  <View style={[styles.leftSection, { minWidth: 0 }]}>
  <View style={styles.generationRow}>
- <Text style={[styles.generationBadge, darkMode && styles.generationBadgeDark]}>
+ <Text maxFontSizeMultiplier={1.3} style={[styles.generationBadge, darkMode && styles.generationBadgeDark]}>
  Gen {generationNumber ?? 1}
  </Text>
  {(prestigeLevel > 0) && (
@@ -684,7 +684,7 @@ function TopStatsBarComponent() {
  style={styles.prestigeBadge}
  >
  <Crown size={12} color="#FFFFFF"/>
- <Text style={styles.prestigeBadgeText}>P{prestigeLevel}</Text>
+ <Text maxFontSizeMultiplier={1.3} style={styles.prestigeBadgeText}>P{prestigeLevel}</Text>
  </LinearGradient>
  </View>
  )}
@@ -805,7 +805,7 @@ function TopStatsBarComponent() {
  )}
  </View>
  <View style={styles.vitalRingLabelRow}>
- <Text style={styles.vitalRingValue}>{Math.round(value)}</Text>
+ <Text maxFontSizeMultiplier={1.3} style={styles.vitalRingValue}>{Math.round(value)}</Text>
  {/* Visible long-press affordance. The quick actions (Rest / Eat /
  Exercise / Socialize) are the fastest way to fix a low vital - the
  exact thing the contextual tips nag about - but the only place the
@@ -842,7 +842,7 @@ function TopStatsBarComponent() {
  >
  <LinearGradient colors={['#3B82F6','#1D4ED8'] as const} style={styles.quickActionGradient}>
  <action.icon size={16} color="#FFFFFF"/>
- <Text style={styles.quickActionText}>{action.label}</Text>
+ <Text maxFontSizeMultiplier={1.3} style={styles.quickActionText}>{action.label}</Text>
  </LinearGradient>
  </TouchableOpacity>
  ))}
@@ -913,7 +913,7 @@ function TopStatsBarComponent() {
  >
  <PiggyBank size={14} color="#FFFFFF"style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
- <Text
+ <Text maxFontSizeMultiplier={1.3}
  style={styles.chipText}
  numberOfLines={1}
  adjustsFontSizeToFit={true}
@@ -953,7 +953,7 @@ function TopStatsBarComponent() {
  >
  <Gem size={14} color="#FFFFFF"style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
- <Text
+ <Text maxFontSizeMultiplier={1.3}
  style={styles.chipText}
  numberOfLines={1}
  adjustsFontSizeToFit={true}
@@ -1003,7 +1003,6 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  // Handle both iPhone Pro Max (428px+) and large Android devices (600px+)
  const isExtraLargeDevice = width > 428 || isAndroidXLarge(); // iPhone 15 Pro Max and large Android phones
  const { AnimatedView, animatedStyle, onPressIn, onPressOut } = usePressableScale();
- const settings = useGameSelector((s) => s?.settings, shallowEqual);
  // For the interstitial breakpoint: current in-game week + whether ads are removed.
  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
  // The grace half of the gate measures weeks into THIS life (CLAUDE.md §4.2);
@@ -1027,7 +1026,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  );
  const blockedRef = useRef(blockingModalActive);
  blockedRef.current = blockingModalActive;
- const { buttonPress, haptic } = useFeedback(settings?.hapticFeedback ?? false);
+ const { buttonPress, haptic } = useFeedback();
  const reduced = useReducedMotion();
 
  // All hooks must be called before any early returns (Rules of Hooks)
@@ -1182,7 +1181,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  >
  <View style={styles.dateInner}>
  <View style={styles.dateHeader}>
- <Text
+ <Text maxFontSizeMultiplier={1.3}
  style={[
  styles.yearText,
  isExtraLargeDevice && {
@@ -1193,7 +1192,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  numberOfLines={1}
  >{Math.floor(date?.year || 2025)}</Text>
  </View>
- <Text
+ <Text maxFontSizeMultiplier={1.3}
  style={[
  styles.monthText,
  isExtraLargeDevice && {
@@ -1214,7 +1213,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  return monthNames[Math.max(0, Math.min(11, monthNum - 1))] || 'Unknown';
  })()}
  </Text>
- <Text style={[
+ <Text maxFontSizeMultiplier={1.3} style={[
  styles.ageText,
  isExtraLargeDevice && {
  fontSize: responsiveFontSize.xs,
@@ -1308,7 +1307,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  accessibilityLabel={isAdvancingWeek ? 'Advancing to next week' : 'Advance to next week'}
  accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek }}
  >
- <LinearGradient colors={isAdvancingWeek ? ['#6B7280','#9CA3AF'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <LinearGradient colors={isAdvancingWeek ? ['#64748B','#94A3B8'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
  {isAdvancingWeek ? (
  <Animated.View
  style={{

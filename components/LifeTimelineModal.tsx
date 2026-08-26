@@ -52,13 +52,13 @@ export default function LifeTimelineModal({ visible, onClose }: Props) {
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
-              <X size={scale(22)} color={darkMode ? '#94A3B8' : '#6B7280'} />
+              <X size={scale(22)} color={darkMode ? '#94A3B8' : '#64748B'} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator>
             {entries.length === 0 ? (
-              <Text style={[styles.empty, { color: darkMode ? '#94A3B8' : '#6B7280' }]}>
+              <Text style={[styles.empty, { color: darkMode ? '#94A3B8' : '#64748B' }]}>
                 Nothing on the record yet - live a little.
               </Text>
             ) : (
@@ -80,11 +80,11 @@ export default function LifeTimelineModal({ visible, onClose }: Props) {
                         Age {entry.age}
                         {entry.repeats && entry.repeats > 1 ? `  ·  ${entry.repeats} weeks running` : ''}
                       </Text>
-                      <Text style={[styles.rowTitle, { color: darkMode ? '#F1F5F9' : '#111827' }]}>
+                      <Text style={[styles.rowTitle, { color: darkMode ? '#F1F5F9' : '#0F172A' }]}>
                         {entry.title}
                       </Text>
                       {!!entry.detail && (
-                        <Text style={[styles.rowDetail, { color: darkMode ? '#94A3B8' : '#6B7280' }]} numberOfLines={2}>
+                        <Text style={[styles.rowDetail, { color: darkMode ? '#94A3B8' : '#64748B' }]} numberOfLines={2}>
                           {entry.detail}
                         </Text>
                       )}

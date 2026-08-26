@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Text, StyleSheet, View, Dimensions, Platform } from 'react-native';
 import { MotiView } from '@/components/anim/MotiStub';
 import Gradient from '@/components/ui/Gradient';
@@ -14,10 +14,12 @@ import {
   Gem,
   ShoppingCart,
   Users,
-  CheckCircle
+  CheckCircle,
+  TrendingUp
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { setAchievementToastRef } from '@/utils/achievementToast';
+import { haptic } from '@/utils/haptics';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -26,12 +28,29 @@ export interface AchievementData {
   title: string;
   category: string;
   reward: number;
+  /** Banner wording. 'levelup' swaps the eyebrow and glyph. */
+  kind?: 'achievement' | 'levelup';
+  /** Optional second line, e.g. "Pickpocketing reached level 4". */
+  detail?: string;
 }
 
 let trigger: ((data: AchievementData) => void) | null = null;
 
 export const showAchievementToast = (title: string, category: string = 'general', reward: number = 1) => {
   trigger?.({ title, category, reward });
+};
+
+/**
+ * The MEDIUM celebration tier: a level-up.
+ *
+ * Skill and criminal level-ups used to be string-concatenated onto the end of
+ * an ordinary toast message (" Pickpocketing lv.4.") - the same visual weight
+ * as "you earned $40", for a progression milestone the player worked toward.
+ * This gives them the branded banner without escalating to the full-screen
+ * treatment prestige and promotions get.
+ */
+export const showLevelUpToast = (title: string, detail?: string, category: string = 'work') => {
+  trigger?.({ title, category, reward: 1, kind: 'levelup', detail });
 };
 
 export default function AchievementToast() {
@@ -45,37 +64,43 @@ export default function AchievementToast() {
   // a root-mounted toast to every mutation in the game.
   const isGameStateReady = useGameSelector((s) => !!s?.settings);
   const insets = useSafeAreaInsets();
-  const [achievement, setAchievement] = useState<AchievementData | null>(null);
+  // QUEUED, not replaced. `setAchievement(data)` used to overwrite in place, so
+  // two achievements unlocking in the same week-tick showed only the second -
+  // the first was silently lost.
+  const [queue, setQueue] = useState<AchievementData[]>([]);
+  const achievement = queue[0] ?? null;
   const [isVisible, setIsVisible] = useState(false);
+  const enqueue = useCallback((data: AchievementData) => {
+    setQueue((prev) => (prev.length >= 5 ? prev : [...prev, data]));
+  }, []);
 
   // Set up the ref for external access
   useEffect(() => {
-    setAchievementToastRef({
-      show: (data: AchievementData) => {
-        setAchievement(data);
-        setIsVisible(true);
-      }
-    });
-  }, []);
+    setAchievementToastRef({ show: enqueue });
+  }, [enqueue]);
 
   useEffect(() => {
-    trigger = (data: AchievementData) => {
-      setAchievement(data);
-      setIsVisible(true);
-    };
+    trigger = enqueue;
     // P2-1: clear the module-level trigger on unmount so a fired toast from
     // an old mount doesn't end up calling setState on this component after
     // navigation has unmounted it ("Can't perform a React state update on
     // an unmounted component" warning).
     return () => { trigger = null; };
-  }, []);
+  }, [enqueue]);
+
+  // Show the head of the queue, then pop it so the next one follows.
+  useEffect(() => {
+    if (!achievement || isVisible) return;
+    setIsVisible(true);
+    haptic.success();
+  }, [achievement, isVisible]);
 
   useEffect(() => {
     if (isVisible && achievement) {
       const timer = setTimeout(() => {
         setIsVisible(false);
         setTimeout(() => {
-          setAchievement(null);
+          setQueue((prev) => prev.slice(1));
         }, 300);
       }, 3000);
       return () => clearTimeout(timer);
@@ -115,7 +140,8 @@ export default function AchievementToast() {
   // Add null check for gameState - return null if not ready yet
   if (!isGameStateReady) return null;
 
-  const categoryColor = getCategoryColor(achievement.category);
+  const isLevelUp = achievement.kind === 'levelup';
+  const categoryColor = isLevelUp ? '#8B5CF6' : getCategoryColor(achievement.category);
 
   return (
     <MotiView
@@ -162,17 +188,22 @@ export default function AchievementToast() {
 
         {/* Achievement Icon */}
         <View style={styles.iconContainer}>
-          {getCategoryIcon(achievement.category)}
+          {isLevelUp ? <TrendingUp size={24} color="#FFFFFF" /> : getCategoryIcon(achievement.category)}
         </View>
 
         {/* Text Content */}
         <View style={styles.textContainer}>
           <Text style={styles.achievementLabel}>
-            ACHIEVEMENT UNLOCKED!
+            {isLevelUp ? 'LEVEL UP!' : 'ACHIEVEMENT UNLOCKED!'}
           </Text>
           <Text style={styles.achievementTitle} numberOfLines={3} adjustsFontSizeToFit>
             {achievement.title}
           </Text>
+          {achievement.detail ? (
+            <Text style={styles.achievementDetail} numberOfLines={2}>
+              {achievement.detail}
+            </Text>
+          ) : null}
         </View>
 
         {/* Reward Badge */}
@@ -261,6 +292,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     flexShrink: 1,
     flexWrap: 'wrap',
+  },
+  achievementDetail: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    marginTop: 2,
+    flexShrink: 1,
   },
   rewardContainer: {
     flexDirection: 'row',

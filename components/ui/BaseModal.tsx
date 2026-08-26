@@ -30,8 +30,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { colors, typography, radii, shadows } from '@/lib/config/theme';
-import { responsiveSpacing, scale } from '@/utils/scaling';
+import { colors, typography, shadows } from '@/lib/config/theme';
+import { responsiveBorderRadius, responsiveFontSize, responsiveSpacing, scale } from '@/utils/scaling';
 import { useTheme } from '@/hooks/useTheme';
 
 /**
@@ -134,9 +134,13 @@ export default function BaseModal({
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Overlay - tap to close */}
+        {/* Overlay - tap to close. Hidden from screen readers: announcing a
+            giant unlabeled button wrapping the whole dialog only adds noise -
+            VoiceOver/TalkBack users dismiss via the labelled Close button. */}
         <TouchableOpacity
           activeOpacity={1}
+          accessible={false}
+          importantForAccessibility="no"
           style={[
             styles.overlay,
             themed.overlay,
@@ -145,9 +149,12 @@ export default function BaseModal({
           ]}
           onPress={onClose}
         >
-          {/* Container - stop propagation */}
+          {/* Container - stop propagation. accessibilityViewIsModal keeps
+              VoiceOver from wandering to content behind the dialog. */}
           <TouchableOpacity
             activeOpacity={1}
+            accessible={false}
+            accessibilityViewIsModal
             style={[
               styles.container,
               themed.container,
@@ -172,12 +179,20 @@ export default function BaseModal({
               <View style={[styles.header, themed.header]}>
                 <View style={styles.headerText}>
                   {title && (
-                    <Text style={[styles.title, themed.title]} numberOfLines={1}>
+                    <Text
+                      style={[styles.title, themed.title]}
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={1.4}
+                    >
                       {title}
                     </Text>
                   )}
                   {subtitle && (
-                    <Text style={[styles.subtitle, themed.subtitle]} numberOfLines={1}>
+                    <Text
+                      style={[styles.subtitle, themed.subtitle]}
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={1.4}
+                    >
                       {subtitle}
                     </Text>
                   )}
@@ -247,7 +262,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 460,
-    borderRadius: radii.xl,
+    borderRadius: responsiveBorderRadius.xl,
     borderWidth: 1,
     overflow: 'hidden',
     ...shadows.xl,
@@ -256,8 +271,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    borderTopLeftRadius: radii.xxl,
-    borderTopRightRadius: radii.xxl,
+    borderTopLeftRadius: responsiveBorderRadius['2xl'],
+    borderTopRightRadius: responsiveBorderRadius['2xl'],
   },
   containerFullscreen: {
     flex: 1,
@@ -280,17 +295,17 @@ const styles = StyleSheet.create({
     marginRight: sp.md,
   },
   title: {
-    fontSize: typography.size.xl,
+    fontSize: responsiveFontSize.xl,
     fontWeight: typography.weight.bold,
   },
   subtitle: {
-    fontSize: typography.size.sm,
+    fontSize: responsiveFontSize.sm,
     marginTop: sp.xxs,
   },
   closeButton: {
     width: 32,
     height: 32,
-    borderRadius: radii.round,
+    borderRadius: responsiveBorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },

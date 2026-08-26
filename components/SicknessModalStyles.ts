@@ -494,7 +494,7 @@ export const styles = StyleSheet.create({
     marginBottom: scale(6),
   },
   diseaseRecommendationTitleDark: {
-    color: '#F9FAFB',
+    color: '#F8FAFC',
   },
   urgentRecommendation: {
     color: '#DC2626',

@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Animated, Text, StyleSheet, View } from 'react-native';
+import { Platform, AccessibilityInfo, Animated, Text, StyleSheet, View } from 'react-native';
 import { scale, fontScale } from '@/utils/scaling';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { Z_INDEX } from '@/utils/zIndexConstants';
@@ -109,6 +109,25 @@ function FloatingText({ change, index, onComplete }: FloatingTextProps) {
         ? `${prefix}${label}${Math.abs(change.amount)}`
         : `${prefix}${change.amount}${label}`;
 
+    // The pills are the game's primary "something happened" channel and render
+    // pointerEvents="none", so VoiceOver/TalkBack never reach them - announce
+    // each one so screen-reader players get the same confirmation.
+    useEffect(() => {
+        const spoken = change.stat === 'money'
+            ? `${isPositive ? 'Gained' : 'Lost'} $${Math.abs(change.amount)}`
+            : `${isPositive ? 'Gained' : 'Lost'} ${Math.abs(change.amount)} ${STAT_LABELS[change.stat]}`;
+        try {
+            AccessibilityInfo.announceForAccessibility?.(spoken);
+        } catch {
+            // announcement is best-effort
+        }
+        // Deliberately keyed on the pill's identity only: the provider REWRITES
+        // a pill's amount when a second change to the same stat lands within
+        // 500ms, and re-announcing the combined total right after the first
+        // announcement reads as two separate gains to a screen-reader player.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [change.id]);
+
     return (
         <Animated.View
             style={[
@@ -165,58 +184,10 @@ export function StatChangeIndicator({ changes, onAnimationComplete }: StatChange
     );
 }
 
-/**
- * Hook to track stat changes and generate animations
- */
-export function useStatChangeTracker() {
-    const [changes, setChanges] = useState<StatChange[]>([]);
-    const prevStats = useRef<Record<string, number>>({});
-
-    const trackStatChange = (
-        currentStats: Record<string, number>,
-        statsToTrack: string[] = ['health', 'happiness', 'energy', 'money', 'gems', 'fitness']
-    ) => {
-        const newChanges: StatChange[] = [];
-
-        for (const stat of statsToTrack) {
-            const current = currentStats[stat];
-            const prev = prevStats.current[stat];
-
-            if (prev !== undefined && current !== prev) {
-                const diff = current - prev;
-                // Only show significant changes (ignore rounding errors)
-                if (Math.abs(diff) >= 1) {
-                    newChanges.push({
-                        id: `${stat}-${Date.now()}-${Math.random()}`,
-                        stat: stat as StatChange['stat'],
-                        amount: Math.round(diff),
-                        timestamp: Date.now(),
-                    });
-                }
-            }
-            prevStats.current[stat] = current;
-        }
-
-        if (newChanges.length > 0) {
-            setChanges(prev => [...prev, ...newChanges].slice(-10));
-        }
-    };
-
-    const clearChange = (id: string) => {
-        setChanges(prev => prev.filter(c => c.id !== id));
-    };
-
-    const clearAllChanges = () => {
-        setChanges([]);
-    };
-
-    return {
-        changes,
-        trackStatChange,
-        clearChange,
-        clearAllChanges,
-    };
-}
+// NOTE: a second `useStatChangeTracker` used to live here - a dead duplicate
+// with the same name as the real one in `@/contexts/StatChangeContext` but
+// different semantics (threshold 1, cap 10, manual invocation). It had zero
+// callers and existed only to send a future reader to the wrong hook. Deleted.
 
 const styles = StyleSheet.create({
     container: {
