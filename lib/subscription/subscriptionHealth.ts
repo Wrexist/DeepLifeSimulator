@@ -154,6 +154,26 @@ export function readSubscriptionHealth(
   }
 }
 
+/**
+ * May an UPSELL SURFACE (crown button, banner, badge) advertise the free trial?
+ *
+ * Apple grants an introductory offer once per subscription group, so a lapsed
+ * ex-subscriber has burned theirs - yet the entry points used to print
+ * "7-DAY FREE" from the config constant for everyone, and the paywall then
+ * withdrew the promise (its own copy is eligibility-aware via
+ * `resolveTrialClaim`). A promise made on the way in and taken back on the
+ * paywall is exactly the bait-shape App Review guideline 2.3.1 is about.
+ *
+ * `null` (health never observed this session, or RevenueCat disabled) reads as
+ * plausible: the overwhelmingly common case with no observation is a player
+ * who has never subscribed, and the paywall still resolves the REAL claim
+ * before any purchase. Any phase other than `none` is evidence of a current or
+ * prior subscription - no trial to promise.
+ */
+export function trialClaimPlausible(health: SubscriptionHealth | null): boolean {
+  return health == null || health.phase === 'none';
+}
+
 /** Active-entitlement phases (the player currently has premium access). */
 export function isActivePhase(phase: SubscriptionPhase): boolean {
   return (

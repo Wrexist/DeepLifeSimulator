@@ -21,23 +21,22 @@
  *   - appToStoreProductId: app id → RC product lookup / purchase call
  *   - storeToAppProductId: RC customerInfo product id → benefit grant key
  */
-import { IAP_PRODUCTS } from '@/utils/iapConfig';
-
 /**
  * App product id → store product id overrides.
  *
  * Empty: all current products share the same id in the app and the store.
  * Add an entry here ONLY if a future product's store ID diverges from its
- * app-internal ID.
+ * app-internal ID - re-import IAP_PRODUCTS from '@/utils/iapConfig' for the
+ * key when you do.
  *
  * Example (do NOT enable — IDs already match):
  *   [IAP_PRODUCTS.GEMS_500]: 'deeplife_gems_500',  // identity, no-op
  */
 const APP_TO_STORE: Record<string, string> = {
   // No overrides needed — all deeplife_* IDs are identical in app and store.
-  // The IAP_PRODUCTS import is kept to prevent lint warnings if entries are
-  // added back later.
-  ...(IAP_PRODUCTS ? {} : {}),
+  // (An earlier revision kept an unused IAP_PRODUCTS import alive with a
+  // `...(IAP_PRODUCTS ? {} : {})` no-op spread to silence the lint warning -
+  // a confusing decoy that read as logic. Import when needed instead.)
 };
 
 const STORE_TO_APP: Record<string, string> = Object.fromEntries(

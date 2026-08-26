@@ -122,6 +122,34 @@ function emitEdges(prev: StoredHealth | null, next: SubscriptionHealth): void {
   if (next.phase === 'cancelling' && prev?.phase !== 'cancelling') {
     track('subscription_cancel_detected', { ...base, firstObservation: prev === null });
   }
+  // A trial began. Fire only when entering trial from OUTSIDE an active
+  // subscription (none / lapsed / first sighting), never from another active
+  // phase: `readSubscriptionHealth` ranks `cancelling` above `trial`, so a
+  // trialist who toggles auto-renew off then back on goes trial → cancelling →
+  // trial, and keying on `!== 'trial'` alone would emit a second `trial_started`
+  // for one trial. The `firstObservation` marker matters more here than
+  // anywhere else: most trials START while the paywall session is still open,
+  // so the first health fetch after subscribing is often the first sighting.
+  if (next.phase === 'trial' && (prev === null || prev.phase === 'none' || prev.phase === 'lapsed')) {
+    track('trial_started', { ...base, firstObservation: prev === null });
+  }
+  // Trial → paid: the conversion the free trial's whole rationale is argued
+  // from (DEEP_LIFE_PLUS_FREE_TRIAL_DAYS documents it), previously computable
+  // from nothing. The paid outcome is any active, auto-renew-ON phase past the
+  // trial - `renewing` OR `intro` (an intro-priced first period reports
+  // periodType INTRO, and trial → intro → renewing is a real conversion whose
+  // moment is the trial → intro edge). A trial that CANCELS (→ cancelling) or
+  // LAPSES (→ lapsed/none) is not a conversion and is covered by its own edge.
+  if (prev?.phase === 'trial' && (next.phase === 'renewing' || next.phase === 'intro')) {
+    track('trial_converted', base);
+  }
+  // The dunning window OPENED - card declined while still entitled. Its
+  // successful close is `subscription_recovered`; its failure is
+  // `subscription_lapsed`. Both already existed; the open did not, so
+  // recovery RATE had no denominator.
+  if (next.phase === 'billing_issue' && prev?.phase !== 'billing_issue') {
+    track('subscription_billing_issue', { ...base, firstObservation: prev === null });
+  }
   // Auto-renew back ON after a cancel or billing scare - the win-back worked.
   if (
     isRenewTrack(next.phase) &&

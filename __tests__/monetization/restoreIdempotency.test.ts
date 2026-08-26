@@ -15,8 +15,18 @@
  *     re-applying it RENEWS the term. Tapping Restore Purchases repeatedly was
  *     an unlimited free renewal of a paid subscription.
  *
- * This test pins the predicate that decides which grants stay ledger-gated. It
- * is a pure function precisely so the rule is testable without StoreKit.
+ * This test pins the predicate that decides which grants are non-idempotent.
+ * It is a pure function precisely so the rule is testable without StoreKit.
+ *
+ * 2026-08-26: how the two kinds are defused DIVERGED, and the predicate's
+ * remaining consumer is the PURCHASE path (reserve-before-grant, SAVE-3).
+ * On restore, subscriptions are skipped outright (their term is the store's
+ * to reconstruct), and REVIVAL_PACK restores with `entitlementsOnly` so the
+ * purchase record re-applies while the spendable charge is never re-banked -
+ * the ledger gate it used to rely on lived in LOCAL storage, which a
+ * reinstall wipes (and the RC loop keyed it on a synthetic `rc_restore:` id
+ * the original purchase never wrote, so one Restore tap minted a revive).
+ * See revivalPackBanked.test.ts for the behavioral pins.
  */
 import { isSubscriptionProduct, IAP_PRODUCTS, SUBSCRIPTION_PRODUCTS } from '@/utils/iapConfig';
 

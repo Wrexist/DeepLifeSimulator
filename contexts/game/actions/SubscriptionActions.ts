@@ -380,16 +380,27 @@ export function reconcileSubscriptionBenefits(
     state.settings?.lifetimePremium === true ||
     state.settings?.everythingUnlocked === true;
 
+  // Clearing `deepLifePlusActivated` here is deliberately the BOUNDED response
+  // to a non-authoritative check, NOT holding every benefit forever.
+  //
+  // The DeepLife+ gameplay benefits (250-gem drop, +25% salary, 20% member
+  // discount) are DERIVED from this flag, and re-granted in full by the very
+  // next reconcile that authoritatively sees an active entitlement - which is
+  // the common offline case, because the RevenueCat SDK returns CACHED
+  // customerInfo when offline (so `authoritative` is usually true from cache).
+  // They cost nothing to restore and self-heal. Holding them instead (an
+  // earlier revision did) turned "launch with RevenueCat unreachable" into an
+  // UNBOUNDED free premium tier: a cancelled member who keeps the SDK from ever
+  // fetching (airplane mode / a blocked host) renews the hold on every process
+  // start, since `everFetched` resets per process. The bounded clear closes
+  // that; only `adsRemoved` is held below, and only when a PERMANENT purchase
+  // (not the lapsed subscription) justifies it - wrongly revoking a bought
+  // Remove Ads is the one error that is expensive and unrecoverable.
   return {
     ...state,
     settings: {
       ...state.settings,
       deepLifePlusActivated: false,
-      // Revoke ONLY what DeepLife+ granted. When the entitlement check could
-      // not run, keep whatever is persisted rather than guessing `false` —
-      // wrongly re-enabling ads for a lapsed non-buyer costs one launch of
-      // banner ads, wrongly revoking a purchase is permanent and unrecoverable
-      // without the player finding Restore Purchases unprompted.
       adsRemoved: paidAdFree
         ? true
         : entitlementCheckAuthoritative

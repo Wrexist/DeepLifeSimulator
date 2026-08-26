@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Switch, Linking, Animated, Platform } from 'react-native';
 import Gradient from '@/components/ui/Gradient';
 // import { BlurView } from 'expo-blur'; // Removed - TurboModule crash fix
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +17,6 @@ import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
 import CloudBackupRow from './settings/CloudBackupRow';
-import RedeemCodeModal from './RedeemCodeModal';
 import WhatsNewModal from './WhatsNewModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
@@ -132,7 +131,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showBugReport, setShowBugReport] = useState(false);
   const { startEnhancedTutorial, resetTutorial } = useTutorial();
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
-  const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const openWhatsNew = useCallback(() => setShowWhatsNew(true), []);
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
@@ -297,6 +295,29 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
     } finally {
       setIsRestoringPurchases(false);
     }
+  };
+
+  /**
+   * Open Apple's OWN offer-code redemption sheet.
+   *
+   * The App-Store-sanctioned replacement for the custom promo-code feature
+   * removed for guideline 3.1.1: codes are created in App Store Connect
+   * against a real IAP/subscription, Apple validates them, and the product
+   * arrives as a normal StoreKit transaction that IAPService fulfils on its
+   * existing purchase listener. This screen grants nothing itself.
+   */
+  const handleRedeemOfferCode = async () => {
+    const presented = await iapService.presentCodeRedemptionSheet();
+    if (presented) return;
+    // Never silently no-op: say why, and where to redeem instead. (The sheet
+    // is iOS-only and does not exist on the simulator.)
+    gameAlert(
+      'Redeem A Code',
+      Platform.OS === 'ios'
+        ? 'The App Store redemption sheet could not be opened on this device. You can also redeem a code in the App Store app: tap your profile picture, then "Redeem Gift Card or Code".'
+        : 'Codes are redeemed in the Google Play Store app: tap your profile picture, then Payments and subscriptions, then Redeem code.',
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   const showRewardAnimation = (message: string, amount: number) => {
@@ -541,7 +562,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 )}
 
                 {/* What's New - player-facing update log. Opens a sheet NESTED
-                    inside this Settings Modal (mirrors RedeemCodeModal). */}
+                    inside this Settings Modal (the DevToolsModal nesting). */}
                 <SettingsActionButton
                   icon={Megaphone}
                   label="What's New"
@@ -709,15 +730,15 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="Open the Gem Shop and offers"
                 />
 
-                {/* Redeem Code - enter an owner-issued promo code for a reward.
-                    Opens a sheet NESTED inside this Settings Modal (see below),
-                    the same iOS-safe nesting DevToolsModal uses. */}
+                {/* Redeem an App Store offer code. Opens APPLE's redemption
+                    sheet - the sanctioned path (guideline 3.1.1); the app never
+                    unlocks content from a code itself. */}
                 <SettingsActionButton
                   icon={Gift}
                   label="Redeem Code"
                   accent="#60A5FA"
-                  onPress={() => setShowRedeemCode(true)}
-                  accessibilityLabel="Redeem a promo code"
+                  onPress={handleRedeemOfferCode}
+                  accessibilityLabel="Redeem an App Store code"
                 />
 
                 {/* Remove Ads - the genre is majority ad-monetized, so this
@@ -780,12 +801,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}
 
-      {/* Redeem Code sheet - NESTED inside this presented Modal (mirrors the
-          DevToolsModal nesting) so it never stacks a sibling root Modal on iOS. */}
-      <RedeemCodeModal visible={showRedeemCode} onClose={() => setShowRedeemCode(false)} />
-
-      {/* What's New update log - NESTED inside this presented Modal (same
-          iOS-safe nesting as RedeemCodeModal). */}
+      {/* What's New update log - NESTED inside this presented Modal (the
+          iOS-safe nesting DevToolsModal uses) so it never stacks a sibling
+          root Modal on iOS. */}
       <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
 
       {/* Liquid Glass Reward Popup */}

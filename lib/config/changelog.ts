@@ -45,6 +45,47 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.11.0',
+    date: 'August 2026',
+    headline: 'A fairer store, and a clearer deal',
+    summary:
+      'Prices and offers now say exactly what you get, banking upgrades you could never buy are finally in the shop, and a few purchase bugs that could cost you are fixed.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Banking upgrades you can actually buy',
+        bullets: [
+          'Premium Credit Card, Financial Planning, Business Banking and Private Banking are in the shop.',
+          'Each one lists exactly what it does to your money.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Redeem codes',
+        bullets: [
+          'Settings → Redeem Code now opens the App Store redemption sheet.',
+          'Codes are issued and redeemed through Apple.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Honest prices everywhere',
+        bullets: [
+          'Every price shows in your own currency, including on the death screen.',
+          'A free trial is only advertised when you can actually claim one.',
+        ],
+      },
+      {
+        category: 'fixed',
+        title: 'Your purchases stay yours',
+        bullets: [
+          'Membership no longer switches off when you open the game offline.',
+          'Rewinding time can no longer wipe something you just bought.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.10.0',
     date: 'August 2026',
     headline: 'Your life tells you what to do next',
@@ -592,8 +633,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         category: 'new',
         title: 'Redeem codes',
         bullets: [
-          'Enter promo codes under Settings → Redeem Code.',
-          'Claim gems, cash, perks and more.',
+          'Redeem an App Store code under Settings → Redeem Code.',
         ],
       },
       {

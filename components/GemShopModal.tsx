@@ -29,6 +29,7 @@ import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
 import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
 import { gameAlert } from '@/utils/gameAlert';
+import { track } from '@/lib/analytics';
 
 /**
  * Presentation-only companions to the gem-upgrade catalogue (M8). Artwork and
@@ -197,6 +198,40 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     }
     return map;
   }, [iapState.products]);
+
+  // ── Funnel events: the consumable-IAP funnel used to begin at
+  // `purchase_started`, so shop view → buy tap (its largest drop) was
+  // unmeasurable. One view per open with the tab it opened to; one dismissal
+  // with dwell + the tab the player LEFT from.
+  //
+  // Fired on MOUNT / UNMOUNT, not on a `visible` transition. The sole mount
+  // site (contexts/GemStoreContext) renders `<GemShopModal visible ... />`
+  // only while `openTab !== null` and unmounts it on close - `visible` is a
+  // literal `true` that never flips, so a visible-keyed dismissal would never
+  // fire. Empty deps also mean a deep-link retarget of `initialTab` on the
+  // live instance cannot double-fire the view. `tabRef` (updated in its own
+  // effect, never in render) carries the exit tab into the unmount cleanup.
+  const shopOpenedAt = useRef(0);
+  const tabRef = useRef(tab);
+  useEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
+  useEffect(() => {
+    if (!visible) return;
+    shopOpenedAt.current = Date.now();
+    track('iap_shop_viewed', { tab: initialTab ?? 'gems', storeReady });
+    return () => {
+      if (shopOpenedAt.current === 0) return;
+      track('iap_shop_dismissed', {
+        tab: tabRef.current,
+        dwellMs: Date.now() - shopOpenedAt.current,
+      });
+      shopOpenedAt.current = 0;
+    };
+    // Mount/unmount only: `initialTab` and `storeReady` are view-time
+    // snapshots, deliberately not triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Per-SKU availability: an IAP is buyable only if THIS product id actually
   // loaded from the store. `storeReady` (any product loaded) still drives the
@@ -750,6 +785,46 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
     },
   ];
 
+  // The four banking services. They have always had full fulfilment, restore
+  // and prestige survival (lib/prestige/accountEntitlements.ts) - and, until
+  // 2026-08-26, no purchase UI anywhere: ~$21 of shipped App Store catalog
+  // that could not be bought. (Private Banking alone was reachable one
+  // rotation week in twelve through the Offer Center.) Owned flags read the
+  // same settings keys applyProductBenefitsToState writes; the Mega Pack's
+  // "everything unlocked" also grants all four, so its owners see Owned here.
+  // No dedicated art yet - ShopItemCard renders without a picture rather than
+  // borrowing a misleading one (see utils/iapArt.ts).
+  const bankingItems = [
+    {
+      id: IAP_PRODUCTS.PREMIUM_CREDIT_CARD,
+      accent: 'perks' as ShopAccent,
+      image: IAP_ART[IAP_PRODUCTS.PREMIUM_CREDIT_CARD],
+      title: 'Premium Credit Card',
+      owned: settings?.premiumCreditCard === true,
+    },
+    {
+      id: IAP_PRODUCTS.FINANCIAL_PLANNING,
+      accent: 'perks' as ShopAccent,
+      image: IAP_ART[IAP_PRODUCTS.FINANCIAL_PLANNING],
+      title: 'Financial Planning',
+      owned: settings?.financialPlanning === true,
+    },
+    {
+      id: IAP_PRODUCTS.BUSINESS_BANKING,
+      accent: 'perks' as ShopAccent,
+      image: IAP_ART[IAP_PRODUCTS.BUSINESS_BANKING],
+      title: 'Business Banking',
+      owned: settings?.businessBanking === true,
+    },
+    {
+      id: IAP_PRODUCTS.PRIVATE_BANKING,
+      accent: 'perks' as ShopAccent,
+      image: IAP_ART[IAP_PRODUCTS.PRIVATE_BANKING],
+      title: 'Private Banking',
+      owned: settings?.privateBanking === true,
+    },
+  ];
+
   // M8: names, descriptions and prices come from the ONE catalogue in
   // `lib/config/gemUpgrades.ts`, which `MoneyActionsContext.buyGoldUpgrade`
   // also reads - so the price shown here and the price charged cannot drift.
@@ -965,6 +1040,8 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
               <>
                 {storeBanner}
                 {perkItems.map(renderMoneyCard)}
+                <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Banking services</Text>
+                {bankingItems.map(renderMoneyCard)}
               </>
             ) : null}
 
@@ -1012,8 +1089,8 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       </View>
 
       {/* NESTED inside this presented Modal (the same iOS-safe nesting
-          RedeemCodeModal and WhatsNewModal use in SettingsModal) so it never
-          stacks a sibling root Modal. */}
+          WhatsNewModal uses in SettingsModal) so it never stacks a sibling
+          root Modal. */}
       <OfferCenterModal visible={showOfferCenter} onClose={() => setShowOfferCenter(false)} />
     </Modal>
   );

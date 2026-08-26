@@ -273,11 +273,23 @@ export default function SubscriptionModal({ visible, onClose }: Props) {
       setMessage(null);
       return;
     }
-    openedAt.current = Date.now();
+    // Stamp open time and fire the view exactly ONCE per open, together, inside
+    // the latch. Re-running this effect on a plan selection (the reason
+    // `selected.productId` is a dep - it is captured as `defaultProductId`
+    // below) must not re-stamp `openedAt`, or `paywall_dismissed.dwellMs` would
+    // measure time since the last plan tap instead of since open.
     if (once.fire('viewed')) {
-      track('paywall_viewed', { surface: 'deeplife_plus', alreadyActive: active });
+      openedAt.current = Date.now();
+      // `defaultProductId` = the pre-selected plan. `paywall_plan_selected`
+      // fires only on a TAP, so without this the default's share of purchases
+      // was invisible - most buyers never touch the selector.
+      track('paywall_viewed', {
+        surface: 'deeplife_plus',
+        alreadyActive: active,
+        defaultProductId: selected.productId,
+      });
     }
-  }, [visible, active, once]);
+  }, [visible, active, once, selected.productId]);
 
   // Record that a trial was actually PRESENTED, and in which form. Without this
   // the trial cannot be evaluated: a conditional mention and a hard promise

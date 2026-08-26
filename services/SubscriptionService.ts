@@ -16,11 +16,29 @@ export interface Subscription {
   isTrial: boolean;
 }
 
-export type SubscriptionTier = 'free' | 'premium' | 'ultimate';
+// 'ultimate' removed 2026-08-26: no code path ever returned it (only the
+// deleted hasFeature() consulted it), so it was a tier that could gate
+// features but never grant them. Add a real tier only together with the
+// getSubscriptionTier() mapping and the entitlement that produces it.
+export type SubscriptionTier = 'free' | 'premium';
 
 
 /** Days in a subscription term, matching what IAPService stamps at purchase. */
 const SUBSCRIPTION_TERM_DAYS = { monthly: 30, yearly: 365 } as const;
+
+/**
+ * Slack added to the synthetic term before access is revoked, in days.
+ *
+ * This whole path only runs on builds WITHOUT RevenueCat, where the app cannot
+ * see renewal state - it infers the term from the last purchase record. A
+ * renewal whose charge is in the store's billing retry produces no new
+ * purchase record yet, so a hard cutoff at exactly day 30 revoked a subscriber
+ * whose card hiccuped on renewal morning. Three days absorbs the common retry
+ * window; it is deliberately far short of Apple's 16-day grace period, because
+ * on THIS path the buffer is also free access for a genuinely lapsed
+ * subscriber until the ledger catches up.
+ */
+const BILLING_RETRY_GRACE_DAYS = 3;
 
 /**
  * End of a subscription's paid term, in epoch ms — or `undefined` when unknown.
@@ -48,7 +66,7 @@ export function subscriptionExpiryFor(
   const termDays = /yearly|annual/i.test(productId)
     ? SUBSCRIPTION_TERM_DAYS.yearly
     : SUBSCRIPTION_TERM_DAYS.monthly;
-  return purchasedAt + termDays * 24 * 60 * 60 * 1000;
+  return purchasedAt + (termDays + BILLING_RETRY_GRACE_DAYS) * 24 * 60 * 60 * 1000;
 }
 
 /** Is a subscription with this expiry still live at `now`? Unknown expiry = yes. */
@@ -197,14 +215,21 @@ class SubscriptionService {
         };
 
         this.subscriptions.set(productId, subscription);
-      } else {
-        // Check if subscription expired
+      } else if (iapService.hasAuthoritativeEntitlementSource()) {
+        // The ledger was actually read and the product is not in it - the
+        // subscription record really is stale. Deactivate it.
         const existing = this.subscriptions.get(productId);
         if (existing && existing.isActive) {
           existing.isActive = false;
           this.subscriptions.set(productId, existing);
         }
       }
+      // Else: `hasPurchased` was false only because NOTHING has populated the
+      // ledger this process (cold start - `initialize()` never loads it). That
+      // is "could not ask", not "does not own": deactivating here wrote a
+      // persisted `isActive: false` over a real subscription every cold start
+      // until the ledger loaded. The same MON-1 hazard the reconciler guards
+      // with the same predicate; hold the record until a real answer exists.
     }
 
     await this.saveSubscriptions();
@@ -287,35 +312,12 @@ class SubscriptionService {
     return this.getSubscriptionTier() !== 'free' || this.hasLifetimePremium();
   }
 
-  /**
-   * Check if feature is available for current tier
-   */
-  hasFeature(feature: string): boolean {
-    // Premium-tier features derive from hasPremiumAccess() so they agree with
-    // every other premium gate — RevenueCat entitlement, an active subscription,
-    // OR the one-time lifetime unlock all grant them. Ultimate-only features
-    // still require the explicit 'ultimate' tier.
-    const premiumFeatures = new Set([
-      'ad_free',
-      'unlimited_saves',
-      'cloud_sync',
-      'premium_themes',
-    ]);
-    if (premiumFeatures.has(feature)) {
-      return this.hasPremiumAccess();
-    }
-
-    const ultimateFeatures = new Set([
-      'advanced_analytics',
-      'priority_support',
-      'early_access',
-    ]);
-    if (ultimateFeatures.has(feature)) {
-      return this.getSubscriptionTier() === 'ultimate';
-    }
-
-    return false;
-  }
+  // (hasFeature() deleted 2026-08-26: zero callers anywhere in the app, and it
+  // was actively misleading - it named four premium feature strings
+  // ('unlimited_saves', 'cloud_sync', 'premium_themes', ...) nothing enforced,
+  // and gated three more on an 'ultimate' tier no code could ever return, so
+  // it read as working entitlement gating while gating nothing. Real premium
+  // gates go through hasPremiumAccess() / hasDeepLifePlusEntitlement().)
 
   /**
    * Purchase subscription

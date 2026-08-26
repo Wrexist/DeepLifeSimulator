@@ -52,7 +52,13 @@ describe('the cold-start case that revoked a paid purchase', () => {
     const out = reconcileSubscriptionBenefits(state, false, false, /* authoritative */ false);
 
     expect(adFree(out)).toBe(true);
-    // The subscription itself is still correctly marked lapsed.
+    // The paid ad-free is HELD (unknown != "does not own"). The DERIVED
+    // DeepLife+ gameplay benefits are cleared, though: they self-heal on the
+    // next authoritative reconcile that sees an active entitlement (the common
+    // offline case, since the RC SDK returns cached customerInfo), so the
+    // bounded clear is right. Holding `deepLifePlusActivated` here instead - an
+    // earlier revision did - turned "keep RevenueCat unreachable" into an
+    // unbounded free premium tier, because `everFetched` resets per process.
     expect(out.settings?.deepLifePlusActivated).toBe(false);
   });
 

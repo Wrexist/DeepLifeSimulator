@@ -98,6 +98,15 @@ export type AnalyticsEventName =
   // `paywall_dismissed` carries how long the sheet was open and whether a plan
   // was ever selected, which separates "not interested" from "interested, lost
   // at the price".
+  // ── The consumable-IAP funnel's missing top ──
+  //
+  // The gem shop fired NOTHING, so the consumable funnel began at
+  // `purchase_started` and the largest drop - shop view → buy tap - was
+  // unmeasurable. `iap_shop_viewed` carries the opening tab (Featured / gems /
+  // perks / store), `iap_shop_dismissed` carries dwell + the tab the player
+  // left from, mirroring what `paywall_dismissed` does for the subscription.
+  | 'iap_shop_viewed'
+  | 'iap_shop_dismissed'
   | 'paywall_open_tapped'
   | 'paywall_viewed'
   | 'paywall_plan_selected'
@@ -142,6 +151,19 @@ export type AnalyticsEventName =
   | 'subscription_renewed'
   | 'subscription_recovered'
   | 'subscription_lapsed'
+  // ── Trial + dunning edges ──
+  //
+  // The 7-day trial's whole rationale (see DEEP_LIFE_PLUS_FREE_TRIAL_DAYS in
+  // lib/subscription/deepLifePlus.ts) is argued from trial→paid conversion -
+  // a metric nothing recorded: `paywall_intro_offer_shown` logs that a trial
+  // was PRESENTED, and `trial` existed only as a phase property inside
+  // `subscription_state`. These two edges make the number computable.
+  // `subscription_billing_issue` opens the dunning window as its own event so
+  // recovery-rate can be judged (its close is `subscription_recovered`).
+  // Client-observed like the other edges: detected at next app open.
+  | 'trial_started'
+  | 'trial_converted'
+  | 'subscription_billing_issue'
   | 'ad_shown'
   | 'ad_rewarded'
   // ── Navigation ──
@@ -188,6 +210,8 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'offer_center_opened',
   'offer_shown',
   'offer_cta_tapped',
+  'iap_shop_viewed',
+  'iap_shop_dismissed',
   'paywall_open_tapped',
   'paywall_viewed',
   'paywall_plan_selected',
@@ -208,6 +232,9 @@ export const ANALYTICS_EVENT_NAMES: ReadonlySet<AnalyticsEventName> = new Set<An
   'subscription_renewed',
   'subscription_recovered',
   'subscription_lapsed',
+  'trial_started',
+  'trial_converted',
+  'subscription_billing_issue',
   'ad_shown',
   'ad_rewarded',
   'screen_view',
