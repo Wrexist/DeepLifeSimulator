@@ -67,10 +67,10 @@ Every grant atomic (§4.4), every new save field a carve-out or a real migration
       renewal in retry is not hard-revoked at day 30 exactly.
 
 ## Phase 5 — Red team, second audit, regression
-- [ ] 5.1 Red-team pass over the changes + the standing economy gates.
-- [ ] 5.2 Second independent audit (fresh subagent) of the implemented work.
-- [ ] 5.3 type-check, type-check:tests, lint:errors, monetization/save suites.
-- [ ] 5.4 Final report with honest scores + owner-action list (ASC price/ladder
+- [x] 5.1 Red-team pass over the changes + the standing economy gates.
+- [x] 5.2 Second independent audit (fresh subagent) of the implemented work.
+- [x] 5.3 type-check, type-check:tests, lint:errors, monetization/save suites.
+- [x] 5.4 Final report with honest scores + owner-action list (ASC price/ladder
       coordination, AdMob unit config, server replay protection, webhooks).
 
 Deliberately documented, not done here (owner/ASC actions): gem-ladder

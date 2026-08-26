@@ -4385,3 +4385,58 @@ a convenience (rewind targets) rather than the save.
 payload requires the JSON-ESCAPED needle (`\"weeksLived\":52`) — the unescaped
 form silently matches nothing and the "tamper" test passes against an
 untampered blob. Assert the replace actually changed the string.
+
+## 2026-08-26 — The monetization pass: a "fix" for stripping offline subscribers opened an unbounded free tier, and a restore that records the real txid defeats its own retry
+
+**The two-sided entitlement error.** Revoking a subscriber's benefits on a
+negative entitlement check and holding them on an unknown one are mirror
+failures, and the same commit committed BOTH in different directions. The real
+bug (kept fixed): with RevenueCat driving billing, `getSubscriptionTier()`
+reads ONLY the RC cache, but `hasAuthoritativeEntitlementSource()` returns true
+on the strength of the NATIVE ledger too — so an offline launch that loaded
+StoreKit history but never reached RC claimed authority from one source while
+answering from another, and stripped a paying member. The over-correction
+(reverted): "hold EVERY benefit when the check is non-authoritative" turned
+"keep RevenueCat unreachable" (airplane mode, a blocked host) into a permanent
+free premium tier, because `everFetched` resets per process so the hold renews
+on every launch. The bounded answer was the ORIGINAL: clear the DERIVED
+gameplay benefits (they self-heal on the next authoritative reconcile, and the
+RC SDK returns CACHED customerInfo offline, so authority is usually true
+anyway), hold only PAID ad-free. The rule: when "unknown" must hold something,
+hold only the entitlement whose wrongful revocation is expensive and
+unrecoverable (a bought permanent unlock), never the cheap self-healing
+derived state — holding the latter is indistinguishable from granting it.
+
+**A restore that records the REAL transaction id defeats the store's retry.**
+The purchase listener dedups redelivery on the store transaction id, and an
+unfulfilled purchase is deliberately LEFT unmarked so the store redelivers it
+(MON-6). A restore path that grants entitlements-only but still calls
+`markTransactionProcessed(realTxid)` marks that unfulfilled purchase as done —
+the store stops redelivering, and the player is charged with the grant never
+completing. A restore must record a SYNTHETIC id (`native_restore:<sku>`),
+never the real one, precisely so the real transaction stays free to retry.
+Same family as MON-11: restore may REPAIR an entitlement, never CONSUME a
+purchase.
+
+**A `setGameState(() => restored)` full-replace erases anything that committed
+since the render that built `restored`.** The Time Machine rewind computed the
+snapshot from a stale render `gameState`, charged gems read from that snapshot,
+and replaced state wholesale — so a purchase (ad-free, gems, money) landing
+between opening the rewind dialog and confirming it was silently reverted, with
+the transaction already finished and no retry. Two fixes compose: run the whole
+thing in `setGameState(prev => ...)` so cost/affordability/debit read live
+state and a double-tap is a no-op (guard on `prev.showDeathPopup`, the
+`reviveWithPack` pattern), AND carry the account-entitlement whitelist off
+`prev` onto the restored snapshot (the same `carryAccountLevelEntitlements`
+prestige and heir-continuation use). Any full-state replace that keeps only a
+hand-picked few fields is a purchase-eraser until proven otherwise.
+
+**An effect keyed on a `visible` prop that never flips is dead instrumentation.**
+The gem shop's sole mount site renders `<GemShopModal visible ... />` only while
+`openTab !== null` and UNMOUNTS it on close, so `visible` is a literal `true`;
+a dismissal event keyed on `visible` going false never fired. Fire open/close
+analytics on MOUNT/UNMOUNT (empty-dep effect + cleanup) when the component's
+lifecycle IS the open/close, not on a prop transition that cannot happen. And a
+per-open latch stamp (dwell start) belongs INSIDE the once-guard, or a re-render
+triggered by an unrelated dep (a plan selection) re-stamps it and corrupts the
+dwell.
