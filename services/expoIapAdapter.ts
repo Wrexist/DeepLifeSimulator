@@ -20,6 +20,8 @@
  * error) is delivered to the global listeners.
  */
 
+import { Platform } from 'react-native';
+
 // Mirror the old expo-in-app-purchases response codes the service compares against.
 export const IAPResponseCode = {
   OK: 0,
@@ -314,5 +316,31 @@ export function setPurchaseListener(cb: LegacyCallback | null): void {
   if (cb) {
     attachListeners();
     legacyCallbacks.add(cb);
+  }
+}
+
+/**
+ * Present Apple's OWN offer-code redemption sheet (iOS only).
+ *
+ * This is the App-Store-sanctioned replacement for the custom promo-code
+ * feature removed for App Review guideline 3.1.1. The player types an offer
+ * code Apple issued (generated in App Store Connect against a real IAP or
+ * subscription); APPLE validates it and delivers the product through StoreKit,
+ * so the unlock still happens through In-App Purchase. Nothing here grants
+ * anything - the resulting transaction arrives on the normal purchase listener
+ * and is fulfilled by the same IAPService path a paid purchase uses.
+ *
+ * Returns false rather than throwing when the sheet cannot be presented
+ * (non-iOS, simulator, native module unavailable, older StoreKit), so the
+ * caller can show one honest message instead of an error.
+ */
+export async function presentCodeRedemptionSheetAsync(): Promise<boolean> {
+  if (Platform.OS !== 'ios') return false;
+  const m = getIap();
+  if (!m || typeof m.presentCodeRedemptionSheetIOS !== 'function') return false;
+  try {
+    return (await m.presentCodeRedemptionSheetIOS()) === true;
+  } catch {
+    return false;
   }
 }

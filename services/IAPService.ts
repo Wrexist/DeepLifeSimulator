@@ -1985,6 +1985,33 @@ export class IAPService {
   }
 
   // Get all products
+  /**
+   * Open Apple's own offer-code redemption sheet (iOS only).
+   *
+   * The App-Store-sanctioned way to give players free or discounted access:
+   * codes are generated in App Store Connect against a real IAP/subscription,
+   * APPLE validates the code, and the product is delivered as a normal
+   * StoreKit transaction that lands on this service's existing purchase
+   * listener - so fulfilment, dedup and entitlements all reuse the paid path.
+   *
+   * This replaces the custom promo-code feature removed for App Review
+   * guideline 3.1.1 (which granted digital content outside of IAP). Nothing is
+   * granted here; the sheet only hands the transaction to Apple.
+   *
+   * Resolves false when the sheet cannot be shown (non-iOS, simulator, no
+   * native module) so the caller can show one honest message.
+   */
+  async presentCodeRedemptionSheet(): Promise<boolean> {
+    if (!loadInAppPurchasesModule() || !InAppPurchases) return false;
+    if (typeof InAppPurchases.presentCodeRedemptionSheetAsync !== 'function') return false;
+    try {
+      return (await InAppPurchases.presentCodeRedemptionSheetAsync()) === true;
+    } catch (error) {
+      logger.warn('[IAP] Offer-code redemption sheet could not be presented', { error });
+      return false;
+    }
+  }
+
   getProducts(): any[] {
     return this.state.products;
   }
