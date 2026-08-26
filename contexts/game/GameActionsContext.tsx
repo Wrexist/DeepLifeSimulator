@@ -3063,12 +3063,19 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
   careerLevel: 0,
   nextElectionWeek: undefined,
   });
- // Also reset the political career entry + currentJob so lifestyle costs and
- // the "in office?" UI stop treating a voted-out / resigned player as a sitting
- // official - zeroing politics.careerLevel alone left careers.political (read by
- // lifestyle.ts) and currentJob desynced.
+ // Also clear the political career entry's accepted/applied flags + currentJob
+ // so the "in office?" UI and salary path stop treating a voted-out / resigned
+ // player as a sitting official - zeroing politics.careerLevel alone left
+ // careers.political.accepted and currentJob desynced. Salary is gated on
+ // politics.careerLevel (already 0 via applyOfficeExit) and currentJob, never on
+ // careers.political.level, so `accepted:false` fully settles the exit.
+ // KEEP `level` at its peak: it is the ONLY surviving record of the highest
+ // office reached, read by highestOfficeHeld (lib/politics/lifeOperations.ts) to
+ // keep a former Governor/President eligible for the appointments the office-exit
+ // path exists to unlock. Zeroing it collapsed every voted-out ex-official to
+ // rank 1 (Council), silently barring Ambassador/Lobbyist/Cabinet/Board Seat.
  updatedCareers = updatedCareers.map(c =>
- c.id === 'political' ? {...c, accepted: false, applied: false, level: 0 }: c
+ c.id === 'political' ? {...c, accepted: false, applied: false }: c
  );
  if (newCurrentJob === 'political') newCurrentJob = undefined;
  }

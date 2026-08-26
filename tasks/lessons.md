@@ -4386,6 +4386,41 @@ payload requires the JSON-ESCAPED needle (`\"weeksLived\":52`) — the unescaped
 form silently matches nothing and the "tamper" test passes against an
 untampered blob. Assert the replace actually changed the string.
 
+---
+
+## 2026-08-26 — Weekly audit: an office-exit reset erased the peak-rank record it was the whole point to keep
+
+**The §4.2 baseline class strikes a fifth time, in a flavor gate.** The
+Mentorship life moment ("a nervous newcomer asks YOU for advice") gated on
+`weeksLived >= 50`. `weeksLived` is seeded from starting age, so every non-age-18
+scenario cleared 50 on frame one and was offered "give advice to a newcomer"
+while the character was themselves brand new. The SAME commit that added it had
+already fixed the pity-drought a few lines down with `weeksSinceLifeStart`. The
+lesson that keeps not sticking: any raw-`weeksLived` threshold in a `condition:`
+is suspect — grep the whole pool, not just the line you're touching, and gate on
+`weeksInThisLife` / `weeksSinceLifeStart`.
+
+**A reset added to fix one desync silently broke a feature two systems away.**
+The voted-out / scandal office-exit reset `careers.political.level` to 0 (added
+so lifestyle/UI stop treating a voted-out player as sitting). But
+`careers.political.level` is the ONLY surviving record of peak office rank
+(`politics.careerLevel` is zeroed by the tick; only voluntary retirement stamps
+`retirement.officeLevel`), and `highestOfficeHeld` reads it to keep a former
+Governor/President eligible for the Ambassador/Lobbyist/Cabinet/Board-Seat
+appointments — the exact "the lobbying firm hires you the week you stand down"
+flow the appointment system was built for. Zeroing `level` collapsed every
+voted-out ex-official to rank 1 (Council), and a code comment three files away
+(`lifeOperations.ts:72-73`) still promised the opposite. The fix: keep `level`
+at its peak; `accepted:false` alone settles the in-office desync, because every
+in-office/salary/cost reader gates on `accepted`/`currentJob`/`politics.careerLevel`,
+never on `careers.political.level` (verified exhaustively before touching it).
+The pattern: when a field is a load-bearing HISTORY record for one subsystem,
+another subsystem's "reset it on state change" is a data-loss bug — check who
+READS a field before you zero it, especially the `Math.max(...)`-style
+"highest ever" accumulators that have no other source of truth.
+
+---
+
 ## 2026-08-26 — The monetization pass: a "fix" for stripping offline subscribers opened an unbounded free tier, and a restore that records the real txid defeats its own retry
 
 **The two-sided entitlement error.** Revoking a subscriber's benefits on a
