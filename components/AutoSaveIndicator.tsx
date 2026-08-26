@@ -38,14 +38,19 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
   // R6: guard against setState-after-unmount when the async AsyncStorage read
   // resolves after the component is gone (common on rapid tab switches).
   const isMountedRef = useRef(true);
+  // PERF (2026-08-26): the poll used to read AsyncStorage on EVERY 2s tick for
+  // as long as the component is mounted - a disk round-trip forever, for a
+  // value the save queue itself just wrote. `saveQueue.getStatus()` now mirrors
+  // `lastSaveTime` in memory, so AsyncStorage is read exactly once (to seed the
+  // pre-session timestamp after a relaunch) and every subsequent tick is a
+  // pure in-memory read.
+  const seededLastSaveRef = useRef<number | null>(null);
   useEffect(() => {
     isMountedRef.current = true;
-    const updateSaveStatus = async () => {
+    const updateSaveStatus = () => {
       try {
-        const lastSaveStr = await AsyncStorage.getItem('lastSaveTime');
-        if (!isMountedRef.current) return;
-        const lastSaveTime = lastSaveStr ? parseInt(lastSaveStr, 10) : null;
         const queueStatus = saveQueue.getStatus();
+        const lastSaveTime = queueStatus.lastSaveTime ?? seededLastSaveRef.current;
         const status: SaveStatus['status'] = queueStatus.isProcessing ? 'saving' : queueStatus.queueLength > 0 ? 'pending' : 'saved';
         // PERF: only commit when something actually changed - the old
         // unconditional setState re-rendered the HUD card every 2s forever.
@@ -61,6 +66,19 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
       }
     };
 
+    // One-time seed: the timestamp of the last save of the PREVIOUS session,
+    // for the details popover before any save has happened in this one.
+    AsyncStorage.getItem('lastSaveTime')
+      .then((lastSaveStr) => {
+        if (!isMountedRef.current || !lastSaveStr) return;
+        const parsed = parseInt(lastSaveStr, 10);
+        if (Number.isFinite(parsed)) {
+          seededLastSaveRef.current = parsed;
+          updateSaveStatus();
+        }
+      })
+      .catch(() => {});
+
     updateSaveStatus();
     const interval = setInterval(updateSaveStatus, 2000);
 
@@ -69,9 +87,8 @@ export default function AutoSaveIndicator({ position = 'absolute' }: AutoSaveInd
       clearInterval(interval);
     };
     // P1-4: empty deps - `updateSaveStatus` reads from `saveQueue.getStatus()`
-    // and AsyncStorage, neither of which depends on `gameState`. Re-installing
-    // the interval on every state change tore down + recreated the timer plus
-    // hammered AsyncStorage on the hot path.
+    // only, which does not depend on `gameState`. Re-installing the interval on
+    // every state change tore down + recreated the timer on the hot path.
   }, []);
 
   // Transient visibility: appear on activity/error, linger briefly on "saved",

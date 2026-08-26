@@ -4291,3 +4291,50 @@ catalogue clean.
   the funds, which is what kept the loop invisible. When auditing a currency,
   list its consumers; a write-only pot (or one consumed only by a refund
   path) is a finding even before you construct the exploit.
+
+## 2026-08-26 — The perf pass: the tap's cost was not in the tick, and a bug-shaped output can be load-bearing format
+
+**The measurement that reframed the work.** The weekly tick — 37 subsystems,
+the obvious suspect — measured 3-5ms. The signing that runs AFTER every tick
+measured **~150ms per save in Node with a JIT** (HMAC 130ms + CRC32 19ms over
+the 469KB payload), and Hermes interprets, so the on-device cost was a
+multiple of that, on the JS thread, after every Next Week tap — and again on
+every load, queue persist and backup. The lesson: profile the whole tap, not
+the function named after it. The expensive part of "advance one week" was
+never in `nextWeek()`.
+
+**Why it was slow, and the 14× that was available.** The pure-JS SHA-256 was
+algorithmically correct and implementationally pessimal for a JS engine:
+boxed `number[]` message buffers grown `push`-by-`push` (~500k boxed elements
+per save), a fresh 64-entry `Array` per 64-byte block, the constant table
+rebuilt per call, and `ipad.concat(hugeArray)` copies. Typed arrays + one
+padded allocation + a reused schedule made the SAME algorithm 14.6× faster
+(129.8ms → 8.9ms) with bit-identical digests. When a hot pure function is
+"already the right algorithm", the allocations ARE the bottleneck —
+especially under Hermes, which never JITs the boxing away.
+
+**The trap that would have invalidated every save.** The CRC32's final
+expression `(crc ^ 0xffffffff).toString(16)` is SIGNED — `^` yields an int32,
+so roughly half of all checksums ever written serialize with a leading minus
+sign (`-174841bd`). The "obvious cleanup" (`>>> 0`) produces the standards-
+correct unsigned hex and would have rejected half of all existing saves as
+corrupt. Same family as the CESU-8 and legacy-padding decisions already
+documented in `saveValidation.ts`: **in a self-consistent sign/verify pair,
+the exact output bytes are the format, bugs included.** Optimizing one means
+pinning equivalence against a verbatim copy of the old implementation over an
+adversarial corpus (charCodes > 0xFF, astral pairs, block-boundary lengths,
+BOTH padding modes) — not against the spec.
+
+**Also from this pass.** A 2-second `setInterval` that reads AsyncStorage is
+a disk poll forever (AutoSaveIndicator); the value it polled was written by
+the save queue one call earlier, so a one-line in-memory mirror on
+`getStatus()` deleted the disk round-trip. The shape to look for: a poller
+reading STORAGE for a fact the writer already holds in memory.
+
+**Recorded for the next structural pass, deliberately not done in this one:**
+checkpoints are 62% of every save payload (291KB of 469KB at week 600) — cold
+data that changes once per game-year but is re-serialized, re-CRC'd and
+re-HMAC'd inside all ~52 weekly saves of that year. Moving them to their own
+storage key cuts every downstream cost ~3×, but it is a save-format
+architecture change (migrations, backup, cloud sync, rewind, phantom cleanup)
+that must not ride along in a perf commit.
