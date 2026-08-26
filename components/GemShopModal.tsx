@@ -1089,8 +1089,8 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       </View>
 
       {/* NESTED inside this presented Modal (the same iOS-safe nesting
-          RedeemCodeModal and WhatsNewModal use in SettingsModal) so it never
-          stacks a sibling root Modal. */}
+          WhatsNewModal uses in SettingsModal) so it never stacks a sibling
+          root Modal. */}
       <OfferCenterModal visible={showOfferCenter} onClose={() => setShowOfferCenter(false)} />
     </Modal>
   );

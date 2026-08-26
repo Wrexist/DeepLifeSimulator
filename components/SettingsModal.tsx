@@ -11,13 +11,12 @@ import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
 import { X, Vibrate,
   VibrateOff,
-  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Megaphone, Bell, BellOff } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
 import CloudBackupRow from './settings/CloudBackupRow';
-import RedeemCodeModal from './RedeemCodeModal';
 import WhatsNewModal from './WhatsNewModal';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTutorial } from '@/contexts/UIUXContext';
@@ -132,7 +131,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showBugReport, setShowBugReport] = useState(false);
   const { startEnhancedTutorial, resetTutorial } = useTutorial();
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
-  const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const openWhatsNew = useCallback(() => setShowWhatsNew(true), []);
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
@@ -541,7 +539,7 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                 )}
 
                 {/* What's New - player-facing update log. Opens a sheet NESTED
-                    inside this Settings Modal (mirrors RedeemCodeModal). */}
+                    inside this Settings Modal (the DevToolsModal nesting). */}
                 <SettingsActionButton
                   icon={Megaphone}
                   label="What's New"
@@ -709,17 +707,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="Open the Gem Shop and offers"
                 />
 
-                {/* Redeem Code - enter an owner-issued promo code for a reward.
-                    Opens a sheet NESTED inside this Settings Modal (see below),
-                    the same iOS-safe nesting DevToolsModal uses. */}
-                <SettingsActionButton
-                  icon={Gift}
-                  label="Redeem Code"
-                  accent="#60A5FA"
-                  onPress={() => setShowRedeemCode(true)}
-                  accessibilityLabel="Redeem a promo code"
-                />
-
                 {/* Remove Ads - the genre is majority ad-monetized, so this
                     deserves a first-class path. Hidden once the player already
                     owns an ad-free entitlement. */}
@@ -780,12 +767,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}
 
-      {/* Redeem Code sheet - NESTED inside this presented Modal (mirrors the
-          DevToolsModal nesting) so it never stacks a sibling root Modal on iOS. */}
-      <RedeemCodeModal visible={showRedeemCode} onClose={() => setShowRedeemCode(false)} />
-
-      {/* What's New update log - NESTED inside this presented Modal (same
-          iOS-safe nesting as RedeemCodeModal). */}
+      {/* What's New update log - NESTED inside this presented Modal (the
+          iOS-safe nesting DevToolsModal uses) so it never stacks a sibling
+          root Modal on iOS. */}
       <WhatsNewModal visible={showWhatsNew} onClose={closeWhatsNew} />
 
       {/* Liquid Glass Reward Popup */}

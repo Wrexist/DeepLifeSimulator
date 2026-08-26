@@ -158,8 +158,12 @@ const MAX_ERRORS = 0;
  * plus this pass's fixes (redundant `as GameState` casts removed from tests,
  * the formAlliance rewrite, comment cleanups). Lowered in the commit that
  * measured it, per the ratchet rule.
+ *
+ * 779 → 775 on 2026-08-26: removing the promo-code redemption feature (App
+ * Review 3.1.1) deleted utils/redeemCodes.ts and its modal/tests, which
+ * carried four warnings. Lowered in the commit that measured it.
  */
-const MAX_WARNINGS = 779;
+const MAX_WARNINGS = 775;
 
 /** Where the count should end up. Not enforced — stated, like COVERAGE_GOAL. */
 const WARNING_GOAL = 0;

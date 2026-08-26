@@ -6,7 +6,6 @@ import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionAction
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
 import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp, Lock } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
-import { reconcileRedeemClaim, applyRedeemReward } from '@/utils/redeemCodes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
@@ -66,10 +65,6 @@ import SectionGroup from '@/components/ui/SectionGroup';
 const DailyRewardPopup = lazy(() => import('@/components/DailyRewardPopup'));
 const WelcomeBackPopup = lazy(() => import('@/components/WelcomeBackPopup'));
 const CommunityRewardPopup = lazy(() => import('@/components/CommunityRewardPopup'));
-
-// Stable empty array so the redeemedCodeHashes selector doesn't churn renders
-// when a save has no redeemed codes (the common case).
-const EMPTY_REDEEMED_HASHES: string[] = [];
 
 function HomeScreen() {
   return (
@@ -508,15 +503,6 @@ function HomeScreenContent() {
   const communityRewardGrantedRef = useRef(communityRewardGranted);
   communityRewardGrantedRef.current = communityRewardGranted;
 
-  // Committed redeem-code hashes (from FULL state), read by the redeem reconciler
-  // via a ref to tell "grant not yet saved" from "saved, just needs finalizing".
-  const redeemedCodeHashes = useGameSelector(
-    (s) => s.redeemedCodeHashes ?? EMPTY_REDEEMED_HASHES,
-    shallowEqual,
-  );
-  const redeemedCodeHashesRef = useRef(redeemedCodeHashes);
-  redeemedCodeHashesRef.current = redeemedCodeHashes;
-
   // Discord reward reconciler - SINGLE OWNER (home is the always-mounted tab;
   // Settings is transient and can unmount mid-claim, so it cannot own recovery).
   // Completes, exactly once, any claim a force-kill interrupted. Ungated by
@@ -564,23 +550,10 @@ function HomeScreenContent() {
       }
     })();
 
-    // Redeem-code reconciler - same single-owner, always-mounted recovery as the
-    // Discord one above. Completes, exactly once, any redeem claim a force-kill
-    // interrupted: grant-not-saved -> grant+save+finalize; saved-not-finalized
-    // -> finalize only (no dupe); nothing pending / malformed -> no-op.
-    (async () => {
-      try {
-        await reconcileRedeemClaim({
-          hasHash: (hash) => redeemedCodeHashesRef.current.includes(hash),
-          grant: (hash, reward) => setGameState((prev) => applyRedeemReward(prev, hash, reward)),
-          // Durable force-save: resolves true only when the write is verified,
-          // which is what gates finalization inside the reconciler.
-          save: () => saveGame(true),
-        });
-      } catch (err) {
-        logger.warn('Redeem code reconcile failed', { error: err });
-      }
-    })();
+    // (The redeem-code reconciler was removed with the promo-code feature -
+    // App Review 3.1.1: a promo code cannot unlock digital content outside of
+    // In-App Purchase. No in-app redemption path remains, so there is nothing
+    // to recover on launch.)
 
     return () => {
       cancelled = true;

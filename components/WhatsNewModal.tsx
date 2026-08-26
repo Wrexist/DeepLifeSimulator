@@ -42,7 +42,7 @@ const UPCOMING_TINT = 'rgba(167, 139, 250, 0.14)';
  *
  * Uses a plain <Modal> so it works BOTH at the root (Main Menu) and NESTED
  * inside the already-presented Settings Modal - the same iOS-safe nesting
- * RedeemCodeModal/DevToolsModal rely on (never a sibling root Modal on iOS).
+ * DevToolsModal relies on (never a sibling root Modal on iOS).
  *
  * Layout: a tall sheet that fills the screen between the safe-area insets, with
  * a fixed header and a scrolling body. Tap-to-dismiss lives on a backdrop

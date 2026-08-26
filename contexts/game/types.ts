@@ -2941,16 +2941,11 @@ export interface GameState {
    * utils/discordRewardClaim.ts.
    */
   discordRewardGranted?: boolean;
-  /**
-   * Salted-SHA-256 hashes of promo redeem codes already granted on this save. Set
-   * in the SAME state update that grants the reward, so the reward and this flag
-   * are always persisted together — the in-state half of the exactly-once,
-   * per-device redeem protocol (the durable other half is the `redeemed_codes_v1`
-   * AsyncStorage ledger). The launch reconciler reads it to tell "grant not yet
-   * saved" from "saved, just needs finalizing". Additive/optional: absent on every
-   * existing save; no migration needed. See utils/redeemCodes.ts.
-   */
-  redeemedCodeHashes?: string[];
+  // (redeemedCodeHashes removed 2026-08-26 with the promo-code feature - App
+  // Review 3.1.1: a promo code cannot unlock digital content outside In-App
+  // Purchase. Optional/undefined-default, so dropping it needs no migration;
+  // any old save's key is simply ignored. A stale `redeemed_codes_v1`
+  // AsyncStorage ledger left on a device is inert - nothing reads it now.)
   gamingStreaming?: GamingStreamingState;
   goldUpgrades?: Record<string, boolean>;
   pendingEvents: WeeklyEvent[];
