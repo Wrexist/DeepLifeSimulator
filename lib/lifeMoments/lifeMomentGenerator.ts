@@ -479,7 +479,12 @@ export const LIFE_MOMENT_TEMPLATES: LifeMomentTemplate[] = [
   {
     // Mentorship — give back
     situation: 'A nervous newcomer asks you for advice on getting started in life.',
-    condition: (s) => (s.weeksLived ?? 0) >= 50,
+    // Gate on weeks lived THIS LIFE, not the raw counter: `weeksLived` is seeded
+    // from starting age ((age-18)*52), so a raw `>= 50` was already true on frame
+    // one for every non-age-18 scenario (age-20 starts at 104), offering "a
+    // newcomer asks YOU for advice" to a character who is themselves brand new.
+    // Same §4.2 baseline class fixed for the pity-drought a few lines down.
+    condition: (s) => weeksSinceLifeStart(s.weeksLived ?? 0, s.lifeStartWeek) >= 50,
     choices: [
       {
         id: 'mentor',
