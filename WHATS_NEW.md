@@ -8,24 +8,59 @@
 
 ---
 
-### Store "What's New" (copy-paste ready)
+### Store "What's New" for App Store version 1.5.1 (copy-paste ready)
+
+Covers everything since the last STORE release (1.5.0), which spans several
+binary versions - so it merges the 2.9.0-era player-facing work with 2.11.0's
+store and purchase fixes. Hyphens, not em dashes (owner rule, ratcheted at zero
+and enforced whole-file on this file by
+`__tests__/tooling/noEmDashInGameCopy.test.ts`).
 
 ```text
-A fairer store, and a clearer deal.
+New faces, real conversations, a fairer store, and nothing left locked.
 
-- Banking upgrades you can finally buy. Premium Credit Card, Financial
-  Planning, Business Banking and Private Banking are in the shop, each one
-  spelling out exactly what it does to your money.
+- Character creation, rebuilt. Your face is now built from features you choose
+  rather than picked from a gallery of portraits, and it ages with you instead
+  of being swapped for a stranger's at each age band. Children look like
+  children, and they inherit their parents' features.
+- Spark chats are a real conversation. Break the ice, compliment, joke, flirt,
+  ask them out for coffee, dinner or something reckless, or ask them to go
+  steady. Every match keeps its own rapport, so a relationship is built rather
+  than announced - and any match you'd rather not date can become a friend.
+- Fixed a trap that could lock you out of the game. Buying a house or a company
+  could take away the very app that manages it, and two life chapters asked for
+  apps those same chapters were the only way to unlock. Progress only ever goes
+  up now.
+- Your starting age no longer breaks the early game. Beginner luck, the early
+  grace period, the first-month events and the week-count goals were all
+  measured against your age instead of your life, so anyone who didn't start at
+  18 lost them - and Chapter 1 opened two-thirds done.
+- The dark web sells gear. The tool shop had no way in, which left 18 of the 19
+  street jobs locked behind tools nobody could buy. Deliveries now hand over the
+  item you paid for, and listings rotate instead of freezing for weeks.
+- The money you're shown is the money you're charged. Weekly Expenses and the
+  Budget tab left out rent, income tax and student loan payments; the Net Worth
+  breakdown didn't add up to the Net Worth above it. Both add up now.
+- Friends are real. Only your first Spark match could ever become a contact,
+  network contacts had no action at all, and neglecting people cost nothing.
+  All three are fixed - and a neglected friend can now drift out of your life.
+- Banking upgrades you can finally buy. Premium Credit Card, Financial Planning,
+  Business Banking and Private Banking are in the shop, each one spelling out
+  exactly what it does to your money.
 - Honest prices everywhere. Every price now shows in your own currency,
   including on the death screen, and a free trial is only advertised when you
-  can actually claim one.
-- Redeem codes go through the App Store. Settings then Redeem Code now opens
-  Apple's own redemption sheet.
-- Your purchases stay yours. Membership no longer switches off when you open
-  the game offline, and rewinding time can no longer wipe something you just
-  bought.
-- A clearer daily gem screen, and gem info that tells the truth about where
-  gems come from and where they carry over.
+  can actually claim one. Redeem Code now opens the App Store's own sheet.
+- Your purchases stay yours. Membership no longer switches off when you open the
+  game offline, and rewinding time can no longer wipe something you just bought.
+- Six more money fixes: a false "Need $10,000" on family business actions, a
+  double-tap that could buy a vehicle twice or duplicate coins in a swap,
+  savings with no way to pay into it, buy-outs that added no revenue, ad rewards
+  that offered a property millionaire $50, and a poverty scholarship that
+  promised free education and delivered respect.
+- Faster and clearer. About six seconds off a cold start, a death screen that
+  scrolls, food/gym/housing cards that show what they do to each stat, a Life
+  Goals list that fits on a page, and a Contacts app that stays smooth in a long
+  life.
 ```
 
 ---
