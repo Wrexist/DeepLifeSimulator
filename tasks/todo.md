@@ -44,9 +44,26 @@ behavior everywhere; save reliability outranks speed.
 - [x] 4.3 Tick benchmark re-run: no regression (late mean 3.24ms vs 3.28ms baseline)
 - [x] 4.4 Final report + push
 
-## Follow-up (documented, deliberately not done here)
-- Checkpoints (62% of every save payload) are cold data re-serialized and re-signed
-  on every weekly save. Moving them to their own storage key written only on
-  creation would cut every downstream save/load cost ~3×, but it is a save-format
-  architecture change (migration, backup, cloud sync, rewind, phantom cleanup all
-  touch it) — too risky to bundle into a perf pass. Design it as its own change.
+## Phase 5 — Checkpoint sidecar (the deferred follow-up, owner-authorized)
+- [x] 5.1 Map every path touching checkpoints: performSave/forceSave (+quota
+      retries), loadGame (+backup fallback), createBackupFromState, CloudSync
+      (both serialize in-memory state → stay self-contained), persistQueue,
+      deleteSaveSlot callers (SaveSlots, DeathPopup, DangerZone, phantom
+      cleanup, gameInitializer), quota/cache sweeps (key-name collision check).
+- [x] 5.2 `utils/checkpointSidecar.ts`: per-slot signed envelope
+      (`checkpoint_sidecar_slot_N`), fingerprint-gated writes (first save of a
+      session, then only on change), verify-or-absent reads, wrong-life filter
+      (`weeksLived` ≤ save's, snapshot `lifeStartWeek` match).
+- [x] 5.3 Strip `checkpoints` from the serialized slot payload in performSave +
+      forceSave (all four success branches persist the sidecar); reattach in
+      loadGame ONLY when the parsed payload has no `checkpoints` key — inline
+      (old saves, backups, cloud) always wins. Live state never touched.
+- [x] 5.4 No STATE_VERSION bump — decision documented in CLAUDE.md §7
+      (optional key, every reader defaults it; a bump would only break
+      TestFlight downgrades). `deleteSaveSlot` removes the sidecar.
+- [x] 5.5 14-test suite (`checkpointSidecar.test.ts`): strip+persist parity on
+      both save paths, change-only writes, stale-sidecar clearing, reattach
+      seam, inline precedence, tamper→absent, wrong-life filter, delete parity.
+- [x] 5.6 Measured: weekly slot write 202KB → 62KB on the test state
+      (469KB → ~178KB at bench week 600, −62%); sidecar (~167KB) written once
+      per game-year instead of ~52×.

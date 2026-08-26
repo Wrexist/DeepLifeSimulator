@@ -2709,6 +2709,11 @@ export async function deleteSaveSlot(
     `${key}_A`,       // buffer A
     `${key}_B`,       // buffer B
     `${key}_active`,  // pointer
+    // Checkpoint sidecar (utils/checkpointSidecar.ts). Written literally here
+    // rather than imported because checkpointSidecar imports THIS module for
+    // the envelope helpers; checkpointSidecarKeyParity.test pins the two
+    // spellings together.
+    `checkpoint_sidecar_slot_${slot}`,
   ];
   await storage.multiRemove(keysToRemove);
 }

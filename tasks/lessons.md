@@ -4338,3 +4338,50 @@ re-HMAC'd inside all ~52 weekly saves of that year. Moving them to their own
 storage key cuts every downstream cost ~3×, but it is a save-format
 architecture change (migrations, backup, cloud sync, rewind, phantom cleanup)
 that must not ride along in a perf commit.
+
+## 2026-08-26 (second pass) — Moving a field out of the save: what made it safe, and what almost made it unsafe
+
+Owner authorized the deferred checkpoint-sidecar change: `checkpoints` (62% of
+every payload, changing once per game-year) now lives in a per-slot signed
+envelope and the weekly slot write dropped 469KB → ~178KB. What is worth
+keeping from doing it:
+
+**The narrow cut was the whole game.** The first instinct — "move checkpoints
+out of GameState" — would have touched the tick, the Time Machine UI, rewind,
+backups, cloud sync and every test that builds a state. The shippable version
+touches NONE of them: the in-memory state keeps the field; only the SERIALIZED
+slot payload drops it (a rest-spread copy at the two serialize sites), and only
+the slot LOAD reattaches it. Backups and cloud sync serialize the in-memory
+state, so they stayed self-contained by construction rather than by new code.
+When extracting a field from a persisted shape, ask which serializations
+actually need the extraction — it is usually one, not all of them.
+
+**A sidecar keyed only by slot number can pair with the wrong save.** New game
+overwrites the slot; if the sidecar write accompanying the first save of the
+new life is lost (crash/quota between the two writes), the next load would
+attach the PREVIOUS life's rewind targets. No version field can fix that —
+both lives are the same version. Two cheap defenses compose: the first save of
+every session rewrites the sidecar unconditionally (self-healing), and the
+attach path filters per-checkpoint against the loaded save's own facts
+(`weeksLived` ≤ the save's, snapshot `lifeStartWeek` equal). For any sidecar
+design: the pairing invariant is not free, and the fields to enforce it with
+must come from the PAYLOAD being attached to, not from the sidecar itself.
+
+**"Absent key was always legal" is the test for skipping a version bump.**
+`checkpoints` has been optional since v10 and every reader defaults it, so a
+payload without the key parses correctly under every shipped binary — a bump
+would have bought nothing on load and cost TestFlight downgrades a hard
+"save from a newer version" refusal. Contrast v47 etc., where a NEW key
+appears: there the bump is the contract. Moving a field out is the mirror
+case of a carve-out, and it is documented in §7 next to them.
+
+**An unsigned sidecar is a state-injection vector wearing a perf badge.**
+Anything the load path attaches to state must clear the same envelope bar as
+the save itself (the F-11 persisted-queue lesson, third occurrence now) — and
+verification failure must read as ABSENT, not as an error, when the payload is
+a convenience (rewind targets) rather than the save.
+
+**Test-writing detail that cost a cycle:** tampering an envelope's inner
+payload requires the JSON-ESCAPED needle (`\"weeksLived\":52`) — the unescaped
+form silently matches nothing and the "tamper" test passes against an
+untampered blob. Assert the replace actually changed the string.
