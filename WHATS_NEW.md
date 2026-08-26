@@ -1,5 +1,57 @@
 # What's New - DeepLife Simulator
 
+## v2.11.0 - A fairer store, and a clearer deal
+
+**Covers:** everything since **v2.10.0**, up to 2026-08-26.
+**Compatibility:** every existing save loads. The save format does **not** move
+- it stays at v48. No money, job or progress changes.
+
+---
+
+### Store "What's New" (copy-paste ready)
+
+```text
+A fairer store, and a clearer deal.
+
+- Banking upgrades you can finally buy. Premium Credit Card, Financial
+  Planning, Business Banking and Private Banking are in the shop, each one
+  spelling out exactly what it does to your money.
+- Honest prices everywhere. Every price now shows in your own currency,
+  including on the death screen, and a free trial is only advertised when you
+  can actually claim one.
+- Redeem codes go through the App Store. Settings then Redeem Code now opens
+  Apple's own redemption sheet.
+- Your purchases stay yours. Membership no longer switches off when you open
+  the game offline, and rewinding time can no longer wipe something you just
+  bought.
+- A clearer daily gem screen, and gem info that tells the truth about where
+  gems come from and where they carry over.
+```
+
+---
+
+### The detail
+
+**Removed:** the in-app promo-code redemption flow. Codes are now issued as App
+Store offer codes and validated by Apple, so redeeming one delivers the product
+through the normal purchase path.
+
+**Fixed (money-affecting):**
+- Restoring purchases could re-bank a spent Revival Pack charge, and on the
+  native path could consume an unfulfilled purchase so the store stopped
+  redelivering it.
+- A DeepLife+ member launching offline could have benefits revoked.
+- A lapsed subscription record could be deactivated on a cold start before the
+  purchase ledger had loaded.
+- Rewinding time charged gems from a stale snapshot and could erase a purchase
+  made while the rewind dialog was open.
+- A renewal in billing retry is no longer hard-revoked on the exact term day.
+
+**Honesty:** removed a hardcoded "save 17%" claim, made the trial badge
+eligibility-aware, localized the Revival Pack price, and corrected the gem
+info copy.
+
+
 ## v2.10.0 - Your life tells you what to do next, and the numbers tell you the truth
 
 **Covers:** everything since **v2.9.0** (cut 2026-08-17) up to 2026-08-22.
