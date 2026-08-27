@@ -219,6 +219,15 @@ export default function CollapsibleSection({
 const styles = StyleSheet.create({
   section: {
     marginBottom: responsiveSpacing.sm,
+    // Fill the parent's cross axis. Without this a section inside a parent
+    // that centres its children (IdentityCardStyles `card` sets
+    // `alignItems: 'center'`) has no width of its own, so it shrinks to its
+    // CONTENT width: the header collapses until the title truncates
+    // ("DETAILS" -> "DETA..."), and a child grid's `width: '100%'` resolves
+    // against that narrow box, so tiles sized at 47% no longer fit two per
+    // row and wrap one per line. A section is a block; it should never be
+    // sized by its contents.
+    alignSelf: 'stretch',
   },
   header: {
     flexDirection: 'row',

@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, TextStyle } from 'react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { accent, animation } from '@/lib/config/theme';
+import { animation } from '@/lib/config/theme';
 
 interface AnimatedMoneyProps {
   value: number;
@@ -38,9 +38,6 @@ function formatNumber(num: number): string {
   return `${sign}${formatted}`;
 }
 
-/** How long the direction tint lingers after a change. */
-const TINT_MS = 650;
-
 /**
  * Money display: the figure is ALWAYS instantly true, and a change is
  * emphasised rather than animated toward.
@@ -53,9 +50,20 @@ const TINT_MS = 650;
  *
  * So the value still snaps. What was missing was any acknowledgement that it
  * moved at all - earning money, the core loop, changed a digit silently. The
- * emphasis is a short scale pop plus a direction tint (up green, down red),
- * driven by ONE Animated.Value on the native driver with no listener attached.
- * Reduced motion keeps the tint - the information - and drops the movement.
+ * emphasis is a short scale pop, driven by ONE Animated.Value on the native
+ * driver with no listener attached.
+ *
+ * There is deliberately NO colour tint. A direction tint (up green, down red)
+ * used to override the text colour for 650ms, and this component has exactly
+ * one call site: the HUD's money chip, which sits on a GREEN gradient. So a
+ * gain painted green text onto a green pill and the player could not read
+ * their own balance for two thirds of a second - reported from TestFlight. The
+ * tint had no surface where it was legible, so it is gone rather than
+ * conditional: the text keeps whatever colour its caller sets (white on the
+ * chip). Direction is already carried, legibly, by the toast and the
+ * per-action result line. If this component ever lands on a neutral surface
+ * where a tint would read, add it back deliberately - and check the contrast
+ * against that surface first.
  */
 function MoneyText({
   value,
@@ -67,8 +75,6 @@ function MoneyText({
   const reducedMotion = useReducedMotion();
   const pop = useRef(new Animated.Value(1)).current;
   const prevValue = useRef(value);
-  const [direction, setDirection] = useState<'up' | 'down' | null>(null);
-  const tintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const previous = prevValue.current;
@@ -78,10 +84,6 @@ function MoneyText({
     if (!emphasizeChange || previous === value) return;
     // Sub-dollar drift (interest ticks) is not worth a flash.
     if (Math.abs(value - previous) < 1) return;
-
-    setDirection(value > previous ? 'up' : 'down');
-    if (tintTimer.current) clearTimeout(tintTimer.current);
-    tintTimer.current = setTimeout(() => setDirection(null), TINT_MS);
 
     if (reducedMotion) return;
     pop.setValue(1);
@@ -101,23 +103,12 @@ function MoneyText({
     return () => anim.stop();
   }, [value, emphasizeChange, reducedMotion, pop]);
 
-  useEffect(
-    () => () => {
-      if (tintTimer.current) clearTimeout(tintTimer.current);
-    },
-    []
-  );
-
-  const tint =
-    direction === 'up' ? accent.success : direction === 'down' ? accent.danger : undefined;
-
   return (
     <Animated.Text
       maxFontSizeMultiplier={1.3}
       style={[
         styles.text,
         style,
-        tint ? { color: tint } : null,
         // Scale about the text's own box; the HUD lays these out in a row, so
         // a transform (not a layout property) keeps neighbours from shifting.
         { transform: [{ scale: pop }] },

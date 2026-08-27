@@ -158,3 +158,50 @@ not a blanket "new games inherit the live state": a blanket carry would let
 - [x] 7. Tests: one-shot semantics, perks union, gems replace, tamper
       rejection, and an end-to-end fresh-start-keeps-purchases case.
 - [x] 8. type-check, lint:errors, lint:ratchet, monetization/prestige/save suites.
+
+# Frozen app after buying the Revival Pack + squashed identity card (2026-08-27)
+
+Owner report, TestFlight: bought the Revival Pack and the game froze completely
+(home screen visible, no touches register). Screenshot also shows the identity
+card's Details section squashed into a narrow centred column - "DETAILS"
+truncated to "DETA..." and the stat tiles stacked one per row.
+
+## 1. The freeze (MINE - introduced by the nested AlertHost)
+
+`AlertHost.dismiss` runs the button's handler in the SAME commit as its own
+`setQueue` teardown. That was safe while AlertHost lived only at the app root.
+PR #170 nested a host INSIDE DeathPopup / GemShopModal / OfferCenterModal, and
+those handlers are exactly the ones that tear the host's own Modal down:
+  - shop receipt OK -> onClose -> GemShopModal unmounts
+  - "Erase and start over" -> showDeathPopup:false -> DeathPopup unmounts
+  - rewind confirm -> same
+So iOS unmounts a PRESENTING view controller while its presented child is still
+dismissing, which strands a transparent full-screen presentation that swallows
+every touch. Health 14 / happiness 0 in the screenshot confirms `reviveWithPack`
+(which sets all three to 100) never ran - they froze holding the pack.
+
+Fix in AlertHost, not per call site, because it is the whole class:
+- [x] 1.1 Defer the handler until this alert's own Modal has actually gone:
+      stash it, run it from the Modal's `onDismiss` (iOS) with a timer
+      fallback (Android has no onDismiss) - the same defer-and-settle the
+      death screen already uses for its store bridge.
+- [x] 1.2 When another alert is queued behind this one the Modal is NOT
+      dismissing, so run the handler immediately - otherwise `onDismiss`
+      never fires and the action is lost.
+- [x] 1.3 Run any still-pending action on unmount so a choice is never
+      silently dropped.
+
+## 2. The squashed identity card (PRE-EXISTING, from dc5375f)
+
+`CollapsibleSection`'s `section` style sets no width and no alignSelf. Inside a
+parent with `alignItems: 'center'` (IdentityCardStyles `card`) a child with no
+width shrinks to its CONTENT width, so the section becomes a narrow centred
+column. `statsGrid`'s `width: '100%'` is then 100% of that narrow box, and the
+tiles' min content width exceeds the 47% half, so they wrap one per row. The
+header shrinks too, which is what truncates "DETAILS" to "DETA...".
+Not a regression from #170/#171 - it just needs fixing.
+
+- [x] 2.1 `alignSelf: 'stretch'` on `section` so it always fills its parent's
+      cross axis regardless of the parent's alignItems.
+
+- [x] 3. Tests for both, then type-check / lint / full suite.

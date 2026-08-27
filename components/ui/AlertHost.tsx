@@ -37,6 +37,12 @@ const LinearGradient = Gradient;
 const ENTER_SCALE = 0.94;
 const DURATION_BASE = 220;
 const DURATION_FAST = 160;
+/**
+ * How long to let this alert's Modal finish dismissing before running the
+ * button's handler, when no `onDismiss` arrives (Android). Comfortably over
+ * the fade above; iOS resolves it sooner through `onDismiss`.
+ */
+const ACTION_SETTLE_MS = 350;
 const EASE_OUT = Easing?.bezier ? Easing.bezier(0.23, 1, 0.32, 1) : undefined;
 
 type Tone = 'default' | 'warning' | 'danger' | 'success';
@@ -92,12 +98,72 @@ export default function AlertHost() {
     return () => anim.stop();
   }, [currentId, reducedMotion, scaleAnim]);
 
+  /**
+   * A button's handler must not run until THIS alert's own Modal has actually
+   * gone away.
+   *
+   * The handler very often tears down the surface that HOSTS this alert - the
+   * death screen's "Erase and start over", the shop's return-to-caller after a
+   * receipt, the rewind confirm. While AlertHost lived only at the app root
+   * that was harmless. Now that a host is nested INSIDE those Modals, running
+   * the handler in the same commit as this alert's teardown unmounts a
+   * PRESENTING view controller while its presented child is still dismissing,
+   * and iOS can strand a transparent full-screen presentation that swallows
+   * every touch: the app looks frozen with the previous screen visible and
+   * nothing responding. Reported after buying the Revival Pack.
+   *
+   * So: dismiss, let the dismissal settle, then act. `onDismiss` is the real
+   * signal on iOS; Android has no such callback, hence the timer - the same
+   * defer-and-settle pair `DeathPopup` uses for its store bridge.
+   */
+  const pendingActionRef = useRef<(() => void) | null>(null);
+  const actionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runPendingAction = useCallback(() => {
+    if (actionTimerRef.current) {
+      clearTimeout(actionTimerRef.current);
+      actionTimerRef.current = null;
+    }
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action?.();
+  }, []);
+
   // Dismiss FIRST, then run the handler: a handler that raises another alert
   // must land behind this one in the queue, not be dropped by this shift.
-  const dismiss = useCallback((onPress?: () => void) => {
-    setQueue((prev) => prev.slice(1));
-    onPress?.();
-  }, []);
+  const dismiss = useCallback(
+    (onPress?: () => void) => {
+      // Read before the update: with another alert queued behind this one the
+      // Modal STAYS presented (it just swaps content), so nothing is
+      // dismissing, `onDismiss` will never fire, and deferring would drop the
+      // action entirely. Only the last alert out is the one that tears down.
+      const isLastAlert = queue.length <= 1;
+      setQueue((prev) => prev.slice(1));
+      if (!onPress) return;
+      if (!isLastAlert) {
+        onPress();
+        return;
+      }
+      pendingActionRef.current = onPress;
+      if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
+      actionTimerRef.current = setTimeout(runPendingAction, ACTION_SETTLE_MS);
+    },
+    [queue.length, runPendingAction],
+  );
+
+  // Never lose a choice. If the host is torn down before either signal lands,
+  // the player's decision still runs - dropping it silently would be a button
+  // that did nothing, which is the bug this whole change is about.
+  useEffect(
+    () => () => {
+      if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
+      actionTimerRef.current = null;
+      const action = pendingActionRef.current;
+      pendingActionRef.current = null;
+      action?.();
+    },
+    [],
+  );
 
   const handleRequestClose = useCallback(() => {
     if (!current) return;
@@ -174,7 +240,13 @@ export default function AlertHost() {
   };
 
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={handleRequestClose}>
+    <Modal
+      transparent
+      visible
+      animationType="fade"
+      onRequestClose={handleRequestClose}
+      onDismiss={runPendingAction}
+    >
       <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
         <Animated.View
           accessibilityViewIsModal
