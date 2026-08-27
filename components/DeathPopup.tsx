@@ -40,6 +40,7 @@ import { getThemeColors, accent, colors as theme } from '@/lib/config/theme';
 import LifeStoryModal from './LifeStoryModal';
 import { createStyles } from '@/components/DeathPopupStyles';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
+import { stashNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { characterName } from '@/utils/characterName';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
 import DeathHero from '@/components/death/DeathHero';
@@ -502,6 +503,14 @@ function DeathPopup() {
         // archive is best-effort
       }
 
+      // Bank what the player KEEPS before anything is deleted: gems and every
+      // IAP entitlement. This path rebuilds from onboarding, which spreads
+      // `initialGameState`, so without this record the new life starts with 0
+      // gems and no purchases - the fresh start was the one life transition
+      // that burned them (prestige and the heir path both carry them). The
+      // record is one-shot and consumed by the next new-life build.
+      await stashNewLifeCarryOver(gameState);
+
       if (currentSlot) {
         // Snapshot the life we are about to erase FIRST. This path deleted the
         // slot outright, so a player who tapped "Start New Game" by mistake -
@@ -551,37 +560,37 @@ function DeathPopup() {
     }
   }, [setGameState, currentSlot, router, setOnboardingState, gameState]);
 
-  // Say what "Start New Life" actually costs BEFORE doing it. Unlike prestige
-  // and the heir path (which carry prestige data, gems and entitlements
-  // through their builders), this path rebuilds from onboarding and the whole
-  // meta layer dies with the slot: prestige points and level, the Dynasty
-  // Tree, Legacy Contracts, ribbons, and every unspent gem. Nothing on the
-  // screen said so - a player could torch hundreds of hours of dynasty (and
-  // paid-for gems) believing "new life" meant what the prestige button means.
-  // Store purchases are the one recoverable thing (receipt restore), and the
-  // life itself is remembered in the device memorial archive. The warning
-  // scales down to a light confirm when there is no meta to lose.
+  // Say what "Start New Life" actually costs BEFORE doing it - and no more.
+  //
+  // What it costs is the DYNASTY: prestige level and points, legacy points and
+  // the Dynasty Tree, Legacy Contracts and the ribbon collection. That reset is
+  // the entire difference between a fresh start and prestige / choosing an heir.
+  //
+  // What it does NOT cost, since `stashNewLifeCarryOver` above, is anything the
+  // player OWNS: gems and every IAP entitlement carry into the new life. This
+  // dialog used to warn that it erased them, and it was telling the truth -
+  // which made it disclosed rather than acceptable. Do not put gems or
+  // purchases back in this list without also removing the carry-over.
+  //
+  // The warning scales down to going straight through when there is no dynasty
+  // to lose, which is the common case for a first life.
   const handleStartNewGame = useCallback(() => {
-    const gems = safeStats(gameState).gems || 0;
-    const hasMeta =
-      (gameState.prestige?.totalPrestiges ?? 0) > 0 ||
-      (gameState.legacyPoints ?? 0) > 0 ||
-      (gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0 ||
-      gems > 0;
-    if (!hasMeta) {
+    const prestiges = gameState.prestige?.totalPrestiges ?? 0;
+    const legacyPoints = gameState.legacyPoints ?? 0;
+    const ribbons = gameState.ribbonCollection?.discoveredIds?.length ?? 0;
+    const lost: string[] = [];
+    if (prestiges > 0) lost.push('your prestige level and points');
+    if (legacyPoints > 0) lost.push('legacy points and the Dynasty Tree');
+    if (ribbons > 0) lost.push('your ribbon collection');
+    if (lost.length === 0) {
       void performStartNewGame();
       return;
     }
-    const lost: string[] = [];
-    if ((gameState.prestige?.totalPrestiges ?? 0) > 0) lost.push('your prestige level and points');
-    if ((gameState.legacyPoints ?? 0) > 0) lost.push('legacy points and the Dynasty Tree');
-    if ((gameState.ribbonCollection?.discoveredIds?.length ?? 0) > 0) lost.push('your ribbon collection');
-    if (gems > 0) lost.push(`${gems.toLocaleString()} gems`);
     gameAlert(
       'Start a completely new life?',
       `This is a fresh start, not an heir: it permanently erases ${lost.join(', ')}. ` +
-        'This life will be remembered in your archive, and store purchases can be restored from Settings. ' +
-        'To keep your dynasty, choose an heir or prestige instead.',
+        'Your gems and anything you have purchased carry over, and this life will be ' +
+        'remembered in your archive. To keep your dynasty, choose an heir or prestige instead.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Erase and start over', style: 'destructive', onPress: () => void performStartNewGame() },

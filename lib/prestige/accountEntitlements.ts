@@ -80,13 +80,26 @@ export const PURCHASED_SETTINGS_KEYS = [
  * Top-level GameState keys that are account-level rather than per-character.
  * `goldUpgrades` holds the nine gem-bought permanent upgrades; `perks` holds
  * purchased perk unlocks; `youthPills` is consumable inventory the player paid
- * for and has not spent yet.
+ * for and has not spent yet; `revivalPack` is the unspent paid revive charge.
  *
  * `lastLoginRewardWeek` is deliberately absent — see the week-marker note at
  * the end of `PURCHASED_SETTINGS_KEYS` for why a `weeksLived`-denominated
  * marker must not cross a life boundary.
  */
-export const PURCHASED_STATE_KEYS = ['goldUpgrades', 'perks', 'youthPills'] as const;
+export const PURCHASED_STATE_KEYS = [
+  'goldUpgrades',
+  'perks',
+  'youthPills',
+  // The UNSPENT Revival Pack charge (v30). Distinct from
+  // `settings.hasRevivalPack` above, which records the PURCHASE and never
+  // clears - this is the one-shot the player paid $2.99 for and has not used.
+  // It was missing here, so a charge bought and not spent died at the next
+  // prestige, heir continuation or fresh start: the store still said "Owned",
+  // the death screen no longer offered "Use Revival Pack", and the player had
+  // paid for a revive they never got. Exactly the class this file exists to
+  // prevent.
+  'revivalPack',
+] as const;
 
 /**
  * Copy every account-level entitlement from the outgoing life onto a freshly

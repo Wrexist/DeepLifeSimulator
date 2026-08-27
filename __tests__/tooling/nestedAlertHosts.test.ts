@@ -57,3 +57,79 @@ describe('modals that raise gameAlert nest their own AlertHost', () => {
     expect(src).toMatch(/bridgeToStore\('perks', IAP_PRODUCTS\.REVIVAL_PACK\)/);
   });
 });
+
+/**
+ * The deep-linked buy is one gesture: tap "Revival Pack" on the death screen,
+ * confirm, land back on the death screen with the pack ready to spend. Each
+ * assertion below is a step that, if dropped, silently turns it back into
+ * "you are now in a shop, find your own way out".
+ */
+describe('the Revival Pack buy is a single gesture', () => {
+  const shop = () => read('components/GemShopModal.tsx');
+
+  it('waits for the catalog before auto-opening the confirm', () => {
+    // Firing before the catalog loads would hit the per-SKU availability gate
+    // and tell the player a real product is unavailable.
+    expect(shop()).toMatch(/!storeReady/);
+  });
+
+  it('waits for the sheet to finish presenting (iOS refuses a mid-animation present)', () => {
+    const src = shop();
+    expect(src).toMatch(/onShow=\{\(\) => setSheetShown\(true\)\}/);
+    expect(src).toMatch(/!sheetShown/);
+  });
+
+  it('fires at most once per open', () => {
+    expect(shop()).toMatch(/autoPurchaseFiredRef\.current = true/);
+  });
+
+  it('routes through the SAME handlePurchase every Buy button uses', () => {
+    // Not a second copy of the transaction flow on the death screen.
+    expect(shop()).toMatch(/void handlePurchase\(initialPurchaseId/);
+  });
+
+  it('returns to the caller after a deep-linked purchase, on acknowledgement', () => {
+    const src = shop();
+    expect(src).toMatch(/const returnAfter = id === initialPurchaseId/);
+    // Closing must hang off the receipt's OK, not run beside it: this sheet
+    // hosts the alert, so unmounting it early would take the message with it.
+    expect(src).toMatch(/returnAfter \? \[\{ text: 'OK', style: 'default', onPress: onClose \}\] : undefined/);
+  });
+
+  it('does not close the sheet on a failed purchase (let them retry)', () => {
+    const src = shop();
+    const failBranch = src.slice(src.indexOf("const errorMessage"), src.indexOf('} catch (error)'));
+    expect(failBranch).not.toContain('onClose');
+  });
+});
+
+/**
+ * The fresh start keeps what the player owns. These pin the wiring; the
+ * behaviour itself is covered by __tests__/monetization/newLifeCarryOver.test.ts.
+ */
+describe('fresh start carries gems and purchases', () => {
+  it('the death screen banks the carry BEFORE the slot is deleted', () => {
+    const src = read('components/DeathPopup.tsx');
+    const stashAt = src.indexOf('stashNewLifeCarryOver(gameState)');
+    const deleteAt = src.indexOf('deleteSaveSlot(currentSlot)');
+    expect(stashAt).toBeGreaterThan(-1);
+    expect(deleteAt).toBeGreaterThan(-1);
+    expect(stashAt).toBeLessThan(deleteAt);
+  });
+
+  it('onboarding applies the pending carry to the new life', () => {
+    expect(read('app/(onboarding)/Perks.tsx')).toMatch(
+      /await applyPendingNewLifeCarryOver\(newState\)/,
+    );
+  });
+
+  it('the confirm no longer claims gems or purchases are erased', () => {
+    const src = read('components/DeathPopup.tsx');
+    const alertAt = src.indexOf("'Start a completely new life?'");
+    expect(alertAt).toBeGreaterThan(-1);
+    const body = src.slice(alertAt, alertAt + 900);
+    expect(body).toMatch(/gems and anything you have purchased carry over/i);
+    // The old copy listed a gem count among the things it erased.
+    expect(body).not.toMatch(/erases[^`]*gems/i);
+  });
+});
