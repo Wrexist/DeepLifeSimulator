@@ -4475,3 +4475,27 @@ lifecycle IS the open/close, not on a prop transition that cannot happen. And a
 per-open latch stamp (dwell start) belongs INSIDE the once-guard, or a re-render
 triggered by an unrelated dep (a plan selection) re-stamps it and corrupts the
 dwell.
+
+**A sibling RN Modal cannot present over another Modal on iOS — the tap that
+raises it just looks dead.** RN presents a `Modal` from the view controller
+nearest its own mount point (`[self reactViewController]`, both Paper and
+Fabric). While the death screen's full-screen Modal was presented, the root VC
+was already presenting, so the root `AlertHost`'s sibling Modal was silently
+refused — every `gameAlert` raised from the death screen (the "erase and start
+over?" confirm behind "Start New Life", the rewind confirm, "No Heir
+Selected"), the gem shop's own "Confirm Purchase" dialog, and the death
+screen's sibling `LifeStoryModal` never rendered. No error, no log: the button
+simply "doesn't work", and dev testing on Android (where each Modal is its own
+Dialog and siblings stack fine) never shows it. The repo already knew the safe
+pattern (GemShopModal → OfferCenterModal: "NESTED … so it never stacks a
+sibling root Modal") — the miss was converting 268 native `Alert.alert` calls
+(which present from the TOPMOST VC and therefore work over modals) to an
+in-app host without asking where that host's Modal would present FROM. Fix:
+`gameAlert` dispatches to a host STACK (`registerAlertHandler`), and every
+full-screen Modal that raises alerts nests its own `<AlertHost />` so the
+dialog presents from that Modal's own VC — pinned by
+`__tests__/tooling/nestedAlertHosts.test.ts`. The rule: replacing a native
+OS-presented surface (Alert, ActionSheet, share sheet) with an RN Modal
+changes its PRESENTATION context, so audit every call site that fires while
+another Modal is up; and any new full-screen Modal that raises `gameAlert`
+must nest a host and join that tooling test.

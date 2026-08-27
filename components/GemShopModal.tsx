@@ -29,6 +29,7 @@ import { logger } from '@/utils/logger';
 import ShopItemCard, { ShopBadge, ShopAccent } from '@/components/shop/ShopItemCard';
 import { GEM_UPGRADES, type GemUpgradeId } from '@/lib/config/gemUpgrades';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 import { track } from '@/lib/analytics';
 
 /**
@@ -77,6 +78,13 @@ interface GemShopModalProps {
   onClose: () => void;
   /** Tab to land on when the store opens (deep-linked entry points pass this). */
   initialTab?: StoreTab;
+  /**
+   * Product whose purchase confirm should open as soon as the catalog is
+   * ready (the death screen's Revival Pack row). Goes through the SAME
+   * `handlePurchase` every Buy button uses - availability gating, localized
+   * pricing and the transaction flow are unchanged.
+   */
+  initialPurchaseId?: string;
 }
 
 // Parse a USD price string ("$4.99") into a number. This is the CONFIG-USD
@@ -126,7 +134,7 @@ function storeRatioLine(gems: number, amount: number, currency: string): string 
   return symbol ? `≈ ${perUnit} gems per ${symbol}1` : `≈ ${perUnit} gems per 1 ${currency}`;
 }
 
-function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
+function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemShopModalProps) {
   const { buyGoldUpgrade } = useMoneyActions();
   const { saveGame } = useGameActions();
   const settings = useGameSelector((s) => safeSettings(s), shallowEqual);
@@ -375,6 +383,29 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
       ],
     );
   };
+
+  // Deep-linked purchase target (e.g. the death screen's Revival Pack row):
+  // open the standard confirm for that SKU, exactly as if the player had
+  // tapped its Buy button. Two gates before it fires. `storeReady`: a slow
+  // catalog load must not turn a real product into a premature "Item
+  // Unavailable" (and if the store never loads, the tab banner already
+  // explains why nothing is buyable). `sheetShown` (the Modal's onShow, i.e.
+  // presentation COMPLETE): the confirm is a Modal nested inside this sheet,
+  // and iOS refuses a presentation from a view controller whose own
+  // presentation is still animating - firing at mount would eat the dialog.
+  // At most once per open; the modal unmounts on close, so a ref is the guard.
+  const [sheetShown, setSheetShown] = useState(false);
+  const autoPurchaseFiredRef = useRef(false);
+  useEffect(() => {
+    if (!visible || !initialPurchaseId || !storeReady || !sheetShown) return;
+    if (autoPurchaseFiredRef.current) return;
+    autoPurchaseFiredRef.current = true;
+    const name = getProductConfig(initialPurchaseId)?.name ?? initialPurchaseId;
+    void handlePurchase(initialPurchaseId, name, resolveDisplayPrice(initialPurchaseId));
+    // handlePurchase/resolveDisplayPrice are stable-by-construction inline
+    // helpers; the ref (not the dep list) is what makes this once-per-open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, initialPurchaseId, storeReady, sheetShown]);
 
   // Gem-spend upgrades (in-game currency, NOT an IAP).
   const handleBuyUpgrade = async (id: string, price: number) => {
@@ -897,7 +928,14 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      onShow={() => setSheetShown(true)}
+    >
       <View style={styles.overlay}>
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} accessibilityLabel="Close store">
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2, 6, 23, 0.72)' }]} />
@@ -1092,6 +1130,11 @@ function GemShopModal({ visible, onClose, initialTab }: GemShopModalProps) {
           WhatsNewModal uses in SettingsModal) so it never stacks a sibling
           root Modal. */}
       <OfferCenterModal visible={showOfferCenter} onClose={() => setShowOfferCenter(false)} />
+      {/* Same nesting for the in-game alerts: purchase confirms and results
+          are raised via gameAlert while this sheet is presented, and the root
+          AlertHost's sibling Modal cannot present over it on iOS. This nested
+          host registers on top of the gameAlert stack while the shop is up. */}
+      <AlertHost />
     </Modal>
   );
 }

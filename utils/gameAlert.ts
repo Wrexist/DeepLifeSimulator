@@ -45,16 +45,34 @@ export interface GameAlertRequest {
 
 type AlertHandler = (request: GameAlertRequest) => void;
 
-let alertHandler: AlertHandler | null = null;
+/**
+ * Host STACK, not a single slot. iOS presents an RN `Modal` from the view
+ * controller nearest its mount point, so the root AlertHost's dialog cannot
+ * present while another full-screen Modal (death screen, gem shop) is up -
+ * the root VC is already presenting and UIKit silently refuses the sibling.
+ * Those surfaces mount their OWN nested AlertHost inside their Modal; it
+ * registers on top of the stack and takes the alerts while it is mounted, so
+ * the dialog presents from the covering Modal's view controller and actually
+ * appears. The root host stays as the fallback for everything else.
+ */
+const alertHandlers: AlertHandler[] = [];
 let nextId = 1;
 
-/** Registered by AlertHost on mount. Pass null on unmount to clear. */
-export const setAlertHandler = (handler: AlertHandler | null): void => {
-  alertHandler = handler;
+/**
+ * Registered by each AlertHost on mount; returns the matching unregister.
+ * Removal is by identity, not a blind pop, so hosts may unmount out of order
+ * (the death Modal suppresses itself - and its nested host - mid-bridge).
+ */
+export const registerAlertHandler = (handler: AlertHandler): (() => void) => {
+  alertHandlers.push(handler);
+  return () => {
+    const index = alertHandlers.lastIndexOf(handler);
+    if (index >= 0) alertHandlers.splice(index, 1);
+  };
 };
 
 /** Test seam - lets a suite assert the bridge is wired without a host. */
-export const hasAlertHandler = (): boolean => alertHandler !== null;
+export const hasAlertHandler = (): boolean => alertHandlers.length > 0;
 
 /**
  * Show a themed in-app alert. Drop-in for `Alert.alert`.
@@ -70,7 +88,10 @@ export function gameAlert(
   const resolved: GameAlertButton[] =
     buttons && buttons.length > 0 ? buttons : [{ text: 'OK', style: 'default' }];
 
-  if (!alertHandler) {
+  // Most recently registered host wins - that is the one nested inside
+  // whatever Modal currently covers the screen.
+  const handler = alertHandlers[alertHandlers.length - 1];
+  if (!handler) {
     // No host mounted - never swallow the decision, use the platform dialog.
     Alert.alert(
       title,
@@ -80,7 +101,7 @@ export function gameAlert(
     return;
   }
 
-  alertHandler({ id: nextId++, title, message, buttons: resolved, options });
+  handler({ id: nextId++, title, message, buttons: resolved, options });
 }
 
 export default gameAlert;

@@ -1,9 +1,14 @@
 /**
  * AlertHost - renders the app's in-game alerts, one at a time.
  *
- * Mounted once at the root. Everything else calls `gameAlert(...)` from
- * `@/utils/gameAlert`, which mirrors `Alert.alert`'s signature; this component
- * is what makes those calls look like the game instead of the OS.
+ * Mounted once at the root, plus once INSIDE each full-screen RN Modal that
+ * raises alerts (death screen, gem shop). iOS presents an RN Modal from the
+ * view controller nearest its mount point, so the root host's dialog cannot
+ * present while another Modal covers the screen - the nested copy registers
+ * on top of the handler stack and presents from the covering Modal's own VC.
+ * Everything else calls `gameAlert(...)` from `@/utils/gameAlert`, which
+ * mirrors `Alert.alert`'s signature; this component is what makes those calls
+ * look like the game instead of the OS.
  *
  * Visual language is deliberately the same as `ConfirmDialog` (gradient badge,
  * hairline-bordered elevated card, filled primary next to a ghost cancel) so
@@ -22,7 +27,7 @@ import { fontScale, responsiveSpacing, scale, touchTargets } from '@/utils/scali
 import { Z_INDEX } from '@/utils/zIndexConstants';
 import { haptic } from '@/utils/haptics';
 import {
-  setAlertHandler,
+  registerAlertHandler,
   type GameAlertButton,
   type GameAlertRequest,
 } from '@/utils/gameAlert';
@@ -63,10 +68,10 @@ export default function AlertHost() {
   const [queue, setQueue] = useState<GameAlertRequest[]>([]);
   const current = queue[0] ?? null;
 
-  useEffect(() => {
-    setAlertHandler((request) => setQueue((prev) => [...prev, request]));
-    return () => setAlertHandler(null);
-  }, []);
+  useEffect(
+    () => registerAlertHandler((request) => setQueue((prev) => [...prev, request])),
+    []
+  );
 
   const scaleAnim = useRef(new Animated.Value(ENTER_SCALE)).current;
   // Keyed on the id alone, deliberately: the entrance should replay when a

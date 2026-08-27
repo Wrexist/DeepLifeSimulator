@@ -19,8 +19,18 @@ const GemShopModal = lazy(() => import('@/components/GemShopModal'));
 
 export type GemStoreTab = 'upgrades' | 'store' | 'perks' | 'gems';
 
+export interface GemStoreOpenOptions {
+  /**
+   * Deep-link straight to one product's purchase confirm (the death screen's
+   * Revival Pack row). The modal still owns the whole purchase flow - this
+   * only opens its standard confirm for the given SKU once the catalog is
+   * ready, exactly as if the player had tapped that product's Buy button.
+   */
+  purchaseProductId?: string;
+}
+
 interface GemStoreContextValue {
-  openStore: (tab?: GemStoreTab) => void;
+  openStore: (tab?: GemStoreTab, options?: GemStoreOpenOptions) => void;
   closeStore: () => void;
   isStoreOpen: boolean;
 }
@@ -34,21 +44,35 @@ const GemStoreContext = createContext<GemStoreContextValue>({
 });
 
 export function GemStoreProvider({ children }: { children: React.ReactNode }) {
-  const [openTab, setOpenTab] = useState<GemStoreTab | null>(null);
+  const [openRequest, setOpenRequest] = useState<{
+    tab: GemStoreTab;
+    purchaseProductId?: string;
+  } | null>(null);
 
-  const openStore = useCallback((tab: GemStoreTab = 'gems') => setOpenTab(tab), []);
-  const closeStore = useCallback(() => setOpenTab(null), []);
+  const openStore = useCallback(
+    (tab: GemStoreTab = 'gems', options?: GemStoreOpenOptions) =>
+      setOpenRequest({ tab, purchaseProductId: options?.purchaseProductId }),
+    [],
+  );
+  const closeStore = useCallback(() => setOpenRequest(null), []);
 
   const value = useMemo(
-    () => ({ openStore, closeStore, isStoreOpen: openTab !== null }),
-    [openStore, closeStore, openTab],
+    () => ({ openStore, closeStore, isStoreOpen: openRequest !== null }),
+    [openStore, closeStore, openRequest],
   );
 
   return (
     <GemStoreContext.Provider value={value}>
       {children}
       <Suspense fallback={null}>
-        {openTab !== null && <GemShopModal visible initialTab={openTab} onClose={closeStore} />}
+        {openRequest !== null && (
+          <GemShopModal
+            visible
+            initialTab={openRequest.tab}
+            initialPurchaseId={openRequest.purchaseProductId}
+            onClose={closeStore}
+          />
+        )}
       </Suspense>
     </GemStoreContext.Provider>
   );
