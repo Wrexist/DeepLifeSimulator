@@ -4555,3 +4555,15 @@ The general rule: when you MOVE a component into a new position in the tree,
 re-audit what its callbacks now reach. Its code did not change; its
 relationship to everything else did, and that is enough to make a safe line
 unsafe.
+
+**A change emphasis must never cost legibility of the thing it emphasises.**
+`AnimatedMoney` tinted the balance green on a gain and red on a loss for 650ms.
+Its ONLY call site is the HUD money chip, which sits on a green gradient - so a
+gain painted green text onto a green pill and the player could not read their
+own balance, the single most-read number in the game, for two thirds of a
+second. The tint had no surface anywhere in the app where it was legible, which
+is the tell: a component that styles by MEANING (up = green) cannot know its
+background, so either the caller supplies the contrast or the component has no
+business setting colour at all. Removed rather than made conditional - one call
+site, no legible home, and direction is already carried by the toast and the
+per-action result line. The scale pop keeps the acknowledgement.
