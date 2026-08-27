@@ -44,6 +44,7 @@ import { characterName } from '@/utils/characterName';
 import { lifeQuality } from '@/lib/legacy/lifeQuality';
 import DeathHero from '@/components/death/DeathHero';
 import LifeQualityGauge from '@/components/death/LifeQualityGauge';
+import AlertHost from '@/components/ui/AlertHost';
 import { scale } from '@/utils/scaling';
 import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
@@ -295,13 +296,6 @@ function DeathPopup() {
     }
   }, [selectedHeirId, selectedMindset, startNewLifeFromLegacy, setGameState, saveGame]);
 
-  const handleRevive = useCallback(() => {
-    const reviveCost = REVIVE_GEM_COST;
-    if (safeStats(gameState).gems >= reviveCost) {
-      reviveCharacter();
-    }
-  }, [gameState, reviveCharacter]);
-
   // MON-5: spend the banked Revival Pack. Offered ABOVE the gem revive because
   // it is already paid for - making someone spend 15,000 gems while holding an
   // unused pack would be the second way this product could take money for
@@ -323,10 +317,12 @@ function DeathPopup() {
   const pendingStoreRef = useRef(false);
   const storeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Which store tab the pending bridge should land on. A ref rather than state
-  // because `flushPendingStore` is also the Modal's `onDismiss` handler, which
-  // must stay callable with no arguments.
+  // Which store tab the pending bridge should land on - and, optionally, which
+  // product's purchase confirm the store should open on arrival. Refs rather
+  // than state because `flushPendingStore` is also the Modal's `onDismiss`
+  // handler, which must stay callable with no arguments.
   const pendingStoreTabRef = useRef<GemStoreTab>('gems');
+  const pendingStorePurchaseIdRef = useRef<string | undefined>(undefined);
 
   const flushPendingStore = useCallback(() => {
     if (!pendingStoreRef.current) return;
@@ -335,15 +331,18 @@ function DeathPopup() {
       clearTimeout(storeTimerRef.current);
       storeTimerRef.current = null;
     }
-    openStore(pendingStoreTabRef.current);
+    openStore(pendingStoreTabRef.current, {
+      purchaseProductId: pendingStorePurchaseIdRef.current,
+    });
   }, [openStore]);
 
   // Quiet bridge for the out-of-gems dead-ends: flip suppression + arm the
   // fallback so the death Modal dismisses, THEN the store opens. Never
   // auto-invoked - only fired by an explicit tap.
   const bridgeToStore = useCallback(
-    (tab: GemStoreTab = 'gems') => {
+    (tab: GemStoreTab = 'gems', purchaseProductId?: string) => {
       pendingStoreTabRef.current = tab;
+      pendingStorePurchaseIdRef.current = purchaseProductId;
       pendingStoreRef.current = true;
       setStoreBridging(true);
       if (storeTimerRef.current) clearTimeout(storeTimerRef.current);
@@ -354,21 +353,47 @@ function DeathPopup() {
 
   const handleGetMoreGems = useCallback(() => bridgeToStore('gems'), [bridgeToStore]);
 
+  // Defined below the store bridge because the short-on-gems branch needs it.
+  // The row stays pressable when unaffordable (see the actions comment), and
+  // that tap must lead somewhere: the same "Get Gems" dialog + bridge the
+  // rewind row uses, not a silent nothing.
+  const handleRevive = useCallback(() => {
+    const reviveCost = REVIVE_GEM_COST;
+    if (safeStats(gameState).gems >= reviveCost) {
+      reviveCharacter();
+      return;
+    }
+    gameAlert(
+      'Not Enough Gems',
+      `You need ${reviveCost.toLocaleString()} gems to revive.`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Get Gems', onPress: () => bridgeToStore('gems') },
+      ]
+    );
+  }, [gameState, reviveCharacter, bridgeToStore]);
+
   /**
    * Buy the Revival Pack with real money.
    *
-   * Lands on the `perks` tab, where the pack lives. It deliberately does NOT
-   * run the purchase inline: `GemShopModal` owns the whole flow - store
-   * loading, localized pricing, receipt verification, entitlement grant,
-   * restore - and a second copy of that on the death screen would be a second
-   * set of rules for taking someone's money.
+   * Lands on the `perks` tab, where the pack lives, and deep-links straight
+   * to the pack's own purchase confirm (`purchaseProductId`) - tapping the
+   * row means "buy this", not "browse a tab that contains it". It still
+   * deliberately does NOT run the purchase inline: `GemShopModal` owns the
+   * whole flow - store loading, localized pricing, receipt verification,
+   * entitlement grant, restore - and a second copy of that on the death
+   * screen would be a second set of rules for taking someone's money. The
+   * deep link only opens the modal's standard confirm for this SKU.
    *
    * Buying while dead banks the charge (`revivalPack: true`), so the death
    * screen re-presents with "Use Revival Pack" waiting at the top. That is the
    * same one-shot machinery the pack has always used, reached from the one
    * place it was never reachable from.
    */
-  const handleBuyRevivalPack = useCallback(() => bridgeToStore('perks'), [bridgeToStore]);
+  const handleBuyRevivalPack = useCallback(
+    () => bridgeToStore('perks', IAP_PRODUCTS.REVIVAL_PACK),
+    [bridgeToStore]
+  );
 
   // Re-present the death Modal once the store closes. The bridge flag is cleared
   // only when the store is DOWN, so `visible` never flickers true mid-bridge.
@@ -1631,8 +1656,23 @@ function DeathPopup() {
           </LinearGradient>
         </Animated.View>
       </View>
+
+      {/* NESTED inside this presented Modal (the GemShopModal ->
+          OfferCenterModal pattern): on iOS a sibling root Modal cannot present
+          while this one is up - the root VC is already presenting, so the
+          presentation is silently refused. Rendered as a sibling, "Read Story"
+          was a button that did nothing. */}
+      <LifeStoryModal visible={showLifeStory} onClose={handleHideLifeStory} />
+
+      {/* Same nesting for the in-game alerts. Every dialog this screen raises
+          (the "erase and start over?" confirm, the rewind confirm, "No Heir
+          Selected") goes through gameAlert, and the root AlertHost's sibling
+          Modal is refused the same way - which made "Start New Life" a dead
+          button for any player with meta to warn about. This nested host
+          registers on top of the gameAlert stack while the death screen is
+          presented, so its dialogs present from THIS Modal's view controller. */}
+      <AlertHost />
     </Modal>
-    <LifeStoryModal visible={showLifeStory} onClose={handleHideLifeStory} />
     {/*
       F2: `PrestigeModal` is deliberately NOT rendered here, and must not be.
       It was - with `visible={showPrestigeModal}` against a state nothing ever

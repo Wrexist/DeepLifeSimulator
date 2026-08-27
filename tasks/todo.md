@@ -78,3 +78,36 @@ monotonicity (grant amounts are named in ASC product names), production
 interstitial + all Android ad units (need real AdMob units), server-side
 transaction replay dedup (needs a KV store on the verify endpoint),
 RevenueCat webhooks for server-observed churn.
+
+# Death screen: Start New Life dead on iOS + Revival Pack deep link (2026-08-27)
+
+Report (TestFlight, iOS): the purple "Start New Life" button does nothing, and
+the Revival Pack row should go straight to its IAP instead of just the perks tab.
+
+Root cause of the dead button: `handleStartNewGame` raises the "erase and start
+over?" confirm via `gameAlert`, whose host (`AlertHost`) is an RN `Modal`
+mounted at the app ROOT. RN presents a Modal from the view controller nearest
+its own mount point, so while the death screen's Modal is presented the root VC
+is already presenting and iOS refuses the sibling presentation - the confirm
+never renders and the tap looks dead. (Nearly every death has meta to warn
+about - dying discovers a ribbon - so the confirm path is the common path.)
+The same defect silently eats the gem shop's own "Confirm Purchase" dialog.
+The repo's own iOS-safe pattern is nesting (GemShopModal -> OfferCenterModal).
+
+- [x] 1. `utils/gameAlert.ts`: replace the single handler slot with a host
+      STACK (`registerAlertHandler` -> unregister). `gameAlert` dispatches to
+      the most recently registered host, so a host nested inside a presented
+      Modal takes over while that Modal is up.
+- [x] 2. `components/ui/AlertHost.tsx`: register/unregister by identity.
+- [x] 3. `components/DeathPopup.tsx`: nest an `<AlertHost />` inside the death
+      Modal so its dialogs (fresh-start confirm, rewind, no-heir) present from
+      the death Modal's own VC.
+- [x] 4. `components/GemShopModal.tsx`: same nesting, so purchase confirms /
+      results present over the shop sheet.
+- [x] 5. Revival Pack deep link: `openStore(tab, { purchaseProductId })` in
+      `GemStoreContext`; GemShopModal auto-opens the standard purchase confirm
+      for that product once the catalog is ready; DeathPopup's Revival Pack row
+      passes `IAP_PRODUCTS.REVIVAL_PACK`. Purchase flow itself stays owned by
+      GemShopModal (no inline second copy).
+- [x] 6. Tests: unit-test the host stack; keep render suites green; run
+      type-check, lint:errors, and the render/monetization suites.

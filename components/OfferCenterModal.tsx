@@ -41,6 +41,7 @@ import { offerBenefits } from '@/lib/offers/benefits';
 import { iapArtFor } from '@/utils/iapArt';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import { gameAlert } from '@/utils/gameAlert';
+import AlertHost from '@/components/ui/AlertHost';
 
 interface OfferCenterModalProps {
   visible: boolean;
@@ -301,6 +302,12 @@ function OfferCenterModal({ visible, onClose }: OfferCenterModalProps) {
           </ScrollView>
         </View>
       </View>
+
+      {/* NESTED alert host: this sheet is itself presented (nested inside the
+          gem shop's Modal), so the alerts it raises via gameAlert must present
+          from THIS Modal's view controller - a host outside it is silently
+          refused the presentation on iOS. */}
+      <AlertHost />
     </Modal>
   );
 }
