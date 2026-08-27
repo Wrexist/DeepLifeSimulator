@@ -228,8 +228,14 @@ describe('the carry survives the save -> load round trip', () => {
 
   it('keeps gems and every purchase flag through hydrateLoadedState', () => {
     const before = carriedState();
-    const result = hydrateLoadedState(JSON.parse(JSON.stringify(before)), { permanentPerks: [] });
-    const after: any = result.state ?? result;
+    // `permanentPerks: []` deliberately: the hydrator re-applies IAP perks from
+    // the store on load, and passing none proves the carry stands on its own
+    // rather than being quietly repaired by that second path.
+    const result = hydrateLoadedState(JSON.parse(JSON.stringify(before)), {
+      source: 'test:newLifeCarryOver',
+      permanentPerks: [],
+    });
+    const after: any = result.state;
 
     expect(after.stats.gems).toBe(750);
     expect(after.settings.adsRemoved).toBe(true);
