@@ -4,6 +4,36 @@
 
 ## Patterns to Watch For
 
+### 2026-08-27 — Weekly audit: all five domains clean; the only smell is an `as any` reading heir fields that do not exist
+
+Static suite green (one longstanding medium: 16 `as GameState` casts in tests,
+several in the new `economyAudit20260825.test.ts` — a factory-bypass, not a live
+bug). Dynamic backstops all passed: money-conservation stress, the perf/tick
+benchmark (late-game p95 4ms, well within budget), and the politics/food/
+monetization/save-migration suites (780+ tests). The deep qualitative pass over
+the recent work — Revival Pack/IAP restore, food satiety v48, Political Life v47,
+Spark v45 — confirmed every §4.4 gate→grant surface is atomic and re-checked
+against `prev`, every new time gate uses `weeksLived`, the v47/v48 carve-outs are
+sound (correct migrations, load round-trip verified through `loadedStateMerge`/
+`hydrateLoadedState`'s `...raw` spread), and the v40/v46 clock-farm fixes hold.
+
+- **One latent §5 fabricated-property smell (low, dead today):**
+  `components/DeathPopup.tsx:154-155` builds an heir card with
+  `traits: (result as any).traits || []` and `stats: (result as any).stats || {}`.
+  `result` is a `HeirGenerationResult`, whose real fields are `activeTraits` /
+  `startingStats` — there is no `.traits` or `.stats`, so both `as any` reads
+  resolve to `[]`/`{}` on every heir. Impact is nil ONLY because the render
+  destructures neither field. This is the exact `career.name` /
+  `stockInfo.currentPrice` class: a fabricated name a `as any` let compile,
+  silently falsy inside a fallback. It is a trap the day a future render starts
+  reading those fields. Backlog fix: drop the two dead fields, or correct them to
+  `result.activeTraits` / `result.startingStats` and delete the `as any`.
+- **Design note, not a bug:** a retired official may draw a pension AND hold a
+  private appointment (appointments bar only *elected* office). The combined
+  stream is still bounded by `PER_SOURCE_CAPS.political` ($50K/wk), so it reads as
+  intended (a retiree consulting) rather than a leak — recorded so it stays a
+  conscious call.
+
 ### 2026-08-24 — Weekly audit: a re-checked updater must re-check EVERY designed gate, and the newest exit path inherits none of the old ones' cleanup
 
 Two v47 Political Life defects, both a direct continuation of the classes PR
