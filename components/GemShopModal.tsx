@@ -806,6 +806,19 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
       owned: settings?.adsRemoved === true,
     },
     {
+      id: IAP_PRODUCTS.REVIVE_NOW,
+      accent: 'perks' as ShopAccent,
+      image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],
+      title: 'Revive Now',
+      // A CONSUMABLE, so it is buyable again every time it is spent - unlike
+      // the pack below, which Apple allows exactly once per account. Marked
+      // "owned" only while a charge is actually banked: the charge is a
+      // boolean, so a second purchase on top of an unspent one would take the
+      // money and grant nothing. Once spent, this goes back to buyable.
+      owned: revivalCharged,
+      ownedLabel: 'Ready',
+    },
+    {
       id: IAP_PRODUCTS.REVIVAL_PACK,
       accent: 'perks' as ShopAccent,
       image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],

@@ -274,6 +274,23 @@ export function applyProductBenefitsToState(
     case IAP_PRODUCTS.PRIVATE_BANKING:
       gameState.settings.privateBanking = true;
       break;
+    case IAP_PRODUCTS.REVIVE_NOW:
+      // The repeatable cash revive. Banks the SAME one-shot charge the
+      // Revival Pack does, so `reviveWithPack` spends it through the one
+      // tested path and the death screen needs no second notion of "can I
+      // come back".
+      //
+      // Deliberately does NOT write `settings.hasRevivalPack`. That flag is
+      // the OLD non-consumable's purchase RECORD - the thing that makes the
+      // shop show it as Owned and stops it being sold twice. Setting it here
+      // would tell a player who bought this consumable that they own a
+      // different product they never bought, and would silently retire that
+      // product's row for them.
+      //
+      // No `entitlementsOnly` guard is needed: this is a CONSUMABLE, and the
+      // restore path skips consumables outright. It is spent, not owned.
+      gameState.revivalPack = true;
+      break;
     case IAP_PRODUCTS.REVIVAL_PACK:
       // MON-5. This used to revive at the INSTANT of purchase — writing
       // health/happiness/energy and clearing `showDeathPopup` right here.

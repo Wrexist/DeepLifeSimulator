@@ -205,3 +205,41 @@ Not a regression from #170/#171 - it just needs fixing.
       cross axis regardless of the parent's alignItems.
 
 - [x] 3. Tests for both, then type-check / lint / full suite.
+
+# Repeatable cash revive on the death screen (2026-08-27)
+
+Owner: the Revival Pack row disappears after one purchase - it should always be
+there so a player can always pay to revive, and the receive flow should be
+smooth and clean.
+
+ROOT CONSTRAINT (store-side, not code): `revival_pack` is registered
+NON-CONSUMABLE, so Apple allows exactly one purchase per Apple ID ever. A
+second "buy" resolves as a RESTORE, and the restore path deliberately applies
+`entitlementsOnly` so it never re-banks a spendable charge (that guard exists
+because a restore-tap used to mint free revives). So simply un-hiding today's
+row would give a button that takes no money and grants nothing - strictly worse
+than hiding it. Repeatability REQUIRES a Consumable product, and a product's
+type can never be changed in App Store Connect, so it must be a NEW SKU.
+
+Owner decisions: new consumable SKU, keep the old pack honored, $2.99 config
+fallback.
+
+- [x] 1. `utils/iapConfig.ts`: add `REVIVE_NOW` (`deeplife_revive_now`), a
+      product config ($2.99 fallback), and list it in CONSUMABLE_PRODUCTS so
+      restore skips it (consumables are never restored).
+- [x] 2. `services/IAPService.ts`: grant banks the SAME `revivalPack` charge
+      `reviveWithPack` already spends - so the tested spend path is reused. It
+      must NOT write `settings.hasRevivalPack`: that is the OLD pack's purchase
+      record, and setting it would show the one-time pack as "Owned" to someone
+      who never bought it.
+- [x] 3. `components/DeathPopup.tsx`: the cash row is ALWAYS present except
+      while a charge is already banked (then "Use Revival Pack - Free" is
+      shown instead, which is the better offer). Prefer the repeatable SKU
+      when the store actually has it; fall back to today's one-time row when
+      it does not, so nothing regresses before the ASC product exists.
+      The charge is a BOOLEAN, so buying while one is banked would take money
+      for nothing - that is what the banked-charge guard prevents.
+- [x] 4. `docs/IAP-SETUP.md`: document the new SKU as an OWNER ACTION. Until it
+      exists in App Store Connect + Play the row self-hides (per-SKU
+      availability), so shipping the code early is safe.
+- [x] 5. Tests + type-check, lint, full suite.

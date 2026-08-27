@@ -52,9 +52,14 @@ describe('modals that raise gameAlert nest their own AlertHost', () => {
     expect(lastModalClose).toBeGreaterThan(storyAt);
   });
 
-  it('the death screen Revival Pack row deep-links to its own SKU', () => {
+  it('the death screen cash-revive row deep-links to the SKU it is offering', () => {
+    // Was pinned to REVIVAL_PACK. The row now resolves WHICH revive it is
+    // selling - the repeatable consumable when the store has it, the one-time
+    // pack otherwise - so the deep link has to follow that choice rather than
+    // a hardcoded id. Which SKU wins is covered by
+    // __tests__/monetization/repeatableRevive.test.ts.
     const src = read('components/DeathPopup.tsx');
-    expect(src).toMatch(/bridgeToStore\('perks', IAP_PRODUCTS\.REVIVAL_PACK\)/);
+    expect(src).toMatch(/bridgeToStore\('perks', cashReviveProductId\)/);
   });
 });
 

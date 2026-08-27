@@ -146,6 +146,24 @@ export const IAP_PRODUCTS = {
     android: 'revival_pack',
   }) || 'revival_pack',
 
+  /**
+   * Revive Now (CONSUMABLE) - the repeatable cash revive.
+   *
+   * A separate SKU from REVIVAL_PACK on purpose, and it has to be: that one is
+   * a Non-Consumable, so Apple permits exactly one purchase per Apple ID ever
+   * and a second attempt resolves as a restore that takes no money and (by
+   * design, see the restore path in IAPService) banks no charge. A product's
+   * type can never be changed in App Store Connect, so "make it repeatable"
+   * means a new product, not an edit.
+   *
+   * Both grant the same thing - one banked revive - so a player who owns the
+   * old pack keeps it and spends it exactly as before.
+   */
+  REVIVE_NOW: Platform.select({
+    ios: 'deeplife_revive_now',
+    android: 'deeplife_revive_now',
+  }) || 'deeplife_revive_now',
+
 };
 
 // Product configurations with descriptions and rewards
@@ -440,6 +458,16 @@ export const PRODUCT_CONFIGS = {
     ],
   },
 
+  // Revive Now (Consumable) - the repeatable cash revive. Same grant as the
+  // Revival Pack below (one banked revive); buyable again every time it is
+  // spent, which the non-consumable pack can never be.
+  [IAP_PRODUCTS.REVIVE_NOW]: {
+    name: 'Revive Now',
+    description: 'Come back to life and keep this run going',
+    revival: true,
+    price: '$2.99',
+  },
+
   // Revival Pack (Non-Consumable)
   [IAP_PRODUCTS.REVIVAL_PACK]: {
     name: 'Revival Pack',
@@ -581,6 +609,10 @@ export const CONSUMABLE_PRODUCTS = [
   IAP_PRODUCTS.YOUTH_PILL_PACK,
   IAP_PRODUCTS.MONEY_BOOST,
   IAP_PRODUCTS.SKILL_BOOST,
+  // The repeatable revive. Listed here so RESTORE skips it: a consumable is
+  // spent, and re-granting one on every Restore tap would mint free revives -
+  // the failure the REVIVAL_PACK entitlements-only path exists to prevent.
+  IAP_PRODUCTS.REVIVE_NOW,
   // Work Pay Boost is a Consumable in App Store Connect (a product's type can
   // never be changed there, so the classification is frozen) - but its grant
   // is a PERMANENT boolean perk, not a quantity. Two consequences, both
