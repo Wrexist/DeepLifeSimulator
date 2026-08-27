@@ -4528,3 +4528,30 @@ while the store still read "Owned". `accountEntitlements.ts` says in its own
 docstring that a purchasable flag missing from those lists is a purchase that
 dies at the next prestige; that is worth re-reading against the real GameState
 whenever a new paid one-shot ships, because the failure is silent on both ends.
+
+**Nesting a shared host inside the surfaces it controls turns every one of its
+handlers into a teardown hazard.** `AlertHost` ran a button's `onPress` in the
+same commit as its own `setQueue` dismissal. That was correct for its whole
+life at the app ROOT, because a root host is never inside the thing its
+handlers destroy. The moment a copy was nested inside `DeathPopup` /
+`GemShopModal` to fix iOS presentation, the same line became a freeze: those
+handlers are precisely the ones that unmount the hosting Modal ("Erase and
+start over" clears `showDeathPopup`; the shop receipt closes the sheet), so
+iOS was told to unmount a PRESENTING view controller while its presented child
+was still dismissing, and stranded a transparent full-screen presentation that
+swallowed every touch. The app looked frozen on the previous screen with no
+error, no log, and nothing on screen to dismiss.
+
+Two things worth keeping. **The fix belongs in the host, not the call sites** -
+there were three of them and the next one would have been written the same
+wrong way. Dismiss, let the dismissal settle (`onDismiss` on iOS, a timer on
+Android, the pair `DeathPopup` already uses for its store bridge), THEN act.
+**And a deferral must not swallow the choice**: when another alert is queued
+behind this one the Modal never dismisses, so the action has to run
+immediately or it is lost forever; and a still-pending action runs on unmount,
+because a button that silently does nothing is the exact bug being fixed.
+
+The general rule: when you MOVE a component into a new position in the tree,
+re-audit what its callbacks now reach. Its code did not change; its
+relationship to everything else did, and that is enough to make a safe line
+unsafe.
