@@ -358,9 +358,20 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
               const result = await iapService.purchaseProduct(id);
               if (result.success) {
                 // IAPService already applies benefits - do not re-apply here.
+                //
+                // A deep-linked buy (the death screen's Revival Pack row) came
+                // here to get ONE thing. Leaving the player parked in the shop
+                // afterwards makes them find their own way back to the screen
+                // that sent them - and for a revive that screen is the one
+                // with the button that spends it. So close the sheet, but only
+                // once they have ACKNOWLEDGED the receipt: this sheet hosts
+                // the alert (nested AlertHost), so unmounting it while the
+                // message is still up would take the message with it.
+                const returnAfter = id === initialPurchaseId;
                 gameAlert(
                   'Purchase Successful!',
                   result.message || 'Purchase completed! Your items have been added to your account.',
+                  returnAfter ? [{ text: 'OK', style: 'default', onPress: onClose }] : undefined,
                 );
               } else {
                 const errorMessage = result.message || 'Unable to complete purchase. Please try again.';

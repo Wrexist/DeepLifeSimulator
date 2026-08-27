@@ -26,6 +26,8 @@ import {
 } from '@/utils/newLifeCarryOver';
 import { PURCHASED_STATE_KEYS } from '@/lib/prestige/accountEntitlements';
 import { safeSetItem, safeGetItem } from '@/utils/safeStorage';
+import { hydrateLoadedState } from '@/utils/hydrateLoadedState';
+import { applySafeDefaults } from '@/utils/onboardingValidation';
 
 /**
  * The global AsyncStorage mock (jest.setup.js) is a no-op whose `getItem`
@@ -200,5 +202,61 @@ describe('stash / consume round trip', () => {
     await safeSetItem('new_life_carry_over_v1', 'not-an-envelope');
     await consumeNewLifeCarryOver();
     expect(await safeGetItem('new_life_carry_over_v1')).toBeNull();
+  });
+});
+
+/**
+ * The carry has to survive the LOAD, not just the build.
+ *
+ * `initializeAndSaveGame` force-saves the freshly built state and then LOADS
+ * it back, so the state the player actually plays is the hydrated one. This is
+ * the exact trap CLAUDE.md documents for save-format carve-outs: a field can
+ * be written correctly and erased on the way back in (`loadedStateMerge` used
+ * to iterate `initialGameState`'s keys, a whitelist that by construction
+ * excluded anything the template does not declare). A carry that does not
+ * survive hydration is a purchase the player still loses.
+ */
+describe('the carry survives the save -> load round trip', () => {
+  const carriedState = () => {
+    const built: any = freshlyBuilt();
+    applyNewLifeCarryOver(extractNewLifeCarryOver(bigSpender()), built);
+    // Onboarding stamps these; the hydrator needs a plausible life.
+    built.userProfile = { ...built.userProfile, firstName: 'Ada', lastName: 'Byron' };
+    built.scenarioId = 'test_scenario';
+    return built;
+  };
+
+  it('keeps gems and every purchase flag through hydrateLoadedState', () => {
+    const before = carriedState();
+    const result = hydrateLoadedState(JSON.parse(JSON.stringify(before)), { permanentPerks: [] });
+    const after: any = result.state ?? result;
+
+    expect(after.stats.gems).toBe(750);
+    expect(after.settings.adsRemoved).toBe(true);
+    expect(after.settings.lifetimePremium).toBe(true);
+    expect(after.settings.privateBanking).toBe(true);
+    expect(after.goldUpgrades.multiplier).toBe(true);
+    expect(after.youthPills).toBe(3);
+    expect(after.revivalPack).toBe(true);
+    expect(after.perks.workBoost).toBe(true);
+    // The onboarding picks are still there too.
+    expect(after.perks.lucky_charm).toBe(true);
+  });
+
+  it('survives a JSON serialize/parse cycle unchanged (what the slot stores)', () => {
+    const before = carriedState();
+    const after = JSON.parse(JSON.stringify(before));
+    expect(after.stats.gems).toBe(750);
+    expect(after.revivalPack).toBe(true);
+    expect(after.youthPills).toBe(3);
+    expect(after.settings.lifetimePremium).toBe(true);
+  });
+
+  it('applySafeDefaults does not reset the carried settings or perks', () => {
+    const state = carriedState();
+    applySafeDefaults(state);
+    expect(state.settings.lifetimePremium).toBe(true);
+    expect(state.perks.workBoost).toBe(true);
+    expect(state.perks.lucky_charm).toBe(true);
   });
 });
