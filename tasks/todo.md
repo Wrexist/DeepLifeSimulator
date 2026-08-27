@@ -111,3 +111,50 @@ The repo's own iOS-safe pattern is nesting (GemShopModal -> OfferCenterModal).
       GemShopModal (no inline second copy).
 - [x] 6. Tests: unit-test the host stack; keep render suites green; run
       type-check, lint:errors, and the render/monetization suites.
+
+# "Start New Life" must keep gems and purchases (2026-08-27)
+
+Owner report from TestFlight: the fresh-start confirm (now that it renders)
+warns it will erase gems and purchases. It should not. A fresh start should
+delete the OLD LIFE and send the player to the new-life menu, carrying gems
+and IAP entitlements across. The dynasty meta (prestige level/points, legacy
+points + Dynasty Tree, ribbons) still resets - that is what separates a fresh
+start from prestige/heir, and is NOT in scope to change.
+
+The warning was accurate: `buildNewGameState` spreads `initialGameState`, so
+`stats.gems`, `settings.*` purchase flags, `goldUpgrades`, `perks` and
+`youthPills` are all rebuilt from the template. `carryAccountLevelEntitlements`
+(`lib/prestige/accountEntitlements.ts`) already defines WHAT is account-level
+and is used by prestige, heir continuation and rewind - but the fresh-start
+path never had a way to reach across the slot deletion -> onboarding ->
+rebuild boundary.
+
+Carry must be a ONE-SHOT record tied to this destroy-the-old-life transition,
+not a blanket "new games inherit the live state": a blanket carry would let
+"New Game" into an empty slot duplicate a still-existing save's gems.
+
+- [x] 1. `utils/newLifeCarryOver.ts`: one-shot, SIGNED (CRC32+HMAC via
+      `createSaveEnvelope`, the checkpoint-sidecar precedent - an unsigned
+      record holding gems + Lifetime Premium is a state-injection vector).
+      `stash` on fresh start, `consume` (read-verify-DELETE) at new-life
+      build, `apply` onto the built state.
+- [x] 2. `apply` reuses `carryAccountLevelEntitlements` as the single source of
+      truth for WHAT carries, then fixes the two keys needing different
+      semantics: `perks` must be a UNION (the builder fills it from onboarding
+      selections; a replace would drop them) and `stats.gems` REPLACES the
+      template's 0 (adding would mint gems per fresh start).
+- [x] 3. Add `revivalPack` to `PURCHASED_STATE_KEYS` - the unspent PAID revive
+      charge. Absent today, so it dies on every prestige/heir too; the file's
+      own contract says a purchasable flag missing there is a purchase that
+      dies at the next prestige.
+- [x] 4. `DeathPopup`: stash before deleting the slot; drop gems from the
+      `hasMeta` warning trigger and rewrite the confirm copy to state what is
+      actually lost (and that gems/purchases carry).
+- [x] 5. `Perks.tsx`: consume + apply after `buildNewGameState`.
+- [x] 6. `DangerZone` restart: same destroy-and-rebuild transition. Its
+      in-memory `carryAccountLevelEntitlements` is provably discarded by the
+      next onboarding build, so Restart -> New Game loses purchases today.
+      Stash there too.
+- [x] 7. Tests: one-shot semantics, perks union, gems replace, tamper
+      rejection, and an end-to-end fresh-start-keeps-purchases case.
+- [x] 8. type-check, lint:errors, lint:ratchet, monetization/prestige/save suites.

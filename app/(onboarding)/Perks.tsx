@@ -21,6 +21,7 @@ import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
 import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
+import { applyPendingNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
 import {
   Lock,
@@ -504,6 +505,16 @@ export default function Perks() {
         selectedMindset,
         ambitionId: state.ambitionId,
       });
+
+      // Hand the new life whatever the previous one was owed: gems and IAP
+      // entitlements banked by a fresh start (death screen "Start New Life",
+      // Settings -> Restart Game). `buildNewGameState` spreads
+      // `initialGameState`, so without this the purchases the player made are
+      // rebuilt as the template's defaults. One-shot: the record is deleted as
+      // it is read, so it cannot mint a second copy of the same gem balance
+      // into a later life. A no-op (returns the state untouched) for an
+      // ordinary new game, which is the common case.
+      await applyPendingNewLifeCarryOver(newState);
 
       // Pass the chosen slot through UNCHANGED. The old `state.slot || 1` is
       // what let a flow that never picked a slot - the death screen, a deep

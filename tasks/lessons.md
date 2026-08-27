@@ -4499,3 +4499,32 @@ OS-presented surface (Alert, ActionSheet, share sheet) with an RN Modal
 changes its PRESENTATION context, so audit every call site that fires while
 another Modal is up; and any new full-screen Modal that raises `gameAlert`
 must nest a host and join that tooling test.
+
+**A confirm dialog that accurately discloses a bad behaviour is still the bad
+behaviour.** The death screen's fresh start warned that it would erase the
+player's gems and purchases, and it was telling the truth: `buildNewGameState`
+spreads `initialGameState`, so `stats.gems`, every purchase flag on `settings`,
+`goldUpgrades`, `perks` and `youthPills` came back as template defaults.
+Prestige and the heir path both carry them (`carryAccountLevelEntitlements`);
+the fresh start was the ONE life transition that burned them. Writing the
+warning had made the loss feel handled - the fix was reviewed as copy, not as
+behaviour. When a dialog has to warn that an action destroys something the
+player paid for, check whether the destruction is load-bearing before writing
+the sentence.
+
+Two mechanics worth keeping from the fix. **The carry had to be a one-shot
+persisted record, not "new lives inherit the live state":** gems live in the
+save, one balance per slot, so a blanket carry would let a player with a rich
+slot 1 start a new game in empty slot 2 and mint a second copy of the same
+balance, repeatedly. Writing it only in the transition that DESTROYS the
+outgoing life, and deleting it as it is read, keeps the balance in exactly one
+place at every moment. **And a record that grants entitlements on read must be
+signed** (`createSaveEnvelope`, the checkpoint-sidecar reasoning): unsigned, it
+is a state-injection vector - write a file, relaunch, own Lifetime Premium.
+
+Also: `revivalPack` - the unspent PAID revive charge - was never in
+`PURCHASED_STATE_KEYS`, so it died at every prestige and heir continuation too,
+while the store still read "Owned". `accountEntitlements.ts` says in its own
+docstring that a purchasable flag missing from those lists is a purchase that
+dies at the next prestige; that is worth re-reading against the real GameState
+whenever a new paid one-shot ships, because the failure is silent on both ends.

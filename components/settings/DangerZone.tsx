@@ -13,6 +13,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useGame } from '@/contexts/GameContext';
 import { initialGameState } from '@/contexts/game/initialState';
 import { carryAccountLevelEntitlements } from '@/lib/prestige/accountEntitlements';
+import { stashNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { logger } from '@/utils/logger';
 import { safeRemoveItem } from '@/utils/safeStorage';
 import { suspendLifeAutosave } from '@/utils/autosaveSuspension';
@@ -29,7 +30,7 @@ interface Props {
 export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { setGameState, currentSlot } = useGame();
+  const { gameState, setGameState, currentSlot } = useGame();
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
 
   const confirmRestart = async () => {
@@ -79,6 +80,21 @@ export default function DangerZone({ onShowBugReport, onModalClose }: Props) {
        * `isPristineUnstartedState` exists to enforce), and "restart" means the
        * old life is gone. Same sequence as DeathPopup's new-game path.
        */
+      // Bank gems + IAP entitlements for the life the player is about to
+      // build. The in-memory carry above is real but SHORT-LIVED: it lands on
+      // a pristine state that is never saved, and the next new game runs
+      // `buildNewGameState`, which spreads `initialGameState` and rebuilds
+      // settings/gems/goldUpgrades/perks from the template - so Restart Game
+      // followed by New Game still lost every purchase. Stashed from `prev`
+      // (the outgoing life), not from the pristine state just built, because
+      // that one no longer has them.
+      // Stashed from the render snapshot, NOT from inside the updater above:
+      // a value assigned inside a `setGameState` updater is not visible after
+      // it (CLAUDE.md 4.1). This is a user-confirmed, once-per-restart action,
+      // so the snapshot is the right read - it still holds the outgoing life's
+      // gems and entitlements, which is all this needs.
+      await stashNewLifeCarryOver(gameState);
+
       const slot = typeof currentSlot === 'number' && currentSlot > 0 ? currentSlot : null;
       if (slot != null) {
         const { snapshotOutgoingSave } = await import('@/utils/saveBackup');
