@@ -36,12 +36,22 @@ import { isSubscriptionProduct, IAP_PRODUCTS, SUBSCRIPTION_PRODUCTS } from '@/ut
  * hand-written list — so a newly added subscription is covered automatically.
  */
 const isNonIdempotentGrant = (productId: string): boolean =>
-  productId === IAP_PRODUCTS.REVIVAL_PACK || isSubscriptionProduct(productId);
+  productId === IAP_PRODUCTS.REVIVAL_PACK ||
+  productId === IAP_PRODUCTS.REVIVE_NOW ||
+  isSubscriptionProduct(productId);
 
 describe('which grants must stay ledger-gated on restore', () => {
   it('gates the banked one-shot revive', () => {
     // Re-granting after use would mint a free revive per restore tap.
     expect(isNonIdempotentGrant(IAP_PRODUCTS.REVIVAL_PACK)).toBe(true);
+  });
+
+  it('gates the REPEATABLE revive too - it banks the same one-shot charge', () => {
+    // Being a consumable is not an exemption. This predicate also drives the
+    // reserve-before-grant ledger write on the PURCHASE path, so leaving it
+    // out let a failed ledger write grant with no dedupe record, and a store
+    // replay re-banked a revive the player had already spent.
+    expect(isNonIdempotentGrant(IAP_PRODUCTS.REVIVE_NOW)).toBe(true);
   });
 
   it('gates EVERY subscription in the catalogue', () => {

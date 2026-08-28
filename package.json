@@ -56,7 +56,9 @@
     "discord:sync:prune": "node discord/cli.mjs sync --apply --prune",
     "discord:onboarding": "node discord/cli.mjs sync --apply --onboarding",
     "discord:backup": "node discord/cli.mjs backup",
-    "discord:release": "node discord/cli.mjs release"
+    "discord:release": "node discord/cli.mjs release",
+    "notify:store-release": "node scripts/notify-store-release.mjs",
+    "notify:github-hype": "node scripts/notify-github-hype.mjs"
   },
   "dependencies": {
     "@dicebear/avataaars": "^9.2.2",

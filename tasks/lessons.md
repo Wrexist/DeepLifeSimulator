@@ -4568,6 +4568,32 @@ business setting colour at all. Removed rather than made conditional - one call
 site, no legible home, and direction is already carried by the toast and the
 per-action result line. The scale pop keeps the acknowledgement.
 
+**A store product's TYPE decides what the UI is allowed to offer, and it can
+never be changed after creation.** The Revival Pack row vanished after one
+purchase and that looked like a UI bug; it was the honest rendering of a
+Non-Consumable. Apple permits one purchase per Apple ID for the life of the
+account, and a second attempt resolves as a RESTORE - which this app
+deliberately applies entitlements-only so it cannot re-bank a spendable revive
+(that guard exists because a Restore tap used to mint free ones). So
+"just always show the button" would have shipped a control that takes no money
+and grants nothing: strictly worse than hiding it. Repeatable means CONSUMABLE,
+and since a type is frozen at creation that means a NEW product id, which is an
+owner action in App Store Connect and Play - not something code can do.
+
+Two things that made shipping the code ahead of the store safe. The offer is
+gated on the CATALOGUE (does the store actually return this SKU?) rather than on
+config knowing an id, so before the product exists the screen falls back to
+exactly today's behaviour instead of showing an "Item Unavailable" button. And
+the grant reuses the same banked `revivalPack` charge the old pack writes, so
+the spend path stays the one already-tested route and an existing owner's
+unspent charge keeps working untouched.
+
+Watch the boolean-as-quantity trap that comes with making a one-shot
+repeatable: `revivalPack` is a BOOLEAN, so a second purchase on top of an
+unspent charge would take the money and grant nothing. Both surfaces that sell
+it hide/lock the buy while a charge is banked, and the player is shown the
+better offer ("Use Revival Pack - Free") in its place.
+
 ---
 
 ## 2026-08-28 — Weekly audit: a "single source of truth" invariant can be broken by a NEW copy added elsewhere
