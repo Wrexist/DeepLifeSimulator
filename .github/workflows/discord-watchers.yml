@@ -1,0 +1,127 @@
+name: Discord release + activity watchers
+
+# Two read-mostly watchers that turn "something happened" into a Discord post
+# without a human retyping it:
+#   - store-release: is the live App Store / Google Play version different
+#     from what we last announced?
+#   - github-hype: what merged since the last run that a player would care
+#     about?
+# Both are additive to `discord.yml` (the release-published announcer) rather
+# than replacements — this catches an App Store / Play approval that lands
+# with no matching GitHub release event, which is the common case since store
+# review timing is Apple/Google's clock, not ours.
+#
+# State (discord/state/*.json) is committed back by the workflow itself using
+# the built-in GITHUB_TOKEN, so no extra secret is needed just to remember
+# "the last thing we posted about."
+
+on:
+  schedule:
+    # Every 30 minutes. Store review approvals and merges are not something a
+    # player needs to hear about within seconds, and this keeps the API call
+    # volume trivial.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: 'Dry run (print, post nothing, do not advance state)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: discord-watchers
+  cancel-in-progress: false
+
+permissions:
+  contents: write # to commit the state files back
+
+jobs:
+  store-release:
+    name: Store release watcher
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_UPDATES != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Missing webhook
+        if: ${{ env.HAS_WEBHOOK != 'true' }}
+        run: |
+          {
+            echo "### ⚠️ Store release watcher skipped"
+            echo "\`DISCORD_WEBHOOK_UPDATES\` is not set as a repository secret."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check + announce
+        if: ${{ env.HAS_WEBHOOK == 'true' }}
+        env:
+          DISCORD_WEBHOOK_UPDATES: ${{ secrets.DISCORD_WEBHOOK_UPDATES }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: npm run notify:store-release -- ${{ inputs.dryRun && '--dry-run' || '' }}
+
+      - name: Commit state
+        if: ${{ env.HAS_WEBHOOK == 'true' && !inputs.dryRun }}
+        run: |
+          if git diff --quiet -- discord/state/last-notified-release.json; then
+            echo "No state change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add discord/state/last-notified-release.json
+          git commit -m "chore(discord): record last-announced store release [skip ci]"
+          git push
+
+  github-hype:
+    name: GitHub activity → #future-updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HAS_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_FUTURE_UPDATES != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Missing webhook
+        if: ${{ env.HAS_WEBHOOK != 'true' }}
+        run: |
+          {
+            echo "### ⚠️ GitHub hype poster skipped"
+            echo "\`DISCORD_WEBHOOK_FUTURE_UPDATES\` is not set as a repository secret."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check + announce
+        if: ${{ env.HAS_WEBHOOK == 'true' }}
+        env:
+          DISCORD_WEBHOOK_FUTURE_UPDATES: ${{ secrets.DISCORD_WEBHOOK_FUTURE_UPDATES }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run notify:github-hype -- ${{ inputs.dryRun && '--dry-run' || '' }}
+
+      - name: Commit state
+        if: ${{ env.HAS_WEBHOOK == 'true' && !inputs.dryRun }}
+        run: |
+          if git diff --quiet -- discord/state/last-notified-pr.json; then
+            echo "No state change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add discord/state/last-notified-pr.json
+          git commit -m "chore(discord): record last-announced PR [skip ci]"
+          git push
