@@ -99,7 +99,7 @@ Köszönjük, hogy a Deep Life Simulatort játszod! Ez a frissítés arról szó
 
 Minden frissítés célja, hogy a döntéseid többet érjenek, a mentéseid pedig biztonságosabbak legyenek.
 
-Mondd el a véleményed a Discordon: discord.gg/invite/rzktazdX8v
+Mondd el a véleményed a Discordon: discord.gg/rzktazdX8v
 
 Nincsenek kényszerített reklámok. Nincs pay-to-win. Csak egy tisztességes, stratégiai életszimulátor.
 ```
@@ -193,7 +193,7 @@ FUNKCIÓK:
 
 Töltsd le a Deep Life Simulatort még ma. Kezdj a semmiből. Derítsd ki, tudsz-e generációs vagyont építeni - vagy végignézed, ahogy minden összeomlik. A történeted egyedi. A döntéseid számítanak.
 
-Csatlakozz a Discord-közösségünkhöz: discord.gg/invite/rzktazdX8v
+Csatlakozz a Discord-közösségünkhöz: discord.gg/rzktazdX8v
 ```
 
 ## notes

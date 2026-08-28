@@ -110,7 +110,7 @@ v2.5.8 -- 穩定性與優化
 每一次更新，都希望讓你的選擇更有分量，讓你的存檔更安全。
 
 感謝你的支持。歡迎加入 Discord 和我們聊聊：
-discord.gg/invite/rzktazdX8v
+discord.gg/rzktazdX8v
 
 沒有強制廣告，沒有逼課。只有公平、有策略的人生模擬。
 ```
@@ -209,7 +209,7 @@ BitLife 好玩，但全憑隨機。《Deep Life Simulator》模擬的是真實�
 
 立即下載《Deep Life Simulator》。從一無所有開始，看看你能打造世代相傳的財富，還是看著它一夕崩塌。你的故事獨一無二，你的選擇舉足輕重。
 
-加入我們的 Discord 社群：discord.gg/invite/rzktazdX8v
+加入我們的 Discord 社群：discord.gg/rzktazdX8v
 ```
 
 ## notes

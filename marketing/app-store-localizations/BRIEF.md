@@ -79,7 +79,7 @@ Use the current v2.5.8 "Stability & Polish" note (source section 6): an honest,
 generic summary — bug fixes across saves/economy/in-app store, performance and
 stability improvements, general polish based on reported issues. No invented
 metrics or bug counts. Thanks-for-playing framing, Discord link
-`discord.gg/invite/rzktazdX8v`.
+`discord.gg/rzktazdX8v`.
 
 ### gp_short_description (80 chars)
 Google Play short description - indexed and shown first; hook + top keyword.

@@ -99,7 +99,7 @@ v2.5.8 - Stabilitate și remedieri
 
 Fiecare update își propune să facă alegerile tale să conteze mai mult și salvările tale mai sigure.
 
-Spune-ne părerea ta pe Discord: discord.gg/invite/rzktazdX8v
+Spune-ne părerea ta pe Discord: discord.gg/rzktazdX8v
 
 Fără reclame forțate. Fără pay-to-win. Doar un simulator de viață corect și strategic.
 ```
@@ -193,7 +193,7 @@ CARACTERISTICI:
 
 Descarcă Deep Life Simulator azi. Începe de la zero. Vezi dacă poți construi avere pentru generații - sau dacă privești cum se prăbușește tot. Povestea ta e unică. Alegerile tale contează.
 
-Intră în comunitatea noastră pe Discord: discord.gg/invite/rzktazdX8v
+Intră în comunitatea noastră pe Discord: discord.gg/rzktazdX8v
 ```
 
 ## notes

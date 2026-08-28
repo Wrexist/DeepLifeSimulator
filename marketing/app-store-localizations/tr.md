@@ -105,7 +105,7 @@ Deep Life Simulator oynadığın için teşekkürler. Bu güncelleme tamamen oyu
 
 Her güncelleme, seçimlerini daha anlamlı ve kayıtlarını daha güvenli kılmayı amaçlar.
 
-Geri bildirimlerini paylaşmak için Discord'umuza katıl: discord.gg/invite/rzktazdX8v
+Geri bildirimlerini paylaşmak için Discord'umuza katıl: discord.gg/rzktazdX8v
 
 Zorla reklam yok. Pay-to-win yok. Sadece adil, stratejik bir hayat simülasyonu.
 ```
@@ -200,7 +200,7 @@ BitLife eğlencelidir ama rastgeledir. Deep Life Simulator gerçek ekonomiyi sim
 
 Deep Life Simulator'ı bugün indir. Sıfırdan başla. Nesiller boyu servet kurabilecek misin, yoksa her şeyin çöküşünü mü izleyeceksin? Hikâyen sana özel. Seçimlerin önemli.
 
-Discord topluluğumuza katıl: discord.gg/invite/rzktazdX8v
+Discord topluluğumuza katıl: discord.gg/rzktazdX8v
 ```
 
 ## notes

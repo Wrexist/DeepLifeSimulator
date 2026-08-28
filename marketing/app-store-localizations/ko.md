@@ -111,7 +111,7 @@ Deep Life Simulator를 플레이해 주셔서 감사합니다. 이번 업데이�
 
 모든 업데이트는 여러분의 선택이 더 의미 있고, 세이브가 더 안전해지도록 하는 것을 목표로 합니다.
 
-디스코드에서 피드백을 들려주세요: discord.gg/invite/rzktazdX8v
+디스코드에서 피드백을 들려주세요: discord.gg/rzktazdX8v
 
 강제 광고 없음. 페이투윈 없음. 공정한 전략 인생 시뮬레이션입니다.
 ```
@@ -210,7 +210,7 @@ BitLife는 재미있지만 랜덤입니다. Deep Life Simulator는 진짜 경제
 
 지금 Deep Life Simulator를 다운로드하세요. 무일푼에서 시작해 재벌 가문을 세울 수 있을지, 아니면 전부 무너지는 걸 지켜보게 될지. 당신의 이야기는 하나뿐이고, 당신의 선택이 그걸 만듭니다.
 
-디스코드 커뮤니티: discord.gg/invite/rzktazdX8v
+디스코드 커뮤니티: discord.gg/rzktazdX8v
 ```
 
 ## notes

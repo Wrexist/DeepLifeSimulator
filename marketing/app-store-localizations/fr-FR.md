@@ -99,7 +99,7 @@ Merci de jouer à Deep Life Simulator. Cette mise à jour vise à rendre le jeu 
 
 Chaque mise à jour vise à donner plus de poids à tes choix et à mieux protéger tes sauvegardes.
 
-Merci de jouer. Rejoins-nous sur Discord : discord.gg/invite/rzktazdX8v
+Merci de jouer. Rejoins-nous sur Discord : discord.gg/rzktazdX8v
 
 Pas de pubs imposées. Pas de pay-to-win. Juste une simulation de vie stratégique et équitable.
 ```
@@ -194,7 +194,7 @@ FONCTIONNALITÉS :
 
 Télécharge Deep Life Simulator aujourd'hui. Pars de rien. Deviens milliardaire - ou regarde tout s'effondrer. Ton histoire est unique. Tes choix comptent.
 
-Rejoins notre communauté Discord : discord.gg/invite/rzktazdX8v
+Rejoins notre communauté Discord : discord.gg/rzktazdX8v
 ```
 
 ## notes

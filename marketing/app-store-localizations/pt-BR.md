@@ -99,7 +99,7 @@ Valeu por jogar o Deep Life Simulator! Esta atualização é toda sobre deixar o
 
 Cada atualização busca fazer suas escolhas importarem mais e seus saves ficarem mais seguros.
 
-Entre no nosso Discord e mande seu feedback: discord.gg/invite/rzktazdX8v
+Entre no nosso Discord e mande seu feedback: discord.gg/rzktazdX8v
 
 Sem anúncios forçados. Sem pay-to-win. Só um simulador de vida justo e estratégico.
 ```
@@ -193,7 +193,7 @@ RECURSOS:
 
 Baixe o Deep Life Simulator agora. Comece do zero e prove que você consegue ficar rico, virar magnata e construir riqueza geracional - ou veja tudo desmoronar. Suas escolhas importam.
 
-Entre na nossa comunidade no Discord: discord.gg/invite/rzktazdX8v
+Entre na nossa comunidade no Discord: discord.gg/rzktazdX8v
 ```
 
 ## notes
