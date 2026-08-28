@@ -374,6 +374,59 @@ function DeathPopup() {
     );
   }, [gameState, reviveCharacter, bridgeToStore]);
 
+  const priceOf = (productId: string): string | undefined => {
+    const product = iapProducts.find((p) => p?.productId === productId);
+    const localized = product?.displayPrice ?? product?.localizedPrice ?? product?.price;
+    return (typeof localized === 'string' && localized.trim().length > 0 ? localized : undefined)
+      ?? getProductConfig(productId)?.price;
+  };
+
+  /**
+   * Which cash revive to offer.
+   *
+   * `REVIVE_NOW` is a CONSUMABLE, so it can be bought every time it is spent -
+   * that is the whole point, and it is what makes this row permanent rather
+   * than a one-time offer that vanishes after a single purchase.
+   *
+   * It is offered only when the store ACTUALLY has it, not merely when the
+   * config knows its id. The catalog is the source of truth here: until the
+   * product exists in App Store Connect and Play (an owner action - see
+   * docs/IAP-SETUP.md) the row would be a button that can only ever say
+   * "Item Unavailable". When it is absent we fall back to exactly today's
+   * behaviour, the one-time Revival Pack, so shipping this ahead of the store
+   * changes nothing rather than breaking something.
+   */
+  const repeatableReviveAvailable = useMemo(
+    () => iapProducts.some((p) => p?.productId === IAP_PRODUCTS.REVIVE_NOW),
+    [iapProducts],
+  );
+  const cashReviveProductId = repeatableReviveAvailable
+    ? IAP_PRODUCTS.REVIVE_NOW
+    : IAP_PRODUCTS.REVIVAL_PACK;
+  const cashRevivePrice = priceOf(cashReviveProductId);
+  const cashReviveTitle = repeatableReviveAvailable ? 'Revive Now' : 'Revival Pack';
+  const cashReviveSubtitle = repeatableReviveAvailable
+    ? 'Come back to life and keep this run going.'
+    : 'Revive without spending gems. One-time purchase.';
+
+  /**
+   * When to show it. The charge is a BOOLEAN, not a quantity, so a second
+   * purchase while one is already banked would take the money and grant
+   * nothing - `hasBankedRevive` is what prevents that, and the player is shown
+   * the better offer ("Use Revival Pack - Free") in its place. Once they spend
+   * it the row returns, which is what "always there" means for a one-at-a-time
+   * charge.
+   *
+   * The one-time pack keeps its extra condition: it can genuinely only be
+   * bought once per account, so it hides for good once owned. The repeatable
+   * SKU has no such limit and therefore no such check.
+   */
+  const hasBankedRevive = gameState.revivalPack === true;
+  const showCashRevive =
+    !hasBankedRevive &&
+    !!cashRevivePrice &&
+    (repeatableReviveAvailable || !settings.hasRevivalPack);
+
   /**
    * Buy the Revival Pack with real money.
    *
@@ -392,8 +445,8 @@ function DeathPopup() {
    * place it was never reachable from.
    */
   const handleBuyRevivalPack = useCallback(
-    () => bridgeToStore('perks', IAP_PRODUCTS.REVIVAL_PACK),
-    [bridgeToStore]
+    () => bridgeToStore('perks', cashReviveProductId),
+    [bridgeToStore, cashReviveProductId]
   );
 
   // Re-present the death Modal once the store closes. The bridge flag is cleared
@@ -724,7 +777,6 @@ function DeathPopup() {
     : null;
 
   const canAffordRevive = safeStats(gameState).gems >= REVIVE_GEM_COST;
-  const hasBankedRevive = gameState.revivalPack === true;
 
   // Prefer the store SDK's LOCALIZED price when the catalog has loaded - this
   // row navigates to the store rather than charging, but a hardcoded "$2.99"
@@ -733,13 +785,6 @@ function DeathPopup() {
   // behavior) only when the catalog has not loaded; a missing price hides the
   // row rather than rendering a purchase button with no price on it. Same
   // preference order as the store modal's resolveDisplayPrice.
-  const revivalStoreProduct = iapProducts.find((p) => p?.productId === IAP_PRODUCTS.REVIVAL_PACK);
-  const revivalLocalizedPrice =
-    revivalStoreProduct?.displayPrice ?? revivalStoreProduct?.localizedPrice ?? revivalStoreProduct?.price;
-  const revivalPackPrice =
-    (typeof revivalLocalizedPrice === 'string' && revivalLocalizedPrice.trim().length > 0
-      ? revivalLocalizedPrice
-      : undefined) ?? getProductConfig(IAP_PRODUCTS.REVIVAL_PACK)?.price;
   const canAffordRewind = (gameState.stats?.gems ?? 0) >= rewindCost;
   const canContinueLegacy = heirs.length > 0 && !!selectedHeirId;
 
@@ -1298,26 +1343,24 @@ function DeathPopup() {
                         thousands of gems. A death screen that hid that while
                         showing the expensive option first would be taking
                         advantage of the moment. */}
-                    {!hasBankedRevive && !settings.hasRevivalPack && revivalPackPrice ? (
+                    {showCashRevive ? (
                       <TouchableOpacity
                         style={[styles.optionRow, styles.optionRevive]}
                         onPress={handleBuyRevivalPack}
                         activeOpacity={0.85}
                         accessibilityRole="button"
-                        accessibilityLabel={`Buy the Revival Pack for ${revivalPackPrice} and revive without gems`}
+                        accessibilityLabel={`${cashReviveTitle} for ${cashRevivePrice}, revive without spending gems`}
                       >
                         <View style={[styles.optionIcon, styles.optionIconRevive]}>
                           <Heart size={20} color="#F472B6" fill="#F472B6" />
                         </View>
                         <View style={styles.optionText}>
-                          <Text style={styles.optionTitle}>Revival Pack</Text>
-                          <Text style={styles.optionSubtitle}>
-                            Revive without spending gems. One-time purchase.
-                          </Text>
+                          <Text style={styles.optionTitle}>{cashReviveTitle}</Text>
+                          <Text style={styles.optionSubtitle}>{cashReviveSubtitle}</Text>
                         </View>
                         <View style={[styles.optionPill, styles.optionPillRevive]}>
                           <Text style={[styles.optionPillText, styles.optionPillTextRevive]}>
-                            {revivalPackPrice}
+                            {cashRevivePrice}
                           </Text>
                         </View>
                       </TouchableOpacity>

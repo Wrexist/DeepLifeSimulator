@@ -75,6 +75,35 @@ Two traps in this table:
   (if/when set up) keeps `deeplife_mindset`.
 - **`revival_pack`** — no `deeplife_` prefix. Create it exactly as written.
 
+### `deeplife_revive_now` — CONSUMABLE, and NOT YET CREATED
+
+**Owner action required.** This is the only product in the app whose id exists
+in code but not (yet) in the stores. Create it as a **Consumable**, $2.99, in
+both App Store Connect and Google Play:
+
+| Product ID | Name | Type | Price |
+|---|---|---|---|
+| `deeplife_revive_now` | Revive Now | **Consumable** | $2.99 |
+
+Why a second revive product rather than reusing `revival_pack`: that one is a
+**Non-Consumable**, so Apple permits exactly one purchase per Apple ID for the
+life of the account. A second attempt resolves as a *restore* — the player is
+not charged, and the app deliberately restores it entitlements-only so it never
+re-banks a spendable revive (that guard is what stops a Restore tap minting free
+revives). The result is a button that can only ever do nothing, which is why the
+row hid itself after one purchase. A product's type can **never** be changed in
+App Store Connect, so repeatability requires a new id.
+
+Both grant exactly the same thing — one banked revive, spent by "Use Revival
+Pack" on the death screen — so anyone who already bought the old pack keeps it
+and loses nothing.
+
+**Until this product exists, the app behaves exactly as it does today.** The
+death screen offers the repeatable revive only when the store actually returns
+`deeplife_revive_now` in its catalogue; when it is absent the screen falls back
+to the one-time `revival_pack` row. So the code can ship before the store is
+ready without showing anyone a dead button.
+
 ## Part 2 — Subscriptions (DeepLife+)
 
 Monetization → **Subscriptions** → create one Subscription Group (e.g.

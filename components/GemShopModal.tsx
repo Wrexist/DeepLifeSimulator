@@ -806,11 +806,30 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
       owned: settings?.adsRemoved === true,
     },
     {
+      id: IAP_PRODUCTS.REVIVE_NOW,
+      accent: 'perks' as ShopAccent,
+      image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],
+      title: 'Revive Now',
+      // A CONSUMABLE, so it is buyable again every time it is spent - unlike
+      // the pack below, which Apple allows exactly once per account. Marked
+      // "owned" only while a charge is actually banked: the charge is a
+      // boolean, so a second purchase on top of an unspent one would take the
+      // money and grant nothing. Once spent, this goes back to buyable.
+      owned: revivalCharged,
+      ownedLabel: 'Ready',
+    },
+    {
       id: IAP_PRODUCTS.REVIVAL_PACK,
       accent: 'perks' as ShopAccent,
       image: IAP_ART[IAP_PRODUCTS.YOUTH_PILL_SINGLE],
       title: 'Revival Pack',
-      owned: settings?.hasRevivalPack === true,
+      // `revivalCharged` matters here too, not just on the card above. Both
+      // products bank the SAME boolean charge, so someone who bought Revive Now
+      // has a charge but no `hasRevivalPack` - and this card would still be
+      // enabled, taking $2.99 for a charge they already hold. Guarding on the
+      // charge as well as the purchase record is what stops that. Codex review
+      // of #174.
+      owned: settings?.hasRevivalPack === true || revivalCharged,
       // The pack is a NON-CONSUMABLE, so once bought it can never be bought
       // again - "Owned" is accurate but says nothing about whether a charge is
       // left. After the revive is spent that reads as though the player still
