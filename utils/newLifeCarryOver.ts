@@ -16,9 +16,27 @@
  * player with a rich slot 1 start a new game in empty slot 2 and mint a second
  * copy of the same balance, repeatedly. This record is written only by the
  * transition that DESTROYS the outgoing life, and `consume` deletes it before
- * returning it, so the balance exists in exactly one place at every moment.
+ * returning it, so nothing can replay it into a second live save.
  * Persisted rather than held in memory so that killing the app midway through
  * onboarding does not eat the purchases.
+ *
+ * ONE CAVEAT ON "exactly one copy" — READ BEFORE TOUCHING DELETE/BACKUP/RESTORE:
+ * the fresh-start caller snapshots the dying life to a rotation-exempt
+ * `before_overwrite` backup (`snapshotOutgoingSave`) BEFORE deleting the slot,
+ * and that snapshot now also carries the account-level gem balance this record
+ * banks. So for the window between the snapshot and the record being consumed,
+ * the balance is persisted in TWO places: this signed record and the slot's
+ * `before_overwrite` backup (which `deleteSaveSlot` does NOT remove). It is not
+ * currently a gem duplicator, but ONLY because the deleted slot probes as
+ * 'empty' and SaveSlots gates its "Restore" button on `slot.hasData ||
+ * needsRecovery` — an empty slot exposes no way to restore that backup, and a
+ * same-slot restore is an overwrite (net-same balance), not additive. That UI
+ * gate is therefore LOAD-BEARING: exposing restore for an empty/deleted slot,
+ * adding a reason to `PROTECTED_BACKUP_REASONS`, or otherwise surfacing that
+ * backup would open a live premium-currency dup (seed the new life from this
+ * record, then restore the gem-bearing backup into the emptied slot). If you
+ * change any of those, strip account-level gems out of the `before_overwrite`
+ * snapshot on this path instead of relying on the gate.
  *
  * WHY SIGNED: the record grants gems and entitlements on read. Unsigned, it
  * would be a state-injection vector - write a file, relaunch, own Lifetime

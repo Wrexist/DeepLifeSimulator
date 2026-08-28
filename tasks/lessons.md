@@ -4567,3 +4567,34 @@ background, so either the caller supplies the contrast or the component has no
 business setting colour at all. Removed rather than made conditional - one call
 site, no legible home, and direction is already carried by the toast and the
 per-action result line. The scale pop keeps the acknowledgement.
+
+---
+
+## 2026-08-28 — Weekly audit: a "single source of truth" invariant can be broken by a NEW copy added elsewhere
+
+The fresh-start gem carry-over (`utils/newLifeCarryOver.ts`, added this week)
+documented itself as "the balance exists in exactly one place at every moment"
+— the property that makes it safe against premium-currency duplication. But the
+SAME fresh-start path also snapshots the dying life to a rotation-exempt
+`before_overwrite` backup *before* deleting the slot, and once the carry-over
+started banking the account-level **gem** balance, that snapshot began carrying
+a second copy of it. The invariant was quietly false.
+
+It is not a live exploit today — a deleted slot probes as 'empty', and
+`SaveSlots` gates its "Restore" button on `slot.hasData || needsRecovery`, so
+there is no UI path to restore the gem-bearing backup into the emptied slot, and
+a same-slot restore is an overwrite (net-same), not additive. But that means a
+data-model safety property is now enforced by a single UI condition it was
+explicitly designed *not* to depend on. Anyone who later exposes restore for an
+empty slot, adds a `PROTECTED_BACKUP_REASONS` entry, or otherwise surfaces that
+backup would open a live gem duplicator without touching this file at all.
+
+The lesson: when you add a NEW place that persists a value another module calls
+"single-copy", you inherit that module's invariant whether or not you read its
+comment. And a false invariant comment is worse than none — a future engineer
+reasons from it. Fixed by correcting the comment to document the second copy and
+name the empty-slot Restore gate as load-bearing (with the real fix — strip
+account-level gems from the `before_overwrite` snapshot — spelled out for
+whoever changes the gate). Same family as the §7 "a carve-out still has to
+survive the LOAD" note: writing the value correctly in one path says nothing
+about what a *different* path does with it.
