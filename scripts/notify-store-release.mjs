@@ -25,15 +25,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+// Explicit, though Node exposes Buffer as a global. A bare `Buffer` here was a
+// no-undef ERROR that failed the Lint step of eas-update.yml for the whole repo:
+// eslint.config.js declared Node globals for {js,jsx,ts,tsx} and
+// scripts/**/*.{js,cjs}, and no glob covered .mjs. That gap is closed now (there
+// is a scripts/**/*.mjs block), but the import stays — it matches the node:
+// imports above and does not depend on lint config to be correct.
 import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
-// Explicit, though Node exposes Buffer as a global: eslint.config.js declares
-// Node globals for {js,jsx,ts,tsx} and scripts/**/*.{js,cjs}, and neither glob
-// covers .mjs - so a bare `Buffer` here is a no-undef ERROR that fails the Lint
-// step of eas-update.yml for the whole repo. Importing the builtin fixes it at
-// the use site and matches the node: imports above, where widening the glob
-// would also declare require/module/exports for ESM files that have none.
-import { Buffer } from 'node:buffer';
 import { AscClient, loadCredentials } from './lib/ascClient.mjs';
 import { renderReleasePost } from '../discord/copy.mjs';
 
