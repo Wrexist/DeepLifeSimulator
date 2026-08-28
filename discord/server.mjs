@@ -296,6 +296,10 @@ export const CATEGORIES = [
         topic: 'Pick the channels you want to see.' },
       { key: 'official-links', name: '🔗・official-links', type: 'text', phase: 'launch', readOnly: true, doc: 'links',
         topic: 'Every official Deep Life Simulator link. If it is not here, it is not us.' },
+      // Pre-existing, named by hand - see the note above update-notes for why
+      // this keeps its plain name instead of the emoji・key convention.
+      { key: 'download-ios', name: 'download-ios', type: 'text', phase: 'launch', readOnly: true,
+        topic: 'How to get on iOS - App Store link and, when the App Store build is behind, the TestFlight/beta path.' },
     ],
   },
   {
@@ -311,6 +315,16 @@ export const CATEGORIES = [
         topic: 'This is happening. Major news only — patch detail lives in update-notes.' },
       { key: 'update-notes', name: '🚀・update-notes', type: 'announcement', phase: 'launch', readOnly: true,
         topic: 'Exactly what changed, every release. Posted automatically.' },
+      // Pre-existing channels (created before this file described the server),
+      // named by hand rather than via the emoji・key convention above - kept
+      // as named so a sync never silently relabels something the owner
+      // already pointed people at. Both are posted to by
+      // scripts/notify-store-release.mjs and scripts/notify-github-hype.mjs
+      // via webhook, on a schedule - see .github/workflows/discord-watchers.yml.
+      { key: 'updates', name: 'updates', type: 'text', phase: 'launch', readOnly: true,
+        topic: 'The live App Store / Google Play version, posted the moment it actually changes - not when it is submitted.' },
+      { key: 'future-updates', name: 'future-updates', type: 'text', phase: 'launch', readOnly: true,
+        topic: 'What shipped behind the scenes, batched from merged PRs - the preview before update-notes/updates makes it official.' },
       { key: 'this-week', name: '📅・this-week', type: 'text', phase: 'launch', readOnly: true, doc: 'this-week',
         topic: 'The one channel to check on a Monday. What shipped, what is live, what is next.' },
       { key: 'roadmap', name: '🔮・roadmap', type: 'text', phase: 'launch', readOnly: true,
