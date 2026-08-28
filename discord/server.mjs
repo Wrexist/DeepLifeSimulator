@@ -47,6 +47,8 @@
  * @property {string[]} [permissions]    guild-wide permission flag names
  * @property {string[]} [previousNames]  what this role used to be called
  * @property {number} [level]            progression roles only
+ * @property {string} [unlock]           progression roles only - the reward line
+ *                                       the levels document renders for this rank
  * @property {string} [emoji]            topic roles only
  * @property {string[]} [channels]       topic roles only — what the role unlocks
  */
@@ -253,18 +255,46 @@ export const TOPIC_ROLES = [
  * README — this file is where you copy the level→role mapping from.
  */
 /** @type {RoleSpec[]} */
+//
+// `unlock` is the reward line shown in the levels document. A rank without one
+// still earns its title and colour - not every level in an RPG drops an item,
+// and a ladder where every rung must grant a room is a ladder that stops being
+// extended. The rank that DOES gate a room names it here and gates it with
+// `atLeastLevel()` below, so the promise and the permission come from one place.
 export const PROGRESSION_ROLES = [
-  { key: 'level-1', name: '👤 New Citizen', level: 1 },
-  { key: 'level-5', name: '🧑 Resident', level: 5 },
-  { key: 'level-10', name: '💼 Professional', level: 10 },
-  { key: 'level-20', name: '💰 Entrepreneur', level: 20 },
+  { key: 'level-1', name: '👤 New Citizen', level: 1, unlock: 'You are in. Post anywhere the topic roles open up.' },
+  { key: 'level-5', name: '🧑 Resident', level: 5, unlock: 'Recognised as a regular - your name starts carrying a colour.' },
+  { key: 'level-10', name: '💼 Professional', level: 10, unlock: 'The veterans lounge opens.' },
+  { key: 'level-20', name: '💰 Entrepreneur', level: 20, unlock: 'Patch notes reach you before they go public.' },
   { key: 'level-30', name: '🏢 Business Tycoon', level: 30 },
-  { key: 'level-40', name: '📈 Investor', level: 40 },
+  { key: 'level-40', name: '📈 Investor', level: 40, unlock: 'First call on playtest builds.' },
   { key: 'level-50', name: '💎 Millionaire', level: 50 },
-  { key: 'level-75', name: '👑 Billionaire', level: 75 },
+  { key: 'level-75', name: '👑 Billionaire', level: 75, unlock: 'A seat in the developer Q&A room.' },
   { key: 'level-90', name: '🏛️ Dynasty', level: 90 },
-  { key: 'level-100', name: '🌎 Life Legend', level: 100 },
+  { key: 'level-100', name: '🌎 Life Legend', level: 100, unlock: 'The top of the ladder. There is nothing above this one.' },
 ].map((r, i) => ({ ...r, color: C.progression[i], hoist: false, mentionable: false, permissions: [] }));
+
+/**
+ * Every progression role key at or above `level`, highest-inclusive.
+ *
+ * ALWAYS gate a level-locked channel with this, never with a single role key.
+ * A levelling bot may either STACK earned roles or REPLACE the previous one on
+ * level up, and which it does is a setting in the bot, not something this repo
+ * controls. Gate on `['level-10']` alone and the replace-mode configuration
+ * silently takes the veterans lounge away from someone the moment they reach
+ * level 20 - a progression system that CONFISCATES rewards as you progress,
+ * which is the worst possible failure for the thing it is trying to be, and one
+ * nobody would think to test for.
+ *
+ * Listing every rank at or above the threshold is correct under both settings,
+ * and it keeps working when a new rank is inserted later.
+ *
+ * @param {number} level
+ * @returns {string[]}
+ */
+export function atLeastLevel(level) {
+  return PROGRESSION_ROLES.filter((r) => r.level >= level).map((r) => r.key);
+}
 
 // ── Channels ──────────────────────────────────────────────────────────────
 //
@@ -438,6 +468,35 @@ export const CATEGORIES = [
       { key: 'experimental', name: '🔬・experimental', type: 'text', phase: 'growth',
         hidden: true, visibleTo: ['topic-beta', 'tester'],
         topic: 'Features being tried before anyone commits to them. Say if you hate it.' },
+    ],
+  },
+  {
+    // The ladder's payoff. Until this existed the ten progression roles were a
+    // recoloured name and nothing else, while the pinned roles document already
+    // promised "early news, beta invites and developer Q&As" - copy writing a
+    // cheque the server did not cash.
+    //
+    // Every room here is HIDDEN and gated with atLeastLevel(), so it costs a
+    // newcomer nothing: an unearned room is invisible rather than a locked door,
+    // and the server never looks emptier than it is (the launch-phase rule).
+    key: 'progression',
+    name: '🏅 PROGRESSION',
+    phase: 'launch',
+    channels: [
+      { key: 'levels', name: '🏅・levels', type: 'text', phase: 'launch', readOnly: true, doc: 'levels',
+        topic: 'Every rank, what it unlocks, and how levels are earned.' },
+      { key: 'veterans-lounge', name: '🎓・veterans-lounge', type: 'text', phase: 'launch',
+        hidden: true, visibleTo: atLeastLevel(10), slowmode: 5,
+        topic: 'Level 10+. Quieter room, higher signal.' },
+      { key: 'early-notes', name: '🔮・early-notes', type: 'text', phase: 'launch', readOnly: true,
+        hidden: true, visibleTo: atLeastLevel(20),
+        topic: 'Level 20+. Patch notes before they go public.' },
+      { key: 'playtest-invites', name: '🧪・playtest-invites', type: 'text', phase: 'launch', readOnly: true,
+        hidden: true, visibleTo: atLeastLevel(40),
+        topic: 'Level 40+. First call when a build needs testers.' },
+      { key: 'dev-qa', name: '🎤・dev-qa', type: 'text', phase: 'launch',
+        hidden: true, visibleTo: atLeastLevel(75), slowmode: 30,
+        topic: 'Level 75+. Ask the developer directly.' },
     ],
   },
   {

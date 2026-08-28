@@ -46,12 +46,21 @@ const ACCENT = {
   roadmap: 0x8e44ad,
   beta: 0x9b59b6,
   release: 0x5865f2,
+  levels: 0xf59e0b,
 };
 
 const topicList = TOPIC_ROLES.map((r) => `${r.emoji} **${r.name.replace(/^\S+\s/, '')}**`).join(' · ');
 
 const progressionLadder = PROGRESSION_ROLES
   .map((r) => `\`Lv ${String(r.level).padStart(3)}\`  ${r.name}`)
+  .join('\n');
+
+// The same ladder with each rank's reward. Rendered from PROGRESSION_ROLES so
+// the promise printed here and the permission granted by `atLeastLevel()` in
+// server.mjs cannot drift: a rank whose room is removed loses its line here in
+// the same edit. A rank with no `unlock` prints the title alone, deliberately.
+const progressionRewards = PROGRESSION_ROLES
+  .map((r) => `\`Lv ${String(r.level).padStart(3)}\`  ${r.name}${r.unlock ? `\n${' '.repeat(8)}${r.unlock}` : ''}`)
   .join('\n');
 
 /**
@@ -127,7 +136,25 @@ export const DOCUMENTS = {
       '',
       progressionLadder,
       '',
-      '_Levels buy status, early news, beta invites and developer Q&As. They deliberately do **not** buy in-game money — paying people to post is how a server fills up with people posting for the sake of it._',
+      '_What each rank unlocks is in <#levels>. Levels deliberately do **not** buy in-game money — paying people to post is how a server fills up with people posting for the sake of it._',
+    ].join('\n'),
+  },
+
+  levels: {
+    title: '🏅 Ranks',
+    accent: ACCENT.levels,
+    body: [
+      'Talking here earns experience, and experience earns rank. Ten of them, from the day you arrive to the top of the ladder.',
+      '',
+      progressionRewards,
+      '',
+      '**How experience is earned**',
+      'Posting in any public channel. There is a short cooldown between messages that count, so a conversation earns and a wall of one-word replies does not - the fastest way up is to be someone worth talking to.',
+      '',
+      '**What ranks never buy**',
+      'In-game money, gems, or anything that touches your save. Paying people to post buys posts, and what that produces is noise. Ranks buy status, earlier news, and access to the people building the game.',
+      '',
+      '_Rooms you have not reached yet are invisible rather than locked - nothing here is a door you can rattle. Reach the rank and the room simply appears._',
     ].join('\n'),
   },
 
