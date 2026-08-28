@@ -99,7 +99,7 @@ Tak, fordi du spiller Deep Life Simulator. Denne opdatering handler om at gøre 
 
 Hver opdatering sigter mod at gøre dine valg mere betydningsfulde og dine gemte spil mere sikre.
 
-Join vores Discord: discord.gg/invite/rzktazdX8v
+Join vores Discord: discord.gg/rzktazdX8v
 
 Ingen påtvungne reklamer. Ingen pay-to-win. Bare en fair, strategisk livssimulator.
 ```
@@ -194,7 +194,7 @@ FUNKTIONER:
 
 Download Deep Life Simulator i dag. Start med ingenting. Se, om du kan bygge en formue, der går i arv - eller om det hele vælter. Din historie er unik. Dine valg betyder noget.
 
-Join vores Discord: discord.gg/invite/rzktazdX8v
+Join vores Discord: discord.gg/rzktazdX8v
 ```
 
 ## notes

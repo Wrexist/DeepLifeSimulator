@@ -99,7 +99,7 @@ Díky, že hraješ Deep Life Simulator. Tahle aktualizace je celá o tom, aby by
 
 Každá aktualizace usiluje o to, aby tvoje volby měly větší váhu a tvoje uložené pozice byly bezpečnější.
 
-Přidej se na náš Discord a řekni nám svůj názor: discord.gg/invite/rzktazdX8v
+Přidej se na náš Discord a řekni nám svůj názor: discord.gg/rzktazdX8v
 
 Žádné vnucené reklamy. Žádné pay-to-win. Jen férový strategický simulátor.
 ```
@@ -197,7 +197,7 @@ FUNKCE:
 
 Stáhni si Deep Life Simulator ještě dnes. Začni od nuly a zkus vybudovat generační bohatství - nebo sleduj, jak se všechno zhroutí. Tvůj příběh je jedinečný. Na tvých volbách záleží.
 
-Přidej se k naší komunitě na Discordu: discord.gg/invite/rzktazdX8v
+Přidej se k naší komunitě na Discordu: discord.gg/rzktazdX8v
 ```
 
 ## notes

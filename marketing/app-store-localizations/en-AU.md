@@ -109,7 +109,7 @@ Thanks for playing Deep Life Simulator. This update is all about making the game
 
 Every update aims to make your choices matter more and your saves safer.
 
-Join our Discord to share feedback: discord.gg/invite/rzktazdX8v
+Join our Discord to share feedback: discord.gg/rzktazdX8v
 
 No forced ads. No pay-to-win. Just a fair, strategic life sim.
 ```
@@ -204,7 +204,7 @@ FEATURES:
 
 Download Deep Life Simulator today. Start with nothing. See if you can build generational wealth, or watch it all collapse. Your story is unique. Your choices matter.
 
-Join our Discord community: discord.gg/invite/rzktazdX8v
+Join our Discord community: discord.gg/rzktazdX8v
 ```
 
 ## notes

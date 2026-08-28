@@ -181,7 +181,7 @@ Thank you for playing Deep Life Simulator. This release is all about making the 
 Every update aims to make your choices matter more and your saves safer.
 
 **Thank you for playing. Join our Discord to share feedback:**
-discord.gg/deeplifesim
+discord.gg/rzktazdX8v
 
 No forced ads. No pay-to-win. Just a fair, strategic life sim.
 ```
@@ -276,7 +276,7 @@ FEATURES:
 
 Download Deep Life Simulator today. Start with nothing. See if you can build generational wealth, or watch it all collapse. Your story is unique. Your choices matter.
 
-Join our Discord community: discord.gg/deeplifesim
+Join our Discord community: discord.gg/rzktazdX8v
 ```
 
 ---
@@ -411,7 +411,7 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 3. **Keywords:** [Use Option 1 above]
 4. **Description:** [Use Full Description v5.0 above]
 5. **Version Release Notes:** [Use What's New v2.5.8 above]
-6. **Support URL:** discord.gg/deeplifesim
+6. **Support URL:** discord.gg/rzktazdX8v
 7. **Category:** Games > Simulation
 8. **Content Rating:** [Per IARC questionnaire — likely 12+ due to violence/crime themes]
 9. **Rating Prompt:** Configure per section 10 above
@@ -425,7 +425,7 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 5. **Content Rating:** [Similar to iOS]
 6. **Screenshots:** Same 5 screenshots as iOS
 7. **App Preview Video:** (same 15–30 sec video)
-8. **Support Email/Website:** discord.gg/deeplifesim
+8. **Support Email/Website:** discord.gg/rzktazdX8v
 
 ---
 

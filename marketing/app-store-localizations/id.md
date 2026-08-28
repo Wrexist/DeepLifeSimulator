@@ -95,7 +95,7 @@ Terima kasih sudah memainkan Deep Life Simulator. Update ini fokus membuat game 
 
 Setiap update bertujuan membuat pilihanmu makin berarti dan save-mu makin aman.
 
-Gabung Discord kami: discord.gg/invite/rzktazdX8v
+Gabung Discord kami: discord.gg/rzktazdX8v
 Tanpa iklan paksa. Tanpa pay-to-win. Simulasi kehidupan yang adil dan strategis.
 ```
 
@@ -188,7 +188,7 @@ FITUR:
 
 Download Deep Life Simulator sekarang. Mulai dari nol. Buktikan kamu bisa jadi miliarder dan bangun kekayaan turun-temurun-atau lihat semuanya runtuh. Ceritamu unik. Pilihanmu berarti.
 
-Gabung komunitas Discord kami: discord.gg/invite/rzktazdX8v
+Gabung komunitas Discord kami: discord.gg/rzktazdX8v
 ```
 
 ## notes

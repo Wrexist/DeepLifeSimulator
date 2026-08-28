@@ -99,7 +99,7 @@ Dziękujemy, że gracie w Deep Life Simulator. Ta aktualizacja to przede wszystk
 
 Każda aktualizacja ma sprawić, że Wasze wybory znaczą więcej, a zapisy są bezpieczniejsze.
 
-Wpadnij na naszego Discorda i podziel się opinią: discord.gg/invite/rzktazdX8v
+Wpadnij na naszego Discorda i podziel się opinią: discord.gg/rzktazdX8v
 
 Żadnych wymuszonych reklam. Żadnego pay-to-win. Po prostu uczciwy, strategiczny symulator życia.
 ```
@@ -193,7 +193,7 @@ FUNKCJE:
 
 Pobierz Deep Life Simulator już dziś. Zacznij z niczym i sprawdź, czy zbudujesz majątek pokoleń - czy wszystko się zawali. Twoje wybory mają znaczenie.
 
-Dołącz do naszej społeczności na Discordzie: discord.gg/invite/rzktazdX8v
+Dołącz do naszej społeczności na Discordzie: discord.gg/rzktazdX8v
 ```
 
 ## notes

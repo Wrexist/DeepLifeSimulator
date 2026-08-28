@@ -99,7 +99,7 @@ Gràcies per jugar a Deep Life Simulator. Aquesta actualització busca fer el jo
 
 Cada actualització vol que les teves decisions comptin més i que les teves partides estiguin més segures.
 
-Digues-nos què en penses al Discord: discord.gg/invite/rzktazdX8v
+Digues-nos què en penses al Discord: discord.gg/rzktazdX8v
 
 Sense anuncis forçats. Sense pay-to-win. Només un simulador de vida just i estratègic.
 ```
@@ -193,7 +193,7 @@ CARACTERÍSTIQUES:
 
 Baixa't Deep Life Simulator avui. Comença des de zero. Comprova si pots construir riquesa generacional - o si ho veuràs tot esfondrar-se. La teva història és única. Les teves decisions compten.
 
-Uneix-te a la comunitat de Discord: discord.gg/invite/rzktazdX8v
+Uneix-te a la comunitat de Discord: discord.gg/rzktazdX8v
 ```
 
 ## notes

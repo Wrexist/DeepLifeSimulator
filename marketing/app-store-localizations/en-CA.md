@@ -198,7 +198,7 @@ FEATURES:
 
 Download Deep Life Simulator today. Start with nothing. See if you can build generational wealth, or watch it all collapse. Your story is unique. Your choices matter.
 
-Join our Discord community: discord.gg/invite/rzktazdX8v
+Join our Discord community: discord.gg/rzktazdX8v
 ```
 
 ## notes

@@ -105,7 +105,7 @@ Bedankt voor het spelen van Deep Life Simulator. Deze update draait helemaal om 
 
 Elke update is erop gericht om jouw keuzes meer te laten tellen en je saves veiliger te maken.
 
-Bedankt voor het spelen. Deel je feedback in onze Discord: discord.gg/invite/rzktazdX8v
+Bedankt voor het spelen. Deel je feedback in onze Discord: discord.gg/rzktazdX8v
 
 Geen opgedrongen advertenties. Geen pay-to-win. Gewoon een eerlijke, strategische levenssim.
 ```
@@ -200,7 +200,7 @@ FUNCTIES:
 
 Download Deep Life Simulator vandaag nog. Begin met niks. Kijk of jij generatievermogen kunt opbouwen - of alles ziet instorten. Jouw verhaal is uniek. Jouw keuzes tellen.
 
-Join onze Discord-community: discord.gg/invite/rzktazdX8v
+Join onze Discord-community: discord.gg/rzktazdX8v
 ```
 
 ## notes

@@ -95,7 +95,7 @@ Kiitos, että pelaat Deep Life Simulatoria. Tämä päivitys keskittyy tekemää
 
 Jokainen päivitys pyrkii tekemään valinnoistasi merkityksellisempiä ja tallennuksistasi turvallisempia.
 
-Kiitos, että pelaat! Liity Discord-yhteisöömme: discord.gg/invite/rzktazdX8v
+Kiitos, että pelaat! Liity Discord-yhteisöömme: discord.gg/rzktazdX8v
 
 Ei pakotettuja mainoksia. Ei pay-to-winiä. Vain reilu, strateginen elämäsimu.
 ```
@@ -190,7 +190,7 @@ OMINAISUUDET:
 
 Lataa Deep Life Simulator tänään. Aloita tyhjästä. Katso, pystytkö rakentamaan sukupolvien varallisuuden - vai romahtaako kaikki. Tarinasi on ainutlaatuinen. Valinnoillasi on väliä.
 
-Liity Discord-yhteisöömme: discord.gg/invite/rzktazdX8v
+Liity Discord-yhteisöömme: discord.gg/rzktazdX8v
 ```
 
 ## notes

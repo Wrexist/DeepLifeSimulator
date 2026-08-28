@@ -105,7 +105,7 @@ Cảm ơn bạn đã chơi Deep Life Simulator. Bản cập nhật này tập tr
 
 Mỗi bản cập nhật đều hướng tới việc khiến lựa chọn của bạn có trọng lượng hơn và bản lưu của bạn an toàn hơn.
 
-Tham gia Discord để góp ý: discord.gg/invite/rzktazdX8v
+Tham gia Discord để góp ý: discord.gg/rzktazdX8v
 
 Không quảng cáo ép buộc. Không pay-to-win. Chỉ một game mô phỏng cuộc sống chiến lược và công bằng.
 ```
@@ -204,7 +204,7 @@ TÍNH NĂNG:
 
 Tải Deep Life Simulator ngay hôm nay. Bắt đầu từ con số 0. Xem bạn có xây nổi gia sản truyền đời - hay nhìn tất cả sụp đổ. Câu chuyện của bạn là duy nhất. Lựa chọn của bạn có ý nghĩa.
 
-Tham gia cộng đồng Discord: discord.gg/invite/rzktazdX8v
+Tham gia cộng đồng Discord: discord.gg/rzktazdX8v
 ```
 
 ## notes

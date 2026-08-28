@@ -109,7 +109,7 @@ v2.5.8 ― 安定性・快適性
 
 強制広告なし、Pay to Winなし。フェアで戦略的な人生シミュレーションを、これからも。
 
-ご意見・ご感想はDiscordへ：discord.gg/invite/rzktazdX8v
+ご意見・ご感想はDiscordへ：discord.gg/rzktazdX8v
 ```
 
 ## gp_short_description
@@ -207,7 +207,7 @@ BitLifeは楽しい、けれどランダム。『Deep Life Simulator』はリア
 
 今すぐ『Deep Life Simulator』をダウンロード。無一文から始めて、世代を超える大富豪を目指すか、すべてが崩れ落ちるのを見届けるか。あなたの物語は、あなただけのもの。
 
-Discordコミュニティはこちら：discord.gg/invite/rzktazdX8v
+Discordコミュニティはこちら：discord.gg/rzktazdX8v
 ```
 
 ## notes

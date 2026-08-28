@@ -95,7 +95,7 @@ Terima kasih kerana bermain Deep Life Simulator. Kemas kini ini fokus menjadikan
 
 Setiap kemas kini bertujuan menjadikan pilihan kamu lebih bermakna dan save kamu lebih selamat.
 
-Sertai Discord kami: discord.gg/invite/rzktazdX8v
+Sertai Discord kami: discord.gg/rzktazdX8v
 Tiada iklan paksa. Tiada pay-to-win. Simulasi hidup yang adil dan strategik.
 ```
 
@@ -188,7 +188,7 @@ CIRI-CIRI:
 
 Muat turun Deep Life Simulator hari ini. Mula dari kosong. Buktikan kamu boleh bina kekayaan turun-temurun-atau tengok semuanya runtuh. Pilihan kamu bermakna.
 
-Sertai komuniti Discord kami: discord.gg/invite/rzktazdX8v
+Sertai komuniti Discord kami: discord.gg/rzktazdX8v
 ```
 
 ## notes

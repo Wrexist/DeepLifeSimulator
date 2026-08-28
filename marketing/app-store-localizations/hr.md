@@ -99,7 +99,7 @@ Hvala što igraš Deep Life Simulator. Ovo ažuriranje usmjereno je na to da igr
 
 Svako ažuriranje ima za cilj da tvoje odluke znače više, a tvoje snimke budu sigurnije.
 
-Hvala što igraš! Reci nam svoje mišljenje na Discordu: discord.gg/invite/rzktazdX8v
+Hvala što igraš! Reci nam svoje mišljenje na Discordu: discord.gg/rzktazdX8v
 
 Bez prisilnih reklama. Bez pay-to-wina. Samo poštena, strateška simulacija života.
 ```
@@ -193,7 +193,7 @@ ZNAČAJKE:
 
 Preuzmi Deep Life Simulator danas. Kreni od nule. Provjeri možeš li izgraditi generacijsko bogatstvo - ili ćeš gledati kako se sve ruši. Tvoja priča je jedinstvena. Tvoje odluke su bitne.
 
-Pridruži se našoj Discord zajednici: discord.gg/invite/rzktazdX8v
+Pridruži se našoj Discord zajednici: discord.gg/rzktazdX8v
 ```
 
 ## notes

@@ -95,7 +95,7 @@ Danke, dass ihr Deep Life Simulator spielt! Bei diesem Update dreht sich alles d
 
 Jedes Update soll dafür sorgen, dass eure Entscheidungen mehr zählen und eure Spielstände sicherer sind.
 
-Feedback? Ab auf unseren Discord: discord.gg/invite/rzktazdX8v
+Feedback? Ab auf unseren Discord: discord.gg/rzktazdX8v
 
 Keine Zwangswerbung. Kein Pay-to-win. Einfach eine faire, strategische Lebenssimulation.
 ```
@@ -189,7 +189,7 @@ FEATURES:
 
 Lade Deep Life Simulator jetzt herunter. Starte mit nichts und finde heraus, ob du ein Vermögen für Generationen aufbaust - oder alles verlierst. Deine Entscheidungen zählen.
 
-Komm in unseren Discord: discord.gg/invite/rzktazdX8v
+Komm in unseren Discord: discord.gg/rzktazdX8v
 ```
 
 ## notes

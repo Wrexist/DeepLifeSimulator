@@ -99,7 +99,7 @@ v2.5.8 - Kvalita a stabilita
 
 Každá aktualizácia sa snaží, aby tvoje voľby znamenali viac a tvoje uložené pozície boli bezpečnejšie.
 
-Pridaj sa na náš Discord a povedz nám svoj názor: discord.gg/invite/rzktazdX8v
+Pridaj sa na náš Discord a povedz nám svoj názor: discord.gg/rzktazdX8v
 
 Žiadne nanútené reklamy. Žiadne pay-to-win. Len férový strategický simulátor.
 ```
@@ -197,7 +197,7 @@ FUNKCIE:
 
 Stiahni si Deep Life Simulator ešte dnes. Začni od nuly a skús vybudovať generačné bohatstvo - alebo sleduj, ako sa všetko zrúti. Tvoj príbeh je jedinečný. Na tvojich voľbách záleží.
 
-Pridaj sa k našej komunite na Discorde: discord.gg/invite/rzktazdX8v
+Pridaj sa k našej komunite na Discorde: discord.gg/rzktazdX8v
 ```
 
 ## notes
