@@ -25,6 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
 // Explicit, though Node exposes Buffer as a global: eslint.config.js declares
 // Node globals for {js,jsx,ts,tsx} and scripts/**/*.{js,cjs}, and neither glob

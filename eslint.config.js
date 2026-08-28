@@ -295,4 +295,33 @@ module.exports = [
       },
     },
   },
+  {
+    // Node ESM tooling scripts (.mjs). Same no-undef gap as the CommonJS block
+    // above — the base config's global blocks target {js,jsx,ts,tsx} only — but
+    // deliberately NOT the same global list: __dirname, __filename, require,
+    // module and exports genuinely do not exist in an ES module, so declaring
+    // them here would silence no-undef on a real runtime crash instead of a
+    // false positive. Only globals that actually exist under ESM belong here.
+    //
+    // The gap was invisible until 2026-08-28, when a new .mjs script used
+    // Buffer and broke `npm run lint` on main. Node exposes Buffer globally at
+    // runtime, so this is a lint-only fix; scripts should still prefer the
+    // explicit `import { Buffer } from 'node:buffer'` the ESM scripts here use.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        Buffer: "readonly",
+        console: "readonly",
+        global: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        TextEncoder: "readonly",
+        TextDecoder: "readonly",
+      },
+    },
+  },
 ];
