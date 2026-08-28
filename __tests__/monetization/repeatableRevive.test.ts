@@ -115,15 +115,52 @@ describe('the death screen offer', () => {
 });
 
 describe('the shop tab', () => {
+  const shopEntry = (from: string, to: string) => {
+    const src = read('components/GemShopModal.tsx');
+    const start = src.indexOf(from);
+    expect(start).toBeGreaterThan(-1);
+    // Search the end marker FORWARD from the start: several of these product
+    // ids also appear earlier in the file (the `featured` array), and an end
+    // index before the start silently yields an empty slice that passes any
+    // `not.toMatch` and fails every `toMatch` for the wrong reason.
+    const end = src.indexOf(to, start + from.length);
+    expect(end).toBeGreaterThan(start);
+    return src.slice(start, end);
+  };
+
   it('locks the repeatable revive while a charge is banked', () => {
     // Same double-charge guard as the death screen, since the shop is the
     // other place it can be bought.
-    const src = read('components/GemShopModal.tsx');
-    const entry = src.slice(
-      src.indexOf('id: IAP_PRODUCTS.REVIVE_NOW'),
-      src.indexOf('id: IAP_PRODUCTS.REVIVAL_PACK'),
-    );
+    const entry = shopEntry('id: IAP_PRODUCTS.REVIVE_NOW', 'id: IAP_PRODUCTS.REVIVAL_PACK');
     expect(entry).toMatch(/owned: revivalCharged/);
+  });
+
+  it('locks the OLD pack while a charge is banked too', () => {
+    // Both products bank the SAME boolean charge. Guarding the old card on
+    // `hasRevivalPack` alone left it enabled for someone who bought Revive Now
+    // - they hold a charge but no purchase record - so it would have taken
+    // $2.99 for a charge they already had. Codex review of #174.
+    const entry = shopEntry('id: IAP_PRODUCTS.REVIVAL_PACK', 'id: IAP_PRODUCTS.LIFETIME_PREMIUM');
+    expect(entry).toMatch(/owned: settings\?\.hasRevivalPack === true \|\| revivalCharged/);
+  });
+});
+
+describe('the purchase path reserves before granting', () => {
+  it('treats the repeatable revive as a NON-idempotent grant', () => {
+    // `isNonIdempotentGrant` drives the reserve-before-grant ledger write.
+    // Omitting this SKU let a failed ledger write grant with no dedupe record,
+    // so a store replay (the store redelivers unfinished transactions) could
+    // re-bank a revive the player had already spent. Being a consumable is not
+    // an exemption - it banks the same one-shot charge. Codex review of #174.
+    const src = read('services/IAPService.ts');
+    const fn = src.slice(
+      src.indexOf('function isNonIdempotentGrant'),
+      src.indexOf('export class IAPService'),
+    );
+    expect(fn).toMatch(/productId === IAP_PRODUCTS\.REVIVE_NOW/);
+    // The two that were already gated must stay gated.
+    expect(fn).toMatch(/productId === IAP_PRODUCTS\.REVIVAL_PACK/);
+    expect(fn).toMatch(/isSubscriptionProduct\(productId\)/);
   });
 });
 

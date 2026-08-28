@@ -339,14 +339,25 @@ export function applyProductBenefitsToState(
  *
  * Restore re-applies entitlements unconditionally so it can repair a wiped one
  * (that is the whole point of MON-11). That is safe for boolean flags and
- * strictly unsafe for these two:
+ * strictly unsafe for these:
  *   - REVIVAL_PACK banks a one-shot revive; re-granting after use mints one.
+ *   - REVIVE_NOW banks the SAME one-shot charge, so it is non-idempotent for
+ *     exactly the same reason. Being a consumable does not exempt it: this
+ *     predicate also drives the RESERVE-BEFORE-GRANT ledger write on the
+ *     purchase path, and without it a failed ledger write let the grant
+ *     succeed with no dedupe record - a later store replay (the store
+ *     redelivers an unfinished transaction) then re-banked a revive the
+ *     player had already spent. Codex review of #174.
  *   - a subscription writes `expiresTimestamp: Date.now() + duration`, so
  *     re-applying it RENEWS the term — repeated Restore taps would have been an
  *     unlimited free renewal. Caught in review of the MON-11 change itself.
  */
 function isNonIdempotentGrant(productId: string): boolean {
-  return productId === IAP_PRODUCTS.REVIVAL_PACK || isSubscriptionProduct(productId);
+  return (
+    productId === IAP_PRODUCTS.REVIVAL_PACK ||
+    productId === IAP_PRODUCTS.REVIVE_NOW ||
+    isSubscriptionProduct(productId)
+  );
 }
 
 export class IAPService {
