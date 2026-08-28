@@ -1346,7 +1346,17 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
    */
   const { gameState, setGameState } = useGameState();
   // Hide the top chrome (notch spacer + TopStatsBar) while a phone app runs
-  // full-screen - but NOT the critical popups below, which keep `showStatsBar`.
+  // full-screen - but NOT the critical popups below, which render regardless
+  // of `showStatsBar`/`showTopChrome` entirely (see the two gates further
+  // down). A death or wedding outcome can be set from a screen the router
+  // hasn't yet resolved into `(tabs)` - onboarding tail, a nested modal route,
+  // a path segment that happens to match the `isInOnboardingPath` substring
+  // check - and `home.tsx`'s `blockingModalUp` already treats these two flags
+  // as blocking UNCONDITIONALLY. Gating the popup ITSELF on `showStatsBar`
+  // used to mean the flag could go true with nothing on screen to clear it:
+  // the game reads as blocked with no way out. Player report, 2026-08-27
+  // ("stuck on the you're married screen", Week 1 / WeeksLived 0 - the wedding
+  // fired before the router had settled into `(tabs)`).
   const fullscreenApp = useFullscreenApp();
   const showTopChrome = showStatsBar && !fullscreenApp;
 
@@ -1418,14 +1428,18 @@ function StatusBarWrapper({ showStatsBar, insets }: StatusBarWrapperProps) {
       {/* Modal priority: DeathPopup > WeddingPopup > SicknessModal/CureSuccessModal.
           The SicknessModal no longer auto-opens on week advance - it only shows
           when the player taps the TopStatsBar disease badge. */}
-      {showStatsBar && gameState?.showDeathPopup && (
+      {/* Deliberately NOT gated on showStatsBar - these two also drive
+          home.tsx's blockingModalUp UNCONDITIONALLY, so hiding the popup
+          behind route/onboarding state while the block still applied
+          elsewhere was a soft lock with nothing on screen to clear it. */}
+      {gameState?.showDeathPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showDeathPopup')}>
           <Suspense fallback={null}>
             <DeathPopup />
           </Suspense>
         </ErrorBoundary>
       )}
-      {showStatsBar && !gameState?.showDeathPopup && gameState?.showWeddingPopup && (
+      {!gameState?.showDeathPopup && gameState?.showWeddingPopup && (
         <ErrorBoundary fallback={null} onError={dismissPopupOnError('showWeddingPopup')}>
           <Suspense fallback={null}>
             <WeddingPopup />
