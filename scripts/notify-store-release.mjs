@@ -25,6 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { fileURLToPath } from 'node:url';
 import { AscClient, loadCredentials } from './lib/ascClient.mjs';
 import { renderReleasePost } from '../discord/copy.mjs';
