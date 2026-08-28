@@ -270,7 +270,17 @@ async function commandSync() {
   );
   if (positions.length > 0) {
     say(`  ${C.dim}· ordering ${positions.length} channels${C.off}`);
-    await client.setPositions(positions);
+    // Best-effort: Discord's bulk PATCH rejects a batch that changes more than
+    // one channel's parent_id at once (HTTP 400 / code 40009), which a launch
+    // or growth-phase build - moving many channels into new categories in one
+    // pass - hits routinely. Ordering is cosmetic; Documents, Onboarding and
+    // Orphans below are not, so a rejected reorder is logged and swallowed
+    // rather than aborting everything that runs after it.
+    try {
+      await client.setPositions(positions);
+    } catch (error) {
+      say(`  ${C.yellow}⚠ ordering skipped${C.off}  ${error.message}`);
+    }
   }
 
   // ── Documents ───────────────────────────────────────────────────────────

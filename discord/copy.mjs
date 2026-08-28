@@ -43,6 +43,7 @@ const ACCENT = {
   thisWeek: 0xf1c40f,
   ideas: 0xeb459e,
   bugs: 0xe67e22,
+  roadmap: 0x8e44ad,
   beta: 0x9b59b6,
   release: 0x5865f2,
 };
@@ -179,6 +180,27 @@ export const DOCUMENTS = {
       'What happens next: this channel is read before every update. Ideas that ship get named in <#this-week> and in the in-game change log — you will be able to point at the thing you asked for.',
       '',
       '_Not every idea can ship, and some are already built and waiting. A "no" here is usually a "not this way" — ask._',
+    ].join('\n'),
+  },
+
+  roadmap: {
+    title: '🔮 Where Deep Life is going',
+    accent: ACCENT.roadmap,
+    body: [
+      'No dates here on purpose — a roadmap that promises a date turns into a countdown to disappointment. This is the direction, updated as it changes, and <#this-week> is where "it shipped" actually gets announced.',
+      '',
+      '**In progress**',
+      '💎 **Your collection, remembered** — buying the island stops being a line item. Big purchases become moments worth looking back on, and a completed collection means something across every life you play, not just this one.',
+      '📈 **A stock market that actually moves** — sector trends and the news ticker start pushing the SAME prices you trade on, not a shadow copy only the game can see.',
+      '🏠 **A house you can actually live in** — decoration, room upgrades and additions that show up, not just a number on a receipt.',
+      '',
+      '**Being designed**',
+      '💒 **Exclusive invitations** — host a gala at your venue today; being invited to someone else\'s (the owners\' enclosure, a stadium box, a launch party) is next.',
+      '🎓 **Classes that pay off** — enroll, actually attend, and watch it change your stats and your job prospects.',
+      '📺 **Streaming and content that grows** — numbers that move because you are actually live, not because a timer ticked.',
+      '',
+      '**Where ideas for this list come from**',
+      'Almost entirely <#ideas>. If you want to know why something is or is not on here, ask — a lot of "not on the roadmap" is really "tell me more."',
     ].join('\n'),
   },
 

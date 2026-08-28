@@ -327,7 +327,7 @@ export const CATEGORIES = [
         topic: 'What shipped behind the scenes, batched from merged PRs - the preview before update-notes/updates makes it official.' },
       { key: 'this-week', name: '📅・this-week', type: 'text', phase: 'launch', readOnly: true, doc: 'this-week',
         topic: 'The one channel to check on a Monday. What shipped, what is live, what is next.' },
-      { key: 'roadmap', name: '🔮・roadmap', type: 'text', phase: 'launch', readOnly: true,
+      { key: 'roadmap', name: '🔮・roadmap', type: 'text', phase: 'launch', readOnly: true, doc: 'roadmap',
         topic: 'Where the game is going. Not a promise of dates.' },
       { key: 'development', name: '🛠️・development', type: 'text', phase: 'growth', readOnly: true,
         topic: 'Work in progress — screenshots, experiments, things that may never ship.' },
@@ -342,6 +342,11 @@ export const CATEGORIES = [
     name: '💬 COMMUNITY',
     phase: 'launch',
     channels: [
+      // Pre-existing, has real conversation history from before this channel
+      // list existed (including early bug reports, answered directly by the
+      // owner) - kept as its own channel rather than merged into general so
+      // that history stays where people can find it.
+      { key: 'deeplife-simulator', name: 'deeplife-simulator', type: 'text', phase: 'launch' },
       { key: 'general', name: '💬・general', type: 'text', phase: 'launch', slowmode: 3,
         topic: 'Anything. Be decent.' },
       { key: 'game-chat', name: '🎮・game-chat', type: 'text', phase: 'launch',
