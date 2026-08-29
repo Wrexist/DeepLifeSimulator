@@ -105,7 +105,7 @@ export function applyAutoCheckpoint(input: AutoCheckpointInput): AutoCheckpointR
     // they cost you up to a year of progress, so paying to use one is a real
     // trade rather than a discount on dying.
     //
-    // Removing it also gives back a slot. `MAX_CHECKPOINTS` is 5 and each is a
+    // Removing it also gives back a slot. `MAX_CHECKPOINTS` is 3 and each is a
     // ~50-100KB clone, so the death snapshot was evicting a real year
     // checkpoint from the ring AND paying save size for the privilege.
 
