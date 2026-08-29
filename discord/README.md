@@ -161,13 +161,32 @@ works in a fresh clone with nothing installed.
 
 `server.mjs` defines the progression roles (`👤 New Citizen` → `🌎 Life Legend`)
 and the sync creates them. **Awarding them on activity is a levelling bot's
-job** — MEE6, Carl-bot and Lurkr all take a level → role table, and
-`PROGRESSION_ROLES` is where you copy it from. This CLI runs once and exits; it
-is not a gateway bot and does not watch messages.
+job** — MEE6, Carl-bot and Lurkr all take a level → role table. This CLI runs
+once and exits; it is not a gateway bot and does not watch messages.
 
-Levels deliberately buy status, early news, beta invites and developer Q&As —
+```bash
+npm run discord:levels      # the table, the rooms each rank opens, and the setup steps
+```
+
+Offline and read-only — it sends nothing, so it needs no `--apply`.
+
+**Gate a level-locked channel with `atLeastLevel(n)`, never with a single role
+key.** A levelling bot may stack earned roles or replace the previous one on
+level up, and which it does is a setting inside the bot. Gate on `['level-10']`
+alone and the replace configuration takes the room away the moment the member
+reaches level 20 — a progression system that confiscates rewards as you
+progress. Listing every rank at or above the threshold is correct under both
+settings. `__tests__/tooling/discordProgression.test.ts` fails on a hand-written
+gate, because this is invisible in review.
+
+Ranks buy status, earlier news, beta invites and developer Q&As —
 **never in-game currency.** Paying people to post buys posts, and what that
 produces is noise.
+
+What each rank opens is written once, in `PROGRESSION_ROLES[].unlock`, and the
+`levels` document renders from it — so the promise and the permission cannot
+drift apart. They did before: the pinned roles document advertised early news
+and developer Q&As while no channel gated on any level role at all.
 
 ## When something goes wrong
 
