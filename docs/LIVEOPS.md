@@ -116,6 +116,14 @@ The hub hides `unavailable` and `expired`. A player who cannot take part learns
 nothing from a locked card, and listing an event that closed on them converts a
 missed opportunity into a reproach.
 
+It also hides an `upcoming` event more than **7 days** out
+(`UPCOMING_HORIZON_DAYS`), the same window the offer rotation uses for "next
+week's offer" — both answer "what is coming that I could plan around". Without
+it the hub advertised a year-end event from August: 128 days out, 0/3
+objectives, nothing actionable for four months. A permanent row that never
+changes is worse than an empty card, because it teaches the player the surface
+has nothing for them.
+
 ---
 
 ## 5. Reward safety
@@ -343,7 +351,12 @@ with its events already part-complete rather than reset to zero.
    loop should be worth returning to on its own.
 7. **Remote content is fetched once per session.** An event published mid-session
    appears on the next launch.
-8. **No server-authoritative validation.** A modified client could present itself
+8. **The shipped calendar is mostly in the past.** `catalogue.ts` was authored
+   against fixed 2026 dates, and four of the six windows have already closed. As
+   of late August 2026 the only event a player can actually reach is the
+   returning-player one. The machinery is done; the *calendar* needs real dates
+   before this system does anything for a player who is already playing.
+9. **No server-authoritative validation.** A modified client could present itself
    whatever content it liked — but the caps, the ledger and the budget are all
    enforced client-side against the same save the player is playing, so the blast
    radius is that player's own save.

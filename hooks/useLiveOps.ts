@@ -99,8 +99,9 @@ export function useLiveOps(): LiveOpsView {
     // Resolve EVERYTHING, then split: the observer needs the events the hub
     // hides (an expiry is a transition nobody else can see), the player does
     // not.
-    const all = resolveAll(getLiveOpsContent().events, state, context, Date.now());
-    const events = forDisplay(all);
+    const now = Date.now();
+    const all = resolveAll(getLiveOpsContent().events, state, context, now);
+    const events = forDisplay(all, now);
     return { all, events, claimable: claimableCount(events), weeksThisLife, context };
     // `state` is deliberately absent from the deps - see the header.
     // eslint-disable-next-line react-hooks/exhaustive-deps

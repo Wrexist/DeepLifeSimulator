@@ -71,7 +71,10 @@ describe('resolveEvent', () => {
 describe('resolveHub', () => {
   const claimable = def({ id: 'a', objectives: [{ objectiveId: 'reputation', target: 1 }] });
   const active = def({ id: 'b', objectives: [{ objectiveId: 'reputation', target: 999 }] });
-  const upcoming = def({ id: 'c', startsAt: '2026-08-01T00:00:00Z', endsAt: '2026-08-10T00:00:00Z' });
+  // Inside the announcement horizon on purpose: this block is about the
+  // unavailable/expired filter, and an out-of-horizon fixture would be dropped
+  // for a different reason and prove nothing about the one under test.
+  const upcoming = def({ id: 'c', startsAt: '2026-06-19T00:00:00Z', endsAt: '2026-06-30T00:00:00Z' });
   const gone = def({ id: 'd', startsAt: '2026-01-01T00:00:00Z', endsAt: '2026-02-01T00:00:00Z' });
   const locked = def({ id: 'f', eligibility: { requiresSubscription: true } });
 
@@ -114,5 +117,40 @@ describe('the badge', () => {
   it('is zero when there is nothing to do', () => {
     expect(claimableCount([])).toBe(0);
     expect(hasSomethingToDo([])).toBe(false);
+  });
+});
+
+describe('the upcoming horizon', () => {
+  it('does NOT announce an event months away', () => {
+    // Without a horizon the hub advertised a year-end event from August: 128
+    // days out, 0/3 objectives, and nothing the player could do about it for
+    // four months. A permanent row that never changes is worse than an empty
+    // card - it teaches the player the surface has nothing for them.
+    const distant = def({
+      id: 'far',
+      startsAt: '2026-12-14T00:00:00Z',
+      endsAt: '2027-01-04T00:00:00Z',
+    });
+    expect(resolveHub([distant], withRep(50), ctx(), NOW)).toEqual([]);
+  });
+
+  it('DOES announce one starting within the week, so a player can plan', () => {
+    // The same window the offer rotation uses for "next week's offer": both
+    // answer "what is coming that I could plan around".
+    const soon = def({
+      id: 'soon',
+      startsAt: '2026-06-19T00:00:00Z', // 3.5 days after NOW
+      endsAt: '2026-06-30T00:00:00Z',
+    });
+    const hub = resolveHub([soon], withRep(50), ctx(), NOW);
+    expect(hub.map((r) => r.definition.id)).toEqual(['soon']);
+    expect(hub[0].state).toBe('upcoming');
+  });
+
+  it('never hides something the player can act on now', () => {
+    const active = def({ id: 'now', objectives: [{ objectiveId: 'reputation', target: 999 }] });
+    const claimable = def({ id: 'ready', objectives: [{ objectiveId: 'reputation', target: 1 }] });
+    const hub = resolveHub([active, claimable], withRep(50), ctx(), NOW);
+    expect(hub.map((r) => r.definition.id)).toEqual(['ready', 'now']);
   });
 });

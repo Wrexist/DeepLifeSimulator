@@ -16,7 +16,7 @@
 import type { GameState } from '@/contexts/game/types';
 import { evaluateObjective } from './objectives';
 import { hasClaimed, readLiveOpsState } from './state';
-import { hubOrder, instanceId, msRemaining, resolveState } from './schedule';
+import { hubOrder, instanceId, msRemaining, resolveState, windowFor } from './schedule';
 import { isEligible, ineligibleReason, type EligibilityContext } from './eligibility';
 import type { LiveEventDefinition, LiveObjectiveProgress, ResolvedLiveEvent } from './types';
 
@@ -84,7 +84,7 @@ export function resolveHub(
   context: EligibilityContext,
   nowMs: number,
 ): ResolvedLiveEvent[] {
-  return forDisplay(resolveAll(definitions, state, context, nowMs));
+  return forDisplay(resolveAll(definitions, state, context, nowMs), nowMs);
 }
 
 /**
@@ -103,10 +103,40 @@ export function resolveAll(
   return definitions.map((definition) => resolveEvent(definition, state, context, nowMs));
 }
 
+/**
+ * How far ahead an `upcoming` event may be announced.
+ *
+ * Seven days, matching the offer rotation's "you can see next week's offer"
+ * window - which is the right precedent, because both are answering the same
+ * question: what is coming that I could plan around? Beyond a week the answer
+ * stops being a plan and starts being clutter.
+ *
+ * Without a horizon the hub advertised a year-end event from August - 128 days
+ * out, three objectives at 0/3, and nothing the player could do about any of it
+ * for four months. A permanent row that never changes is worse than an empty
+ * card: it trains the player that the surface has nothing for them.
+ */
+export const UPCOMING_HORIZON_DAYS = 7;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /** The display filter and ordering, split out so both callers share one rule. */
-export function forDisplay(resolved: readonly ResolvedLiveEvent[]): ResolvedLiveEvent[] {
+export function forDisplay(
+  resolved: readonly ResolvedLiveEvent[],
+  nowMs: number = Date.now(),
+): ResolvedLiveEvent[] {
   return resolved
-    .filter((r) => r.state !== 'unavailable' && r.state !== 'expired')
+    .filter((r) => {
+      if (r.state === 'unavailable' || r.state === 'expired') return false;
+      if (r.state !== 'upcoming') return true;
+      // `msRemaining` counts to the END of the window, so it cannot answer "how
+      // far away is the START" - the horizon has to be measured from the window
+      // itself. An unparseable window resolves `unavailable` above, so this is
+      // only ever reached with a real one.
+      const window = windowFor(r.definition);
+      if (!window || !Number.isFinite(nowMs)) return false;
+      return window.startsAt - nowMs <= UPCOMING_HORIZON_DAYS * DAY_MS;
+    })
     .slice()
     .sort(hubOrder);
 }
