@@ -31,8 +31,23 @@ describe('instanceId', () => {
     // The distinction the whole ledger rests on: an event that runs again next
     // season is a new instance, while re-entering the same window - the most a
     // clock scrub can achieve - finds the id already recorded.
-    expect(instanceId(def())).toBe('e@2026-06-01T00:00:00Z');
+    expect(instanceId(def())).toBe(`e@${at('2026-06-01T00:00:00Z')}`);
     expect(instanceId(def({ startsAt: '2026-09-01T00:00:00Z' }))).not.toBe(instanceId(def()));
+  });
+
+  it('is identical across spellings of the SAME instant', () => {
+    // This was a live double-payout vector. Three spellings of one moment
+    // produced three ids, so republishing an event with a reformatted date - an
+    // edit with no semantic content, and nothing about it dangerous-looking in
+    // review - would hand everyone who had claimed it a second payout.
+    const canonical = instanceId(def({ startsAt: '2026-06-01T00:00:00Z' }));
+    expect(instanceId(def({ startsAt: '2026-06-01T00:00:00.000Z' }))).toBe(canonical);
+    expect(instanceId(def({ startsAt: '2026-06-01T00:00:00+00:00' }))).toBe(canonical);
+    expect(instanceId(def({ startsAt: '2026-05-31T20:00:00-04:00' }))).toBe(canonical);
+  });
+
+  it('stays total for an unparseable date rather than throwing', () => {
+    expect(typeof instanceId(def({ startsAt: 'nonsense' }))).toBe('string');
   });
 });
 

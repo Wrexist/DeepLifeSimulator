@@ -21,7 +21,7 @@
  * and the content epoch. Between those, a stale progress number costs one
  * render of a slightly out-of-date bar; recomputing eagerly costs the walk.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 // The CANONICAL entitlement check. Reading `settings.deepLifePlusActivated`
@@ -32,13 +32,20 @@ import type { GameState } from '@/contexts/game/types';
 import { getLiveOpsContent, getContentEpoch } from '@/lib/liveops/content';
 import { daysBetween, ensureLiveOpsSession, getLiveOpsSession } from '@/lib/liveops/session';
 import { analytics } from '@/lib/analytics';
-import { resolveHub, claimableCount } from '@/lib/liveops/engine';
+import { resolveAll, forDisplay, claimableCount } from '@/lib/liveops/engine';
+import { observeLiveOpsFunnel } from '@/lib/liveops/funnel';
 import type { EligibilityContext } from '@/lib/liveops/eligibility';
 import type { ResolvedLiveEvent } from '@/lib/liveops/types';
 
+/** A stable empty array, so the observer effect does not re-run on identity. */
+const EMPTY_IDS: readonly string[] = [];
+
 /** Everything a live-ops surface needs. */
 export interface LiveOpsView {
+  /** What the player sees: `unavailable` and `expired` removed, sorted. */
   events: ResolvedLiveEvent[];
+  /** Everything, for the funnel observer. Not for rendering. */
+  all: ResolvedLiveEvent[];
   claimable: number;
   /** Weeks into this life, for the claim call. */
   weeksThisLife: number;
@@ -76,7 +83,9 @@ export function useLiveOps(): LiveOpsView {
   ensureLiveOpsSession(analytics.getInstallId(), daysBetween(state?.lastLogin, Date.now()));
   const { installId, daysAway } = getLiveOpsSession();
 
-  return useMemo(() => {
+  const claimedIds = state?.liveOps?.claimedInstanceIds ?? EMPTY_IDS;
+
+  const view = useMemo(() => {
     const context: EligibilityContext = {
       weeksThisLife,
       totalPrestiges,
@@ -87,9 +96,23 @@ export function useLiveOps(): LiveOpsView {
     // The clock is read at resolution time, so a session left open across an
     // event boundary picks the change up on its next re-resolve rather than
     // holding a stale window forever.
-    const events = resolveHub(getLiveOpsContent().events, state, context, Date.now());
-    return { events, claimable: claimableCount(events), weeksThisLife, context };
+    // Resolve EVERYTHING, then split: the observer needs the events the hub
+    // hides (an expiry is a transition nobody else can see), the player does
+    // not.
+    const all = resolveAll(getLiveOpsContent().events, state, context, Date.now());
+    const events = forDisplay(all);
+    return { all, events, claimable: claimableCount(events), weeksThisLife, context };
     // `state` is deliberately absent from the deps - see the header.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weeksThisLife, totalPrestiges, isSubscriber, daysAway, installId, claimCount, epoch]);
+
+  // The funnel's three TRANSITION steps - progressed, completed, expired - live
+  // here rather than in the memo above, because emitting from a memo body is a
+  // side effect during the render phase and double-fires under StrictMode. The
+  // observer is idempotent per session, so an extra run costs nothing.
+  useEffect(() => {
+    observeLiveOpsFunnel(view.all, claimedIds, view.weeksThisLife);
+  }, [view, claimedIds]);
+
+  return view;
 }

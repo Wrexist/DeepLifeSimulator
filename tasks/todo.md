@@ -1,51 +1,44 @@
-# Plan — Live Operations (Master Program 10)
+# Live Operations — COMPLETE
 
-## Audit: what already exists
-- `lib/challenges/weeklyChallenges.ts` — 12-challenge pool, multi-objective,
-  rotates every 4 GAME weeks, per-life shuffle salt, reward granted atomically
-  inside the week tick. Deliberately gated on `weeksLived`, not the device clock.
-- `lib/offers/` — weekly IAP offer rotation, deterministic on a UTC week index,
-  with a visible previous/current/next window.
-- `lib/events/seasonalEvents.ts` — IN-GAME seasons (`weeksLived % 52`), not the
-  real calendar. Christmas is an in-game week, not December.
-- Daily login gems, welcome-back bonus, `applyWeeklyEvents` random events.
-- `lib/analytics/` (M9) — envelope, experiments, funnels, feature adoption.
+Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.md`.
 
-## Gaps
-1. **No live event system.** No definition model, no lifecycle, no hub, no
-   reward ledger. Every rotating thing is bespoke and compiled in.
-2. **No remote content.** Nothing ships without an app update.
-3. **Two bespoke rotations, no shared pool abstraction** (weight, cooldown,
-   repeat prevention, eligibility).
-4. **No live-ops analytics funnel.**
-5. **No per-event kill switch or staged rollout.**
-6. **No reactivation content** beyond a cash bonus.
+## Done
+- [x] Event model, objective registry (logic compiled in; data references ids).
+- [x] Validation: caps, dates, schema version, known objectives; drop per-event.
+- [x] Lifecycle state machine + grace period; instance ids keyed on the parsed instant.
+- [x] Eligibility: stage, life weeks, subscription (both ways), absence, cooldown, staged rollout.
+- [x] Rewards: per-event caps, combined value cap, idempotent ledger, rolling weekly budget.
+- [x] Compiled-in catalogue: 6 events across the stage range, all validator-clean.
+- [x] Remote content: fetch → validate → cache → fallback, two kill switches.
+- [x] The claim as a PURE reducer; reporting split from payment in the UI.
+- [x] STATE_VERSION 49 + migration + carve-out round-trip row.
+- [x] Discovery card on the home screen; no takeover, no permanent countdown.
+- [x] Full analytics funnel + a static guard that every step has an emitter.
+- [x] 125 live-ops tests; docs + content calendar + operating loop.
 
-## The one hard design decision
-Windows are REAL time; progress and rewards are GAME state.
-A scrubbed clock may change which event window you see (a shop window grants
-nothing) but can never manufacture progress or re-claim a reward — claims are
-recorded by event INSTANCE id in a persisted ledger. This is the only reading
-consistent with the five STATE_VERSION bumps that exist to close clock exploits.
+## Bugs found and fixed
+1. **Instance ids were keyed on the raw date string** — three spellings of one
+   instant gave three ids, so republishing an event with a reformatted date
+   would have paid everyone who already claimed it a second time.
+2. **`trackEventExpired` / `Progressed` / `Completed` had NO callers** — three of
+   seven funnel steps were dead, so "did the work and never got paid" and "how
+   many had it expire" were both unanswerable. Now emitted from a session
+   observer, with a static test that fails CI if a step loses its emitter.
+3. **Side effects inside a `setGameState` updater** — `track()` and `setRefusal`
+   ran in the reducer, which React may invoke twice.
+4. **FNV-1a avalanched poorly on its last byte** (M9 code) — `exp_a`/`exp_b`
+   agreed 36% instead of 50%, so two concurrent experiments would not have been
+   independent. Added the finalizer.
+5. **`ExperimentService` re-hashed a stale pin** while its comment claimed it
+   resolved to control — a mid-flight re-bucketing.
+6. **The catalogue's returning event failed my own validator** (365-day window),
+   which surfaced the real distinction between scheduled and evergreen kinds.
+7. **`useLiveOps` was in `lib/`** and imported values from `contexts/`, which the
+   layering rule caught. Moved to `hooks/`.
 
-## Tasks
-- [ ] 1. `lib/liveops/types.ts` — event definition + persisted player state.
-- [ ] 2. `lib/liveops/objectives.ts` — compiled-in objective REGISTRY (remote
-      content references ids; it never carries logic).
-- [ ] 3. `lib/liveops/validation.ts` — definition schema, bounded rewards, date
-      and version validation; drop bad events individually, never the payload.
-- [ ] 4. `lib/liveops/schedule.ts` — UTC windows + the lifecycle state machine.
-- [ ] 5. `lib/liveops/eligibility.ts` — stage / subscription / cooldown / repeat.
-- [ ] 6. `lib/liveops/pool.ts` — the reusable weighted pool with cooldowns.
-- [ ] 7. `lib/liveops/rewards.ts` — economy caps + idempotent claim ledger.
-- [ ] 8. `lib/liveops/catalogue.ts` — the compiled-in fallback events (real content).
-- [ ] 9. `lib/liveops/remote.ts` — fetch → validate → cache → fallback, kill switch.
-- [ ] 10. `lib/liveops/state.ts` — save-state reader, degrades to empty.
-- [ ] 11. `lib/liveops/analytics.ts` — the live_event_* funnel.
-- [ ] 12. `contexts/game/actions/LiveOpsActions.ts` — the ONE atomic claim updater.
-- [ ] 13. STATE_VERSION 49 + migration + types + createTestGameState.
-- [ ] 14. Discovery UI: the hub + a home surface card.
-- [ ] 15. Tests: time, offline, invalid remote data, duplicate claims, expiry,
-      economy caps, save round-trip.
-- [ ] 16. `docs/LIVEOPS.md` + the content calendar.
-- [ ] 17. Red team + second independent audit; fix what it finds.
+## Deliberately not done
+- **No event hub screen.** Today it would be a screen with three rows.
+- **No push notifications for events.** The card is a surface the player chooses
+  to look at; the return loop should be worth returning to on its own.
+- **No server-authoritative validation.** Caps, ledger and budget are enforced
+  against the player's own save, so the blast radius is their own save.

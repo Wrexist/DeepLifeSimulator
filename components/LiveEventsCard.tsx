@@ -22,7 +22,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Check, Gem, Sparkles, Timer, Trophy } from 'lucide-react-native';
-import { useSetGameState } from '@/contexts/game/useGameSelector';
+import { useGameStateGetter, useSetGameState } from '@/contexts/game/useGameSelector';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import { useLiveOps } from '@/hooks/useLiveOps';
 import { applyLiveEventClaim, applyLiveEventSeen } from '@/lib/liveops/claim';
@@ -103,31 +103,50 @@ function LiveEventsCard(): React.ReactElement | null {
     [expandedId, setGameState, weeksThisLife],
   );
 
+  const getState = useGameStateGetter();
+
   const onClaim = useCallback(
     (event: ResolvedLiveEvent) => {
       setRefusal(null);
-      // Every gate is re-checked inside the updater against `prev`. Nothing
-      // decided out here is trusted: a second tap in the same React batch sees
-      // the ledger the first one wrote and returns `prev` unchanged.
+
+      // REPORTING and PAYMENT are split, and the split is the point.
+      //
+      // The reducer is pure and must stay pure: a `setGameState` updater can be
+      // invoked more than once for one logical update (React does exactly that
+      // in StrictMode), so calling `track()` or `setRefusal()` from inside it
+      // would double-fire analytics and set component state during the render
+      // phase. Both are side effects in a reducer, which is the shape this
+      // whole subsystem is written to avoid.
+      //
+      // So the decision is computed ONCE out here against a fresh snapshot,
+      // purely to decide what to SAY, and then the authoritative claim runs
+      // inside the updater against `prev`. The read out here is allowed to be
+      // stale; the payment is not. If they ever disagree - a week ticking over
+      // between the two - the updater wins and the worst case is a message
+      // about an outcome that did not happen, never a payout that did not.
+      const decision = applyLiveEventClaim(getState(), event.definition, context, Date.now());
+
+      if (!decision.ok) {
+        if (decision.reason === 'budget_exhausted') {
+          setRefusal('You have collected a lot this week. This will be ready again shortly.');
+        } else if (decision.reason === 'not_claimable') {
+          setRefusal('This one is not ready to collect.');
+        }
+        // `already_claimed` is silent: the player double-tapped, and telling
+        // them off for it would be worse than doing nothing.
+        if (decision.reason !== 'already_claimed') {
+          trackClaimRefused(event.definition, decision.reason);
+        }
+        return;
+      }
+
+      trackEventClaimed(event.definition, weeksThisLife);
       setGameState((prev) => {
         const result = applyLiveEventClaim(prev, event.definition, context, Date.now());
-        if (!result.ok) {
-          // Reported from inside the updater, but only ever as a state SET on a
-          // component field - never a currency - so a double invocation is
-          // harmless.
-          if (result.reason === 'budget_exhausted') {
-            setRefusal("You have collected a lot this week. This will be ready again shortly.");
-            trackClaimRefused(event.definition, result.reason);
-          } else if (result.reason !== 'already_claimed') {
-            trackClaimRefused(event.definition, result.reason);
-          }
-          return prev;
-        }
-        trackEventClaimed(event.definition, weeksThisLife);
-        return { ...prev, ...result.patch };
+        return result.ok ? { ...prev, ...result.patch } : prev;
       });
     },
-    [context, setGameState, weeksThisLife],
+    [context, getState, setGameState, weeksThisLife],
   );
 
   const visible = useMemo(() => events.slice(0, 3), [events]);

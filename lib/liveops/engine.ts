@@ -84,9 +84,30 @@ export function resolveHub(
   context: EligibilityContext,
   nowMs: number,
 ): ResolvedLiveEvent[] {
-  return definitions
-    .map((definition) => resolveEvent(definition, state, context, nowMs))
-    .filter((resolved) => resolved.state !== 'unavailable' && resolved.state !== 'expired')
+  return forDisplay(resolveAll(definitions, state, context, nowMs));
+}
+
+/**
+ * Every event resolved, INCLUDING the ones the hub hides.
+ *
+ * The funnel observer needs this: expiry is a transition nobody else can see,
+ * precisely because the hub is careful never to show the player an event that
+ * closed on them.
+ */
+export function resolveAll(
+  definitions: readonly LiveEventDefinition[],
+  state: GameState,
+  context: EligibilityContext,
+  nowMs: number,
+): ResolvedLiveEvent[] {
+  return definitions.map((definition) => resolveEvent(definition, state, context, nowMs));
+}
+
+/** The display filter and ordering, split out so both callers share one rule. */
+export function forDisplay(resolved: readonly ResolvedLiveEvent[]): ResolvedLiveEvent[] {
+  return resolved
+    .filter((r) => r.state !== 'unavailable' && r.state !== 'expired')
+    .slice()
     .sort(hubOrder);
 }
 

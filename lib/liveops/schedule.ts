@@ -41,14 +41,27 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * The stable identity of one RUN of an event.
  *
- * `eventId@startsAt` rather than just `eventId`, so an event that runs again
- * next season is a new instance and legitimately claimable again, while
- * re-entering the same window - the most a clock scrub can achieve - finds the
- * id already in the ledger. Built from the raw `startsAt` string so it is
- * stable across timezones and formatting.
+ * `eventId@<epoch ms of startsAt>` rather than just `eventId`, so an event that
+ * runs again next season is a new instance and legitimately claimable again,
+ * while re-entering the same window - the most a clock scrub can achieve -
+ * finds the id already in the ledger.
+ *
+ * KEYED ON THE PARSED INSTANT, NOT THE RAW STRING. This started as the raw
+ * `startsAt` and that was a live double-payout vector: `2026-12-14T00:00:00Z`,
+ * `2026-12-14T00:00:00.000Z` and `2026-12-14T00:00:00+00:00` are the same
+ * instant and three different strings, so an operator republishing an event
+ * with a reformatted date - a change with no semantic content whatsoever -
+ * would mint a new instance id and hand every player who had already claimed it
+ * a second payout. Nothing about that edit would look dangerous in review.
+ * Parsing first makes the identity depend on what the date MEANS.
+ *
+ * An unparseable `startsAt` falls back to the raw string. It cannot reach a
+ * claim (`windowFor` returns null and the event resolves `unavailable`), so the
+ * fallback exists only so this function stays total for logging and analytics.
  */
 export function instanceId(definition: Pick<LiveEventDefinition, 'id' | 'startsAt'>): string {
-  return `${definition.id}@${definition.startsAt}`;
+  const parsed = parseInstant(definition.startsAt);
+  return `${definition.id}@${parsed === null ? definition.startsAt : parsed}`;
 }
 
 /** Window bounds in epoch ms, or null when the definition is unparseable. */
