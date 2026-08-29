@@ -93,6 +93,23 @@ describe('pinning', () => {
     expect(experiments.getVariant('exp_a')).toBe(CONTROL_VARIANT);
   });
 
+  it('a stale pin is NOT overwritten, so restoring the arm restores the player', () => {
+    // Re-pinning to control would make an outage or a mistaken publish
+    // permanent: the original assignment would be gone from disk and the player
+    // could never return to the arm they were actually in.
+    setup([fixture()], 'install-1', { exp_a: 'removed_arm' });
+    experiments.getVariant('exp_a');
+    expect(experiments.getAssignments().exp_a).toBe('removed_arm');
+
+    // The arm comes back.
+    setup(
+      [fixture({ variants: [{ id: 'control', weight: 1 }, { id: 'removed_arm', weight: 1 }] })],
+      'install-1',
+      { exp_a: 'removed_arm' },
+    );
+    expect(experiments.getVariant('exp_a')).toBe('removed_arm');
+  });
+
   it('falls back to the hash when there is no pin, giving the same answer', () => {
     setup([fixture()], 'install-7');
     const fromHash = experiments.getVariant('exp_a');

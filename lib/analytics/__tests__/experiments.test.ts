@@ -37,6 +37,35 @@ describe('hashString', () => {
     expect(hashString('abc')).not.toBe(hashString('abd'));
   });
 
+  it('avalanches on the LAST byte, which is where every id here varies', () => {
+    // Raw FNV-1a does not. Every id this app hashes puts the varying part at
+    // the end (`installId:experimentId`, `installId:eventId`), so two ids
+    // differing only in their final character produced hashes separated by a
+    // fixed low-bit offset that survived the modulus as a systematic
+    // correlation - measured at 36% agreement on a 50/50 split instead of 50%.
+    // Two concurrent experiments named `exp_a` and `exp_b` would not have been
+    // independent, which is the one failure an A/B system cannot detect in its
+    // own output.
+    let agree = 0;
+    const N = 4000;
+    for (let i = 0; i < N; i++) {
+      const a = hashString(`install-${i}:exp_a`) % 100 < 50;
+      const b = hashString(`install-${i}:exp_b`) % 100 < 50;
+      if (a === b) agree += 1;
+    }
+    expect(agree / N).toBeGreaterThan(0.45);
+    expect(agree / N).toBeLessThan(0.55);
+  });
+
+  it('distributes evenly across buckets', () => {
+    const counts = new Array(100).fill(0);
+    const N = 50_000;
+    for (let i = 0; i < N; i++) counts[hashString(`install-${i}:evt`) % 100] += 1;
+    const expected = N / 100;
+    expect(Math.min(...counts)).toBeGreaterThan(expected * 0.8);
+    expect(Math.max(...counts)).toBeLessThan(expected * 1.2);
+  });
+
   it('is always a non-negative 32-bit integer', () => {
     // A signed result would produce a negative bucket and silently exclude a
     // slice of the population from every experiment.

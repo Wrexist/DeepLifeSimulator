@@ -111,11 +111,19 @@ class ExperimentServiceImpl {
   private resolve(definition: ExperimentDefinition): string {
     const pinned = this.assignments[definition.id];
     if (pinned) {
-      // A pin naming a variant the definition no longer declares is stale —
-      // the arm was removed mid-flight. Control is the only safe reading: the
-      // arm's behaviour is gone, so continuing to LABEL the player with it
-      // would attribute control behaviour to a treatment that is not running.
       if (definition.variants.some((v) => v.id === pinned)) return pinned;
+      // A pin naming a variant the definition no longer declares is stale — the
+      // arm was removed mid-flight. Control, and NOT a fresh hash: re-assigning
+      // would move the player into one of the surviving arms partway through
+      // the experiment, which is precisely the mid-flight re-bucketing pinning
+      // exists to prevent. Their arm is gone, so they see today's product and
+      // are labelled as such.
+      //
+      // Deliberately not re-pinned. If the arm is restored — a rollback, or a
+      // publish that dropped it by mistake — the original pin is still on disk
+      // and the player returns to the arm they were in, rather than having been
+      // silently rewritten to control by an outage.
+      return CONTROL_VARIANT;
     }
     const variant = assignVariant(definition, this.installId);
     this.assignments[definition.id] = variant;

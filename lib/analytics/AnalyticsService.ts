@@ -233,6 +233,23 @@ class AnalyticsService {
     return this.cohort;
   }
 
+  /**
+   * The anonymous install id.
+   *
+   * Exposed so systems that bucket per install - staged rollout in
+   * `lib/liveops/eligibility.ts`, and experiment assignment - derive from the
+   * SAME identity the event envelope carries. A second id minted elsewhere
+   * would make an assignment impossible to reproduce from an event, which is
+   * the whole reason the envelope carries it.
+   *
+   * Empty string before `init()` resolves. Callers must treat that as "not
+   * ready" rather than as an identity, or a rollout decision made during boot
+   * would differ from every one made after it.
+   */
+  getInstallId(): string {
+    return this.installId;
+  }
+
   /** Grant/revoke consent (call after ATT/UMP resolves). No sends without it. */
   setConsent(granted: boolean): void {
     this.consent = !!granted;

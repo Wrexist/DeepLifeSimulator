@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 48`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 49`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -336,7 +336,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 48`** — single source of truth in
+- **Canonical `STATE_VERSION = 49`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -644,6 +644,21 @@ including the crash screen.
   never ate. The charge, the scaled restores and the counter bump run in ONE
   updater, and the market toast + section hint read the same helpers, so what
   is advertised is exactly what is applied.
+- **v49 adds `liveOps`** — the bookkeeping behind the Live Ops event system
+  (`lib/liveops/`): claimed event instance ids, opened instances, and the
+  rolling reward budget. ONE optional object for a whole subsystem, the v36
+  `dynasty` precedent. Default `undefined`, so a CARVE-OUT: version bumped, NO
+  backfill and no `repairGameState` mirror. Absence already resolves —
+  `readLiveOpsState` returns the empty answer, which is the truth for a save
+  written before any live event existed. Writing a value would be wrong in both
+  directions: a stamped claim id denies a reward never taken, a stamped budget
+  entry refuses the first legitimate claim for a week — and there is nothing to
+  guess from, since no earlier save records a live event. Note what is
+  deliberately NOT stored: objective PROGRESS. Every objective reads a value the
+  save already tracks (the v33 `legacyContracts` reasoning), so nothing drifts,
+  a tick that runs twice cannot double-credit, and an existing save loads with
+  its events already part-complete. Event WINDOWS are real UTC time and
+  everything EARNED is game state — see `docs/LIVEOPS.md`.
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you

@@ -261,6 +261,46 @@ export const ANALYTICS_EVENT_NAME_LIST = [
   // retained by anything — and it is measured nowhere today.
   'app_startup',
 
+  // ── Live Ops (Master Program 10) ──
+  //
+  // The event funnel, end to end:
+  //
+  //   live_event_shown     (it rendered in the hub or on the home card)
+  //     -> live_event_opened   (the player read the brief)
+  //     -> live_event_progressed (an objective they had not met became met)
+  //     -> live_event_completed  (every objective met - the reward is waiting)
+  //     -> live_event_claimed    (they actually took it)
+  //
+  // with `live_event_expired` closing the funnel for everyone who did not.
+  //
+  // The distinction that makes this readable is `shown` vs `opened`: an event
+  // nobody opens has a DISCOVERY problem (bad card, bad title, buried surface),
+  // while one that is opened and never progressed has a DESIGN problem (the
+  // objectives are wrong for the audience). Collapsing them into one
+  // participation number would make those two failures indistinguishable, and
+  // they need opposite fixes.
+  //
+  // `live_event_completed` and `live_event_claimed` are separate for the same
+  // reason `purchase_succeeded` and `premium_activated` are: a gap between them
+  // is a player who did the work and did not get paid, which is a bug, not a
+  // preference. Every one of these carries the event id and the INSTANCE, so a
+  // recurring event's runs are comparable rather than summed into a blur.
+  'live_event_shown',
+  'live_event_opened',
+  'live_event_progressed',
+  'live_event_completed',
+  'live_event_claimed',
+  'live_event_expired',
+  // Fired when a claim is REFUSED by the rolling reward budget. It should be
+  // rare; a rise means the calendar is over-scheduled and players are being
+  // told no after doing the work, which is the one live-ops failure that costs
+  // more trust than the rewards are worth.
+  'live_event_claim_refused',
+  // How the content layer resolved this session: remote, cache or local, with
+  // the count of definitions validation dropped. This is what makes a bad
+  // publish visible as a number rather than as a support ticket.
+  'liveops_content_resolved',
+
   // ── Navigation ──
   'screen_view',
 ] as const;

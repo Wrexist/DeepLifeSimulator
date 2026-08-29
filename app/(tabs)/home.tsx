@@ -32,6 +32,7 @@ import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
 import WeeklyChallengeCard from '@/components/WeeklyChallengeCard';
+import LiveEventsCard from '@/components/LiveEventsCard';
 import ScenarioChallengeCard from '@/components/ScenarioChallengeCard';
 import NextGoalsCard from '@/components/NextGoalsCard';
 import WeekAheadCard from '@/components/WeekAheadCard';
@@ -764,6 +765,12 @@ function HomeScreenContent() {
               were previously invisible between onboarding and first prestige.
               Renders null for non-challenge lives and prestiged dynasties. */}
           <ScenarioChallengeCard />
+          {/* Live events sit ABOVE the weekly challenge: they are the only
+              surface here with a real-world deadline, and the challenge rotates
+              on game weeks so it waits for the player either way. The card
+              renders nothing at all when there is nothing active, so a quiet
+              week costs no space. */}
+          <LiveEventsCard />
           <WeeklyChallengeCard />
         </FadeInUp>
 

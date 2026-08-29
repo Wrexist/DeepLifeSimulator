@@ -303,6 +303,23 @@ const CARVE_OUTS: CarveOut[] = [
     value: 4,
     build: () => ({ ...base(), weeklyFoodPurchases: 4 }),
   },
+  {
+    version: 49,
+    path: 'liveOps.claimedInstanceIds',
+    // The claim LEDGER is the field that must survive: erasing it on load would
+    // make every live event claimable a second time, which is a live payout
+    // exploit rather than a cosmetic loss. The rest of the object rides along.
+    value: ['winter_ledger@2026-12-14T00:00:00Z'],
+    build: () => ({
+      ...base(),
+      liveOps: {
+        claimedInstanceIds: ['winter_ledger@2026-12-14T00:00:00Z'],
+        seenInstanceIds: ['winter_ledger@2026-12-14T00:00:00Z'],
+        lastSeenWeek: { winter_ledger: 3_777 },
+        budget: [{ at: 1_771_000_000_000, value: 300 }],
+      },
+    }),
+  },
 ];
 
 /**
@@ -367,7 +384,7 @@ describe('the §7 carve-out fields survive the load merge', () => {
   it('covers every carve-out CLAUDE.md §7 lists (v26 through the current version)', () => {
     // A new carve-out that lands without a row here should fail the count, not
     // pass silently — the whole point of the audit finding.
-    expect(CARVE_OUTS).toHaveLength(23);
+    expect(CARVE_OUTS).toHaveLength(24);
     expect(Math.max(...CARVE_OUTS.map((c) => c.version))).toBe(STATE_VERSION);
     expect(new Set(CARVE_OUTS.map((c) => c.path)).size).toBe(CARVE_OUTS.length);
   });

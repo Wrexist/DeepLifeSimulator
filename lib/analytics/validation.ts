@@ -93,6 +93,12 @@ export const IDEMPOTENT_EVENTS: ReadonlySet<string> = new Set<string>([
   'experiment_exposed',
   'progression_stage',
   'economy_week',
+  // Live-ops impressions. `live_event_shown` fires from a render path, so a
+  // repeat inside the window is a re-render. `live_event_claimed` is
+  // deliberately ABSENT: a repeat there would be a double-payout, and
+  // suppressing it would delete the evidence of it.
+  'live_event_shown',
+  'liveops_content_resolved',
 ]);
 
 /** How long a repeat of an idempotent event counts as the same occurrence. */

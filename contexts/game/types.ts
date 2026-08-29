@@ -2723,6 +2723,36 @@ export interface GameState {
    * conversion. Absent means 0; reset beside `weeklyStreetJobs` in the tick.
    */
   weeklyFoodPurchases?: number;
+
+  /**
+   * Live Ops bookkeeping (STATE_VERSION 49). See `lib/liveops/`.
+   *
+   * ONE optional object rather than three top-level keys, the v36 `dynasty`
+   * precedent: a whole subsystem costs one carve-out instead of three backfills
+   * and three repair mirrors.
+   *
+   * What it holds is only the IRREVERSIBLE part - which event instances have
+   * paid out, which have been opened, and what has been paid inside the rolling
+   * budget window. Objective PROGRESS is deliberately absent: it is recomputed
+   * from this same `GameState` on every read (the `legacyContracts` v33
+   * reasoning), so nothing can drift out of sync, a tick that runs twice cannot
+   * double-credit, and an existing save loads with its events already
+   * part-complete rather than reset to zero.
+   *
+   * Every read goes through `lib/liveops/state.ts`, which degrades a missing or
+   * malformed shape to the empty answer rather than throwing inside the hub or
+   * the claim updater.
+   */
+  liveOps?: {
+    /** Claimed event instance ids (`eventId@startsAt`). The idempotency ledger. */
+    claimedInstanceIds?: string[];
+    /** eventId -> weeks-into-this-life when it was last opened. For cooldowns. */
+    lastSeenWeek?: Record<string, number>;
+    /** Instance ids the player has opened, for the "new" badge. */
+    seenInstanceIds?: string[];
+    /** Recent payouts in gem-equivalents, pruned to the rolling week on write. */
+    budget?: { at: number; value: number }[];
+  };
   // ANTI-EXPLOIT: study sessions completed per education this week. studyExtra
   // shaves a full week off a degree per call; without a per-week cap a player
   // could spam-study to complete a multi-year, tuition-gated degree instantly.

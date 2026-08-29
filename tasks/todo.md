@@ -1,50 +1,51 @@
-# Analytics, Experimentation & Telemetry — COMPLETE
+# Plan — Live Operations (Master Program 10)
 
-Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference:
-`docs/ANALYTICS.md` (taxonomy, funnels, dashboards, privacy review, limitations).
+## Audit: what already exists
+- `lib/challenges/weeklyChallenges.ts` — 12-challenge pool, multi-objective,
+  rotates every 4 GAME weeks, per-life shuffle salt, reward granted atomically
+  inside the week tick. Deliberately gated on `weeksLived`, not the device clock.
+- `lib/offers/` — weekly IAP offer rotation, deterministic on a UTC week index,
+  with a visible previous/current/next window.
+- `lib/events/seasonalEvents.ts` — IN-GAME seasons (`weeksLived % 52`), not the
+  real calendar. Christmas is an in-game week, not December.
+- Daily login gems, welcome-back bonus, `applyWeeklyEvents` random events.
+- `lib/analytics/` (M9) — envelope, experiments, funnels, feature adoption.
 
-## Done
-- [x] 1. `lib/analytics/context.ts` — common envelope (schema/app/build/platform/OS).
-- [x] 2. `lib/analytics/validation.ts` — scrub, coerce, cap, opt-in de-duplication.
-- [x] 3. `lib/analytics/experiments.ts` — registry with the question in the TYPE;
-      deterministic FNV-1a assignment.
-- [x] 4. `lib/analytics/ExperimentService.ts` — pinning against weight changes,
-      exposure ≠ assignment, memoised envelope value.
-- [x] 5. `lib/analytics/progression.ts` — stage ladder + engagement/monetisation segments.
-- [x] 6. `lib/analytics/economySnapshot.ts` — sampled per-game-week rollup.
-- [x] 7. `lib/analytics/featureAdoption.ts` + `featureRoutes.ts` — discovery vs return.
-- [x] 8. `lib/analytics/debugBuffer.ts` — bounded `__DEV__`-only inspector.
-- [x] 9. `lib/analytics/reliability.ts` — save_failed / save_repaired / app_startup.
-- [x] 10. Events catalogue: type + runtime set derived from ONE array.
-- [x] 11. Wiring — AnalyticsTracker (stage, economy, adoption), the two app
-      launchers, `saveQueue`, `hydrateLoadedState`, `_layout` startup.
-- [x] 12. 209 tests across 19 suites.
-- [x] 13. `docs/ANALYTICS.md`.
-- [x] 14. Red-team + second audit (findings below).
-- [x] 15. `type-check`, `type-check:tests`, `lint:errors`, 1294-test regression run.
+## Gaps
+1. **No live event system.** No definition model, no lifecycle, no hub, no
+   reward ledger. Every rotating thing is bespoke and compiled in.
+2. **No remote content.** Nothing ships without an app update.
+3. **Two bespoke rotations, no shared pool abstraction** (weight, cooldown,
+   repeat prevention, eligibility).
+4. **No live-ops analytics funnel.**
+5. **No per-event kill switch or staged rollout.**
+6. **No reactivation content** beyond a cash bonus.
 
-## Bugs found and fixed on the way
-1. **Sensitive props reached Firebase unscrubbed.** Scrubbing ran on the way
-   into the self-hosted queue only, so a receipt passed to `track()` left the
-   device intact on the other sink. Now scrubbed once, before either.
-2. **Event-name type and runtime Set were maintained separately** — "add to the
-   type, forget the Set" type-checked and was silently dropped at runtime.
-3. **Property caps exceeded Firebase's 25-parameter budget**, which is enforced
-   by silently dropping the excess. Caps are now the stricter sink's.
-4. **The experiment envelope string could truncate mid-pair** in a Firebase
-   parameter, inventing an experiment id and an arm. Cut at a pair boundary.
-5. **`screen_view` would have re-fired every week** once adoption was wired to
-   the same effect. `weeksLived` is read through a ref.
-6. **The de-dupe window leaked across `configure()`**, making a test pass for
-   the wrong reason. `configure()` resets it.
+## The one hard design decision
+Windows are REAL time; progress and rewards are GAME state.
+A scrubbed clock may change which event window you see (a shop window grants
+nothing) but can never manufacture progress or re-claim a reward — claims are
+recorded by event INSTANCE id in a persisted ledger. This is the only reading
+consistent with the five STATE_VERSION bumps that exist to close clock exploits.
 
-## Deliberately NOT done (and why)
-- **No experiment is registered.** Shipping the infrastructure and shipping a
-  live experiment are different decisions; inventing one to demonstrate the
-  plumbing would put a real behaviour change in front of real players.
-- **No remote-config service.** It needs a validation layer designed first —
-  this app's economy is gated on game state precisely because externally
-  supplied and device-clock values have been exploitable here five times over.
-  Its own change, not a rider on this one.
-- **No per-source/per-sink economy attribution.** It needs a transaction
-  ledger, which is a save-format change.
+## Tasks
+- [ ] 1. `lib/liveops/types.ts` — event definition + persisted player state.
+- [ ] 2. `lib/liveops/objectives.ts` — compiled-in objective REGISTRY (remote
+      content references ids; it never carries logic).
+- [ ] 3. `lib/liveops/validation.ts` — definition schema, bounded rewards, date
+      and version validation; drop bad events individually, never the payload.
+- [ ] 4. `lib/liveops/schedule.ts` — UTC windows + the lifecycle state machine.
+- [ ] 5. `lib/liveops/eligibility.ts` — stage / subscription / cooldown / repeat.
+- [ ] 6. `lib/liveops/pool.ts` — the reusable weighted pool with cooldowns.
+- [ ] 7. `lib/liveops/rewards.ts` — economy caps + idempotent claim ledger.
+- [ ] 8. `lib/liveops/catalogue.ts` — the compiled-in fallback events (real content).
+- [ ] 9. `lib/liveops/remote.ts` — fetch → validate → cache → fallback, kill switch.
+- [ ] 10. `lib/liveops/state.ts` — save-state reader, degrades to empty.
+- [ ] 11. `lib/liveops/analytics.ts` — the live_event_* funnel.
+- [ ] 12. `contexts/game/actions/LiveOpsActions.ts` — the ONE atomic claim updater.
+- [ ] 13. STATE_VERSION 49 + migration + types + createTestGameState.
+- [ ] 14. Discovery UI: the hub + a home surface card.
+- [ ] 15. Tests: time, offline, invalid remote data, duplicate claims, expiry,
+      economy caps, save round-trip.
+- [ ] 16. `docs/LIVEOPS.md` + the content calendar.
+- [ ] 17. Red team + second independent audit; fix what it finds.

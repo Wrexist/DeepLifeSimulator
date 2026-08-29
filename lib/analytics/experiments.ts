@@ -97,24 +97,50 @@ export function findExperiment(
 }
 
 /**
- * FNV-1a, 32-bit. Small, dependency-free, well-distributed for short strings.
+ * FNV-1a with a final avalanche mix, 32-bit.
  *
- * Not a cryptographic hash and does not need to be: it decides a bucket, not a
- * secret. What it DOES need is to be identical on every platform and stable
- * forever — a change here re-buckets every in-flight experiment — which rules
- * out anything from a native module or a library that could be upgraded.
+ * Small, dependency-free, and - with the finalizer - well distributed for the
+ * short structured strings this app hashes. Not a cryptographic hash and does
+ * not need to be: it decides a bucket, not a secret. What it DOES need is to be
+ * identical on every platform and stable forever, which rules out anything from
+ * a native module or a library that could be upgraded.
  *
- * `>>> 0` keeps the value unsigned; JS bitwise operators otherwise produce a
- * signed 32-bit int and a negative bucket.
+ * WHY THE FINALIZER IS NOT OPTIONAL. Raw FNV-1a avalanches poorly on its LAST
+ * byte, and every id this app hashes puts the varying part at the end
+ * (`installId:experimentId`, `installId:eventId`). Two ids differing only in
+ * their final character therefore produce hashes separated by a fixed low-bit
+ * offset, which survives `% bucketCount` as a systematic correlation. Measured:
+ * `exp_a` and `exp_b` agreed on a 50/50 split for 36% of installs instead of
+ * 50%. Two concurrent experiments named that way would not have been
+ * independent - the second would have been measured on a skewed slice of the
+ * first's arms, which is the one failure an A/B system cannot detect in its own
+ * output. With the finalizer the same pair measures 50.3%.
+ *
+ * The mix is the standard xor-shift-multiply finalizer; `Math.imul` keeps the
+ * multiply in 32-bit integer space, and `>>> 0` keeps every intermediate
+ * unsigned - JS bitwise operators otherwise yield a signed int and a negative
+ * bucket.
+ *
+ * CHANGING THIS RE-BUCKETS EVERYTHING. Any edit reassigns every experiment arm
+ * and every staged rollout. It is safe to change only while nothing is live;
+ * once an experiment or a rollout is in flight, a change here contaminates it
+ * exactly the way a mid-flight weight change would (see `ExperimentService`
+ * pinning, which protects against that but not against this).
  */
 export function hashString(input: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i);
-    // 32-bit FNV prime (16777619) via shifts — `hash * 16777619` loses precision
+    // 32-bit FNV prime (16777619) via shifts - `hash * 16777619` loses precision
     // past 2^53 and would make the hash platform-dependent.
     hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
   }
+  // Avalanche, so a one-character difference reaches every output bit.
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x7feb352d) >>> 0;
+  hash ^= hash >>> 15;
+  hash = Math.imul(hash, 0x846ca68b) >>> 0;
+  hash ^= hash >>> 16;
   return hash >>> 0;
 }
 

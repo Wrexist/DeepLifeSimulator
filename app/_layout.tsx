@@ -65,6 +65,7 @@ import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
 import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
 import { analytics, track } from '@/lib/analytics';
 import { trackStartupDuration } from '@/lib/analytics/reliability';
+import { initLiveOpsContent } from '@/lib/liveops/content';
 import { AnalyticsTracker } from '@/lib/analytics/AnalyticsTracker';
 import { SubscriptionReconciler } from '@/components/SubscriptionReconciler';
 import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
@@ -1176,6 +1177,13 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
             const firstFrame = getBreadcrumbs().find((b) => b.stage === 'first_screen_visible');
             if (firstFrame) trackStartupDuration(firstFrame.elapsed);
           }
+
+          // Live Ops content. Fire-and-forget on purpose: the compiled-in
+          // catalogue is already in force synchronously, so a slow or failed
+          // fetch costs the upgrade and nothing else. Awaiting it would put a
+          // network round trip on the boot path for content the player already
+          // has (see lib/liveops/remote.ts, the fallback ladder).
+          void initLiveOpsContent();
         },
         { timeout: 3000, critical: false, enabled: enableTelemetry || enableFirebase }
       );
