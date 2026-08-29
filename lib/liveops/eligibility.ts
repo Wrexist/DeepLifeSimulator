@@ -15,6 +15,7 @@
  */
 import { resolveProgressionStage } from '@/lib/analytics/progression';
 import { hashString } from '@/lib/analytics/experiments';
+import { instanceId } from './schedule';
 import type { LiveEventDefinition, LiveOpsState } from './types';
 
 /** Everything eligibility needs, resolved once by the caller. */
@@ -104,14 +105,27 @@ export function ineligibleReason(
     }
   }
 
-  const lastSeen = state?.lastSeenWeek?.[definition.id];
-  if (typeof lastSeen === 'number' && Number.isFinite(lastSeen)) {
-    const elapsed = context.weeksThisLife - lastSeen;
-    // A NEGATIVE elapsed means the life clock reset (a prestige or a new life)
-    // since the event was last seen. That is a genuinely fresh start, so the
-    // cooldown does not apply - and treating it as "still cooling down" would
-    // hide recurring events from every player who prestiges.
-    if (elapsed >= 0 && elapsed < DEFAULT_COOLDOWN_WEEKS) return 'on cooldown';
+  // The cooldown gates a NEW appearance of a recurring event id. It must never
+  // gate the instance the player already has open, and this is where that went
+  // wrong: opening an event stamps `lastSeenWeek[id] = weeksThisLife`, so the
+  // very next claim computed `elapsed === 0` and refused the event as "on
+  // cooldown". Open the card, read the brief, tap Collect - refused. The core
+  // interaction of the whole system, broken by its own bookkeeping, and every
+  // unit test passed because none of them opened an event before claiming it.
+  //
+  // An instance the player has already seen is by definition not a new
+  // appearance, so the cooldown does not apply to it.
+  const alreadyEngaged = !!state?.seenInstanceIds?.includes(instanceId(definition));
+  if (!alreadyEngaged) {
+    const lastSeen = state?.lastSeenWeek?.[definition.id];
+    if (typeof lastSeen === 'number' && Number.isFinite(lastSeen)) {
+      const elapsed = context.weeksThisLife - lastSeen;
+      // A NEGATIVE elapsed means the life clock reset (a prestige or a new life)
+      // since the event was last seen. That is a genuinely fresh start, so the
+      // cooldown does not apply - and treating it as "still cooling down" would
+      // hide recurring events from every player who prestiges.
+      if (elapsed >= 0 && elapsed < DEFAULT_COOLDOWN_WEEKS) return 'on cooldown';
+    }
   }
 
   return null;

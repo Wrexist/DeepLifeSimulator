@@ -271,3 +271,32 @@ describe('applyLiveEventSeen', () => {
     expect(Object.keys(patch!)).toEqual(['liveOps']);
   });
 });
+
+describe('the open-then-claim path (the one the UI actually performs)', () => {
+  it('an event stays claimable after the player OPENS it', () => {
+    // This was broken and every other test in this file missed it, because none
+    // of them opened an event before claiming. Opening stamps
+    // `lastSeenWeek[id] = weeksThisLife`, and the cooldown - meant to space out
+    // a REPEAT appearance of a recurring id - then read `elapsed === 0` and
+    // refused the instance in the player's hand. Open the card, read the brief,
+    // tap Collect, get told no.
+    const state = completedState();
+    const opened = { ...state, ...applyLiveEventSeen(state, event(), 40) } as GameState;
+    expect(applyLiveEventClaim(opened, event(), context, NOW).ok).toBe(true);
+  });
+
+  it('and the cooldown still holds back a LATER, unseen instance', () => {
+    // The rule the cooldown exists for must survive the fix: a fresh run of the
+    // same event id, which the player has not engaged with, is still spaced out.
+    const laterRun = event({ startsAt: '2026-06-05T00:00:00Z', endsAt: '2026-07-05T00:00:00Z' });
+    const base = completedState();
+    const seenRecently = {
+      ...base,
+      liveOps: { lastSeenWeek: { test_event: 39 }, seenInstanceIds: [] },
+    } as GameState;
+    expect(applyLiveEventClaim(seenRecently, laterRun, context, NOW)).toEqual({
+      ok: false,
+      reason: 'not_claimable',
+    });
+  });
+});

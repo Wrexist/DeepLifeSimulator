@@ -1177,19 +1177,40 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
             const firstFrame = getBreadcrumbs().find((b) => b.stage === 'first_screen_visible');
             if (firstFrame) trackStartupDuration(firstFrame.elapsed);
           }
-
-          // Live Ops content. Fire-and-forget on purpose: the compiled-in
-          // catalogue is already in force synchronously, so a slow or failed
-          // fetch costs the upgrade and nothing else. Awaiting it would put a
-          // network round trip on the boot path for content the player already
-          // has (see lib/liveops/remote.ts, the fallback ladder).
-          void initLiveOpsContent();
         },
         { timeout: 3000, critical: false, enabled: enableTelemetry || enableFirebase }
       );
       if (telemetryTask) {
         startupOrchestrator.addTask(telemetryTask);
       }
+    }
+
+    // Live Ops content - its OWN task, deliberately ungated.
+    //
+    // This started life inside the telemetry task above, which was wrong twice
+    // over. Live-ops definitions are game CONTENT, not telemetry: gating them
+    // on `enableTelemetry || enableFirebase` meant remote content never loaded
+    // in a Boring Build - the default in `__DEV__` and the whole `preview`
+    // profile - and nesting the call inside `if (trackingAllowed)` additionally
+    // made shipping an event require the player to accept AD TRACKING. Neither
+    // failure is visible: the compiled-in catalogue keeps working, so the game
+    // looks fine while every published event silently never arrives.
+    //
+    // Ungated for the same reason cloud save is (see featureFlags.ts): this is
+    // pure JS over `fetch`, it initializes nothing native, and it touches the
+    // network only after the first frame. Fire-and-forget, because the
+    // compiled-in catalogue is already in force synchronously - a slow or
+    // failed fetch costs the upgrade and nothing else (lib/liveops/remote.ts,
+    // the fallback ladder).
+    const liveOpsTask = createSafeServiceTask(
+      'Live Ops Content',
+      async () => {
+        await initLiveOpsContent();
+      },
+      { timeout: 9000, critical: false, enabled: true }
+    );
+    if (liveOpsTask) {
+      startupOrchestrator.addTask(liveOpsTask);
     }
 
     // Add ATT task (if enabled)
