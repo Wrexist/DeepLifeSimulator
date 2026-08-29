@@ -37,6 +37,7 @@ import {
   type ExperimentDefinition,
 } from './experiments';
 import { analyticsStorage, readJsonRecord } from './storage';
+import { MAX_STRING_LENGTH } from './validation';
 
 /** AsyncStorage key. Versioned so a shape change is a new key, not a reinterpretation. */
 export const EXPERIMENT_ASSIGNMENTS_KEY = 'analytics_experiment_assignments_v1';
@@ -71,6 +72,8 @@ class ExperimentServiceImpl {
   /** Experiments already exposed THIS session — exposure is once per session. */
   private exposed = new Set<string>();
   private emit: ExposureEmitter | null = null;
+  /** Memoised envelope value; `undefined` means "not computed yet". */
+  private assignmentsProperty: string | undefined = undefined;
 
   /**
    * Load pinned assignments and resolve every enabled experiment.
@@ -84,6 +87,7 @@ class ExperimentServiceImpl {
     if (this.loaded) return;
     try {
       this.assignments = parseAssignments(await readJsonRecord(EXPERIMENT_ASSIGNMENTS_KEY));
+      this.assignmentsProperty = undefined;
       // Resolve (and pin) everything enabled now, so `getAssignments()` can be a
       // synchronous read for the event envelope — `track()` must never await.
       for (const definition of this.registry) {
@@ -116,6 +120,7 @@ class ExperimentServiceImpl {
     const variant = assignVariant(definition, this.installId);
     this.assignments[definition.id] = variant;
     this.dirty = true;
+    this.assignmentsProperty = undefined; // a new arm changes the envelope
     return variant;
   }
 
@@ -175,11 +180,31 @@ class ExperimentServiceImpl {
    */
   getAssignmentsProperty(): string | undefined {
     try {
+      if (this.assignmentsProperty !== undefined) return this.assignmentsProperty || undefined;
+
       const entries = this.registry
         .filter((d) => d.enabled && this.assignments[d.id])
         .map((d) => `${d.id}:${this.assignments[d.id]}`)
         .sort();
-      return entries.length > 0 ? entries.join(',') : undefined;
+
+      // Truncate at a PAIR boundary, never mid-pair. The value rides in a
+      // Firebase parameter, which is capped at MAX_STRING_LENGTH and enforced
+      // by truncation — a blind cut would leave a half-written experiment id
+      // that silently reads as a different experiment, and a half-written
+      // variant that reads as a different arm. Dropping whole pairs loses
+      // experiments from the envelope; cutting inside one INVENTS them.
+      let joined = '';
+      for (const entry of entries) {
+        const next = joined ? `${joined},${entry}` : entry;
+        if (next.length > MAX_STRING_LENGTH) break;
+        joined = next;
+      }
+
+      // Cached because it cannot change without an assignment changing, and it
+      // is read on EVERY tracked event — re-filtering and re-sorting the
+      // registry per event is work with a constant answer.
+      this.assignmentsProperty = joined;
+      return joined || undefined;
     } catch {
       return undefined;
     }
@@ -206,6 +231,7 @@ class ExperimentServiceImpl {
     if (override.registry !== undefined) this.registry = override.registry;
     if (override.assignments !== undefined) this.assignments = { ...override.assignments };
     if (override.emit !== undefined) this.emit = override.emit;
+    this.assignmentsProperty = undefined;
     this.exposed.clear();
     this.loaded = true;
     this.dirty = false;

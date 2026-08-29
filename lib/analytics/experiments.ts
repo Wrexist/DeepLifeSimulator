@@ -175,7 +175,7 @@ export function validateExperiment(definition: ExperimentDefinition): string[] {
   if (!definition.hypothesis.trim()) problems.push(`${definition.id}: empty hypothesis`);
   if (!definition.primaryMetric.trim()) problems.push(`${definition.id}: no primary metric`);
   if (definition.guardrailMetrics.length === 0) {
-    problems.push(`${definition.id}: no guardrail metrics — a win here cannot be checked for harm`);
+    problems.push(`${definition.id}: no guardrail metrics - a win here cannot be checked for harm`);
   }
   if (!(definition.minimumSamplePerVariant > 0)) {
     problems.push(`${definition.id}: minimumSamplePerVariant must be > 0`);
@@ -194,7 +194,7 @@ export function validateExperiment(definition: ExperimentDefinition): string[] {
     }
   }
   if (!definition.variants.some((v) => Number.isFinite(v.weight) && v.weight > 0)) {
-    problems.push(`${definition.id}: all weights are zero — nobody can be assigned`);
+    problems.push(`${definition.id}: all weights are zero - nobody can be assigned`);
   }
   return problems;
 }

@@ -25,7 +25,7 @@ describe('resolveProgressionStage', () => {
     expect(resolveProgressionStage({ weeksThisLife: 500, totalPrestiges: 3 })).toBe('endgame');
   });
 
-  it('is total — non-finite and negative input still yields a stage', () => {
+  it('is total - non-finite and negative input still yields a stage', () => {
     expect(resolveProgressionStage({ weeksThisLife: NaN, totalPrestiges: NaN })).toBe('new');
     expect(resolveProgressionStage({ weeksThisLife: -50, totalPrestiges: 0 })).toBe('new');
   });

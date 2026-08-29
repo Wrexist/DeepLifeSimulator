@@ -25,7 +25,7 @@ describe('debug buffer', () => {
     expect(getDebugEvents().map((e) => e.name)).toEqual(['session_start', 'week_advanced']);
   });
 
-  it('is a bounded ring — a long session cannot grow it', () => {
+  it('is a bounded ring - a long session cannot grow it', () => {
     for (let i = 0; i < DEBUG_BUFFER_SIZE + 25; i++) record(`e${i}`);
     const events = getDebugEvents();
     expect(events).toHaveLength(DEBUG_BUFFER_SIZE);
@@ -33,7 +33,7 @@ describe('debug buffer', () => {
     expect(events[events.length - 1].name).toBe(`e${DEBUG_BUFFER_SIZE + 24}`);
   });
 
-  it('counts by name — the fastest read of "did my instrumentation fire"', () => {
+  it('counts by name - the fastest read of "did my instrumentation fire"', () => {
     record('week_advanced');
     record('week_advanced');
     record('death');

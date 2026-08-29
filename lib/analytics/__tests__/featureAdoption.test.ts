@@ -19,7 +19,7 @@ describe('the feature catalogue', () => {
     expect(new Set(TRACKED_FEATURES).size).toBe(TRACKED_FEATURES.length);
   });
 
-  it('uses one naming convention throughout — lower snake_case', () => {
+  it('uses one naming convention throughout - lower snake_case', () => {
     for (const feature of TRACKED_FEATURES) expect(feature).toMatch(/^[a-z][a-z0-9_]*$/);
   });
 });

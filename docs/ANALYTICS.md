@@ -191,7 +191,13 @@ endgame` (`lib/analytics/progression.ts`), never per week, and carries
 
 A prestiged player is `endgame` even at week 1 of the new life. Classifying them
 as `new` would push experienced players into the new-player funnel and make
-onboarding drop-off look better than it is.
+onboarding drop-off look better than it is. The consequence is that **`endgame`
+is terminal**: once an install has prestiged, no further stage edges are
+emitted, because `totalPrestiges` never decreases. The endgame loop is measured
+by `prestige`, `week_advanced` and `economy_week` instead. If the endgame ever
+needs its own ladder, it is a new stage axis, not a change to this one — moving
+players back down it would make time-in-stage incomparable across the whole
+history.
 
 ---
 
@@ -441,6 +447,13 @@ Read these before quoting a number.
 8. **No LTV model ships here.** ARPU/ARPPU and payer conversion are computable
    from the events; a predicted LTV on this volume would be a number with
    false precision attached.
-9. **Firebase and the self-hosted queue can disagree in volume** — the queue
+9. **`progression_stage` stops after the first prestige** — see §5. Endgame
+   pacing is read from `prestige` and `economy_week`, not from stage edges.
+10. **Property caps are Firebase's, applied to both sinks** — 18 call-site
+   properties, 40-character names, 100-character values. Firebase enforces its
+   budget by silently dropping the excess, which is the worst failure mode
+   available, so the stricter limit is applied before either sink rather than
+   letting the two payloads diverge.
+11. **Firebase and the self-hosted queue can disagree in volume** — the queue
    caps at 200 events and drops oldest-first under sustained offline use.
    Firebase has its own retention rules. Use one sink per question.

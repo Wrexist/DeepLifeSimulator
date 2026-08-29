@@ -53,9 +53,25 @@ export const SENSITIVE_KEYS: ReadonlySet<string> = new Set<string>([
 
 export const REDACTED = '[REDACTED]';
 
-/** Caps. Chosen to be generous for real call sites and fatal for runaway ones. */
-export const MAX_PROP_KEYS = 24;
-export const MAX_STRING_LENGTH = 256;
+/**
+ * Caps — set by the STRICTER of the two sinks, which is Firebase.
+ *
+ * The self-hosted queue has no per-event property limit; Firebase Analytics
+ * does, and it enforces it by SILENTLY DROPPING the excess. That is the worst
+ * possible failure mode for telemetry: the event arrives, the dashboard has a
+ * row, and the one property the analysis joins on is simply not there. So the
+ * caps here are Firebase's, applied once for both sinks, which also keeps the
+ * two payloads identical and comparable.
+ *
+ * Firebase's budget is 25 parameters per event. The envelope spends up to seven
+ * of them (five context fields, the experiment arms, and `session_id`), leaving
+ * 18 for the call site — which is more than any event in the catalogue uses.
+ */
+export const MAX_PROP_KEYS = 18;
+/** Firebase parameter NAME limit. */
+export const MAX_KEY_LENGTH = 40;
+/** Firebase parameter VALUE limit. */
+export const MAX_STRING_LENGTH = 100;
 
 /**
  * Events for which a repeat inside the dedupe window is an artefact rather than
@@ -96,9 +112,10 @@ export function sanitizeProps(props?: AnalyticsProps): AnalyticsProps | undefine
 
   for (const [key, raw] of Object.entries(props)) {
     if (kept >= MAX_PROP_KEYS) break;
-    // An empty or absurd key is a call-site bug; keeping it would only make the
-    // schema harder to read downstream.
-    if (!key || key.length > MAX_STRING_LENGTH) continue;
+    // An over-long key is dropped rather than truncated: two keys that differ
+    // only past the limit would truncate to the SAME name and silently
+    // overwrite each other, which is worse than losing one of them.
+    if (!key || key.length > MAX_KEY_LENGTH) continue;
 
     if (SENSITIVE_KEYS.has(key)) {
       out[key] = REDACTED;

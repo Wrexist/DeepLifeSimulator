@@ -87,7 +87,7 @@ export function AnalyticsTracker(): null {
   // stage before it is a difficulty spike.
   //
   // Regressions are emitted too, not filtered. `endgame` is reached by
-  // prestiging, and a prestige resets the life clock — so stage moves BACKWARD
+  // prestiging, and a prestige resets the life clock - so stage moves BACKWARD
   // legitimately, and a forward-only guard would silently drop the transition
   // that matters most for the endgame loop. `direction` records which it was.
   const stage = resolveProgressionStage({ weeksThisLife, totalPrestiges });
@@ -126,7 +126,7 @@ export function AnalyticsTracker(): null {
   // The previous sample is held in a ref, NOT persisted. A rollup that spans an
   // app restart would report a month's earnings against whatever the counters
   // held at launch, and the first sample of each session already reports the
-  // life's totals so far (see diffEconomySamples), so nothing is lost — the
+  // life's totals so far (see diffEconomySamples), so nothing is lost - the
   // spans still tile the life, they are just cut at session boundaries, which
   // `spanWeeks` makes visible.
   const getState = useGameStateGetter();

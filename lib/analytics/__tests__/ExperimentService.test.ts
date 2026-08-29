@@ -160,3 +160,26 @@ describe('getAssignmentsProperty', () => {
     expect(experiments.getAssignmentsProperty()).toBe('on:control');
   });
 });
+
+describe('envelope truncation', () => {
+  it('cuts at a PAIR boundary, never inside one', () => {
+    // The value rides in a Firebase parameter capped at 100 characters and
+    // enforced by truncation. A blind cut would leave a half-written experiment
+    // id that reads as a DIFFERENT experiment and a half-written variant that
+    // reads as a different arm — dropping whole pairs loses information,
+    // cutting inside one invents it.
+    const many = Array.from({ length: 12 }, (_, i) =>
+      fixture({ id: `experiment_with_a_longish_id_${i}` }),
+    );
+    const assignments = Object.fromEntries(many.map((e) => [e.id, 'treatment']));
+    setup(many, 'install-1', assignments);
+
+    const value = experiments.getAssignmentsProperty() as string;
+    expect(value.length).toBeLessThanOrEqual(100);
+    for (const pair of value.split(',')) {
+      const [id, variant] = pair.split(':');
+      expect(assignments[id]).toBeDefined();
+      expect(variant).toBe('treatment');
+    }
+  });
+});

@@ -1,6 +1,7 @@
 import {
   DEDUPE_WINDOW_MS,
   DuplicateSuppressor,
+  MAX_KEY_LENGTH,
   MAX_PROP_KEYS,
   MAX_STRING_LENGTH,
   REDACTED,
@@ -47,6 +48,23 @@ describe('sanitizeProps', () => {
     const long = 'x'.repeat(MAX_STRING_LENGTH + 50);
     const out = sanitizeProps({ path: long });
     expect((out?.path as string).length).toBe(MAX_STRING_LENGTH);
+  });
+
+  it('DROPS an over-long key rather than truncating it', () => {
+    // Two keys differing only past the limit would truncate to the SAME name
+    // and silently overwrite each other — worse than losing one.
+    const key = 'k'.repeat(MAX_KEY_LENGTH + 1);
+    expect(sanitizeProps({ [key]: 1, ok: 2 })).toEqual({ ok: 2 });
+  });
+
+  it('fits inside the STRICTER sink\'s parameter budget', () => {
+    // Firebase caps an event at 25 parameters and enforces it by silently
+    // dropping the excess — the event arrives, and the property the analysis
+    // joins on is simply not there. The envelope spends up to 7, so the call
+    // site gets 18.
+    expect(MAX_PROP_KEYS).toBeLessThanOrEqual(25 - 7);
+    expect(MAX_STRING_LENGTH).toBeLessThanOrEqual(100);
+    expect(MAX_KEY_LENGTH).toBeLessThanOrEqual(40);
   });
 
   it('caps the number of properties', () => {
@@ -102,7 +120,7 @@ describe('DuplicateSuppressor', () => {
     expect(s.shouldDrop('screen_view', { path: '/b' }, 1000)).toBe(false);
   });
 
-  it('is bounded — a long session cannot grow the map without limit', () => {
+  it('is bounded - a long session cannot grow the map without limit', () => {
     const s = new DuplicateSuppressor(DEDUPE_WINDOW_MS, 4);
     // All inside one window, so nothing is swept; eviction is what bounds it.
     for (let i = 0; i < 50; i++) s.shouldDrop('screen_view', { path: `/p${i}` }, 1000);

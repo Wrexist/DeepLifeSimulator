@@ -83,7 +83,7 @@ describe('bucketFor', () => {
 });
 
 describe('assignVariant', () => {
-  it('is stable across calls — the property the whole design exists for', () => {
+  it('is stable across calls - the property the whole design exists for', () => {
     const def = fixture();
     const first = assignVariant(def, 'install-xyz');
     for (let i = 0; i < 20; i++) expect(assignVariant(def, 'install-xyz')).toBe(first);
