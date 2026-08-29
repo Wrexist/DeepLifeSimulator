@@ -1,81 +1,46 @@
-# Discord automation + server professionalization — plan
+# Plan — Analytics, Experimentation & Telemetry (Master Program 9)
 
-Owner request: a bot that (1) posts GitHub activity to #future-updates as
-structured "hype" marketing, (2) posts App Store / Google Play releases to
-#updates the moment they go live, (3) watches bug reports (Discord +
-deeplifesimulator@gmail.com) and auto-fixes them on a working branch (no PR),
-and (4) brings every other channel up to a professional, structured,
-automated standard. Architecture: Claude scheduled Routines
-(`create_trigger`), not a long-running bot process.
+## Audit findings (what already exists)
+- `lib/analytics/` — typed event catalogue (47 names), crash-safe pure-JS batcher,
+  consent + flag gating, prop scrubbing, AsyncStorage queue, Firebase fan-out.
+- `lib/analytics/retentionCohort.ts` — install-anchored D-N cohorts, monotonic,
+  `anchorEstimated` exclusion flag. Correct and well reasoned.
+- Funnels present: session, onboarding, paywall/purchase, subscription lifecycle,
+  offers, ads, goals, return summary.
 
-Existing infra this builds on (do not duplicate):
-- `discord/` — server-as-code, `discord/copy.mjs` render helpers
-  (`renderReleasePost`, `renderAnnouncement`), `discord/cli.mjs`.
-- `.github/workflows/discord.yml` — already posts to #update-notes on GitHub
-  `release: published`, gated on `DISCORD_BOT_TOKEN` + `DISCORD_GUILD_ID`
-  secrets (not yet set).
-- `docs/ASC-AUTOMATION.md` / `scripts/asc-release.mjs` — read-only App Store
-  status via `ASC_KEY_ID`/`ASC_ISSUER_ID`/`ASC_KEY_P8` (already configured as
-  repo secrets).
-- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (already configured as a repo secret).
+## Gaps found (what this change fixes)
+1. **No common event envelope.** Events carry only id/name/ts/installId/sessionId.
+   No app version, build, platform, schema version → *no cohorting by release, and
+   no way to tell a v2.9 regression from a v2.8 one.*
+2. **No experimentation system at all.** Zero A/B infra: no assignment, no
+   exposure, no guardrails. Every change ships unmeasured.
+3. **No economy telemetry.** The most audited domain in the repo emits nothing.
+4. **No progression-stage telemetry.** `week_advanced` only; no stage funnel, so
+   "where does the mid-game flatten" is unanswerable.
+5. **No feature-adoption telemetry.** Dead features are invisible.
+6. **No reliability telemetry.** Save failures/repairs are logged, never counted.
+7. **No performance telemetry.** Startup/save timings unmeasured.
+8. **Weak validation.** Names are checked; property shapes, sizes, numeric
+   sanity and duplicate suppression are not.
+9. **No analytics debug inspector.**
+10. **No documented taxonomy / dashboard spec / privacy review.**
 
-## 1. Webhooks (posting side — no bot token needed)
-- [x] Create #updates webhook ("Store Release Bot"), saved to `.env.local` as
-      `DISCORD_WEBHOOK_UPDATES`.
-- [ ] Create/collect #future-updates webhook ("GitHub Hype Bot") — waiting on
-      user to paste the URL; save as `DISCORD_WEBHOOK_FUTURE_UPDATES`.
-
-## 2. Store release watcher → #updates
-- [ ] `scripts/notify-store-release.mjs`: reads last-notified version from a
-      small state file, calls the existing ASC status check + Google Play
-      Developer API, and if either version is new AND newly live, posts via
-      `discord/copy.mjs`'s `renderReleasePost` to `DISCORD_WEBHOOK_UPDATES`.
-- [ ] Scheduled Routine (hourly-ish) that runs it via `device_bash` against
-      the real repo (needs `requires_local_device: true`) OR a GitHub Actions
-      cron using the secrets already in Actions — prefer GitHub Actions for
-      this one since it only needs read-only API calls and no repo edits.
-
-## 3. GitHub → #future-updates hype poster
-- [ ] `scripts/notify-github-activity.mjs`: reads recent merged PRs / commits
-      since last run (state file), drafts a short "structured marketing"
-      style embed (what shipped, why a player should care) using
-      `renderAnnouncement`, posts to `DISCORD_WEBHOOK_FUTURE_UPDATES`.
-- [ ] Scheduled Routine, daily, `requires_local_device: true` (drafting good
-      copy is the reasoning-heavy part, better done by a live Claude turn
-      than a static script).
-
-## 4. Bug-report → auto-fix pipeline
-- [ ] Blocked on two things — see "Needs you" below (bot token for reading
-      Discord messages; deeplifesimulator@gmail.com inbox access).
-- [ ] Design: scheduled Routine, `requires_local_device: true`, reads new
-      bug-reports posts + new inbox mail, cross-references against
-      `tasks/lessons.md` and CLAUDE.md Hard Rules, investigates root cause,
-      fixes on a new branch off main (never main directly), commits, no PR
-      (per your choice). Every fix must respect §4.3/§4.4 (try/catch on
-      weekly tick, atomic money grants) and run the relevant test suite
-      before committing (§8 "never mark work done without proof").
-- [ ] Git hygiene needed first: set `user.name`/`user.email` locally, and
-      investigate the ~2000-file `git status` diff (likely line-ending noise)
-      so an automated commit never sweeps in unrelated changes.
-
-## 5. Server-wide professionalization
-- [ ] Run `npm run discord:plan` (read-only) to see the full diff between the
-      live server and `discord/server.mjs` (bug-reports converts from a plain
-      text channel to a tagged Forum channel, other channels likely
-      renamed/reordered with emoji prefixes, etc).
-- [ ] Show the user the diff before running `discord:sync --apply` — this is
-      a real structural change to their live server, not just automation
-      wiring.
-
-## Needs the user (things I can't/shouldn't do myself)
-1. Paste the #future-updates ("GitHub Hype Bot") webhook URL.
-2. Discord bot token: retrieving it requires completing an MFA/password
-   prompt in Discord's own UI — I won't ever enter your password. Needed for
-   (a) the existing `discord.yml` release-announcer workflow and (b) reading
-   messages in #bug-reports for the auto-fix pipeline.
-3. deeplifesimulator@gmail.com access: this session's connected Gmail is
-   isacmolin@gmail.com, not deeplifesimulator@gmail.com — need a decision on
-   how to grant access (separate connector login, or a forward rule from that
-   inbox into a mailbox already connected).
-4. Approve `discord:sync --apply` after reviewing the plan diff in step 5.
-
+## Tasks
+- [ ] 1. `lib/analytics/context.ts` — common envelope (schema version, app version,
+      build, platform, OS). Lazy, never throws.
+- [ ] 2. `lib/analytics/validation.ts` — prop sanitisation, caps, numeric sanity,
+      duplicate suppression key.
+- [ ] 3. `lib/analytics/experiments.ts` — registry + deterministic pure assignment.
+- [ ] 4. `lib/analytics/ExperimentService.ts` — persisted pinning, exposure
+      tracking (assignment ≠ exposure), envelope contribution.
+- [ ] 5. `lib/analytics/progression.ts` — pure player-stage classifier + segments.
+- [ ] 6. `lib/analytics/economySnapshot.ts` — pure week-boundary economy rollup.
+- [ ] 7. `lib/analytics/featureAdoption.ts` — first-use + repeat-use, persisted.
+- [ ] 8. `lib/analytics/debugBuffer.ts` — dev-only ring buffer + inspector.
+- [ ] 9. New events in `events.ts` (+ names set) for 1/3/5/6/7 and reliability.
+- [ ] 10. Wire into `AnalyticsTracker.tsx` (stage edges, economy rollup) and
+      the save pipeline (reliability) — no hot-path cost.
+- [ ] 11. Tests for every new module + an envelope/taxonomy conformance test.
+- [ ] 12. `docs/ANALYTICS.md` — taxonomy, funnels, dashboards, privacy review.
+- [ ] 13. Red-team pass + second independent audit; fix what it finds.
+- [ ] 14. `npm run type-check`, `type-check:tests`, `lint:errors`, targeted Jest.

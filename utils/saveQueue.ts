@@ -13,6 +13,12 @@ import { MAX_SAVE_SIZE } from '@/lib/config/gameConstants';
 // with no enqueuer holding the lock for it. See the comment there and on
 // `queueSave` for why the normal drain deliberately takes no lock.
 import { saveLoadMutex, type MutexToken } from '@/utils/saveLoadMutex';
+// Telemetry for PERMANENT save failures only (see the call site). `track()` is
+// a hard no-op unless telemetry is flagged on AND consented, and it swallows
+// every error internally, so this import can neither slow the save path nor
+// add a way for it to throw. It pulls no native module at load: the analytics
+// module's AsyncStorage and expo-constants reads are both lazy.
+import { trackSaveFailure } from '@/lib/analytics/reliability';
 
 interface SaveOperation {
   id: string;
@@ -228,6 +234,14 @@ class SaveQueue {
           this.queue = [operation, ...this.queue];
         } else {
           this.log.error(`Save operation failed permanently for slot ${operation.slot} after ${this.maxRetries} retries`);
+
+          // Count it. This is the one save outcome that costs a player their
+          // progress, and until now it existed only as a log line on whichever
+          // device it happened to. Reported as a CATEGORY, never the error text
+          // — a save error can quote the save, which is the player's own data.
+          // Only the PERMANENT failure is reported; a retry that recovers is
+          // noise that would bury this.
+          trackSaveFailure(error, operation.slot, operation.retryCount + 1);
 
           // Show error toast (always show errors)
           if (this.toastCallback) {

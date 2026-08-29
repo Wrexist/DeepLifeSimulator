@@ -13,6 +13,13 @@
  *
  * Mirrors the proven batching/flush/abort patterns in
  * `services/RemoteLoggingService.ts`.
+ *
+ * WHAT THIS FILE DOES NOT DO. Validation, scrubbing, de-duplication, the
+ * common envelope, experiment assignment and feature adoption all live in
+ * sibling modules and are composed here. That split is deliberate: this class
+ * owns the QUEUE and the TRANSPORT, which is the part that must never throw and
+ * must never block, and every rule that could grow over time lives somewhere it
+ * can be unit-tested without a fetch stub and an AsyncStorage mock.
  */
 
 import { FEATURE_FLAGS } from '@/lib/config/featureFlags';
@@ -32,65 +39,12 @@ import {
   type RetentionCohortRecord,
   type RetentionSnapshot,
 } from './retentionCohort';
-
-// ── Lazy AsyncStorage (never touch native at module load) ──────────────────
-let _realAsyncStorage: typeof import('@react-native-async-storage/async-storage').default | null = null;
-let _lastLoadAttempt = 0;
-const _LOAD_RETRY_COOLDOWN_MS = 2000;
-
-function getLazyAsyncStorage() {
-  if (_realAsyncStorage) return _realAsyncStorage;
-  const now = Date.now();
-  if (_lastLoadAttempt > 0 && now - _lastLoadAttempt < _LOAD_RETRY_COOLDOWN_MS) return null;
-  _lastLoadAttempt = now;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    _realAsyncStorage = require('@react-native-async-storage/async-storage').default;
-    return _realAsyncStorage;
-  } catch {
-    return null;
-  }
-}
-
-const storage = {
-  getItem: async (key: string): Promise<string | null> => {
-    try {
-      const s = getLazyAsyncStorage();
-      return s ? await s.getItem(key) : null;
-    } catch {
-      return null;
-    }
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    try {
-      const s = getLazyAsyncStorage();
-      if (s) await s.setItem(key, value);
-    } catch {
-      /* best-effort */
-    }
-  },
-};
-
-// ── Privacy: scrub sensitive keys from props before they ever leave device ──
-// Mirrors SENSITIVE_CONTEXT_KEYS in RemoteLoggingService; kept local so the
-// analytics module stays self-contained and free of native imports.
-const SENSITIVE_KEYS = new Set<string>([
-  'hmac', 'signature', 'saveKey', 'saveHmacKey', 'hmacKey',
-  'receipt', 'receiptData', 'purchaseToken', 'verificationData',
-  'apiKey', 'secret', 'token', 'accessToken', 'refreshToken',
-  'password', 'credential', 'email', 'phoneNumber', 'address',
-  'cloudUserId', 'deviceId', 'installationId', 'advertisingId',
-]);
-const REDACTED = '[REDACTED]';
-
-function sanitizeProps(props?: AnalyticsProps): AnalyticsProps | undefined {
-  if (!props) return undefined;
-  const out: AnalyticsProps = {};
-  for (const [k, v] of Object.entries(props)) {
-    out[k] = SENSITIVE_KEYS.has(k) ? REDACTED : v;
-  }
-  return out;
-}
+import { getAnalyticsContext, type AnalyticsContext } from './context';
+import { DuplicateSuppressor, sanitizeProps } from './validation';
+import { recordDebugEvent } from './debugBuffer';
+import { experiments } from './ExperimentService';
+import { featureAdoption } from './featureAdoption';
+import { analyticsStorage as storage } from './storage';
 
 const randomId = (): string =>
   Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
@@ -136,6 +90,17 @@ class AnalyticsService {
   private initialized = false;
   /** Install-scoped retention cohort, loaded in `init()`. Null until then. */
   private cohort: RetentionCohortRecord | null = null;
+  /**
+   * The common envelope, resolved once per process.
+   *
+   * Resolved lazily on the first tracked event rather than in `init()`: it
+   * reads a native module, and `init()` runs during boot, which is the one
+   * moment this repo has an iOS 26 TurboModule crash in its history. By the
+   * first event the app has already rendered.
+   */
+  private context: AnalyticsContext | null = null;
+  /** Collapses re-renders of idempotent events. See `validation.ts`. */
+  private readonly suppressor = new DuplicateSuppressor();
 
   /**
    * Read feature flags + env, load/generate the anonymous install id, then
@@ -163,6 +128,19 @@ class AnalyticsService {
       // relaunches would look prior), but it errs toward `anchorEstimated:
       // true`, which excludes rather than corrupts. See retentionCohort.ts.
       await this.loadCohort(!!existingInstallId);
+
+      // Experiments and feature adoption both key off the SAME install id the
+      // envelope carries, so an assignment can always be reproduced from an
+      // event. Both are awaited (they are AsyncStorage reads, not network) so
+      // the first tracked event already carries its arm — an event emitted
+      // before assignment resolves would be attributed to no variant and
+      // silently dropped from every experiment analysis.
+      await experiments.init(this.installId, (experimentId, variantId) => {
+        this.track('experiment_exposed', { experimentId, variantId });
+      });
+      await featureAdoption.init((name, props) => {
+        this.track(name, props);
+      });
 
       await this.loadQueue();
 
@@ -232,6 +210,11 @@ class AnalyticsService {
    * (everyone who predates this code); a retention curve must filter those out.
    */
   trackSessionStart(props?: AnalyticsProps): void {
+    // A new session restarts per-session feature counting, so `feature_used`
+    // measures distinct sessions rather than being suppressed for the life of
+    // the process. Called here rather than in the adoption service so the two
+    // notions of "session" cannot drift apart.
+    featureAdoption.startSession();
     const snapshot = this.advanceCohort(Date.now());
     this.track('session_start', snapshot ? { ...props, ...snapshot } : props);
     // A separate, once-per-day event so "how many installs came back on day N"
@@ -262,6 +245,12 @@ class AnalyticsService {
     if (override.consent !== undefined) this.consent = override.consent;
     if (override.installId !== undefined) this.installId = override.installId;
     if (!this.installId) this.installId = randomId() + randomId();
+    // Reconfiguring is a new logical session, so the de-dupe window starts
+    // empty. Without this, two tests that emit the same idempotent event within
+    // a second of real wall-clock time leak into each other and the second one
+    // silently measures nothing — a test that passes for the wrong reason is
+    // worse here than one that fails.
+    this.suppressor.reset();
     this.initialized = true;
   }
 
@@ -281,6 +270,22 @@ class AnalyticsService {
         return;
       }
 
+      // Sanitise ONCE, before either sink. Doing it here rather than at the
+      // queue below is what stops a sensitive property reaching Firebase — the
+      // fan-out used to forward the caller's raw bag while only the self-hosted
+      // queue was scrubbed, so the two sinks disagreed about what leaves the
+      // device. There is no reading of that split where the looser one is right.
+      const clean = sanitizeProps(props);
+
+      // Collapse a re-render of an idempotent surface. Restricted to events
+      // that cannot represent a value transfer (see IDEMPOTENT_EVENTS) — a
+      // repeated `ad_rewarded` is the double-grant bug this repo keeps shipping,
+      // and suppressing it would delete the evidence.
+      if (this.suppressor.shouldDrop(name, clean, Date.now())) return;
+
+      if (!this.context) this.context = getAnalyticsContext();
+      const experimentAssignments = experiments.getAssignmentsProperty();
+
       // TWO INDEPENDENT SINKS, and the order matters.
       //
       // The queue below only runs when `active` — i.e. when the telemetry flag
@@ -291,7 +296,20 @@ class AnalyticsService {
       // "no endpoint" silently disabled Firebase too, which is exactly the
       // failure this is here to remove.
       if (FEATURE_FLAGS.firebaseAnalytics && this.consent) {
-        firebaseAnalyticsService.logEvent(name, { ...props, session_id: this.sessionId });
+        // Firebase parameters are flat, so the envelope is flattened into them
+        // with a `ctx_` prefix. The prefix is what keeps an envelope field from
+        // ever colliding with a game property of the same name — `platform`
+        // would be a plausible name for both.
+        firebaseAnalyticsService.logEvent(name, {
+          ...clean,
+          session_id: this.sessionId,
+          ctx_schema_version: this.context.schemaVersion,
+          ctx_app_version: this.context.appVersion,
+          ctx_build: this.context.buildNumber,
+          ctx_platform: this.context.platform,
+          ctx_os_major: this.context.osMajor,
+          ...(experimentAssignments ? { ctx_experiments: experimentAssignments } : {}),
+        });
       }
 
       if (!this.active) return;
@@ -301,9 +319,18 @@ class AnalyticsService {
         ts: new Date().toISOString(),
         installId: this.installId,
         sessionId: this.sessionId,
-        props: sanitizeProps(props),
+        // Spread rather than aliasing the cached context: one shared object
+        // referenced by every queued event would let a single consumer mutating
+        // it rewrite the envelope of the whole batch.
+        ctx: { ...this.context, ...(experimentAssignments ? { experiments: experimentAssignments } : {}) },
+        props: clean,
       };
       this.queue.push(event);
+      // Recorded AFTER every gate, so the dev inspector shows what actually
+      // goes out rather than what a call site hoped for — the difference
+      // between the two is where instrumentation bugs live. No-op outside
+      // `__DEV__`; see debugBuffer.ts.
+      recordDebugEvent({ name, ts: event.ts, sessionId: event.sessionId, props: clean });
       if (this.queue.length > MAX_QUEUE) {
         this.queue = this.queue.slice(this.queue.length - MAX_QUEUE);
       }

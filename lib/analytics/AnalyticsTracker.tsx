@@ -12,9 +12,18 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { usePathname } from 'expo-router';
-import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { useGameSelector, useGameStateGetter } from '@/contexts/game/useGameSelector';
 import { useGameUI } from '@/contexts/game/GameUIContext';
 import { track, analytics } from '@/lib/analytics';
+import { resolveProgressionStage, type ProgressionStage } from '@/lib/analytics/progression';
+import {
+  diffEconomySamples,
+  isEconomySampleWeek,
+  type EconomySample,
+} from '@/lib/analytics/economySnapshot';
+import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
+import { trackFeatureUse } from '@/lib/analytics/featureAdoption';
+import { featureForRoute } from '@/lib/analytics/featureRoutes';
 import { checkSubscriptionHealth } from '@/services/subscriptionHealthMonitor';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
@@ -68,9 +77,103 @@ export function AnalyticsTracker(): null {
     prevWeeks.current = weeksLived;
   }, [weeksLived, weeksThisLife, age, ready]);
 
-  // screen_view - fire on route change (no-op unless telemetry is enabled).
+  // progression_stage - fire on the EDGE between stages, never per week.
+  //
+  // A week histogram cannot answer "where does the game stop giving players a
+  // reason to continue", because it has no notion of a player having arrived
+  // anywhere. The edge carries how many weeks the PREVIOUS stage took, which is
+  // what turns a drop-off into a diagnosis: a stage everyone reaches and nobody
+  // leaves is a content wall, and one that takes three times as long as the
+  // stage before it is a difficulty spike.
+  //
+  // Regressions are emitted too, not filtered. `endgame` is reached by
+  // prestiging, and a prestige resets the life clock — so stage moves BACKWARD
+  // legitimately, and a forward-only guard would silently drop the transition
+  // that matters most for the endgame loop. `direction` records which it was.
+  const stage = resolveProgressionStage({ weeksThisLife, totalPrestiges });
+  const prevStage = useRef<ProgressionStage>(stage);
+  const stageEnteredAtWeek = useRef(weeksThisLife);
   useEffect(() => {
-    if (pathname) track('screen_view', { path: pathname });
+    if (!ready) {
+      prevStage.current = stage;
+      stageEnteredAtWeek.current = weeksThisLife;
+      return;
+    }
+    if (stage !== prevStage.current) {
+      track('progression_stage', {
+        stage,
+        fromStage: prevStage.current,
+        direction: stage === 'endgame' || weeksThisLife >= stageEnteredAtWeek.current ? 'forward' : 'reset',
+        weeksThisLife,
+        // Floored at zero: a prestige resets the life clock, so the raw
+        // subtraction across that edge is negative and would read as a stage
+        // completed in negative time.
+        weeksInPreviousStage: Math.max(0, weeksThisLife - stageEnteredAtWeek.current),
+        totalPrestiges,
+      });
+      prevStage.current = stage;
+      stageEnteredAtWeek.current = weeksThisLife;
+    }
+  }, [stage, weeksThisLife, totalPrestiges, ready]);
+
+  // economy_week - a sampled aggregate rollup, one in-game MONTH at a time.
+  //
+  // Read through `getState()` rather than a selector: net worth is a walk over
+  // properties, businesses and portfolios, and a selector would recompute it on
+  // every state change all game to produce a number that is read four times a
+  // month. Here the whole read happens only on a sample boundary.
+  //
+  // The previous sample is held in a ref, NOT persisted. A rollup that spans an
+  // app restart would report a month's earnings against whatever the counters
+  // held at launch, and the first sample of each session already reports the
+  // life's totals so far (see diffEconomySamples), so nothing is lost — the
+  // spans still tile the life, they are just cut at session boundaries, which
+  // `spanWeeks` makes visible.
+  const getState = useGameStateGetter();
+  const lastEconomySample = useRef<EconomySample | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    if (!isEconomySampleWeek(weeksThisLife)) return;
+    if (lastEconomySample.current?.weeksThisLife === weeksThisLife) return;
+    try {
+      const state = getState();
+      const lifetime = state.lifetimeStatistics;
+      const sample: EconomySample = {
+        totalEarned: lifetime?.totalMoneyEarned ?? 0,
+        totalSpent: lifetime?.totalMoneySpent ?? 0,
+        money: state.stats?.money ?? 0,
+        netWorth: calculateNetWorth(state),
+        weeksThisLife,
+      };
+      track('economy_week', { ...diffEconomySamples(lastEconomySample.current, sample) });
+      lastEconomySample.current = sample;
+    } catch {
+      // Telemetry must never take down a week advance. A missed sample costs
+      // one row; a throw here would land inside the core loop.
+    }
+  }, [weeksThisLife, ready, getState]);
+
+  // screen_view - fire on route change (no-op unless telemetry is enabled).
+  //
+  // The same edge feeds feature adoption for the routes that ARE features
+  // (`featureForRoute` returns null for hubs like home and the app launcher, so
+  // they do not appear as permanent 100%-adoption rows and crowd out the real
+  // ones). Doing it here rather than in each screen is what keeps every feature
+  // measured the same way; twenty scattered call sites is how three of them end
+  // up with the wrong id.
+  //
+  // `weeksLived` is read through a REF, not a dependency. Adding it to the
+  // dependency array would re-run this effect on every week advance and emit a
+  // `screen_view` per week for a route the player never left - inflating the
+  // most-used event in the catalogue with rows that describe nothing. The ref
+  // gives the current value without making the effect depend on it.
+  const weeksLivedRef = useRef(weeksLived);
+  weeksLivedRef.current = weeksLived;
+  useEffect(() => {
+    if (!pathname) return;
+    track('screen_view', { path: pathname });
+    const feature = featureForRoute(pathname);
+    if (feature) trackFeatureUse(feature, weeksLivedRef.current);
   }, [pathname]);
 
   // death - fire on the false→true edge of the death popup.

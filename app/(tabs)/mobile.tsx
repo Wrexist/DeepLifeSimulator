@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -67,6 +67,8 @@ import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import { gameAlert } from '@/utils/gameAlert';
+import { trackFeatureUse } from '@/lib/analytics/featureAdoption';
+import { featureForAppId } from '@/lib/analytics/featureRoutes';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -100,6 +102,18 @@ export function MobileScreenContent({
   const insets = useSafeAreaInsets();
   const topStatsBarHeight = useTopStatsBarHeight();
   const [activeApp, setActiveApp] = useState<string | null>(null);
+
+  // Feature adoption - the phone grid's half of the same mapping used by the
+  // computer grid, so an app opened from either launcher counts identically.
+  // `weeksLived` is read through a ref so it is NOT a dependency: depending on
+  // it would re-run the effect on every week advance and re-record adoption for
+  // an app the player has not reopened.
+  const weeksLivedRef = useRef(gameState?.weeksLived ?? 0);
+  weeksLivedRef.current = gameState?.weeksLived ?? 0;
+  useEffect(() => {
+    const feature = featureForAppId(activeApp);
+    if (feature) trackFeatureUse(feature, weeksLivedRef.current);
+  }, [activeApp]);
 
   // Deep link - see the same block in computer.tsx. Clearing the param after
   // consuming it is what stops the app re-opening every time this tab regains
