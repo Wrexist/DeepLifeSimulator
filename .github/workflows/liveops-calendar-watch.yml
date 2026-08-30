@@ -1,0 +1,63 @@
+# Weekly runway check on the live-ops calendar.
+#
+# The failure this catches is silent by nature: the live-events card renders
+# nothing when no window is open, so a calendar that has run out and a healthy
+# one look identical in the app and in CI. v2.11.0 shipped the whole system
+# doing nothing for exactly that reason.
+#
+# This job BLOCKS NOTHING. It runs on a schedule, and a failure emails whoever
+# owns the repo — which is the point: the calendar needs attention weeks before
+# it runs dry, and nobody is going to remember on their own. `preflight` runs
+# the same script at a tighter threshold, so a release is what actually gets
+# blocked.
+name: Live ops calendar watch
+
+on:
+  schedule:
+    # Mondays, 09:00 UTC. Early in the week, so a low calendar can be topped up
+    # before the weekend it would otherwise run out over.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      runway_days:
+        description: 'Fail below this many days of runway'
+        required: false
+        default: '60'
+
+permissions:
+  contents: read
+
+jobs:
+  runway:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check calendar runway
+        id: check
+        env:
+          # Deliberately far higher than preflight's threshold. This is the
+          # early warning; preflight is the last line. Catching it at 60 days
+          # means the fix is a relaxed content decision rather than a scramble.
+          LIVEOPS_MIN_RUNWAY_DAYS: ${{ github.event.inputs.runway_days || '60' }}
+        run: node scripts/check-liveops-calendar.cjs | tee /tmp/runway.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Live ops calendar runway"
+            echo
+            if [ "${{ steps.check.outcome }}" = "success" ]; then
+              echo "✅ **Healthy.** Every stage has more than the warning threshold of runway."
+            else
+              echo "⚠️ **Running low.** Top up \`support-site/liveops.json\` — a push to \`main\`"
+              echo "publishes it in about a minute, with no app update and no review."
+              echo "See \`docs/LIVEOPS.md\` for the event model."
+            fi
+            echo
+            echo '```'
+            cat /tmp/runway.txt 2>/dev/null || echo '(no output)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
