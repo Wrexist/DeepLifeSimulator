@@ -38,7 +38,7 @@ import {
   planChannels, planOnboarding, planPositions, planRoles, validateConfig,
 } from './plan.mjs';
 import {
-  ARCHIVE_CATEGORY, CATEGORIES, ONBOARDING, PHASES, allChannels, allRoles,
+  ARCHIVE_CATEGORY, CATEGORIES, ONBOARDING, PHASES, PROGRESSION_ROLES, allChannels, allRoles,
 } from './server.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -615,6 +615,51 @@ async function commandRelease() {
   else say(`${C.bold}Nothing was sent. Re-run with --apply to post${has('--publish') ? ' and publish' : ''}.${C.off}`);
 }
 
+/**
+ * Print the level → role table a levelling bot needs, and the rooms each rank
+ * opens.
+ *
+ * This CLI runs once and exits: it is not a gateway bot, it never sees a
+ * message, and it therefore CANNOT award a rank. Discord has no native levelling
+ * either, so the ten roles it creates are inert until something watches chat and
+ * assigns them - MEE6, Carl-bot and Lurkr all take a level → role table, and
+ * this is that table, generated from the same PROGRESSION_ROLES the sync builds
+ * from so the bot and the server cannot disagree.
+ *
+ * Read-only and offline. It touches no token and sends no request, which is why
+ * it is not behind --apply.
+ */
+async function commandLevels() {
+  const gated = allChannels().filter((ch) => (ch.visibleTo ?? []).some((k) => k.startsWith('level-')));
+
+  say(`\n${C.bold}Level → role${C.off}  ${C.dim}(paste into the levelling bot)${C.off}\n`);
+  for (const role of PROGRESSION_ROLES) {
+    say(`  ${String(role.level).padStart(3)}  ${role.name}`);
+  }
+
+  say(`\n${C.bold}Rooms a rank opens${C.off}\n`);
+  if (gated.length === 0) {
+    say(`  ${C.dim}none - every progression role is cosmetic${C.off}`);
+  }
+  for (const ch of gated) {
+    // The gate lists every rank at or above the threshold, so the minimum IS
+    // the requirement. Reading it back from the gate rather than re-deriving it
+    // means this line is wrong only if the permission itself is wrong.
+    const min = Math.min(...ch.visibleTo.map((k) => PROGRESSION_ROLES.find((r) => r.key === k)?.level ?? Infinity));
+    say(`  Lv ${String(min).padStart(3)}  ${ch.name}`);
+  }
+
+  say(`\n${C.bold}Setting it up${C.off}`);
+  say(`  1. Invite a levelling bot (Lurkr, Carl-bot or MEE6) and give it a role`);
+  say(`     ABOVE every level role, or it cannot assign them.`);
+  say(`  2. Enter the table above as its level rewards.`);
+  say(`  3. Turn role STACKING on if the bot offers it. Not required - the gates`);
+  say(`     list every rank at or above the threshold precisely so that removing`);
+  say(`     the previous role cannot revoke a room someone already earned.`);
+  say(`  4. Exclude the staff channels from earning, so moderating is not farming.`);
+  say(`\n${C.dim}Nothing was sent. This command is offline and read-only.${C.off}`);
+}
+
 // ── Dispatch ──────────────────────────────────────────────────────────────
 
 const COMMANDS = {
@@ -624,6 +669,7 @@ const COMMANDS = {
   restore: commandRestore,
   announce: commandAnnounce,
   release: commandRelease,
+  levels: commandLevels,
 };
 
 async function main() {
@@ -635,7 +681,8 @@ async function main() {
     say('  backup [--out <dir>]');
     say('  restore --from <file> [--apply]');
     say('  announce --title T --body-file F [--channel key] [--publish] [--apply]');
-    say('  release [--channel key] [--publish] [--apply]\n');
+    say('  release [--channel key] [--publish] [--apply]');
+    say('  levels                        print the level table for a levelling bot\n');
     say(`${C.dim}Nothing writes without --apply. See discord/README.md.${C.off}`);
     process.exit(COMMAND ? 1 : 0);
   }

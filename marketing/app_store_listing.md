@@ -411,7 +411,10 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 3. **Keywords:** [Use Option 1 above]
 4. **Description:** [Use Full Description v5.0 above]
 5. **Version Release Notes:** [Use What's New v2.5.8 above]
-6. **Support URL:** discord.gg/rzktazdX8v
+6. **Support URL:** https://wrexist.github.io/DeepLifeSimulator/support.html
+   <!-- NOT the Discord invite. App Review guideline 1.5 wants a support page
+        with real contact details, and an invite is gated behind having a Discord
+        account at all. The page links the Discord, so the funnel is kept. -->
 7. **Category:** Games > Simulation
 8. **Content Rating:** [Per IARC questionnaire — likely 12+ due to violence/crime themes]
 9. **Rating Prompt:** Configure per section 10 above
@@ -425,7 +428,7 @@ Use Apple's `SKStoreReviewController` to show native rating sheet.
 5. **Content Rating:** [Similar to iOS]
 6. **Screenshots:** Same 5 screenshots as iOS
 7. **App Preview Video:** (same 15–30 sec video)
-8. **Support Email/Website:** discord.gg/rzktazdX8v
+8. **Support Email/Website:** https://wrexist.github.io/DeepLifeSimulator/support.html
 
 ---
 

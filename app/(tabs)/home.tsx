@@ -45,13 +45,18 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { safeGetItem, safeSetItem } from '@/utils/safeStorage';
 import {
   readDiscordClaim,
   beginDiscordClaim,
   finalizeDiscordClaim,
   applyDiscordRewardGrant,
 } from '@/utils/discordRewardClaim';
+import {
+  readInviteOffers,
+  recordInviteOffer,
+  shouldOfferInvite,
+  type InviteOfferRecord,
+} from '@/utils/communityInvitePrompt';
 import { DISCORD_URL } from '@/lib/config/appConfig';
 import { discordJoinRewardMoney } from '@/lib/config/gameConstants';
 import { calculateNetWorth } from '@/lib/statistics/statisticsTracker';
@@ -175,6 +180,10 @@ function HomeScreenContent() {
   const { hasCompletedTutorial, startTutorial } = useTutorial();
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
+  // The offer record the visible popup was decided from. Spending an offer
+  // increments THIS value rather than re-reading, so a dismissal can never
+  // lose a concurrently-written count.
+  const offerRecordRef = useRef<InviteOfferRecord>({ count: 0 });
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showPrestigeShop, setShowPrestigeShop] = useState(false);
@@ -451,27 +460,42 @@ function HomeScreenContent() {
     return undefined;
   }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, showWelcomeBack, hasCompletedTutorial]);
 
-  // ENGAGEMENT: one-time, low-key invite to join the Discord for a cash reward.
+  // ENGAGEMENT: low-key invite to join the Discord for a cash reward.
   // Subtle by design - only once the player is settled in (tutorial done + a few
-  // weeks lived), never stacked on the daily-reward / welcome-back popups, and
-  // suppressed forever once claimed (shared `discord_reward_claimed` flag) or
-  // dismissed (`discord_popup_seen`). The Settings entry stays as the fallback.
+  // weeks lived) and never stacked on the daily-reward / welcome-back popups.
+  //
+  // It is no longer one-shot. Joining still suppresses it forever (the shared
+  // `discord_reward_claimed` marker), but DISMISSING now spends one of a small
+  // number of asks and starts a cooldown in game weeks, instead of writing a
+  // permanent tombstone - see utils/communityInvitePrompt.ts for why one "maybe
+  // later" at week 4 was the worst possible moment to close this funnel on.
+  // The Settings entry stays as the always-available fallback.
   useEffect(() => {
     if (!hasCompletedTutorial) return undefined;
-    if (weeksThisLife < 4) return undefined;
     if (gameState.showDailyRewardPopup || showWelcomeBack || showCommunityReward) return undefined;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       try {
-        const [claim, seen] = await Promise.all([
+        const [claim, record] = await Promise.all([
           readDiscordClaim(),
-          safeGetItem('discord_popup_seen'),
+          readInviteOffers(),
         ]);
-        // Treat BOTH 'finalized' AND a pending (in-flight) claim as claimed - a
-        // claim already begun must never re-surface the invite.
-        if (cancelled || claim !== 'unclaimed' || seen === 'true') return;
+        if (cancelled) return;
+        // One predicate, shared with the tests. Treats BOTH 'finalized' AND a
+        // pending (in-flight) claim as claimed - a claim already begun must
+        // never re-surface the invite.
+        if (!shouldOfferInvite({
+          claim,
+          record,
+          weeksInThisLife: weeksThisLife,
+          weeksLived: gameState.weeksLived,
+          hasCompletedTutorial,
+        })) return;
+        // Remember which record this offer was decided from, so spending it
+        // increments the value that was actually read.
+        offerRecordRef.current = record;
         // Brief delay so it eases in after the screen settles, not on load.
         timer = setTimeout(() => {
           if (!cancelled) setShowCommunityReward(true);
@@ -484,7 +508,7 @@ function HomeScreenContent() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [hasCompletedTutorial, weeksThisLife, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
+  }, [hasCompletedTutorial, weeksThisLife, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
 
   // FINDING 1: derive the reward from the FULL state's net worth, not home's
   // PROJECTED selector slice (which omits properties, companies, stocks, vehicles
@@ -592,12 +616,8 @@ function HomeScreenContent() {
       // reconciler complete the grant on next launch (the designed recovery).
       logger.warn('Discord reward claim save failed; will reconcile next launch', { error: err });
     }
-    // Best-effort: remember the popup was seen so it doesn't resurface.
-    try {
-      await safeSetItem('discord_popup_seen', 'true');
-    } catch {
-      // Non-critical: may re-show next session if this write fails.
-    }
+    // No offer record is written here: the claim marker (finalized OR pending)
+    // already outranks every offer rule, so a joined player is never re-asked.
     // Open the Discord invite (last).
     try {
       const canOpen = await Linking.canOpenURL(DISCORD_URL);
@@ -609,11 +629,9 @@ function HomeScreenContent() {
 
   const handleDismissCommunity = async () => {
     setShowCommunityReward(false);
-    try {
-      await safeSetItem('discord_popup_seen', 'true');
-    } catch {
-      // Non-critical: may re-show next session if this write fails.
-    }
+    // Spend one ask and start the cooldown - NOT a tombstone. A failed write
+    // costs one repeated ask next session, which is the safe direction.
+    await recordInviteOffer(gameState.weeksLived, offerRecordRef.current);
   };
 
   return (

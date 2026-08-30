@@ -57,6 +57,7 @@
     "discord:onboarding": "node discord/cli.mjs sync --apply --onboarding",
     "discord:backup": "node discord/cli.mjs backup",
     "discord:release": "node discord/cli.mjs release",
+    "discord:levels": "node discord/cli.mjs levels",
     "notify:store-release": "node scripts/notify-store-release.mjs",
     "notify:github-hype": "node scripts/notify-github-hype.mjs"
   },

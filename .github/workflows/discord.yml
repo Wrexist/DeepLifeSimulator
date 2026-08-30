@@ -55,8 +55,12 @@ jobs:
       - name: Validate
         run: npm run discord:validate
 
+      # Every discord/ guard, not one named file. discordProgression.test.ts was
+      # added to protect the level gates and would otherwise have run only in
+      # the full suite - leaving the config-only gate blind to exactly the
+      # config it exists to check.
       - name: Test
-        run: npx jest __tests__/tooling/discordSync.test.ts
+        run: npx jest __tests__/tooling/discord
 
   discord:
     # A STATIC name. An expression here does not evaluate on a `pull_request`
