@@ -11,6 +11,7 @@
         "EXPO_PUBLIC_ENABLE_IAP": "true",
         "EXPO_PUBLIC_ENABLE_ATT": "true",
         "EXPO_PUBLIC_USE_REVENUECAT": "true",
+        "EXPO_PUBLIC_LIVEOPS_URL": "https://wrexist.github.io/DeepLifeSimulator/liveops.json",
         "EXPO_PUBLIC_BORING_BUILD": "false",
         "EXPO_PUBLIC_ENABLE_FIREBASE": "true"
       },
@@ -27,6 +28,7 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_ENABLE_DEVTOOLS": "true",
+        "EXPO_PUBLIC_LIVEOPS_URL": "https://wrexist.github.io/DeepLifeSimulator/liveops.json",
         "EXPO_PUBLIC_BORING_BUILD": "true",
         "EXPO_PUBLIC_ENABLE_CLOUD_SAVE": "true",
         "EXPO_PUBLIC_CLOUD_SAVE_URL": "https://gyxmoqanjdvvllwjfsst.supabase.co/functions/v1"

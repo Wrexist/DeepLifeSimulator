@@ -41,12 +41,15 @@ const V = LIVEOPS_SCHEMA_VERSION;
 export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
   // ── A returning-player event (15, 16) ──
   //
-  // Fires only for someone who has been away a week or more, and asks for
-  // nothing they have not already done - one played week and a stat they
-  // already hold. The point is not the objective; it is that coming back is
-  // acknowledged and immediately worth something. No guilt, no "you missed
-  // everything", no countdown: it has a long window and a long grace precisely
-  // so it is waiting whenever they return.
+  // Evergreen, and the only member of the catalogue that is. Its real gate is
+  // `minDaysAway`, not the window, so it is waiting whenever someone comes
+  // back rather than only during a slot they had no way to plan around.
+  //
+  // It asks for nothing they have not already done - one played week and a
+  // stat they already hold. The point is not the objective; it is that coming
+  // back is acknowledged and immediately worth something. No guilt, no
+  // countdown, and a long grace so it survives the commute they close the app
+  // on.
   {
     id: 'welcome_back_footing',
     schemaVersion: V,
@@ -54,10 +57,10 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     title: 'Finding Your Footing',
     summary: 'Play a week and get your bearings. Something to get you moving again.',
     brief:
-      "You have been away. Nothing has gone wrong while you were gone - your life is where you left it. Play a week, keep your health up, and take this to get going again.",
+      'You have been away. Nothing has gone wrong while you were gone - your life is where you left it. Play a week, keep your health up, and take this to get going again.',
     emoji: '\u{1F9ED}',
-    startsAt: '2026-01-01T00:00:00Z',
-    endsAt: '2026-12-31T00:00:00Z',
+    startsAt: '2026-09-01T00:00:00Z',
+    endsAt: '2027-08-01T00:00:00Z',
     claimGraceDays: 14,
     objectives: [
       { objectiveId: 'weeks_this_life', target: 1 },
@@ -68,39 +71,14 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     priority: 100,
   },
 
-  // ── Q1: the discipline event ──
+  // ── September: the early-player on-ramp ──
   //
-  // Holding cash is the only objective in the whole catalogue the player can go
-  // BACKWARDS on, and that is the design. Every other system in the game
-  // rewards spending immediately; for one week this one does not. That tension
-  // is the decision, and it is why the objective is "hold" rather than "earn".
-  {
-    id: 'cold_start_reserve',
-    schemaVersion: V,
-    kind: 'challenge',
-    title: 'The Cold Start',
-    summary: 'Build a cash reserve and hold it. Spending is the easy part.',
-    brief:
-      'Everything in this game rewards spending the moment you can afford it. For this one, do the opposite: get a reserve together and still have it when the window closes.',
-    emoji: '\u{1F9CA}',
-    startsAt: '2026-01-05T00:00:00Z',
-    endsAt: '2026-01-19T00:00:00Z',
-    claimGraceDays: 3,
-    objectives: [
-      { objectiveId: 'cash_on_hand', target: 25_000 },
-      { objectiveId: 'weeks_this_life', target: 8 },
-    ],
-    rewards: [{ kind: 'gems', amount: 200 }],
-    eligibility: { stages: ['early', 'mid', 'late', 'endgame'] },
-    priority: 10,
-  },
-
-  // ── Q1: the early-player on-ramp ──
-  //
-  // Targeted at `new` and `early` only, and asks for the two things a new
+  // Targeted at `new` and `early` only, and asks for the three things a new
   // player is doing anyway. An event hub whose first entry is "own five
   // businesses" teaches a new player that the hub is not for them, and they
-  // never open it again.
+  // never open it again. Deliberately the longest scheduled window in the
+  // calendar, because a new player is exactly who cannot plan around a
+  // fortnight.
   {
     id: 'first_rungs',
     schemaVersion: V,
@@ -110,8 +88,8 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     brief:
       'Early on, everything competes for the same money. This one just asks you to make a start on three fronts at once and rewards you for the balance.',
     emoji: '\u{1FA9C}',
-    startsAt: '2026-01-05T00:00:00Z',
-    endsAt: '2026-02-16T00:00:00Z',
+    startsAt: '2026-09-01T00:00:00Z',
+    endsAt: '2026-10-26T00:00:00Z',
     claimGraceDays: 7,
     objectives: [
       { objectiveId: 'cash_on_hand', target: 5_000 },
@@ -123,13 +101,41 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     priority: 20,
   },
 
-  // ── Q2: the cross-system event ──
+  // ── September: the discipline event ──
+  //
+  // Holding cash is the only objective in the whole catalogue the player can go
+  // BACKWARDS on, and that is the design. Every other system in the game
+  // rewards spending immediately; for three weeks this one does not. That
+  // tension is the decision, and it is why the objective is "hold" rather than
+  // "earn".
+  {
+    id: 'autumn_reserve',
+    schemaVersion: V,
+    kind: 'challenge',
+    title: 'The Reserve',
+    summary: 'Build a cash reserve and still have it at the end.',
+    brief:
+      'Everything in this game rewards spending the moment you can afford it. For this one, do the opposite: get a reserve together and still be holding it when the window closes.',
+    emoji: '\u{1F9CA}',
+    startsAt: '2026-09-07T00:00:00Z',
+    endsAt: '2026-09-28T00:00:00Z',
+    claimGraceDays: 3,
+    objectives: [
+      { objectiveId: 'cash_on_hand', target: 25_000 },
+      { objectiveId: 'weeks_this_life', target: 8 },
+    ],
+    rewards: [{ kind: 'gems', amount: 200 }],
+    eligibility: { stages: ['early', 'mid', 'late', 'endgame'] },
+    priority: 10,
+  },
+
+  // ── October: the cross-system event ──
   //
   // Property AND marriage AND happiness. None is hard alone; together they stop
   // the player optimising one axis, which is the failure mode of every
   // single-objective event ("tap the thing you were already tapping").
   {
-    id: 'spring_foundations',
+    id: 'autumn_foundations',
     schemaVersion: V,
     kind: 'seasonal',
     title: 'Foundations',
@@ -137,8 +143,8 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     brief:
       'It is easy to run a life on one axis. This asks for three at once: somewhere to live, someone to live with, and enough happiness left over to notice.',
     emoji: '\u{1F3E1}',
-    startsAt: '2026-03-16T00:00:00Z',
-    endsAt: '2026-04-13T00:00:00Z',
+    startsAt: '2026-10-12T00:00:00Z',
+    endsAt: '2026-11-09T00:00:00Z',
     claimGraceDays: 5,
     objectives: [
       { objectiveId: 'properties_owned', target: 1 },
@@ -150,13 +156,14 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     priority: 15,
   },
 
-  // ── Q3: the mid-game wall event ──
+  // ── November: the mid-game wall event ──
   //
-  // Aimed exactly where the progression funnel flattens (see the M9 stage
-  // telemetry): a player who has money but has stopped building. Businesses and
-  // education are the two systems most often left untouched at that point.
+  // Aimed exactly where the progression funnel flattens (see the stage
+  // telemetry in docs/ANALYTICS.md): a player who has money but has stopped
+  // building. Businesses and education are the two systems most often left
+  // untouched at that point.
   {
-    id: 'summer_second_act',
+    id: 'second_act',
     schemaVersion: V,
     kind: 'challenge',
     title: 'Second Act',
@@ -164,8 +171,8 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     brief:
       'You are past the part where money is the problem. This is the part where what you do with it matters: start a business, finish an education, and get your name up.',
     emoji: '\u{1F393}',
-    startsAt: '2026-06-15T00:00:00Z',
-    endsAt: '2026-07-13T00:00:00Z',
+    startsAt: '2026-11-09T00:00:00Z',
+    endsAt: '2026-12-07T00:00:00Z',
     claimGraceDays: 5,
     objectives: [
       { objectiveId: 'companies_owned', target: 1 },
@@ -177,11 +184,14 @@ export const LOCAL_EVENTS: readonly LiveEventDefinition[] = [
     priority: 15,
   },
 
-  // ── Q4: the late-game event ──
+  // ── December: the late-game event ──
   //
   // The only one that pays Legacy Points, and only two: they cross a life
   // boundary, so they are the one currency where over-paying compounds across
-  // the whole dynasty rather than one save.
+  // the whole dynasty rather than one save. Its window deliberately opens the
+  // day after `second_act`'s grace closes - the two are the richest events in
+  // the calendar and the rolling budget would refuse the second if a player
+  // could hold both at once.
   {
     id: 'winter_ledger',
     schemaVersion: V,

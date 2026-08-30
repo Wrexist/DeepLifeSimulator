@@ -45,6 +45,41 @@ export interface ChangelogEntry {
 // Newest first. Index 0 is the current release.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '2.12.0',
+    date: 'September 2026',
+    headline: 'Something new to come back to',
+    summary:
+      'Limited-time events now run in your game, with rewards you collect on the spot. They change through the year without you having to update anything.',
+    changes: [
+      {
+        category: 'new',
+        title: 'Live events on your Home screen',
+        bullets: [
+          'A Happening Now card shows what is running, what you have done, and what it pays.',
+          'Goals are things you were probably doing anyway - hold some cash, buy a home, finish a course.',
+          'Finish one and collect the reward right there on the card.',
+          'Finished it but closed the app? You still have a few days to collect.',
+        ],
+      },
+      {
+        category: 'new',
+        title: 'A softer landing when you come back',
+        bullets: [
+          'Away for a week or more? A short catch-up goal is waiting, worth 150 gems.',
+          'It asks almost nothing. Your life is exactly where you left it.',
+        ],
+      },
+      {
+        category: 'improved',
+        title: 'Events that fit where you are',
+        bullets: [
+          'New players get starter goals, not ones about owning five businesses.',
+          'The card shows a countdown only in the last two days, and never lists what you missed.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.11.0',
     date: 'August 2026',
     headline: 'A fairer store, and a clearer deal',
