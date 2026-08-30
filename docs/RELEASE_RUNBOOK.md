@@ -72,6 +72,39 @@ number comes from `BUILD_NUMBER` at build time, so there is nothing else to edit
 
 ---
 
+## Part 1b · Check the live events calendar 🟡 (2 min)
+
+Skippable only if you have checked it. The live-events card renders **nothing**
+when no event window is open, and a shipped build with a stale calendar looks
+completely healthy while showing every player an empty space.
+
+- [ ] Confirm the published calendar still covers the months ahead.
+
+```bash
+npx jest __tests__/liveops        # fails on a stale or over-budget calendar
+```
+
+Two files, and the difference matters:
+
+| File | Reaches players | Fix requires |
+|---|---|---|
+| `lib/liveops/catalogue.ts` | Compiled into the binary. The offline floor. | A new build |
+| `support-site/liveops.json` | Fetched at runtime from GitHub Pages | A push to `main` |
+
+`EXPO_PUBLIC_LIVEOPS_URL` in `eas.json` is what connects the two, and like every
+`EXPO_PUBLIC_*` value it is **frozen at build time** — the content at that URL
+stays editable forever, the address does not. It is public config, not a secret,
+so it belongs in `eas.json` and NOT in `eas env:create` alongside the two keys in
+Part 2.
+
+> After release, adding an event is: edit `support-site/liveops.json`, push to
+> `main`, and GitHub Pages redeploys in about a minute. Players get it on their
+> next launch. `"paused": true` in that file is the kill switch for the whole
+> system; `"disabledEventIds"` kills one event. Full contract in
+> [`LIVEOPS.md`](./LIVEOPS.md).
+
+---
+
 ## Part 2 · Set the two EAS secrets 🔴 (5 min)
 
 Without these the build **refuses every purchase and every save**. They are

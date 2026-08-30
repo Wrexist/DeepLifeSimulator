@@ -1,0 +1,94 @@
+{
+  "_readme": "The LIVE events calendar. Edit this file, push to main, and GitHub Pages redeploys it in about a minute - players pick the changes up on their next app launch, with no app update and no review. Served at https://wrexist.github.io/DeepLifeSimulator/liveops.json and read by lib/liveops/remote.ts. Events here are ADDED to the ones compiled into the app (lib/liveops/catalogue.ts); publishing an id that already exists there REPLACES it, which is how a shipped event gets corrected without a build. Anything malformed is dropped on its own rather than taking the calendar down, and every reward is capped on the device - see docs/LIVEOPS.md. __tests__/liveops/publishedCalendar.test.ts validates this file in CI, so a typo fails the build rather than reaching players.",
+
+  "_kill_switches": "disabledEventIds removes specific events by id, local or remote. paused: true takes the whole system off the air. Both are honoured from the cached copy, so an event killed while a player is online stays killed on their next offline launch.",
+
+  "paused": false,
+  "disabledEventIds": [],
+
+  "events": [
+    {
+      "id": "winter_first_steps",
+      "schemaVersion": 1,
+      "kind": "opportunity",
+      "title": "First Steps",
+      "summary": "Somewhere to start: a little put by, and a little standing.",
+      "brief": "Nothing here is difficult. It is the sort of week you were probably going to have anyway - this just pays you for it.",
+      "emoji": "🌱",
+      "startsAt": "2026-11-02T00:00:00Z",
+      "endsAt": "2026-12-28T00:00:00Z",
+      "claimGraceDays": 7,
+      "objectives": [
+        { "objectiveId": "cash_on_hand", "target": 3000 },
+        { "objectiveId": "weeks_this_life", "target": 4 }
+      ],
+      "rewards": [{ "kind": "gems", "amount": 150 }],
+      "eligibility": { "stages": ["new", "early"] },
+      "priority": 20
+    },
+
+    {
+      "id": "december_momentum",
+      "schemaVersion": 1,
+      "kind": "challenge",
+      "title": "Keep the Wheel Turning",
+      "summary": "Two properties and the income to justify them.",
+      "brief": "The middle of a life is where things either compound or stall. Put a second property under your name and keep earning while you do it.",
+      "emoji": "🏘️",
+      "startsAt": "2026-12-07T00:00:00Z",
+      "endsAt": "2027-01-04T00:00:00Z",
+      "claimGraceDays": 5,
+      "objectives": [
+        { "objectiveId": "properties_owned", "target": 2 },
+        { "objectiveId": "lifetime_earned", "target": 250000 }
+      ],
+      "rewards": [{ "kind": "gems", "amount": 200 }],
+      "eligibility": { "stages": ["mid"] },
+      "priority": 15
+    },
+
+    {
+      "id": "new_year_reset",
+      "schemaVersion": 1,
+      "kind": "seasonal",
+      "title": "New Year, Same Ledger",
+      "summary": "Start the year in better shape than you ended it.",
+      "brief": "Resolutions are cheap. Show three of them holding at once - money set aside, health kept up, and a reputation worth the name.",
+      "emoji": "🎇",
+      "startsAt": "2027-01-11T00:00:00Z",
+      "endsAt": "2027-02-01T00:00:00Z",
+      "claimGraceDays": 5,
+      "objectives": [
+        { "objectiveId": "cash_on_hand", "target": 15000 },
+        { "objectiveId": "health", "target": 70 },
+        { "objectiveId": "reputation", "target": 40 }
+      ],
+      "rewards": [{ "kind": "gems", "amount": 200 }],
+      "eligibility": { "stages": ["early", "mid", "late", "endgame"] },
+      "priority": 20
+    },
+
+    {
+      "id": "spring_ascent",
+      "schemaVersion": 1,
+      "kind": "opportunity",
+      "title": "The Climb",
+      "summary": "A salary worth having, and the years of work behind it.",
+      "brief": "Careers pay for patience more than for talent. This one asks for both: a salary you had to climb to, and the weeks on the job that got you there.",
+      "emoji": "🧗",
+      "startsAt": "2027-02-15T00:00:00Z",
+      "endsAt": "2027-03-15T00:00:00Z",
+      "claimGraceDays": 5,
+      "objectives": [
+        { "objectiveId": "highest_salary", "target": 90000 },
+        { "objectiveId": "weeks_worked", "target": 60 }
+      ],
+      "rewards": [
+        { "kind": "gems", "amount": 150 },
+        { "kind": "cash", "amount": 5000 }
+      ],
+      "eligibility": { "stages": ["mid", "late", "endgame"] },
+      "priority": 15
+    }
+  ]
+}
