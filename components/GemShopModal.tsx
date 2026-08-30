@@ -326,7 +326,11 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
     [gemPacks, bestGemId],
   );
 
-  // Confirm step + purchase. Transaction logic is unchanged - presentation only.
+  // Straight to payment - no in-app confirm step. The platform payment sheet
+  // (StoreKit / Play Billing) is the confirmation; stacking our own "Confirm
+  // Purchase" alert in front of it was a redundant tap with no protection the
+  // platform doesn't already give for free (owner decision, 2026-08-30).
+  // Transaction logic below is unchanged from the old onPress handler.
   const handlePurchase = async (id: string, name: string, displayPrice: string) => {
     if (iapBusy) {
       gameAlert('Please Wait', 'Another purchase is in progress. Please wait for it to complete.');
@@ -342,57 +346,43 @@ function GemShopModal({ visible, onClose, initialTab, initialPurchaseId }: GemSh
       return;
     }
 
-    const priceText = displayPrice || resolveDisplayPrice(id);
-
-    gameAlert(
-      'Confirm Purchase',
-      `Buy ${name}${priceText ? ` for ${priceText}` : ''}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: priceText ? `Buy ${priceText}` : 'Buy',
-          onPress: async () => {
-            setPurchasingId(id);
-            try {
-              logger.info(`Attempting to purchase: ${id} (${name})`);
-              const result = await iapService.purchaseProduct(id);
-              if (result.success) {
-                // IAPService already applies benefits - do not re-apply here.
-                //
-                // A deep-linked buy (the death screen's Revival Pack row) came
-                // here to get ONE thing. Leaving the player parked in the shop
-                // afterwards makes them find their own way back to the screen
-                // that sent them - and for a revive that screen is the one
-                // with the button that spends it. So close the sheet, but only
-                // once they have ACKNOWLEDGED the receipt: this sheet hosts
-                // the alert (nested AlertHost), so unmounting it while the
-                // message is still up would take the message with it.
-                const returnAfter = id === initialPurchaseId;
-                gameAlert(
-                  'Purchase Successful!',
-                  result.message || 'Purchase completed! Your items have been added to your account.',
-                  returnAfter ? [{ text: 'OK', style: 'default', onPress: onClose }] : undefined,
-                );
-              } else {
-                const errorMessage = result.message || 'Unable to complete purchase. Please try again.';
-                if (!errorMessage.includes('cancelled')) {
-                  gameAlert('Purchase Failed', errorMessage);
-                }
-              }
-            } catch (error) {
-              logger.error('Purchase error:', error);
-              let errorMsg = 'An unexpected error occurred during purchase.';
-              if (error instanceof Error) {
-                errorMsg = error.message;
-              }
-              gameAlert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
-            } finally {
-              setPurchasingId(null);
-            }
-          },
-        },
-      ],
-    );
+    setPurchasingId(id);
+    try {
+      logger.info(`Attempting to purchase: ${id} (${name})${displayPrice ? ` for ${displayPrice}` : ''}`);
+      const result = await iapService.purchaseProduct(id);
+      if (result.success) {
+        // IAPService already applies benefits - do not re-apply here.
+        //
+        // A deep-linked buy (the death screen's Revival Pack row) came
+        // here to get ONE thing. Leaving the player parked in the shop
+        // afterwards makes them find their own way back to the screen
+        // that sent them - and for a revive that screen is the one
+        // with the button that spends it. So close the sheet, but only
+        // once they have ACKNOWLEDGED the receipt: this sheet hosts
+        // the alert (nested AlertHost), so unmounting it while the
+        // message is still up would take the message with it.
+        const returnAfter = id === initialPurchaseId;
+        gameAlert(
+          'Purchase Successful!',
+          result.message || 'Purchase completed! Your items have been added to your account.',
+          returnAfter ? [{ text: 'OK', style: 'default', onPress: onClose }] : undefined,
+        );
+      } else {
+        const errorMessage = result.message || 'Unable to complete purchase. Please try again.';
+        if (!errorMessage.includes('cancelled')) {
+          gameAlert('Purchase Failed', errorMessage);
+        }
+      }
+    } catch (error) {
+      logger.error('Purchase error:', error);
+      let errorMsg = 'An unexpected error occurred during purchase.';
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      gameAlert('Error', `${errorMsg}\n\nPlease try again or contact support if the problem persists.`);
+    } finally {
+      setPurchasingId(null);
+    }
   };
 
   // Deep-linked purchase target (e.g. the death screen's Revival Pack row):
