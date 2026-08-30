@@ -19,6 +19,8 @@
  * that failure mode by construction.
  */
 
+import type { AnalyticsEventContext } from './context';
+
 /**
  * All known event names. Adding one here is the only way to make it trackable —
  * and it makes it trackable in both the type system and the runtime guard.
