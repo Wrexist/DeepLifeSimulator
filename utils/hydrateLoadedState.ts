@@ -43,6 +43,12 @@ import { mergeLoadedSlice } from '@/utils/loadedStateMerge';
 import { repairGameState, validateGameState } from '@/utils/saveValidation';
 import { validateRelationshipState, repairRelationshipState } from '@/utils/relationshipValidation';
 import { enforceStateInvariants } from '@/utils/stateInvariants';
+// Load-path telemetry. This is the ONE place a repair on load is observed
+// exactly once per load, which is what makes it countable; `repairGameState`
+// itself also runs on the SAVE path and from several action helpers, so
+// instrumenting the function would count the same condition several times per
+// week and make the number meaningless.
+import { trackSaveRepaired } from '@/lib/analytics/reliability';
 
 export interface HydrateLoadedStateOptions {
   /**
@@ -89,6 +95,18 @@ export function hydrateLoadedState(
   // CRITICAL: Repair and validate state before setting it.
   // This prevents corrupted state from being set, even temporarily.
   const repairResult = repairGameState(raw);
+  if (repairResult.repaired) {
+    // A rise in this count after a release means a migration is not doing its
+    // job — the condition that otherwise surfaces weeks later as a support
+    // ticket about a feature that quietly reset itself. Only the COUNT of
+    // repairs and the save's version are sent, never which fields: the field
+    // list is unbounded and changes every release, so it would fragment into
+    // one-row buckets rather than a number anyone can watch.
+    trackSaveRepaired(
+      repairResult.repairs.length,
+      typeof raw.version === 'number' ? raw.version : undefined,
+    );
+  }
 
   // Validate AND auto-fix the repaired state. P0-6: `autoFix` runs autoFixStats,
   // which also resets non-finite (NaN/Infinity) core stats — otherwise such a

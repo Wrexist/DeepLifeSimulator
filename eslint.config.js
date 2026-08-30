@@ -146,6 +146,7 @@ module.exports = [
      */
     files: [
       "lib/ads/**/*.{ts,tsx}", "lib/ambitions/**/*.{ts,tsx}", "lib/analytics/**/*.{ts,tsx}",
+      "lib/liveops/**/*.{ts,tsx}",
       "lib/avatar/**/*.{ts,tsx}", "lib/banking/**/*.{ts,tsx}", "lib/business/**/*.{ts,tsx}",
       "lib/careers/**/*.{ts,tsx}", "lib/challenges/**/*.{ts,tsx}", "lib/commitments/**/*.{ts,tsx}",
       "lib/config/**/*.{ts,tsx}", "lib/contacts/**/*.{ts,tsx}", "lib/content/**/*.{ts,tsx}",

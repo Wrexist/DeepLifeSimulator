@@ -1,43 +1,44 @@
-# Plan — Discord community funnel (follow-up to PR #175)
+# Live Operations — COMPLETE
 
-PR #175 fixed the LINKS. This is the FUNNEL: the places that decide whether a
-player ever sees an invite, and where the store sends someone looking for help.
+Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.md`.
 
-## 1. The in-game invite may be asked more than once  ← main item
+## Done
+- [x] Event model, objective registry (logic compiled in; data references ids).
+- [x] Validation: caps, dates, schema version, known objectives; drop per-event.
+- [x] Lifecycle state machine + grace period; instance ids keyed on the parsed instant.
+- [x] Eligibility: stage, life weeks, subscription (both ways), absence, cooldown, staged rollout.
+- [x] Rewards: per-event caps, combined value cap, idempotent ledger, rolling weekly budget.
+- [x] Compiled-in catalogue: 6 events across the stage range, all validator-clean.
+- [x] Remote content: fetch → validate → cache → fallback, two kill switches.
+- [x] The claim as a PURE reducer; reporting split from payment in the UI.
+- [x] STATE_VERSION 49 + migration + carve-out round-trip row.
+- [x] Discovery card on the home screen; no takeover, no permanent countdown.
+- [x] Full analytics funnel + a static guard that every step has an emitter.
+- [x] 125 live-ops tests; docs + content calendar + operating loop.
 
-`app/(tabs)/home.tsx` offers the community popup once, at `weeksThisLife >= 4`,
-and a dismissal writes `discord_popup_seen = 'true'` which suppresses it
-**forever**. One tap on "Maybe later" - at the single coldest moment of a run,
-where `discordJoinRewardMoney` is pinned to its $5k floor - permanently closes
-the largest funnel the game has.
+## Bugs found and fixed
+1. **Instance ids were keyed on the raw date string** — three spellings of one
+   instant gave three ids, so republishing an event with a reformatted date
+   would have paid everyone who already claimed it a second time.
+2. **`trackEventExpired` / `Progressed` / `Completed` had NO callers** — three of
+   seven funnel steps were dead, so "did the work and never got paid" and "how
+   many had it expire" were both unanswerable. Now emitted from a session
+   observer, with a static test that fails CI if a step loses its emitter.
+3. **Side effects inside a `setGameState` updater** — `track()` and `setRefusal`
+   ran in the reducer, which React may invoke twice.
+4. **FNV-1a avalanched poorly on its last byte** (M9 code) — `exp_a`/`exp_b`
+   agreed 36% instead of 50%, so two concurrent experiments would not have been
+   independent. Added the finalizer.
+5. **`ExperimentService` re-hashed a stale pin** while its comment claimed it
+   resolved to control — a mid-flight re-bucketing.
+6. **The catalogue's returning event failed my own validator** (365-day window),
+   which surfaced the real distinction between scheduled and evergreen kinds.
+7. **`useLiveOps` was in `lib/`** and imported values from `contexts/`, which the
+   layering rule caught. Moved to `hooks/`.
 
-- [x] `utils/communityInvitePrompt.ts` — pure decision + durable offer record
-      (`{ count, lastWeek }` on `discord_invite_offers`), cap and cooldown as
-      named constants, legacy `discord_popup_seen` read as one spent offer.
-- [x] `app/(tabs)/home.tsx` — gate on the pure predicate; dismissal records an
-      offer instead of a tombstone.
-- [x] Tests: cap, cooldown, legacy migration, claimed-always-wins.
-
-## 2. App Store Support URL points at a Discord invite
-
-`marketing/app_store_listing.md` lists the invite as **Support URL** (iOS) and
-**Support Email/Website** (Android). Guideline 1.5 wants a support page with
-real contact info, and an invite requiring a Discord account is a rejection
-risk. `support-site/support.html` is already deployed and has the email.
-
-- [x] Point both at the deployed support page.
-- [x] Add the Discord link ON that page, so the funnel is kept, not lost.
-
-## 3. Obituary share — NOT DOING, see reasoning
-
-Rejected after reading the code. `lib/legacy/obituaryGenerator.ts` and
-`__tests__/social/shareLinks.test.ts` both pin that `APP_STORE_URL` is the LAST
-link, because clients build the preview from the final one. A Discord URL after
-it hijacks the preview away from the store; before it, it competes with the one
-CTA that installs the game. The share is the install channel; the invite already
-has two in-app surfaces. Left alone deliberately.
-
-## Blocked on the owner
-
-Per-surface invite codes for attribution. Needs ~6 never-expiring invites
-created in Discord; nothing in the repo can produce them.
+## Deliberately not done
+- **No event hub screen.** Today it would be a screen with three rows.
+- **No push notifications for events.** The card is a surface the player chooses
+  to look at; the return loop should be worth returning to on its own.
+- **No server-authoritative validation.** Caps, ledger and budget are enforced
+  against the player's own save, so the blast radius is their own save.

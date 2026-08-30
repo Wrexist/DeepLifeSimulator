@@ -1226,6 +1226,32 @@ const migrations: Record<number, (state: any) => any> = {
     state.version = 48;
     return state;
   },
+
+  /**
+   * v49 adds `liveOps` - the bookkeeping behind the Live Ops event system
+   * (`lib/liveops/`): which event instances have paid out, which have been
+   * opened, and what has been paid inside the rolling reward budget.
+   *
+   * ONE field for a whole subsystem, the v36 `dynasty` precedent, so three
+   * pieces of bookkeeping cost one carve-out rather than three backfills and
+   * three repair mirrors.
+   *
+   * Default `undefined`, so a CARVE-OUT: version bumped, NO backfill and no
+   * `repairGameState` mirror. Absence already resolves - `readLiveOpsState`
+   * returns the empty answer, which is exactly the truth for a save written
+   * before any live event existed: nothing claimed, nothing seen, nothing paid.
+   *
+   * Writing a value would be wrong in both directions, which is the useful
+   * thing to notice. Stamping a claimed instance id would deny a player a
+   * reward they never took; stamping a budget entry would refuse their first
+   * legitimate claim for a week. And there is nothing to guess FROM - no save
+   * written before this carries any record of a live event, because there were
+   * none to take part in.
+   */
+  49: (state) => {
+    state.version = 49;
+    return state;
+  },
 };
 
 /**

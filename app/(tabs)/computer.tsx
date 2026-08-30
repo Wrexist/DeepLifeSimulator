@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -91,6 +91,8 @@ import ScreenHeader from '@/components/ui/ScreenHeader';
 import { ClaimableBadge } from '@/components/ClaimableBadge';
 import { getAppBadgeCounts } from '@/lib/notifications/appBadges';
 import { gameAlert } from '@/utils/gameAlert';
+import { trackFeatureUse } from '@/lib/analytics/featureAdoption';
+import { featureForAppId } from '@/lib/analytics/featureRoutes';
 const LinearGradient = Gradient;
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -153,6 +155,23 @@ export function ComputerScreenContent({
     return () => setFullscreenApp(false);
   }, [isFocused, activeApp]);
   const { gameState } = useGame();
+
+  // Feature adoption. The launcher grid is the one place every in-game app is
+  // opened from, so mapping the id here measures all of them identically -
+  // rather than twenty screens each remembering to call it, three of which
+  // would get the id wrong. `featureForAppId` returns null for ids that are not
+  // measured features, and `trackFeatureUse` is itself a no-op unless telemetry
+  // is enabled and consented.
+  //
+  // `weeksLived` is read through a ref so it is NOT a dependency: depending on
+  // it would re-run the effect on every week advance and re-record adoption for
+  // an app the player has not reopened.
+  const weeksLivedRef = useRef(gameState?.weeksLived ?? 0);
+  weeksLivedRef.current = gameState?.weeksLived ?? 0;
+  useEffect(() => {
+    const feature = featureForAppId(activeApp);
+    if (feature) trackFeatureUse(feature, weeksLivedRef.current);
+  }, [activeApp]);
   const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
   // Haptic parity with the phone grid - opening an app on mobile buzzed,

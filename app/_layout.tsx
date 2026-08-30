@@ -60,10 +60,12 @@ import { requestTrackingPermission, isTrackingAllowed } from '@/utils/trackingTr
 import { logger } from '@/utils/logger';
 import { safeAsyncStorage } from '@/utils/storageWrapper';
 import { AppProviders } from '@/contexts/AppProviders';
-import { markFirstFrameRendered } from '@/lib/utils/bootBreadcrumbs';
+import { markFirstFrameRendered, getBreadcrumbs } from '@/lib/utils/bootBreadcrumbs';
 import { isFeatureEnabled, logFeatureFlags } from '@/lib/config/featureFlags';
 import { startupOrchestrator, createSafeServiceTask } from '@/lib/utils/startupOrchestrator';
 import { analytics, track } from '@/lib/analytics';
+import { trackStartupDuration } from '@/lib/analytics/reliability';
+import { initLiveOpsContent } from '@/lib/liveops/content';
 import { AnalyticsTracker } from '@/lib/analytics/AnalyticsTracker';
 import { SubscriptionReconciler } from '@/components/SubscriptionReconciler';
 import { startupCircuitBreaker } from '@/lib/utils/startupCircuitBreaker';
@@ -1159,6 +1161,21 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
             // with no cohort, which is the state that made D1/D7/D30
             // uncomputable in the first place.
             analytics.trackSessionStart({ platform: Platform.OS });
+            // Cold-start duration. The number already EXISTS - boot breadcrumbs
+            // have recorded `elapsed` since `entry_start` for every stage since
+            // they were added - and nothing has ever counted it, so a startup
+            // regression is currently only findable by someone watching a
+            // device. `first_screen_visible` is the honest stage to report:
+            // time to the first frame the player sees, from JS entry. It does
+            // NOT include native launch, which JS cannot observe without a
+            // native module, and this repo does not add one for telemetry.
+            //
+            // Read here rather than at the mark, because this task runs
+            // `runAfterFirstFrame` - the stage is already recorded, and doing
+            // it here keeps the analytics dependency out of the boot-critical
+            // breadcrumb module.
+            const firstFrame = getBreadcrumbs().find((b) => b.stage === 'first_screen_visible');
+            if (firstFrame) trackStartupDuration(firstFrame.elapsed);
           }
         },
         { timeout: 3000, critical: false, enabled: enableTelemetry || enableFirebase }
@@ -1166,6 +1183,34 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
       if (telemetryTask) {
         startupOrchestrator.addTask(telemetryTask);
       }
+    }
+
+    // Live Ops content - its OWN task, deliberately ungated.
+    //
+    // This started life inside the telemetry task above, which was wrong twice
+    // over. Live-ops definitions are game CONTENT, not telemetry: gating them
+    // on `enableTelemetry || enableFirebase` meant remote content never loaded
+    // in a Boring Build - the default in `__DEV__` and the whole `preview`
+    // profile - and nesting the call inside `if (trackingAllowed)` additionally
+    // made shipping an event require the player to accept AD TRACKING. Neither
+    // failure is visible: the compiled-in catalogue keeps working, so the game
+    // looks fine while every published event silently never arrives.
+    //
+    // Ungated for the same reason cloud save is (see featureFlags.ts): this is
+    // pure JS over `fetch`, it initializes nothing native, and it touches the
+    // network only after the first frame. Fire-and-forget, because the
+    // compiled-in catalogue is already in force synchronously - a slow or
+    // failed fetch costs the upgrade and nothing else (lib/liveops/remote.ts,
+    // the fallback ladder).
+    const liveOpsTask = createSafeServiceTask(
+      'Live Ops Content',
+      async () => {
+        await initLiveOpsContent();
+      },
+      { timeout: 9000, critical: false, enabled: true }
+    );
+    if (liveOpsTask) {
+      startupOrchestrator.addTask(liveOpsTask);
     }
 
     // Add ATT task (if enabled)

@@ -15,7 +15,7 @@ in sync across all three when they change.
 - **Routing:** `expo-router` v6 (file-based), entry point `./app/entry.ts`
 - **Platforms:** iOS (App Store) + Android (Google Play) + a web preview target
 - **Bundle / package id:** `com.deeplife.simulator` · EAS project `55bb8510-…` · owner `isacm`
-- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 48`
+- **Persistence:** AsyncStorage + CRC32-checksummed saves — `STATE_VERSION = 49`
 - **Binary version:** whatever `package.json` `version` says (2.9.0 at the time of
   writing — read the file, do not trust this line) — see §9
 
@@ -336,7 +336,7 @@ including the crash screen.
 
 ## 7. Save Format
 
-- **Canonical `STATE_VERSION = 48`** — single source of truth in
+- **Canonical `STATE_VERSION = 49`** — single source of truth in
   `contexts/game/initialState.ts` (re-exported as `CURRENT_STATE_VERSION` in
   `utils/saveMigrations.ts`). Keep `DEV.md` / `WORKFLOW.md` in sync when it bumps.
 - Any field added to `initialState.ts` must ship in the **same change** with
@@ -644,6 +644,21 @@ including the crash screen.
   never ate. The charge, the scaled restores and the counter bump run in ONE
   updater, and the market toast + section hint read the same helpers, so what
   is advertised is exactly what is applied.
+- **v49 adds `liveOps`** — the bookkeeping behind the Live Ops event system
+  (`lib/liveops/`): claimed event instance ids, opened instances, and the
+  rolling reward budget. ONE optional object for a whole subsystem, the v36
+  `dynasty` precedent. Default `undefined`, so a CARVE-OUT: version bumped, NO
+  backfill and no `repairGameState` mirror. Absence already resolves —
+  `readLiveOpsState` returns the empty answer, which is the truth for a save
+  written before any live event existed. Writing a value would be wrong in both
+  directions: a stamped claim id denies a reward never taken, a stamped budget
+  entry refuses the first legitimate claim for a week — and there is nothing to
+  guess from, since no earlier save records a live event. Note what is
+  deliberately NOT stored: objective PROGRESS. Every objective reads a value the
+  save already tracks (the v33 `legacyContracts` reasoning), so nothing drifts,
+  a tick that runs twice cannot double-credit, and an existing save loads with
+  its events already part-complete. Event WINDOWS are real UTC time and
+  everything EARNED is game state — see `docs/LIVEOPS.md`.
 - **v47 adds five fields on `PoliticsState`** — `partySupport`, `partySwitches`,
   `appointment`, `embezzlement` and `retirement`: the Political Life expansion,
   built from a player request for "campaign retirement and other positions you
@@ -945,6 +960,8 @@ replaced with review checklists.
 | **`discord/README.md`** | **The Discord server as code. `npm run discord:validate` / `:plan` / `:sync`. Read before editing `discord/server.mjs` — channels are matched by NAME, so a rename needs `previousNames` or it reads as delete-and-recreate. Nothing writes without `--apply`, and nothing is ever deleted (`--prune` archives)** |
 | **`docs/BETA-HUB.md`** | **The Android Beta Hub — tester recruitment, onboarding, feedback, bugs, ideas, marketing centre, admin dashboard. Read before touching `support-site/android/`** |
 | `server/beta-hub/README.md` | The Beta Hub API — endpoints, the three auth tiers, and how to rotate the admin token |
+| **`docs/LIVEOPS.md`** | **The Live Ops event system (`lib/liveops/`). The one rule: event WINDOWS are real UTC time, PROGRESS and REWARDS are game state — a clock scrub changes which shop window you see and can never manufacture progress or re-open a claim. Remote content can only ADD events or take them away: objectives are ids into a compiled-in registry, rewards are capped at validation time, one bad definition is dropped individually, and the ladder is remote → cache → compiled-in catalogue. Three economy protections (per-event caps, an idempotent claim ledger keyed on `eventId@<parsed startsAt>`, and a rolling weekly budget across all events). Read before authoring an event or touching `claim.ts`** |
+| **`docs/ANALYTICS.md`** | **What the game measures and why: the event taxonomy (`lib/analytics/events.ts` is the one source of truth - the TS union and the runtime validation set are both derived from one array), the funnels, the retention cohorts, the experiment system (assignment is a hash so it needs no storage; persistence only PINS an in-flight arm against a weight change; exposure is tracked where the player meets the surface, never at assignment), the dashboards, the privacy review - and the "Limitations" section, which is the one to read before quoting a number** |
 | `marketing/aso/` | Store metadata as data + `npm run check:aso`. `docs/store-screenshot-design.md` covers the screenshot system |
 | `marketing/apple-ads/` | Apple Ads (App Store Ads) program — campaign structure, keyword + negative-keyword CSVs, CPP briefs, LTV→max-CPA model, optimization playbook. Start at its `README.md` |
 | `docs/RELEASE_SECRETS.md`, `tasks/leaked-key-rotation-runbook.md` | Secret handling |
