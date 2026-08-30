@@ -1,4 +1,10 @@
-import { classifySaveFailure, SAVE_FAILURE_CATEGORIES } from '../reliability';
+import {
+  classifySaveFailure,
+  SAVE_FAILURE_CATEGORIES,
+  trackSaveFailure,
+  trackSaveRepaired,
+  trackStartupDuration,
+} from '../reliability';
 
 /**
  * The transport is stubbed so these tests assert what is SENT, which is the
@@ -8,14 +14,12 @@ import { classifySaveFailure, SAVE_FAILURE_CATEGORIES } from '../reliability';
  * `mock`-prefixed, because a `jest.mock` factory is hoisted above the imports
  * and may only reference out-of-scope bindings whose names begin with `mock`.
  */
-const mockTracked: Array<{ name: string; props?: Record<string, unknown> }> = [];
+const mockTracked: { name: string; props?: Record<string, unknown> }[] = [];
 jest.mock('../AnalyticsService', () => ({
   track: (name: string, props?: Record<string, unknown>) => {
     mockTracked.push({ name, props });
   },
 }));
-
-import { trackSaveFailure, trackSaveRepaired, trackStartupDuration } from '../reliability';
 
 describe('classifySaveFailure', () => {
   it('recognises a full device across platform spellings', () => {

@@ -308,8 +308,6 @@ export const ANALYTICS_EVENT_NAME_LIST = [
 /** Event names, derived from the catalogue above. */
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT_NAME_LIST)[number];
 
-import type { AnalyticsEventContext } from './context';
-
 /** Property bags are intentionally loose (string/number/boolean) for transport safety. */
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
 
