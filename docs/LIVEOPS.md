@@ -303,6 +303,38 @@ year-end event. Each asks for a **decision the player would not otherwise make
 this week** — holding cash fights the instinct to spend, three-axis objectives
 stop single-axis optimising — rather than a button to tap.
 
+### Keeping it from going stale
+
+A calendar that has run out is **invisible**: the card renders nothing and the
+build looks completely healthy. That is precisely how v2.11.0 shipped this
+system doing nothing at all. Two checks now make it visible:
+
+```bash
+npm run check:liveops        # runway per stage, both calendars
+```
+
+| Where | Threshold | What it does |
+|---|---|---|
+| `npm run preflight` | 14 days | **Blocks a release** — the only moment a stale calendar can reach a player |
+| `Live ops calendar watch` (weekly cron) | 60 days | Emails on a low calendar. Blocks nothing |
+
+It reports **runway** (days until a stage has no events left) separately from
+**quiet stretches** (the longest run of empty days in the next 90), because they
+are different problems: one means the calendar is dying, the other means a stage
+has nothing to do for a while. Both are reported per progression stage — "the
+calendar has events" is not the question when all of them are late-game and a
+new player sees an empty card.
+
+`returning` events are excluded from the maths. They are real coverage, but only
+for someone who has been away, so counting them would hide a gap from every
+player who shows up daily.
+
+The script reads `catalogue.ts` as text (it is plain node, with no TypeScript
+build in front of it). `__tests__/liveops/calendarRunway.test.ts` pins that
+parser against the real module, because a checker that silently reads zero
+events reports a false alarm — and one false alarm is all it takes for someone
+to learn to skip it.
+
 ### Operating loop
 
 1. **Plan** against the budget: what can a single player claim in one real week?

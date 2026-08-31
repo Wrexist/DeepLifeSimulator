@@ -81,8 +81,13 @@ completely healthy while showing every player an empty space.
 - [ ] Confirm the published calendar still covers the months ahead.
 
 ```bash
-npx jest __tests__/liveops        # fails on a stale or over-budget calendar
+npm run check:liveops             # runway per stage, both calendars
+npx jest __tests__/liveops        # validates the published payload
 ```
+
+`npm run preflight` runs the first of these, so Part 3 will stop you shipping a
+calendar with under 14 days left in it. A weekly `Live ops calendar watch` job
+warns at 60 days and blocks nothing.
 
 Two files, and the difference matters:
 
