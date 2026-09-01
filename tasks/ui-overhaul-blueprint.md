@@ -1,6 +1,6 @@
 # UI Overhaul Master Program 1 — Forensic Audit & Redesign Blueprint
 
-Date: 2026-09-01 · Branch: `claude/deep-life-ui-overhaul-ft9qhb` · Phase: **audit only, no visual changes yet**
+Date: 2026-09-01 · Branch: `claude/deep-life-ui-overhaul-ft9qhb` · Status: **phases 0-6 shipped, phase 7 open — see SHIPPED section below**
 
 Trigger: tester feedback — *"The GUI is too complex and it has to be simple and it
 looked like you used AI to code it."* This document treats that as a correct
@@ -331,7 +331,67 @@ CLAUDE.md). No save-format changes are required by any phase except retiring
 
 ---
 
-### Appendix: headline metrics to ratchet
+## SHIPPED — status as of 2026-09-01
+
+Phases 0-6 are implemented, verified and pushed on
+`claude/deep-life-ui-overhaul-ft9qhb`. Every phase was gated on: `tsc`
+(app + tests), `lint:errors`, `check:routes`, `ui:ratchet`, and the full
+Jest suite (720 suites / ~9,180 tests / 308 snapshots green).
+
+| Phase | State |
+|---|---|
+| 0 Foundations | **Done** - StatBreakdownModal (7 modals -> 1), Card + IconBubble (9 rainbow cards -> 1 neutral hairline), single stat-colour source, dead code deleted, `ui:ratchet` gate wired into preflight |
+| 1 Kill the noise | **Done** - per-week interruption budget, tutorial system retired (3 overlapping surfaces -> FirstSessionCoach), WeeklyResultSheet removed, duplicate CTAs removed |
+| 2 HUD | **Done** - savings chip folded into one money modal, gems gesture un-inverted, delta arrows + 90-line memo removed, Help -> Settings, **labeled** Next Week, gradients flattened |
+| 3 Home | **Done** - GoalsCard (5 checklists -> 1, details behind disclosure), IdentityCard diet (health block -> Health screen) |
+| 4 Work | **Done** - one promotion readout, <=3-chip cards, 16 button strings -> 5, merged crime cards, identical-colour gradient killed |
+| 5 Structure | **Done** - one AppLauncher + catalog (computer 901->79 L, mobile 666->81 L), Market flattened to one list, Gym -> Health, Family un-faked, route de-dup + CI guard |
+| 6 Progression & onboarding | **Done** - 12 modal booleans -> 1 union, 9 tools -> 5 (Your Story hub), Play enters the game directly, Ambitions out of the wizard, appearance + locked perks behind disclosures |
+| 7 Sub-app pass | **Not started** - see below |
+
+### Metrics moved
+
+| Metric | Audit | Now |
+|---|---|---|
+| Gradient elements | 262 | **234** |
+| Heavy font weights (>=700) | 1,381 | **1,359** |
+| Distinct card containers | 9+ | **1** |
+| "What next?" checklists on Home | 5 | **1** |
+| Breakdown modals | 7 | **1 chassis** |
+| Launcher implementations / catalogs | 2 / 2 | **1 / 1** |
+| Progress-screen modal state | 12 booleans | **1 union** |
+| Onboarding wizard steps | 4 | **3** |
+| Quick-start path | Menu -> Perks (step 4/4) | **Menu -> game** |
+
+The three ratchet metrics are enforced by `npm run ui:ratchet`, which runs
+inside `npm run preflight`. Lower a ceiling in the commit that earns it;
+never raise one to get unstuck.
+
+### Phase 7, and what is deliberately NOT done
+
+The remaining phase is the per-sub-app pass: re-cutting the 19 in-phone apps
+on the shared primitives. Three items inside it are **product decisions, not
+UI cleanups, and are left for the owner**:
+
+- **Merging Vehicle + Luxury** and **Gaming + Streaming**. These would
+  collapse four distinct game systems into two. The audit's argument is that
+  each pair answers one player intent ("buy an expensive thing", "be a
+  content creator"), which is a good UI argument and a significant design
+  change. Not a call to make unilaterally.
+- **One Bank app.** The phone (`BankApp`) and desktop (`AdvancedBankApp`)
+  are genuinely different feature sets, and the desktop one is a real
+  progression reward for buying a computer. Unifying them means deciding
+  what a phone-only player loses.
+- **Flattening the prestige shop's six tabs** into a sectioned list. Judged
+  not worth it: six tabs is a legitimate control for six real categories,
+  the burial the audit found (claimable Legacy Contracts on the sixth tab)
+  is already mitigated - the shop auto-opens on that tab when something is
+  waiting there - and the rewrite would put 972 lines of purchase flow at
+  risk for modest gain. Its decorative tab gradients were flattened.
+
+---
+
+### Appendix: headline metrics to ratchet (original audit targets)
 
 | Metric | Today | Target |
 |---|---|---|

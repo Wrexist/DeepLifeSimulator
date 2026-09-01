@@ -44,7 +44,7 @@ const METRICS = {
    * Goal reflects the blueprint's "< 20, semantic only" target.
    */
   gradientElements: {
-    max: 235,
+    max: 234,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },
