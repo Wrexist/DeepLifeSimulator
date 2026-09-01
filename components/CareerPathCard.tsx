@@ -33,7 +33,6 @@ const formatCareerName = (id: string): string => {
 
 interface CareerPathCardProps {
     onCareerSelect?: (careerId: string) => void;
-    compact?: boolean;
 }
 
 // Career tier colors and labels
@@ -297,7 +296,11 @@ function CareerItem({
     );
 }
 
-function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps) {
+// The `compact` mode this component used to offer is gone: its only caller
+// (the Work tab) rendered it directly under the hero Current Job card, which
+// shows the same job, salary and promotion progress - a strictly weaker
+// duplicate 100px below the original (2026-09-01 UI audit).
+function CareerPathCard({ onCareerSelect }: CareerPathCardProps) {
     const { gameState } = useGame();
     const [expandedCareerId, setExpandedCareerId] = useState<string | null>(
         gameState.currentJob || null
@@ -311,49 +314,6 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
         return careers.find((c: Career) => c.id === gameState.currentJob && c.accepted);
     }, [careers, gameState.currentJob]);
 
-    if (compact && currentCareer) {
-        const currentLevel = currentCareer.levels && (currentCareer.levels[currentCareer.level] || currentCareer.levels[0]);
-        const nextLevel = currentCareer.levels && currentCareer.levels[currentCareer.level + 1];
-        // Same raise premium as the expanded card above - this compact summary
-        // is what the player sees first, so it must not disagree with it.
-        const raiseMult = resolveRaisePremium(currentCareer.raiseMultiplier);
-        const paidSalary = (levelIndex: number | undefined) =>
-            paidWeeklySalaryForLevel(gameState, currentCareer, levelIndex);
-        const canPromote = !!nextLevel && getPromotionEligibility(currentCareer, gameState.weeksLived).eligible;
-        const careerDisplayName = formatCareerName(currentCareer.id);
-
-        return (
-            <View style={styles.compactContainer}>
-                <View style={styles.compactHeader}>
-                    <Briefcase size={18} color="#3B82F6" />
-                    <Text style={styles.compactTitle}>{careerDisplayName}</Text>
-                    {canPromote && (
-                        <View style={styles.promoteBadge}>
-                            <TrendingUp size={10} color="#10B981" />
-                        </View>
-                    )}
-                </View>
-                <View style={styles.compactDetails}>
-                    <Text style={styles.compactLevel}>{currentLevel?.name}</Text>
-                    <Text style={styles.compactSalary}>${paidSalary(currentCareer.level)}/wk</Text>
-                </View>
-                <View style={styles.compactProgress}>
-                    <View style={styles.compactProgressBar}>
-                        <View
-                            style={[
-                                styles.compactProgressFill,
-                                { width: `${currentCareer.progress}%` }
-                            ]}
-                        />
-                    </View>
-                    <Text style={styles.compactProgressText}>
-                        {canPromote ? 'Promotion Ready!' : `${Math.round(currentCareer.progress)}%`}
-                    </Text>
-                </View>
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -365,7 +325,7 @@ function CareerPathCard({ onCareerSelect, compact = false }: CareerPathCardProps
             </View>
 
             <View style={styles.careersList}>
-                {careers.slice(0, compact ? 3 : undefined).map((career: Career) => (
+                {careers.map((career: Career) => (
                     <CareerItem
                         key={career.id}
                         career={career}
@@ -390,66 +350,6 @@ const styles = StyleSheet.create({
         borderRadius: responsiveBorderRadius.xl,
         padding: responsiveSpacing.lg,
         ...getPlatformShadows(6, 0.25, 4, 14),
-    },
-    compactContainer: {
-        backgroundColor: '#1E293B',
-        borderRadius: responsiveBorderRadius.lg,
-        padding: responsiveSpacing.md,
-        marginVertical: responsiveSpacing.sm,
-        ...getPlatformShadows(6, 0.25, 4, 14),
-    },
-    compactHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    compactTitle: {
-        fontSize: fontScale(14),
-        fontWeight: '600',
-        color: '#F8FAFC',
-        marginLeft: 8,
-        flex: 1,
-    },
-    promoteBadge: {
-        backgroundColor: '#10B98120',
-        padding: 4,
-        borderRadius: 8,
-    },
-    compactDetails: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 6,
-    },
-    compactLevel: {
-        fontSize: fontScale(12),
-        color: '#94A3B8',
-    },
-    compactSalary: {
-        fontSize: fontScale(12),
-        fontWeight: '600',
-        color: '#10B981',
-    },
-    compactProgress: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    compactProgressBar: {
-        flex: 1,
-        height: 4,
-        backgroundColor: '#334155',
-        borderRadius: 2,
-        overflow: 'hidden',
-    },
-    compactProgressFill: {
-        height: '100%',
-        backgroundColor: '#3B82F6',
-        borderRadius: 2,
-    },
-    compactProgressText: {
-        fontSize: fontScale(10),
-        color: '#94A3B8',
-        marginLeft: 8,
-        minWidth: 50,
     },
     header: {
         flexDirection: 'row',

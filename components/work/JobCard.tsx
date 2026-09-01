@@ -1,9 +1,9 @@
-import React from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import BlurViewFallback from '@/components/fallbacks/BlurViewFallback';
-import ProgressRing from '@/components/ui/ProgressRing';
 import GradientButton from '@/components/ui/GradientButton';
+import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { fontScale, responsiveBorderRadius, responsiveSpacing, scale, verticalScale } from '@/utils/scaling';
 
 export type JobCardAccent = 'street' | 'career' | 'crime';
@@ -29,16 +29,15 @@ interface JobCardProps {
   feedback?: string;
   feedbackOpacity?: Animated.Value;
   footer?: React.ReactNode;
-  /**
-   * When set (0–100), a compact leading ProgressRing renders in the header -
-   * used by street/crime jobs to show weekly-usage against the 3×/week cap.
-   */
-  progress?: number;
-  progressState?: 'active' | 'done';
-  /** Small content shown in the ring's center (e.g. "1/3"). */
-  ringCenter?: React.ReactNode;
-  ringLabel?: string;
 }
+
+/**
+ * The 2026-09-01 UI audit counted up to 9 chips per card (~70-110 numbers per
+ * scroll of the Work tab). Three is the cap; the rest sit behind a per-card
+ * "+N more" toggle so nothing is deleted, just deferred. Callers order the
+ * array by decision relevance (failing requirements first).
+ */
+const MAX_VISIBLE_CHIPS = 3;
 
 const ACCENTS: Record<JobCardAccent, { reward: string; button: [string, string, string]; glow: string }> = {
   street: {
@@ -78,14 +77,14 @@ export default function JobCard({
   feedback,
   feedbackOpacity,
   footer,
-  progress,
-  progressState = 'active',
-  ringCenter,
-  ringLabel,
 }: JobCardProps) {
   const palette = ACCENTS[accent];
   const buttonPalette = ACCENTS[buttonAccent ?? accent];
   const descLine = locked && lockReason ? lockReason : description;
+
+  const [expanded, setExpanded] = useState(false);
+  const hiddenCount = metadata.length - MAX_VISIBLE_CHIPS;
+  const visibleMetadata = expanded || hiddenCount <= 0 ? metadata : metadata.slice(0, MAX_VISIBLE_CHIPS);
 
   return (
     <View style={styles.card}>
@@ -93,20 +92,6 @@ export default function JobCard({
 
       <View style={styles.body}>
         <View style={styles.headerRow}>
-          {typeof progress === 'number' ? (
-            <ProgressRing
-              value={progress}
-              size={46}
-              strokeWidth={5}
-              showPill={false}
-              ambient={false}
-              state={progressState}
-              accentColor={palette.reward}
-              label={ringLabel}
-            >
-              {ringCenter}
-            </ProgressRing>
-          ) : null}
           <Text style={styles.title} numberOfLines={2}>
             {title}
           </Text>
@@ -128,7 +113,7 @@ export default function JobCard({
           <>
             <View style={styles.divider} />
             <View style={styles.metaRow}>
-              {metadata.map((item, idx) => (
+              {visibleMetadata.map((item, idx) => (
                 <View key={idx} style={styles.metaCell}>
                   <View style={styles.metaIcon}>{item.icon}</View>
                   <Text style={[styles.metaText, { color: META_TONE[item.tone ?? 'default'] }]} numberOfLines={1}>
@@ -136,6 +121,16 @@ export default function JobCard({
                   </Text>
                 </View>
               ))}
+              {hiddenCount > 0 ? (
+                <TouchableOpacity
+                  onPress={() => setExpanded((v) => !v)}
+                  hitSlop={hitSlopToMinTarget(scale(20))}
+                  accessibilityRole="button"
+                  accessibilityLabel={expanded ? 'Show fewer details' : `Show ${hiddenCount} more details`}
+                >
+                  <Text style={styles.moreToggle}>{expanded ? 'Less' : `+${hiddenCount} more`}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </>
         ) : null}
@@ -234,6 +229,11 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+  },
+  moreToggle: {
+    fontSize: fontScale(12),
+    fontWeight: '600',
+    color: 'rgba(148, 197, 255, 0.9)',
   },
   buttonSpacing: {
     marginTop: verticalScale(4),
