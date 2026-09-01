@@ -5,8 +5,8 @@ Phase status — audit complete, implementation not started:
 
 - [x] Phase A — Forensic audit (screens, navigation, design system, overlay layer)
 - [x] Phase A — Redesign blueprint written (14 sections + metric ratchet table)
-- [ ] Phase 0 — Foundations: Card/Button/Text/IconBubble/StatBreakdownModal primitives, single stat-color source, lint guards, dead-code deletion
-- [ ] Phase 1 — Kill the noise: interruption budget (≤2/tick), tutorial de-triplication, WeeklyResultSheet removal, paywalls 8→2
+- [~] Phase 0 — Foundations: StatBreakdownModal + Card/IconBubble primitives (in progress), single stat-color source DONE (perksFlow money label + theme palette contradictors deleted), dead-code deletion DONE, UI ratchet guard pending
+- [x] Phase 1 — Kill the noise: interruption budget (≤2 budgeted grants per game week, player-initiated surfaces exempt), tutorial system fully retired (TutorialManager/SimpleTutorialModal/FirstWeekGuide/enhancedTutorialData/TutorialHighlightContext deleted; FirstSessionCoach is the one teaching surface), WeeklyResultSheet removed (LastWeekRecap + Week Summary switch), duplicate find-job CTA + no_job tip + HeroStrip removed, PremiumCrownButton off Home, Home's four visible={false} modals now conditional
 - [ ] Phase 2 — HUD rebuild (TopStatsBar → ≤7 readouts, labeled Next Week)
 - [ ] Phase 3 — Home rebuild (unified Goals surface, IdentityCard diet)
 - [ ] Phase 4 — Work rebuild (3-chip JobCard, button-state collapse)
