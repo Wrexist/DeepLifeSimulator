@@ -105,7 +105,6 @@ function CareerItem({
     const raiseMult = resolveRaisePremium(career.raiseMultiplier);
     const paidSalary = (levelIndex: number | undefined) =>
         paidWeeklySalaryForLevel(gameState, career, levelIndex);
-    const hasRaise = raiseMult > 1;
     const tier = getCareerTier(career.level, career.levels ? career.levels.length : 1);
     const tierInfo = CAREER_TIERS[tier];
 

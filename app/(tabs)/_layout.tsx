@@ -124,7 +124,7 @@ export default function TabLayout() {
   const ownsComputer = useGameSelector((s) =>
     (s?.items ?? []).some((item) => item.id === 'computer' && item.owned)
   );
-  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
+
   const showDeathPopup = useGameSelector((s) => s?.showDeathPopup === true);
   const showWeddingPopup = useGameSelector((s) => s?.showWeddingPopup === true);
   const pendingMoment = useGameSelector((s) => s?.lifeMoments?.pendingMoment);

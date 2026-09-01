@@ -18,7 +18,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, Compass, Flag, Sparkles, Target } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import Card, { IconBubble } from '@/components/ui/Card';
+import { Card, IconBubble } from '@/components/ui/Card';
 import { goalsAchievedBetween, recommendGoals } from '@/lib/goals';
 import type { AchievedGoal, GoalHorizon, RecommendedGoal } from '@/lib/goals';
 import { track } from '@/lib/analytics';

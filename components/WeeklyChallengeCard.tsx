@@ -22,7 +22,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Check, Gem, Swords, Timer, Trophy } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import Card, { IconBubble } from '@/components/ui/Card';
+import { Card, IconBubble } from '@/components/ui/Card';
 import {
   evaluateChallengeProgress,
   getWeeklyChallengeDefinition,

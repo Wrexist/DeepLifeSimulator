@@ -19,7 +19,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Armchair, Landmark, Trophy, Users, Clock, Sparkles } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
-import Card from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { haptic } from '@/utils/haptics';

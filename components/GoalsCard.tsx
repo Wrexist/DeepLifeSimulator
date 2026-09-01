@@ -31,7 +31,7 @@ import {
   Target,
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import Card, { IconBubble } from '@/components/ui/Card';
+import { Card, IconBubble } from '@/components/ui/Card';
 import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
 import {
   evaluateChallengeProgress,

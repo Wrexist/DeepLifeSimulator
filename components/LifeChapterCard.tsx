@@ -15,7 +15,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BookOpen, Check, Gift } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import Card from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';

@@ -13,7 +13,7 @@ interface HappinessBreakdownModalProps {
 
 export default function HappinessBreakdownModal({ visible, onClose }: HappinessBreakdownModalProps) {
   const { gameState } = useGame();
-  const { stats, careers, currentJob, educations, prestige } = gameState;
+  const { stats, careers, currentJob, educations } = gameState;
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
@@ -142,7 +142,12 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
       currentHappiness,
       projectedHappiness,
     };
-  }, [stats?.happiness, currentJob, careers, educations, prestige, stats?.money, gameState.bankSavings, gameState.dietPlans]);
+    // `realEstate`/`rental` are listed because the housing line above reads
+    // them (via computeHousingWellbeing). Without them this memo kept the
+    // pre-tenancy numbers after the player rented - a modal advertising a
+    // weekly effect different from the one the tick applies, which is the
+    // exact class of divergence the shared helper was adopted to close.
+  }, [stats?.happiness, currentJob, careers, educations, stats?.money, gameState.bankSavings, gameState.dietPlans, gameState.realEstate, gameState.rental]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {

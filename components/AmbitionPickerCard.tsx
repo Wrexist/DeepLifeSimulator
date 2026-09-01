@@ -23,7 +23,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Check, Compass, Gem, Star } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
-import Card, { IconBubble } from '@/components/ui/Card';
+import { Card, IconBubble } from '@/components/ui/Card';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';

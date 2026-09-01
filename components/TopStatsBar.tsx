@@ -1,5 +1,5 @@
 // components/TopStatsBar.tsx
-import React, { useState, useRef, useEffect, useMemo, useCallback, useContext, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { View,
  Text,
  TouchableOpacity,
@@ -16,7 +16,7 @@ import {
  isAndroidXLarge,
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
-import { useGameSelector, useSetGameState, shallowEqual, GameStoreContext } from '@/contexts/game/useGameSelector';
+import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';

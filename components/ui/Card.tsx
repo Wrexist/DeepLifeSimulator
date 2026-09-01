@@ -15,6 +15,10 @@
  *
  * For a pressable card (a TouchableOpacity container), spread the exported
  * `cardStyle` onto the touchable instead of nesting a View.
+ *
+ * Named exports only, no default: exporting `Card` both ways made every
+ * consumer's `import Card from` trip `import/no-named-as-default` - nine
+ * lint warnings for one avoidable ambiguity.
  */
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -85,4 +89,3 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Card;

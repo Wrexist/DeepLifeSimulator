@@ -22,7 +22,6 @@ const GLASS_BG = 'rgba(15, 23, 42, 0.55)';
 const GLASS_BORDER = 'rgba(255, 255, 255, 0.08)';
 const TEXT = '#F8FAFC';
 const TEXT_SECONDARY = 'rgba(226, 232, 240, 0.65)';
-const TEXT_MUTED = 'rgba(226, 232, 240, 0.45)';
 
 export const styles = StyleSheet.create({
   container: {

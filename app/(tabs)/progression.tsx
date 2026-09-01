@@ -18,8 +18,6 @@ import {
   ChevronRight,
   Sparkles,
   CalendarDays,
-  CalendarClock,
-  Share2,
 } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
@@ -135,6 +133,18 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   // same fix as lib/careers/advancedCareers.ts, whose comment records that
   // every achievement-gated career was permanently locked for the same reason.
   // 2026-07-30 audit GP-3.
+
+  // The LIVE achievement store, not `gameState.achievements[].completed`.
+  //
+  // That array ships 52 entries all `completed: false` and its only writer is
+  // one `luxury_life` special case, so reading it made this headline say
+  // "0/42 · 0% complete" forever (audit GP-3). `deadAchievementSweep.test.ts`
+  // pins this read for exactly that reason.
+  //
+  // The UI overhaul briefly deleted this card as a duplicate of
+  // `ProgressOverview` below. It is NOT one: that browser derives unlocked
+  // state from `progress.achievements[].unlockedAt`, a different source. This
+  // headline is the screen's only verified-correct count, so it stays.
   const completedAchievements = liveAchievements.filter(a => a.claimed).length;
   const totalAchievements = liveAchievements.length;
   const completionPct = totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0;
@@ -255,10 +265,20 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             stands. Derived from previousLives; renders null on a first life. */}
         <FamilyRecordsCard />
 
-        {/* No achievements summary card: ProgressOverview below is the
-            achievements surface on this screen, and the summary said the same
-            thing one card earlier. (A third copy lives on Home behind
-            "Show more".) 2026-09-01 UI audit. */}
+        {/* Overall achievement progress. Kept deliberately: see the count
+            derivation above for why this is not a duplicate of the browser. */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.progressRow}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Achievements</Text>
+            <Text style={[styles.progressCount, { color: theme.textSecondary }]}>
+              {completedAchievements}/{totalAchievements}
+            </Text>
+          </View>
+          <View style={[styles.progressBar, { backgroundColor: theme.surfaceElevated }]}>
+            <View style={[styles.progressFill, { width: `${completionPct}%`, backgroundColor: accent.warning }]} />
+          </View>
+          <Text style={[styles.progressPct, { color: accent.warning }]}>{completionPct}% complete</Text>
+        </View>
 
         {/* Life Stats */}
         <CollapsibleSection

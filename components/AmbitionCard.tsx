@@ -22,7 +22,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Check, Gem, Star, Target, Trophy } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
-import Card from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getAmbitionCompletion } from '@/lib/ambitions';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
