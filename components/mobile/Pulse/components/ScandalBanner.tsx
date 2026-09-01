@@ -2,8 +2,8 @@
  * ScandalBanner - sticky banner shown when an active scandal exists.
  *
  * Visual treatment depends on severity:
- *   ≥ 70: red gradient + alert role + warning haptic on mount
- *   40-69: amber gradient + alert role
+ *   ≥ 70: red fill + alert role + warning haptic on mount
+ *   40-69: amber fill + alert role
  *   < 40: hidden (notification only - too quiet to block the feed)
  *
  * Tapping opens the ScandalRecoveryModal (provided by the caller).
@@ -11,14 +11,11 @@
 import React, { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
 import { scale, fontScale, responsiveSpacing, responsiveIconSize } from '@/utils/scaling';
 import { Z_INDEX } from '@/utils/zIndexConstants';
-import { PULSE_SCANDAL_HIGH, PULSE_SCANDAL_MID } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseActiveScandal } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 interface ScandalBannerProps {
   scandal: PulseActiveScandal;
@@ -35,8 +32,9 @@ export default function ScandalBanner({ scandal, onPress }: ScandalBannerProps) 
     }
   }, [severity, scandal.id]);
 
-  const gradientColors = useMemo<readonly [string, string]>(
-    () => (severity >= 70 ? PULSE_SCANDAL_HIGH : PULSE_SCANDAL_MID),
+  // Severity reads as ONE colour - danger red above 70, warning amber below.
+  const fill = useMemo(
+    () => (severity >= 70 ? PULSE_COLORS.scandalHigh : PULSE_COLORS.scandalMid),
     [severity],
   );
 
@@ -53,7 +51,7 @@ export default function ScandalBanner({ scandal, onPress }: ScandalBannerProps) 
       accessibilityLiveRegion={Platform.OS === 'android' ? 'assertive' : undefined}
       style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
     >
-      <LinearGradient colors={gradientColors as unknown as string[]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
+      <View style={[styles.banner, { backgroundColor: fill }]}>
         <View style={styles.iconWrap}>
           <AlertTriangle size={responsiveIconSize.md} color="#FFFFFF" strokeWidth={2.2} />
         </View>
@@ -65,7 +63,7 @@ export default function ScandalBanner({ scandal, onPress }: ScandalBannerProps) 
             Severity {severity}/100 · {scandal.weeksRemaining}w left · Tap to respond
           </Text>
         </View>
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }

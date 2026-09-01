@@ -3,7 +3,7 @@
  *
  * Mounts when the player taps the dating tile from the phone shell. Owns:
  *   - Internal nav state machine (no React Navigation nested container)
- *   - 3-tab bottom bar (Swipe / Matches / Profile)
+ *   - 4-tab bottom bar (Swipe / Matches / Likes / Profile)
  *   - Modal host (boost, premium upsell)
  *   - Match celebration banner overlay
  *   - Chat overlay route (full-screen above the tab bar)
@@ -14,15 +14,19 @@
  * uses DatingActions via the existing WeddingPlanningModal etc.
  */
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Crown, Flame, Heart, MessageCircle, Pencil, User } from 'lucide-react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Crown, Flame, Heart, MessageCircle, Pencil, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
+import Chip from '@/components/ui/Chip';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import StatStrip from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, responsiveIconSize, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
-import { SPARK_GRADIENT, SPARK_GRADIENT_SOFT, SPARK_COLORS } from './styles/sparkTheme';
+import { SPARK_COLORS } from './styles/sparkTheme';
 import SwipeScreen from './screens/SwipeScreen';
 import MatchesScreen from './screens/MatchesScreen';
 import LikesScreen from './screens/LikesScreen';
@@ -36,8 +40,6 @@ import MatchBanner from './components/MatchBanner';
 import { type DatingProfile } from '@/lib/dating/datingProfiles';
 import { scorePlayerProfile } from '@/lib/dating/sparkLogic';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-
-const LinearGradient = Gradient;
 
 type SparkTab = 'swipe' | 'matches' | 'likes' | 'profile';
 
@@ -77,7 +79,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   }, []);
 
   // Partner profile overlay intercepts the entire body when active (sits
-  // above chat - opened FROM chat via the header avatar button).
+  // above chat - opened FROM chat via the header profile button).
   if (openProfileId) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -110,44 +112,25 @@ export default function SparkApp({ onBack }: SparkAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      {/* Header - borderless; the hero surface on each tab anchors the screen. */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Back to phone home"
-          hitSlop={8}
-          style={styles.headerBtn}
-        >
-          <ArrowLeft size={responsiveIconSize.md} color={theme.text} />
-        </Pressable>
-
-        <View style={styles.headerCenter}>
-          <LinearGradient
-            colors={SPARK_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.wordmarkPill}
-          >
-            <Flame size={fontScale(12)} color="#FFFFFF" strokeWidth={2.6} fill="#FFFFFF" />
-            <Text style={styles.wordmarkText}>spark</Text>
-          </LinearGradient>
-        </View>
-
-        <Pressable
-          onPress={() => setShowPremium(true)}
-          accessibilityRole="button"
-          accessibilityLabel={isPremium ? `Spark ${sp!.premium.tier}` : 'Upgrade to Spark Premium'}
-          hitSlop={8}
-          style={styles.headerBtn}
-        >
-          {isPremium ? (
-            <Crown size={responsiveIconSize.md} color={SPARK_COLORS.tierUltra} fill={SPARK_COLORS.tierUltra} />
-          ) : (
-            <Crown size={responsiveIconSize.md} color={theme.textSecondary} />
-          )}
-        </Pressable>
-      </View>
+      <AppHeader
+        title="spark"
+        onBack={onBack}
+        backLabel="Back to phone home"
+        right={
+          <HeaderChip
+            label={isPremium ? 'Spark plan' : 'Spark Premium'}
+            value={isPremium ? (sp?.premium?.tier === 'ultra' ? 'Ultra' : 'Plus') : 'Upgrade'}
+            tint={isPremium ? SPARK_COLORS.tierUltra : SPARK_COLORS.accent}
+            icon={
+              <Crown
+                size={fontScale(13)}
+                color={isPremium ? SPARK_COLORS.tierUltra : SPARK_COLORS.accent}
+              />
+            }
+            onPress={() => setShowPremium(true)}
+          />
+        }
+      />
 
       {/* Body */}
       <View style={styles.body}>
@@ -183,14 +166,17 @@ export default function SparkApp({ onBack }: SparkAppProps) {
           color={SPARK_COLORS.accent}
           mutedColor={theme.textMuted}
         />
+        {/* The count lives on the badge only - repeating it in the label made
+            every screen reader say the number twice. */}
         <TabBtn
           icon={MessageCircle}
-          label={`Matches${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+          label="Matches"
           active={activeTab === 'matches'}
           onPress={() => setActiveTab('matches')}
           color={SPARK_COLORS.accent}
           mutedColor={theme.textMuted}
           badge={unreadCount > 0 ? unreadCount : undefined}
+          badgeLabel="unread"
         />
         <TabBtn
           icon={Heart}
@@ -200,6 +186,7 @@ export default function SparkApp({ onBack }: SparkAppProps) {
           color={SPARK_COLORS.accent}
           mutedColor={theme.textMuted}
           badge={likesCount > 0 ? likesCount : undefined}
+          badgeLabel="new"
         />
         <TabBtn
           icon={User}
@@ -235,23 +222,27 @@ export default function SparkApp({ onBack }: SparkAppProps) {
   );
 }
 
+type TabIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+
 function TabBtn({
-  icon: Icon, label, active, onPress, color, mutedColor, badge,
+  icon: Icon, label, active, onPress, color, mutedColor, badge, badgeLabel,
 }: {
-  icon: any;
+  icon: TabIcon;
   label: string;
   active: boolean;
   onPress: () => void;
   color: string;
   mutedColor: string;
   badge?: number;
+  /** What the badge counts, for screen readers ("unread", "new"). */
+  badgeLabel?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
-      accessibilityLabel={label}
+      accessibilityLabel={badge && badgeLabel ? `${label}, ${badge} ${badgeLabel}` : label}
       style={styles.tabBtn}
       hitSlop={4}
     >
@@ -280,9 +271,10 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
   const profileScore = scorePlayerProfile(gameState);
   // R6-A: track image load failure separately from missing-uri.
   const [sparkProfileAvatarErrored, setSparkProfileAvatarErrored] = useState(false);
+  const premiumTier = sp?.premium?.active ? (sp.premium.tier === 'ultra' ? 'Ultra' : 'Plus') : 'Free';
 
   return (
-    <View style={styles.profileWrap}>
+    <ScrollView contentContainerStyle={styles.profileWrap} showsVerticalScrollIndicator={false}>
       <View
         style={[
           getGlassCard(isDark, 12),
@@ -291,22 +283,7 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
         ]}
       >
         <View style={styles.profileHeroInner}>
-          <LinearGradient
-            pointerEvents="none"
-            colors={SPARK_GRADIENT_SOFT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View pointerEvents="none" style={styles.profileGlow} />
-          {isDark ? <View pointerEvents="none" style={styles.profileHairline} /> : null}
-
-          <LinearGradient
-            colors={SPARK_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.profileAvatar}
-          >
+          <View style={[styles.profileAvatar, { backgroundColor: withAlpha(SPARK_COLORS.accent, 0.16) }]}>
             {/* R6-A: also fall back on Image load failure. */}
             {profile.profilePhoto && !sparkProfileAvatarErrored ? (
               <Image
@@ -326,7 +303,7 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
                 size={scale(96)}
               />
             )}
-          </LinearGradient>
+          </View>
           <Text style={[styles.profileName, { color: theme.text }]}>
             {profile.displayName || profile.name || 'You'}
             {gameState.date?.age ? `, ${Math.floor(gameState.date.age)}` : ''}
@@ -347,9 +324,7 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
             {sparkProfile?.interests && sparkProfile.interests.length > 0 ? (
               <View style={styles.interestRow}>
                 {sparkProfile.interests.slice(0, 6).map((interest) => (
-                  <View key={interest} style={[styles.interestPill, { backgroundColor: theme.surfaceElevated }]}>
-                    <Text style={[styles.interestPillText, { color: theme.textSecondary }]}>{interest}</Text>
-                  </View>
+                  <Chip key={interest} label={interest} />
                 ))}
               </View>
             ) : null}
@@ -367,12 +342,23 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
         </View>
       </View>
 
-      <View
-        style={[
-          getGlassCard(isDark, 6),
-          styles.statsCard,
-          { backgroundColor: theme.surface, borderColor: theme.border },
+      {/* The four numbers a player actually decides on. The other seven are a
+          record of what happened, not an input - they live behind "All stats". */}
+      <StatStrip
+        items={[
+          { label: 'Matches', value: stats?.totalMatches ?? 0 },
+          { label: 'Dates', value: stats?.totalDatesGoneOn ?? 0 },
+          { label: 'Marriages', value: stats?.totalMarriages ?? 0 },
+          { label: 'Profile', value: `${profileScore}/100`, sub: 'strength', tint: SPARK_COLORS.accent },
         ]}
+      />
+
+      <CollapsibleSection
+        id="spark-all-stats"
+        title="All stats"
+        defaultCollapsed
+        tint={SPARK_COLORS.accent}
+        summary={`${stats?.totalSwipes ?? 0} swipes · ${premiumTier}`}
       >
         <StatRow label="Profile strength" value={`${profileScore}/100`} theme={theme} />
         <StatRow label="Total swipes" value={String(stats?.totalSwipes ?? 0)} theme={theme} />
@@ -384,23 +370,13 @@ function ProfileTab({ onEditProfile }: { onEditProfile: () => void }) {
         <StatRow label="Marriages" value={String(stats?.totalMarriages ?? 0)} theme={theme} />
         <StatRow label="Divorces" value={String(stats?.totalDivorces ?? 0)} theme={theme} />
         <StatRow label="Catfish exposed" value={String(stats?.totalCatfishExposed ?? 0)} theme={theme} />
-        <StatRow
-          label="Premium tier"
-          value={
-            sp?.premium?.active
-              ? sp.premium.tier === 'ultra'
-                ? 'Ultra'
-                : 'Plus'
-              : 'Free'
-          }
-          theme={theme}
-        />
-      </View>
-    </View>
+        <StatRow label="Premium tier" value={premiumTier} theme={theme} />
+      </CollapsibleSection>
+    </ScrollView>
   );
 }
 
-function StatRow({ label, value, theme }: { label: string; value: string; theme: any }) {
+function StatRow({ label, value, theme }: { label: string; value: string; theme: ReturnType<typeof useTheme>['theme'] }) {
   return (
     <View style={styles.statRow}>
       <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
@@ -411,33 +387,6 @@ function StatRow({ label, value, theme }: { label: string; value: string; theme:
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  wordmarkPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(4),
-    borderRadius: scale(8),
-  },
-  wordmarkText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
   body: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
@@ -473,15 +422,15 @@ const styles = StyleSheet.create({
   tabBadgeText: {
     color: '#FFFFFF',
     fontSize: fontScale(9),
-    fontWeight: '800',
+    fontWeight: '600',
   },
   profileWrap: {
-    flex: 1,
     paddingHorizontal: responsiveSpacing.lg,
     paddingTop: responsiveSpacing.lg,
+    paddingBottom: scale(120),
+    gap: responsiveSpacing.lg,
   },
   profileHeroCard: {
-    marginBottom: responsiveSpacing.lg,
     borderRadius: responsiveBorderRadius['2xl'],
     borderWidth: 1,
   },
@@ -490,23 +439,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: responsiveSpacing.lg,
     alignItems: 'center',
-  },
-  profileGlow: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(244,63,94,0.10)',
-  },
-  profileHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   profileAvatar: {
     width: scale(96),
@@ -521,14 +453,9 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: scale(48),
   },
-  profileAvatarInitial: {
-    color: '#FFFFFF',
-    fontSize: fontScale(36),
-    fontWeight: '800',
-  },
   profileName: {
     fontSize: fontScale(20),
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: responsiveSpacing.sm,
   },
   profileBio: {
@@ -547,19 +474,11 @@ const styles = StyleSheet.create({
     gap: scale(6),
     marginTop: responsiveSpacing.sm,
   },
-  interestPill: {
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(4),
-    borderRadius: 999,
-  },
-  interestPillText: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-  },
   editProfileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(6),
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: 999,
@@ -568,13 +487,7 @@ const styles = StyleSheet.create({
   },
   editProfileText: {
     fontSize: fontScale(13),
-    fontWeight: '700',
-  },
-  statsCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    padding: responsiveSpacing.md,
-    gap: responsiveSpacing.xs,
+    fontWeight: '600',
   },
   statRow: {
     flexDirection: 'row',
@@ -582,5 +495,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   statLabel: { fontSize: fontScale(13) },
-  statValue: { fontSize: fontScale(14), fontWeight: '700', fontVariant: ['tabular-nums'] },
+  statValue: { fontSize: fontScale(14), fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

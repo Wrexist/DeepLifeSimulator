@@ -7,23 +7,21 @@
  * also un-sticks the tick's permanent-block bug (it only spawns a new event when
  * none is active).
  *
- * On-DNA: same bottom-sheet shell as BoostModal.
+ * On-DNA: the shared `BaseModal` bottom sheet, same as BoostModal.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { X, HeartCrack } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { HeartCrack } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
+import { withAlpha } from '@/lib/config/theme';
+import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { resolveJealousy } from '@/contexts/game/actions/SparkActions';
 import { getJealousyFlavor, getJealousyChoices, pickJealousyAccusation } from '@/lib/dating/jealousyFlavor';
 import type { SparkJealousyOutcome } from '@/contexts/game/types';
-import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
-
-const LinearGradient = Gradient;
 
 interface JealousyModalProps {
   visible: boolean;
@@ -75,85 +73,48 @@ export default function JealousyModal({ visible, onDismiss }: JealousyModalProps
     tone === 'destructive' ? SPARK_COLORS.danger : theme.text;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Pressable
-              onPress={onDismiss}
-              accessibilityRole="button"
-              accessibilityLabel="Deal with this later"
-              hitSlop={8}
-              style={styles.closeBtn}
-            >
-              <X size={fontScale(22)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <LinearGradient
-            colors={SPARK_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroBadge}
-          >
-            <HeartCrack size={scale(34)} color="#FFFFFF" strokeWidth={2.4} />
-          </LinearGradient>
-
-          <Text style={[styles.title, { color: theme.text }]}>{flavor.title}</Text>
-          <Text style={[styles.partnerLine, { color: SPARK_COLORS.accent }]}>
-            {partnerName} · severity {Math.round(event.severity)}
-          </Text>
-          <Text style={[styles.accusation, { color: theme.textSecondary }]}>{accusation}</Text>
-
-          <View style={styles.choices}>
-            {choices.map((c) => (
-              <Pressable
-                key={c.outcome}
-                onPress={() => handleChoice(c.outcome)}
-                accessibilityRole="button"
-                accessibilityLabel={`${c.label}. ${c.hint}`}
-                style={({ pressed }) => [
-                  styles.choiceRow,
-                  {
-                    backgroundColor: theme.surfaceElevated,
-                    borderColor: c.tone === 'destructive' ? SPARK_COLORS.danger : theme.border,
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
-              >
-                <View style={styles.choiceBody}>
-                  <Text style={[styles.choiceLabel, { color: toneColor(c.tone) }]}>{c.label}</Text>
-                  <Text style={[styles.choiceHint, { color: theme.textMuted }]}>{c.hint}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title={flavor.title}
+      subtitle={`${partnerName} · severity ${Math.round(event.severity)}`}
+      scrollable={false}
+    >
+      <View style={[styles.heroBadge, { backgroundColor: withAlpha(SPARK_COLORS.accent, 0.16) }]}>
+        <HeartCrack size={scale(34)} color={SPARK_COLORS.accent} strokeWidth={2.4} />
       </View>
-    </Modal>
+
+      <Text style={[styles.accusation, { color: theme.textSecondary }]}>{accusation}</Text>
+
+      <View style={styles.choices}>
+        {choices.map((c) => (
+          <Pressable
+            key={c.outcome}
+            onPress={() => handleChoice(c.outcome)}
+            accessibilityRole="button"
+            accessibilityLabel={`${c.label}. ${c.hint}`}
+            style={({ pressed }) => [
+              styles.choiceRow,
+              {
+                backgroundColor: theme.surfaceElevated,
+                borderColor: c.tone === 'destructive' ? SPARK_COLORS.danger : theme.border,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <View style={styles.choiceBody}>
+              <Text style={[styles.choiceLabel, { color: toneColor(c.tone) }]}>{c.label}</Text>
+              <Text style={[styles.choiceHint, { color: theme.textMuted }]}>{c.hint}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-  },
-  header: { flexDirection: 'row', justifyContent: 'flex-end' },
-  closeBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   heroBadge: {
     alignSelf: 'center',
     width: scale(68),
@@ -162,17 +123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: responsiveSpacing.md,
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: fontScale(22),
-    fontWeight: '700',
-  },
-  partnerLine: {
-    textAlign: 'center',
-    fontSize: fontScale(12),
-    fontWeight: '700',
-    marginTop: 4,
   },
   accusation: {
     textAlign: 'center',
@@ -196,7 +146,7 @@ const styles = StyleSheet.create({
   choiceBody: { flex: 1 },
   choiceLabel: {
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   choiceHint: {
     fontSize: fontScale(12),

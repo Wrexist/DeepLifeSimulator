@@ -10,15 +10,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View  } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
-import { scale, fontScale, responsiveSpacing, getAppScreenBottomPadding } from '@/utils/scaling';
-import Gradient from '@/components/ui/Gradient';
+import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import ProgressBar from '@/components/ui/ProgressBar';
+import Chip from '@/components/ui/Chip';
+import StatStrip from '@/components/ui/StatStrip';
 import EmptyState from '../components/EmptyState';
-import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { acceptBrandDeal, brandDealBreachPenalty, breachBrandDeal, declineBrandDeal, deliverBrandDealPost } from '@/contexts/game/actions/PulseActions';
 import type { PulseBrandOffer, PulseActiveBrandDeal, PulseDealHistoryEntry, PulseRecentPost } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 type BrandTab = 'inbox' | 'active' | 'history';
 
@@ -122,38 +123,18 @@ export default function BrandDealsScreen({ onBack }: BrandDealsScreenProps) {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.tabRow, { borderBottomColor: theme.border }]}>
-        {(['inbox', 'active', 'history'] as BrandTab[]).map((t) => (
-          <Pressable
-            key={t}
-            onPress={() => setActiveTab(t)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === t }}
-            style={styles.tabBtn}
-          >
-            <Text
-              style={[
-                styles.tabLabel,
-                {
-                  color: activeTab === t ? theme.text : theme.textSecondary,
-                  fontWeight: activeTab === t ? '700' : '500',
-                },
-              ]}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-              {tabCount[t] > 0 ? <Text style={[styles.tabCount, { color: theme.textSecondary }]}> {tabCount[t]}</Text> : null}
-            </Text>
-            {activeTab === t ? (
-              <LinearGradient
-                colors={PULSE_GRADIENT as unknown as string[]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.indicator}
-              />
-            ) : null}
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedControl
+        compact
+        style={styles.tabs}
+        segments={[
+          { key: 'inbox', label: tabCount.inbox > 0 ? `Inbox ${tabCount.inbox}` : 'Inbox' },
+          { key: 'active', label: tabCount.active > 0 ? `Active ${tabCount.active}` : 'Active' },
+          { key: 'history', label: tabCount.history > 0 ? `History ${tabCount.history}` : 'History' },
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+        activeColor={PULSE_COLORS.accent}
+      />
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
         {activeTab === 'inbox' && pending.length === 0 && (
@@ -206,35 +187,34 @@ function BrandOfferCard({
 }: {
   offer: PulseBrandOffer; onAccept: () => void; onDecline: () => void; theme: any;
 }) {
-  const c1 = offer.logoColor1 || PULSE_GRADIENT[0];
-  const c2 = offer.logoColor2 || PULSE_GRADIENT[1];
+  const logoColor = offer.logoColor1 || PULSE_COLORS.accent;
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.cardHeader}>
-        <LinearGradient
-          colors={[c1, c2]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.logo}
-        >
+        <View style={[styles.logo, { backgroundColor: logoColor }]}>
           <Text style={styles.logoText}>{offer.brandName.slice(0, 1).toUpperCase()}</Text>
-        </LinearGradient>
+        </View>
         <View style={styles.cardHeaderText}>
           <Text style={[styles.brandName, { color: theme.text }]}>{offer.brandName}</Text>
           <Text style={[styles.brandSub, { color: theme.textSecondary }]} numberOfLines={1}>
             {offer.description}
           </Text>
         </View>
-        <View style={[styles.expiryChip, expiryStyle(offer.expiresInWeeks)]}>
-          <Text style={styles.expiryText}>{offer.expiresInWeeks}w left</Text>
-        </View>
+        <Chip
+          label={`${offer.expiresInWeeks}w left`}
+          tone={expiryTone(offer.expiresInWeeks)}
+          accessibilityLabel={`Offer expires in ${offer.expiresInWeeks} weeks`}
+        />
       </View>
 
-      <View style={styles.metaRow}>
-        <Meta label="Payment" value={`$${offer.payment.toLocaleString()}`} theme={theme} highlight />
-        <Meta label="Posts" value={String(offer.postsRequired)} theme={theme} />
-        <Meta label="Duration" value={`${offer.duration}w`} theme={theme} />
-      </View>
+      <StatStrip
+        style={styles.metaRow}
+        items={[
+          { label: 'Payment', value: `$${offer.payment.toLocaleString()}`, tint: PULSE_COLORS.success },
+          { label: 'Posts', value: String(offer.postsRequired) },
+          { label: 'Duration', value: `${offer.duration}w` },
+        ]}
+      />
 
       <View style={styles.actionRow}>
         <Pressable
@@ -249,16 +229,9 @@ function BrandOfferCard({
           onPress={onAccept}
           accessibilityRole="button"
           accessibilityLabel={`Accept ${offer.brandName}`}
-          style={styles.btnPrimaryWrap}
+          style={[styles.btnPrimary, { backgroundColor: PULSE_COLORS.accent }]}
         >
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.btnPrimary}
-          >
-            <Text style={styles.btnPrimaryText}>Accept</Text>
-          </LinearGradient>
+          <Text style={styles.btnPrimaryText}>Accept</Text>
         </Pressable>
       </View>
     </View>
@@ -268,8 +241,7 @@ function BrandOfferCard({
 function ActiveDealCard({
   deal, weeksLived, onBreach, onDeliver, theme,
 }: { deal: PulseActiveBrandDeal; weeksLived: number; onBreach: () => void; onDeliver: () => void; theme: any }) {
-  const c1 = deal.logoColor1 || PULSE_GRADIENT[0];
-  const c2 = deal.logoColor2 || PULSE_GRADIENT[1];
+  const logoColor = deal.logoColor1 || PULSE_COLORS.accent;
   const remaining = Math.max(0, deal.expiresAt - weeksLived);
   const delivered = deal.postsDelivered ?? 0;
   const required = deal.postsRequired ?? 1;
@@ -277,14 +249,9 @@ function ActiveDealCard({
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.cardHeader}>
-        <LinearGradient
-          colors={[c1, c2]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.logo}
-        >
+        <View style={[styles.logo, { backgroundColor: logoColor }]}>
           <Text style={styles.logoText}>{deal.brandName.slice(0, 1).toUpperCase()}</Text>
-        </LinearGradient>
+        </View>
         <View style={styles.cardHeaderText}>
           <Text style={[styles.brandName, { color: theme.text }]}>{deal.brandName}</Text>
           <Text style={[styles.brandSub, { color: theme.textSecondary }]}>
@@ -292,9 +259,12 @@ function ActiveDealCard({
           </Text>
         </View>
       </View>
-      <View style={[styles.progress, { backgroundColor: theme.border }]}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: PULSE_COLORS.success }]} />
-      </View>
+      <ProgressBar
+        value={progress}
+        color={PULSE_COLORS.success}
+        label={`Posts delivered: ${delivered} of ${required}`}
+        style={styles.progress}
+      />
       <Text style={[styles.progressText, { color: theme.textSecondary }]}>
         Posts delivered: {delivered}/{required}
       </Text>
@@ -311,16 +281,9 @@ function ActiveDealCard({
           onPress={onDeliver}
           accessibilityRole="button"
           accessibilityLabel={`Deliver post for ${deal.brandName}`}
-          style={styles.btnPrimaryWrap}
+          style={[styles.btnPrimary, { backgroundColor: PULSE_COLORS.accent }]}
         >
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.btnPrimary}
-          >
-            <Text style={styles.btnPrimaryText}>Deliver post</Text>
-          </LinearGradient>
+          <Text style={styles.btnPrimaryText}>Deliver post</Text>
         </Pressable>
       </View>
     </View>
@@ -347,49 +310,18 @@ function HistoryRow({ entry, theme }: { entry: PulseDealHistoryEntry; theme: any
   );
 }
 
-function Meta({ label, value, theme, highlight }: { label: string; value: string; theme: any; highlight?: boolean }) {
-  return (
-    <View style={styles.metaItem}>
-      <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <Text
-        style={[
-          styles.metaValue,
-          { color: highlight ? PULSE_COLORS.success : theme.text, fontWeight: highlight ? '700' : '600' },
-        ]}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function expiryStyle(weeksLeft: number) {
-  if (weeksLeft <= 1) return { backgroundColor: 'rgba(239, 68, 68, 0.18)' };
-  if (weeksLeft <= 2) return { backgroundColor: 'rgba(245, 158, 11, 0.18)' };
-  return { backgroundColor: 'rgba(99, 102, 241, 0.18)' };
+/** Expiry urgency as a shared Chip tone: <=1w danger, <=2w warning, else info. */
+function expiryTone(weeksLeft: number): 'danger' | 'warning' | 'info' {
+  if (weeksLeft <= 1) return 'danger';
+  if (weeksLeft <= 2) return 'warning';
+  return 'info';
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  tabRow: {
-    flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: responsiveSpacing.md,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  tabLabel: { fontSize: fontScale(13) },
-  tabCount: { fontSize: fontScale(11) },
-  indicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: '25%',
-    right: '25%',
-    height: 3,
-    borderRadius: 999,
+  tabs: {
+    margin: responsiveSpacing.md,
+    marginBottom: 0,
   },
   scroll: {
     paddingBottom: scale(140),
@@ -417,45 +349,21 @@ const styles = StyleSheet.create({
   logoText: {
     color: '#FFFFFF',
     fontSize: fontScale(20),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   cardHeaderText: {
     flex: 1,
   },
   brandName: {
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   brandSub: {
     fontSize: fontScale(12),
     marginTop: 2,
   },
-  expiryChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  expiryText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(10),
-    fontWeight: '600',
-  },
   metaRow: {
-    flexDirection: 'row',
-    marginTop: responsiveSpacing.md,
-    gap: responsiveSpacing.md,
-  },
-  metaItem: {
-    flex: 1,
-  },
-  metaLabel: {
-    fontSize: fontScale(10),
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  metaValue: {
-    fontSize: fontScale(14),
-    marginTop: 2,
+    marginTop: responsiveSpacing.sm,
   },
   actionRow: {
     flexDirection: 'row',
@@ -465,36 +373,31 @@ const styles = StyleSheet.create({
   btnSecondary: {
     flex: 1,
     paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
     borderRadius: scale(10),
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnSecondaryText: {
     fontSize: fontScale(13),
     fontWeight: '600',
   },
-  btnPrimaryWrap: {
-    flex: 1,
-    borderRadius: scale(10),
-    overflow: 'hidden',
-  },
   btnPrimary: {
+    flex: 1,
     paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
+    borderRadius: scale(10),
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnPrimaryText: {
     color: '#FFFFFF',
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   progress: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
     marginTop: responsiveSpacing.md,
-  },
-  progressFill: {
-    height: '100%',
   },
   progressText: {
     fontSize: fontScale(11),

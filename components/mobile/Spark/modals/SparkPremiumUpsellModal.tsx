@@ -9,21 +9,20 @@
  * active tier and a Cancel control.
  */
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { X, Check, Crown, Zap, type LucideIcon } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Check, Crown, Zap, type LucideIcon } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { subscribeSparkPremium, cancelSparkPremium } from '@/contexts/game/actions/SparkActions';
 import { SPARK_TIER_PRICING } from '@/lib/dating/sparkLogic';
-import { SPARK_GRADIENT, SPARK_GRADIENT_GOLD, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 const PLUS_PERKS = [
   'Unlimited swipes',
@@ -91,91 +90,19 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
     );
   }, [setGameState, saveGame, onDismiss]);
 
-  if (!visible) return null;
-
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.closeBtn}>
-              <X size={fontScale(22)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <Text style={[styles.title, { color: theme.text }]}>
-            {activeTier ? `Spark ${activeTier === 'ultra' ? 'Ultra' : 'Plus'} active` : 'Upgrade Spark'}
-          </Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {activeTier
-              ? 'Billed weekly from your in-game cash.'
-              : 'Unlock unlimited swipes and see who likes you.'}
-          </Text>
-
-          {/* Billing cadence toggle - hidden while a plan is active (you can't
-              switch cadence without cancelling first). */}
-          {!activeTier ? (
-            <View style={[styles.planToggle, { borderColor: theme.border }]}>
-              {(['weekly', 'annual'] as const).map((p) => {
-                const selected = plan === p;
-                return (
-                  <Pressable
-                    key={p}
-                    onPress={() => setPlan(p)}
-                    accessibilityRole="button"
-                    accessibilityLabel={p === 'annual' ? 'Bill annually, prepaid 52 weeks - save 17%' : 'Bill weekly'}
-                    accessibilityState={{ selected }}
-                    style={[
-                      styles.planToggleBtn,
-                      selected && { backgroundColor: SPARK_COLORS.accent },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.planToggleText,
-                        { color: selected ? '#FFFFFF' : theme.textSecondary },
-                      ]}
-                    >
-                      {p === 'annual' ? 'Annual · Save 17%' : 'Weekly'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
-            <TierCard
-              icon={Zap}
-              gradient={SPARK_GRADIENT as unknown as readonly [string, string]}
-              name="Plus"
-              price={plan === 'annual'
-                ? `$${SPARK_TIER_PRICING.plus.annual.toLocaleString()}/yr`
-                : `$${SPARK_TIER_PRICING.plus.weekly}/wk`}
-              perks={PLUS_PERKS}
-              onPress={() => handleSubscribe('plus')}
-              theme={theme}
-              active={activeTier === 'plus'}
-              anyTierActive={activeTier !== null}
-              affordable={money >= SPARK_TIER_PRICING.plus[plan]}
-            />
-            <TierCard
-              icon={Crown}
-              gradient={SPARK_GRADIENT_GOLD as unknown as readonly [string, string]}
-              name="Ultra"
-              price={plan === 'annual'
-                ? `$${SPARK_TIER_PRICING.ultra.annual.toLocaleString()}/yr`
-                : `$${SPARK_TIER_PRICING.ultra.weekly}/wk`}
-              perks={ULTRA_PERKS}
-              onPress={() => handleSubscribe('ultra')}
-              theme={theme}
-              recommended
-              active={activeTier === 'ultra'}
-              anyTierActive={activeTier !== null}
-              affordable={money >= SPARK_TIER_PRICING.ultra[plan]}
-            />
-          </ScrollView>
-
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title={activeTier ? `Spark ${activeTier === 'ultra' ? 'Ultra' : 'Plus'} active` : 'Upgrade Spark'}
+      subtitle={
+        activeTier
+          ? 'Billed weekly from your in-game cash.'
+          : 'Unlock unlimited swipes and see who likes you.'
+      }
+      footer={
+        <View style={styles.footer}>
           {activeTier ? (
             <Pressable
               onPress={handleCancel}
@@ -186,7 +113,6 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
               <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>Cancel subscription</Text>
             </Pressable>
           ) : null}
-
           <Text style={[styles.legal, { color: theme.textMuted }]}>
             {activeTier
               ? premium?.plan === 'annual'
@@ -197,14 +123,60 @@ export default function SparkPremiumUpsellModal({ visible, onDismiss }: SparkPre
                 : `Paid from your in-game cash (${formatMoney(money)} available). Auto-renews weekly until cancelled.`}
           </Text>
         </View>
-      </View>
-    </Modal>
+      }
+    >
+      {/* Billing cadence - hidden while a plan is active (you can't switch
+          cadence without cancelling first). */}
+      {!activeTier ? (
+        <SegmentedControl
+          segments={[
+            { key: 'weekly', label: 'Weekly' },
+            { key: 'annual', label: 'Annual · Save 17%' },
+          ]}
+          value={plan}
+          onChange={setPlan}
+          activeColor={SPARK_COLORS.accent}
+          style={styles.planToggle}
+        />
+      ) : null}
+
+      <TierCard
+        icon={Zap}
+        tint={SPARK_COLORS.accent}
+        name="Plus"
+        price={plan === 'annual'
+          ? `$${SPARK_TIER_PRICING.plus.annual.toLocaleString()}/yr`
+          : `$${SPARK_TIER_PRICING.plus.weekly}/wk`}
+        perks={PLUS_PERKS}
+        onPress={() => handleSubscribe('plus')}
+        theme={theme}
+        active={activeTier === 'plus'}
+        anyTierActive={activeTier !== null}
+        affordable={money >= SPARK_TIER_PRICING.plus[plan]}
+      />
+      <TierCard
+        icon={Crown}
+        tint={SPARK_COLORS.tierUltra}
+        name="Ultra"
+        price={plan === 'annual'
+          ? `$${SPARK_TIER_PRICING.ultra.annual.toLocaleString()}/yr`
+          : `$${SPARK_TIER_PRICING.ultra.weekly}/wk`}
+        perks={ULTRA_PERKS}
+        onPress={() => handleSubscribe('ultra')}
+        theme={theme}
+        recommended
+        active={activeTier === 'ultra'}
+        anyTierActive={activeTier !== null}
+        affordable={money >= SPARK_TIER_PRICING.ultra[plan]}
+      />
+    </BaseModal>
   );
 }
 
 interface TierCardProps {
   icon: LucideIcon;
-  gradient: readonly [string, string];
+  /** Identity fill for the hero band - rose for Plus, gold for Ultra. */
+  tint: string;
   name: string;
   price: string;
   perks: readonly string[];
@@ -218,7 +190,7 @@ interface TierCardProps {
 }
 
 function TierCard({
-  icon: Icon, gradient, name, price, perks, onPress, theme, recommended, active, anyTierActive, affordable,
+  icon: Icon, tint, name, price, perks, onPress, theme, recommended, active, anyTierActive, affordable,
 }: TierCardProps): React.ReactElement {
   // While ANY tier is active, no tier is buyable: the active one shows CURRENT
   // PLAN; the other is disabled (no silent full-price plan swap / double charge).
@@ -234,12 +206,7 @@ function TierCard({
         { borderColor: active ? SPARK_COLORS.success : theme.border, opacity: !buyable && !active ? 0.55 : pressed ? 0.92 : 1 },
       ]}
     >
-      <LinearGradient
-        colors={gradient as unknown as string[]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.tierHero}
-      >
+      <View style={[styles.tierHero, { backgroundColor: tint }]}>
         <Icon size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
         <View style={styles.tierHeroText}>
           <Text style={styles.tierName}>Spark {name}</Text>
@@ -247,14 +214,14 @@ function TierCard({
         </View>
         {active ? (
           <View style={styles.recBadge}>
-            <Text style={styles.recBadgeText}>CURRENT PLAN</Text>
+            <Text style={styles.recBadgeText}>Current plan</Text>
           </View>
         ) : recommended ? (
           <View style={styles.recBadge}>
-            <Text style={styles.recBadgeText}>BEST VALUE</Text>
+            <Text style={styles.recBadgeText}>Best value</Text>
           </View>
         ) : null}
-      </LinearGradient>
+      </View>
       <View style={[styles.perksList, { backgroundColor: theme.surfaceElevated }]}>
         {perks.map((p: string) => (
           <View key={p} style={styles.perkRow}>
@@ -268,59 +235,9 @@ function TierCard({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
-  // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN - and the sheet itself does not
-  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
-  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '90%',
-  },
-  header: { flexDirection: 'row', justifyContent: 'flex-end' },
-  closeBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: fontScale(24),
-    fontWeight: '800',
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: fontScale(13),
-    marginTop: 4,
-    marginBottom: responsiveSpacing.md,
-  },
+  footer: { gap: responsiveSpacing.xs },
   planToggle: {
-    flexDirection: 'row',
-    borderRadius: scale(12),
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: scale(3),
     marginBottom: responsiveSpacing.md,
-    gap: scale(3),
-  },
-  planToggleBtn: {
-    flex: 1,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: scale(9),
-    alignItems: 'center',
-  },
-  planToggleText: {
-    fontSize: fontScale(12),
-    fontWeight: '700',
   },
   tierCard: {
     borderRadius: scale(16),
@@ -339,7 +256,7 @@ const styles = StyleSheet.create({
   tierName: {
     color: '#FFFFFF',
     fontSize: fontScale(20),
-    fontWeight: '800',
+    fontWeight: '600',
   },
   tierPrice: {
     color: 'rgba(255,255,255,0.92)',
@@ -351,13 +268,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: withAlpha('#000000', 0.3),
   },
   recBadgeText: {
     color: '#FFFFFF',
-    fontSize: fontScale(9),
-    fontWeight: '800',
-    letterSpacing: 0.6,
+    fontSize: fontScale(10),
+    fontWeight: '600',
   },
   perksList: {
     padding: responsiveSpacing.md,
@@ -374,6 +290,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cancelBtn: {
+    minHeight: touchTargets.minimum,
+    justifyContent: 'center',
     paddingVertical: responsiveSpacing.md,
     borderRadius: scale(14),
     borderWidth: StyleSheet.hairlineWidth,

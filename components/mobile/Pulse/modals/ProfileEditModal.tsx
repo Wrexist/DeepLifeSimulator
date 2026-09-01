@@ -18,28 +18,13 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { X } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import BaseModal from '@/components/ui/BaseModal';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
-import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
-
-const LinearGradient = Gradient;
 
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const URL_RE = /^https?:\/\/[^\s]+$/i;
@@ -52,7 +37,6 @@ interface ProfileEditModalProps {
 export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModalProps) {
   const { gameState, setGameState, saveGame } = useGame();
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const profile = gameState.userProfile ?? {};
 
   const initial = useMemo(() => ({
@@ -117,106 +101,77 @@ export default function ProfileEditModal({ visible, onDismiss }: ProfileEditModa
   }, [validate, displayName, handle, bio, location, website, setGameState, saveGame, onDismiss]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onDismiss}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.backdrop, { zIndex: Z_INDEX.MODAL }]}
-      >
-        {/* Real inset, not a scaled constant - see ComposeModal for the why. */}
-        <View
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.surface, borderColor: theme.border, paddingBottom: insets.bottom + responsiveSpacing.md },
-          ]}
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title="Edit profile"
+      footer={
+        <Pressable
+          onPress={handleSave}
+          accessibilityRole="button"
+          accessibilityLabel="Save profile"
+          style={[styles.saveBtn, { backgroundColor: PULSE_COLORS.accent }]}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable
-              onPress={onDismiss}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel edit"
-              hitSlop={8}
-              style={styles.headerBtn}
-            >
-              <X size={fontScale(20)} color={theme.text} />
-            </Pressable>
-            <Text style={[styles.title, { color: theme.text }]}>Edit profile</Text>
-            <Pressable
-              onPress={handleSave}
-              accessibilityRole="button"
-              accessibilityLabel="Save profile"
-              style={styles.saveBtn}
-            >
-              <LinearGradient
-                colors={PULSE_GRADIENT as unknown as string[]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.saveBtnFill}
-              >
-                <Text style={styles.saveBtnText}>Save</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
+          <Text style={styles.saveBtnText}>Save</Text>
+        </Pressable>
+      }
+    >
+      <Field
+        label="Display name"
+        value={displayName}
+        onChange={(v) => { setDisplayName(v); if (error) setError(null); }}
+        maxLength={40}
+        placeholder="Your public name"
+        theme={theme}
+      />
+      <Field
+        label="Handle"
+        value={handle}
+        onChange={(v) => { setHandle(v.replace(/\s/g, '')); if (error) setError(null); }}
+        maxLength={20}
+        placeholder="lowercase_handle"
+        autoCapitalize="none"
+        theme={theme}
+        prefix="@"
+      />
+      <Field
+        label="Bio"
+        value={bio}
+        onChange={(v) => { setBio(v); if (error) setError(null); }}
+        maxLength={160}
+        placeholder="A short bio."
+        multiline
+        theme={theme}
+        showCount
+      />
+      <Field
+        label="Location"
+        value={location}
+        onChange={(v) => { setLocation(v); if (error) setError(null); }}
+        maxLength={40}
+        placeholder="City, region"
+        theme={theme}
+      />
+      <Field
+        label="Website"
+        value={website}
+        onChange={(v) => { setWebsite(v); if (error) setError(null); }}
+        maxLength={200}
+        placeholder="https://example.com"
+        autoCapitalize="none"
+        keyboardType="url"
+        theme={theme}
+      />
 
-          <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
-            <Field
-              label="Display name"
-              value={displayName}
-              onChange={(v) => { setDisplayName(v); if (error) setError(null); }}
-              maxLength={40}
-              placeholder="Your public name"
-              theme={theme}
-            />
-            <Field
-              label="Handle"
-              value={handle}
-              onChange={(v) => { setHandle(v.replace(/\s/g, '')); if (error) setError(null); }}
-              maxLength={20}
-              placeholder="lowercase_handle"
-              autoCapitalize="none"
-              theme={theme}
-              prefix="@"
-            />
-            <Field
-              label="Bio"
-              value={bio}
-              onChange={(v) => { setBio(v); if (error) setError(null); }}
-              maxLength={160}
-              placeholder="A short bio."
-              multiline
-              theme={theme}
-              showCount
-            />
-            <Field
-              label="Location"
-              value={location}
-              onChange={(v) => { setLocation(v); if (error) setError(null); }}
-              maxLength={40}
-              placeholder="City, region"
-              theme={theme}
-            />
-            <Field
-              label="Website"
-              value={website}
-              onChange={(v) => { setWebsite(v); if (error) setError(null); }}
-              maxLength={200}
-              placeholder="https://example.com"
-              autoCapitalize="none"
-              keyboardType="url"
-              theme={theme}
-            />
+      {error ? (
+        <Text style={[styles.errorText, { color: PULSE_COLORS.danger }]}>{error}</Text>
+      ) : null}
 
-            {error ? (
-              <Text style={[styles.errorText, { color: PULSE_COLORS.danger }]}>{error}</Text>
-            ) : null}
-
-            <Text style={[styles.legal, { color: theme.textMuted }]}>
-              Verified badge and follower count are not editable here.
-            </Text>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      <Text style={[styles.legal, { color: theme.textMuted }]}>
+        Verified badge and follower count are not editable here.
+      </Text>
+    </BaseModal>
   );
 }
 
@@ -270,51 +225,16 @@ function Field({
 // ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: scale(20),
-    borderTopRightRadius: scale(20),
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    padding: responsiveSpacing.lg,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: responsiveSpacing.md,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: fontScale(17),
-    fontWeight: '700',
-  },
   saveBtn: {
-    borderRadius: scale(20),
-    overflow: 'hidden',
-  },
-  saveBtnFill: {
-    paddingHorizontal: scale(18),
-    paddingVertical: scale(8),
+    minHeight: touchTargets.minimum,
+    borderRadius: scale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveBtnText: {
     color: '#FFFFFF',
     fontSize: fontScale(14),
-    fontWeight: '700',
-  },
-  scroll: {
-    flexGrow: 0,
+    fontWeight: '600',
   },
   field: {
     marginBottom: responsiveSpacing.md,

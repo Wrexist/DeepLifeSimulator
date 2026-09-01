@@ -5,18 +5,17 @@
  * Dispatches `boostPostWithGems` from PulseActions; closes on success.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { X, Zap, Gem } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Zap, Gem } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import StatStrip from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { boostPostWithGems } from '@/contexts/game/actions/PulseActions';
-import { PULSE_GRADIENT, PULSE_COLORS } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 
-const LinearGradient = Gradient;
 const GEM_COST = 200;
 
 interface BoostPostModalProps {
@@ -49,160 +48,75 @@ export default function BoostPostModal({ visible, postId, onDismiss }: BoostPost
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Pressable
-              onPress={onDismiss}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={8}
-              style={styles.closeBtn}
-            >
-              <X size={fontScale(22)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <LinearGradient
-            colors={PULSE_GRADIENT as unknown as string[]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroBadge}
-          >
-            <Zap size={scale(36)} color="#FFFFFF" strokeWidth={2.4} />
-          </LinearGradient>
-
-          <Text style={[styles.title, { color: theme.text }]}>Boost this post</Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Spend gems to triple the viral chance and recompute engagement at your tier ceiling.
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title="Boost this post"
+      subtitle="Triples the viral chance and recomputes engagement at your tier ceiling."
+      footer={
+        <Pressable
+          onPress={handleBoost}
+          disabled={!canAfford}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canAfford }}
+          accessibilityLabel={canAfford ? `Spend ${GEM_COST} gems to boost` : 'Not enough gems'}
+          style={[
+            styles.cta,
+            { backgroundColor: canAfford ? PULSE_COLORS.accent : theme.border },
+            !canAfford && styles.ctaDisabled,
+          ]}
+        >
+          <Gem size={fontScale(16)} color="#FFFFFF" />
+          <Text style={styles.ctaText}>
+            {canAfford ? `Spend ${GEM_COST} to boost` : 'Not enough gems'}
           </Text>
-
-          <View style={[styles.costCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-            <View style={styles.costRow}>
-              <Gem size={fontScale(18)} color={PULSE_COLORS.verified} />
-              <Text style={[styles.costValue, { color: theme.text }]}>{GEM_COST.toLocaleString()}</Text>
-              <Text style={[styles.costLabel, { color: theme.textSecondary }]}>gems</Text>
-            </View>
-            <Text style={[styles.balance, { color: canAfford ? theme.textSecondary : PULSE_COLORS.danger }]}>
-              You have {gems.toLocaleString()} gems
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={handleBoost}
-            disabled={!canAfford}
-            accessibilityRole="button"
-            accessibilityLabel={canAfford ? `Spend ${GEM_COST} gems to boost` : 'Not enough gems'}
-            style={[styles.cta, !canAfford && styles.ctaDisabled]}
-          >
-            <LinearGradient
-              colors={
-                canAfford
-                  ? (PULSE_GRADIENT as unknown as string[])
-                  : [theme.border, theme.border]
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaFill}
-            >
-              {canAfford ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.ctaText}>{`Spend ${GEM_COST}`}</Text>
-                  <Gem size={fontScale(16)} color="#FFFFFF" />
-                  <Text style={styles.ctaText}>to boost</Text>
-                </View>
-              ) : (
-                <Text style={styles.ctaText}>Not enough gems</Text>
-              )}
-            </LinearGradient>
-          </Pressable>
-        </View>
+        </Pressable>
+      }
+    >
+      <View style={[styles.badge, { backgroundColor: PULSE_COLORS.accent }]}>
+        <Zap size={scale(28)} color="#FFFFFF" strokeWidth={2.4} />
       </View>
-    </Modal>
+
+      <StatStrip
+        items={[
+          { label: 'Cost', value: `${GEM_COST.toLocaleString()} gems`, tint: PULSE_COLORS.verified },
+          {
+            label: 'Your balance',
+            value: gems.toLocaleString(),
+            tint: canAfford ? undefined : PULSE_COLORS.danger,
+          },
+        ]}
+      />
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  closeBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroBadge: {
+  badge: {
     alignSelf: 'center',
-    width: scale(72),
-    height: scale(72),
-    borderRadius: scale(36),
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: responsiveSpacing.md,
   },
-  title: {
-    textAlign: 'center',
-    fontSize: fontScale(22),
-    fontWeight: '700',
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: fontScale(13),
-    marginTop: responsiveSpacing.xs,
-    marginBottom: responsiveSpacing.lg,
-  },
-  costCard: {
-    borderRadius: scale(14),
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: responsiveSpacing.md,
-    alignItems: 'center',
-    marginBottom: responsiveSpacing.lg,
-  },
-  costRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-  },
-  costValue: {
-    fontSize: fontScale(28),
-    fontWeight: '700',
-  },
-  costLabel: {
-    fontSize: fontScale(13),
-  },
-  balance: {
-    fontSize: fontScale(11),
-    marginTop: 4,
-  },
   cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: scale(6),
+    minHeight: touchTargets.minimum,
     borderRadius: scale(14),
-    overflow: 'hidden',
+    paddingVertical: responsiveSpacing.sm,
   },
   ctaDisabled: {
     opacity: 0.6,
   },
-  ctaFill: {
-    paddingVertical: responsiveSpacing.md,
-    alignItems: 'center',
-  },
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

@@ -2,8 +2,9 @@
  * SwipeScreen - main browse surface for Spark.
  *
  * Card stack of dating profiles. Player swipes left to pass, right to like,
- * up to super-like. The bottom action row mirrors the same three gestures
- * with buttons (X / ⭐ / ❤️) plus boost + rewind for accessibility.
+ * up to super-like. The bottom action row mirrors those THREE gestures and
+ * nothing else; rewind and boost are chips in the status row above the deck,
+ * because they are occasional purchases rather than swipe moves.
  *
  * Uses React Native's PanResponder rather than a 3rd-party gesture handler
  * to stay dep-free and consistent with the rest of this codebase.
@@ -20,11 +21,13 @@ import {
   View,
 } from 'react-native';
 import { Heart, Rewind, Star, X, Zap } from 'lucide-react-native';
+import Chip from '@/components/ui/Chip';
 import Gradient from '@/components/ui/Gradient';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useToast } from '@/contexts/ToastContext';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
@@ -37,21 +40,12 @@ import { swipesRemaining, superLikesRemaining, isCatfish } from '@/lib/dating/sp
 import { DATING_PROFILES, type DatingProfile } from '@/lib/dating/datingProfiles';
 import ProfileCard from '../components/ProfileCard';
 import EmptyState from '../components/EmptyState';
-import { SPARK_ACTION, SPARK_GRADIENT, SPARK_COLORS, SPARK_MOTION } from '../styles/sparkTheme';
+import { SPARK_ACTION, SPARK_COLORS, SPARK_GRADIENT, SPARK_MOTION } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import { useTimerManager } from '@/hooks/useTimerManager';
 import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
-
-/** Compose an rgba() string from a #RRGGBB hex + alpha - for Recipe C tint fills/rims. */
-function withAlpha(hex: string, alpha: number): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
@@ -301,7 +295,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         >
           {remaining <= 0 ? (
             <Pressable onPress={onOpenPremium} accessibilityRole="button" accessibilityLabel="Open Premium">
-              <Text style={[styles.cta, { color: SPARK_GRADIENT[0] }]}>Get Spark Plus →</Text>
+              <Text style={[styles.cta, { color: SPARK_COLORS.accent }]}>Get Spark Plus →</Text>
             </Pressable>
           ) : null}
         </EmptyState>
@@ -350,46 +344,47 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
         </Animated.View>
       </View>
 
-      {/* Status row */}
+      {/* Status row - it also holds the two occasional actions. Rewind and
+          Boost used to sit in the action row, where five buttons made the deck
+          read as a control panel and the one move that matters (Like) had four
+          equals beside it. Same handlers, same gating, same costs. */}
       <View style={styles.statusRow}>
         <Text style={[styles.statusText, { color: theme.textSecondary }]}>
           {remaining === Number.POSITIVE_INFINITY ? '∞ swipes' : `${remaining} swipes left`}
           {' · '}
           {remainingSuper} super
         </Text>
-        {hasBoost ? (
-          <View style={styles.boostChip}>
-            <Zap size={fontScale(10)} color="#FFFFFF" strokeWidth={2.8} />
-            <Text style={styles.boostChipText}>Boost active</Text>
-          </View>
-        ) : null}
+        <View style={styles.statusChips}>
+          <Chip
+            label="Rewind"
+            icon={<Rewind size={fontScale(13)} color={SPARK_ACTION.rewind} />}
+            tint={SPARK_ACTION.rewind}
+            size="md"
+            style={styles.actionChip}
+            onPress={handleRewind}
+            accessibilityLabel="Rewind last swipe"
+          />
+          <Chip
+            label={hasBoost ? 'Boost active' : 'Boost'}
+            icon={<Zap size={fontScale(13)} color={SPARK_ACTION.boost} />}
+            tint={SPARK_ACTION.boost}
+            size="md"
+            selected={hasBoost}
+            style={styles.actionChip}
+            onPress={onOpenBoost}
+            accessibilityLabel={hasBoost ? 'Boost active. Open boost' : 'Boost your profile'}
+          />
+        </View>
       </View>
 
-      {/* Action buttons */}
+      {/* Action buttons - the three swipe gestures, nothing else. */}
       <View style={styles.actionRow}>
-        <ActionBtn
-          icon={Rewind}
-          color={SPARK_ACTION.rewind}
-          size={touchTargets.medium}
-          onPress={handleRewind}
-          label="Rewind last swipe"
-          darkMode={isDark}
-        />
         <ActionBtn
           icon={X}
           color={SPARK_ACTION.pass}
           size={touchTargets.large}
           onPress={() => handleButton('left')}
           label="Pass"
-          darkMode={isDark}
-        />
-        <ActionBtn
-          icon={Star}
-          color={SPARK_ACTION.superLike}
-          size={touchTargets.medium}
-          onPress={() => handleButton('super')}
-          label="Super-like"
-          disabled={remainingSuper <= 0}
           darkMode={isDark}
         />
         <ActionBtn
@@ -402,11 +397,12 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           darkMode={isDark}
         />
         <ActionBtn
-          icon={Zap}
-          color={SPARK_ACTION.boost}
+          icon={Star}
+          color={SPARK_ACTION.superLike}
           size={touchTargets.medium}
-          onPress={onOpenBoost}
-          label="Boost"
+          onPress={() => handleButton('super')}
+          label="Super-like"
+          disabled={remainingSuper <= 0}
           darkMode={isDark}
         />
       </View>
@@ -417,7 +413,7 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
 function ActionBtn({
   icon: Icon, color, size, onPress, label, disabled, gradient, darkMode,
 }: {
-  icon: any;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number; fill?: string }>;
   color: string;
   size: number;
   onPress: () => void;
@@ -486,7 +482,7 @@ const styles = StyleSheet.create({
   },
   cta: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   deck: {
     flex: 1,
@@ -510,24 +506,21 @@ const styles = StyleSheet.create({
     fontSize: fontScale(12),
     fontWeight: '500',
   },
-  boostChip: {
+  statusChips: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: SPARK_COLORS.accent,
+    gap: responsiveSpacing.xs,
   },
-  boostChipText: {
-    color: '#FFFFFF',
-    fontSize: fontScale(10),
-    fontWeight: '700',
+  // The shared Chip is a 36pt readout; these two are real spends, so they get
+  // the full 44pt target.
+  actionChip: {
+    minHeight: touchTargets.minimum,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
+    gap: responsiveSpacing.xl,
     paddingTop: responsiveSpacing.sm,
   },
   btnFill: {

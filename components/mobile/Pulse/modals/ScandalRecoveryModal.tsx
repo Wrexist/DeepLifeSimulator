@@ -6,19 +6,17 @@
  * If the scandal is a deepfake or cancel type, a fourth Lawsuit option appears.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, MessageCircleOff, MessagesSquare, Gem, Scale } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import BaseModal from '@/components/ui/BaseModal';
+import ProgressBar from '@/components/ui/ProgressBar';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import { scale, fontScale, responsiveSpacing } from '@/utils/scaling';
 import { recoverFromScandal } from '@/contexts/game/actions/PulseActions';
-import { Z_INDEX } from '@/utils/zIndexConstants';
-import { PULSE_GRADIENT, PULSE_COLORS, PULSE_SCANDAL_HIGH, PULSE_SCANDAL_MID } from '../styles/pulseTheme';
+import { PULSE_COLORS } from '../styles/pulseTheme';
 import { pulseHaptics } from '../utils/pulseHaptics';
 import type { PulseActiveScandal, PulseScandalResolution } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 interface ScandalRecoveryModalProps {
   visible: boolean;
@@ -82,8 +80,6 @@ export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: Sc
   const sev = scandal.severity;
   const severityColor =
     sev >= 70 ? PULSE_COLORS.danger : sev >= 40 ? PULSE_COLORS.warning : PULSE_COLORS.success;
-  const meterGradient =
-    sev >= 70 ? PULSE_SCANDAL_HIGH : PULSE_SCANDAL_MID;
 
   const options: PulseScandalResolution[] = ['apology', 'silence', 'gems'];
   if (scandal.type === 'deepfake' || scandal.type === 'cancel') {
@@ -91,116 +87,77 @@ export default function ScandalRecoveryModal({ visible, scandal, onDismiss }: Sc
   }
 
   return (
-    // No-op onRequestClose so the Android hardware back button doesn't dismiss
-    // an active scandal - player must pick a response (per plan §2.3 dismiss-disabled).
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { /* no-op */ }}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <AlertTriangle size={fontScale(20)} color={PULSE_COLORS.danger} />
-            <Text style={[styles.title, { color: theme.text }]}>A scandal is brewing</Text>
-          </View>
-          <Text style={[styles.headline, { color: theme.textSecondary }]}>{scandal.headline}</Text>
-
-          <View style={styles.severityRow}>
-            <Text style={[styles.severityLabel, { color: theme.textSecondary }]}>Severity</Text>
-            <Text style={[styles.severityValue, { color: severityColor }]}>{sev}/100</Text>
-          </View>
-          <View style={[styles.meterTrack, { backgroundColor: theme.border }]}>
-            <LinearGradient
-              colors={meterGradient as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.meterFill, { width: `${sev}%` }]}
-            />
-          </View>
-
-          <Text style={[styles.subhead, { color: theme.text }]}>How will you respond?</Text>
-          <ScrollView style={{ flexShrink: 1 }}>
-            {options.map((opt) => {
-              const meta = OPTION_BLURBS[opt];
-              const Icon = meta.Icon;
-              return (
-                <Pressable
-                  key={opt}
-                  onPress={() => handleChoice(opt)}
-                  accessibilityRole="button"
-                  accessibilityLabel={meta.title}
-                  style={({ pressed }) => [
-                    styles.optionCard,
-                    { backgroundColor: theme.surfaceElevated, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
-                  ]}
-                >
-                  <View style={styles.optionHeader}>
-                    <Icon size={fontScale(18)} color={meta.iconColor} />
-                    <Text style={[styles.optionTitle, { color: theme.text }]}>{meta.title}</Text>
-                  </View>
-                  <Text style={[styles.optionPreview, { color: theme.textSecondary }]}>{meta.preview}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          <Text style={[styles.footnote, { color: theme.textMuted }]}>
-            Choose a response to continue.
-          </Text>
+    // Dismiss-disabled (plan §2.3): `onClose` is a no-op and the close button is
+    // hidden, so neither the Android back button nor a backdrop tap can escape
+    // an active scandal - the player must pick a response.
+    <BaseModal
+      visible={visible}
+      onClose={() => { /* dismiss-disabled - a response must be chosen */ }}
+      hideCloseButton
+      variant="bottom"
+      title="A scandal is brewing"
+      subtitle={scandal.headline}
+      footer={
+        <Text style={[styles.footnote, { color: theme.textMuted }]}>Choose a response to continue.</Text>
+      }
+    >
+      <View style={styles.severityRow}>
+        <View style={styles.severityLabelRow}>
+          <AlertTriangle size={fontScale(16)} color={PULSE_COLORS.danger} />
+          <Text style={[styles.severityLabel, { color: theme.textSecondary }]}>Severity</Text>
         </View>
+        <Text style={[styles.severityValue, { color: severityColor }]}>{sev}/100</Text>
       </View>
-    </Modal>
+      <ProgressBar value={sev / 100} color={severityColor} height={scale(10)} label="Scandal severity" />
+
+      <Text style={[styles.subhead, { color: theme.text }]}>How will you respond?</Text>
+      {options.map((opt) => {
+        const meta = OPTION_BLURBS[opt];
+        const Icon = meta.Icon;
+        return (
+          <Pressable
+            key={opt}
+            onPress={() => handleChoice(opt)}
+            accessibilityRole="button"
+            accessibilityLabel={`${meta.title}. ${meta.preview}`}
+            style={({ pressed }) => [
+              styles.optionCard,
+              { backgroundColor: theme.surfaceElevated, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <View style={styles.optionHeader}>
+              <Icon size={fontScale(18)} color={meta.iconColor} />
+              <Text style={[styles.optionTitle, { color: theme.text }]}>{meta.title}</Text>
+            </View>
+            <Text style={[styles.optionPreview, { color: theme.textSecondary }]}>{meta.preview}</Text>
+          </Pressable>
+        );
+      })}
+    </BaseModal>
   );
 }
 
+// BaseModal bounds its own height and scrolls its body, which is what the
+// hand-rolled sheet had to do by hand (maxHeight 90% + a flexShrink list) so a
+// short screen could still reach the last option.
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
-  // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN - and the sheet itself does not
-  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
-  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '90%',
-  },
-  title: {
-    fontSize: fontScale(20),
-    fontWeight: '700',
-  },
-  headline: {
-    fontSize: fontScale(13),
-    marginTop: 4,
-    marginBottom: responsiveSpacing.md,
-  },
   severityRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: responsiveSpacing.md,
+  },
+  severityLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
   },
   severityLabel: {
     fontSize: fontScale(12),
   },
   severityValue: {
     fontSize: fontScale(16),
-    fontWeight: '700',
-  },
-  meterTrack: {
-    width: '100%',
-    height: scale(10),
-    borderRadius: 999,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  meterFill: {
-    height: '100%',
-    borderRadius: 999,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   subhead: {
     fontSize: fontScale(15),
@@ -218,9 +175,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: responsiveSpacing.sm,
-  },
-  optionEmoji: {
-    fontSize: fontScale(20),
   },
   optionTitle: {
     fontSize: fontScale(14),

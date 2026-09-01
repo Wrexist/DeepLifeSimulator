@@ -1,8 +1,9 @@
 /**
  * ChatScreen - single-match conversation, driven by CHOICES rather than typing.
  *
- * Top: partner header with avatar, name, a rapport bar, and the befriend /
- *      start-dating / view-profile buttons.
+ * Top: `AppHeader` - back, the partner's name, and one trailing group: the
+ *      rapport readout as a HeaderChip plus a single control (add-friend while
+ *      the match is un-promoted, view-profile once it is).
  * Middle: message thread (player right-aligned rose tint, NPC left glass).
  * Bottom: the option panel - wrapping chips, each showing its cost and, when
  *         locked, the reason. A visible gate is a goal.
@@ -28,7 +29,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
-  ArrowLeft,
   CalendarHeart,
   Coffee,
   Flame,
@@ -44,9 +44,10 @@ import {
   X,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import {
@@ -63,13 +64,11 @@ import {
 } from '@/lib/spark/conversation';
 import { DATING_PROFILES } from '@/lib/dating/datingProfiles';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
-import { SPARK_GRADIENT, SPARK_COLORS } from '../styles/sparkTheme';
+import { SPARK_COLORS } from '../styles/sparkTheme';
 import { sparkHaptics } from '../utils/sparkHaptics';
 import EmptyState from '../components/EmptyState';
 import type { SparkMessage } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
-
-const LinearGradient = Gradient;
 
 type IconComponent = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
@@ -176,34 +175,6 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     [play],
   );
 
-  /** The `go_steady` row of the SAME gate the chips render from. */
-  const goSteady = useMemo(
-    () => view?.options.find((o) => o.option.id === 'go_steady'),
-    [view],
-  );
-
-  /**
-   * The header heart IS the `go_steady` chip.
-   *
-   * It used to call `promoteMatchToRelationship` directly, which knows only the
-   * anti-bigamy rule - so a free, instant, un-refusable promotion sat 40px from
-   * a chip that costs 5 energy, needs 75 rapport and can be turned down. Every
-   * player would take the heart, and the whole rapport economy below it was
-   * decoration. It now resolves through the same availability row and dispatches
-   * through the same handler, so the two cannot diverge: whatever the chip would
-   * do, the heart does, including the refusal copy.
-   */
-  const handlePromote = useCallback(() => {
-    setError(null);
-    if (!goSteady) return;
-    if (!goSteady.available) {
-      sparkHaptics.error();
-      setError(goSteady.reason ?? 'Not right now');
-      return;
-    }
-    handleOptionPress('go_steady', Boolean(goSteady.option.requiresVenue));
-  }, [goSteady, handleOptionPress]);
-
   /**
    * The other destination for a match.
    *
@@ -249,7 +220,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
   if (!match || !profile || !view) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <Header theme={theme} title="Chat" onBack={onBack} />
+        <AppHeader title="Chat" onBack={onBack} backLabel="Back to matches" />
         <EmptyState observation="Conversation not found." nudge="Open a different match." />
       </View>
     );
@@ -261,71 +232,47 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
     // Full-screen: keep the option panel (and error line) just above the home
     // indicator. Nothing here is focusable, so no keyboard can cover it.
     <View style={[styles.root, { backgroundColor: theme.background, paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-          <ArrowLeft size={fontScale(22)} color={theme.text} />
-        </Pressable>
-        <View style={[styles.headerAvatar, { borderColor: theme.glassBorder }]}>
-          <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={scale(34)} />
-        </View>
-        <View style={styles.headerText}>
-          <Text style={[styles.headerName, { color: theme.text }]} numberOfLines={1}>
-            {profile.name}
-          </Text>
-          <Text style={[styles.headerSub, { color: theme.textSecondary }]} numberOfLines={1}>
-            {isPromoted ? (isFriend ? 'Friend' : 'Dating') : rapportBand(view.rapport)} · {view.rapport}
-          </Text>
-          {/* Rapport bar: progress the player can watch move. A fill, not a
-              side accent bar - Hard Rule #7. */}
-          <View
-            style={[styles.rapportTrack, { backgroundColor: theme.border }]}
-            accessibilityRole="progressbar"
-            accessibilityLabel={`Rapport with ${firstName}: ${view.rapport} of 100`}
-          >
-            <LinearGradient
-              colors={SPARK_GRADIENT as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[styles.rapportFill, { width: `${Math.max(2, Math.min(100, view.rapport))}%` }]}
+      {/* Back + name + ONE trailing control. The rapport readout is the header
+          chip; the go-steady move lives in the option panel, where it shows its
+          cost and its gate, so the header no longer carries a second copy. */}
+      <AppHeader
+        title={profile.name}
+        onBack={onBack}
+        backLabel="Back to matches"
+        right={
+          <View style={styles.headerRight}>
+            <HeaderChip
+              label="Rapport"
+              value={`${isPromoted ? (isFriend ? 'Friend' : 'Dating') : rapportBand(view.rapport)} · ${view.rapport}`}
+              tint={SPARK_COLORS.accent}
             />
+            {isPromoted ? (
+              <Pressable
+                onPress={() => onOpenPartnerProfile(matchId)}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${profile.name}'s profile`}
+                hitSlop={8}
+                style={styles.headerBtn}
+              >
+                <User size={fontScale(20)} color={theme.text} />
+              </Pressable>
+            ) : (
+              /* Befriending never refuses - dating is exclusive AND gated on
+                 rapport, so on a second match this is the only header action
+                 that can actually do something. */
+              <Pressable
+                onPress={handleBefriend}
+                accessibilityRole="button"
+                accessibilityLabel={`Add ${profile.name} as a friend`}
+                hitSlop={8}
+                style={styles.headerBtn}
+              >
+                <UserPlus size={fontScale(20)} color={theme.textSecondary} />
+              </Pressable>
+            )}
           </View>
-        </View>
-        {/* Two destinations for an un-promoted match, not one. Befriending is
-            offered first because it never refuses - dating is exclusive AND
-            gated on rapport, so on a second match (or an early one) the heart
-            reports why it cannot happen yet and the person-plus is the only
-            thing that can actually do something. */}
-        {!isPromoted && (
-          <Pressable
-            onPress={handleBefriend}
-            accessibilityRole="button"
-            accessibilityLabel={`Add ${profile.name} as a friend`}
-            hitSlop={8}
-            style={styles.headerBtn}
-          >
-            <UserPlus size={fontScale(20)} color={theme.textSecondary} />
-          </Pressable>
-        )}
-        <Pressable
-          onPress={isPromoted ? () => onOpenPartnerProfile(matchId) : handlePromote}
-          accessibilityRole="button"
-          accessibilityLabel={
-            isPromoted
-              ? 'View profile'
-              : goSteady && !goSteady.available
-                ? `Ask to go steady. Locked: ${goSteady.reason ?? 'not right now'}`
-                : 'Ask to go steady'
-          }
-          hitSlop={8}
-          style={styles.headerBtn}
-        >
-          {isPromoted ? (
-            <User size={fontScale(20)} color={theme.text} />
-          ) : (
-            <Heart size={fontScale(20)} color={SPARK_GRADIENT[0]} fill={SPARK_GRADIENT[0]} />
-          )}
-        </Pressable>
-      </View>
+        }
+      />
 
       {messages.length === 0 ? (
         <View style={styles.emptyMsgs}>
@@ -340,7 +287,7 @@ export default function ChatScreen({ matchId, onBack, onOpenPartnerProfile }: Ch
           data={messages}
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.messagesContent}
-          renderItem={({ item }) => <Bubble msg={item} theme={theme} />}
+          renderItem={({ item }) => <Bubble msg={item} theme={theme} profile={profile} />}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
       )}
@@ -415,7 +362,7 @@ function Chip({
   disabled,
   onPress,
 }: {
-  theme: any;
+  theme: ReturnType<typeof useTheme>['theme'];
   icon: IconComponent;
   label: string;
   cost: string;
@@ -453,7 +400,15 @@ function Chip({
   );
 }
 
-function Bubble({ msg, theme }: { msg: SparkMessage; theme: any }) {
+function Bubble({
+  msg,
+  theme,
+  profile,
+}: {
+  msg: SparkMessage;
+  theme: ReturnType<typeof useTheme>['theme'];
+  profile: { id: string; gender?: string; age?: number };
+}) {
   const isPlayer = msg.from === 'player';
   if (isPlayer) {
     // Own messages: soft rose tint (not a loud solid fill) with adaptive text.
@@ -467,6 +422,9 @@ function Bubble({ msg, theme }: { msg: SparkMessage; theme: any }) {
   }
   return (
     <View style={[styles.bubbleRow, styles.bubbleRowLeft]}>
+      <View style={[styles.bubbleAvatar, { borderColor: theme.border }]}>
+        <CharacterAvatar seed={profile.id} sex={profile.gender} age={profile.age} size={scale(24)} />
+      </View>
       <View
         style={[
           styles.bubble,
@@ -481,58 +439,18 @@ function Bubble({ msg, theme }: { msg: SparkMessage; theme: any }) {
   );
 }
 
-function Header({ theme, title, onBack }: { theme: any; title: string; onBack: () => void }) {
-  return (
-    <View style={[styles.header, { borderBottomColor: theme.border }]}>
-      <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-        <ArrowLeft size={fontScale(22)} color={theme.text} />
-      </Pressable>
-      <Text style={[styles.headerName, { color: theme.text, flex: 1 }]}>{title}</Text>
-      <View style={styles.headerBtn} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: responsiveSpacing.sm,
-  },
   headerBtn: {
     width: touchTargets.minimum,
     height: touchTargets.minimum,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerAvatar: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
-    borderWidth: 1,
-  },
-  headerText: { flex: 1 },
-  headerName: {
-    fontSize: fontScale(16),
-    fontWeight: '700',
-  },
-  headerSub: {
-    fontSize: fontScale(11),
-    marginTop: 2,
-  },
-  rapportTrack: {
-    height: scale(3),
-    borderRadius: scale(2),
-    marginTop: scale(4),
-    overflow: 'hidden',
-  },
-  rapportFill: {
-    height: '100%',
-    borderRadius: scale(2),
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: responsiveSpacing.xs,
   },
   emptyMsgs: {
     flex: 1,
@@ -549,6 +467,17 @@ const styles = StyleSheet.create({
   },
   bubbleRowLeft: {
     justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    gap: responsiveSpacing.xs,
+  },
+  bubbleAvatar: {
+    width: scale(26),
+    height: scale(26),
+    borderRadius: scale(13),
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bubbleRowRight: {
     justifyContent: 'flex-end',
@@ -567,9 +496,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: scale(6),
   },
   bubbleOwn: {
-    backgroundColor: 'rgba(244,63,94,0.18)',
+    backgroundColor: withAlpha(SPARK_COLORS.accent, 0.18),
     borderWidth: 1,
-    borderColor: 'rgba(244,63,94,0.30)',
+    borderColor: withAlpha(SPARK_COLORS.accent, 0.3),
   },
   bubbleText: {
     fontSize: fontScale(14),
@@ -624,7 +553,7 @@ const styles = StyleSheet.create({
   chipText: { flexShrink: 1 },
   chipLabel: {
     fontSize: fontScale(12),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   chipCost: {
     fontSize: fontScale(9),
