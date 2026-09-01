@@ -35,6 +35,7 @@ import NextGoalsCard from '@/components/NextGoalsCard';
 import WeekAheadCard from '@/components/WeekAheadCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
+import GoalsCard from '@/components/GoalsCard';
 import { ContextualTip, useContextualTip, type ContextualTipType } from '@/components/ContextualTip';
 import FirstSessionCoach from '@/components/FirstSessionCoach';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
@@ -133,6 +134,10 @@ function HomeScreenContent() {
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
   // Collapses the secondary tail of the home feed so it doesn't grow unbounded.
   const [showMore, setShowMore] = useState(false);
+  // The "working toward" band's disclosure. Defaults closed: the audit found
+  // five near-identical checklist cards stacked here, so the summary GoalsCard
+  // is the default and the per-system detail cards are opt-in.
+  const [showGoalDetails, setShowGoalDetails] = useState(false);
 
   // Root-level blocking modals (death/wedding) own the screen - every
   // celebration/reward popup below defers to them.
@@ -665,32 +670,64 @@ function HomeScreenContent() {
             likely to be true for THIS save. Both render null when they have
             nothing to say, so a quiet early week is not padded with cards. */}
         <SectionGroup label="What you're working toward" collapsibleId="home.goals">
+        {/* ONE goals surface by default. The audit found five near-identical
+            checklist-with-progress-bars cards stacked in this band, each
+            answering "what should I do next?" in a different accent, so none
+            read as the one that mattered (blueprint §2 item 2). GoalsCard
+            shows the top objectives across all of them; the full cards keep
+            everything they showed, behind the disclosure below. */}
         <FadeInUp delay={45}>
-          <NextGoalsCard />
-          <WeekAheadCard />
+          <GoalsCard onShowDetails={() => setShowGoalDetails(true)} />
         </FadeInUp>
 
-        {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
-        <FadeInUp delay={50}>
-          <LifeChapterCard />
-        </FadeInUp>
+        {/* No FadeInUp inside the disclosure: these mount on a toggle, and
+            re-animating seven cards on every open is exactly the motion the
+            summary card exists to avoid. */}
+        {showGoalDetails && (
+          <>
+            <NextGoalsCard />
+            <WeekAheadCard />
 
-        {/* Life Ambition - the lifelong goal chosen at character creation.
-            Renders only when an ambition was picked (freeform lives skip it). */}
+            {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
+            <LifeChapterCard />
+
+            {/* Life Ambition - the lifelong goal chosen at character creation.
+                Renders only when an ambition was picked (freeform lives skip it). */}
+            <AmbitionCard />
+            {/* The challenge-scenario run chosen at onboarding - win conditions
+                were previously invisible between onboarding and first prestige.
+                Renders null for non-challenge lives and prestiged dynasties. */}
+            <ScenarioChallengeCard />
+            {/* Live events sit ABOVE the weekly challenge: they are the only
+                surface here with a real-world deadline, and the challenge rotates
+                on game weeks so it waits for the player either way. The card
+                renders nothing at all when there is nothing active, so a quiet
+                week costs no space. */}
+            <LiveEventsCard />
+            <WeeklyChallengeCard />
+          </>
+        )}
+
+        <TouchableOpacity
+          onPress={() => setShowGoalDetails(v => !v)}
+          activeOpacity={0.8}
+          style={styles.showMoreBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.showMoreText}>
+            {showGoalDetails ? 'Hide details' : 'Show details'}
+          </Text>
+          {showGoalDetails
+            ? <ChevronUp size={scale(15)} color="#94A3B8" />
+            : <ChevronDown size={scale(15)} color="#94A3B8" />}
+        </TouchableOpacity>
+
+        {/* Outside the disclosure on purpose: the picker PROMPTS a choice not
+            yet made (hiding it would hide the ambition system from anyone who
+            never opens the details), and Elder is a life-stage surface, not
+            another checklist. */}
         <FadeInUp delay={55}>
-          <AmbitionCard />
           <AmbitionPickerCard />
-          {/* The challenge-scenario run chosen at onboarding - win conditions
-              were previously invisible between onboarding and first prestige.
-              Renders null for non-challenge lives and prestiged dynasties. */}
-          <ScenarioChallengeCard />
-          {/* Live events sit ABOVE the weekly challenge: they are the only
-              surface here with a real-world deadline, and the challenge rotates
-              on game weeks so it waits for the player either way. The card
-              renders nothing at all when there is nothing active, so a quiet
-              week costs no space. */}
-          <LiveEventsCard />
-          <WeeklyChallengeCard />
         </FadeInUp>
 
         {/* Retirement / Elder chapter - retire, pension, elder activities, legacy.
