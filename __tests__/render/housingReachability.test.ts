@@ -24,9 +24,11 @@ const read = (rel: string) => fs.readFileSync(path.join(__dirname, '../..', rel)
 const MARKET = read('app/(tabs)/market.tsx');
 
 describe('Market carries a Housing surface', () => {
-  it('has a housing segment', () => {
-    expect(MARKET).toMatch(/key: 'housing'/);
-    expect(MARKET).toMatch(/label: 'Housing'/);
+  it('has a housing section', () => {
+    // A CollapsibleSection now, not a segment - the Market is one scrolling
+    // list under section headers (UI overhaul, Phase 5).
+    expect(MARKET).toMatch(/id="market\.housing"/);
+    expect(MARKET).toMatch(/title="Housing"/);
   });
 
   it('lists the real rental options rather than a hardcoded copy', () => {
@@ -52,9 +54,10 @@ describe('the surface is not gated', () => {
     // Scoped to the branch on purpose. Market DOES reference `ownsComputer`
     // elsewhere — it is the item-purchase validator (you cannot buy a second
     // computer), which has nothing to do with renting.
+    // From the section's opening marker to the end of the scrolling list.
     const housingBranch = MARKET.slice(
-      MARKET.indexOf("activeTab === 'housing'"),
-      MARKET.indexOf('<View style={styles.gymCard}>')
+      MARKET.indexOf('id="market.housing"'),
+      MARKET.indexOf('Sell Confirmation Dialog')
     );
     expect(housingBranch.length).toBeGreaterThan(200);
     expect(housingBranch).not.toMatch(/isFeatureUnlocked/);

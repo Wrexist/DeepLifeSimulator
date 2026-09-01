@@ -7,6 +7,11 @@
  * House style: dark-glass surfaces (matches Health + the item cards), full
  * hairline borders (no side accent stripes — DEV.md Hard Rule 7), no textShadow,
  * no decorative gradients. Sizing via scale/fontScale.
+ *
+ * The tab-bar, filter-bar, empty-state and gym styles are gone with the
+ * features that used them (UI overhaul, Phase 5): the screen is now one
+ * scrolling list under CollapsibleSection headers, and the gym card lives on
+ * Health (components/health/GymCard.tsx, which carries its own styles).
  */
 import { StyleSheet } from 'react-native';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
@@ -26,76 +31,6 @@ export const styles = StyleSheet.create({
   },
   containerDark: {
     backgroundColor: '#020617',
-  },
-  // Segmented control tab bar — dark glass, active tab gets a tinted fill.
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: GLASS_BG,
-    margin: responsiveSpacing.md,
-    marginBottom: 0,
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS_BORDER,
-    padding: scale(4),
-    gap: scale(4),
-    zIndex: 10,
-  },
-  tabWithInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabContainerDark: {
-    backgroundColor: GLASS_BG,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scale(6),
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.sm,
-    minHeight: scale(40),
-  },
-  activeTab: {
-    backgroundColor: 'rgba(59, 130, 246, 0.18)',
-  },
-  tabText: {
-    fontSize: fontScale(12.5),
-    fontWeight: '600',
-    color: TEXT_MUTED,
-  },
-  tabTextDark: {
-    color: TEXT_MUTED,
-  },
-  activeTabText: {
-    color: TEXT,
-  },
-  // The tab bar row: the segmented control plus the row's single info button.
-  //
-  // Opaque, and it owns the gap below itself. The control is translucent glass
-  // and native has no backdrop filter (that is web-only), so a row sitting
-  // directly on the scroll view let scrolled cards read straight through it —
-  // which is what made the section header below look like it was sliding under
-  // the tabs. A solid band and a real gap fix both halves.
-  tabsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-    backgroundColor: '#020617',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingTop: responsiveSpacing.md,
-    paddingBottom: responsiveSpacing.sm,
-  },
-  // Embedded in the Life tab: the primary Health/Shop/Stats control sits right
-  // above, so tuck this secondary control up tight instead of adding a full gap.
-  tabsRowEmbedded: {
-    paddingTop: scale(2),
-  },
-  tabsControl: {
-    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -134,88 +69,9 @@ export const styles = StyleSheet.create({
   },
   inflationChipText: {
     fontSize: fontScale(11.5),
-    fontWeight: '700',
+    fontWeight: '600',
     color: accent.amber,
     fontVariant: ['tabular-nums'],
-  },
-  // Filter bar — dark glass chips.
-  filterContainer: {
-    marginBottom: responsiveSpacing.md,
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  filterContent: {
-    paddingHorizontal: scale(2),
-    paddingVertical: scale(4),
-    gap: scale(8),
-    alignItems: 'center',
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(8),
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: GLASS_BG,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: GLASS_BORDER,
-    gap: scale(7),
-  },
-  filterButtonDark: {
-    backgroundColor: GLASS_BG,
-    borderColor: GLASS_BORDER,
-  },
-  filterButtonText: {
-    fontSize: fontScale(12.5),
-    fontWeight: '600',
-    color: TEXT_MUTED,
-  },
-  filterButtonTextDark: {
-    color: TEXT_MUTED,
-  },
-  filterButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  filterCount: {
-    paddingHorizontal: scale(6),
-    paddingVertical: scale(1),
-    borderRadius: responsiveBorderRadius.full,
-    minWidth: scale(18),
-    alignItems: 'center',
-  },
-  filterCountText: {
-    fontSize: fontScale(10.5),
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  // Named dead end for a filter chip that matches nothing — "Owned" in week 1
-  // rendered nothing at all under the filter bar, which reads as a broken
-  // screen rather than an empty shelf. Shape mirrors the Mail app's empty
-  // state (icon, title, one line of why, an action back to something).
-  emptyState: {
-    alignItems: 'center',
-    gap: responsiveSpacing.xs,
-    paddingHorizontal: responsiveSpacing.lg,
-    paddingTop: scale(48),
-    paddingBottom: scale(24),
-  },
-  emptyStateTitle: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
-    color: TEXT,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    fontSize: fontScale(12.5),
-    color: TEXT_SECONDARY,
-    textAlign: 'center',
-    lineHeight: fontScale(18),
-  },
-  emptyStateAction: {
-    marginTop: responsiveSpacing.sm,
-    fontSize: fontScale(13),
-    fontWeight: '700',
-    color: accent.info,
   },
   itemCard: {
     backgroundColor: GLASS_BG,
@@ -268,8 +124,9 @@ export const styles = StyleSheet.create({
   // which carries its own styles and the HUD's per-stat colors.)
   buyButton: {},
   sellButton: {},
-  // Gym — single dark-glass card, no gradients.
-  gymCard: {
+  // Housing rows — single dark-glass card, no gradients. (These carried the
+  // gym card too until it moved to Health.)
+  housingCard: {
     backgroundColor: GLASS_BG,
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -278,116 +135,17 @@ export const styles = StyleSheet.create({
     marginBottom: responsiveSpacing.md,
     gap: responsiveSpacing.md,
   },
-  gymCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(12),
-  },
-  gymIconContainer: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: scale(13),
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-  },
-  gymTitleContainer: {
-    flex: 1,
-  },
-  gymCardTitle: {
+  housingCardTitle: {
     fontSize: fontScale(18),
-    fontWeight: '800',
+    fontWeight: '700',
     color: TEXT,
     letterSpacing: -0.3,
     marginBottom: scale(2),
   },
-  gymCardTitleDark: {
-    color: TEXT,
-  },
-  gymCardSubtitle: {
+  housingCardSubtitle: {
     fontSize: fontScale(13),
     fontWeight: '600',
     color: '#93C5FD',
-  },
-  gymCardSubtitleDark: {
-    color: '#93C5FD',
-  },
-  membershipWarningContainer: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(245, 158, 11, 0.35)',
-  },
-  membershipWarningText: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    color: '#FCD34D',
-    marginBottom: scale(3),
-  },
-  membershipWarningTextDark: {
-    color: '#FCD34D',
-  },
-  membershipWarningSubtext: {
-    fontSize: fontScale(12),
-    color: 'rgba(252, 211, 77, 0.75)',
-    lineHeight: fontScale(17),
-  },
-  membershipWarningSubtextDark: {
-    color: 'rgba(252, 211, 77, 0.75)',
-  },
-  gymCostRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: responsiveSpacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: GLASS_BORDER,
-  },
-  gymCostLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-    color: TEXT_MUTED,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  gymCostLabelDark: {
-    color: TEXT_MUTED,
-  },
-  gymCostValue: {
-    fontSize: fontScale(15),
-    fontWeight: '800',
-    color: TEXT,
-    fontVariant: ['tabular-nums'],
-  },
-  gymCostValueDark: {
-    color: TEXT,
-  },
-  gymButton: {
-    borderRadius: responsiveBorderRadius.md,
-    paddingVertical: responsiveSpacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: accent.info,
-  },
-  gymButtonDisabled: {
-    backgroundColor: 'rgba(148, 163, 184, 0.15)',
-  },
-  gymButtonText: {
-    fontSize: fontScale(15),
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  gymButtonTextDisabled: {
-    color: TEXT_MUTED,
-  },
-  gymTip: {
-    fontSize: fontScale(11.5),
-    color: TEXT_MUTED,
-    lineHeight: fontScale(16),
-    textAlign: 'center',
   },
   recommendedCard: {
     borderColor: 'rgba(255, 255, 255, 0.16)',

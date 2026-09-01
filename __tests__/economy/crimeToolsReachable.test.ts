@@ -107,21 +107,15 @@ describe('the buy path is atomic now that it has a caller', () => {
 });
 
 describe('the removed Market-screen mapping is gone', () => {
-  it('market.tsx no longer categorises dark-web ids it cannot sell', () => {
+  it('market.tsx no longer references dark-web ids it cannot sell', () => {
     // These are BTC-priced entries in `darkWebItems`; the Market screen renders
-    // dollar-priced `items`. The mapping was a fossil that could never match and
-    // pointed maintainers at the wrong screen.
+    // dollar-priced `items`. The `ITEM_CATEGORIES` mapping that once carried
+    // them was deleted whole along with the filter bar (UI overhaul, Phase 5),
+    // so the ratchet widens: the ids must not appear anywhere in the file.
     const market = readCode('app/(tabs)/market.tsx');
-    // Anchor first. `indexOf` returns -1 for a renamed constant, which would
-    // slice an empty/inverted region and let every assertion below pass on
-    // nothing - the exact drift this ratchet exists to catch.
-    const from = market.indexOf('const ITEM_CATEGORIES');
-    const to = market.indexOf('const FILTER_CATEGORIES');
-    expect(`ITEM_CATEGORIES found: ${from > -1}`).toBe('ITEM_CATEGORIES found: true');
-    expect(`FILTER_CATEGORIES after it: ${to > from}`).toBe('FILTER_CATEGORIES after it: true');
-    const categories = market.slice(from, to);
+    expect(market).not.toContain('ITEM_CATEGORIES');
     for (const id of ['gloves', 'lockpick', 'slim_jim', 'drill_kit', 'explosives', 'crowbar', 'drug_supply']) {
-      expect(`${id}: ${categories.includes(`${id}:`)}`).toBe(`${id}: false`);
+      expect(`${id}: ${market.includes(id)}`).toBe(`${id}: false`);
     }
   });
 });

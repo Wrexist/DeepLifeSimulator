@@ -142,7 +142,6 @@ export const FEATURE_UNLOCKS: FeatureUnlock[] = [
   { id: 'app:social', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:tinder', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:education', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
-  { id: 'app:paw', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   { id: 'app:pet', tier: 2, requirement: 'Finish Chapter 2: Settling In' },
   // Stocks and Real Estate are the ONLY ways to satisfy chapter 3's "buy your
   // first stock or property", so they open at the tier chapter 3 starts from —

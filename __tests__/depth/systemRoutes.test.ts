@@ -21,11 +21,14 @@ import { DISCOVERABLE_SYSTEMS } from '@/lib/depth/discoverySystem';
 const ROOT = path.join(__dirname, '../..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-/** App ids the desktop launcher can actually resolve (`apps[activeApp]`). */
+/**
+ * App ids the launcher can actually resolve. The per-screen `apps[activeApp]`
+ * lookup maps were merged into the one shared catalog
+ * (`components/launcher/appCatalog.ts`), so that is the source scanned.
+ */
 const launcherAppIds = (() => {
-  const src = read('app/(tabs)/computer.tsx');
-  const block = src.slice(src.indexOf('const apps = {'), src.indexOf('const AppComponent'));
-  return new Set([...block.matchAll(/^\s+(\w+):/gm)].map((m) => m[1]));
+  const src = read('components/launcher/appCatalog.ts');
+  return new Set([...src.matchAll(/\{ id: '([a-z]+)'/g)].map((m) => m[1]));
 })();
 
 /** Routes the tab navigator actually registers. */

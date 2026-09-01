@@ -16,6 +16,7 @@ import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalSc
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { initialGameState } from '@/contexts/game/initialState';
 import HealthCard, { HealthDelta } from '@/components/health/HealthCard';
+import GymCard from '@/components/health/GymCard';
 import { policyAdjustedActivityPrice } from '@/lib/politics/healthcarePerks';
 import { useTimerManager } from '@/hooks/useTimerManager';
 
@@ -309,6 +310,13 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
               );
             })}
           </CollapsibleSection>
+        </View>
+
+        {/* Gym - moved here from the Market (UI overhaul, Phase 5): a workout
+            is an activity like the ones above, not shopping. The membership
+            ITEM is still bought in the Market's Items section. */}
+        <View style={styles.section}>
+          <GymCard />
         </View>
 
         {/* Diet plans */}

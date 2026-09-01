@@ -31,16 +31,18 @@ const fs = require('fs');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path');
 
-const marketSrc = fs.readFileSync(
-  path.join(process.cwd(), 'app', '(tabs)', 'market.tsx'),
+// The gym card moved from the Market screen to Health (UI overhaul, Phase 5) -
+// a workout is an activity, not shopping. The handler moved verbatim.
+const gymSrc = fs.readFileSync(
+  path.join(process.cwd(), 'components', 'health', 'GymCard.tsx'),
   'utf8'
 );
 
 /** The handler body, bounded by its own declaration and dependency array. */
 const gym = (() => {
-  const start = marketSrc.indexOf('const handleGym');
+  const start = gymSrc.indexOf('const handleGym');
   expect(start).toBeGreaterThan(-1);
-  return marketSrc.slice(start, marketSrc.indexOf('}, [hasMembership', start));
+  return gymSrc.slice(start, gymSrc.indexOf('}, [hasMembership', start));
 })();
 
 describe('the clamp that turned an overdraw into a free workout', () => {

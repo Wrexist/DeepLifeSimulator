@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Activity, Heart, ShoppingCart, Trophy, Users } from 'lucide-react-native';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SegmentedControl from '@/components/ui/SegmentedControl';
 import ScreenHeader from '@/components/ui/ScreenHeader';
-import { responsivePadding, scale } from '@/utils/scaling';
+import { fontScale, responsivePadding, scale } from '@/utils/scaling';
 import { useGame } from '@/contexts/GameContext';
 import { isFeatureUnlocked, unlockRequirement } from '@/lib/progress/featureUnlocks';
 import { HealthScreenContent } from './health';
@@ -22,11 +22,14 @@ import { gameAlert } from '@/utils/gameAlert';
  * sub-menu. Defaults to Health, so a player's vitals stay a single tap away -
  * Health simply isn't its own bottom-bar icon any more.
  *
- * A fourth "Family" entry acts as a launcher (not an inline segment): it opens
- * the full-screen FamilyTab - spouse/partner, children, heir, pregnancy - which
- * is the only surface that manages children & the heir. `haveChild` has no other
- * reachable caller, so without this the whole children/heir subsystem was
- * unreachable in shipped builds.
+ * Family opens from a HEADER ACTION, not a segment. It used to sit in the
+ * segmented control as a fourth pill that opened a modal and left the
+ * selection unchanged - an affordance lie the UI overhaul audit called out
+ * (navigation problem #3: "a fake segment"). The full-screen FamilyTab -
+ * spouse/partner, children, heir, pregnancy - is still the only surface that
+ * manages children & the heir. `haveChild` has no other reachable caller, so
+ * without this the whole children/heir subsystem was unreachable in shipped
+ * builds.
  *
  * Only the active segment is mounted (matching the layout's freezeOnBlur
  * philosophy): keeping all three heavy screens live at once would undo the
@@ -46,7 +49,6 @@ const SEGMENT_SUBTITLE: Record<LifeSegment, string> = {
   shop: 'Items, food & housing',
   stats: 'Achievements, prestige & lifetime stats',
 };
-type LifeControl = LifeSegment | 'family';
 
 function LifeScreen() {
   const [segment, setSegment] = useState<LifeSegment>('health');
@@ -97,21 +99,31 @@ function LifeScreen() {
           subtitle={SEGMENT_SUBTITLE[segment]}
           icon={<Activity size={scale(18)} color="#F472B6" />}
           tint="#F472B6"
+          right={
+            // Family is a LAUNCHER, so it lives with the header actions rather
+            // than inside the segmented control, where a pill that opens a
+            // modal without becoming selected reads as a broken tab (audit,
+            // navigation problem #3).
+            <Pressable
+              onPress={() => setShowFamily(true)}
+              style={({ pressed }) => [styles.familyAction, pressed && styles.familyActionPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Family"
+              accessibilityHint="Opens your family - partner, children and heir"
+            >
+              <Users size={scale(14)} color="#F472B6" />
+              <Text style={styles.familyActionLabel}>Family</Text>
+            </Pressable>
+          }
         />
         <View style={styles.controlWrap}>
-          <SegmentedControl<LifeControl>
+          <SegmentedControl<LifeSegment>
             value={segment}
             onChange={(next) => {
-              // 'family' is a momentary launcher, not a persisted segment: it
-              // opens the full-screen modal and leaves the active segment as-is.
-              if (next === 'family') {
-                setShowFamily(true);
-              } else {
-                setSegment(next);
-                setVisitedSegments((prev) =>
-                  prev.has(next) ? prev : new Set(prev).add(next)
-                );
-              }
+              setSegment(next);
+              setVisitedSegments((prev) =>
+                prev.has(next) ? prev : new Set(prev).add(next)
+              );
             }}
             onLockedPress={(_key, reason) => {
               gameAlert('Stats', reason || 'Keep playing to unlock this.');
@@ -120,7 +132,6 @@ function LifeScreen() {
               { key: 'health', label: 'Health', icon: Heart },
               { key: 'shop', label: 'Market', icon: ShoppingCart },
               { key: 'stats', label: 'Stats', icon: Trophy, locked: statsLocked, lockReason: statsReason },
-              { key: 'family', label: 'Family', icon: Users },
             ]}
           />
         </View>
@@ -191,6 +202,27 @@ const styles = StyleSheet.create({
   },
   segmentHidden: {
     display: 'none',
+  },
+  // Header launcher chip - tinted like the screen's own accent, full border on
+  // all four sides (Hard Rule #7).
+  familyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    borderRadius: scale(10),
+    backgroundColor: 'rgba(244, 114, 182, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(244, 114, 182, 0.35)',
+  },
+  familyActionPressed: {
+    opacity: 0.72,
+  },
+  familyActionLabel: {
+    fontSize: fontScale(12.5),
+    fontWeight: '600',
+    color: '#F472B6',
   },
 });
 
