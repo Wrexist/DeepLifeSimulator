@@ -170,7 +170,11 @@ function NextGoalsCard() {
                 horizon: goal.horizon,
                 progress: Math.round(goal.progress * 100),
               });
-              router.push(goal.route);
+              // Life's deep links are consume-once; the nonce lets the same goal
+                // land twice (see lib/goals/types.ts).
+                router.push(
+                  (goal.route.includes('segment=') ? `${goal.route}&ts=${Date.now()}` : goal.route) as never
+                );
             }}
           />
         ))}

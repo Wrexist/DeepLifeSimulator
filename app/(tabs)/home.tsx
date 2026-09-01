@@ -754,7 +754,10 @@ function HomeScreenContent() {
                 gameAlert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
                 return;
               }
-              router.push('/(tabs)/progression');
+              // Canonical door: Progress lives on the Life shell's Stats
+              // segment. Pushing the hidden `/(tabs)/progression` route
+              // rendered a second, un-chromed copy with no tab highlighted.
+              router.push({ pathname: '/(tabs)/life', params: { segment: 'stats', ts: String(Date.now()) } });
             }}
             activeOpacity={0.85}
             style={styles.progressLinkCard}

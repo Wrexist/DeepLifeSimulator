@@ -301,7 +301,10 @@ function GoalsCard({ onShowDetails }: { onShowDetails?: () => void }) {
             row={row}
             onPress={
               row.route
-                ? () => router.push(row.route as GoalRoute)
+                ? () =>
+                    router.push(
+                      (row.route!.includes('segment=') ? `${row.route}&ts=${Date.now()}` : row.route) as never
+                    )
                 : onShowDetails
             }
           />

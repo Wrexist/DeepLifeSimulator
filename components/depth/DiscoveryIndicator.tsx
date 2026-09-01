@@ -214,10 +214,14 @@ function DiscoveryModal({
     const route = routeForSystem(systemId);
     if (!route) return;
     onClose();
+    // Life's segment deep link is consume-once keyed on (segment, ts), so the
+    // nonce lets a repeated tap of the same card still land.
     router.push(
       route.appId
         ? ({ pathname: route.pathname, params: { app: route.appId } } as never)
-        : (route.pathname as never)
+        : route.segment
+          ? ({ pathname: route.pathname, params: { segment: route.segment, ts: String(Date.now()) } } as never)
+          : (route.pathname as never)
     );
   };
 

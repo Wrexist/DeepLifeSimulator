@@ -117,7 +117,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'now',
     title: 'Build a cash buffer',
     rationale: 'Cash on hand is what lets you say yes to an opportunity.',
-    route: '/(tabs)/market',
+    route: '/(tabs)/life?segment=shop',
     isEligible: (s) => liquid(s) < SAVINGS_RUNGS[SAVINGS_RUNGS.length - 1],
     measure: (s) => ({ current: liquid(s), target: activeSavingsRung(s) }),
     // Falls behind a job hunt but ahead of everything else early on.
@@ -132,7 +132,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'now',
     title: 'Get your health back up',
     rationale: 'Low health drags every stat and shortens the life you are building.',
-    route: '/(tabs)/health',
+    route: '/(tabs)/life?segment=health',
     isEligible: (s) => (s.stats?.health ?? 100) < 60,
     measure: (s) => ({ current: s.stats?.health ?? 0, target: 60 }),
     // Outranks money: a life that ends early banks nothing.
@@ -157,7 +157,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'now',
     title: 'Clear your overdue bills',
     rationale: 'Arrears keep growing until they are paid - this is the one debt that never waits.',
-    route: '/(tabs)/market',
+    route: '/(tabs)/life?segment=shop',
     isEligible: (s) => (s.overdueBalance ?? 0) > 0,
     // Measured as "how much of the arrears you can already cover", so the bar
     // fills as cash accumulates rather than sitting at zero until the moment it
@@ -220,7 +220,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'soon',
     title: 'Buy your first property',
     rationale: 'Owning beats renting - it appreciates instead of vanishing.',
-    route: '/(tabs)/market',
+    route: '/(tabs)/life?segment=shop',
     isEligible: (s) => ownedProperties(s) === 0,
     // Progress against the cheapest listing, so the bar means "how close is the
     // down payment" rather than an abstract wealth number.
@@ -254,7 +254,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'soon',
     title: 'Find someone',
     rationale: 'A partner changes the shape of the life, not just the numbers.',
-    route: '/(tabs)/mobile',
+    route: '/(tabs)/apps',
     isEligible: (s) => !s.family?.spouse && weeksInThisLife(s) >= 8,
     // Measured on the CLOSEST relationship, for the same reason the job hunt is
     // measured in applications: "are you married" is pinned at 0 for the whole
@@ -277,7 +277,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Reach a fortune',
     rationale: 'The number that decides how the story is remembered.',
-    route: '/(tabs)/progression',
+    route: '/(tabs)/life?segment=stats',
     isEligible: (s) => netWorth(s) < NET_WORTH_RUNGS[NET_WORTH_RUNGS.length - 1],
     measure: (s) => ({ current: netWorth(s), target: activeNetWorthRung(s) }),
     priority: () => 60,
@@ -289,7 +289,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Build a property portfolio',
     rationale: 'Five doors is the point where rent stops being pocket money.',
-    route: '/(tabs)/market',
+    route: '/(tabs)/life?segment=shop',
     isEligible: (s) => ownedProperties(s) >= 1 && ownedProperties(s) < 5,
     measure: (s) => ({ current: ownedProperties(s), target: 5 }),
     priority: (s) => 70 + 15 * emphasis(s).investor,
@@ -301,7 +301,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Leave a dynasty',
     rationale: 'Prestige carries your legacy into the next life instead of ending it.',
-    route: '/(tabs)/progression',
+    route: '/(tabs)/life?segment=stats',
     // Only once the player is genuinely in range - offering prestige to a
     // week-3 character is noise, and the repo already holds the preview card
     // back on the same principle.
@@ -316,7 +316,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Make the money work for you',
     rationale: 'When your assets out-earn your bills, working becomes a choice.',
-    route: '/(tabs)/computer',
+    route: '/(tabs)/apps',
     // Only once there is something to measure - offering "live off your assets"
     // to a character with no assets is noise, the dream_dynasty rule.
     isEligible: (s) => {
@@ -353,7 +353,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Build a business empire',
     rationale: 'One company is a job you own. Five is an empire.',
-    route: '/(tabs)/computer',
+    route: '/(tabs)/apps',
     isEligible: (s) => (s.companies ?? []).length >= 1 && (s.companies ?? []).length < 5,
     measure: (s) => ({ current: (s.companies ?? []).length, target: 5 }),
     priority: (s) => 68 + 20 * emphasis(s).business,
@@ -365,7 +365,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Fulfil the Legacy Contracts',
     rationale: 'Goals that span lives - the longest game the dynasty plays.',
-    route: '/(tabs)/progression',
+    route: '/(tabs)/life?segment=stats',
     // Only once the multi-life game has begun; offering contracts to a first
     // life that has never prestiged is noise.
     isEligible: (s) => {
@@ -408,7 +408,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'soon',
     title: 'Grow your portfolio',
     rationale: 'Markets compound while a salary only repeats.',
-    route: '/(tabs)/computer',
+    route: '/(tabs)/apps',
     // Only once the player has CHOSEN to invest — offering a portfolio ladder
     // to someone with no holdings is the dream_dynasty noise rule.
     isEligible: (s) =>
@@ -438,7 +438,7 @@ export const GOAL_CATALOGUE: GoalDefinition[] = [
     horizon: 'dream',
     title: 'Complete a collection',
     rationale: 'A finished set is a statement no single purchase makes.',
-    route: '/(tabs)/computer',
+    route: '/(tabs)/apps',
     // Only for a player who has started collecting; the first luxury purchase
     // is its own decision, not a goal we assign.
     isEligible: (s) =>

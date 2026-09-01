@@ -117,9 +117,81 @@ function main() {
     console.error("\nAdd an index route OR `export const unstable_settings = { initialRouteName: '<screen>' };` to its _layout.\n");
   }
 
+  // ── One door per room ─────────────────────────────────────────────────────
+  //
+  // market/health/progression/mobile/computer are `href: null` routes merged
+  // into the Life shell and the Apps tab. Pushing one by name still WORKS -
+  // expo-router renders it - but produces a second, differently-chromed copy
+  // of the screen with no tab highlighted (2026-09-01 UI audit, navigation
+  // finding #1). The canonical doors are `/(tabs)/life?segment=…` and
+  // `/(tabs)/apps?app=…`. This sweep fails on any literal push target for a
+  // hidden route outside the app/(tabs) directory itself (where the
+  // Tabs.Screen declarations legitimately name them).
+  const HIDDEN_ROUTE_LITERALS = [
+    "'/(tabs)/market'",
+    "'/(tabs)/health'",
+    "'/(tabs)/progression'",
+    "'/(tabs)/mobile'",
+    "'/(tabs)/computer'",
+  ];
+  const ROOT = process.cwd();
+  const SWEEP_DIRS = ['components', 'lib', 'src', 'utils', 'contexts', 'hooks'];
+  const offenders = [];
+  const sweep = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      if (name === 'node_modules' || name.startsWith('.')) continue;
+      const full = path.join(dir, name);
+      const st = fs.statSync(full);
+      if (st.isDirectory()) sweep(full);
+      else if (/\.tsx?$/.test(name) && !/\.(test|spec)\.tsx?$/.test(name)) {
+        const src = fs.readFileSync(full, 'utf8');
+        for (const lit of HIDDEN_ROUTE_LITERALS) {
+          if (src.includes(lit)) offenders.push(`${path.relative(ROOT, full)} → ${lit}`);
+        }
+      }
+    }
+  };
+  for (const dir of SWEEP_DIRS) sweep(path.join(ROOT, dir));
+  // app/ outside (tabs): the root index/redirects must use canonical doors too.
+  sweep(path.join(APP, '(onboarding)'));
+  for (const name of fs.readdirSync(APP)) {
+    const full = path.join(APP, name);
+    if (fs.statSync(full).isFile() && /\.tsx?$/.test(name)) {
+      const src = fs.readFileSync(full, 'utf8');
+      for (const lit of HIDDEN_ROUTE_LITERALS) {
+        if (src.includes(lit)) offenders.push(`${path.relative(ROOT, full)} → ${lit}`);
+      }
+    }
+  }
+  // home.tsx and siblings inside (tabs) may not push hidden siblings either -
+  // but the _layout legitimately declares them, so sweep (tabs) excluding it.
+  for (const name of fs.readdirSync(path.join(APP, '(tabs)'))) {
+    if (name === '_layout.tsx') continue;
+    const full = path.join(APP, '(tabs)', name);
+    if (fs.statSync(full).isFile() && /\.tsx?$/.test(name)) {
+      const src = fs.readFileSync(full, 'utf8');
+      for (const lit of HIDDEN_ROUTE_LITERALS) {
+        if (src.includes(lit)) offenders.push(`${path.relative(ROOT, full)} → ${lit}`);
+      }
+    }
+  }
+  if (offenders.length > 0) {
+    failed = true;
+    console.error('[route-conflicts] FAIL — push target(s) for hidden (href: null) routes.');
+    console.error('Use /(tabs)/life?segment=… or /(tabs)/apps?app=… instead:\n');
+    offenders.forEach((o) => console.error(`      - ${o}`));
+    console.error('');
+  }
+
   if (failed) process.exit(1);
   console.log(
-    `[route-conflicts] OK — ${Object.keys(claims).length} routes, no conflicts, all groups anchored`
+    `[route-conflicts] OK — ${Object.keys(claims).length} routes, no conflicts, all groups anchored, one door per room`
   );
   process.exit(0);
 }
