@@ -12,15 +12,15 @@ PROPOSAL, not a change.
 - [x] Phase 1 — Inventory all 19 apps (entry, LOC, header, tabs, lists, modals, primary action, empties, shared vs local, noise, a11y)
 - [x] Phase 2 — Group by purpose + design matrix (audit doc §2–3)
 - [x] Phase 3 — Shared patterns: headers ×24, tab bars ×21, stat tiles ×30+, chips ×20+, hero recipe ×14, empties ×9 bespoke, modals ×16 raw
-- [ ] Phase 4 — Shared primitives (convergence, no forks): `AppHeader` (back + title + right chip), `StatStrip`/`StatTile`, `Chip`, `ProgressBar`, `SectionTitle`, `withAlpha`; `SegmentedControl` gets `scrollable`; `EmptyState` adopted; ErrorBoundary once at the launcher
-- [ ] Phase 5 — Owner decisions written up as PROPOSALS (Vehicle+Luxury, Gaming+Streaming, one Bank; prestige shop tabs assessed) — NOT implemented
-- [ ] Phase 6 — High-traffic apps: Bank (hero 9→3 numbers, banners off the list), Stocks (Trade CTA reachable from list, Portfolio grid → hero), Spark (5→3 actions, 11 stats → 4, tab double-count), Pulse (one compose, one header, one tab bar), Contacts (Network hero 6→2), Education (card = Study only), Pets (stage diet, 44pt tiles), Hustle (FAB demoted, segment → SegmentedControl)
-- [ ] Phase 7 — Remaining apps: Crypto (row = one tap), Real Estate (Details btn gone, KPI 6→3, fake gradient), Dark Web (VIEW gone, in-body backs gone), YouVideo (Channel 12 cells → 3), Streaming (one Go Live, one category grid), Travel (tab a11y, boarding-pass chrome), Political (4 CTAs → 1 + list), Statistics (duplicates gone), Vehicle (fleet card = one tap), Luxury (Details gone, Buy/Acquire → Buy)
-- [ ] Phase 8 — Header + tab convergence across all 19 (AppHeader + SegmentedControl), tabs get role="tab"
-- [ ] Phase 9 — Launcher hierarchy audit (grid order, badge policy, locked disclosure)
-- [ ] Phase 10 — Copy pass: one verb per action (Buy not Acquire, Repair not Restore it), no marketing blurbs
-- [ ] Phase 11 — Empty / error states on the shared EmptyState; ErrorBoundary parity (Pets, Hustle, Travel, Statistics, Luxury, YouVideo, Streaming were unwrapped)
-- [ ] Phase 12 — A11y + 360pt: unlabeled cash chips labeled, sub-44pt targets raised, tabs a11y-labeled
+- [x] Phase 4 — Shared primitives (convergence, no forks): `AppHeader` (back + title + right chip), `StatStrip`/`StatTile`, `Chip`, `ProgressBar`, `SectionTitle`, `withAlpha`; `SegmentedControl` gets `scrollable`; `EmptyState` adopted; ErrorBoundary once at the launcher
+- [x] Phase 5 — Owner decisions written up as PROPOSALS (Vehicle+Luxury, Gaming+Streaming, one Bank; prestige shop tabs assessed) — NOT implemented
+- [x] Phase 6 — High-traffic apps: Bank (hero 9→3 numbers, banners off the list), Stocks (Trade CTA reachable from list, Portfolio grid → hero), Spark (5→3 actions, 11 stats → 4, tab double-count), Pulse (one compose, one header, one tab bar), Contacts (Network hero 6→2), Education (card = Study only), Pets (stage diet, 44pt tiles), Hustle (FAB demoted, segment → SegmentedControl)
+- [x] Phase 7 — Remaining apps: Crypto (row = one tap), Real Estate (Details btn gone, KPI 6→3, fake gradient), Dark Web (VIEW gone, in-body backs gone), YouVideo (Channel 12 cells → 3), Streaming (one Go Live, one category grid), Travel (tab a11y, boarding-pass chrome), Political (4 CTAs → 1 + list), Statistics (duplicates gone), Vehicle (fleet card = one tap), Luxury (Details gone, Buy/Acquire → Buy)
+- [x] Phase 8 — Header + tab convergence across all 19 (AppHeader + SegmentedControl), tabs get role="tab"
+- [x] Phase 9 — Launcher hierarchy audit (grid order, badge policy, locked disclosure)
+- [x] Phase 10 — Copy pass: one verb per action (Buy not Acquire, Repair not Restore it), no marketing blurbs
+- [x] Phase 11 — Empty / error states on the shared EmptyState; ErrorBoundary parity (Pets, Hustle, Travel, Statistics, Luxury, YouVideo, Streaming were unwrapped)
+- [x] Phase 12 — A11y + 360pt: unlabeled cash chips labeled, sub-44pt targets raised, tabs a11y-labeled
 - [ ] Phase 13 — Regression: type-check, type-check:tests, lint:errors, lint:ratchet, check:routes, ui:ratchet, npm test, preflight; ratchets lowered where earned, never raised
 - [ ] Phase 14 — Red team + 13-category scores + 21-item final report (audit doc §9–10)
 
@@ -40,7 +40,7 @@ Phase status — audit complete, implementation not started:
 - [x] Phase 4 — Work rebuild: one promotion readout, ≤3-chip JobCards with fold, 16 button strings → 5, one crime-standing card + one cap line, identical-color gradient killed, InfoButton modals → subtitles
 - [x] Phase 5 — Structure: one AppLauncher + shared catalog (computer 901→79 L, mobile 666→81 L, 28 tile gradients + marketing blurbs gone, locked apps behind one disclosure, pet id canonical), Market flattened to one sectioned list (tabs + filter bar + 5-emoji badge taxonomy removed, badges → 1), Gym moved to Health, Family = header action not fake segment, route dedup + one-door-per-room CI guard
 - [x] Phase 6 — Progression: 12 modal booleans → one union, 9 tools → 5 (Your Story hub; paywalls out), duplicate achievements + prestige cards dropped, hero tap resolved to one destination that the label names. Onboarding: start ceremony extracted to useStartLife (Play now enters the game directly, no Perks detour), Ambitions dropped from the wizard (4 steps → 3; AmbitionPickerCard on Home covers it), appearance editor behind 'Edit look', locked perks behind a shelf, menu entrance ~1s → ~0.3s
-- [ ] Phase 7 — Sub-app pass (merge Vehicle+Luxury, Gaming+Streaming, one Bank)
+- [x] Phase 7 — Sub-app pass: done as Master Program 3 (primitives + all 19 converted; the three merges are owner proposals in tasks/phone-apps-audit.md §5)
 
 ---
 

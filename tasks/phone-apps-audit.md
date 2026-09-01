@@ -220,14 +220,96 @@ Sleep**, **Hire**, **Enroll**, **Deposit / Withdraw**. Vehicle's costed labels
 ("A collection worth showing off", "Unlock world travel", "Empire snapshot") are
 removed where they carry no state.
 
-## 8. What was changed (running log — updated as phases land)
+## 8. What was changed
 
-See `tasks/todo.md` for the phase checklist and the commit log for the diff.
+All 19 apps now build their top bar from `AppHeader`, their top navigation
+from `SegmentedControl` (Spark and Pulse keep their bottom bars, now
+role=tab and labeled), their numbers from `StatStrip` / `StatTile` /
+`KeyValueRow`, their pills from `Chip`, their headings from `SectionTitle`,
+their meters from `ProgressBar`, their empties from `EmptyState`, and their
+sheets from `BaseModal`. Every private accent palette is one `accent.*` token
+plus `withAlpha`. The launcher wraps every app in one `ErrorBoundary`.
+
+| App | LOC before → after | Heavy weights | Gradients | Structural change |
+|---|---|---|---|---|
+| Spark | 4,881 → 4,235 | 41 → 3 | 20 → 2 | swipe row 5 → 3 buttons; 11-row stat wall → 4 + fold; chat header 5 → 3 slots; 4 raw modals → BaseModal |
+| Contacts | 1,893 → 1,781 | 27 → 1 | 1 → 0 | expanded card ~20 actions → 2 buttons + chips + 3 folds; Network hero 6 → 3 |
+| DeepMail | 1,877 → 1,905 (+palette file) | 26 → 3 | 0 | 117 hex → one MAIL_PALETTE; chips/tabs shared |
+| Pulse | 7,655 → 6,240 | 56 → 3 | 33 → 1 | one compose entry (FAB deleted); 5 headers → 1; 2 double-mounted modals → 1 each |
+| Stocks | 1,192 → 1,062 | 20 → 2 | 1 → 1 | Portfolio 6 cards → 4-tile strip; sub-44pt chips raised |
+| Bank | 1,484 → 1,185 | 17 → 0 | 0 | hero 9 → 3 numbers; banners + ad below the deck; 4 sections collapsible |
+| Bank Pro | 2,338 → 1,933 | 26 → 0 | 1 → 0 | scrollable segments; colour-to-itself gradient flat |
+| Education | 1,505 → 1,254 | 18 → 3 | 1 → 0 | course card 4 buttons → 1; two hand-rolled overlays → BaseModal + toast |
+| Hustle | 5,280 → 4,247 | 82 → 0 | 9 → 0 | detail 10 sections → 9 folds; parallel theme + KPICard + SVG empty deleted; FAB demoted |
+| Pets | 1,673 → 1,450 | 23 → 0 | 0 | stage ~15 elements → 6; in-scroll back → header; 12 GOLD_* constants gone |
+| Crypto | 2,257 → 1,964 | 20 → 0 | 2 → 0 | rig rows one button; 5 chip rows → Chip; glyph titles → icons |
+| Real Estate | 1,666 → 1,419 | 33 → 2 | 2 → 0 | KPI 6 → 3; Details button gone; PortfolioRow 7 lines → 4 |
+| Dark Web | 1,819 → 1,734 | 23 → 2 | 0 | in-body backs + VIEW buttons gone; ascii chrome halved; skin kept |
+| YouVideo | 1,481 → 1,244 | 32 → 3 | 3 → 1 | lands on Record; 12 stat cells → 3 + fold; gear tiles → rows |
+| Streaming | 1,580 → 1,315 | 36 → 10 | 5 → 1 | Go Live ×4 → ×2; category grid ×2 → ×1; 8-stat cards → strips |
+| Travel | 1,779 → 1,496 | 49 → 2 | 3 → 0 | boarding-pass ornament + fake flight data deleted; tabs labeled |
+| Political | 2,255 → 2,056 | 29 → 2 | 3 → 1 | 4 stacked CTAs → 1 + chips; Career → 4 folds |
+| Statistics | 1,542 → 1,363 | 34 → 2 | 0 | duplicates (records, net worth) gone; 3 calculators → folds |
+| Garage | 1,573 → 1,317 | 29 → 1 | 0 | fleet card 4 buttons → 1 tap; 12 specs → 4 + fold |
+| Luxury | 1,543 → 1,101 | 23 → 1 | 2 → 0 | Details gone; Acquire → Buy; hand-rolled sheet → BaseModal; sets folded |
+| **Total** | **~47,300 → 43,700** | **~640 → 40** | **86 → 8** | |
+
+App-wide ratchets (`scripts/check-ui-ratchet.js`, `scripts/lib/lintRatchet.js`)
+lowered in the commits that earned them: gradients 234 → 155, heavy weights
+1,359 → 755, lint warnings 775 → 748. Raw font sizes unchanged at 368 (none of
+the 19 apps carried any; the remaining count is elsewhere).
+
+Tests touched, structure only: `sideAccentBars` (fixtures follow the moved
+tab bar and the renamed palette), `taxSurfaceReachability` (segment key,
+scrollable control, strip label), `PoliticalAppCareer.render` (opens the fold
+before asserting), plus a new `phoneAppPrimitives` test.
+
+Deliberately left, with reasons: DeepMail's folder drawer and Pulse's
+RewardedAdModal stay raw `<Modal>`s (BaseModal has no left-drawer variant and
+does not forward native `onDismiss`); Luxury's 450 ms stacked-modal timer stays
+for the same reason; Bank Pro's `StatementSection`/`LedgerRow` table and
+Hustle's `ActionRow`/`CompanyTile` stay local list rows; Spark's gated option
+chips stay local (Chip has no cost line or disabled state); Dark Web keeps its
+terminal skin by design.
+
+Primitive gaps found by the conversion, for a follow-up: a flat `Button`
+(the two shared buttons both render gradients), a `Chip` `disabled` state with
+a second line, an `AppHeader` `titleNode`/tint for wordmarks, a left-drawer
+`BaseModal` variant, and `adjustsFontSizeToFit` on `StatTile`.
 
 ## 9. Red team — what could still make it read as machine-made
 
-Filled in at Phase 14.
+- **Streaming keeps 10 heavy weights** (white type over photography) — the
+  one app still noticeably bolder than its siblings.
+- **Dark Web's terminal skin** is intentional, but it is now the only app with
+  its own type family and colour system; a player who dislikes it will read it
+  as inconsistency rather than fiction.
+- **Two bottom-tab apps (Spark, Pulse) next to seventeen top-segment apps** —
+  justified by the real apps they imitate, but it is a visible split.
+- **Folds hide, they do not remove.** Hustle's detail is still ~1,300 lines
+  behind nine disclosures; Contacts' expanded card still has ~20 actions, three
+  taps deeper. The number of things a player *can* do did not change (by
+  design — those are gameplay), so the apps are calmer, not smaller.
+- **Raw font sizes at 368 app-wide** were outside this program's files; the
+  ratchet still sits at its ceiling.
+- **The three merges are unmade.** Until the owner decides, a player still
+  meets two creator apps over one state, two showrooms for one loop, and a
+  Bank whose desktop twin duplicates ~1,400 lines.
 
 ## 10. Scores (0–100, before → after)
 
-Filled in at Phase 14.
+| # | Category | Before | After | Basis |
+|---|---|---|---|---|
+| 1 | Header consistency | 15 | 95 | 24 hand-rolled → 1 primitive; Mail search header the one exception |
+| 2 | Navigation consistency | 25 | 90 | 21 bars in 3 dialects → SegmentedControl (+2 bottom bars) |
+| 3 | One dominant element per screen | 30 | 75 | landing strips ≤3–4 numbers; duplicate CTAs removed; folds hide the rest |
+| 4 | Component reuse | 20 | 85 | ~36 local primitives → 8 shared; table/nav rows still local |
+| 5 | Visual noise (gradients, weights, blobs) | 20 | 90 | 86 → 8 gradients, ~640 → 40 heavy weights, hero recipe deleted ×14 |
+| 6 | Colour discipline | 25 | 85 | private palettes → accent + withAlpha; Dark Web skin, Mail palette kept |
+| 7 | Copy consistency | 50 | 80 | Buy/Repair/Study unified; blurbs and fake data deleted; Hustle's ~20 verbs remain |
+| 8 | Empty / error states | 45 | 90 | 9 bespoke → EmptyState; ErrorBoundary at the launcher for all 19 |
+| 9 | Accessibility | 60 | 90 | tabs role=tab + labeled; cash chips read aloud; sub-44pt targets raised |
+| 10 | 360pt responsiveness | 55 | 85 | scrollable segments; strips of ≤4; no fixed-width bars |
+| 11 | Cognitive load per screen | 30 | 75 | see red team: calmer, not smaller |
+| 12 | Maintainability | 30 | 80 | −3,600 lines, ratchets lowered, one place to change a header |
+| 13 | "Looks like one team built it" | 25 | 85 | the same header, tabs and strips in all 19; skins limited to Mail/Dark Web/wordmarks |

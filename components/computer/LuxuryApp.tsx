@@ -749,11 +749,11 @@ function LuxuryAppInner({ onBack }: LuxuryAppProps) {
                       style={[styles.verbRow, restoreCost <= 0 && styles.verbRowDisabled]}
                       accessibilityRole="button"
                       accessibilityLabel={
-                        restoreCost > 0 ? `Restore ${item.name} for ${formatMoney(restoreCost)}` : `${item.name} needs no restoration`
+                        restoreCost > 0 ? `Repair ${item.name} for ${formatMoney(restoreCost)}` : `${item.name} needs no repair`
                       }
                     >
                       <View style={styles.verbInfo}>
-                        <Text style={[styles.verbLabel, { color: theme.text }]}>Restore it</Text>
+                        <Text style={[styles.verbLabel, { color: theme.text }]}>Repair</Text>
                         <Text style={[styles.verbDesc, { color: theme.textMuted }]} numberOfLines={2}>
                           {restoreCost > 0
                             ? 'Bring it back to pristine. Condition is part of what it sells for.'

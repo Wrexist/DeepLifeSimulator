@@ -4624,3 +4624,28 @@ account-level gems from the `before_overwrite` snapshot — spelled out for
 whoever changes the gate). Same family as the §7 "a carve-out still has to
 survive the LOAD" note: writing the value correctly in one path says nothing
 about what a *different* path does with it.
+
+---
+
+## 2026-09-01 — Parallel agents in one working tree: `git stash` is a global operation
+
+Eight conversion agents worked concurrently on disjoint app directories for
+Master Program 3. Two of them ran `git stash` / `git stash pop` to measure a
+lint baseline, and each stash swept EVERY other agent's uncommitted files off
+disk for the duration. Three agents lost in-progress edits and had to recover
+them from the stash or re-apply a script; one file (EducationApp) was rebuilt
+from scratch. Nothing was ultimately lost, but only because every agent had
+kept a copy.
+
+The rule: in a shared tree, a baseline is `git show HEAD:<file>` piped to the
+tool (or a worktree), never a stash. Any command that rewrites the working
+tree as a whole — stash, checkout of a branch, reset --hard, clean — is off
+limits while anyone else is editing. Put it in the brief explicitly; "touch
+only your files" does not communicate it, because a stash does not feel like
+touching files.
+
+Second, smaller lesson from the same session: a regex conversion that turns
+`<SectionTitle theme={theme}>{expr}</SectionTitle>` into `title="{expr}"`
+compiles (it is a valid string prop) and renders the source code as the
+heading. The type checker cannot see it. After any mechanical JSX rewrite,
+grep for `="{` before trusting tsc.

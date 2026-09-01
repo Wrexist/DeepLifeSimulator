@@ -930,21 +930,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(3),
     paddingHorizontal: responsiveSpacing.sm,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
     borderRadius: responsiveBorderRadius.full,
     backgroundColor: 'rgba(168,85,247,0.14)',
   },
-  clearChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  clearChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   sortRow: { flexDirection: 'row', gap: responsiveSpacing.xs },
-  sortChip: { flex: 1, minHeight: scale(36), alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
-  sortChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  sortChip: { flex: 1, minHeight: touchTargets.minimum, alignItems: 'center', justifyContent: 'center', borderRadius: responsiveBorderRadius.lg },
+  sortChipText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // Sector board
   sectorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
   sectorTile: { flexBasis: '48%', flexGrow: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: scale(3) },
   sectorTileHead: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  sectorTileName: { fontSize: responsiveFontSize.sm, fontWeight: '700', flexShrink: 1 },
-  sectorTileState: { fontSize: responsiveFontSize.sm, fontWeight: '800' },
+  sectorTileName: { fontSize: responsiveFontSize.sm, fontWeight: '600', flexShrink: 1 },
+  sectorTileState: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   sectorTileMeta: { fontSize: responsiveFontSize.xs },
 
   // Summary strip
@@ -975,12 +975,12 @@ const styles = StyleSheet.create({
   heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
   heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
-  heroValue: { fontSize: responsiveFontSize['4xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
-  detailPrice: { fontSize: responsiveFontSize['4xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  heroValue: { fontSize: responsiveFontSize['4xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
+  detailPrice: { fontSize: responsiveFontSize['4xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
   heroChips: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: responsiveSpacing.xs },
   heroChipGroup: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs, flexShrink: 1 },
   heroChipLabel: { fontSize: responsiveFontSize.xs, flexShrink: 1 },
-  heroUnrealized: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  heroUnrealized: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // Allocation
   allocCard: { borderRadius: responsiveBorderRadius.xl, borderWidth: 1, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   allocLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
   allocLegendItem: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   legendDot: { width: scale(8), height: scale(8), borderRadius: scale(4) },
-  legendText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  legendText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   legendPct: { fontSize: responsiveFontSize.xs, fontVariant: ['tabular-nums'] },
 
   // Stat grid
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   infoLabel: { fontSize: responsiveFontSize.sm, flexShrink: 0 },
-  infoValue: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
+  infoValue: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'], flexShrink: 1, textAlign: 'right' },
 
   // Order rows. (The scale(3) `stripe` that lived here is gone - Hard Rule #7;
   // the side now shows as a faint row tint plus the existing BUY/SELL title.)
@@ -1018,22 +1018,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
   },
   orderTitleRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  orderTitle: { fontSize: responsiveFontSize.sm, fontWeight: '700', flexShrink: 1 },
+  orderTitle: { fontSize: responsiveFontSize.sm, fontWeight: '600', flexShrink: 1 },
   typeChip: { paddingHorizontal: responsiveSpacing.xs, paddingVertical: 1, borderRadius: responsiveBorderRadius.sm },
-  typeChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700', textTransform: 'capitalize' },
+  typeChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   statusChip: { paddingHorizontal: responsiveSpacing.xs, paddingVertical: 1, borderRadius: responsiveBorderRadius.sm },
-  statusChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700', textTransform: 'capitalize' },
+  statusChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   orderMeta: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   cancelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(3),
     paddingHorizontal: responsiveSpacing.sm,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
     borderRadius: responsiveBorderRadius.lg,
     borderWidth: 1,
   },
-  cancelBtnText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  cancelBtnText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
 
   // Trade CTA (detail) + watch pill row
   ctaRow: { flexDirection: 'row', alignItems: 'stretch', gap: responsiveSpacing.sm },
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  watchPillText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  watchPillText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   tradeCtaFill: {
     borderRadius: responsiveBorderRadius.full,
     minHeight: touchTargets.minimum,
@@ -1058,5 +1058,5 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     paddingHorizontal: responsiveSpacing.lg,
   },
-  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '700' },
+  tradeCtaText: { color: '#FFFFFF', fontSize: responsiveFontSize.md, fontWeight: '600' },
 });
