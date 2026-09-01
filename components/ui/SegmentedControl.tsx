@@ -12,7 +12,7 @@
  * only pay off when the segments genuinely differ in what they offer.
  */
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import { accent } from '@/lib/config/theme';
 import { fontScale, scale, responsiveBorderRadius, responsiveSpacing } from '@/utils/scaling';
@@ -55,6 +55,13 @@ interface SegmentedControlProps<T extends string> {
    * read as a hierarchy instead of two identical stacked bars.
    */
   compact?: boolean;
+  /**
+   * Horizontal-scroll variant for apps with more than four segments (a
+   * five-tab bank, a six-tab shop). Segments keep their natural width instead
+   * of sharing the row, so labels never truncate at 360pt. Prefer fewer tabs;
+   * reach for this only when the count is fixed by the domain.
+   */
+  scrollable?: boolean;
 }
 
 const MUTED = 'rgba(226, 232, 240, 0.45)';
@@ -68,10 +75,9 @@ export default function SegmentedControl<T extends string>({
   activeColor = accent.info,
   style,
   compact = false,
+  scrollable = false,
 }: SegmentedControlProps<T>) {
-  return (
-    <View style={[styles.container, compact && styles.containerCompact, style]}>
-      {segments.map((seg) => {
+  const body = segments.map((seg) => {
         // A locked segment can never also be the active one in practice - the
         // unlock tier only ever rises - but if it somehow were, "locked" wins
         // so the player is never left tapping an inert highlighted tab.
@@ -79,11 +85,12 @@ export default function SegmentedControl<T extends string>({
         const active = !locked && seg.key === value;
         const Icon = locked ? Lock : seg.icon;
         return (
-          <View key={seg.key} style={styles.slot}>
+          <View key={seg.key} style={[styles.slot, scrollable && styles.slotScroll]}>
             <TouchableOpacity
               style={[
                 styles.tab,
                 compact && styles.tabCompact,
+                scrollable && styles.tabScroll,
                 active && { backgroundColor: activeColor + '2E' },
                 locked && styles.tabLocked,
               ]}
@@ -104,7 +111,23 @@ export default function SegmentedControl<T extends string>({
             {seg.accessory}
           </View>
         );
-      })}
+      });
+  if (scrollable) {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[styles.container, compact && styles.containerCompact, style]}
+        contentContainerStyle={styles.scrollContent}
+        accessibilityRole="tablist"
+      >
+        {body}
+      </ScrollView>
+    );
+  }
+  return (
+    <View style={[styles.container, compact && styles.containerCompact, style]} accessibilityRole="tablist">
+      {body}
     </View>
   );
 }
@@ -125,6 +148,17 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     padding: scale(3),
     gap: scale(3),
+  },
+  scrollContent: {
+    flexDirection: 'row',
+    gap: scale(4),
+    paddingRight: scale(4),
+  },
+  slotScroll: {
+    flex: 0,
+  },
+  tabScroll: {
+    paddingHorizontal: scale(12),
   },
   slot: {
     flex: 1,

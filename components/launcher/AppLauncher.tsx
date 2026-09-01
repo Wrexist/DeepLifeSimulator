@@ -44,6 +44,7 @@ import { gameAlert } from '@/utils/gameAlert';
 import { setFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import {
   responsivePadding,
   responsiveFontSize,
@@ -193,7 +194,13 @@ export default function AppLauncher({ host, initialApp, onInitialAppConsumed }: 
     // host supplies the top safe-area inset (notch) the TopStatsBar used to.
     return (
       <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: settings.darkMode ? '#0F172A' : '#F8FAFC' }}>
-        <AppComponent onBack={handleCloseApp} />
+        {/* One boundary for all 19 apps. Seven of them shipped without their
+            own, so a throw in any of those took the whole Apps tab down with
+            it; the ones that still wrap themselves simply nest, and the
+            innermost boundary wins. */}
+        <ErrorBoundary>
+          <AppComponent onBack={handleCloseApp} />
+        </ErrorBoundary>
       </View>
     );
   }
