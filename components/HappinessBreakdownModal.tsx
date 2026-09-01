@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { TrendingDown, Briefcase, GraduationCap, Utensils, Home } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
+import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -97,19 +98,29 @@ export default function HappinessBreakdownModal({ visible, onClose }: HappinessB
       });
     }
 
-    // Add real estate happiness boost from current residence
-    const currentResidence = (gameState.realEstate || []).find(p => {
-      const hasStatus = 'status' in p && p.status === 'owner';
-      const hasCurrentResidence = 'currentResidence' in p && p.currentResidence === true;
-      return p.owned && hasStatus && hasCurrentResidence;
-    });
-    if (currentResidence && currentResidence.weeklyHappiness > 0) {
+    // Housing, from the SAME function the weekly tick applies
+    // (`computeHousingWellbeing`) - an owned home, a rental, or the penalty
+    // for neither. The old owned-only `currentResidence` copy here is the
+    // divergence __tests__/economy/rentalLadder.test.ts exists to prevent:
+    // a modal that predicts a number the tick never delivers.
+    const housing = computeHousingWellbeing({ realEstate: gameState.realEstate, rental: gameState.rental });
+    if (housing.happiness > 0) {
       incomes.push({
-        label: `Living in ${currentResidence.name}`,
-        value: currentResidence.weeklyHappiness,
+        label: 'Your housing',
+        value: housing.happiness,
         icon: Home,
         color: '#10B981',
-        description: `Your current residence provides ${currentResidence.weeklyHappiness} happiness per week`,
+        description: `Your home adds ${housing.happiness} happiness per week`,
+      });
+    } else if (housing.happiness < 0) {
+      drains.push({
+        label: housing.homeless ? 'No place to live' : 'Your housing',
+        value: housing.happiness,
+        icon: Home,
+        color: '#EF4444',
+        description: housing.homeless
+          ? `Sleeping rough costs ${Math.abs(housing.happiness)} happiness per week - rent or buy a home`
+          : `Your housing costs ${Math.abs(housing.happiness)} happiness per week`,
       });
     }
 

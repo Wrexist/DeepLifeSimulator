@@ -5,9 +5,9 @@ Phase status — audit complete, implementation not started:
 
 - [x] Phase A — Forensic audit (screens, navigation, design system, overlay layer)
 - [x] Phase A — Redesign blueprint written (14 sections + metric ratchet table)
-- [~] Phase 0 — Foundations: StatBreakdownModal + Card/IconBubble primitives (in progress), single stat-color source DONE (perksFlow money label + theme palette contradictors deleted), dead-code deletion DONE, UI ratchet guard pending
+- [x] Phase 0 — Foundations: StatBreakdownModal chassis (7 modals → 1, −1,600 dup lines), Card/IconBubble primitives (9 rainbow cards → 1 neutral hairline), single stat-color source, dead-code deletion, ui:ratchet gate (gradients / raw font sizes / heavy weights) wired into preflight
 - [x] Phase 1 — Kill the noise: interruption budget (≤2 budgeted grants per game week, player-initiated surfaces exempt), tutorial system fully retired (TutorialManager/SimpleTutorialModal/FirstWeekGuide/enhancedTutorialData/TutorialHighlightContext deleted; FirstSessionCoach is the one teaching surface), WeeklyResultSheet removed (LastWeekRecap + Week Summary switch), duplicate find-job CTA + no_job tip + HeroStrip removed, PremiumCrownButton off Home, Home's four visible={false} modals now conditional
-- [ ] Phase 2 — HUD rebuild (TopStatsBar → ≤7 readouts, labeled Next Week)
+- [x] Phase 2 — HUD de-clutter: savings chip folded into one money breakdown (BankBreakdownModal absorbed), gems gesture inversion fixed (tap=breakdown, +=buy), delta arrows + their 90-line prediction memo removed (projections live in the breakdown modals, now all reading computeHousingWellbeing), Help circle → Settings row, labeled flat 'Next week' button, HUD gradients flattened, dead parent week-dot animations removed
 - [ ] Phase 3 — Home rebuild (unified Goals surface, IdentityCard diet)
 - [ ] Phase 4 — Work rebuild (3-chip JobCard, button-state collapse)
 - [ ] Phase 5 — Structure: one AppLauncher, Market flatten, route dedup

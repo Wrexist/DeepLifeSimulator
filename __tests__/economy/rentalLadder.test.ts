@@ -196,15 +196,32 @@ describe('the HUD predicts what the tick actually pays', () => {
     );
   };
 
-  it('TopStatsBar derives its prediction from computeHousingWellbeing', () => {
-    const bar = source();
-    expect(bar).toMatch(/computeHousingWellbeing\s*\(/);
-    expect(bar).toMatch(/from\s+'@\/lib\/realEstate\/rentals'/);
+  // The HUD's delta arrows (and their whole prediction memo) were removed in
+  // the phase-2 de-clutter, so the surfaces that predict housing's weekly
+  // effect are now the three vitals breakdown modals. Same invariant, moved:
+  // every surface that predicts must read the function the tick applies.
+  const PREDICTING_SURFACES = [
+    'components/EnergyBreakdownModal.tsx',
+    'components/HappinessBreakdownModal.tsx',
+    'components/HealthBreakdownModal.tsx',
+  ];
+
+  it.each(PREDICTING_SURFACES)('%s derives housing from computeHousingWellbeing', (rel) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs') as typeof import('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path') as typeof import('path');
+    const src = fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
+    expect(src).toMatch(/computeHousingWellbeing\s*\(/);
+    expect(src).toMatch(/from\s+'@\/lib\/realEstate\/rentals'/);
+    // The specific shape that made a surface disagree with the tick.
+    expect(src).not.toMatch(/currentResidence\.weekly(Energy|Happiness)/);
   });
 
-  it('no longer keeps a second, owned-only copy of the housing maths', () => {
-    // The specific shape that made the bar disagree with the tick.
-    expect(source()).not.toMatch(/currentResidence\.weekly(Energy|Happiness)/);
+  it('TopStatsBar itself no longer predicts housing at all', () => {
+    const bar = source();
+    expect(bar).not.toMatch(/computeHousingWellbeing/);
+    expect(bar).not.toMatch(/currentResidence/);
   });
 });
 

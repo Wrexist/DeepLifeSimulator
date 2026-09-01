@@ -1,49 +1,172 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { PiggyBank, TrendingUp } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { formatMoney } from '@/utils/moneyFormatting';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
+import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 import { useTheme } from '@/hooks/useTheme';
+import { nonMirrorDeposits, MIRRORED_ACCOUNT_IDS } from '@/lib/banking/operations';
+import { accountTypeLabel } from '@/components/banking/AccountRow';
 
 interface MoneyBreakdownModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
+const exactUSD = (value: number) =>
+  value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+/**
+ * The ONE money modal. It used to be two - a cash-only card behind the green
+ * chip and a "Bank & Investments" modal behind a separate amber savings chip.
+ * The phase-2 HUD de-clutter removed the savings chip, so everything the
+ * player owns in dollars now lives one tap behind the money chip: cash on
+ * hand, then bank savings, self-opened accounts and stock holdings (the
+ * absorbed BankBreakdownModal content, derivation unchanged).
+ */
 export default function MoneyBreakdownModal({ visible, onClose }: MoneyBreakdownModalProps) {
   const stats = useGameSelector((s) => s.stats, shallowEqual);
+  const bankSavings = useGameSelector((s) => s.bankSavings);
+  // The accounts the player opened themselves. `nonMirrorDeposits` drops
+  // checking-default / savings-default, which mirror `stats.money` /
+  // `bankSavings` - the legacy pool is already counted as `savings` below.
+  const accounts = useGameSelector((s) => s.banking?.accounts);
+  const stocks = useGameSelector((s) => s.stocks);
+  const weeksLived = useGameSelector((s) => s.weeksLived);
   const { isDark } = useTheme();
   const money = stats?.money ?? 0;
+
+  const breakdown = useMemo(() => {
+    const savings = bankSavings ?? 0;
+    const selfOpened = (accounts ?? []).filter(
+      (a) => a && !MIRRORED_ACCOUNT_IDS.has(a.id) && (a.balance ?? 0) > 0
+    );
+    const selfOpenedTotal = nonMirrorDeposits(accounts ?? []);
+
+    // Calculate stock investments
+    // CRITICAL: Get the latest stock prices to ensure sync with StocksApp
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getStockInfo } = require('@/lib/economy/stockMarket');
+
+    const stockHoldings = stocks?.holdings || [];
+    const stockItems = stockHoldings.map(holding => {
+      // Always use the latest stock price from stockMarket (source of truth)
+      const stockInfo = getStockInfo(holding.symbol);
+      const currentPrice = stockInfo.price || holding.currentPrice || 0;
+
+      return {
+        symbol: holding.symbol,
+        shares: holding.shares,
+        averagePrice: holding.averagePrice,
+        currentPrice: currentPrice,
+        totalValue: holding.shares * currentPrice,
+        gainLoss: (currentPrice - holding.averagePrice) * holding.shares,
+        gainLossPercent: holding.averagePrice > 0
+          ? ((currentPrice - holding.averagePrice) / holding.averagePrice) * 100
+          : 0,
+      };
+    });
+
+    const totalStockValue = stockItems.reduce((sum, item) => sum + item.totalValue, 0);
+    const totalSavings = savings + selfOpenedTotal + totalStockValue;
+
+    return {
+      savings,
+      selfOpened,
+      selfOpenedTotal,
+      stockItems,
+      totalStockValue,
+      totalSavings,
+    };
+  }, [bankSavings, accounts, stocks, weeksLived]); // Recalculate when week changes
+
+  const sections: StatBreakdownSection[] = [
+    {
+      title: 'Savings',
+      kind: 'neutral',
+      icon: PiggyBank,
+      iconColor: '#F59E0B',
+      entries: [
+        {
+          label: 'Savings Account',
+          valueText: formatMoney(breakdown.savings),
+          icon: PiggyBank,
+          color: '#F59E0B',
+          description: 'Money deposited in your bank account',
+          monoFootnote: exactUSD(breakdown.savings),
+        },
+        // Accounts the player opened themselves. These carry a real balance and
+        // a real APR, and were previously absent from both this list and the
+        // total it rolls up to - so a funded high-yield account looked like it
+        // had swallowed the money.
+        ...breakdown.selfOpened.map((account) => ({
+          label: account.name,
+          valueText: formatMoney(account.balance),
+          icon: PiggyBank,
+          color: '#F59E0B',
+          description:
+            accountTypeLabel(account.type) +
+            (account.baseAPR > 0 ? ` · ${(account.baseAPR * 100).toFixed(2)}% APR` : ''),
+          monoFootnote: exactUSD(account.balance ?? 0),
+        })),
+      ],
+    },
+  ];
+
+  if (breakdown.stockItems.length > 0) {
+    sections.push({
+      title: 'Stock Investments',
+      kind: 'income',
+      entries: breakdown.stockItems.map((item) => {
+        const isPositive = item.gainLoss >= 0;
+        return {
+          label: item.symbol,
+          valueText: formatMoney(item.totalValue),
+          icon: TrendingUp,
+          color: '#10B981',
+          iconColor: isPositive ? '#10B981' : '#EF4444',
+          description: [
+            `${item.shares.toLocaleString()} shares @ ${formatMoney(item.currentPrice)} each`,
+            `Avg: ${formatMoney(item.averagePrice)} | Current: ${formatMoney(item.currentPrice)}`,
+          ],
+          subValue: {
+            text: `${isPositive ? '+' : ''}${formatMoney(item.gainLoss)} (${isPositive ? '+' : ''}${item.gainLossPercent.toFixed(2)}%)`,
+            positive: isPositive,
+          },
+          monoFootnote: exactUSD(item.totalValue),
+        };
+      }),
+    });
+  }
 
   return (
     <StatBreakdownModal
       visible={visible}
       onClose={onClose}
-      title="Cash Balance"
+      title="Your Money"
       hero={{
-        label: 'Current Cash',
+        label: 'Cash on Hand',
         valueText: formatMoney(money),
         valueColor: isDark ? '#22C55E' : '#16A34A',
         subLines: [
-          {
-            text: money.toLocaleString('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }),
-            emphasis: true,
-          },
+          { text: exactUSD(money), emphasis: true },
+          { text: `Savings & investments: ${formatMoney(breakdown.totalSavings)}` },
         ],
       }}
+      sections={sections}
       summary={{
-        title: 'About Cash',
+        title: 'About Your Money',
         text: (
           <>
-            {'\u2022'} Cash is the money you have on hand{'\n'}
-            {'\u2022'} Use cash to buy items, pay for activities, and make purchases{'\n'}
-            {'\u2022'} You can deposit cash into your bank account for savings{'\n'}
-            {'\u2022'} Cash doesn't earn interest - consider saving excess funds{'\n'}
-            {'\u2022'} Keep some cash on hand for emergencies and daily expenses
+            {'•'} Cash is what you spend on items, food and activities{'\n'}
+            {'•'} Bank savings are safe; stock investments can gain or lose value{'\n'}
+            {'•'} Savings & investments = Bank savings + Your accounts + Stocks{'\n'}
+            {'•'} Cash earns no interest - consider saving excess funds
           </>
         ),
       }}

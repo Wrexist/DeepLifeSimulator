@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { TrendingDown, Briefcase, GraduationCap, Utensils, AlertTriangle } from 'lucide-react-native';
+import { TrendingDown, Briefcase, GraduationCap, Utensils, AlertTriangle, Home } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -19,6 +20,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
   const bankSavings = useGameSelector((s) => s.bankSavings);
   const dietPlans = useGameSelector((s) => s.dietPlans);
   const realEstate = useGameSelector((s) => s.realEstate);
+  const rental = useGameSelector((s) => s.rental, shallowEqual);
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
@@ -133,6 +135,32 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
     // Note: Real estate health boosts are applied once when moving in (not weekly)
     // Health traits from properties provide a one-time boost, unlike happiness/energy which are weekly
 
+    // Housing, from the SAME function the weekly tick applies
+    // (`computeHousingWellbeing`) - an owned home, a rental, or the penalty
+    // for neither. The old owned-only `currentResidence` copy here is the
+    // divergence __tests__/economy/rentalLadder.test.ts exists to prevent:
+    // a modal that predicts a number the tick never delivers.
+    const housing = computeHousingWellbeing({ realEstate, rental });
+    if (housing.health > 0) {
+      incomes.push({
+        label: 'Your housing',
+        value: housing.health,
+        icon: Home,
+        color: '#10B981',
+        description: `Your home adds ${housing.health} health per week`,
+      });
+    } else if (housing.health < 0) {
+      drains.push({
+        label: housing.homeless ? 'No place to live' : 'Your housing',
+        value: housing.health,
+        icon: Home,
+        color: '#EF4444',
+        description: housing.homeless
+          ? `Sleeping rough costs ${Math.abs(housing.health)} health per week - rent or buy a home`
+          : `Your housing costs ${Math.abs(housing.health)} health per week`,
+      });
+    }
+
     // Calculate total drain and income
     const totalDrain = drains.reduce((sum, d) => sum + Math.abs(d.value), 0);
     const totalIncome = incomes.reduce((sum, i) => sum + i.value, 0);
@@ -151,7 +179,7 @@ export default function HealthBreakdownModal({ visible, onClose }: HealthBreakdo
       currentHealth,
       projectedHealth,
     };
-  }, [stats?.health, currentJob, careers, educations, stats?.money, bankSavings, dietPlans, realEstate, diseases]);
+  }, [stats?.health, currentJob, careers, educations, stats?.money, bankSavings, dietPlans, realEstate, rental, diseases]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {

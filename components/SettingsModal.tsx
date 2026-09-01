@@ -11,13 +11,14 @@ import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
 import { X, Vibrate,
   VibrateOff,
-  Save, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
 import DangerZone from './settings/DangerZone';
 import CloudBackupRow from './settings/CloudBackupRow';
 import WhatsNewModal from './WhatsNewModal';
+const HelpModal = React.lazy(() => import('./HelpModal'));
 import { useTranslation } from '@/hooks/useTranslation';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
 import { setHapticsEnabled } from '@/utils/haptics';
@@ -131,6 +132,9 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const openWhatsNew = useCallback(() => setShowWhatsNew(true), []);
+  // Help & FAQ lives here now - the HUD lost its dedicated help circle in the
+  // phase-2 de-clutter (four icon circles was two too many for a permanent bar).
+  const [showHelp, setShowHelp] = useState(false);
   const closeWhatsNew = useCallback(() => setShowWhatsNew(false), []);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const [discordRewardClaimed, setDiscordRewardClaimed] = useState(false);
@@ -569,6 +573,14 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                   accessibilityLabel="See what's new in the latest update"
                 />
 
+                <SettingsActionButton
+                  icon={HelpCircle}
+                  label="Help & FAQ"
+                  accent="#34D399"
+                  onPress={() => setShowHelp(true)}
+                  accessibilityLabel="Open help and frequently asked questions"
+                />
+
                 {settingItems.map(item => (
                   <View key={item.id} style={[styles.settingItem,  styles.settingItemDark]}>
                     <View style={[styles.settingItemBlur, { backgroundColor: 'rgba(0, 0, 0, 0.2)' }]}>
@@ -775,6 +787,11 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
       <LegacyOverviewTab visible={showLegacyOverview} onClose={() => setShowLegacyOverview(false)} />
       {/* Game Dev Tools modal mount - only present in dev/QA builds (see DEV_TOOLS_ENABLED). */}
+      {showHelp && (
+        <React.Suspense fallback={null}>
+          <HelpModal visible onClose={() => setShowHelp(false)} />
+        </React.Suspense>
+      )}
       {DEV_TOOLS_ENABLED && DevToolsModal ? (
         <DevToolsModal visible={showDevTools} onClose={() => setShowDevTools(false)} />
       ) : null}

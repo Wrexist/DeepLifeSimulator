@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Briefcase, GraduationCap, Coffee, Home, Utensils } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
+import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
 import StatBreakdownModal from '@/components/ui/StatBreakdownModal';
 import type { StatBreakdownSection } from '@/components/ui/StatBreakdownModal';
 
@@ -18,6 +19,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
   const prestige = useGameSelector((s) => s.prestige);
   const dietPlans = useGameSelector((s) => s.dietPlans);
   const realEstate = useGameSelector((s) => s.realEstate);
+  const rental = useGameSelector((s) => s.rental, shallowEqual);
 
   const breakdown = useMemo(() => {
     const drains: { label: string; value: number; icon: LucideIcon; color: string; description?: string }[] = [];
@@ -104,19 +106,29 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       });
     }
 
-    // Add real estate energy boost from current residence
-    const currentResidence = (realEstate || []).find(p => {
-      const hasStatus = 'status' in p && p.status === 'owner';
-      const hasCurrentResidence = 'currentResidence' in p && p.currentResidence === true;
-      return p.owned && hasStatus && hasCurrentResidence;
-    });
-    if (currentResidence && currentResidence.weeklyEnergy > 0) {
+    // Housing, from the SAME function the weekly tick applies
+    // (`computeHousingWellbeing`) - an owned home, a rental, or the penalty
+    // for neither. The old owned-only `currentResidence` copy here is the
+    // divergence __tests__/economy/rentalLadder.test.ts exists to prevent:
+    // a modal that predicts a number the tick never delivers.
+    const housing = computeHousingWellbeing({ realEstate, rental });
+    if (housing.energy > 0) {
       incomes.push({
-        label: `Living in ${currentResidence.name}`,
-        value: currentResidence.weeklyEnergy,
+        label: 'Your housing',
+        value: housing.energy,
         icon: Home,
         color: '#10B981',
-        description: `Your current residence provides ${currentResidence.weeklyEnergy} energy per week`,
+        description: `Your home restores ${housing.energy} energy per week`,
+      });
+    } else if (housing.energy < 0) {
+      drains.push({
+        label: housing.homeless ? 'No place to live' : 'Your housing',
+        value: housing.energy,
+        icon: Home,
+        color: '#EF4444',
+        description: housing.homeless
+          ? `Sleeping rough costs ${Math.abs(housing.energy)} energy per week - rent or buy a home`
+          : `Your housing costs ${Math.abs(housing.energy)} energy per week`,
       });
     }
 
@@ -138,7 +150,7 @@ export default function EnergyBreakdownModal({ visible, onClose }: EnergyBreakdo
       currentEnergy,
       projectedEnergy,
     };
-  }, [stats?.energy, currentJob, careers, educations, prestige, dietPlans, realEstate]);
+  }, [stats?.energy, currentJob, careers, educations, prestige, dietPlans, realEstate, rental]);
 
   const sections: StatBreakdownSection[] = [];
   if (breakdown.incomes.length > 0) {
