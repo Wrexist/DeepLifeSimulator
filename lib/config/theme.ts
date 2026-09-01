@@ -55,10 +55,13 @@ const palette = {
   info: '#3B82F6',
   infoLight: '#60A5FA',
 
-  // Game-specific
-  health: '#10B981',
-  happiness: '#F59E0B',
-  energy: '#3B82F6',
+  // Game-specific. health/happiness/energy are deliberately ABSENT: stat
+  // colour/icon identity lives in lib/config/statIdentity.ts (the HUD's
+  // pairings). The values that used to sit here had zero consumers and
+  // painted health GREEN where every surface the player sees paints it red -
+  // exactly the trap a future reader would fall into. fitness/reputation stay
+  // because DeathPopup and pulseTheme consume them (and they agree with
+  // STAT_IDENTITY).
   fitness: '#8B5CF6',
   money: '#10B981',
   gems: '#6366F1',

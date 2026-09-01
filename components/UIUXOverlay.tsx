@@ -101,7 +101,7 @@ export default function UIUXOverlay() {
         />
       ))}
 
-      {/* Tutorial is handled by TutorialManager component - disabled here to prevent overlap */}
+      {/* The modal tutorial system is retired; FirstSessionCoach teaches inline. */}
     </View>
   );
 }

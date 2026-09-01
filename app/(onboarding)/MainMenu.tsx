@@ -33,6 +33,7 @@ import { applyLifePathSelectionToOnboardingState } from '@/src/features/onboardi
 import { scenarios } from '@/src/features/onboarding/scenarioData';
 import { generateRandomName } from '@/src/features/onboarding/nameData';
 import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
+import { useStartLife } from '@/src/features/onboarding/useStartLife';
 import { isSaveFromFutureError, SAVE_FROM_FUTURE_MESSAGE } from '@/utils/saveMigrations';
 import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import { logger } from '@/utils/logger';
@@ -93,7 +94,11 @@ interface SaveSummary {
  * When the action cards start, relative to the brand entrance. See the delay
  * note inside `RevealItem` - this exists so the two sequences read as one.
  */
-const MENU_LEAD_MS = 560;
+// Was 560ms of lead plus 70ms per card - roughly a second before the last
+// menu item settled, on EVERY return to the menu, not just the first. The
+// entrance is a nicety; making the player wait through it to tap Continue is
+// not. 2026-09-01 UI audit.
+const MENU_LEAD_MS = 120;
 
 function RevealItem({
   index,
@@ -123,7 +128,7 @@ function RevealItem({
       // last line starts at 90 + 2*130 = 350ms and runs 620ms, so the menu
       // begins arriving as the title settles - overlapping slightly, which
       // reads as one continuous entrance instead of two separate ones.
-      delay: MENU_LEAD_MS + index * 70,
+      delay: MENU_LEAD_MS + index * 40,
       // A gentle overshoot-free ease. `back` was tried and rejected: on a
       // MENU the bounce reads as toy-like, which is the opposite of the goal.
       easing: Easing.bezier(0.16, 1, 0.3, 1),
@@ -178,7 +183,7 @@ function HeroLine({
     const animation = Animated.timing(progress, {
       toValue: 1,
       duration: 620,
-      delay: 90 + index * 130,
+      delay: 60 + index * 70,
       easing: Easing.bezier(0.16, 1, 0.3, 1),
       useNativeDriver: true,
     });
@@ -320,7 +325,7 @@ export default function MainMenu() {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const { loadGame } = useGameActions();
-  const { setState: setOnboardingState } = useOnboarding();
+  const { state: onboardingState, setState: setOnboardingState } = useOnboarding();
   const { t } = useTranslation();
   const [hasSave, setHasSave] = useState(false);
   const [saveSummary, setSaveSummary] = useState<SaveSummary | null>(null);
@@ -653,6 +658,19 @@ export default function MainMenu() {
    *
    * The long flow is untouched - this is an additional door, not a replacement.
    */
+  // The one start ceremony, shared with the Perks screen (see useStartLife).
+  const { startLife, isStarting: isQuickStarting } = useStartLife();
+  // `startQuick` writes the draft through `setOnboardingState`; the ceremony
+  // reads that draft, so it must run on a LATER render, not in the same
+  // handler. This flag is that handoff.
+  const [pendingQuickStart, setPendingQuickStart] = useState(false);
+  useEffect(() => {
+    if (!pendingQuickStart) return;
+    if (!onboardingState.scenario || !onboardingState.firstName) return;
+    setPendingQuickStart(false);
+    startLife({ selectedPerks: [], selectedMindset: null, origin: 'MainMenu' });
+  }, [pendingQuickStart, onboardingState.scenario, onboardingState.firstName, startLife]);
+
   const startQuick = async () => {
     haptic.light();
     try {
@@ -681,12 +699,18 @@ export default function MainMenu() {
         perks: [],
       }));
 
-      if (router && typeof router.push === 'function') {
-        router.push('/(onboarding)/Perks');
-      } else {
-        log.error('Router not available for navigation');
-        gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
-      }
+      // Straight into the game. This used to `router.push('/(onboarding)/Perks')`
+      // purely to reach the start ceremony that lived inside that screen - so
+      // the FAST door dropped the player on "step 4 of 4", a grid of 21 perks
+      // with 20 achievement-locked on a first run, whose own copy tells them to
+      // skip it (2026-09-01 UI audit §2 item 7). The ceremony now lives in
+      // `useStartLife`, shared with Perks, so this is the same code path with
+      // one fewer screen - not a second, less-tested one.
+      //
+      // The state write above is a React update, so `state` inside the hook is
+      // still the pre-update draft on this tick. Pass the selections the quick
+      // start implies and let the effect below fire once the draft has landed.
+      setPendingQuickStart(true);
     } catch (error) {
       log.error('Quick start failed', error);
       gameAlert('Navigation Error', 'Unable to start a new game. Please try again.', [{ text: 'OK' }]);
@@ -813,8 +837,11 @@ export default function MainMenu() {
               Research on first-session retention is blunt about this - a player
               should be IN the game inside 60 seconds, and the fastest way to
               lose them is to open with a choice they have no basis to make.
-              Measured on this build: Play reaches a live game in 2 taps against
-              New Game's 6, and 12.3s against 21.4s.
+              Measured on this build: Play reaches a live game in ONE tap - it
+              runs the start ceremony directly (`useStartLife`) instead of
+              routing through the Perks screen to reach it, which is what used
+              to land a brand-new player on "step 4 of 4" of a wizard they had
+              chosen to skip (2026-09-01 UI audit).
 
               So the doors are ordered by what a newcomer needs rather than by
               what the app can do. Someone who WANTS to pick a scenario, a name,
@@ -828,6 +855,7 @@ export default function MainMenu() {
                   title="Play"
                   subtitle="Start a life right now"
                   onPress={startQuick}
+                  loading={isQuickStarting}
                 />
               </RevealItem>
             ) : null}

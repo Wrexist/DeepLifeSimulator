@@ -1,23 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { Animated, Easing, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { track } from '@/lib/analytics';
 import { awardLegacyPassXp } from '@/contexts/game/actions/LegacyPassActions';
 import { canClaimDailyGemsFor } from '@/contexts/game/actions/SubscriptionActions';
 import { LEGACY_PASS_XP } from '@/lib/legacyPass/legacyPass';
-import { Briefcase, ChevronRight, Trophy, ChevronDown, ChevronUp, Lock } from 'lucide-react-native';
+import { ChevronRight, Trophy, ChevronDown, ChevronUp, Lock } from 'lucide-react-native';
 import { logger } from '@/utils/logger';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
-import { useGameActions, useItemActions } from '@/contexts/GameContext';
+import { useGameActions } from '@/contexts/GameContext';
 import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
-import { useTutorial } from '@/contexts/UIUXContext';
 import AchievementsSummaryCard from '@/components/AchievementsSummaryCard';
 import BannerAd from '@/components/BannerAd';
 import AchievementsModal from '@/components/AchievementsModal';
 import IdentityCard from '@/components/IdentityCard';
-import PremiumCrownButton from '@/components/PremiumCrownButton';
 import LastWeekRecap from '@/components/LastWeekRecap';
 import PrestigeButton from '@/components/PrestigeButton';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
@@ -26,8 +24,7 @@ import PrestigePreviewCard from '@/components/PrestigePreviewCard';
 import PrestigeModal from '@/components/PrestigeModal';
 import PrestigeShopModal from '@/components/PrestigeShopModal';
 import PrestigeInfoModal from '@/components/PrestigeInfoModal';
-import { getEnhancedTutorialSteps } from '@/utils/enhancedTutorialData';
-import { fontScale, responsivePadding, responsiveSpacing, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
+import { fontScale, responsivePadding, scale, responsiveBorderRadius, verticalScale } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 import LifeChapterCard from '@/components/LifeChapterCard';
 import AmbitionCard from '@/components/AmbitionCard';
@@ -38,13 +35,13 @@ import NextGoalsCard from '@/components/NextGoalsCard';
 import WeekAheadCard from '@/components/WeekAheadCard';
 import AmbitionPickerCard from '@/components/AmbitionPickerCard';
 import ElderCard from '@/components/ElderCard';
-import { FirstWeekGuide, ContextualTip, useContextualTip, shouldShowFirstWeekGuide } from '@/components/FirstWeekGuide';
+import GoalsCard from '@/components/GoalsCard';
+import { ContextualTip, useContextualTip, type ContextualTipType } from '@/components/ContextualTip';
 import FirstSessionCoach from '@/components/FirstSessionCoach';
 import DiscoveryIndicator from '@/components/depth/DiscoveryIndicator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FadeInUp from '@/components/anim/FadeInUp';
 import { useTheme } from '@/hooks/useTheme';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
   readDiscordClaim,
   beginDiscordClaim,
@@ -80,56 +77,6 @@ function HomeScreen() {
   );
 }
 
-/**
- * Hero strip - small, refined status line at the very top of the home tab.
- *   MARCH  •  WEEK 3  •  AGE 23
- * The dot before WEEK breathes (opacity 0.45 ↔ 1) to signal "live" without
- * adding visual noise to the rest of the screen.
- */
-function HeroStrip({ month, week, age }: { month: string; week: number; age: number }) {
-  const reduced = useReducedMotion();
-  const pulse = useRef(new Animated.Value(0.5)).current;
-
-  useEffect(() => {
-    if (reduced) {
-      // Reduced motion: hold the "live" dot at full opacity - no breathing loop.
-      pulse.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 1400,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(pulse, {
-          toValue: 0.45,
-          duration: 1400,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse, reduced]);
-
-  return (
-    <View style={styles.heroRow}>
-      <Text style={styles.heroSegment}>{month.toUpperCase()}</Text>
-      <View style={styles.heroSeparator} />
-      <View style={styles.heroLiveCluster}>
-        <Animated.View style={[styles.heroLiveDot, { opacity: pulse }]} />
-        <Text style={styles.heroSegment}>WEEK {week}</Text>
-      </View>
-      <View style={styles.heroSeparator} />
-      <Text style={styles.heroSegment}>AGE {age}</Text>
-    </View>
-  );
-}
-
 function HomeScreenContent() {
   const insets = useSafeAreaInsets();
   // Sprint 2 perf: subscribe only to the slices this screen (and its goal /
@@ -151,7 +98,6 @@ function HomeScreenContent() {
       week: s?.week,
       jailWeeks: s?.jailWeeks,
       date: s?.date,
-      showWelcomePopup: s?.showWelcomePopup,
       showDeathPopup: s?.showDeathPopup,
       showWeddingPopup: s?.showWeddingPopup,
       showDailyRewardPopup: s?.showDailyRewardPopup,
@@ -175,9 +121,7 @@ function HomeScreenContent() {
   ) as unknown as GameState;
   const setGameState = useSetGameState();
   const { saveGame } = useGameActions();
-  const { dismissWelcomePopup } = useItemActions();
   const { theme, isDark } = useTheme();
-  const { hasCompletedTutorial, startTutorial } = useTutorial();
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showCommunityReward, setShowCommunityReward] = useState(false);
   // The offer record the visible popup was decided from. Spending an offer
@@ -190,6 +134,10 @@ function HomeScreenContent() {
   const [showPrestigeInfo, setShowPrestigeInfo] = useState(false);
   // Collapses the secondary tail of the home feed so it doesn't grow unbounded.
   const [showMore, setShowMore] = useState(false);
+  // The "working toward" band's disclosure. Defaults closed: the audit found
+  // five near-identical checklist cards stacked here, so the summary GoalsCard
+  // is the default and the per-system detail cards are opt-in.
+  const [showGoalDetails, setShowGoalDetails] = useState(false);
 
   // Root-level blocking modals (death/wedding) own the screen - every
   // celebration/reward popup below defers to them.
@@ -263,21 +211,17 @@ function HomeScreenContent() {
   // Life Chapters (`LifeChapterCard` + `applyChapterProgress`) are the real
   // progression ladder and are paid by the week tick.
 
-  // Show tutorial for new users
-  useEffect(() => {
-    if (!hasCompletedTutorial && weeksThisLife <= 1 && gameState.showWelcomePopup) {
-      dismissWelcomePopup();
-      const timer = setTimeout(() => {
-        startTutorial(getEnhancedTutorialSteps('game'));
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [hasCompletedTutorial, weeksThisLife, gameState.week, gameState.showWelcomePopup, startTutorial, dismissWelcomePopup]);
+  // The modal tutorial is retired: FirstSessionCoach (below, in the feed) is
+  // the one teaching surface, gated on live game state rather than a
+  // device-wide AsyncStorage flag. Everything that used to wait for
+  // `hasCompletedTutorial` now waits for actual play instead: `weeksThisLife`
+  // only advances by living weeks, so it is the honest "past the first
+  // moments" signal - and unlike the old flag it resets with each new life
+  // and cannot be pre-satisfied by a previous install. CLAUDE.md §4.2.
 
   // ENGAGEMENT: Daily login reward with streak system
   useEffect(() => {
-    if (weeksThisLife < 1 || !hasCompletedTutorial) return undefined;
+    if (weeksThisLife < 1) return undefined;
     if (gameState.showDailyRewardPopup) return undefined;
 
     // FARMABLE ON THE DEVICE CLOCK. The only gate here was
@@ -371,7 +315,6 @@ function HomeScreenContent() {
     gameState.loginStreak,
     gameState.lastLoginDate,
     gameState.showDailyRewardPopup,
-    hasCompletedTutorial,
     setGameState,
   ]);
 
@@ -445,8 +388,7 @@ function HomeScreenContent() {
       if (
         hoursAway > 24 &&
         !welcomeBackClaimed({ settings: { lastWelcomeBackWeek }, weeksLived: gameState.weeksLived }) &&
-        !showWelcomeBack &&
-        hasCompletedTutorial
+        !showWelcomeBack
       ) {
         // 600ms: ahead of the daily popup's 800ms spawn, so the higher-priority
         // summary claims the slot before the gem popup ever presents - the
@@ -458,7 +400,7 @@ function HomeScreenContent() {
       }
     }
     return undefined;
-  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, showWelcomeBack, hasCompletedTutorial]);
+  }, [gameState.lastLogin, weeksThisLife, gameState.week, gameState.weeksLived, lastWelcomeBackWeek, showWelcomeBack]);
 
   // ENGAGEMENT: low-key invite to join the Discord for a cash reward.
   // Subtle by design - only once the player is settled in (tutorial done + a few
@@ -471,7 +413,6 @@ function HomeScreenContent() {
   // later" at week 4 was the worst possible moment to close this funnel on.
   // The Settings entry stays as the always-available fallback.
   useEffect(() => {
-    if (!hasCompletedTutorial) return undefined;
     if (gameState.showDailyRewardPopup || showWelcomeBack || showCommunityReward) return undefined;
 
     let cancelled = false;
@@ -491,7 +432,6 @@ function HomeScreenContent() {
           record,
           weeksInThisLife: weeksThisLife,
           weeksLived: gameState.weeksLived,
-          hasCompletedTutorial,
         })) return;
         // Remember which record this offer was decided from, so spending it
         // increments the value that was actually read.
@@ -508,7 +448,7 @@ function HomeScreenContent() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [hasCompletedTutorial, weeksThisLife, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
+  }, [weeksThisLife, gameState.weeksLived, gameState.showDailyRewardPopup, showWelcomeBack, showCommunityReward]);
 
   // FINDING 1: derive the reward from the FULL state's net worth, not home's
   // PROJECTED selector slice (which omits properties, companies, stocks, vehicles
@@ -647,11 +587,8 @@ function HomeScreenContent() {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled={true}
       >
-        <HeroStrip
-          month={gameState.date?.month || 'January'}
-          week={gameState.date?.week || 1}
-          age={Math.floor(gameState.date?.age ?? 18)}
-        />
+        {/* No hero strip: the HUD's date box directly above this screen already
+            shows month, week and age - one fact, one surface. */}
 
         {/*
           The first-session coach, at the TOP of the feed rather than pinned to
@@ -666,9 +603,10 @@ function HomeScreenContent() {
 
           Mounted UNCONDITIONALLY: it owns its own gating from live game state,
           so it cannot ask for something already done and retires itself once
-          the player has been paid. `FirstWeekGuide` below is gated on
-          `hasCompletedTutorial`, and driving the shipped build showed it never
-          rendered - the coach must not inherit that dependency.
+          the player has been paid. It is also the ONLY teaching surface now -
+          the modal tutorial and the FirstWeekGuide are retired (the latter was
+          dead by construction: gated on a device-wide flag the tutorial set
+          first in a 500ms race).
         */}
         <FirstSessionCoach />
 
@@ -678,13 +616,9 @@ function HomeScreenContent() {
           <IdentityCard onOpenPrestigeShop={() => setShowPrestigeShop(true)} />
         </FadeInUp>
 
-        {/* DeepLife+ upsell - a golden crown entry to the premium paywall.
-            Self-contained (owns its modal) and hides itself for members. */}
-        <FadeInUp delay={10}>
-          <View style={styles.premiumCrownRow}>
-            <PremiumCrownButton />
-          </View>
-        </FadeInUp>
+        {/* No crown upsell here any more: the HUD's store button and the gem
+            chip's + are the store entries. Four concurrent paywall
+            affordances on one screen was the audit's monetization finding. */}
 
         {/* Non-blocking weekly recap - restores the sense of progress that the
             (removed) weekly event pop-ups used to provide, without interrupting. */}
@@ -693,44 +627,16 @@ function HomeScreenContent() {
           <LastWeekRecap />
         </FadeInUp>
 
-        {/* Contextual Tips - shown when player is stuck */}
+        {/* Contextual Tips - shown when player is stuck. The 'no_job' tip and
+            the find-a-job CTA that used to sit here are gone: FirstSessionCoach
+            above owns that message, and three surfaces saying "get a job" on
+            one screen was the audit's duplication finding. */}
         {activeTip && (
           <ContextualTip
-            type={activeTip as 'low_health' | 'low_happiness' | 'low_energy' | 'no_job' | 'low_money' | 'promotion_ready'}
+            type={activeTip as ContextualTipType}
             onDismiss={() => dismissTip(activeTip)}
           />
         )}
-
-        {/* FTUE: prominent "Find Your First Job" CTA for brand-new players. */}
-        {(() => {
-          const hasJob = !!gameState.currentJob;
-          const hasDoneStreetJob = (gameState.streetJobsCompleted ?? 0) > 0;
-          const isBrandNew = weeksThisLife <= 5 && !hasJob && !hasDoneStreetJob;
-          if (!isBrandNew) return null;
-          return (
-            <FadeInUp delay={30}>
-              <TouchableOpacity
-                style={styles.findJobCta}
-                onPress={() => router.push('/(tabs)/work')}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Find your first job"
-                accessibilityHint="Opens the Work tab"
-              >
-                <View style={styles.findJobIconBubble}>
-                  <Briefcase size={scale(20)} color="#34D399" />
-                </View>
-                <View style={styles.findJobTextWrap}>
-                  <Text style={styles.findJobTitle}>Find your first job</Text>
-                  <Text style={styles.findJobSubtitle}>
-                    Street jobs pay 2–4× more than entry careers.
-                  </Text>
-                </View>
-                <ChevronRight size={scale(16)} color="rgba(52, 211, 153, 0.85)" />
-              </TouchableOpacity>
-            </FadeInUp>
-          );
-        })()}
 
         {/* Prestige Button */}
         {isPrestigeAvailable(gameState) && (
@@ -764,32 +670,64 @@ function HomeScreenContent() {
             likely to be true for THIS save. Both render null when they have
             nothing to say, so a quiet early week is not padded with cards. */}
         <SectionGroup label="What you're working toward" collapsibleId="home.goals">
+        {/* ONE goals surface by default. The audit found five near-identical
+            checklist-with-progress-bars cards stacked in this band, each
+            answering "what should I do next?" in a different accent, so none
+            read as the one that mattered (blueprint §2 item 2). GoalsCard
+            shows the top objectives across all of them; the full cards keep
+            everything they showed, behind the disclosure below. */}
         <FadeInUp delay={45}>
-          <NextGoalsCard />
-          <WeekAheadCard />
+          <GoalsCard onShowDetails={() => setShowGoalDetails(true)} />
         </FadeInUp>
 
-        {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
-        <FadeInUp delay={50}>
-          <LifeChapterCard />
-        </FadeInUp>
+        {/* No FadeInUp inside the disclosure: these mount on a toggle, and
+            re-animating seven cards on every open is exactly the motion the
+            summary card exists to avoid. */}
+        {showGoalDetails && (
+          <>
+            <NextGoalsCard />
+            <WeekAheadCard />
 
-        {/* Life Ambition - the lifelong goal chosen at character creation.
-            Renders only when an ambition was picked (freeform lives skip it). */}
+            {/* Life Chapter - the chunked-goal spine (was built but had no UI). */}
+            <LifeChapterCard />
+
+            {/* Life Ambition - the lifelong goal chosen at character creation.
+                Renders only when an ambition was picked (freeform lives skip it). */}
+            <AmbitionCard />
+            {/* The challenge-scenario run chosen at onboarding - win conditions
+                were previously invisible between onboarding and first prestige.
+                Renders null for non-challenge lives and prestiged dynasties. */}
+            <ScenarioChallengeCard />
+            {/* Live events sit ABOVE the weekly challenge: they are the only
+                surface here with a real-world deadline, and the challenge rotates
+                on game weeks so it waits for the player either way. The card
+                renders nothing at all when there is nothing active, so a quiet
+                week costs no space. */}
+            <LiveEventsCard />
+            <WeeklyChallengeCard />
+          </>
+        )}
+
+        <TouchableOpacity
+          onPress={() => setShowGoalDetails(v => !v)}
+          activeOpacity={0.8}
+          style={styles.showMoreBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.showMoreText}>
+            {showGoalDetails ? 'Hide details' : 'Show details'}
+          </Text>
+          {showGoalDetails
+            ? <ChevronUp size={scale(15)} color="#94A3B8" />
+            : <ChevronDown size={scale(15)} color="#94A3B8" />}
+        </TouchableOpacity>
+
+        {/* Outside the disclosure on purpose: the picker PROMPTS a choice not
+            yet made (hiding it would hide the ambition system from anyone who
+            never opens the details), and Elder is a life-stage surface, not
+            another checklist. */}
         <FadeInUp delay={55}>
-          <AmbitionCard />
           <AmbitionPickerCard />
-          {/* The challenge-scenario run chosen at onboarding - win conditions
-              were previously invisible between onboarding and first prestige.
-              Renders null for non-challenge lives and prestiged dynasties. */}
-          <ScenarioChallengeCard />
-          {/* Live events sit ABOVE the weekly challenge: they are the only
-              surface here with a real-world deadline, and the challenge rotates
-              on game weeks so it waits for the player either way. The card
-              renders nothing at all when there is nothing active, so a quiet
-              week costs no space. */}
-          <LiveEventsCard />
-          <WeeklyChallengeCard />
         </FadeInUp>
 
         {/* Retirement / Elder chapter - retire, pension, elder activities, legacy.
@@ -816,7 +754,10 @@ function HomeScreenContent() {
                 gameAlert('Your Progress', progressLockReason || 'Keep playing to unlock this.');
                 return;
               }
-              router.push('/(tabs)/progression');
+              // Canonical door: Progress lives on the Life shell's Stats
+              // segment. Pushing the hidden `/(tabs)/progression` route
+              // rendered a second, un-chromed copy with no tab highlighted.
+              router.push({ pathname: '/(tabs)/life', params: { segment: 'stats', ts: String(Date.now()) } });
             }}
             activeOpacity={0.85}
             style={styles.progressLinkCard}
@@ -878,21 +819,6 @@ function HomeScreenContent() {
             hasn't bought Remove Ads / Lifetime Premium. */}
         <BannerAd style={{ marginTop: scale(12) }} />
       </ScrollView>
-
-      {/* First Week Guide - presents its own Modal, so it sits above the HUD
-          and the tab bar rather than under them. No spacer is reserved in the
-          feed for it any more; it no longer occupies feed space.
-
-          `shouldShowFirstWeekGuide` owns the game-state half of the gate: first
-          life only, and a pre-v43 save (no `lifeStartWeek`) still qualifies -
-          the bare `weeksThisLife <= 3` this replaces could never pass in life 1
-          of those saves (the baseline is absent, so the counter falls back to
-          the absolute one) and first passed right after the FIRST prestige,
-          when prestigeExecution stamps the baseline. Playtester-reported:
-          "only appears after the first prestige, not when first starting." */}
-      {shouldShowFirstWeekGuide(gameState) && !hasCompletedTutorial && (
-        <FirstWeekGuide currentWeek={weeksThisLife} />
-      )}
 
       {/* NOISE: light popup coordination. The root layout owns blocking modals
           (death/wedding) - no celebration/reward popup may present on top of
@@ -965,22 +891,28 @@ function HomeScreenContent() {
       </Suspense>
       )}
 
-      {/* Prestige Modals */}
-      <PrestigeModal visible={showPrestigeModal} onClose={() => setShowPrestigeModal(false)} />
-      <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
-      <PrestigeInfoModal visible={showPrestigeInfo} onClose={() => setShowPrestigeInfo(false)} />
-      <AchievementsModal visible={showAchievements} onClose={() => setShowAchievements(false)} />
+      {/* Prestige/achievement modals - mounted only while open, the same rule
+          the reward popups above follow. Mounting them permanently with
+          visible={false} did all their subscription and layout work on every
+          Home render for surfaces the player almost never opens. */}
+      {showPrestigeModal && (
+        <PrestigeModal visible onClose={() => setShowPrestigeModal(false)} />
+      )}
+      {showPrestigeShop && (
+        <PrestigeShopModal visible onClose={() => setShowPrestigeShop(false)} />
+      )}
+      {showPrestigeInfo && (
+        <PrestigeInfoModal visible onClose={() => setShowPrestigeInfo(false)} />
+      )}
+      {showAchievements && (
+        <AchievementsModal visible onClose={() => setShowAchievements(false)} />
+      )}
 
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  premiumCrownRow: {
-    alignItems: 'center',
-    marginTop: verticalScale(10),
-    marginBottom: verticalScale(2),
-  },
   progressLinkCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1034,79 +966,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-  },
-
-  // Hero strip ---------------------------------------------------------------
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: verticalScale(8),
-    marginBottom: verticalScale(8),
-    gap: scale(10),
-  },
-  heroSegment: {
-    fontSize: fontScale(10),
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    color: 'rgba(226, 232, 240, 0.62)',
-    fontVariant: ['tabular-nums'],
-  },
-  heroSeparator: {
-    width: scale(3),
-    height: scale(3),
-    borderRadius: scale(1.5),
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-  },
-  heroLiveCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(6),
-  },
-  heroLiveDot: {
-    width: scale(5),
-    height: scale(5),
-    borderRadius: scale(3),
-    backgroundColor: '#34D399',
-  },
-
-  // Find-job CTA - premium glass, neutral border, accent only on the icon
-  findJobCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: verticalScale(6),
-    padding: responsiveSpacing.md,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: scale(12),
-    ...getPlatformShadows(6, 0.25, 4, 14),
-  },
-  findJobIconBubble: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(52, 211, 153, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  findJobTextWrap: {
-    flex: 1,
-  },
-  findJobTitle: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
-    color: '#F8FAFC',
-    letterSpacing: -0.2,
-    marginBottom: 1,
-  },
-  findJobSubtitle: {
-    fontSize: fontScale(12),
-    color: 'rgba(226, 232, 240, 0.65)',
-    lineHeight: fontScale(17),
   },
 });
 

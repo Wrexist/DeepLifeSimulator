@@ -432,14 +432,15 @@ describe('every app in both launchers is registered in the table', () => {
    * nobody reports. The two grids and the table are three hand-maintained lists
    * that have to agree, so the agreement is checked rather than assumed.
    */
+  // Both grids now read ONE catalog (components/launcher/appCatalog.ts), so
+  // there are two hand-maintained lists left to reconcile instead of three.
   const idsIn = (rel: string): string[] => {
     const src = fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
-    return [...src.matchAll(/^\s*id: '([a-z]+)',$/gm)].map((m) => m[1]);
+    return [...src.matchAll(/\{ id: '([a-z]+)'/g)].map((m) => m[1]);
   };
 
   it.each([
-    ['app/(tabs)/computer.tsx', 19],
-    ['app/(tabs)/mobile.tsx', 9],
+    ['components/launcher/appCatalog.ts', 19],
   ])('%s - every id resolves to a row', (file, expectedCount) => {
     const ids = idsIn(file);
     // Guard the guard: a refactor that renames the field or reshapes the list

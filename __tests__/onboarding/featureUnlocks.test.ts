@@ -451,10 +451,15 @@ describe('spending money never takes an app away', () => {
 });
 
 describe('the grid shows locked apps rather than hiding them', () => {
+  // Both launcher screens are thin wrappers around the shared AppLauncher,
+  // so the lock treatment is asserted against the one real implementation.
+  // Locked apps are no longer dimmed inline (a wall of 0.45-opacity cards for
+  // a new player) - they fold into a "Locked (N)" shelf that expands on tap,
+  // where every tile still shows its padlock and requirement.
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const SRC = fs.readFileSync(
-    path.join(__dirname, '..', '..', 'app/(tabs)/computer.tsx'), 'utf8',
+    path.join(__dirname, '..', '..', 'components/launcher/AppLauncher.tsx'), 'utf8',
   );
 
   it('each card carries its lock state', () => {
@@ -462,8 +467,8 @@ describe('the grid shows locked apps rather than hiding them', () => {
     expect(SRC).toMatch(/lockReason: unlockRequirement\(gameState, `app:\$\{app\.id\}`\)/);
   });
 
-  it('a locked card is dimmed and badged, not removed', () => {
-    expect(SRC).toMatch(/app\.locked && \{ opacity: 0\.45 \}/);
+  it('a locked card is disclosed and badged, not removed', () => {
+    expect(SRC).toMatch(/Locked \(\{locked\.length\}\)/);
     expect(SRC).toMatch(/app\.locked && \(\s*<View style=\{styles\.appLockBadge\}>/);
   });
 
@@ -472,18 +477,12 @@ describe('the grid shows locked apps rather than hiding them', () => {
     // Channel note: these asserted the OS `Alert.alert`. The game's alerts are
     // now `gameAlert` (themed, in-app) - see
     // __tests__/tooling/noNativeAlertInGameUI.test.ts.
-    expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}gameAlert\(app\.name, app\.lockReason/);
+    expect(SRC).toMatch(/if \(app\.locked\) \{[\s\S]{0,300}gameAlert\(name, app\.lockReason/);
   });
 
   it('and a screen reader is told it is locked', () => {
-    expect(SRC).toMatch(/accessibilityLabel=\{app\.locked \? `\$\{app\.name\}, locked`/);
-    expect(SRC).toMatch(/accessibilityState=\{\{ disabled: !!app\.locked \}\}/);
-  });
-
-  it('`available: false` still removes an app outright (the control)', () => {
-    // "Does not exist for this save" is a different thing from "not yet", and
-    // the lock must not have swallowed it.
-    expect(SRC).toMatch(/\.filter\(app => app\.available !== false\)/);
+    expect(SRC).toMatch(/accessibilityLabel=\{app\.locked \? `\$\{name\}, locked`/);
+    expect(SRC).toMatch(/accessibilityState=\{\{ disabled: app\.locked \}\}/);
   });
 });
 
@@ -626,24 +625,20 @@ describe('the tick owns completion, and the card no longer does', () => {
 });
 
 describe('the phone grid gates too, not just the computer', () => {
+  // The first pass gated only computer.tsx, so a player who had not bought a
+  // computer still saw every app unlocked. Both screens now render the SAME
+  // shared AppLauncher (asserted above), so the phone grid cannot drift out
+  // of the gate again - the only phone-specific fact left to pin is that the
+  // wrapper actually mounts that launcher.
   const fs = require('fs') as typeof import('fs');
   const path = require('path') as typeof import('path');
   const PHONE = fs.readFileSync(
     path.join(__dirname, '..', '..', 'app/(tabs)/mobile.tsx'), 'utf8',
   );
 
-  it('a phone-only save sees locks', () => {
-    // The first pass gated only computer.tsx, so a player who had not bought a
-    // computer still saw every app unlocked.
-    expect(PHONE).toMatch(/const locked = !isFeatureUnlocked\(gameState, `app:\$\{app\.id\}`\)/);
-    expect(PHONE).toMatch(/const lockReason = unlockRequirement\(gameState, `app:\$\{app\.id\}`\)/);
-  });
-
-  it('with the same dim, badge and explain-on-tap as the computer', () => {
-    expect(PHONE).toMatch(/locked && \{ opacity: 0\.45 \}/);
-    expect(PHONE).toMatch(/locked && \(\s*<View style=\{styles\.appLockBadge\}>/);
-    expect(PHONE).toMatch(/if \(locked\) \{[\s\S]{0,200}gameAlert\(app\.name, lockReason/);
-    expect(PHONE).toMatch(/accessibilityState=\{\{ disabled: locked \}\}/);
+  it('a phone-only save renders the shared, gated launcher', () => {
+    expect(PHONE).toMatch(/<AppLauncher\s+host="phone"/);
+    expect(PHONE).not.toMatch(/isFeatureUnlocked/); // no second, forkable gate
   });
 });
 

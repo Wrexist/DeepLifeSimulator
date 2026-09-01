@@ -421,11 +421,14 @@ export const styles = StyleSheet.create({
  },
  nextWeekContainer: { alignItems: 'center'},
  nextWeekButton: {
+ flexDirection: 'row',
  alignItems:'center',
  justifyContent: 'center',
+ gap: scale(6),
  borderRadius: responsiveBorderRadius.lg,
- width: 50, // Square button
- height: 50, // Square button
+ minWidth: scale(50),
+ height: scale(40),
+ paddingHorizontal: scale(10),
  // Light mode button shadow
 ...Platform.select({
  web: { boxShadow: '0px 2px 4px rgba(22, 163, 74, 0.09)'} as any,
@@ -437,6 +440,12 @@ export const styles = StyleSheet.create({
  },
  }),
  elevation: 3,
+ },
+
+ nextWeekLabel: {
+ color: '#FFFFFF',
+ fontSize: responsiveFontSize.sm,
+ fontWeight: '600',
  },
 
  statTouchable: { width: '100%'},

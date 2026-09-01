@@ -1,5 +1,5 @@
 // components/TopStatsBar.tsx
-import React, { useState, useRef, useEffect, useMemo, useCallback, useContext, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { View,
  Text,
  TouchableOpacity,
@@ -16,15 +16,12 @@ import {
  isAndroidXLarge,
 } from '@/utils/scaling';
 import { useGameActions } from '@/contexts/GameContext';
-import { useGameSelector, useSetGameState, shallowEqual, GameStoreContext } from '@/contexts/game/useGameSelector';
+import { useGameSelector, useSetGameState, shallowEqual } from '@/contexts/game/useGameSelector';
 import type { GameState } from '@/contexts/game/types';
 import { useGemStore } from '@/contexts/GemStoreContext';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { maybeShowInterstitialForWeek } from '@/lib/ads/interstitial';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
-import { computeHousingWellbeing } from '@/lib/realEstate/rentals';
-import { nonMirrorDeposits } from '@/lib/banking/operations';
-import Gradient from '@/components/ui/Gradient';
 import { STAT_IDENTITY } from '@/lib/config/statIdentity';
 import AnimatedMoney from '@/components/ui/AnimatedMoney';
 import GoldStoreButton from '@/components/ui/GoldStoreButton';
@@ -32,22 +29,17 @@ import ProgressRing from '@/components/ui/ProgressRing';
 import { styles } from '@/components/TopStatsBarStyles';
 import {
  Wallet,
- PiggyBank,
  Gem,
  Plus,
- HelpCircle,
  Settings,
  ArrowRightCircle,
  Coffee,
  Apple,
  Dumbbell,
  Crown,
- ArrowUp,
- ArrowDown,
  AlertTriangle,
 } from 'lucide-react-native';
 // SicknessModal is rendered once at the root in app/_layout.tsx - no second mount here.
-import { getEnergyRegenMultiplier } from '@/lib/prestige/applyBonuses';
 import SeasonalIndicator from './SeasonalIndicator';
 import usePressableScale from '@/hooks/usePressableScale';
 import { useFeedback } from '@/utils/feedbackSystem';
@@ -60,16 +52,14 @@ const SettingsModal = React.lazy(() => import('./SettingsModal'));
 // GemShopModal is no longer mounted here - the app-level GemStoreProvider
 // (contexts/AppProviders.tsx) owns the single mount. This bar deep-links into
 // it via useGemStore().openStore(...) so there is no double-mount.
-const HelpModal = React.lazy(() => import('./HelpModal'));
+// HelpModal moved into SettingsModal (Help & FAQ row) - the HUD lost its
+// dedicated help circle in the phase-2 de-clutter.
 const PrestigeModal = React.lazy(() => import('./PrestigeModal'));
 const EnergyBreakdownModal = React.lazy(() => import('./EnergyBreakdownModal'));
 const HappinessBreakdownModal = React.lazy(() => import('./HappinessBreakdownModal'));
 const HealthBreakdownModal = React.lazy(() => import('./HealthBreakdownModal'));
 const MoneyBreakdownModal = React.lazy(() => import('./MoneyBreakdownModal'));
-const BankBreakdownModal = React.lazy(() => import('./BankBreakdownModal'));
 const GemsBreakdownModal = React.lazy(() => import('./GemsBreakdownModal'));
-
-const LinearGradient = Gradient;
 
 // Memoized TopStatsBar to prevent unnecessary re-renders
 function TopStatsBarComponent() {
@@ -81,32 +71,18 @@ function TopStatsBarComponent() {
  const { saveGame } = useGameActions();
  const stats = useGameSelector((s) => s?.stats, shallowEqual);
  const settings = useGameSelector((s) => s?.settings, shallowEqual);
- const bankSavings = useGameSelector((s) => s?.bankSavings ?? 0);
- // Self-opened accounts (HYSA / CD / money market) are real deposits and were
- // missing from this chip, so parking $2M in a high-yield account left the gold
- // total unchanged. Selects the NUMBER, not the accounts array, so the chip does
- // not re-render on every unrelated banking mutation.
- const selfOpenedDeposits = useGameSelector((s) => nonMirrorDeposits(s?.banking?.accounts ?? []));
- const stocks = useGameSelector((s) => s?.stocks);
  const generationNumber = useGameSelector((s) => s?.generationNumber);
  const prestige = useGameSelector((s) => s?.prestige);
  const prestigeLevel = prestige?.prestigeLevel ?? 0;
  const date = useGameSelector((s) => s?.date, shallowEqual);
- const careers = useGameSelector((s) => s?.careers);
  // Needed by the quick-action week gate below.
  const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
- const currentJob = useGameSelector((s) => s?.currentJob);
- const educations = useGameSelector((s) => s?.educations);
- const dietPlans = useGameSelector((s) => s?.dietPlans);
- const realEstate = useGameSelector((s) => s?.realEstate);
- const rental = useGameSelector((s) => s?.rental, shallowEqual);
  const userProfile = useGameSelector((s) => s?.userProfile);
  const diseases = useGameSelector((s) => s?.diseases) || [];
  const hasDiseases = diseases.length > 0;
  const hasCriticalDisease = diseases.some(d => d.severity === 'critical');
  const hasSeriousDisease = diseases.some(d => d.severity === 'serious');
 
- const showStatArrows = settings?.showStatArrows!== false; // Default to true
 
  const { success, info, buttonPress, haptic } = useFeedback();
  const { logRender } = usePerformanceMonitor();
@@ -114,7 +90,7 @@ function TopStatsBarComponent() {
  const { openStore } = useGemStore();
 
  // Single modal state - only one modal open at a time, reduces re-renders
- type ModalName = 'settings'|'help'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'bankBreakdown'|'gemsBreakdown'| null;
+ type ModalName = 'settings'|'prestige'|'energyBreakdown'|'happinessBreakdown'|'healthBreakdown'|'moneyBreakdown'|'gemsBreakdown'| null;
  const [openModal, setOpenModal] = useState<ModalName>(null);
  const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
  const closeModal = useCallback(() => setOpenModal(null), []);
@@ -133,13 +109,6 @@ function TopStatsBarComponent() {
  happiness: new Animated.Value(stats?.happiness ?? 0),
  energy: new Animated.Value(stats?.energy ?? 0),
  }).current;
-
- const weekAnimations = useRef([
- new Animated.Value(1),
- new Animated.Value(1),
- new Animated.Value(1),
- new Animated.Value(1),
- ]).current;
 
  const { width } = useWindowDimensions();
 
@@ -397,123 +366,12 @@ function TopStatsBarComponent() {
  // `glowAnimations` are stable refs from useRef.
  }, [stats?.health, stats?.happiness, stats?.energy]);
 
- // Calculate net change for each stat
- // R10-perf: derive the primitive signals the memo actually depends on. These
- // are cheap single-pass scans; depending on them (instead of the careers/
- // educations/dietPlans/realEstate ARRAYS, which get a new identity every decay
- // tick) means the heavier memo body - including the prestige require() and the
- // rounding math - only recomputes when a value that matters actually changes.
- const currentCareerAccepted = !!careers?.find(c => c.id === currentJob && c.accepted);
- const activeEducationCount = (educations || []).filter(edu =>
- edu &&!edu.completed &&!edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
- ).length;
- const activeDietPlanSig = (() => {
- const p = (dietPlans || []).find(plan => plan && plan.active);
- return p ? `${p.healthGain ?? 0}|${p.happinessGain ?? 0}|${p.energyGain ?? 0}`: '';
- })();
- // Housing's weekly effect, from the SAME function the tick uses
- // (`applyHousingWellbeing` → `computeHousingWellbeing`). This bar used to
- // re-derive it from an owned `currentResidence` alone, which meant the
- // prediction was silently wrong for a renter, wrong for someone sleeping
- // rough, and missing the health effect owned homes now pay. A HUD that
- // predicts a different number from the one the tick applies is the exact
- // advertised-vs-actual class this feature set out to close, so there is one
- // source of truth and both read it.
- const housing = React.useMemo(
-   () => computeHousingWellbeing({ realEstate, rental }),
-   [realEstate, rental],
- );
- const residenceSig = `${housing.health}|${housing.happiness}|${housing.energy}`;
-
- const statNetChanges = React.useMemo(() => {
- if (!stats) return { health: 0, happiness: 0, energy: 0 };
-
- // Calculate natural decay
- const netWorth = (stats.money || 0) + (bankSavings || 0);
- const safeNetWorth = isFinite(netWorth) && netWorth > 0 ? netWorth: 1000;
- const wealthMultiplier = Math.max(0.5, Math.min(2.0, 100000 / Math.max(1000, safeNetWorth)));
- const statDecayRate = 4;
- const effectiveDecayRate = statDecayRate * wealthMultiplier;
-
- const activeEducations = (educations || []).filter(edu =>
- edu &&!edu.completed &&!edu.paused && edu.weeksRemaining && edu.weeksRemaining > 0
- );
-
- // Health net change
- let healthChange = -Math.round(effectiveDecayRate * 0.6); // Natural decay
- if (currentJob) {
- const career = careers?.find(c => c.id === currentJob && c.accepted);
- if (career) healthChange -= 2; // Career penalty
- }
- if (activeEducations.length > 0) {
- const numActiveEducations = activeEducations.length;
- const baseHealthPenalty = -3;
- const stressMultiplier = numActiveEducations === 1 ? 1.0: numActiveEducations === 2 ? 1.3: 1.6;
- healthChange += Math.round(baseHealthPenalty * numActiveEducations * stressMultiplier);
- }
- // Add diet plan health gain
- const activeDietPlan = (dietPlans || []).find(plan => plan && plan.active);
- if (activeDietPlan && activeDietPlan.healthGain > 0) {
- healthChange += activeDietPlan.healthGain;
- }
- // Housing health - new, and negative while homeless.
- healthChange += housing.health;
-
- // Happiness net change
- let happinessChange = -Math.round(effectiveDecayRate * 0.8); // Natural decay
- if (currentJob) {
- const career = careers?.find(c => c.id === currentJob && c.accepted);
- if (career) happinessChange -= 3; // Career penalty
- }
- if (activeEducations.length > 0) {
- const numActiveEducations = activeEducations.length;
- const baseHappinessPenalty = -6;
- const stressMultiplier = numActiveEducations === 1 ? 1.0: numActiveEducations === 2 ? 1.3: 1.6;
- happinessChange += Math.round(baseHappinessPenalty * numActiveEducations * stressMultiplier);
- }
- // Add diet plan happiness gain
- if (activeDietPlan && activeDietPlan.happinessGain && activeDietPlan.happinessGain > 0) {
- happinessChange += activeDietPlan.happinessGain;
- }
- // Housing: owned home, rental, or the penalty for neither. Signed - a
- // homeless week SUBTRACTS, which the old `> 0` guards could not express.
- happinessChange += housing.happiness;
-
- // Energy net change
- let energyChange = 30; // Base regen
- const unlockedBonuses = prestige?.unlockedBonuses || [];
- {
- // Top-level ES import (was an inline require() that ran every render).
- const energyRegenMultiplier = getEnergyRegenMultiplier(unlockedBonuses);
- const safeEnergyRegenMultiplier = typeof energyRegenMultiplier ==='number'&& isFinite(energyRegenMultiplier) && energyRegenMultiplier > 0 ? energyRegenMultiplier: 1.0;
- energyChange = Math.round(30 * safeEnergyRegenMultiplier);
- }
- // Career energy cost is fixed at -5 per week (no energyCost in level definitions)
- if (currentJob) {
- const career = careers?.find(c => c.id === currentJob && c.accepted);
- if (career) {
- energyChange -= 5; // Fixed energy cost for working
- }
- }
- if (activeEducations.length > 0) {
- const numActiveEducations = activeEducations.length;
- const baseEnergyPenalty = -7;
- const stressMultiplier = numActiveEducations === 1 ? 1.0: numActiveEducations === 2 ? 1.3: 1.6;
- energyChange += Math.round(baseEnergyPenalty * numActiveEducations * stressMultiplier);
- }
- // Add diet plan energy gain
- if (activeDietPlan && activeDietPlan.energyGain > 0) {
- energyChange += activeDietPlan.energyGain;
- }
- energyChange += housing.energy;
-
- return { health: healthChange, happiness: happinessChange, energy: energyChange };
- // P1-5: depend on specific primitives instead of the whole `stats`/`gameState`
- // objects. With the GameStateProvider identity short-circuit (P0-1) these
- // objects only change when something actually changed, but heavy memos like
- // this still benefit from primitive-only deps.
-   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [stats?.health, stats?.happiness, stats?.energy, stats?.money, bankSavings, currentJob, currentCareerAccepted, activeEducationCount, prestige?.unlockedBonuses, activeDietPlanSig, residenceSig]);
+ // The per-stat delta arrows and their ~90-line prediction memo are gone
+ // (phase 2): they were three more numbers on a bar that already showed 13,
+ // they required this component to subscribe to careers/educations/dietPlans/
+ // realEstate/rental, and the SAME projection lives one tap away in each
+ // vital's breakdown modal - which is where a number that needs explaining
+ // belongs.
 
  const progressStats = React.useMemo(
  () => {
@@ -529,7 +387,6 @@ function TopStatsBarComponent() {
  color: statColors.health,
  gradient: [STAT_IDENTITY.health.color, '#F87171'] as [string, string],
  max: 100,
- netChange: statNetChanges.health,
  quickActions: [
  { icon: Apple, label: 'Eat Healthy', action: () => handleQuickAction('eat') },
  { icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
@@ -542,7 +399,6 @@ function TopStatsBarComponent() {
  color: STAT_IDENTITY.happiness.color,
  gradient: [STAT_IDENTITY.happiness.color, '#FBBF24'] as [string, string],
  max: 100,
- netChange: statNetChanges.happiness,
  quickActions: [
  { icon: Coffee, label: 'Socialize', action: () => handleQuickAction('social') },
  { icon: Dumbbell, label: 'Exercise', action: () => handleQuickAction('exercise') },
@@ -555,7 +411,6 @@ function TopStatsBarComponent() {
  color: STAT_IDENTITY.energy.color,
  gradient: [STAT_IDENTITY.energy.color, '#60A5FA'] as [string, string],
  max: 100,
- netChange: statNetChanges.energy,
  quickActions: [
  { icon: Coffee, label: 'Rest', action: () => handleQuickAction('rest') },
  { icon: Apple, label: 'Eat', action: () => handleQuickAction('eat') },
@@ -566,17 +421,8 @@ function TopStatsBarComponent() {
  // P2: depend on the primitive stat VALUES (and the already-memoized derived
  // objects) rather than the whole `stats` object, whose identity changes every
  // tick - this list rebuild only matters when a displayed value changes.
- [stats?.health, stats?.happiness, stats?.energy, statColors, handleQuickAction, statNetChanges]
+ [stats?.health, stats?.happiness, stats?.energy, statColors, handleQuickAction]
  );
-
- useEffect(() => {
- if (!date?.week) return;
- const currentIndex = Math.min(3, Math.max(0, (date?.week ?? 1) - 1));
- Animated.sequence([
- Animated.timing(weekAnimations[currentIndex], { toValue: 1.35, duration: 180, useNativeDriver: true }),
- Animated.timing(weekAnimations[currentIndex], { toValue: 1, duration: 180, useNativeDriver: true }),
- ]).start();
- }, [date?.week, weekAnimations]);
 
  // Standardized breakpoint for small devices (covers iPhone SE and Android small devices)
  const SMALL_DEVICE_BREAKPOINT = 360;
@@ -600,51 +446,11 @@ function TopStatsBarComponent() {
  ];
  const iconColor = darkMode ? '#E2E8F0': '#0F172A';
 
- const controlButtonGradient: [string, string] = darkMode
- ? ['#1E293B', '#0F172A']
-: ['#FFFFFF', '#F1F5F9'];
+ // Flat fill - these are 22px circles; the old two-stop gradient across them
+ // was invisible and cost an SVG layer each on the always-mounted HUD.
+ const controlButtonFill = darkMode ? '#1E293B' : '#FFFFFF';
 
  const formatGems = (amount: number) => {
- const a = Math.floor(amount || 0);
- // Always remove decimals in TopStatsBar for better readability
- if (a >= 1_000_000_000_000_000) {
- return `${Math.floor(a / 1_000_000_000_000_000)}Q`;
- }
- if (a >= 1_000_000_000_000) {
- return `${Math.floor(a / 1_000_000_000_000)}T`;
- }
- if (a >= 1_000_000_000) {
- return `${Math.floor(a / 1_000_000_000)}B`;
- }
- if (a >= 1_000_000) {
- return `${Math.floor(a / 1_000_000)}M`;
- }
- if (a > 10_000) {
- // Thousands (K) - only for numbers above 10,000
- return `${Math.floor(a / 1_000)}K`;
- }
- // Regular numbers (0-10,000) - show full number
- return a.toLocaleString();
- };
-
- // Calculate total stock value
- const calculateStockValue = () => {
- if (!stocks?.holdings) return 0;
- return stocks.holdings.reduce((total, holding) => {
- // L-1: guard against a NaN/Infinity currentPrice (corrupt save) propagating
- // into total → "NaN" displayed for total savings.
- const value = holding.shares * holding.currentPrice;
- return total + (Number.isFinite(value) ? value : 0);
- }, 0);
- };
-
- // Calculate total savings including stock investments.
- // `nonMirrorDeposits` excludes checking-default / savings-default, which are
- // 1:1 reflections of `stats.money` / `bankSavings` - counting them here would
- // double the savings line for anyone holding cash.
- const totalSavings = bankSavings + selfOpenedDeposits + calculateStockValue();
-
- const formatSavings = (amount: number) => {
  const a = Math.floor(amount || 0);
  // Always remove decimals in TopStatsBar for better readability
  if (a >= 1_000_000_000_000_000) {
@@ -677,15 +483,10 @@ function TopStatsBarComponent() {
  </Text>
  {(prestigeLevel > 0) && (
  <View style={styles.prestigeBadgeContainer}>
- <LinearGradient
- colors={['#FCD34D', '#F59E0B', '#D97706'] as const}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 1 }}
- style={styles.prestigeBadge}
- >
+ <View style={styles.prestigeBadge}>
  <Crown size={12} color="#FFFFFF"/>
  <Text maxFontSizeMultiplier={1.3} style={styles.prestigeBadgeText}>P{prestigeLevel}</Text>
- </LinearGradient>
+ </View>
  </View>
  )}
  </View>
@@ -703,18 +504,6 @@ function TopStatsBarComponent() {
  buttonStyle={[styles.iconButton, darkMode && styles.iconButtonDark] as never}
  />
  <TouchableOpacity
- onPress={() => { buttonPress(); setOpenModal('help'); }}
- style={[styles.iconButton, darkMode && styles.iconButtonDark]}
- activeOpacity={0.85}
- accessibilityLabel="Open Help Menu"
- accessibilityRole="button"
- accessibilityHint="Tap to open help and information about the game"
- >
- <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
- <HelpCircle size={22} color={iconColor} />
- </LinearGradient>
- </TouchableOpacity>
- <TouchableOpacity
  onPress={() => { buttonPress(); setOpenModal('settings'); }}
  style={[styles.iconButton, darkMode && styles.iconButtonDark]}
  activeOpacity={0.85}
@@ -722,9 +511,9 @@ function TopStatsBarComponent() {
  accessibilityRole="button"
  accessibilityHint={ACCESSIBILITY_HINTS.BUTTONS.SETTINGS}
  >
- <LinearGradient colors={controlButtonGradient} style={styles.iconButtonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ <View style={[styles.iconButtonGradient, { backgroundColor: controlButtonFill }]}>
  <Settings size={22} color={iconColor} />
- </LinearGradient>
+ </View>
  </TouchableOpacity>
  <View style={[styles.iconButton, darkMode && styles.iconButtonDark]}>
  <SeasonalIndicator size={22} />
@@ -732,7 +521,7 @@ function TopStatsBarComponent() {
  </View>
 
  <View style={styles.vitalsRingRow}>
- {progressStats.map(({ key, icon: Icon, gradient, max, quickActions, value, netChange }) => {
+ {progressStats.map(({ key, icon: Icon, gradient, max, quickActions, value }) => {
  const ringColor = gradient[0];
  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
 
@@ -817,13 +606,6 @@ function TopStatsBarComponent() {
  {quickActions && showQuickActions !== key && (
  <View style={styles.vitalRingMoreDot} />
  )}
- {showStatArrows && netChange!== undefined && netChange!== 0 && (
- netChange > 0 ? (
- <ArrowUp size={scale(10)} color="#10B981"/>
- ): (
- <ArrowDown size={scale(10)} color="#EF4444" />
- )
- )}
  </View>
  </TouchableOpacity>
 
@@ -840,10 +622,10 @@ function TopStatsBarComponent() {
  accessibilityRole="button"
  accessibilityHint={`Quick action to improve ${statLabel.toLowerCase()}`}
  >
- <LinearGradient colors={['#3B82F6','#1D4ED8'] as const} style={styles.quickActionGradient}>
+ <View style={[styles.quickActionGradient, { backgroundColor: '#2563EB' }]}>
  <action.icon size={16} color="#FFFFFF"/>
  <Text maxFontSizeMultiplier={1.3} style={styles.quickActionText}>{action.label}</Text>
- </LinearGradient>
+ </View>
  </TouchableOpacity>
  ))}
  </View>
@@ -864,19 +646,17 @@ function TopStatsBarComponent() {
  activeOpacity={0.7}
  accessibilityLabel={ACCESSIBILITY_HINTS.GAME_ELEMENTS.MONEY}
  accessibilityRole="button"
- accessibilityHint="Tap to see detailed cash balance"
+ accessibilityHint="Tap to see your cash, savings and investments"
  >
- <LinearGradient
- colors={['#16A34A','#22C55E'] as const}
+ <View
  style={[
  styles.moneyChip,
+ { backgroundColor: '#16A34A' },
  isVerySmallDevice && {
- paddingHorizontal: scale(6), // Reduced from 8
- minWidth: scale(55) // Reduced from 60
+ paddingHorizontal: scale(6),
+ minWidth: scale(55)
  }
  ]}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 1 }}
  >
  <Wallet size={14} color="#FFFFFF"style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
@@ -886,70 +666,28 @@ function TopStatsBarComponent() {
  duration={300}
  />
  </View>
- </LinearGradient>
- </TouchableOpacity>
-
- <TouchableOpacity
- onPress={() => {
- buttonPress();
- setOpenModal('bankBreakdown');
- }}
- activeOpacity={0.7}
- accessibilityLabel={`Total savings: ${formatSavings(totalSavings)}`}
- accessibilityRole="button"
- accessibilityHint="Tap to see detailed bank and investment breakdown"
- >
- <LinearGradient
- colors={['#F59E0B','#FBBF24'] as const}
- style={[
- styles.moneyChip,
- isVerySmallDevice && {
- paddingHorizontal: scale(6), // Reduced from 8
- minWidth: scale(55) // Reduced from 60
- }
- ]}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 1 }}
- >
- <PiggyBank size={14} color="#FFFFFF"style={styles.chipIcon} />
- <View style={styles.chipTextContainer}>
- <Text maxFontSizeMultiplier={1.3}
- style={styles.chipText}
- numberOfLines={1}
- adjustsFontSizeToFit={true}
- minimumFontScale={0.7}
- >
- {formatSavings(totalSavings ?? 0)}
- </Text>
  </View>
- </LinearGradient>
  </TouchableOpacity>
 
  <TouchableOpacity
  onPress={() => {
- buttonPress();
- openStore('gems');
- }}
- onLongPress={() => {
  buttonPress();
  setOpenModal('gemsBreakdown');
  }}
  activeOpacity={0.7}
- accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}. Tap to buy more gems.`}
+ accessibilityLabel={`Gems: ${formatGems(stats?.gems ?? 0)}`}
  accessibilityRole="button"
- accessibilityHint="Tap to open the gem store. Long press to see your gem breakdown."
+ accessibilityHint="Tap to see your gem breakdown. Use the plus button to buy gems."
  >
- <LinearGradient
- colors={['#6366F1','#4F46E5']}
+ <View
  style={[
  styles.moneyChip,
+ { backgroundColor: '#4F46E5' },
  isVerySmallDevice && {
- paddingHorizontal: scale(6), // Reduced from 8
- minWidth: scale(55) // Reduced from 60
+ paddingHorizontal: scale(6),
+ minWidth: scale(55)
  }
  ]}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 1 }}
  >
  <Gem size={14} color="#FFFFFF"style={styles.chipIcon} />
  <View style={styles.chipTextContainer}>
@@ -962,30 +700,40 @@ function TopStatsBarComponent() {
  {formatGems(stats?.gems ?? 0)}
  </Text>
  </View>
- {/* Static "+" affordance so the tap-to-buy intent is visible (no badge count,
-     no animation - the repo's animation bar gates high-frequency HUD). */}
- <View style={styles.gemChipPlus}>
+ {/* The + is the ONE store affordance on the chip. Tap-on-chip used to open
+     the STORE while every sibling chip's tap opened a breakdown - the only
+     gesture inversion in the HUD, and a monetization tap wired to the
+     primary gesture of a stat readout. Now: chip = breakdown, + = buy. */}
+ <TouchableOpacity
+ onPress={() => {
+ buttonPress();
+ openStore('gems');
+ }}
+ hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+ accessibilityLabel="Buy gems"
+ accessibilityRole="button"
+ accessibilityHint="Opens the gem store"
+ style={styles.gemChipPlus}
+ >
  <Plus size={12} color="#FFFFFF" />
+ </TouchableOpacity>
  </View>
- </LinearGradient>
  </TouchableOpacity>
  </View>
  </View>
  </View>
 
- {/* Right: date + next week */}
+  {/* Right: date + next week */}
  <RightSide date={date} />
  {/* Modals - single openModal state controls visibility. Each is lazy and
      only mounted while open, then wrapped in Suspense so the chunk can load. */}
  {openModal && (
  <Suspense fallback={null}>
  {openModal === 'settings' && <SettingsModal visible onClose={closeModal} />}
- {openModal === 'help' && <HelpModal visible onClose={closeModal} />}
  {openModal === 'energyBreakdown' && <EnergyBreakdownModal visible onClose={closeModal} />}
  {openModal === 'happinessBreakdown' && <HappinessBreakdownModal visible onClose={closeModal} />}
  {openModal === 'healthBreakdown' && <HealthBreakdownModal visible onClose={closeModal} />}
  {openModal === 'moneyBreakdown' && <MoneyBreakdownModal visible onClose={closeModal} />}
- {openModal === 'bankBreakdown' && <BankBreakdownModal visible onClose={closeModal} />}
  {openModal === 'gemsBreakdown' && <GemsBreakdownModal visible onClose={closeModal} />}
  {openModal === 'prestige' && <PrestigeModal visible onClose={closeModal} />}
  </Suspense>
@@ -1165,19 +913,17 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  width: rightSectionWidth,
  maxWidth: rightSectionWidth
  }]}>
- <LinearGradient
- colors={['#3B82F6', '#3B82F6', '#2563EB']}
+ <View
  style={[
  styles.dateOuter,
  {
+ backgroundColor: '#2F6FE4',
  width: dateBoxWidth,
  maxWidth: dateBoxMaxWidth,
  height: dateBoxHeight,
  minHeight: dateBoxMinHeight,
  }
  ] as any}
- start={{ x: 0, y: 0 }}
- end={{ x: 1, y: 1 }}
  >
  <View style={styles.dateInner}>
  <View style={styles.dateHeader}>
@@ -1241,7 +987,7 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  })}
  </View>
  </View>
- </LinearGradient>
+ </View>
 
  <View style={styles.seasonalAndNextWeekContainer}>
  <View style={styles.nextWeekContainer}>
@@ -1307,7 +1053,12 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  accessibilityLabel={isAdvancingWeek ? 'Advancing to next week' : 'Advance to next week'}
  accessibilityRole="button"accessibilityState={{ disabled: isAdvancingWeek }}
  >
- <LinearGradient colors={isAdvancingWeek ? ['#64748B','#94A3B8'] as const: ['#16A34A', '#22C55E'] as const} style={styles.nextWeekButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+ {/* LABELED. This is the game's primary action and its highest-frequency
+     tap, and it spent its whole life as an unlabeled 20px arrow in a
+     circle - the audit's clearest "primary action buried" finding. A word
+     plus the arrow, sized to the date box above it, at the same corner it
+     has always lived in. Flat fill (the gradient said nothing). */}
+ <View style={[styles.nextWeekButton, { width: dateBoxWidth, backgroundColor: isAdvancingWeek ? '#64748B' : '#16A34A' }]}>
  {isAdvancingWeek ? (
  <Animated.View
  style={{
@@ -1321,12 +1072,15 @@ const RightSide = React.memo(function RightSide({ date }: { date?: { week?: numb
  ],
  }}
  >
- <ArrowRightCircle size={20} color="#FFFFFF"/>
+ <ArrowRightCircle size={18} color="#FFFFFF"/>
  </Animated.View>
  ): (
- <ArrowRightCircle size={20} color="#FFFFFF" />
+ <ArrowRightCircle size={18} color="#FFFFFF" />
  )}
- </LinearGradient>
+ <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={styles.nextWeekLabel}>
+ Next week
+ </Text>
+ </View>
  </TouchableOpacity>
  </AnimatedView>
  </View>

@@ -111,8 +111,12 @@ describe('the designed face survives onboarding', () => {
     // creator was a DIFFERENT PERSON from the one on the screen — the derived
     // fallback in `resolveAvatar`, seeded from the name. Nothing crashes and
     // nothing logs; the whole creator is simply thrown away at the last step.
-    const source = readFileSync(resolve(ROOT, 'app/(onboarding)/Perks.tsx'), 'utf8');
-    const call = /buildNewGameState\(\{([\s\S]*?)\n {6}\}\)/.exec(source);
+    // The ceremony moved out of the Perks screen into the shared
+    // `useStartLife` hook (2026-09-01 UI overhaul) so MainMenu's quick-start
+    // door could stop routing through that screen to reach it. One caller
+    // still, one place to keep wired.
+    const source = readFileSync(resolve(ROOT, 'src/features/onboarding/useStartLife.ts'), 'utf8');
+    const call = /buildNewGameState\(\{([\s\S]*?)\n {8}\}\)/.exec(source);
     expect(call).toBeTruthy();
     expect(call![1]).toMatch(/\bavatar:\s*state\.avatar\b/);
   });
@@ -120,7 +124,7 @@ describe('the designed face survives onboarding', () => {
   it('has no other route building a life, which would need the same wiring', () => {
     // If this list grows, the new caller needs `avatar` passed through too.
     const callers = grepRepo('buildNewGameState\\(\\{').filter((f) => !f.includes('__tests__/'));
-    expect(callers).toEqual(['app/(onboarding)/Perks.tsx']);
+    expect(callers).toEqual(['src/features/onboarding/useStartLife.ts']);
   });
 });
 

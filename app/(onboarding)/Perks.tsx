@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,10 +18,7 @@ import { useOnboarding } from '@/src/features/onboarding/OnboardingContext';
 // Leaf contexts, not the @/contexts/GameContext barrel (avoids the production
 // require-cycle from the barrel's eager `export * from './game'`).
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
-import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { getSatisfiedAchievementIds } from '@/lib/progress/earnedAchievements';
-import { initialGameState, STATE_VERSION } from '@/contexts/game/initialState';
-import { applyPendingNewLifeCarryOver } from '@/utils/newLifeCarryOver';
 import { type MindsetId, type MindsetTrait, MINDSET_TRAITS } from '@/lib/mindset/config';
 import {
   Lock,
@@ -38,9 +35,9 @@ import OnboardingGlassHeader from '@/components/onboarding/OnboardingGlassHeader
 import ImageScrim from '@/components/ui/ImageScrim';
 import OnboardingFloatingButton from '@/components/onboarding/OnboardingFloatingButton';
 import { useOnboardingFlowGuard } from '@/hooks/useOnboardingFlowGuard';
+import { useStartLife } from '@/src/features/onboarding/useStartLife';
 
 // Extracted modules
-import { buildNewGameState } from '@/src/features/onboarding/gameStateBuilder';
 import {
   sortPerksByUnlockStatus,
   isPerkLocked,
@@ -50,16 +47,7 @@ import {
   getStatColor,
   type PerkDefinition,
 } from '@/src/features/onboarding/perksFlow';
-import {
-  validateOnboardingInputs,
-  initializeAndSaveGame,
-} from '@/src/features/onboarding/gameInitializer';
-import { resolveNewLifeSlot } from '@/src/features/onboarding/slotSafety';
-import { snapshotOutgoingSave , createBackupFromState } from '@/utils/saveBackup';
-import {
-  logOnboardingStepView,
-  logOnboardingValidationError,
-} from '@/src/features/onboarding/onboardingAnalytics';
+import { logOnboardingStepView } from '@/src/features/onboarding/onboardingAnalytics';
 import {
   fontScale,
   responsiveBorderRadius,
@@ -71,10 +59,6 @@ import {
 import { formatMoney } from '@/utils/moneyFormatting';
 import { haptic } from '@/utils/haptics';
 import { logger } from '@/utils/logger';
-import { validateOnboardingState, applySafeDefaults } from '@/utils/onboardingValidation';
-import { validateGameEntry } from '@/utils/gameEntryValidation';
-import { forceSave } from '@/utils/saveQueue';
-import { isSaveSigningConfigError } from '@/utils/saveValidation';
 import { IAPService } from '@/services/IAPService';
 import { gameAlert } from '@/utils/gameAlert';
 const LinearGradient = Gradient;
@@ -355,7 +339,7 @@ const MindsetCard = React.memo(function MindsetCard({
 });
 
 export default function Perks() {
-  const { state, clearDraft } = useOnboarding();
+  const { state } = useOnboarding();
   // Perk unlock state comes from the LIVE achievement system. This used to select
   // `s.achievements` - the deprecated catalogue whose `completed` flag has no
   // writer - so all 20 perks were permanently locked. `getSatisfiedAchievementIds`
@@ -369,7 +353,6 @@ export default function Perks() {
     (s) => getSatisfiedAchievementIds(s),
     shallowEqual
   );
-  const { loadGame } = useGameActions();
   const router = useRouter();
   const navigation = useNavigation();
   useOnboardingFlowGuard('Perks');
@@ -412,11 +395,24 @@ export default function Perks() {
     loadPermanentPerks();
   }, []);
 
+  const [showLockedPerks, setShowLockedPerks] = useState(false);
+
   // Sorted perks using extracted logic
   const sortedPerks = useMemo(
     () => sortPerksByUnlockStatus(perks, permanentPerks, earnedAchievementIds),
     [earnedAchievementIds, permanentPerks]
   );
+
+  // One pass, one predicate - the same `isPerkLocked` each card was asking
+  // individually, so the shelf and the cards can never disagree.
+  const { unlockedPerks, lockedPerks } = useMemo(() => {
+    const unlocked: PerkDefinition[] = [];
+    const locked: PerkDefinition[] = [];
+    for (const perk of sortedPerks) {
+      (isPerkLocked(perk, permanentPerks, earnedAchievementIds) ? locked : unlocked).push(perk);
+    }
+    return { unlockedPerks: unlocked, lockedPerks: locked };
+  }, [sortedPerks, permanentPerks, earnedAchievementIds]);
 
   // Backdrop, entrance animation, and floating particles are all owned by
   // OnboardingScreenShellV2 now - no need to hand-roll them here.
@@ -437,153 +433,17 @@ export default function Perks() {
   // rapid taps both run the full buildNewGameState → forceSave → loadGame
   // pipeline against the same slot with two different random states, racing the
   // double-buffer writer and risking corruption of the brand-new save. Mirrors
-  // the continueInFlightRef pattern already used in SaveSlots.
-  const startInFlightRef = useRef(false);
-  const [isStarting, setIsStarting] = useState(false);
-
-  const start = () => {
-    if (startInFlightRef.current) return;
-    startInFlightRef.current = true;
-    setIsStarting(true);
-    // Defer the heavy buildNewGameState() + save/load to the next frame so the
-    // "Starting…" spinner paints before the synchronous work blocks the JS thread.
-    requestAnimationFrame(() => {
-      void runStart();
-    });
-  };
-
-  const runStart = async () => {
-    let navigating = false;
-    try {
-      haptic.heavy();
-      log.info('Start button pressed', {
-        selectedPerks: selected.length,
-        selectedMindset,
-        scenarioId: state.scenario?.id,
-      });
-
-      // Validate inputs using extracted module
-      const inputCheck = validateOnboardingInputs({
-        scenario: state.scenario,
-        firstName: state.firstName,
-        lastName: state.lastName,
-        sex: state.sex,
-        sexuality: state.sexuality,
-      });
-      if (!inputCheck.valid) {
-        haptic.error();
-        log.error(inputCheck.errorTitle!, { state });
-        logOnboardingValidationError('Perks', inputCheck.errorTitle || 'input_invalid', {
-          message: inputCheck.errorMessage,
-        });
-        gameAlert(inputCheck.errorTitle!, inputCheck.errorMessage!, [{ text: 'OK' }]);
-        return;
-      }
-
-      // Build game state using extracted module
-      const newState = buildNewGameState({
-        initialGameState,
-        stateVersion: STATE_VERSION,
-        firstName: state.firstName,
-        lastName: state.lastName,
-        sex: state.sex,
-        sexuality: state.sexuality,
-        avatarId: state.avatarId,
-        // The face the player actually built. Omitting this dropped the whole
-        // creator on the floor: `buildNewGameState` left `userProfile.avatar`
-        // undefined, `resolveAvatar` fell back to deriving a face from the
-        // name, and the character who walked into the game was a different
-        // person from the one on the creation screen.
-        avatar: state.avatar,
-        scenario: {
-          id: state.scenario!.id,
-          start: state.scenario!.start,
-        },
-        challengeScenarioId: state.challengeScenarioId,
-        selectedPerks: selected,
-        permanentPerks,
-        selectedMindset,
-        ambitionId: state.ambitionId,
-      });
-
-      // Hand the new life whatever the previous one was owed: gems and IAP
-      // entitlements banked by a fresh start (death screen "Start New Life",
-      // Settings -> Restart Game). `buildNewGameState` spreads
-      // `initialGameState`, so without this the purchases the player made are
-      // rebuilt as the template's defaults. One-shot: the record is deleted as
-      // it is read, so it cannot mint a second copy of the same gem balance
-      // into a later life. A no-op (returns the state untouched) for an
-      // ordinary new game, which is the common case.
-      await applyPendingNewLifeCarryOver(newState);
-
-      // Pass the chosen slot through UNCHANGED. The old `state.slot || 1` is
-      // what let a flow that never picked a slot - the death screen, a deep
-      // link, a rehydrated draft - land on slot 1 and overwrite a real save.
-      // `initializeAndSaveGame` re-reads the slot and refuses if it is not ours.
-      const slotToUse = state.slot;
-      const createBackupForOnboarding = async (
-        slot: number,
-        stateToSave: any,
-        tag: string
-      ): Promise<void> => {
-        await createBackupFromState(slot, stateToSave, tag);
-      };
-      const forceSaveForOnboarding = async (
-        slot: number,
-        stateToSave: any
-      ): Promise<void> => {
-        await forceSave(slot, stateToSave);
-      };
-
-      // Initialize, save, load, and validate using extracted module
-      const result = await initializeAndSaveGame(newState, slotToUse, {
-        validateOnboardingState,
-        applySafeDefaults,
-        createBackupFromState: createBackupForOnboarding,
-        forceSave: forceSaveForOnboarding,
-        loadGame,
-        validateGameEntry,
-        isSaveSigningConfigError,
-        resolveNewLifeSlot,
-        snapshotOutgoingSave,
-      });
-
-      if (!result.success) {
-        haptic.error();
-        if (result.slotProblem) {
-          // Don't dead-end them on an alert four screens deep - the fix is a
-          // slot choice, so take them to where that choice is made. Their
-          // scenario, name, perks and mindset stay in the draft, so coming
-          // back is a couple of taps, not a restart.
-          gameAlert(result.errorTitle!, result.errorMessage!, [
-            {
-              text: 'Choose Slot',
-              onPress: () => router.replace('/(onboarding)/SaveSlots'),
-            },
-          ]);
-          return;
-        }
-        gameAlert(result.errorTitle!, result.errorMessage!, [{ text: 'OK' }]);
-        return;
-      }
-
-      haptic.success();
-      // R3-B: drop the persisted onboarding draft once the player has actually
-      // started the life - clearDraft() also resets the in-memory onboarding
-      // state so the next "New Life" entry starts clean (no leaked name/perks).
-      void clearDraft();
-      navigating = true;
-      setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 100);
-    } finally {
-      // Always release the synchronous guard. On the failure/return paths also
-      // re-enable the button so the player can retry; on success keep it disabled
-      // because we're navigating away (avoids a setState-after-unmount warning).
-      startInFlightRef.current = false;
-      if (!navigating) setIsStarting(false);
-    }
-  };
+  // The start ceremony lives in `useStartLife` (src/features/onboarding) -
+  // ONE implementation, shared with MainMenu's quick-start door, which used to
+  // route through this screen just to reach it. Extraction, not duplication:
+  // the objection that a second path "can overwrite a save" is exactly why
+  // there is still only one. It also loads permanent perks itself, closing a
+  // race this screen had (a tap before the IAP load resolved built the life
+  // with none of the player's purchased perks). 2026-09-01 UI audit.
+  const { startLife, isStarting } = useStartLife();
+  const start = useCallback(() => {
+    startLife({ selectedPerks: selected, selectedMindset, origin: 'Perks' });
+  }, [startLife, selected, selectedMindset]);
 
   const floatingStartButton = (
     <OnboardingFloatingButton
@@ -607,7 +467,7 @@ export default function Perks() {
           }
         />
 
-        <OnboardingStepBar currentStep={4} totalSteps={4} />
+        <OnboardingStepBar currentStep={3} totalSteps={3} />
 
         <Text style={styles.guidanceText}>
           {activeTab === 'perks'
@@ -695,16 +555,56 @@ export default function Perks() {
           <View style={styles.scrollContent}>
             {activeTab === 'perks' ? (
               <View style={styles.perksContainer}>
-                {sortedPerks.map((perk) => (
+                {/* Unlocked first, then ONE row for the locked ones. On a first
+                    run 20 of the 21 perks are achievement-locked, so rendering
+                    them all inline made the screen a wall of things the player
+                    cannot have - the same defect as the launcher's dimmed
+                    locked tiles, fixed the same way (2026-09-01 UI audit).
+                    Nothing is hidden: the shelf opens to the full list with
+                    each perk's unlock requirement. */}
+                {unlockedPerks.map((perk) => (
                   <PerkCard
                     key={perk.id}
                     perk={perk}
                     isSelected={selected.includes(perk.id)}
                     isPermanent={isPerkPermanent(perk.id, permanentPerks)}
-                    isLocked={isPerkLocked(perk, permanentPerks, earnedAchievementIds)}
+                    isLocked={false}
                     onToggle={toggle}
                   />
                 ))}
+                {lockedPerks.length > 0 ? (
+                  <>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => { haptic.light(); setShowLockedPerks((v) => !v); }}
+                      style={styles.lockedShelf}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Locked perks, ${lockedPerks.length}`}
+                      accessibilityHint="Shows perks you have not unlocked yet, and how to unlock them"
+                      accessibilityState={{ expanded: showLockedPerks }}
+                    >
+                      <Lock size={16} color="#94A3B8" />
+                      <Text style={styles.lockedShelfLabel}>
+                        Locked ({lockedPerks.length})
+                      </Text>
+                      <Text style={styles.lockedShelfAction}>
+                        {showLockedPerks ? 'Hide' : 'Show'}
+                      </Text>
+                    </TouchableOpacity>
+                    {showLockedPerks
+                      ? lockedPerks.map((perk) => (
+                          <PerkCard
+                            key={perk.id}
+                            perk={perk}
+                            isSelected={false}
+                            isPermanent={isPerkPermanent(perk.id, permanentPerks)}
+                            isLocked
+                            onToggle={toggle}
+                          />
+                        ))
+                      : null}
+                  </>
+                ) : null}
               </View>
             ) : (
               <View style={styles.perksContainer}>
@@ -776,6 +676,28 @@ const styles = StyleSheet.create({
   scrollContainer: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
 
+  lockedShelf: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    paddingVertical: responsiveSpacing.sm,
+    paddingHorizontal: responsiveSpacing.md,
+    borderRadius: responsiveBorderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(30, 41, 59, 0.75)',
+  },
+  lockedShelfLabel: {
+    flex: 1,
+    fontSize: fontScale(14),
+    fontWeight: '600',
+    color: '#E2E8F0',
+  },
+  lockedShelfAction: {
+    fontSize: fontScale(13),
+    fontWeight: '600',
+    color: '#60A5FA',
+  },
   perksContainer: {
     gap: responsiveSpacing.lg,
     paddingHorizontal: responsivePadding.large,

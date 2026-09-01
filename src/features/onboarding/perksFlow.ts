@@ -171,11 +171,12 @@ export function getPerkBenefits(perk: PerkDefinition): PerkBenefit[] {
  */
 export function getStatColor(stat: string): string {
   switch (stat) {
-    case 'money':
+    // Perk-card labels rather than stats - both are money effects, so they
+    // wear money's identity colour instead of a bespoke orange/green that
+    // disagreed with the wallet the HUD shows seconds later.
     case 'Starting Money':
-      return '#F7931A';
     case 'Income Boost':
-      return '#10B981';
+      return STAT_IDENTITY.money.color;
     default:
       return STAT_IDENTITY[stat]?.color ?? '#64748B';
   }

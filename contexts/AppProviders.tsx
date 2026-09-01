@@ -9,7 +9,6 @@
  * 2. GameProvider - Game state and actions (wraps GameData, GameState, GameUI, GameActions)
  * 3. ToastProvider - Toast notifications
  * 4. OnboardingProvider - Onboarding flow state
- * 5. TutorialHighlightProvider - Tutorial highlight state
  * 6. GemStoreProvider - IAP store, reachable inside full-screen phone apps
  * 7. InterruptionProvider - single priority queue for interrupting surfaces
  */
@@ -19,7 +18,6 @@ import { UIUXProvider } from './UIUXContext';
 import { GameProvider } from './GameContext';
 import { ToastProvider } from './ToastContext';
 import { OnboardingProvider } from '@/src/features/onboarding/OnboardingContext';
-import { TutorialHighlightProvider } from './TutorialHighlightContext';
 import { SettingsProvider } from './SettingsContext';
 import { StatChangeProvider } from './StatChangeContext';
 import { GemStoreProvider } from './GemStoreContext';
@@ -45,7 +43,6 @@ export function AppProviders({ children }: AppProvidersProps) {
           <StatChangeProvider>
             <ToastProvider>
               <OnboardingProvider>
-                <TutorialHighlightProvider>
                   {/* Inside GameProvider (the store reads game state/actions) and
                       mounted app-wide so the IAP store stays reachable inside
                       full-screen phone apps where TopStatsBar unmounts. */}
@@ -57,7 +54,6 @@ export function AppProviders({ children }: AppProvidersProps) {
                       {children}
                     </InterruptionProvider>
                   </GemStoreProvider>
-                </TutorialHighlightProvider>
               </OnboardingProvider>
             </ToastProvider>
           </StatChangeProvider>

@@ -32,7 +32,6 @@ export const ANALYTICS_EVENT_NAME_LIST = [
 
   // ── Onboarding funnel ──
   'onboarding_step',
-  'tutorial_step',
   'first_week_completed',
 
   // ── Core loop ──

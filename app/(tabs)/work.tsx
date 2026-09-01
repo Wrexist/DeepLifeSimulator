@@ -12,7 +12,6 @@ import { View,
     Modal,
     StyleSheet,
     Animated } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobCard, { JobCardMetadata } from '@/components/work/JobCard';
 import PromotionCelebrationModal from '@/components/work/PromotionCelebrationModal';
@@ -60,7 +59,6 @@ import {
 } from 'lucide-react-native';
 import JailScreen from '@/components/jail/JailScreen';
 import SkillTalentTree from '@/components/SkillTalentTree';
-import InfoButton from '@/components/ui/InfoButton';
 import {
     scale,
     fontScale,
@@ -73,7 +71,6 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { logger } from '@/utils/logger';
 import { colors as themeColors } from '@/lib/config/theme';
 import { styles } from '@/components/work/workScreenStyles';
-import { CareerPathCard } from '@/components/CareerPathCard';
 // Static, not the lazy `require` this screen used inside the render callback:
 // `advancedCareers.ts` is pure data with no top-level side effects and imports
 // nothing but types, so there is no cycle to break and nothing to defer - and
@@ -86,7 +83,6 @@ import {
   type AdvancedCareer,
 } from '@/lib/careers/advancedCareers';
 import { getPromotionEligibility } from '@/lib/careers/promotionGating';
-const LinearGradient = Gradient;
 
 
 // Creative/hobby ids that can leak into streetJobs but must not render as street
@@ -502,17 +498,16 @@ function WorkScreenContent() {
                 lockReason = `Needs ${getStreetJobEnergyCost(gameState, job)} energy.`;
             }
 
-            const buttonText = atLimit
-                ? 'Limit reached'
-                : locked
-                    ? 'Locked'
-                    : 'Execute';
-
-            // insert risk metadata for crimes
+            // Risk first, then the weekly usage (the two decision gates), then
+            // the descriptive chips - JobCard shows the first 3 and folds the
+            // rest behind "+N more".
             const crimeMetadata: JobCardMetadata[] = [
                 metadata[0], // energy
-                metadata[1], // rank
                 { icon: <AlertTriangle size={scale(13)} color="rgba(251, 191, 36, 0.92)" />, value: `${getJailRisk(job)}% risk`, tone: 'warn' },
+                ...(timesDoneThisWeek > 0
+                    ? [{ icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />, value: `${timesDoneThisWeek}/${maxPerWeek} this wk` }]
+                    : []),
+                metadata[1], // rank
                 ...(job.skill ? [metadata.find(m => m.value.toLowerCase().includes((job.skill || '').toLowerCase()))!].filter(Boolean) : []),
                 ...metadata.filter(m => m.tone === 'bad'),
             ];
@@ -525,16 +520,12 @@ function WorkScreenContent() {
                     description={job.description}
                     reward={reward}
                     metadata={crimeMetadata}
-                    buttonText={buttonText}
+                    buttonText="Execute"
                     onPress={() => handleStreetJob(job.id)}
                     locked={locked}
                     lockReason={lockReason}
                     feedback={workFeedback[job.id]}
                     feedbackOpacity={feedbackOpacity}
-                    progress={(timesDoneThisWeek / maxPerWeek) * 100}
-                    progressState={atLimit ? 'done' : 'active'}
-                    ringCenter={<Text style={local.ringCount}>{timesDoneThisWeek}/{maxPerWeek}</Text>}
-                    ringLabel={`Done ${timesDoneThisWeek} of ${maxPerWeek} this week`}
                 />
             );
         }
@@ -558,14 +549,23 @@ function WorkScreenContent() {
                         ? `Needs ${getStreetJobEnergyCost(gameState, job)} energy.`
                         : undefined;
 
-        const streetMetadata: JobCardMetadata[] = [...metadata];
+        // Decision-relevant chips lead (energy, weekly usage, risk); the rest
+        // fold behind JobCard's "+N more" toggle.
+        const streetMetadata: JobCardMetadata[] = [metadata[0]];
+        if (streetDoneThisWeek > 0) {
+            streetMetadata.push({
+                icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
+                value: `${streetDoneThisWeek}/${streetMaxPerWeek} this wk`,
+            });
+        }
         if (job.risks && job.risks.length > 0) {
-            streetMetadata.splice(2, 0, {
+            streetMetadata.push({
                 icon: <AlertTriangle size={scale(13)} color="rgba(251, 191, 36, 0.92)" />,
                 value: `${job.risks.length} risk${job.risks.length > 1 ? 's' : ''}`,
                 tone: 'warn',
             });
         }
+        streetMetadata.push(...metadata.slice(1));
 
         return (
             <JobCard
@@ -575,17 +575,13 @@ function WorkScreenContent() {
                 description={job.description}
                 reward={reward}
                 metadata={streetMetadata}
-                buttonText={streetAtLimit ? 'Limit reached' : locked ? 'Locked' : 'Work'}
+                buttonText="Work"
                 onPress={() => handleStreetJob(job.id)}
                 locked={locked}
                 lockReason={lockReason}
                 feedback={workFeedback[job.id]}
                 feedbackOpacity={feedbackOpacity}
                 footer={interconnectionFooter}
-                progress={(streetDoneThisWeek / streetMaxPerWeek) * 100}
-                progressState={streetAtLimit ? 'done' : 'active'}
-                ringCenter={<Text style={local.ringCount}>{streetDoneThisWeek}/{streetMaxPerWeek}</Text>}
-                ringLabel={`Done ${streetDoneThisWeek} of ${streetMaxPerWeek} this week`}
             />
         );
     };
@@ -671,16 +667,20 @@ function WorkScreenContent() {
             ? evaluateHiring(getEntryJobProfile(career.id), gameState)
             : null;
 
-        const metadata: JobCardMetadata[] = [];
+        // Chip order = decision relevance (JobCard shows the first 3, rest
+        // behind "+N more"): requirements the player FAILS lead, then salary
+        // ceiling / level, then met requirements and the weekly toll.
+        const failingReqChips: JobCardMetadata[] = [];
+        const metReqChips: JobCardMetadata[] = [];
         if (requiresFitness) {
-            metadata.push({
+            (meetsFitness ? metReqChips : failingReqChips).push({
                 icon: <Trophy size={scale(13)} color={meetsFitness ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
                 value: `Fitness ${career.requirements.fitness}+`,
                 tone: meetsFitness ? 'default' : 'bad',
             });
         }
         if (requiresEdu) {
-            metadata.push({
+            (hasEdu ? metReqChips : failingReqChips).push({
                 icon: <Briefcase size={scale(13)} color={hasEdu ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
                 value: hasEdu ? 'Education met' : 'Education needed',
                 tone: hasEdu ? 'default' : 'bad',
@@ -690,12 +690,13 @@ function WorkScreenContent() {
         // 2026-08-23, so the card must say so rather than leaving a disabled
         // Apply button unexplained.
         if (requiresReputation) {
-            metadata.push({
+            (meetsReputation ? metReqChips : failingReqChips).push({
                 icon: <Star size={scale(13)} color={meetsReputation ? 'rgba(52, 211, 153, 0.95)' : 'rgba(248, 113, 113, 0.92)'} />,
                 value: `Reputation ${career.requirements.reputation}+`,
                 tone: meetsReputation ? 'default' : 'bad',
             });
         }
+        const metadata: JobCardMetadata[] = [...failingReqChips];
         metadata.push({
             icon: <Star size={scale(13)} color="rgba(226, 232, 240, 0.78)" />,
             value: `Lv ${career.level + 1}/${career.levels.length}`,
@@ -723,6 +724,7 @@ function WorkScreenContent() {
                 value: `${entryProfile.weeklyToll.energy} energy/wk`,
             });
         }
+        metadata.push(...metReqChips);
         if (happinessPenalty < 0) {
             metadata.push({
                 icon: <Smile size={scale(13)} color="rgba(248, 113, 113, 0.92)" />,
@@ -750,7 +752,10 @@ function WorkScreenContent() {
             });
         }
 
-        // Button + lock state per employment phase
+        // Button + lock state per employment phase. Five button strings for
+        // the whole screen ("Apply" / "Work" / "Execute" / "Manage" /
+        // "Promote") - every non-actionable state is a DISABLED button whose
+        // reason renders as the card's lock-reason line, never a unique label.
         let buttonText: string;
         let onPress: (() => void) | undefined;
         let locked = false;
@@ -758,7 +763,7 @@ function WorkScreenContent() {
         let buttonAccent: 'career' | 'crime' | undefined;
 
         if (canPromote) {
-            buttonText = 'Promote now';
+            buttonText = 'Promote';
             onPress = () => {
                 const result = promoteCareer(career.id);
                 if (!result) return;
@@ -774,36 +779,39 @@ function WorkScreenContent() {
                 else showSuccess(result.message);
             };
         } else if (isEmployedHere) {
-            const premiumPct = raisePremiumPct(career.raiseMultiplier);
-            buttonText = premiumPct > 0 ? `Manage Job (+${premiumPct}%)` : 'Manage Job';
+            // The raise premium is NOT in the label any more - the hero card's
+            // meta line already prints it next to the salary it modifies.
+            buttonText = 'Manage';
             onPress = () => setManageJobId(career.id);
             buttonAccent = 'career';
         } else if (career.accepted) {
-            buttonText = 'Hired';
+            buttonText = t('work.apply');
             locked = true;
+            lockReason = 'You already work here.';
         } else if (career.applied) {
-            buttonText = 'Applied';
+            buttonText = t('work.apply');
             locked = true;
+            lockReason = 'Application pending - wait for their answer.';
         } else if (requiresEdu && !hasEdu) {
-            buttonText = 'Requires education';
+            buttonText = t('work.apply');
             locked = true;
             lockReason = 'Complete the required education to apply.';
         } else if (requiresFitness && !meetsFitness) {
-            buttonText = 'Requires fitness';
+            buttonText = t('work.apply');
             locked = true;
             lockReason = `Reach Fitness ${career.requirements.fitness} to apply.`;
         } else if (missingItemNames.length > 0) {
-            buttonText = 'Locked';
+            buttonText = t('work.apply');
             locked = true;
             lockReason = `Need ${missingItemNames.join(', ')}.`;
         } else if (entryHiring && !entryHiring.eligible) {
             // Say exactly what is short, so the job reads as a goal rather than
             // an arbitrary "no".
-            buttonText = 'Not hiring you yet';
+            buttonText = t('work.apply');
             locked = true;
             lockReason = `They want - ${entryHiring.missing.join(' · ')}`;
         } else if (!canApplyForCareer(career)) {
-            buttonText = 'Unavailable';
+            buttonText = t('work.apply');
             locked = true;
             lockReason = gameState.isRetired
                 ? "You've retired - your pension is your income now."
@@ -852,27 +860,11 @@ function WorkScreenContent() {
                         <Text style={local.cardLockText}>{promotionEligibility?.reason}</Text>
                     </View>
                 );
-            } else {
-                footer = (
-                    <View style={local.cardProgressRow}>
-                        <ProgressRing
-                            value={career.progress}
-                            size={40}
-                            strokeWidth={5}
-                            showPill={false}
-                            label={`Promotion progress ${career.progress}%`}
-                        >
-                            <Text style={local.cardProgressPct}>{career.progress}%</Text>
-                        </ProgressRing>
-                        <View style={{ flex: 1 }}>
-                            <Text style={local.cardProgressLabel}>Progress to promotion</Text>
-                            <Text style={local.cardProgressSub}>
-                                {Math.max(0, 100 - career.progress)}% to Lv {career.level + 2}
-                            </Text>
-                        </View>
-                    </View>
-                );
             }
+            // No third promotion readout: the hero Current Job ring above the
+            // tabs already shows this exact number, so the employed card adds
+            // nothing here (2026-09-01 audit - progress rendered 3x per
+            // screenful).
         }
 
         return (
@@ -916,15 +908,19 @@ function WorkScreenContent() {
         let lockReason: string | undefined;
 
         if (isAccepted) {
-            buttonText = 'Working';
+            buttonText = t('work.apply');
             locked = true;
+            lockReason = 'You already work here.';
         } else if (isApplied) {
-            buttonText = 'Applied';
+            buttonText = t('work.apply');
             locked = true;
+            lockReason = 'Application pending - wait for their answer.';
         } else if (isLocked) {
-            buttonText = 'Locked';
+            buttonText = t('work.apply');
             locked = true;
-            lockReason = lockReqs.length > 0 ? `Requires - ${lockReqs.join(' · ')}` : undefined;
+            lockReason = lockReqs.length > 0
+                ? `Requires - ${lockReqs.join(' · ')}`
+                : 'Locked until you meet its requirements.';
         } else {
             buttonText = t('work.apply');
             onPress = () => {
@@ -1020,15 +1016,14 @@ function WorkScreenContent() {
     const currentJobRaisePct = currentJob ? raisePremiumPct(currentJob.raiseMultiplier) : 0;
     const currentJobAtMax = currentJob ? currentJob.level >= (currentJob.levels.length - 1) : false;
 
-    const workScreenGradient = settings.darkMode
-        ? ['#020617', '#020617']
-        : [themeColors.palette.light50, themeColors.palette.light100];
+    // Plain background - the "gradient" this screen shipped with blended
+    // #020617 into #020617 (two identical colors), pure decoration cost.
+    const workScreenBackground = settings.darkMode
+        ? '#020617'
+        : themeColors.palette.light50;
 
     return (
-        <LinearGradient
-            colors={workScreenGradient}
-            style={styles.background}
-        >
+        <View style={[styles.background, { backgroundColor: workScreenBackground }]}>
             {gameState.jailWeeks > 0 ? (
                 <JailScreen />
             ) : (
@@ -1112,39 +1107,34 @@ function WorkScreenContent() {
                                 <View>
                                     <View style={styles.sectionHeader}>
                                         <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Street Jobs</Text>
-                                        <InfoButton
-                                            title="Street Jobs"
-                                            content="Street jobs are a great way to start earning money and build your skills. Each job has ranks that improve with experience. Work more to level up and earn better pay!"
-                                            size="small"
-                                            darkMode={settings.darkMode}
-                                        />
                                     </View>
-                                    {/* The global weekly cap, stated up front. It is
-                                        enforced by the reducer either way; showing it
-                                        is what stops the player discovering it by
-                                        being refused. UX-4. */}
-                                    <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
-                                        Street work this week: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK}
+                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
+                                        Quick gigs paid on the spot - each job ranks up and pays more with repetition.
                                     </Text>
-                                    {/* The criminal record, stated for the same reason as
-                                        the weekly cap above (UX-4): it is enforced either
-                                        way, and showing it is what stops the player
-                                        discovering it by being refused.
+                                    {/* BOTH weekly caps the reducer enforces, in ONE line.
+                                        Stated up front so the player never discovers a
+                                        limit by being refused (UX-4); per-job usage also
+                                        appears as a chip on the card once it starts. */}
+                                    <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
+                                        Street work: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK} this week · max 3 per job
+                                    </Text>
+                                    {/* ONE crime-standing card: criminal level + progress
+                                        and the record's real costs together. It was two
+                                        stacked cards saying halves of the same thing.
 
                                         `wantedLevel` was read in three places in
-                                        JobActions and displayed in NONE. Its worst effect
-                                        is the one furthest from this screen - a
-                                        background check that quietly costs up to 30% on
-                                        LEGITIMATE career applications. The dark web
-                                        already shows its equivalent (`heat`), so this was
-                                        the only crime meter a player could not see. */}
-                                    {/* Criminal level + progress to the next one. Shown
+                                        JobActions and displayed in NONE - its worst
+                                        effect is a background check that quietly costs up
+                                        to 30% on LEGITIMATE career applications. Shown
                                         whenever the player has done any illegal work,
-                                        which is exactly when the gates start mattering. */}
-                                    {(gameState.criminalXp ?? 0) > 0 || record.criminalLevel > 1 ? (
+                                        which is exactly when the gates start mattering;
+                                        clean players see nothing. */}
+                                    {(gameState.criminalXp ?? 0) > 0 || record.criminalLevel > 1 || record.wantedLevel > 0 ? (
                                         <View style={local.progressCard}>
                                             <Text style={local.progressTitle}>
                                                 Criminal level {crimeProgress.level}
+                                                {record.band !== 'clean' ? ` · ${record.bandLabel}` : ''}
+                                                {record.wantedLevel > 0 ? ` · wanted ${record.wantedLevel}` : ''}
                                             </Text>
                                             <View style={local.progressTrack}>
                                                 <View style={[local.progressFill, { width: `${Math.round(crimeProgress.fraction * 100)}%` }]} />
@@ -1152,24 +1142,19 @@ function WorkScreenContent() {
                                             <Text style={local.recordLine}>
                                                 {crimeProgress.xp}/{crimeProgress.xpForNext} XP · {crimeProgress.jobsToNextLevel} more illegal job{crimeProgress.jobsToNextLevel === 1 ? '' : 's'} to level {crimeProgress.level + 1}
                                             </Text>
-                                        </View>
-                                    ) : null}
-                                    {record.wantedLevel > 0 || record.criminalLevel > 0 ? (
-                                        <View style={local.recordCard}>
-                                            <Text style={local.recordTitle}>
-                                                {record.bandLabel}
-                                                {record.wantedLevel > 0 ? ` · wanted ${record.wantedLevel}` : ''}
-                                                {record.criminalLevel > 0 ? ` · criminal lv ${record.criminalLevel}` : ''}
-                                            </Text>
-                                            {record.arrestBonusPct > 0 && (
-                                                <Text style={local.recordLine}>+{record.arrestBonusPct}% chance of being caught on illegal work</Text>
-                                            )}
-                                            {record.hiringPenaltyPct > 0 && (
-                                                <Text style={local.recordLine}>−{record.hiringPenaltyPct}% on legitimate job applications (background check)</Text>
-                                            )}
-                                            {record.raisesCrisisRate && (
-                                                <Text style={local.recordLine}>Bad luck events are far more likely while you are wanted</Text>
-                                            )}
+                                            {record.wantedLevel > 0 || record.criminalLevel > 0 ? (
+                                                <>
+                                                    {record.arrestBonusPct > 0 && (
+                                                        <Text style={local.recordLine}>+{record.arrestBonusPct}% chance of being caught on illegal work</Text>
+                                                    )}
+                                                    {record.hiringPenaltyPct > 0 && (
+                                                        <Text style={local.recordLine}>−{record.hiringPenaltyPct}% on legitimate job applications (background check)</Text>
+                                                    )}
+                                                    {record.raisesCrisisRate && (
+                                                        <Text style={local.recordLine}>Bad luck events are far more likely while you are wanted</Text>
+                                                    )}
+                                                </>
+                                            ) : null}
                                         </View>
                                     ) : null}
                                     {/* Transport gates delivery work, so it belongs
@@ -1213,20 +1198,15 @@ function WorkScreenContent() {
 
                             {activeTab === 'career' && (
                                 <View>
-                                    {/* Career Path Visualization - Shows current career progression */}
-                                    {gameState.currentJob && (
-                                        <CareerPathCard compact={true} />
-                                    )}
-
+                                    {/* No compact CareerPathCard here any more: the hero
+                                        Current Job card 100px above already shows the same
+                                        job, salary and promotion progress. */}
                                     <View style={styles.sectionHeader}>
                                         <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Careers</Text>
-                                        <InfoButton
-                                            title="Career Jobs"
-                                            content="Apply for traditional careers that offer steady income and advancement opportunities. Each career has requirements like education or fitness levels you must meet first. Work hard to get promoted and earn higher salaries!"
-                                            size="small"
-                                            darkMode={settings.darkMode}
-                                        />
                                     </View>
+                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
+                                        Meet a career&apos;s requirements, apply, and climb its ladder for bigger salaries.
+                                    </Text>
                                     <CollapsibleSection
                                         id="work.standardCareers"
                                         title="Standard Careers"
@@ -1323,13 +1303,10 @@ function WorkScreenContent() {
                                 <View>
                                     <View style={styles.sectionHeader}>
                                         <Text style={[styles.sectionTitle, styles.sectionTitleDark]}>Crime Skills</Text>
-                                        <InfoButton
-                                            title="Crime Skills"
-                                            content="Crime skills improve your odds in illegal jobs. Each skill has talents you can unlock that give +5% success rate and +10% payment bonus. Level up your skills by doing illegal jobs and unlock powerful abilities!"
-                                            size="small"
-                                            darkMode={settings.darkMode}
-                                        />
                                     </View>
+                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
+                                        Illegal jobs level these skills, and their talents add success and payout bonuses.
+                                    </Text>
 
                                     <CollapsibleSection
                                         id="work.crimeSkills"
@@ -1379,6 +1356,11 @@ function WorkScreenContent() {
                                         compact
                                         summary={`${criminalStreetJobs.length} available`}
                                     >
+                                    {/* Crime jobs share the street-work weekly caps -
+                                        same single-line statement as the Street tab. */}
+                                    <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
+                                        Street work: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK} this week · max 3 per job
+                                    </Text>
                                     {criminalStreetJobs.length > 0 ? (
                                         criminalStreetJobs.map(renderJobCard)
                                     ) : (
@@ -1481,7 +1463,7 @@ function WorkScreenContent() {
                 onClose={() => setPromotionCelebration(null)}
             />
 
-        </LinearGradient>
+        </View>
     );
 }
 
@@ -1530,20 +1512,6 @@ const local = StyleSheet.create({
         borderRadius: 999,
         backgroundColor: '#94A3B8',
     },
-    recordCard: {
-        borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.35)',
-        backgroundColor: 'rgba(239, 68, 68, 0.10)',
-        borderRadius: scale(10),
-        padding: scale(10),
-        marginBottom: scale(10),
-        gap: scale(2),
-    },
-    recordTitle: {
-        fontSize: fontScale(12),
-        fontWeight: '800',
-        color: '#EF4444',
-    },
     recordLine: {
         fontSize: fontScale(11),
         fontWeight: '600',
@@ -1559,11 +1527,17 @@ const local = StyleSheet.create({
     boardNoteDark: {
         color: 'rgba(148, 163, 184, 0.85)',
     },
-    ringCount: {
-        fontSize: fontScale(9.5),
-        fontWeight: '800',
-        color: '#F8FAFC',
-        fontVariant: ['tabular-nums'],
+    // One-line section subtitles - replaced the three InfoButton "?" modals.
+    sectionSub: {
+        fontSize: fontScale(12),
+        fontWeight: '500',
+        color: 'rgba(71, 85, 105, 0.9)',
+        marginTop: scale(-4),
+        marginBottom: scale(10),
+        lineHeight: fontScale(16),
+    },
+    sectionSubDark: {
+        color: 'rgba(148, 163, 184, 0.85)',
     },
     workTabs: {
         marginHorizontal: scale(16),
@@ -1651,29 +1625,6 @@ const local = StyleSheet.create({
         fontWeight: '700',
         color: 'rgba(226, 232, 240, 0.75)',
         fontVariant: ['tabular-nums'],
-        marginTop: scale(1),
-    },
-    // Employed career card footer - mini ring + label.
-    cardProgressRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: scale(12),
-    },
-    cardProgressPct: {
-        fontSize: fontScale(9.5),
-        fontWeight: '800',
-        color: '#F8FAFC',
-        fontVariant: ['tabular-nums'],
-    },
-    cardProgressLabel: {
-        fontSize: fontScale(12.5),
-        fontWeight: '700',
-        color: '#E2E8F0',
-    },
-    cardProgressSub: {
-        fontSize: fontScale(11),
-        fontWeight: '500',
-        color: 'rgba(226, 232, 240, 0.55)',
         marginTop: scale(1),
     },
     // Promotion-gated footer - full progress but locked on performance/experience.

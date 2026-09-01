@@ -13,16 +13,25 @@ import type { GameState } from '@/contexts/game/types';
  */
 export type GoalHorizon = 'now' | 'soon' | 'dream';
 
-/** Where the player goes to act on a goal. An expo-router path. */
+/**
+ * Where the player goes to act on a goal. An expo-router path.
+ *
+ * ONE DOOR PER ROOM: `market`, `health`, `progression`, `computer` and
+ * `mobile` are `href: null` routes (merged into the Life shell and the Apps
+ * tab), and pushing them by name rendered a second, un-chromed copy of the
+ * screen with no tab highlighted - the audit's worst structural defect. The
+ * canonical forms are the Life deep links and the Apps tab. Push sites append
+ * a `ts` nonce so a repeated tap of the same goal still lands (the Life shell
+ * consumes each deep link once).
+ */
 export type GoalRoute =
   | '/(tabs)/work'
   | '/(tabs)/life'
-  | '/(tabs)/health'
-  | '/(tabs)/market'
+  | '/(tabs)/life?segment=health'
+  | '/(tabs)/life?segment=shop'
+  | '/(tabs)/life?segment=stats'
   | '/(tabs)/home'
-  | '/(tabs)/computer'
-  | '/(tabs)/mobile'
-  | '/(tabs)/progression';
+  | '/(tabs)/apps';
 
 export interface GoalDefinition {
   id: string;

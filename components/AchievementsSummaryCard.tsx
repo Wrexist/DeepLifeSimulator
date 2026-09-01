@@ -29,8 +29,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Trophy, ChevronRight, Gem, Sparkles, Target } from 'lucide-react-native';
 import { useAchievements } from '@/hooks/useAchievements';
 import ProgressRing from '@/components/ui/ProgressRing';
+import { cardStyle } from '@/components/ui/Card';
 import { accent } from '@/lib/config/theme';
-import { scale, fontScale, responsivePadding, responsiveBorderRadius } from '@/utils/scaling';
+import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
 
 interface AchievementsSummaryCardProps {
@@ -62,7 +63,7 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
       accessibilityLabel={`Achievements: ${completed} of ${total} completed${
         claimableCount > 0 ? `, ${claimableCount} ready to claim` : ''
       }. Tap to view all.`}
-      style={styles.card}
+      style={[cardStyle, styles.card]}
     >
       <View style={styles.header}>
         <View style={styles.trophyBubble}>
@@ -144,16 +145,14 @@ export default function AchievementsSummaryCard({ onViewAll }: AchievementsSumma
 }
 
 const styles = StyleSheet.create({
-  // Matches `progressLinkCard` in app/(tabs)/home.tsx exactly - same inset,
-  // radius, surface, hairline and shadow. They are neighbours in the feed.
+  // Container comes from the shared `cardStyle` (components/ui/Card) - this
+  // card's root must stay a TouchableOpacity, so it spreads the style rather
+  // than nesting a Card. These extras keep what `progressLinkCard` in
+  // app/(tabs)/home.tsx also has (its neighbour in the feed): the shadow, and
+  // no flex gap (the body spaces itself with marginTop).
   card: {
     marginHorizontal: responsivePadding.horizontal,
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 0,
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },

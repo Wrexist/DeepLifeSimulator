@@ -38,8 +38,10 @@ describe('the HUD money chip stays legible', () => {
     expect(src).toMatch(/toValue: 1\.12/);
   });
 
-  it('the chip really is on a green gradient (why a green tint was invisible)', () => {
+  it('the chip really is on a solid green (why a green tint was invisible)', () => {
+    // Phase 2 flattened the chip's two-stop gradient to one solid fill - the
+    // legibility argument is unchanged: green-on-green text cannot read.
     const src = read('components/TopStatsBar.tsx');
-    expect(src).toMatch(/colors=\{\['#16A34A','#22C55E'\] as const\}/);
+    expect(src).toMatch(/backgroundColor: '#16A34A'/);
   });
 });

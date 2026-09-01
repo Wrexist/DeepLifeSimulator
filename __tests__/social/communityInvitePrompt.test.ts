@@ -25,7 +25,6 @@ const base = {
   record: { count: 0 } as InviteOfferRecord,
   weeksInThisLife: MIN_WEEKS_IN_LIFE,
   weeksLived: 500,
-  hasCompletedTutorial: true,
 };
 
 describe('shouldOfferInvite', () => {
@@ -37,9 +36,6 @@ describe('shouldOfferInvite', () => {
     expect(shouldOfferInvite({ ...base, weeksInThisLife: MIN_WEEKS_IN_LIFE - 1 })).toBe(false);
   });
 
-  it('never asks before the tutorial is done', () => {
-    expect(shouldOfferInvite({ ...base, hasCompletedTutorial: false })).toBe(false);
-  });
 
   describe('a joined player is never asked again', () => {
     // Both non-'unclaimed' states must suppress. A PENDING claim is the subtle

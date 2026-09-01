@@ -33,6 +33,8 @@ export interface SystemRoute {
   pathname: string;
   /** `?app=<id>` for the two launcher screens. Omitted for plain tabs. */
   appId?: string;
+  /** `?segment=<id>` for the Life shell's deep links. Omitted for plain tabs. */
+  segment?: string;
   /** What the button says. Written for a player, not a developer. */
   label: string;
 }
@@ -49,8 +51,8 @@ const APPS = '/(tabs)/apps';
  */
 export const SYSTEM_ROUTES: Readonly<Record<string, SystemRoute>> = {
   career: { pathname: '/(tabs)/work', label: 'Open Work' },
-  health: { pathname: '/(tabs)/health', label: 'Open Health' },
-  items: { pathname: '/(tabs)/market', label: 'Open Market' },
+  health: { pathname: '/(tabs)/life', segment: 'health', label: 'Open Health' },
+  items: { pathname: '/(tabs)/life', segment: 'shop', label: 'Open Market' },
   hobbies: { pathname: '/(tabs)/life', label: 'Open Life' },
   relationships: { pathname: '/(tabs)/life', label: 'Open Life' },
   streetJobs: { pathname: '/(tabs)/work', label: 'Open Work' },
@@ -66,9 +68,9 @@ export const SYSTEM_ROUTES: Readonly<Record<string, SystemRoute>> = {
   darkWeb: { pathname: APPS, appId: 'onion', label: 'Open Onion Browser' },
   gamingStreaming: { pathname: APPS, appId: 'streaming', label: 'Open Streaming' },
 
-  prestige: { pathname: '/(tabs)/progression', label: 'Open Progress' },
-  dynasty: { pathname: '/(tabs)/progression', label: 'Open Progress' },
-  legacy: { pathname: '/(tabs)/progression', label: 'Open Progress' },
+  prestige: { pathname: '/(tabs)/life', segment: 'stats', label: 'Open Progress' },
+  dynasty: { pathname: '/(tabs)/life', segment: 'stats', label: 'Open Progress' },
+  legacy: { pathname: '/(tabs)/life', segment: 'stats', label: 'Open Progress' },
 };
 
 /** The destination for a system, or null when it has no single home. */

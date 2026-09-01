@@ -35,11 +35,12 @@ describe('featureForAppId', () => {
     expect(featureForAppId('realestate')).toBe('real_estate');
   });
 
-  it('accepts BOTH spellings of the pet app alias', () => {
-    // The desktop grid calls it `paw` and the phone grid `pet`; mapping only
-    // one would halve that feature's adoption for no reason a reader could see.
-    expect(featureForAppId('paw')).toBe('pets');
+  it('maps the one canonical pet id (the paw alias died with the split launchers)', () => {
+    // The two grids used to disagree (`paw` on desktop, `pet` on phone) and
+    // this map carried both. The shared launcher catalog made `pet` the only
+    // spelling, so a `paw` mapping would be dead weight a reader might copy.
     expect(featureForAppId('pet')).toBe('pets');
+    expect(featureForAppId('paw')).toBeNull();
   });
 
   it('returns null for an unmapped or missing id', () => {
@@ -57,7 +58,7 @@ describe('the map only ever yields catalogued features', () => {
     const routes = ['/work', '/health', '/market', '/progression'];
     const appIds = [
       'bitcoin', 'realestate', 'onion', 'tinder', 'mail', 'social', 'stocks',
-      'bank', 'education', 'company', 'paw', 'pet', 'travel', 'political', 'luxury',
+      'bank', 'education', 'company', 'pet', 'travel', 'political', 'luxury',
     ];
     for (const route of routes) {
       const feature = featureForRoute(route);

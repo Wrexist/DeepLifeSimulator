@@ -37,7 +37,7 @@ const ROUTE_FEATURES: Readonly<Record<string, TrackedFeature>> = {
 /**
  * In-game app id (the `computer` / `mobile` launcher grids) → feature.
  *
- * The two grids share ids and both carry the `paw`/`pet` alias, so both
+ * The launchers share one catalog now, with `pet` as the only spelling, so
  * spellings are mapped here rather than at the call sites.
  */
 const APP_FEATURES: Readonly<Record<string, TrackedFeature>> = {
@@ -51,7 +51,6 @@ const APP_FEATURES: Readonly<Record<string, TrackedFeature>> = {
   bank: 'banking',
   education: 'education',
   company: 'business',
-  paw: 'pets',
   pet: 'pets',
   travel: 'travel',
   political: 'politics',

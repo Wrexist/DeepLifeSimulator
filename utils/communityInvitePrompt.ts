@@ -138,7 +138,6 @@ export interface InviteOfferInput {
   weeksInThisLife: number;
   /** The absolute counter, for cooldown arithmetic only. */
   weeksLived: number;
-  hasCompletedTutorial: boolean;
 }
 
 /**
@@ -148,11 +147,10 @@ export interface InviteOfferInput {
  * the `AdRewardOrb` rule that a reward is never OFFERED when it cannot be taken.
  */
 export function shouldOfferInvite(input: InviteOfferInput): boolean {
-  const { claim, record, weeksInThisLife, weeksLived, hasCompletedTutorial } = input;
+  const { claim, record, weeksInThisLife, weeksLived } = input;
 
   // Joined, or a claim is mid-flight: never again, by any path.
   if (claim !== 'unclaimed') return false;
-  if (!hasCompletedTutorial) return false;
   if (!(weeksInThisLife >= MIN_WEEKS_IN_LIFE)) return false;
   if (record.count >= MAX_OFFERS) return false;
 

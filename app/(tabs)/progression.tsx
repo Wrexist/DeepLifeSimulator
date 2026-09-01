@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,13 +18,11 @@ import {
   ChevronRight,
   Sparkles,
   CalendarDays,
-  CalendarClock,
-  Share2,
 } from 'lucide-react-native';
 import ProgressOverview from '@/components/ProgressOverview';
 import Journal from '@/components/Journal';
+import YourStoryModal, { type StorySurface } from '@/components/story/YourStoryModal';
 import SmartNotificationCenter from '@/components/SmartNotificationCenter';
-import PrestigeStatsCard from '@/components/PrestigeStatsCard';
 import FamilyRecordsCard from '@/components/FamilyRecordsCard';
 import { isPrestigeAvailable } from '@/lib/prestige/prestigeTypes';
 import PrestigeHistoryModal from '@/components/PrestigeHistoryModal';
@@ -76,24 +74,43 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   const isDark = settings?.darkMode !== false;
   const theme = getThemeColors(isDark);
 
-  const [showSmartNotifications, setShowSmartNotifications] = useState(false);
-  const [showPrestigeHistory, setShowPrestigeHistory] = useState(false);
-  const [showPrestigeShop, setShowPrestigeShop] = useState(false);
-  const [showPrestige, setShowPrestige] = useState(false);
-  const [showCommitments, setShowCommitments] = useState(false);
-  const [showLifeStory, setShowLifeStory] = useState(false);
-  const [showLifeTimeline, setShowLifeTimeline] = useState(false);
-  const [showShareCard, setShowShareCard] = useState(false);
-  const [showSkillTree, setShowSkillTree] = useState(false);
-  const [showHobbies, setShowHobbies] = useState(false);
-  const [showLegacyPass, setShowLegacyPass] = useState(false);
-  const [showSubscription, setShowSubscription] = useState(false);
+  // ONE modal at a time, one piece of state. This screen used to carry twelve
+  // independent `useState` booleans - twelve ways for two modals to be open at
+  // once, and twelve things to reset - while TopStatsBar in this same codebase
+  // already did it correctly with a single union. 2026-09-01 UI audit.
+  type ModalName =
+    | 'notifications'
+    | 'prestigeHistory'
+    | 'prestigeShop'
+    | 'prestige'
+    | 'commitments'
+    | 'story'
+    | 'lifeStory'
+    | 'lifeTimeline'
+    | 'journal'
+    | 'shareCard'
+    | 'skillTree'
+    | 'hobbies'
+    | 'legacyPass'
+    | 'subscription'
+    | null;
+  const [openModal, setOpenModal] = useState<ModalName>(null);
+  const closeModal = useCallback(() => setOpenModal(null), []);
+  /** A Your Story row: swap the hub for the surface it names. */
+  const openStorySurface = useCallback((surface: StorySurface) => {
+    setOpenModal(
+      surface === 'story' ? 'lifeStory'
+        : surface === 'timeline' ? 'lifeTimeline'
+          : surface === 'journal' ? 'journal'
+            : 'shareCard'
+    );
+  }, []);
 
   // Deep link: the premium-pass promo popup routes here with ?openPass=1 to open
   // the Legacy Pass directly, so the upsell is a single tap, not a scavenger hunt.
   const params = useLocalSearchParams<{ openPass?: string }>();
   useEffect(() => {
-    if (params?.openPass === '1') setShowLegacyPass(true);
+    if (params?.openPass === '1') setOpenModal('legacyPass');
   }, [params?.openPass]);
 
   // (Removed: a `checkAchievements()` effect keyed to a per-render
@@ -116,6 +133,18 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   // same fix as lib/careers/advancedCareers.ts, whose comment records that
   // every achievement-gated career was permanently locked for the same reason.
   // 2026-07-30 audit GP-3.
+
+  // The LIVE achievement store, not `gameState.achievements[].completed`.
+  //
+  // That array ships 52 entries all `completed: false` and its only writer is
+  // one `luxury_life` special case, so reading it made this headline say
+  // "0/42 · 0% complete" forever (audit GP-3). `deadAchievementSweep.test.ts`
+  // pins this read for exactly that reason.
+  //
+  // The UI overhaul briefly deleted this card as a duplicate of
+  // `ProgressOverview` below. It is NOT one: that browser derives unlocked
+  // state from `progress.achievements[].unlockedAt`, a different source. This
+  // headline is the screen's only verified-correct count, so it stays.
   const completedAchievements = liveAchievements.filter(a => a.claimed).length;
   const totalAchievements = liveAchievements.length;
   const completionPct = totalAchievements > 0 ? Math.round((completedAchievements / totalAchievements) * 100) : 0;
@@ -127,24 +156,41 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
   // Derived - the stored flag is never set true in normal play (UX-1).
   const prestigeAvailable = isPrestigeAvailable(gameState);
 
+  /**
+   * Where the Prestige hero card goes, and the line that says so. Resolved
+   * once so the tap and the label can never disagree.
+   */
+  const prestigeDestination: { modal: 'prestige' | 'prestigeShop' | 'prestigeHistory'; meta: string } =
+    prestigeAvailable && prestigeLevel === 0
+      ? { modal: 'prestige', meta: 'Ready to prestige' }
+      : contractsClaimable > 0
+        ? { modal: 'prestigeShop', meta: `${contractsClaimable} contract${contractsClaimable === 1 ? '' : 's'} ready` }
+        : prestigeLevel > 0
+          ? { modal: 'prestigeHistory', meta: `${prestigePoints} points · history` }
+          : { modal: 'prestigeShop', meta: `${prestigePoints} points · shop` };
+
   const legacyXp = gameState.legacyPass?.xp ?? 0;
   const legacyTier = getTierForXp(legacyXp);
   const legacyInto = xpIntoCurrentTier(legacyXp);
   const legacyTierPct = legacyTier >= MAX_TIER ? 100 : Math.round((legacyInto / XP_PER_TIER) * 100);
 
-  // Compact launcher entries (kept as clean glass tiles, not a wall of buttons).
+  // Compact launcher entries. NINE tiles once lived here - including two
+  // paywalls sitting between a diary and a hobby list, and four separate
+  // launchers (Life Story / Timeline / Journal / Share) for the one question
+  // "what happened in my life?". The paywalls moved to where their systems
+  // live (the Legacy Pass hero card above; the store button in the HUD), the
+  // four became one "Your Story" hub, and what is left is a short list of
+  // tools that are actually tools. 2026-09-01 UI audit §2 item 6.
+  //
+  // Notifications stays despite reading like a duplicate of the tabs-layer
+  // ticker: this screen is `SmartNotificationCenter`'s ONLY mount, so removing
+  // the tile would orphan the feature rather than de-duplicate it.
   const tools: { key: string; label: string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string; onPress: () => void; badge?: number }[] = [
-    { key: 'skills', label: 'Life Skills', icon: Brain, color: accent.success, onPress: () => setShowSkillTree(true) },
-    { key: 'hobbies', label: 'Hobbies', icon: Palette, color: accent.purple, onPress: () => setShowHobbies(true) },
-    { key: 'story', label: 'Life Story', icon: BookOpen, color: '#8B5CF6', onPress: () => setShowLifeStory(true) },
-    // The chronological record (2026-08-24) - the narrative Life Story's
-    // factual sibling: careers, births, marriages, windfalls, by age.
-    { key: 'timeline', label: 'Timeline', icon: CalendarClock, color: '#A78BFA', onPress: () => setShowLifeTimeline(true) },
-    { key: 'share', label: 'Share Life', icon: Share2, color: accent.info, onPress: () => setShowShareCard(true) },
-    { key: 'commit', label: 'Commitments', icon: Target, color: accent.warning, onPress: () => setShowCommitments(true) },
-    { key: 'notif', label: 'Notifications', icon: Bell, color: accent.info, onPress: () => setShowSmartNotifications(true) },
-    { key: 'legacy', label: 'Legacy Pass', icon: Crown, color: accent.gold, onPress: () => setShowLegacyPass(true), badge: legacyClaimable },
-    { key: 'plus', label: 'DeepLife+', icon: Star, color: accent.gold, onPress: () => setShowSubscription(true) },
+    { key: 'skills', label: 'Life Skills', icon: Brain, color: accent.success, onPress: () => setOpenModal('skillTree') },
+    { key: 'hobbies', label: 'Hobbies', icon: Palette, color: accent.purple, onPress: () => setOpenModal('hobbies') },
+    { key: 'story', label: 'Your Story', icon: BookOpen, color: '#8B5CF6', onPress: () => setOpenModal('story') },
+    { key: 'commit', label: 'Commitments', icon: Target, color: accent.warning, onPress: () => setOpenModal('commitments') },
+    { key: 'notif', label: 'Notifications', icon: Bell, color: accent.info, onPress: () => setOpenModal('notifications') },
   ];
 
   return (
@@ -171,22 +217,14 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           {/* Prestige */}
           <TouchableOpacity
             activeOpacity={0.85}
-            // The card whose own meta line reads "Ready to prestige" must be the
-            // card that STARTS a prestige. It used to open the points shop, so
-            // the one surface advertising the action was the one surface that
-            // could not perform it - the real entry point is a button on Home
-            // that only renders when prestige is already available.
-            // A badge must lead to the thing it counts, so claimable Legacy
-            // Contracts route to the shop (they are claimed on its Dynasty tab,
-            // which the shop opens on when any are waiting). Prestige-ready
-            // still wins: the card whose meta line says "Ready to prestige" has
-            // to be the card that starts one.
-            onPress={() => {
-              if (prestigeAvailable && prestigeLevel === 0) setShowPrestige(true);
-              else if (contractsClaimable > 0) setShowPrestigeShop(true);
-              else if (prestigeLevel > 0) setShowPrestigeHistory(true);
-              else setShowPrestigeShop(true);
-            }}
+            // ONE destination, and the meta line under the value NAMES it.
+            // This tap used to fan out to four different modals depending on
+            // invisible state while the card said only "N points" - the same
+            // gesture doing four undiscoverable things (2026-09-01 UI audit).
+            // The order is unchanged, because it was right: the card whose meta
+            // reads "Ready to prestige" must be the card that starts one, and a
+            // badge must lead to the thing it counts.
+            onPress={() => setOpenModal(prestigeDestination.modal)}
             style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <View style={styles.heroCardHead}>
@@ -196,14 +234,14 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
             </View>
             <Text style={[styles.heroValue, { color: theme.text }]}>Lv {prestigeLevel}</Text>
             <Text style={[styles.heroMeta, { color: theme.textMuted }]}>
-              {prestigeAvailable && prestigeLevel === 0 ? 'Ready to prestige' : `${prestigePoints} points`}
+              {prestigeDestination.meta}
             </Text>
           </TouchableOpacity>
 
           {/* Legacy Pass */}
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => setShowLegacyPass(true)}
+            onPress={() => setOpenModal('legacyPass')}
             style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
           >
             <View style={styles.heroCardHead}>
@@ -218,19 +256,17 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
           </TouchableOpacity>
         </View>
 
-        {/* Full prestige card when the player has prestiged. */}
-        {prestigeLevel > 0 && (
-          <PrestigeStatsCard
-            onPress={() => setShowPrestigeHistory(true)}
-            onShopPress={() => setShowPrestigeShop(true)}
-          />
-        )}
+        {/* No PrestigeStatsCard here. Prestige was rendered up to three times
+            on this one screen (hero card, full card, contract badges); the
+            full card already lives on Home, and the hero card above links to
+            the history and the shop where the detail is. 2026-09-01 UI audit. */}
 
         {/* Family records - the dynasty's personal bests and where this life
             stands. Derived from previousLives; renders null on a first life. */}
         <FamilyRecordsCard />
 
-        {/* Overall achievement progress */}
+        {/* Overall achievement progress. Kept deliberately: see the count
+            derivation above for why this is not a duplicate of the browser. */}
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.progressRow}>
             <Text style={[styles.cardTitle, { color: theme.text }]}>Achievements</Text>
@@ -262,8 +298,9 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         {/* Achievement browser (searchable, by category) */}
         <ProgressOverview />
 
-        {/* Life diary */}
-        <Journal />
+        {/* The Journal is no longer inline: it is one of the four surfaces
+            behind the "Your Story" tile, so the diary and the three things
+            like it are found in one place instead of four. */}
 
         {/* Tools & More - compact launcher tiles */}
         <View style={styles.toolsSection}>
@@ -297,36 +334,63 @@ export function ProgressionScreenContent({ embedded = false }: { embedded?: bool
         </View>
       </ScrollView>
 
-      {/* Modals */}
-      <SmartNotificationCenter visible={showSmartNotifications} onClose={() => setShowSmartNotifications(false)} />
-      <ActivityCommitmentModal visible={showCommitments} onClose={() => setShowCommitments(false)} />
-      <LifeStoryModal visible={showLifeStory} onClose={() => setShowLifeStory(false)} />
-      <LifeTimelineModal visible={showLifeTimeline} onClose={() => setShowLifeTimeline(false)} />
+      {/* Modals - one at a time, mounted only while open. */}
+      <SmartNotificationCenter visible={openModal === 'notifications'} onClose={closeModal} />
+      <ActivityCommitmentModal visible={openModal === 'commitments'} onClose={closeModal} />
+      <YourStoryModal
+        visible={openModal === 'story'}
+        onClose={closeModal}
+        onOpen={openStorySurface}
+      />
+      <LifeStoryModal visible={openModal === 'lifeStory'} onClose={closeModal} />
+      <LifeTimelineModal visible={openModal === 'lifeTimeline'} onClose={closeModal} />
+      {/* Journal renders inline (it is a View, not a Modal), so it gets a
+          wrapper here - the same treatment ShareLifeCard below already needed. */}
+      <Modal
+        visible={openModal === 'journal'}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={closeModal}
+      >
+        <View style={[styles.journalSheet, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+          <View style={styles.journalSheetHead}>
+            <Text style={[styles.journalSheetTitle, { color: theme.text }]}>Journal</Text>
+            <TouchableOpacity
+              onPress={closeModal}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close journal"
+            >
+              <Text style={[styles.journalSheetClose, { color: theme.textSecondary }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + scale(24) }}>
+            <Journal />
+          </ScrollView>
+        </View>
+      </Modal>
       {/* ShareLifeCard renders a full-bleed card rather than its own Modal, so it
           gets wrapped here. It covers the gap the death-screen obituary does
           not: sharing a life while it is still being lived. */}
       <Modal
-        visible={showShareCard}
+        visible={openModal === 'shareCard'}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setShowShareCard(false)}
+        onRequestClose={closeModal}
       >
-        <ShareLifeCard gameState={gameState} onClose={() => setShowShareCard(false)} />
+        <ShareLifeCard gameState={gameState} onClose={closeModal} />
       </Modal>
-      <SkillTreeModal visible={showSkillTree} onClose={() => setShowSkillTree(false)} />
-      <HobbiesModal visible={showHobbies} onClose={() => setShowHobbies(false)} />
+      <SkillTreeModal visible={openModal === 'skillTree'} onClose={closeModal} />
+      <HobbiesModal visible={openModal === 'hobbies'} onClose={closeModal} />
       <LegacyPassModal
-        visible={showLegacyPass}
-        onClose={() => setShowLegacyPass(false)}
-        onSubscribe={() => {
-          setShowLegacyPass(false);
-          setShowSubscription(true);
-        }}
+        visible={openModal === 'legacyPass'}
+        onClose={closeModal}
+        onSubscribe={() => setOpenModal('subscription')}
       />
-      <SubscriptionModal visible={showSubscription} onClose={() => setShowSubscription(false)} />
-      <PrestigeHistoryModal visible={showPrestigeHistory} onClose={() => setShowPrestigeHistory(false)} />
-      <PrestigeShopModal visible={showPrestigeShop} onClose={() => setShowPrestigeShop(false)} />
-      <PrestigeModal visible={showPrestige} onClose={() => setShowPrestige(false)} />
+      <SubscriptionModal visible={openModal === 'subscription'} onClose={closeModal} />
+      <PrestigeHistoryModal visible={openModal === 'prestigeHistory'} onClose={closeModal} />
+      <PrestigeShopModal visible={openModal === 'prestigeShop'} onClose={closeModal} />
+      <PrestigeModal visible={openModal === 'prestige'} onClose={closeModal} />
     </View>
   );
 }
@@ -500,6 +564,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // Tools
+  journalSheet: {
+    flex: 1,
+  },
+  journalSheetHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: responsiveSpacing.md,
+    paddingVertical: responsiveSpacing.sm,
+  },
+  journalSheetTitle: {
+    fontSize: fontScale(18),
+    fontWeight: '600',
+  },
+  journalSheetClose: {
+    fontSize: fontScale(15),
+    fontWeight: '600',
+  },
   toolsSection: {
     gap: verticalScale(10),
   },

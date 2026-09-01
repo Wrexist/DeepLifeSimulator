@@ -89,7 +89,6 @@ describe('interruption priorities all have claimants', () => {
       INTERRUPTION_PRIORITY.DAILY_REWARD,
       INTERRUPTION_PRIORITY.WELCOME_BACK,
       INTERRUPTION_PRIORITY.COMMUNITY_REWARD,
-      INTERRUPTION_PRIORITY.WEEK_RESULT,
     ];
     for (const p of mustAct) {
       expect(INTERRUPTION_PRIORITY.PROMO).toBeLessThan(p);

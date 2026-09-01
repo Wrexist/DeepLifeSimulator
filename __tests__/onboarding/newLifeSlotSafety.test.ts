@@ -289,7 +289,7 @@ describe('the write itself refuses - not just the screen four steps earlier', ()
 describe('the flow guard will not let a slotless run reach the write', () => {
   const filledIn = { scenario: { id: 's' }, firstName: 'Ada', lastName: 'Byron' };
 
-  it.each(['Customize', 'Ambitions', 'Perks'] as const)(
+  it.each(['Customize', 'Perks'] as const)(
     'bounces %s back to the slot picker when no slot was chosen',
     (screen) => {
       const result = canAccessScreen(screen, { ...filledIn, slot: NEW_LIFE_SLOT_UNSET });

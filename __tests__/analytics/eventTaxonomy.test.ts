@@ -77,7 +77,7 @@ describe('de-duplication allowlist', () => {
 describe('funnel completeness', () => {
   /** Every step of a funnel must exist, or the funnel silently reports a cliff. */
   const funnels: Record<string, string[]> = {
-    onboarding: ['session_start', 'onboarding_step', 'tutorial_step', 'first_week_completed'],
+    onboarding: ['session_start', 'onboarding_step', 'first_week_completed'],
     subscription: [
       'paywall_open_tapped', 'paywall_viewed', 'paywall_plan_selected', 'paywall_cta_tapped',
       'purchase_started', 'purchase_succeeded', 'premium_activated', 'first_premium_value',

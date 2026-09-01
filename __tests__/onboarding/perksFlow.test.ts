@@ -149,9 +149,13 @@ describe('getStatColor', () => {
   it('returns the HUD yellow for happiness', () => expect(getStatColor('happiness')).toBe('#F59E0B'));
   it('returns the HUD blue for energy', () => expect(getStatColor('energy')).toBe('#3B82F6'));
   it('returns the HUD red for health', () => expect(getStatColor('health')).toBe('#EF4444'));
-  it('keeps the perk-card labels that are not stats', () => {
-    expect(getStatColor('Starting Money')).toBe('#F7931A');
-    expect(getStatColor('Income Boost')).toBe('#10B981');
+  it('paints the money-flavoured perk-card labels in the money identity colour', () => {
+    // 'Starting Money' / 'Income Boost' are perk-card labels rather than
+    // stats, but both are money effects - they used to wear a bespoke
+    // bitcoin-orange / emerald that disagreed with the HUD's wallet green.
+    expect(getStatColor('Starting Money')).toBe(getStatColor('money'));
+    expect(getStatColor('Income Boost')).toBe(getStatColor('money'));
+    expect(getStatColor('money')).toBe('#22C55E');
   });
   it('falls back to grey for anything unknown', () =>
     // slate-500 - the app's one neutral ramp (the old value was Tailwind

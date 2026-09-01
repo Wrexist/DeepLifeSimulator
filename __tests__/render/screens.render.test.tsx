@@ -1,5 +1,4 @@
 import React from 'react';
-import { act } from 'react-test-renderer';
 import { renderWithProviders } from './helpers/renderWithProviders';
 import Home from '@/app/(tabs)/home';
 import Work from '@/app/(tabs)/work';
@@ -72,59 +71,31 @@ describe('render - in-game tab screens', () => {
 });
 
 /**
- * A filter chip that matches nothing must say so.
- *
- * "Owned" matches nothing on week 1 for EVERY new character, and the list was a
- * bare `sortedItems.map(...)` — so the chip rendered its own active state, its
- * count badge reading 0, and then nothing at all beneath it. Dead space under a
- * control you just pressed reads as a broken screen, not an empty shelf.
- *
- * These press the real chip rather than reaching into state, because the bug was
- * only reachable through the filter bar.
+ * The Market is ONE scrolling list under section headers (UI overhaul,
+ * Phase 5): Items → Food → Housing, no sub-tab bar and no filter bar. The
+ * filter chips are gone with their week-1 dead end (the "Owned" chip that
+ * reliably matched nothing), so everything a new character can buy is
+ * reachable by scrolling one list.
  *
  * `MarketScreenContent` (not the default export) on purpose: the default wraps
  * the screen in its own `ErrorBoundary`, whose fallback is a perfectly valid
  * tree — so a screen that threw would still satisfy every assertion below.
  */
-describe('render - the Market filter bar names its dead ends', () => {
-  const mountMarket = () => {
-    const r = renderWithProviders(<MarketScreenContent />);
-    const chip = r.renderer.root
-      .findAll((n) => typeof n.props?.onPress === 'function', { deep: true })
-      .filter(
-        (n) => n.findAll((x) => x.props?.children === 'Owned', { deep: true }).length > 0,
-      );
-    expect(chip).toHaveLength(1);
-    return { ...r, ownedChip: chip[0] };
-  };
+describe('render - the Market is one list under section headers', () => {
+  it('renders items, food and housing in a single tree, no tab press needed', () => {
+    const { json, unmount } = renderWithProviders(<MarketScreenContent />);
 
-  it('an empty "Owned" filter explains itself instead of rendering nothing', () => {
-    const { renderer, ownedChip, unmount } = mountMarket();
-
-    act(() => ownedChip.props.onPress());
-    const json = JSON.stringify(renderer.toJSON());
-
-    expect(json).toContain("You don't own anything yet");
+    expect(json).toContain('Business Suit'); // an item
+    expect(json).toContain('Housing'); // the housing section header
     unmount();
   });
 
-  it('and offers the way back out of the filter', () => {
-    // A named dead end with no exit is still a dead end.
-    const { renderer, ownedChip, unmount } = mountMarket();
-
-    act(() => ownedChip.props.onPress());
+  it('the filter bar and its dead ends are gone', () => {
+    const { renderer, unmount } = renderWithProviders(<MarketScreenContent />);
     const json = JSON.stringify(renderer.toJSON());
 
-    expect(json).toContain('Show all items');
-    unmount();
-  });
-
-  it('shows the items rather than the empty state under "All" (the control)', () => {
-    // If this ever renders the empty copy the assertions above prove nothing.
-    const { json, unmount } = mountMarket();
-
+    expect(json).not.toContain('Owned');
     expect(json).not.toContain("You don't own anything yet");
-    expect(json).toContain('Business Suit');
     unmount();
   });
 });

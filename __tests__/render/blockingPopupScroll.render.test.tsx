@@ -4,8 +4,6 @@ import { renderWithProviders } from './helpers/renderWithProviders';
 import { useGame } from '@/contexts/GameContext';
 import WeddingPopup from '@/components/WeddingPopup';
 import WelcomeBackPopup from '@/components/WelcomeBackPopup';
-import SimpleTutorialModal from '@/components/SimpleTutorialModal';
-import type { TutorialStep } from '@/types/tutorial';
 
 /**
  * The mount half of the escapable-popup fix.
@@ -92,39 +90,3 @@ describe('render - WelcomeBackPopup keeps its only exit on screen', () => {
   });
 });
 
-describe('render - SimpleTutorialModal keeps its footer controls on screen', () => {
-  const step: TutorialStep = {
-    id: 'welcome',
-    title: 'Welcome to DeepLife',
-    // Deliberately long: the overflow this fix addresses is driven by the
-    // length of the step copy, so the smoke test uses copy that would have
-    // pushed the footer past the card's 80% cap on a small screen.
-    description:
-      'Every week you live is a decision - where the money goes, who gets your ' +
-      'time, and which of the two dozen careers you want to climb. Tap the ' +
-      'arrow to advance a week, and watch what the choices you made last week ' +
-      'do to the numbers on this one.',
-  };
-
-  it('mounts and renders both footer controls plus the step body', () => {
-    const { renderer, json, unmount } = renderWithProviders(
-      <SimpleTutorialModal
-        visible
-        step={step}
-        currentStep={1}
-        totalSteps={5}
-        onNext={() => {}}
-        onClose={() => {}}
-        onSkip={() => {}}
-      />,
-    );
-    expect(renderer.toJSON()).not.toBeNull();
-    // The body moved into a ScrollView's contentContainerStyle — assert it
-    // still renders rather than being dropped by the restructure.
-    expect(json).toContain('Welcome to DeepLife');
-    // Both footer controls: Next advances the tour, Skip Tour leaves it.
-    expect(json).toContain('Next');
-    expect(json).toContain('Skip Tour');
-    unmount();
-  });
-});

@@ -33,7 +33,6 @@ export type OnboardingFunnelStep =
   | 'SaveSlots'
   | 'Scenarios'
   | 'Customize'
-  | 'Ambitions'
   | 'Perks';
 
 /**

@@ -18,10 +18,11 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, Compass, Flag, Sparkles, Target } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import { Card, IconBubble } from '@/components/ui/Card';
 import { goalsAchievedBetween, recommendGoals } from '@/lib/goals';
 import type { AchievedGoal, GoalHorizon, RecommendedGoal } from '@/lib/goals';
 import { track } from '@/lib/analytics';
-import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, scale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
 /** Per-horizon presentation. The labels are the player-facing vocabulary for
@@ -136,11 +137,11 @@ function NextGoalsCard() {
   if (goals.length === 0 && !reached) return null;
 
   return (
-    <View style={styles.card}>
+    <Card>
       <View style={styles.header}>
-        <View style={styles.crest}>
+        <IconBubble color="#38BDF8">
           <Compass size={scale(18)} color="#38BDF8" />
-        </View>
+        </IconBubble>
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>WHAT NEXT</Text>
           <Text style={styles.title}>Your next moves</Text>
@@ -169,38 +170,22 @@ function NextGoalsCard() {
                 horizon: goal.horizon,
                 progress: Math.round(goal.progress * 100),
               });
-              router.push(goal.route);
+              // Life's deep links are consume-once; the nonce lets the same goal
+                // land twice (see lib/goals/types.ts).
+                router.push(
+                  (goal.route.includes('segment=') ? `${goal.route}&ts=${Date.now()}` : goal.route) as never
+                );
             }}
           />
         ))}
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  // Hard Rule #7: a full four-sided border, never a one-sided accent stripe.
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.32)',
-    gap: scale(12),
-  },
+  // Container from components/ui/Card; crest from IconBubble.
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  crest: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.13)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
-  },
   kicker: { color: '#38BDF8', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
   title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
   list: { gap: scale(10) },

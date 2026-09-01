@@ -23,11 +23,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Check, Compass, Gem, Star } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
+import { Card, IconBubble } from '@/components/ui/Card';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { haptic } from '@/utils/haptics';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { LIFE_AMBITIONS } from '@/lib/ambitions';
-import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, scale } from '@/utils/scaling';
 
 /** One line describing what an ambition pays, for the picker rows. */
 export function payoffLine(payoff: {
@@ -69,11 +70,11 @@ function AmbitionPickerCard() {
   };
 
   return (
-    <View style={styles.card}>
+    <Card>
       <View style={styles.header}>
-        <View style={styles.crest}>
+        <IconBubble color="#3B82F6">
           <Compass size={scale(18)} color="#60A5FA" />
-        </View>
+        </IconBubble>
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>LIFE AMBITION</Text>
           <Text style={styles.title}>Choose what this life is for</Text>
@@ -131,32 +132,13 @@ function AmbitionPickerCard() {
           ))}
         </ScrollView>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-    gap: scale(12),
-  },
+  // Container from components/ui/Card; crest from IconBubble.
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  crest: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-  },
   kicker: { color: '#60A5FA', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
   title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
   sub: { color: '#94A3B8', fontSize: fontScale(11), marginTop: scale(2), lineHeight: fontScale(15) },

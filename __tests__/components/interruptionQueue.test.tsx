@@ -16,18 +16,23 @@ import {
   InterruptionProvider,
   useInterruptionSlot,
   INTERRUPTION_PRIORITY,
+  MAX_INTERRUPTIONS_PER_WEEK,
+  type InterruptionSlotOptions,
 } from '@/contexts/InterruptionContext';
+import { GameStoreContext, type GameStore } from '@/contexts/game/useGameSelector';
 
 function Surface({
   id,
   priority,
   wants,
+  options,
 }: {
   id: string;
   priority: number;
   wants: boolean;
+  options?: InterruptionSlotOptions;
 }) {
-  const canShow = useInterruptionSlot(id, priority, wants);
+  const canShow = useInterruptionSlot(id, priority, wants, options);
   return canShow ? <Text>{`SHOWING:${id}`}</Text> : null;
 }
 
@@ -73,7 +78,7 @@ describe('InterruptionContext', () => {
       ['life-moment', INTERRUPTION_PRIORITY.LIFE_MOMENT],
       ['inbox', INTERRUPTION_PRIORITY.EVENT_INBOX],
       ['daily', INTERRUPTION_PRIORITY.DAILY_REWARD],
-      ['week-result', INTERRUPTION_PRIORITY.WEEK_RESULT],
+      ['community', INTERRUPTION_PRIORITY.COMMUNITY_REWARD],
       ['promo', INTERRUPTION_PRIORITY.PROMO],
       ['orb', INTERRUPTION_PRIORITY.AD_ORB],
     ] as const;
@@ -96,18 +101,18 @@ describe('InterruptionContext', () => {
     const harness = (deathWants: boolean) => (
       <InterruptionProvider>
         <Surface id="death" priority={INTERRUPTION_PRIORITY.DEATH} wants={deathWants} />
-        <Surface id="week-result" priority={INTERRUPTION_PRIORITY.WEEK_RESULT} wants />
+        <Surface id="daily" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants />
       </InterruptionProvider>
     );
 
     const { tree, update } = mount(harness(true));
     expect(shown(tree(), 'death')).toBe(true);
-    expect(shown(tree(), 'week-result')).toBe(false);
+    expect(shown(tree(), 'daily')).toBe(false);
 
     update(harness(false));
 
     expect(shown(tree(), 'death')).toBe(false);
-    expect(shown(tree(), 'week-result')).toBe(true);
+    expect(shown(tree(), 'daily')).toBe(true);
   });
 
   it('releases the slot when the winning surface unmounts', () => {
@@ -159,5 +164,87 @@ describe('InterruptionContext', () => {
       expect(`${name}:${priority > AD_ORB}`).toBe(`${name}:true`);
     }
     expect(AD_ORB).toBeLessThan(PROMO);
+  });
+
+  it('defers budgeted surfaces past MAX_INTERRUPTIONS_PER_WEEK', () => {
+    // Three budgeted claimants dismissed one after another: the third must NOT
+    // present this week - the budget is the fix for "one Next Week press,
+    // eight dismissals in a row".
+    const harness = (aWants: boolean, bWants: boolean) => (
+      <InterruptionProvider>
+        <Surface id="a" priority={INTERRUPTION_PRIORITY.WELCOME_BACK} wants={aWants} />
+        <Surface id="b" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants={bWants} />
+        <Surface id="c" priority={INTERRUPTION_PRIORITY.COMMUNITY_REWARD} wants />
+      </InterruptionProvider>
+    );
+
+    const { tree, update } = mount(harness(true, true));
+    expect(shown(tree(), 'a')).toBe(true);
+
+    update(harness(false, true)); // dismiss a -> second grant goes to b
+    expect(shown(tree(), 'b')).toBe(true);
+
+    update(harness(false, false)); // dismiss b -> budget (2) is spent
+    expect(shown(tree(), 'c')).toBe(false);
+    expect(MAX_INTERRUPTIONS_PER_WEEK).toBe(2);
+  });
+
+  it('never defers a player-initiated (countsTowardBudget: false) surface', () => {
+    const harness = (aWants: boolean, bWants: boolean, inboxWants: boolean) => (
+      <InterruptionProvider>
+        <Surface id="a" priority={INTERRUPTION_PRIORITY.WELCOME_BACK} wants={aWants} />
+        <Surface id="b" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants={bWants} />
+        <Surface
+          id="inbox"
+          priority={INTERRUPTION_PRIORITY.EVENT_INBOX}
+          wants={inboxWants}
+          options={{ countsTowardBudget: false }}
+        />
+      </InterruptionProvider>
+    );
+
+    const { tree, update } = mount(harness(true, true, false));
+    update(harness(false, true, false)); // spend grant 1, then grant 2
+    expect(shown(tree(), 'b')).toBe(true);
+    update(harness(false, false, true)); // budget spent; player taps the pill
+    expect(shown(tree(), 'inbox')).toBe(true);
+  });
+
+  it('resets the budget when the game week advances', () => {
+    // A minimal GameStore stub: the provider only reads `weeksLived` and
+    // subscribes for changes.
+    let week = 100;
+    const listeners = new Set<() => void>();
+    const store: GameStore = {
+      subscribe: (fn) => {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
+      getSnapshot: () => ({ weeksLived: week } as any),
+      setGameState: () => {},
+    };
+    const advanceWeek = () => {
+      week += 1;
+      listeners.forEach((fn) => fn());
+    };
+
+    const harness = (aWants: boolean, bWants: boolean) => (
+      <GameStoreContext.Provider value={store}>
+        <InterruptionProvider>
+          <Surface id="a" priority={INTERRUPTION_PRIORITY.WELCOME_BACK} wants={aWants} />
+          <Surface id="b" priority={INTERRUPTION_PRIORITY.DAILY_REWARD} wants={bWants} />
+          <Surface id="c" priority={INTERRUPTION_PRIORITY.COMMUNITY_REWARD} wants />
+        </InterruptionProvider>
+      </GameStoreContext.Provider>
+    );
+
+    const { tree, update, renderer } = mount(harness(true, true));
+    update(harness(false, true));
+    update(harness(false, false));
+    expect(shown(tree(), 'c')).toBe(false); // budget spent this week
+
+    act(() => advanceWeek());
+    act(() => renderer.update(harness(false, false)));
+    expect(shown(tree(), 'c')).toBe(true); // fresh week, fresh budget
   });
 });

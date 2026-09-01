@@ -24,7 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
-import { useContextualTip } from '@/components/FirstWeekGuide';
+import { useContextualTip } from '@/components/ContextualTip';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -92,20 +92,16 @@ describe('the no-job nudge waits for the player to actually be jobless a while',
     });
   };
 
-  it('does not fire on the first weeks of an age-25 life', () => {
-    // `weeksLived > 2` was true at 364 before the player pressed anything, so
-    // the "you have no job" tip greeted them on the very first screen.
+  it('never fires a no-job tip - FirstSessionCoach owns that message now', () => {
+    // The 'no_job' tip was retired in the UI overhaul (phase 1): the coach
+    // already teaches "get a job" from live game state, and three surfaces
+    // repeating it on one screen was the audit's duplication finding. A
+    // jobless-but-otherwise-healthy player must get NO contextual tip,
+    // however long they have been jobless and whatever age they started at.
     expect(tipFor(jobless(25, 0))).toBeNull();
-    expect(tipFor(jobless(25, 2))).toBeNull();
-  });
-
-  it('fires once the player has actually been jobless for three weeks', () => {
-    expect(tipFor(jobless(25, 3))).toBe('no_job');
-  });
-
-  it('an age-18 life is unaffected - same weeks, same answer', () => {
-    expect(tipFor(jobless(18, 2))).toBeNull();
-    expect(tipFor(jobless(18, 3))).toBe('no_job');
+    expect(tipFor(jobless(25, 3))).toBeNull();
+    expect(tipFor(jobless(18, 3))).toBeNull();
+    expect(tipFor(jobless(25, 50))).toBeNull();
   });
 });
 
@@ -121,7 +117,7 @@ describe('the no-job nudge waits for the player to actually be jobless a while',
 describe('the first-session gates do not compare the absolute counter to a literal', () => {
   const GATED_FILES = [
     'app/(tabs)/home.tsx',
-    'components/FirstWeekGuide.tsx',
+    'components/ContextualTip.tsx',
     'components/BannerAd.tsx',
     'components/AchievementsProgress.tsx',
     'lib/analytics/AnalyticsTracker.tsx',

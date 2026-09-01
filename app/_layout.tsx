@@ -43,7 +43,6 @@ import { initializeDebugContext, setStateGetter } from '@/src/debug/aiDebugConfi
 import { STATE_VERSION } from '@/contexts/game/initialState';
 import TopStatsBar from '@/components/TopStatsBar';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
-import TutorialManager from '@/components/TutorialManager';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import OfflineIndicator from '@/components/OfflineIndicator';
 // Keep always-rendered components as eager imports to reduce bundler memory pressure
@@ -1343,9 +1342,7 @@ function InnerLayout({ showStatsBar }: { showStatsBar: boolean }) {
         <NotificationHandler />
         <AnalyticsTracker />
         <SubscriptionReconciler />
-        <TutorialManager>
-          <StatusBarWrapper showStatsBar={showStatsBar} insets={insets} />
-        </TutorialManager>
+        <StatusBarWrapper showStatsBar={showStatsBar} insets={insets} />
       </AppProviders>
     </ErrorBoundary>
   );

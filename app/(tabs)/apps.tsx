@@ -11,8 +11,8 @@ import { MobileScreenContent } from './mobile';
  * Replaces the old Mobile/Computer tabs that swapped identity as you upgraded
  * (the Mobile tab vanished the moment you bought a computer). This is one
  * stable tab that always shows your best device's launcher:
- *   • own a computer → the desktop launcher (which itself carries a
- *     Desktop / Mobile sub-toggle, so no mini-app is lost), otherwise
+ *   • own a computer → the desktop launcher (Phone + Computer sections in one
+ *     scroll, so no mini-app is lost), otherwise
  *   • the phone app grid (which renders its own "no phone yet" empty state
  *     if you somehow reach here before owning any device).
  *

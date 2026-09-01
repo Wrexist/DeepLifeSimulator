@@ -23,6 +23,7 @@ function LastWeekRecap() {
       playStreak: s?.playStreak,
       weeksLived: s?.weeksLived,
       pendingEventCount: s?.pendingEvents?.length ?? 0,
+      weekSummaryEnabled: s?.settings?.weeklySummaryEnabled !== false,
     }),
     shallowEqual,
   ) as {
@@ -30,6 +31,7 @@ function LastWeekRecap() {
     playStreak?: import('@/contexts/game/types').GameState['playStreak'];
     weeksLived?: number;
     pendingEventCount?: number;
+    weekSummaryEnabled?: boolean;
   };
 
   const wr = data?.weekResult;
@@ -57,6 +59,10 @@ function LastWeekRecap() {
   }, [weeksLived]);
 
   // Nothing to show until the player has actually advanced a week with a result.
+  // The Settings "Week Summary" switch used to gate the (removed) blocking
+  // WeeklyResultSheet; this card is that feature's surviving surface, so the
+  // switch now gates it.
+  if (!data?.weekSummaryEnabled) return null;
   if (!wr || weeksLived < 1) return null;
 
   const net = wr.netChange ?? 0;

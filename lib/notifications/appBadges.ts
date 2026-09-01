@@ -6,8 +6,9 @@
  * Everything is defensively optional-chained: a missing/partial field yields 0,
  * never a crash, so it is safe on legacy/degraded saves.
  *
- * Keys are the app ids used by both grids (mobile.tsx + computer.tsx). Pets use
- * 'pet' on mobile and 'paw' on computer, so both are set.
+ * Keys are the canonical launcher app ids from
+ * `components/launcher/appCatalog.ts` (one id per app - the old `paw` desktop
+ * alias for the pet app is gone).
  */
 import type { GameState } from '@/contexts/game/types';
 
@@ -34,7 +35,7 @@ export function getAppBadgeCounts(gameState: GameState | undefined | null): Reco
       (n, p) => n + (!p?.isDead && ((p?.health ?? 100) <= 20 || (p?.hunger ?? 100) <= 10) ? 1 : 0),
       0,
     );
-    if (critical > 0) { counts.pet = critical; counts.paw = critical; }
+    if (critical > 0) counts.pet = critical;
 
     // DeepMail — unread inbox. This is the badge that makes mail a CHANNEL
     // rather than a screen: a payslip the player never opens is not a feature.

@@ -46,7 +46,6 @@ const SCREEN_FILES_TO_VERIFY = [
   '(onboarding)/SaveSlots.tsx',
   '(onboarding)/Scenarios.tsx',
   '(onboarding)/Customize.tsx',
-  '(onboarding)/Ambitions.tsx',
   '(onboarding)/Perks.tsx',
 ];
 
@@ -62,6 +61,14 @@ const SCREEN_FILES_TO_VERIFY = [
 // is preserved.
 const LAZY_IMPORT_PATTERN = /=\s*lazy\(\s*\(\)\s*=>\s*import\(/;
 const NO_LAZY_FILES = ['(tabs)/computer.tsx', '(tabs)/mobile.tsx'];
+
+// The sub-app map that regressed in R6 now lives in the shared launcher
+// catalog (both tab screens are thin wrappers around it), so the eager-import
+// rule follows the map to its new home.
+const NO_LAZY_SHARED_FILES = [
+  'components/launcher/appCatalog.ts',
+  'components/launcher/AppLauncher.tsx',
+];
 
 describe('Screen import smoke tests', () => {
   // Sanity: the files we're asserting on actually exist on disk. If a
@@ -94,4 +101,14 @@ describe('Screen import smoke tests', () => {
     const src = fs.readFileSync(path.join(APP_DIR, relPath), 'utf8');
     expect(src).not.toMatch(LAZY_IMPORT_PATTERN);
   });
+
+  it.each(NO_LAZY_SHARED_FILES)(
+    '%s keeps the sub-app imports eager (R6 regression site, relocated)',
+    (relPath) => {
+      const full = path.join(APP_DIR, '..', relPath);
+      expect(fs.existsSync(full)).toBe(true);
+      const src = fs.readFileSync(full, 'utf8');
+      expect(src).not.toMatch(LAZY_IMPORT_PATTERN);
+    }
+  );
 });

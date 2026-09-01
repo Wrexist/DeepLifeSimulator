@@ -272,21 +272,30 @@ export default function PrestigeShopModal({ visible, onClose }: PrestigeShopModa
                       onPress={() => setSelectedCategory(category)}
                       activeOpacity={0.7}
                     >
-                      <LinearGradient
-                        colors={isSelected 
-                          ? colors 
-                          : isDarkMode 
-                          ? ['rgba(51, 65, 85, 0.6)', 'rgba(30, 41, 59, 0.7)']
-                          : ['rgba(243, 244, 246, 0.8)', 'rgba(229, 231, 235, 0.9)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={[styles.categoryTab, isSelected && styles.categoryTabSelected]}
+                      {/* Flat fill. A tab is a control, not a surface worth
+                          decorating - and six two-stop gradients in one
+                          scrolling row was the same decorative habit the
+                          overhaul removed everywhere else. The SELECTED tab
+                          keeps its category colour, which is the only thing
+                          the gradient was carrying. */}
+                      <View
+                        style={[
+                          styles.categoryTab,
+                          isSelected && styles.categoryTabSelected,
+                          {
+                            backgroundColor: isSelected
+                              ? colors[0]
+                              : isDarkMode
+                                ? 'rgba(51, 65, 85, 0.6)'
+                                : 'rgba(243, 244, 246, 0.9)',
+                          },
+                        ]}
                       >
                         <Icon size={16} color={isSelected ? '#FFFFFF' : (isDarkMode ? '#CBD5E1' : '#64748B')} />
                         <Text style={[styles.categoryTabText, isSelected && styles.categoryTabTextSelected, !isSelected && isDarkMode && styles.categoryTabTextDark]}>
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
-                      </LinearGradient>
+                      </View>
                       {category === 'dynasty' && <ClaimableBadge count={claimableContracts} />}
                     </TouchableOpacity>
                   );
