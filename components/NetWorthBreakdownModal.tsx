@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { X, DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package, Landmark, Bitcoin, Gem } from 'lucide-react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { DollarSign, Home, Car, Building2, TrendingUp, Wallet, Package, Landmark, Bitcoin, Gem } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { buildNetWorthItemisation, NetWorthGroup } from '@/utils/netWorthItemisation';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { scale, fontScale } from '@/utils/scaling';
-import { getShadow } from '@/utils/shadow';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import BaseModal from '@/components/ui/BaseModal';
+import { useTheme } from '@/hooks/useTheme';
 
 interface NetWorthBreakdownModalProps {
   visible: boolean;
@@ -36,7 +37,7 @@ const GROUP_PRESENTATION: Record<NetWorthGroup, { label: string; icon: LucideIco
 
 export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBreakdownModalProps) {
   const { gameState } = useGame();
-  const isDarkMode = gameState.settings?.darkMode ?? false;
+  const { theme, isDark } = useTheme();
 
   const { breakdown, rows } = useMemo(() => buildNetWorthItemisation(gameState), [gameState]);
 
@@ -51,179 +52,120 @@ export default function NetWorthBreakdownModal({ visible, onClose }: NetWorthBre
   );
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={[styles.container, isDarkMode && styles.containerDark]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <TrendingUp size={scale(24)} color="#10B981" />
-              <Text style={[styles.title, isDarkMode && styles.titleDark]} numberOfLines={1} ellipsizeMode="tail">
-                Net Worth
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={scale(24)} color={isDarkMode ? '#fff' : '#000'} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
-            {/* Total Net Worth */}
-            <View style={[styles.totalCard, isDarkMode && styles.totalCardDark]}>
-              <Text style={[styles.totalLabel, isDarkMode && styles.totalLabelDark]}>Total Net Worth</Text>
-              <Text style={[styles.totalValue, isDarkMode && styles.totalValueDark]}>
-                {formatMoney(breakdown.netWorth)}
-              </Text>
-              <View style={styles.totalBreakdown}>
-                <Text style={[styles.totalBreakdownText, isDarkMode && styles.totalBreakdownTextDark]}>
-                  Total Assets: {formatMoney(breakdown.totalAssets)}
-                </Text>
-                {breakdown.totalLiabilities > 0 && (
-                  <Text style={[styles.totalBreakdownText, isDarkMode && styles.totalBreakdownTextDark]}>
-                    Total Liabilities: -{formatMoney(breakdown.totalLiabilities)}
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            {/* Asset Breakdown */}
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, isDarkMode && styles.sectionTitleDark]}>
-                Assets Breakdown
-              </Text>
-              
-              {assetDetails.map((asset, index) => {
-                const Icon = asset.icon;
-                const percentage = breakdown.totalAssets > 0 
-                  ? ((asset.value / breakdown.totalAssets) * 100).toFixed(1)
-                  : '0.0';
-                
-                return (
-                  <View key={index} style={[styles.assetCard, isDarkMode && styles.assetCardDark]}>
-                    <View style={styles.assetHeader}>
-                      <View style={[styles.assetIconContainer, { backgroundColor: `${asset.color}20` }]}>
-                        <Icon size={scale(20)} color={asset.color} />
-                      </View>
-                      <View style={styles.assetInfo}>
-                        <Text style={[styles.assetLabel, isDarkMode && styles.assetLabelDark]}>
-                          {asset.label}
-                        </Text>
-                        <Text style={[styles.assetPercentage, isDarkMode && styles.assetPercentageDark]}>
-                          {percentage}% of assets
-                        </Text>
-                      </View>
-                      <Text style={[styles.assetValue, isDarkMode && styles.assetValueDark]}>
-                        {formatMoney(asset.value)}
-                      </Text>
-                    </View>
-                    
-                    {asset.items && asset.items.length > 0 && (
-                      <View style={styles.assetItems}>
-                        {asset.items.map((item, itemIndex) => (
-                          <View key={itemIndex} style={styles.assetItem}>
-                            <View style={styles.assetItemDot} />
-                            <Text style={[styles.assetItemName, isDarkMode && styles.assetItemNameDark]}>
-                              {item.name}
-                            </Text>
-                            <Text style={[styles.assetItemValue, isDarkMode && styles.assetItemValueDark]}>
-                              {formatMoney(item.value)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-
-            {/* Summary */}
-            <View style={[styles.summaryCard, isDarkMode && styles.summaryCardDark]}>
-              <Text style={[styles.summaryTitle, isDarkMode && styles.summaryTitleDark]}>
-                How Net Worth is Calculated
-              </Text>
-              <Text style={[styles.summaryText, isDarkMode && styles.summaryTextDark]}>
-                • Cash: Your current wallet balance{'\n'}
-                • Bank Savings: Money in your savings{'\n'}
-                • Your Accounts: Balances in accounts you opened{'\n'}
-                • Crypto: Coins held, at today's price{'\n'}
-                • Stocks: Shares held, at today's price{'\n'}
-                • Luxury: Resale value, condition included{'\n'}
-                • Real Estate: Current market value of owned properties{'\n'}
-                • Vehicles: Depreciated value based on condition and mileage{'\n'}
-                • Businesses: Valued at one year of income (52x weekly){'\n'}
-                • Hardware: Total value of mining equipment{'\n'}
-                • Items: Market value of owned items{'\n'}
-                • Loans: Outstanding balances are subtracted{'\n'}
-                {'\n'}
-                Net Worth = Total Assets - Total Liabilities
-              </Text>
-            </View>
-          </ScrollView>
+    <BaseModal visible={visible} onClose={onClose} title="Net Worth">
+      {/* Total Net Worth */}
+      <View
+        style={[
+          styles.totalCard,
+          { backgroundColor: isDark ? '#064E3B' : '#F0FDF4' },
+        ]}
+      >
+        <Text style={[styles.totalLabel, { color: isDark ? '#34D399' : '#059669' }]}>Total Net Worth</Text>
+        <Text style={[styles.totalValue, { color: isDark ? '#6EE7B7' : '#10B981' }]}>
+          {formatMoney(breakdown.netWorth)}
+        </Text>
+        <View style={styles.totalBreakdown}>
+          <Text style={[styles.totalBreakdownText, { color: isDark ? '#6EE7B7' : '#047857' }]}>
+            Total Assets: {formatMoney(breakdown.totalAssets)}
+          </Text>
+          {breakdown.totalLiabilities > 0 && (
+            <Text style={[styles.totalBreakdownText, { color: isDark ? '#6EE7B7' : '#047857' }]}>
+              Total Liabilities: -{formatMoney(breakdown.totalLiabilities)}
+            </Text>
+          )}
         </View>
       </View>
-    </Modal>
+
+      {/* Asset Breakdown */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Assets Breakdown
+        </Text>
+
+        {assetDetails.map((asset, index) => {
+          const Icon = asset.icon;
+          const percentage = breakdown.totalAssets > 0
+            ? ((asset.value / breakdown.totalAssets) * 100).toFixed(1)
+            : '0.0';
+
+          return (
+            <View
+              key={index}
+              style={[
+                styles.assetCard,
+                {
+                  backgroundColor: isDark ? '#334155' : '#F8FAFC',
+                  borderColor: isDark ? '#475569' : '#E2E8F0',
+                },
+              ]}
+            >
+              <View style={styles.assetHeader}>
+                <View style={[styles.assetIconContainer, { backgroundColor: `${asset.color}20` }]}>
+                  <Icon size={scale(20)} color={asset.color} />
+                </View>
+                <View style={styles.assetInfo}>
+                  <Text style={[styles.assetLabel, { color: theme.text }]}>
+                    {asset.label}
+                  </Text>
+                  <Text style={[styles.assetPercentage, { color: theme.textSecondary }]}>
+                    {percentage}% of assets
+                  </Text>
+                </View>
+                <Text style={[styles.assetValue, { color: isDark ? '#34D399' : '#10B981' }]}>
+                  {formatMoney(asset.value)}
+                </Text>
+              </View>
+
+              {asset.items && asset.items.length > 0 && (
+                <View style={styles.assetItems}>
+                  {asset.items.map((item, itemIndex) => (
+                    <View key={itemIndex} style={styles.assetItem}>
+                      <View style={styles.assetItemDot} />
+                      <Text style={[styles.assetItemName, { color: theme.textSecondary }]}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.assetItemValue, { color: theme.text }]}>
+                        {formatMoney(item.value)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Summary */}
+      <View style={[styles.summaryCard, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+        <Text style={[styles.summaryTitle, { color: theme.text }]}>
+          How Net Worth is Calculated
+        </Text>
+        <Text style={[styles.summaryText, { color: theme.textSecondary }]}>
+          • Cash: Your current wallet balance{'\n'}
+          • Bank Savings: Money in your savings{'\n'}
+          • Your Accounts: Balances in accounts you opened{'\n'}
+          • Crypto: Coins held, at today's price{'\n'}
+          • Stocks: Shares held, at today's price{'\n'}
+          • Luxury: Resale value, condition included{'\n'}
+          • Real Estate: Current market value of owned properties{'\n'}
+          • Vehicles: Depreciated value based on condition and mileage{'\n'}
+          • Businesses: Valued at one year of income (52x weekly){'\n'}
+          • Hardware: Total value of mining equipment{'\n'}
+          • Items: Market value of owned items{'\n'}
+          • Loans: Outstanding balances are subtracted{'\n'}
+          {'\n'}
+          Net Worth = Total Assets - Total Liabilities
+        </Text>
+      </View>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: scale(20),
-  },
-  container: {
-    width: '100%',
-    maxWidth: scale(600),
-    height: '90%',
-    maxHeight: scale(800),
-    backgroundColor: '#fff',
-    borderRadius: scale(20),
-    overflow: 'hidden',
-    ...getShadow(20, '#000'),
-  },
-  containerDark: {
-    backgroundColor: '#1E293B',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: scale(20),
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-    minHeight: scale(60),
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(10),
-    flex: 1,
-    marginRight: scale(12),
-  },
-  title: {
-    fontSize: fontScale(22),
-    fontWeight: 'bold',
-    color: '#0F172A',
-    flexShrink: 1,
-  },
-  titleDark: {
-    color: '#F8FAFC',
-  },
-  closeButton: {
-    padding: scale(8),
-    minWidth: scale(40),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    padding: scale(20),
-  },
+  // NOTE: colours are supplied at render time from useTheme() in the component
+  // body - the old static `*Dark` twin keys are gone on purpose.
   totalCard: {
-    backgroundColor: '#F0FDF4',
     borderRadius: scale(16),
     padding: scale(20),
     marginBottom: scale(24),
@@ -231,37 +173,21 @@ const styles = StyleSheet.create({
     borderColor: '#10B981',
     ...getPlatformShadows(6, 0.25, 4, 14),
   },
-  totalCardDark: {
-    backgroundColor: '#064E3B',
-    borderColor: '#10B981',
-  },
   totalLabel: {
     fontSize: fontScale(16),
-    color: '#059669',
     fontWeight: '600',
     marginBottom: scale(8),
-  },
-  totalLabelDark: {
-    color: '#34D399',
   },
   totalValue: {
     fontSize: fontScale(32),
     fontWeight: 'bold',
-    color: '#10B981',
     marginBottom: scale(12),
-  },
-  totalValueDark: {
-    color: '#6EE7B7',
   },
   totalBreakdown: {
     gap: scale(4),
   },
   totalBreakdownText: {
     fontSize: fontScale(14),
-    color: '#047857',
-  },
-  totalBreakdownTextDark: {
-    color: '#6EE7B7',
   },
   section: {
     marginBottom: scale(24),
@@ -269,23 +195,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontScale(20),
     fontWeight: '700',
-    color: '#0F172A',
     marginBottom: scale(16),
   },
-  sectionTitleDark: {
-    color: '#FFFFFF',
-  },
   assetCard: {
-    backgroundColor: '#F8FAFC',
     borderRadius: scale(12),
     padding: scale(16),
     marginBottom: scale(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  assetCardDark: {
-    backgroundColor: '#334155',
-    borderColor: '#475569',
   },
   assetHeader: {
     flexDirection: 'row',
@@ -306,26 +222,14 @@ const styles = StyleSheet.create({
   assetLabel: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
     marginBottom: scale(2),
-  },
-  assetLabelDark: {
-    color: '#FFFFFF',
   },
   assetPercentage: {
     fontSize: fontScale(12),
-    color: '#64748B',
-  },
-  assetPercentageDark: {
-    color: '#94A3B8',
   },
   assetValue: {
     fontSize: fontScale(18),
     fontWeight: 'bold',
-    color: '#10B981',
-  },
-  assetValueDark: {
-    color: '#34D399',
   },
   assetItems: {
     marginTop: scale(8),
@@ -348,44 +252,23 @@ const styles = StyleSheet.create({
   assetItemName: {
     flex: 1,
     fontSize: fontScale(14),
-    color: '#64748B',
-  },
-  assetItemNameDark: {
-    color: '#94A3B8',
   },
   assetItemValue: {
     fontSize: fontScale(14),
     fontWeight: '600',
-    color: '#1E293B',
-  },
-  assetItemValueDark: {
-    color: '#FFFFFF',
   },
   summaryCard: {
-    backgroundColor: '#F1F5F9',
     borderRadius: scale(12),
     padding: scale(16),
     marginTop: scale(8),
   },
-  summaryCardDark: {
-    backgroundColor: '#334155',
-  },
   summaryTitle: {
     fontSize: fontScale(16),
     fontWeight: '600',
-    color: '#1E293B',
     marginBottom: scale(8),
-  },
-  summaryTitleDark: {
-    color: '#FFFFFF',
   },
   summaryText: {
     fontSize: fontScale(13),
-    color: '#64748B',
     lineHeight: fontScale(20),
   },
-  summaryTextDark: {
-    color: '#94A3B8',
-  },
 });
-

@@ -22,6 +22,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Check, Gem, Star, Target, Trophy } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import Card from '@/components/ui/Card';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { getAmbitionCompletion } from '@/lib/ambitions';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
@@ -45,7 +46,7 @@ function AmbitionCard() {
   const rewardLine = rewardParts.join(' · ');
 
   return (
-    <View style={[styles.card, alreadyClaimed && styles.cardDone]}>
+    <Card style={alreadyClaimed && styles.cardDone}>
       <View style={styles.header}>
         <View style={[styles.crest, { backgroundColor: `${ambition.color}22`, borderColor: `${ambition.color}66` }]}>
           <Text style={styles.crestEmoji}>{ambition.emoji}</Text>
@@ -141,21 +142,13 @@ function AmbitionCard() {
           <Text style={styles.rewardHintText}>on fulfilment</Text>
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.35)',
-    gap: scale(12),
-  },
+  // Container comes from components/ui/Card. This override is a STATE, not an
+  // identity hue: the border turns amber only when the ambition is fulfilled.
   cardDone: {
     borderColor: 'rgba(251, 191, 36, 0.45)',
   },

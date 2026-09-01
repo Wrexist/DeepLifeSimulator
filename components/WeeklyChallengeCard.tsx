@@ -22,12 +22,13 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Check, Gem, Swords, Timer, Trophy } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import Card, { IconBubble } from '@/components/ui/Card';
 import {
   evaluateChallengeProgress,
   getWeeklyChallengeDefinition,
   ROTATION_GAME_WEEKS,
 } from '@/lib/challenges/weeklyChallenges';
-import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, scale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
 /** "2 weeks left" reads better than a raw week number. */
@@ -77,11 +78,11 @@ function WeeklyChallengeCard() {
   const allMet = met === total;
 
   return (
-    <View style={[styles.card, claimed && styles.cardDone]}>
+    <Card style={claimed && styles.cardDone}>
       <View style={styles.header}>
-        <View style={styles.crest}>
+        <IconBubble color="#F472B6">
           <Text style={styles.crestEmoji}>{definition.emoji || '🎯'}</Text>
-        </View>
+        </IconBubble>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
             <Swords size={scale(13)} color="#F472B6" />
@@ -159,33 +160,15 @@ function WeeklyChallengeCard() {
               : weeksLeft}
         </Text>
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 114, 182, 0.32)',
-    gap: scale(12),
-  },
+  // Container from components/ui/Card; crest from IconBubble. The amber
+  // cardDone border is a STATE (challenge complete), not an identity hue.
   cardDone: { borderColor: 'rgba(251, 191, 36, 0.35)' },
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  crest: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(244, 114, 182, 0.13)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 114, 182, 0.4)',
-  },
   crestEmoji: { fontSize: fontScale(20) },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
   kicker: { color: '#F472B6', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },

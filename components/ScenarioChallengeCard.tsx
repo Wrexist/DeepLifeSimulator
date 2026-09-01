@@ -19,9 +19,10 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Check, Flag, Gem, Trophy } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import Card, { IconBubble } from '@/components/ui/Card';
 import { getActiveScenarioProgress } from '@/lib/scenarios/progress';
 import { getDifficultyColor, getDifficultyLabel } from '@/lib/scenarios/scenarioDefinitions';
-import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, scale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
 function ScenarioChallengeCard() {
@@ -36,11 +37,11 @@ function ScenarioChallengeCard() {
   const difficultyColor = getDifficultyColor(view.difficulty);
 
   return (
-    <View style={[styles.card, view.complete && styles.cardDone]}>
+    <Card style={view.complete && styles.cardDone}>
       <View style={styles.header}>
-        <View style={styles.crest}>
+        <IconBubble color="#38BDF8">
           <Text style={styles.crestEmoji}>{view.icon || '🏁'}</Text>
-        </View>
+        </IconBubble>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
             <Flag size={scale(13)} color="#38BDF8" />
@@ -103,33 +104,15 @@ function ScenarioChallengeCard() {
             ? `Pays ${view.gems} gems at your first prestige`
             : 'Scored at your first prestige'}
       </Text>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.32)',
-    gap: scale(12),
-  },
+  // Container from components/ui/Card; crest from IconBubble. The amber
+  // cardDone border is a STATE (all conditions met), not an identity hue.
   cardDone: { borderColor: 'rgba(251, 191, 36, 0.35)' },
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  crest: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.13)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
-  },
   crestEmoji: { fontSize: fontScale(20) },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
   kicker: { color: '#38BDF8', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },

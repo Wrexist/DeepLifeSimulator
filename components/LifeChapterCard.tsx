@@ -15,6 +15,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BookOpen, Check, Gift } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import Card from '@/components/ui/Card';
 import { getActiveChapter, getChapterProgress } from '@/lib/progress/lifeChapters';
 import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
@@ -46,7 +47,7 @@ function LifeChapterCard() {
    */
 
   return (
-    <View style={styles.card}>
+    <Card>
       <View style={styles.header}>
         <View style={styles.iconBubble}>
           <BookOpen size={scale(18)} color="#A855F7" />
@@ -117,21 +118,12 @@ function LifeChapterCard() {
           </Text>
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
-    gap: scale(12),
-  },
+  // Container comes from components/ui/Card (one card, one border).
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   iconBubble: {
     width: scale(38), height: scale(38), borderRadius: scale(19),

@@ -26,10 +26,11 @@ import {
   Vote,
 } from 'lucide-react-native';
 import { useGameSelector } from '@/contexts/game/useGameSelector';
+import Card, { IconBubble } from '@/components/ui/Card';
 import { track } from '@/lib/analytics';
 import { upcomingEvents } from '@/lib/anticipation';
 import type { UpcomingEvent, UpcomingKind, UpcomingTone } from '@/lib/anticipation';
-import { fontScale, scale, responsiveBorderRadius } from '@/utils/scaling';
+import { fontScale, scale } from '@/utils/scaling';
 import type { GameState } from '@/contexts/game/types';
 
 /** Four is enough to feel like a week ahead without becoming a spreadsheet. */
@@ -110,11 +111,11 @@ function WeekAheadCard() {
   if (events.length === 0) return null;
 
   return (
-    <View style={styles.card}>
+    <Card>
       <View style={styles.header}>
-        <View style={styles.crest}>
+        <IconBubble color="#A78BFA">
           <CalendarClock size={scale(18)} color="#A78BFA" />
-        </View>
+        </IconBubble>
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>THE WEEKS AHEAD</Text>
           <Text style={styles.title}>What is coming</Text>
@@ -125,33 +126,13 @@ function WeekAheadCard() {
           <Row key={event.id} event={event} />
         ))}
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  // Hard Rule #7: full four-sided border, no decorative side stripe.
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.32)',
-    gap: scale(12),
-  },
+  // Container from components/ui/Card; crest from IconBubble.
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
-  crest: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(167, 139, 250, 0.13)',
-    borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.4)',
-  },
   kicker: { color: '#A78BFA', fontSize: fontScale(10), fontWeight: '800', letterSpacing: 0.6 },
   title: { color: '#F8FAFC', fontSize: fontScale(15), fontWeight: '700', marginTop: scale(1) },
   list: { gap: scale(10) },

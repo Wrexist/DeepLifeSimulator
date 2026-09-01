@@ -19,6 +19,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Armchair, Landmark, Trophy, Users, Clock, Sparkles } from 'lucide-react-native';
 import { useGameSelector, useSetGameState } from '@/contexts/game/useGameSelector';
+import Card from '@/components/ui/Card';
 import { useGameActions } from '@/contexts/game/GameActionsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { haptic } from '@/utils/haptics';
@@ -131,7 +132,7 @@ function ElderCard() {
   const { legacy } = view;
 
   return (
-    <View style={styles.card}>
+    <Card>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconBubble}>
@@ -254,21 +255,12 @@ function ElderCard() {
           </Text>
         </View>
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: scale(16),
-    marginBottom: scale(12),
-    padding: scale(14),
-    borderRadius: responsiveBorderRadius.lg,
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(250, 204, 21, 0.35)',
-    gap: scale(12),
-  },
+  // Container comes from components/ui/Card (one card, one border).
   header: { flexDirection: 'row', alignItems: 'center', gap: scale(10) },
   iconBubble: {
     width: scale(38),
