@@ -46,7 +46,6 @@ const SCREEN_FILES_TO_VERIFY = [
   '(onboarding)/SaveSlots.tsx',
   '(onboarding)/Scenarios.tsx',
   '(onboarding)/Customize.tsx',
-  '(onboarding)/Ambitions.tsx',
   '(onboarding)/Perks.tsx',
 ];
 

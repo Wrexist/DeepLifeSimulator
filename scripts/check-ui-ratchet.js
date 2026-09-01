@@ -44,7 +44,7 @@ const METRICS = {
    * Goal reflects the blueprint's "< 20, semantic only" target.
    */
   gradientElements: {
-    max: 237,
+    max: 235,
     goal: 20,
     pattern: /<(?:LinearGradient|Gradient)[\s/>]/g,
   },
@@ -65,7 +65,7 @@ const METRICS = {
    * against the audit-time total (~2,168 declarations).
    */
   heavyWeights: {
-    max: 1364,
+    max: 1359,
     goal: 540,
     pattern: /fontWeight:\s*'(?:700|800|900|bold)'/g,
   },

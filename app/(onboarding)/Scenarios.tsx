@@ -492,7 +492,7 @@ export default function Scenarios() {
         }
       />
 
-      <OnboardingStepBar currentStep={1} totalSteps={4} />
+      <OnboardingStepBar currentStep={1} totalSteps={3} />
 
       <Text style={styles.guidanceText}>
         {activeTab === 'life_paths'

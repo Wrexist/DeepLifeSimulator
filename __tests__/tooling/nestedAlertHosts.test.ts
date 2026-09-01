@@ -123,7 +123,8 @@ describe('fresh start carries gems and purchases', () => {
   });
 
   it('onboarding applies the pending carry to the new life', () => {
-    expect(read('app/(onboarding)/Perks.tsx')).toMatch(
+    // Lives in the shared start-life hook now (see useStartLife).
+    expect(read('src/features/onboarding/useStartLife.ts')).toMatch(
       /await applyPendingNewLifeCarryOver\(newState\)/,
     );
   });

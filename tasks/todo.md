@@ -11,7 +11,7 @@ Phase status — audit complete, implementation not started:
 - [x] Phase 3 — Home rebuild: GoalsCard (top-3 objectives across chapter/challenge/live-ops/ambition/scenario/catalogue, same pure helpers, detail cards behind a Show-details disclosure), IdentityCard diet (Health Issues → Health screen, duplicate DailyGemClaim + avatar upsell crown removed, gradients flattened)
 - [x] Phase 4 — Work rebuild: one promotion readout, ≤3-chip JobCards with fold, 16 button strings → 5, one crime-standing card + one cap line, identical-color gradient killed, InfoButton modals → subtitles
 - [x] Phase 5 — Structure: one AppLauncher + shared catalog (computer 901→79 L, mobile 666→81 L, 28 tile gradients + marketing blurbs gone, locked apps behind one disclosure, pet id canonical), Market flattened to one sectioned list (tabs + filter bar + 5-emoji badge taxonomy removed, badges → 1), Gym moved to Health, Family = header action not fake segment, route dedup + one-door-per-room CI guard
-- [ ] Phase 6 — Progression + onboarding trim (Perks/Ambitions out of FTUE)
+- [x] Phase 6 — Progression: 12 modal booleans → one union, 9 tools → 5 (Your Story hub; paywalls out), duplicate achievements + prestige cards dropped, hero tap resolved to one destination that the label names. Onboarding: start ceremony extracted to useStartLife (Play now enters the game directly, no Perks detour), Ambitions dropped from the wizard (4 steps → 3; AmbitionPickerCard on Home covers it), appearance editor behind 'Edit look', locked perks behind a shelf, menu entrance ~1s → ~0.3s
 - [ ] Phase 7 — Sub-app pass (merge Vehicle+Luxury, Gaming+Streaming, one Bank)
 
 ---
