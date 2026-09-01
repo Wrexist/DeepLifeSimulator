@@ -50,8 +50,11 @@ describe('the swept card surfaces have no side accent bar', () => {
     // The other route to the same banned look. Hard Rule #7 permits one-sided
     // borders for STRUCTURE - row/section dividers, an active-tab underline, a
     // hairline indent guide - so a bare count would flag legitimate code.
-    // TravelApp has two of them: its tab bar's divider, and the underline on
-    // the selected tab.
+    // TravelApp used to carry two of them - its tab bar's divider and the
+    // underline on the selected tab - which is why it was named here. Its tab
+    // bar is now the shared SegmentedControl, so the swept set has no
+    // structural one-sided border left; the window is exercised directly in the
+    // control below instead.
     const ALLOWED = /hairlineWidth|tabBar|tabBtn|divider|separator/i;
 
     for (const file of Object.keys(SWEPT)) {
@@ -67,20 +70,27 @@ describe('the swept card surfaces have no side accent bar', () => {
 
   it('the allowlist is not just swallowing everything (the control)', () => {
     // If the window or the pattern above were wrong, the previous test would
-    // pass on anything. TravelApp must still HAVE the two structural borders.
-    const travel = code(read('components/computer/TravelApp.tsx'));
-    const hits = [...travel.matchAll(/border(?:Left|Right|Top|Bottom)Width/g)];
+    // pass on anything. This used to be checked against TravelApp's own tab
+    // bar, which no longer exists (it is the shared SegmentedControl now), so
+    // the window is exercised against the two shapes it has to tell apart.
+    const ALLOWED = /hairlineWidth|tabBar|tabBtn|divider|separator/i;
+    const WINDOW = (src: string, i: number) => src.slice(Math.max(0, i - 160), i + 80);
 
-    expect(hits.length).toBe(2);
-    expect(travel).toMatch(/tabBtn, active && \{ borderBottomColor: IDENTITY, borderBottomWidth: 2 \}/);
-    expect(travel).toMatch(/tabBar: \{ flexDirection: 'row', borderBottomWidth: 1 \}/);
+    const structural = "  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },";
+    const decorative = "  card: { borderRadius: 12, borderLeftWidth: 3, borderLeftColor: accent.danger },";
+
+    expect(ALLOWED.test(WINDOW(structural, structural.indexOf('borderBottomWidth')))).toBe(true);
+    expect(ALLOWED.test(WINDOW(decorative, decorative.indexOf('borderLeftWidth')))).toBe(false);
   });
 
   it('the colour survives on a full four-sided border', () => {
     // Removing the stripe must not remove the MEANING.
     expect(code(read('components/politics/ScandalRow.tsx'))).toMatch(/borderColor: color/);
     expect(code(read('components/crypto/OrderRow.tsx'))).toMatch(/borderColor: sideColor/);
-    expect(code(read('components/computer/TravelApp.tsx'))).toMatch(/borderColor: meta\.hue/);
+    // Travel's 17 per-destination hues collapsed to the one identity tint - a
+    // categorical palette where nothing about Paris is rose was decoration, not
+    // meaning - but the colour still lives on the full border, never a stripe.
+    expect(code(read('components/computer/TravelApp.tsx'))).toMatch(/borderColor: IDENTITY/);
     expect(code(read('components/computer/BitcoinMiningApp.tsx'))).toMatch(/borderColor: amber\.solid/);
     expect(code(read('components/stocks/StockRow.tsx'))).toMatch(/borderColor: sectorColor/);
   });

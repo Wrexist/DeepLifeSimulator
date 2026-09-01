@@ -1,19 +1,23 @@
 /**
  * OnionApp - Dark Web screen.
  *
- * Terminal DNA (differentiation pass). A full aesthetic break from the shared
- * "eyebrow hero + uniform rows" template while keeping the Slate Glass crash-safe
- * primitives (getGlassCard / getPlatformShadows elevation, the gradient wrapper
- * is intentionally NOT used - the terminal look is flat phosphor, purple only as
- * cursor/accent glints). Everything reads as a monospace console: near-black
- * panels, "> "/"$ " prompts, ASCII dividers/bars, hex-dump wallet block, and every
- * action is a visible bracket-button like [ BUY ].
+ * Terminal DNA. This app keeps a deliberate SKIN - monospace, phosphor palette,
+ * "> "/"$ " prompts, hex-dump wallet block, and every action as a visible
+ * bracket-button like [ BUY ] - while its STRUCTURE is the shared vocabulary:
+ * AppHeader (whose title is the terminal path, `onion:~/market/listing`), a
+ * HeaderChip for heat, and SegmentedControl for the four command tabs.
+ *
+ * The chrome that measured nothing is gone: three fake traffic-light dots on
+ * every panel caption, blinking-block cursors, and a 72-character ASCII rule
+ * between every panel. An ascii bar survives exactly where it MEASURES - heat,
+ * buyer rep, stage progress. Rows navigate by being tapped rather than carrying
+ * a [ VIEW ] button beside [ BUY ], and the five sub-views rely on the header's
+ * back control instead of repeating it in the body.
  *
  * ZERO REMOVAL: every action (buy / start job / run stage / launder / cash out /
- * new identity) and every data readout from the previous version is preserved and
- * re-homed, and MORE existing state is surfaced (vendor directory, per-stage odds,
- * mixer rate table, raid-risk + heat-decay, laundering ledger) via local list→detail
- * sub-views. No new game mechanics.
+ * new identity) and every data readout is preserved - vendor directory,
+ * per-stage odds, mixer rate table, raid-risk + heat-decay, laundering ledger.
+ * No new game mechanics.
  *
  * Heat decay, marketplace rotation, laundering settlement, and police events
  * all happen in lib/darkweb/weeklyTick.ts (called from GameActionsContext.nextWeek).
@@ -31,18 +35,16 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { ArrowLeft, ShoppingBag, Target, Wallet, Wrench } from 'lucide-react-native';
+import { ShoppingBag, Target, Wallet, Wrench } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useItemActions } from '@/contexts/game/ItemActionsContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getThemeColors, accent } from '@/lib/config/theme';
-import {
-  getGlassCard,
-  getGlassCategoryTabsContainer,
-  getPlatformShadows,
-} from '@/utils/glassmorphismStyles';
+import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
+import AppHeader, { HeaderChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
 import { initialGameState } from '@/contexts/game/initialState';
 import {
   DarkWebMixerTier,
@@ -181,27 +183,19 @@ function asciiBar(pct: number, width = 12): string {
 // Terminal primitives
 // ---------------------------------------------------------------------------
 
-function AsciiDivider({ color = TERM.border, style }: { color?: string; style?: StyleProp<ViewStyle> }) {
+/**
+ * A panel's caption. It used to render three fake macOS traffic-light dots and
+ * a blinking-block cursor beside the text - chrome that measured nothing and
+ * repeated on every panel on the screen. The skin is the monospace and the
+ * phosphor palette; the dots were decoration standing in for it. `accentColor`
+ * stays: it tints the caption itself, which is how a panel says "this one is
+ * the threat monitor / the burn notice".
+ */
+function TermTitleBar({ title, accentColor }: { title: string; accentColor?: string }) {
   return (
-    <View style={[styles.dividerWrap, style]} pointerEvents="none">
-      <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.dividerText, { color }]}>
-        ────────────────────────────────────────────────────────────────────────
-      </Text>
-    </View>
-  );
-}
-
-function TermTitleBar({ title, accentColor = TERM.purple }: { title: string; accentColor?: string }) {
-  return (
-    <View style={styles.titleBar}>
-      <View style={[styles.tdot, { backgroundColor: 'rgba(239,68,68,0.65)' }]} />
-      <View style={[styles.tdot, { backgroundColor: 'rgba(245,158,11,0.65)' }]} />
-      <View style={[styles.tdot, { backgroundColor: 'rgba(34,197,94,0.65)' }]} />
-      <Text style={styles.titleBarText} numberOfLines={1}>
-        {title}
-      </Text>
-      <Text style={[styles.titleCursor, { color: accentColor }]}>▊</Text>
-    </View>
+    <Text style={[styles.titleBarText, accentColor ? { color: accentColor } : null]} numberOfLines={1}>
+      {title}
+    </Text>
   );
 }
 
@@ -276,6 +270,8 @@ function TerminalPanel({
   elevation = 6,
   glow = false,
   tone = 'green',
+  onPress,
+  accessibilityLabel,
   style,
 }: {
   darkMode: boolean;
@@ -283,18 +279,39 @@ function TerminalPanel({
   elevation?: number;
   glow?: boolean;
   tone?: 'green' | 'purple' | 'danger';
+  /** Makes the whole panel the row's navigation target (listing / op rows). */
+  onPress?: () => void;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const borderColor =
     tone === 'purple' ? 'rgba(168,85,247,0.30)' : tone === 'danger' ? 'rgba(239,68,68,0.30)' : TERM.border;
-  return (
-    <View style={[getGlassCard(darkMode, elevation), styles.panel, { backgroundColor: TERM.bg, borderColor }, style]}>
-      <View style={styles.panelInner}>
-        {glow && <View pointerEvents="none" style={styles.glowBlob} />}
-        {children}
-      </View>
+  const box: StyleProp<ViewStyle> = [
+    getGlassCard(darkMode, elevation),
+    styles.panel,
+    { backgroundColor: TERM.bg, borderColor },
+    style,
+  ];
+  const inner = (
+    <View style={styles.panelInner}>
+      {glow && <View pointerEvents="none" style={styles.glowBlob} />}
+      {children}
     </View>
   );
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        style={box}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+      >
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={box}>{inner}</View>;
 }
 
 function CmdLine({ cmd, count }: { cmd: string; count?: number }) {
@@ -330,7 +347,7 @@ type SubView =
   | { kind: 'ledger' }
   | null;
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: 'market', label: 'Market', icon: ShoppingBag },
   // The gear store. `buyDarkWebItem` has existed and worked since the Onion tab
   // shipped, with ZERO call sites anywhere in `components/` or `app/` - so the
@@ -387,10 +404,25 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     saveGame().catch(() => {});
   }, [saveGame]);
 
+  // One back control (the header's). A vendor page pops to the directory it was
+  // opened from, which is what its own in-body back button used to do before the
+  // five duplicates were removed.
   const goBack = () => {
-    if (view) setView(null);
+    if (view?.kind === 'vendor') setView({ kind: 'vendors' });
+    else if (view) setView(null);
     else onBack();
   };
+
+  const backLabel =
+    view?.kind === 'vendor'
+      ? 'Back to vendors'
+      : view?.kind === 'listing' || view?.kind === 'vendors'
+      ? 'Back to market'
+      : view?.kind === 'job'
+      ? 'Back to jobs'
+      : view?.kind === 'ledger'
+      ? 'Back to wallet'
+      : 'Back';
 
   const selectTab = (t: Tab) => {
     setView(null);
@@ -499,7 +531,12 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     // rounded one puts 29.6% on screen as "30%" inside the green band.
     const scamShown = Math.round(scamPct);
     return (
-      <TerminalPanel key={listing.id} darkMode={darkMode}>
+      <TerminalPanel
+        key={listing.id}
+        darkMode={darkMode}
+        onPress={() => setView({ kind: 'listing', id: listing.id })}
+        accessibilityLabel={`${listing.title}, ${listing.costBtc.toFixed(4)} bitcoin, scam risk ${scamShown} percent. Open listing`}
+      >
         <View style={styles.rowHead}>
           <Text style={[styles.entryTitle, { color: tm.color }]} numberOfLines={1}>
             <Text style={{ color: TERM.faint }}>[{tm.glyph}] </Text>
@@ -550,12 +587,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             onPress={() => confirmBuy(listing, vendor)}
             accessibilityLabel={`Buy ${listing.title}`}
           />
-          <BracketButton
-            label="VIEW"
-            tone="purple"
-            onPress={() => setView({ kind: 'listing', id: listing.id })}
-            accessibilityLabel={`View ${listing.title} details`}
-          />
           {!affordable ? <Text style={styles.gate}>insufficient_funds</Text> : null}
           {affordable && !meetsRep ? <Text style={styles.gate}>rep_locked</Text> : null}
         </View>
@@ -572,7 +603,12 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const stageLvl = stage ? dw.skills[stage.skill]?.level ?? 1 : 1;
     const stageP = stage ? Math.round(stageSuccessProbability(stageLvl, stage.difficulty) * 100) : 0;
     return (
-      <TerminalPanel key={job.id} darkMode={darkMode}>
+      <TerminalPanel
+        key={job.id}
+        darkMode={darkMode}
+        onPress={() => setView({ kind: 'job', id: job.id })}
+        accessibilityLabel={`${template.name}, stage ${job.currentStage} of ${totalStages}. Open operation`}
+      >
         <View style={styles.rowHead}>
           <Text style={[styles.entryTitle, { color: TERM.text }]} numberOfLines={1}>
             {template.name}
@@ -620,12 +656,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               accessibilityLabel={`Run stage ${job.currentStage + 1} of ${template.name}`}
             />
           ) : null}
-          <BracketButton
-            label="VIEW"
-            tone="purple"
-            onPress={() => setView({ kind: 'job', id: job.id })}
-            accessibilityLabel={`View ${template.name} details`}
-          />
         </View>
       </TerminalPanel>
     );
@@ -676,13 +706,12 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             is this screen's colour moment, so this panel stays flat). */}
         <TerminalPanel darkMode={darkMode} elevation={12} glow>
           <TermTitleBar title="market@onion" />
-          <AsciiDivider />
           <PromptRow prompt="$" promptColor={TERM.greenDim}>
             whoami
           </PromptRow>
           <PromptRow>
             <Text style={{ color: TERM.muted }}>buyer_rep = </Text>
-            <Text style={{ color: TERM.green, fontWeight: '700' }}>{rep}</Text>
+            <Text style={{ color: TERM.green, fontWeight: '600' }}>{rep}</Text>
             <Text style={{ color: TERM.muted }}>/100  </Text>
             <Text style={{ color: TERM.purple }}>{asciiBar(rep / 100, 10)}</Text>
           </PromptRow>
@@ -692,7 +721,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           </PromptRow>
           <PromptRow>
             <Text style={{ color: TERM.muted }}>balance = </Text>
-            <Text style={{ color: TERM.text, fontWeight: '700' }}>{btcOwned.toFixed(4)} ₿</Text>
+            <Text style={{ color: TERM.text, fontWeight: '600' }}>{btcOwned.toFixed(4)} ₿</Text>
           </PromptRow>
           <View style={styles.actionRow}>
             <BracketButton
@@ -707,20 +736,18 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         {/* Threat monitor (replaces + densifies HeatGauge). */}
         <TerminalPanel darkMode={darkMode} glow>
           <TermTitleBar title="threat.monitor" accentColor={heatColor} />
-          <AsciiDivider />
           <View style={styles.threatRow}>
             <Text style={[styles.threatValue, { color: heatColor }]}>{Math.round(dw.heat ?? 0)}</Text>
             <View style={{ flex: 1, gap: scale(4) }}>
               <Text style={styles.mono} numberOfLines={1}>
                 <Text style={{ color: TERM.muted }}>band=</Text>
-                <Text style={{ color: heatColor, fontWeight: '700' }}>{heatBandLabel(band)}</Text>
+                <Text style={{ color: heatColor, fontWeight: '600' }}>{heatBandLabel(band)}</Text>
               </Text>
               <Text style={styles.mono} numberOfLines={1}>
                 <Text style={{ color: heatColor }}>{asciiBar((dw.heat ?? 0) / 100, 16)}</Text>
               </Text>
             </View>
           </View>
-          <AsciiDivider />
           <PromptRow>
             <Text style={{ color: TERM.muted }}>raid_risk = </Text>
             <Text style={{ color: raidRisk >= 18 ? accent.danger : raidRisk > 0 ? accent.warning : TERM.greenDim }}>
@@ -760,7 +787,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <TerminalPanel darkMode={darkMode}>
               {events.slice(0, 6).map((evt, i) => (
                 <React.Fragment key={evt.id}>
-                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   <Text style={styles.logLine} numberOfLines={2}>
                     <Text style={{ color: TERM.purple }}>{'> '}</Text>
                     <Text style={{ color: TERM.faint }}>{`w${evt.week} `}</Text>
@@ -861,13 +887,12 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       <View style={{ gap: responsiveSpacing.lg }}>
         <TerminalPanel darkMode={darkMode} elevation={12} glow>
           <TermTitleBar title="gear@onion" />
-          <AsciiDivider />
           <PromptRow prompt="$" promptColor={TERM.greenDim}>
             ls ~/kit
           </PromptRow>
           <PromptRow>
             <Text style={{ color: TERM.muted }}>owned = </Text>
-            <Text style={{ color: TERM.green, fontWeight: '700' }}>{owned.length}</Text>
+            <Text style={{ color: TERM.green, fontWeight: '600' }}>{owned.length}</Text>
             <Text style={{ color: TERM.muted }}>/{catalogue.length}  </Text>
             <Text style={{ color: TERM.purple }}>
               {asciiBar(catalogue.length ? owned.length / catalogue.length : 0, 10)}
@@ -875,9 +900,8 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           </PromptRow>
           <PromptRow>
             <Text style={{ color: TERM.muted }}>balance = </Text>
-            <Text style={{ color: TERM.text, fontWeight: '700' }}>{btcOwned.toFixed(4)} ₿</Text>
+            <Text style={{ color: TERM.text, fontWeight: '600' }}>{btcOwned.toFixed(4)} ₿</Text>
           </PromptRow>
-          <AsciiDivider color={TERM.borderDim} />
           <Text style={styles.monoXs}>
             <Text style={{ color: TERM.faint }}>{'// '}</Text>
             <Text style={{ color: TERM.muted }}>
@@ -916,10 +940,9 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       <View style={{ gap: responsiveSpacing.lg }}>
         <TerminalPanel darkMode={darkMode} elevation={12} glow tone="purple">
           <TermTitleBar title="jobs@onion" />
-          <AsciiDivider />
           <PromptRow>
             <Text style={{ color: TERM.muted }}>ops = </Text>
-            <Text style={{ color: TERM.green, fontWeight: '700' }}>{activeJobs.length}</Text>
+            <Text style={{ color: TERM.green, fontWeight: '600' }}>{activeJobs.length}</Text>
             <Text style={{ color: TERM.muted }}> running · </Text>
             <Text style={{ color: TERM.greenDim }}>{history.length}</Text>
             <Text style={{ color: TERM.muted }}> archived</Text>
@@ -929,7 +952,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <Text
               style={{
                 color: energy >= 30 ? TERM.green : energy > 0 ? accent.warning : accent.danger,
-                fontWeight: '700',
+                fontWeight: '600',
               }}
             >
               {energy}
@@ -964,7 +987,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               const pct = Math.max(0, Math.min(1, s.xp / (s.nextLevelXp || 1)));
               return (
                 <React.Fragment key={id}>
-                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   <Text style={styles.mono} numberOfLines={1}>
                     <Text style={{ color: TERM.greenDim }}>{SKILL_LABEL[id].padEnd(11)}</Text>
                     <Text style={{ color: TERM.text }}>{`Lv${String(s.level).padStart(2)} `}</Text>
@@ -993,7 +1015,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
                 const okStages = j.completedStages.filter((cs) => cs.outcome === 'success').length;
                 return (
                   <React.Fragment key={j.id}>
-                    {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                     <Text style={styles.mono} numberOfLines={1}>
                       <Text style={{ color: HISTORY_STATUS[j.status] ?? TERM.muted }}>{'● '}</Text>
                       <Text style={{ color: TERM.text }}>{tpl?.name ?? j.templateId}</Text>
@@ -1033,7 +1054,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
       <Text key={offset} style={styles.hexLine} numberOfLines={1}>
         <Text style={{ color: TERM.faint }}>{offset}  </Text>
         <Text style={{ color: TERM.greenDim }}>{label.padEnd(7)}</Text>
-        <Text style={{ color: valueColor, fontWeight: '700' }}>{value.padStart(12)}</Text>
+        <Text style={{ color: valueColor, fontWeight: '600' }}>{value.padStart(12)}</Text>
         <Text style={{ color: TERM.muted }}>{'  '}{tag}</Text>
       </Text>
     );
@@ -1048,7 +1069,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         {/* Hex-dump wallet block. */}
         <TerminalPanel darkMode={darkMode} elevation={12} glow tone="purple">
           <TermTitleBar title="wallet@onion" />
-          <AsciiDivider />
           <View style={styles.hexBlock}>
             {hexRow('0x00', 'DIRTY', `${(dw.dirtyBtc ?? 0).toFixed(4)} ₿`, 'unlaundered', accent.warning)}
             {hexRow('0x01', 'CLEAN', `${(dw.cleanBtc ?? 0).toFixed(4)} ₿`, 'spendable', TERM.green)}
@@ -1088,7 +1108,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               const eff = effectiveMixerParams(t, launderLvl, fronts);
               return (
                 <React.Fragment key={t}>
-                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   <Text style={styles.monoXs} numberOfLines={1}>
                     <Text style={{ color: MIX_META[t] ?? TERM.greenDim }}>{t.padEnd(9)}</Text>
                     <Text style={{ color: TERM.muted }}>fee </Text>
@@ -1107,7 +1126,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
                 </React.Fragment>
               );
             })}
-            <AsciiDivider color={TERM.borderDim} />
             <PromptRow>
               <Text style={{ color: TERM.greenDim }}>launder</Text>
               <Text style={{ color: TERM.text }}> Lv{launderLvl}</Text>
@@ -1121,7 +1139,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
         {/* New identity - the one loud CTA of this view. */}
         <TerminalPanel darkMode={darkMode} tone="danger">
           <TermTitleBar title="identity.burn" accentColor={accent.danger} />
-          <AsciiDivider color="rgba(239,68,68,0.25)" />
           <Text style={styles.mono}>
             <Text style={{ color: accent.danger }}>! </Text>
             <Text style={{ color: TERM.text }}>Burn this persona. The trade-off is permanent.</Text>
@@ -1139,7 +1156,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             ) : null}
             <Text style={styles.hexLine} numberOfLines={1}>
               <Text style={{ color: TERM.muted }}>{'total_est   '}</Text>
-              <Text style={{ color: btcOwned >= idInfo.total ? TERM.green : accent.danger, fontWeight: '700' }}>
+              <Text style={{ color: btcOwned >= idInfo.total ? TERM.green : accent.danger, fontWeight: '600' }}>
                 {idInfo.total.toFixed(4)} ₿
               </Text>
             </Text>
@@ -1173,7 +1190,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <TerminalPanel darkMode={darkMode}>
               {queue.map((tx, i) => (
                 <React.Fragment key={tx.id}>
-                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   {renderLaunderRow(tx)}
                 </React.Fragment>
               ))}
@@ -1202,12 +1218,8 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const expiresIn = Math.max(0, listing.postedWeek + listing.lifetimeWeeks - gameState.weeksLived);
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        <View style={styles.actionRow}>
-          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to market" />
-        </View>
         <TerminalPanel darkMode={darkMode} elevation={12} glow>
           <TermTitleBar title={`listing://${listing.id}`} accentColor={tm.color} />
-          <AsciiDivider />
           <Text style={[styles.detailTitle, { color: tm.color }]}>
             <Text style={{ color: TERM.faint }}>[{tm.glyph}] </Text>
             {listing.title}
@@ -1215,11 +1227,10 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           <Text style={styles.mono}>
             <Text style={{ color: TERM.text }}>{listing.description}</Text>
           </Text>
-          <AsciiDivider />
           <View style={styles.hexBlock}>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'price   '}</Text>
-              <Text style={{ color: TERM.text, fontWeight: '700' }}>{listing.costBtc.toFixed(4)} ₿</Text>
+              <Text style={{ color: TERM.text, fontWeight: '600' }}>{listing.costBtc.toFixed(4)} ₿</Text>
             </Text>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'tier    '}</Text>
@@ -1241,7 +1252,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               ) : null}
             </Text>
           </View>
-          <AsciiDivider />
           <PromptRow>
             <Text style={{ color: TERM.greenDim }}>vendor </Text>
             <Text style={{ color: TERM.text }}>{vendor.handle}</Text>
@@ -1258,7 +1268,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <Text style={{ color: TERM.muted }}>{'  scam_risk='}</Text>
             <Text style={{ color: scamPct > 20 ? accent.danger : TERM.greenDim }}>{Math.round(scamPct)}%</Text>
           </Text>
-          <AsciiDivider />
           <BracketButton
             label={affordable && meetsRep ? 'BUY' : !affordable ? 'INSUFFICIENT FUNDS' : 'REP LOCKED'}
             tone="phosphor"
@@ -1285,9 +1294,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const vendors = (dw.vendors ?? []).slice().sort((a, b) => b.reputation - a.reputation);
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        <View style={styles.actionRow}>
-          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to market" />
-        </View>
         <View style={{ gap: responsiveSpacing.sm }}>
           <CmdLine cmd="cat vendors.db" count={vendors.length} />
           {vendors.length === 0 ? (
@@ -1352,17 +1358,8 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const vendorListings = (dw.listings ?? []).filter((l) => l.vendorId === vendor.id);
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        <View style={styles.actionRow}>
-          <BracketButton
-            label="../ back"
-            tone="neutral"
-            onPress={() => setView({ kind: 'vendors' })}
-            accessibilityLabel="Back to vendors"
-          />
-        </View>
         <TerminalPanel darkMode={darkMode} elevation={12} glow>
           <TermTitleBar title={`vendor://${vendor.handle}`} />
-          <AsciiDivider />
           <Text style={[styles.detailTitle, { color: TERM.green }]}>
             {vendor.handle}
             {vendor.flaggedScam ? <Text style={{ color: accent.danger }}>{'  [SCAM]'}</Text> : null}
@@ -1409,12 +1406,8 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const weeksLeft = Math.max(0, job.expiresWeek - gameState.weeksLived);
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        <View style={styles.actionRow}>
-          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to jobs" />
-        </View>
         <TerminalPanel darkMode={darkMode} elevation={12} glow tone="purple">
           <TermTitleBar title={`op://${template.id}`} />
-          <AsciiDivider />
           <Text style={[styles.detailTitle, { color: TERM.text }]}>{template.name}</Text>
           <Text style={styles.mono}>
             <Text style={{ color: TERM.text }}>{template.description}</Text>
@@ -1422,7 +1415,7 @@ function OnionAppInner({ onBack }: OnionAppProps) {
           <View style={styles.hexBlock}>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'payout   '}</Text>
-              <Text style={{ color: TERM.green, fontWeight: '700' }}>{template.payoutBtc.toFixed(3)} ₿</Text>
+              <Text style={{ color: TERM.green, fontWeight: '600' }}>{template.payoutBtc.toFixed(3)} ₿</Text>
             </Text>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'progress '}</Text>
@@ -1445,7 +1438,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
               const glyphColor = done ? TERM.green : cur ? TERM.purple : TERM.faint;
               return (
                 <React.Fragment key={idx}>
-                  {idx > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   <Text style={styles.mono} numberOfLines={1}>
                     <Text style={{ color: glyphColor }}>{glyph} </Text>
                     <Text style={{ color: done ? TERM.greenDim : TERM.text }}>{`#${idx + 1} ${STAGE_LABEL[st.kind] ?? st.kind}`}</Text>
@@ -1474,7 +1466,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <TerminalPanel darkMode={darkMode}>
               {job.completedStages.map((cs, i) => (
                 <React.Fragment key={`${cs.stage}-${cs.week}-${i}`}>
-                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   <Text style={styles.monoXs} numberOfLines={1}>
                     <Text style={{ color: TERM.purple }}>{'> '}</Text>
                     <Text style={{ color: TERM.faint }}>{`w${cs.week} `}</Text>
@@ -1509,20 +1500,16 @@ function OnionAppInner({ onBack }: OnionAppProps) {
     const failed = all.filter((t) => t.status === 'failed').length;
     return (
       <View style={{ gap: responsiveSpacing.lg }}>
-        <View style={styles.actionRow}>
-          <BracketButton label="../ back" tone="neutral" onPress={() => setView(null)} accessibilityLabel="Back to wallet" />
-        </View>
         <TerminalPanel darkMode={darkMode} elevation={12} glow>
           <TermTitleBar title="ledger.full" />
-          <AsciiDivider />
           <View style={styles.hexBlock}>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'total_in  '}</Text>
-              <Text style={{ color: accent.warning, fontWeight: '700' }}>{totalIn.toFixed(4)} ₿</Text>
+              <Text style={{ color: accent.warning, fontWeight: '600' }}>{totalIn.toFixed(4)} ₿</Text>
             </Text>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'total_out '}</Text>
-              <Text style={{ color: TERM.green, fontWeight: '700' }}>{totalOut.toFixed(4)} ₿</Text>
+              <Text style={{ color: TERM.green, fontWeight: '600' }}>{totalOut.toFixed(4)} ₿</Text>
             </Text>
             <Text style={styles.hexLine}>
               <Text style={{ color: TERM.muted }}>{'runs      '}</Text>
@@ -1543,7 +1530,6 @@ function OnionAppInner({ onBack }: OnionAppProps) {
             <TerminalPanel darkMode={darkMode}>
               {all.map((tx, i) => (
                 <React.Fragment key={tx.id}>
-                  {i > 0 ? <AsciiDivider color={TERM.borderDim} /> : null}
                   {renderLaunderRow(tx)}
                 </React.Fragment>
               ))}
@@ -1568,54 +1554,26 @@ function OnionAppInner({ onBack }: OnionAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      {/* Terminal window chrome - renders unconditionally; back is always top-left. */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={goBack}
-          hitSlop={8}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft size={scale(22)} color={TERM.text} />
-        </TouchableOpacity>
-        <Text style={styles.appTitle} numberOfLines={1}>
-          <Text style={{ color: TERM.green }}>onion</Text>
-          <Text style={{ color: TERM.purple }}>@</Text>
-          <Text style={{ color: TERM.greenDim }}>darknet</Text>
-          <Text style={{ color: TERM.muted }}>:{pathLabel}</Text>
-          <Text style={{ color: TERM.purple }}>▊</Text>
-        </Text>
-        <View style={[styles.heatToken, { borderColor: heatColor + '66', backgroundColor: heatColor + '1F' }]}>
-          <Text style={[styles.heatTokenText, { color: heatColor }]}>HEAT {Math.round(dw.heat ?? 0)}</Text>
-        </View>
-      </View>
+      {/* The terminal path IS the title: `onion:~/market/listing` says both which
+          app this is and where in it you are. Heat keeps its BAND colour - it is
+          a risk readout, not the app's identity tint. */}
+      <AppHeader
+        title={`onion:${pathLabel}`}
+        onBack={goBack}
+        backLabel={backLabel}
+        right={<HeaderChip label="Heat" value={String(Math.round(dw.heat ?? 0))} tint={heatColor} />}
+        style={styles.topBar}
+      />
 
       {/* Command tabs - hidden inside detail sub-views (full-page). */}
       {view === null && (
-        <View style={[getGlassCategoryTabsContainer(darkMode), styles.tabBar, { backgroundColor: TERM.bg, borderColor: TERM.border }]}>
-          {TABS.map((t) => {
-            const active = activeTab === t.id;
-            const Icon = t.icon;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => selectTab(t.id)}
-                style={[
-                  styles.tab,
-                  { borderColor: active ? 'rgba(168,85,247,0.45)' : 'transparent' },
-                  active && { backgroundColor: 'rgba(168,85,247,0.16)' },
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={t.label}
-              >
-                <Icon size={scale(15)} color={active ? TERM.purple : TERM.greenDim} />
-                <Text style={[styles.tabText, { color: active ? TERM.purple : TERM.greenDim }]}>{t.label.toLowerCase()}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          segments={TABS.map((t) => ({ key: t.id, label: t.label.toLowerCase(), icon: t.icon }))}
+          value={activeTab}
+          onChange={selectTab}
+          activeColor={TERM.purple}
+          style={styles.tabs}
+        />
       )}
 
       <ScrollView
@@ -1688,47 +1646,11 @@ const styles = StyleSheet.create({
   // Terminal window title bar - dark chrome in both modes (a deliberate single-look
   // console surface). The canvas behind still branches on darkMode.
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
     backgroundColor: TERM.bgChrome,
     borderBottomWidth: 1,
     borderBottomColor: TERM.border,
   },
-  backBtn: {
-    width: scale(40),
-    height: scale(40),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appTitle: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '700' },
-  heatToken: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.sm,
-    borderWidth: 1,
-  },
-  heatTokenText: { fontFamily: MONO, fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tabBar: {
-    flexDirection: 'row',
-    gap: scale(4),
-    marginHorizontal: responsiveSpacing.md,
-    marginTop: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.sm,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.sm,
-    borderWidth: 1,
-  },
-  tabText: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  tabs: { marginHorizontal: responsiveSpacing.md, marginVertical: responsiveSpacing.sm },
 
   // Panels
   panel: {
@@ -1751,29 +1673,22 @@ const styles = StyleSheet.create({
     backgroundColor: TERM.purpleGlow,
   },
 
-  // Title bar
-  titleBar: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
-  tdot: { width: scale(7), height: scale(7), borderRadius: scale(4) },
-  titleBarText: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.xs, color: TERM.greenDim, letterSpacing: 0.3, marginLeft: scale(4) },
-  titleCursor: { fontFamily: MONO, fontSize: responsiveFontSize.sm },
+  titleBarText: { fontFamily: MONO, fontSize: responsiveFontSize.xs, color: TERM.greenDim, letterSpacing: 0.3, marginLeft: scale(4) },
 
-  // Dividers
-  dividerWrap: { overflow: 'hidden', alignSelf: 'stretch' },
-  dividerText: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(10) },
 
   // Mono text
   mono: { fontFamily: MONO, fontSize: responsiveFontSize.sm, lineHeight: scale(18), color: TERM.text },
   monoXs: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(15), color: TERM.muted },
-  cmdLine: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '700', paddingHorizontal: scale(2) },
+  cmdLine: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '600', paddingHorizontal: scale(2) },
   emptyLine: { fontFamily: MONO, fontSize: responsiveFontSize.xs, color: TERM.muted },
   logLine: { fontFamily: MONO, fontSize: responsiveFontSize.xs, lineHeight: scale(16) },
 
   // Entry rows
   rowHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: responsiveSpacing.sm },
-  entryTitle: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '700' },
-  entryPrice: { fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '800', color: TERM.text, fontVariant: ['tabular-nums'] },
-  detailTitle: { fontFamily: MONO, fontSize: responsiveFontSize.lg, fontWeight: '800' },
-  scamTag: { fontFamily: MONO, fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  entryTitle: { flex: 1, fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '600' },
+  entryPrice: { fontFamily: MONO, fontSize: responsiveFontSize.md, fontWeight: '600', color: TERM.text, fontVariant: ['tabular-nums'] },
+  detailTitle: { fontFamily: MONO, fontSize: responsiveFontSize.lg, fontWeight: '700' },
+  scamTag: { fontFamily: MONO, fontSize: responsiveFontSize.xs, fontWeight: '600' },
 
   // Actions
   actionRow: {
@@ -1784,7 +1699,7 @@ const styles = StyleSheet.create({
     marginTop: scale(2),
   },
   bracketBtn: {
-    minHeight: scale(40),
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.sm,
@@ -1794,12 +1709,12 @@ const styles = StyleSheet.create({
   },
   bracketBtnFull: { alignSelf: 'stretch' },
   bracketBtnDisabled: { opacity: 0.5 },
-  bracketLabel: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '700', letterSpacing: 0.3 },
+  bracketLabel: { fontFamily: MONO, fontSize: responsiveFontSize.sm, fontWeight: '600', letterSpacing: 0.3 },
   gate: { fontFamily: MONO, fontSize: responsiveFontSize.xs, color: accent.danger },
 
   // Threat monitor
   threatRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
-  threatValue: { fontFamily: MONO, fontSize: responsiveFontSize['4xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  threatValue: { fontFamily: MONO, fontSize: responsiveFontSize['4xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // Hex-dump block
   hexBlock: {

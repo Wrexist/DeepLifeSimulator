@@ -1,38 +1,33 @@
 /**
- * Travel App - Boarding-Pass DNA (differentiation pass on top of Slate Glass).
+ * Travel App.
  *
- * Skeleton is deliberately NOT "eyebrow hero + uniform rows":
- *   - My Trip tab = a real BOARDING PASS: HOM → route, airline header, a
- *     flight/gate/seat + depart/return/fare info grid, a trip-progress ring,
- *     a dashed PERFORATION with punched notches, and an SVG BARCODE stub.
- *   - Destinations tab = a DEPARTURES board + a vibe GRID of per-destination
- *     tinted panels (each opens a rich detail page - list→detail sub-view).
- *   - Business tab = STOREFRONT cards with awnings + a passive-income medal.
- *   - History tab = a PASSPORT book of rubber-stamp chips.
+ * Four tabs on the shared primitives (AppHeader, SegmentedControl, StatStrip,
+ * Chip, SectionTitle, EmptyState, BaseModal):
+ *   - Destinations = a departures summary + a grid of destination tiles, each
+ *     opening a rich detail page (list→detail sub-view).
+ *   - My Trip = where you are, when you get back, and the Return home button.
+ *   - Business = storefront cards with a passive-income summary.
+ *   - Passport = the stamps of every trip taken, plus frequent-flyer milestones.
  *
- * Densifies with data the old UI hid: stress-relief + reputation benefits, the
- * full per-destination event pool, fare/duration breakdowns, trip progress,
- * absolute depart/return weeks, times-visited counts, passive-income totals.
+ * It shows what the old UI hid: stress-relief + reputation benefits, the full
+ * per-destination event pool, fare/duration breakdowns, trip progress, absolute
+ * depart/return weeks, times-visited counts, passive-income totals.
  *
- * Slate Glass still binding: gradients via the SVG-backed `Gradient`,
- * elevation via glass helpers + getPlatformShadows, no expo-blur, no raw boxShadow,
- * no `as any`. Identity accent = teal #14B8A6 (solid only on small
- * CTAs/badges/glyphs); per-destination vibe hues are categorical Recipe-C
- * tints. ZERO REMOVAL - every prior action stays reachable.
+ * What this screen deliberately no longer does is pretend to be an airline. My
+ * Trip was a literal boarding pass - an SVG barcode, a dashed perforation with
+ * punched notches, an airline brand line, and a FLIGHT / GATE / SEAT grid whose
+ * values were hashes of the destination id. None of it could change, none of it
+ * could be acted on, and it sat above the one control on the screen. Its
+ * companion was a 17-hue per-destination palette: colour that could be noticed
+ * but never read, since nothing about Paris is rose. The emoji stays, because
+ * it is the one piece of per-destination character that is about the place.
+ *
+ * ZERO REMOVAL of behaviour - every prior action stays reachable.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  } from 'react-native';
-import Svg, { Line, Rect } from 'react-native-svg';
-import {
-  ArrowLeft,
   ArrowRight,
   Plane,
   Ticket,
@@ -42,7 +37,6 @@ import {
   Battery,
   Globe,
   Clock,
-  Calendar,
   CheckCircle,
   ChevronRight,
   Store,
@@ -91,7 +85,14 @@ import { updateMoney } from '@/contexts/game/actions/MoneyActions';
 import { updateStats } from '@/contexts/game/actions/StatsActions';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import EmptyState from '@/components/ui/EmptyState';
+import BaseModal from '@/components/ui/BaseModal';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
@@ -106,54 +107,48 @@ import {
   getGlassIconContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
-import Gradient from '@/components/ui/Gradient';
 import { gameAlert } from '@/utils/gameAlert';
 
-const LinearGradient = Gradient;
-
-// Slate Glass identity accent for the Travel app: teal #14B8A6.
-// Solid only on small CTAs/badges/glyphs; elsewhere the translucent tints.
-const IDENTITY = '#14B8A6';
-const IDENTITY_PAIR = '#0D9488';
-const tint = (alpha: number) => `rgba(20, 184, 166, ${alpha})`;
-// 8-digit hex alpha for semantic (non-identity) Recipe C chips: ~15% fill / ~30% rim.
-const softFill = (hex: string) => `${hex}26`;
-const softRim = (hex: string) => `${hex}4D`;
-// Same, from an rgb() base color for the per-destination vibe tints.
-const vibeTint = (hex: string, a: number) => {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-};
+/**
+ * ONE identity colour, from the shared `accent` scale.
+ *
+ * This app used to carry a private palette - a teal `#14B8A6` plus a darker
+ * `IDENTITY_PAIR` for gradients, a `tint()` helper, an 8-digit-hex
+ * `softFill`/`softRim` pair, and `vibeTint`, which coloured each of the 17
+ * destinations its own hue. Seventeen categorical colours means colour carries
+ * no meaning: nothing about Paris is rose and nothing about Tokyo is purple, so
+ * the tint could not be read, only noticed. Semantic colour (visited = success,
+ * passport missing = warning, milestones = gold) is kept, because that colour
+ * IS the information. `withAlpha` is the one tint helper.
+ */
+const IDENTITY = accent.info;
 
 const HOME_CODE = 'HOM';
 
 // Per-destination boarding-pass flavor + vibe. IATA codes and vibe hues are
 // presentation only (deterministic, no game state). Missing entries fall back
 // to a derived 3-letter code / identity teal.
-const DEST_META: Record<string, { code: string; hue: string; emoji: string }> = {
-  local_resort: { code: 'RST', hue: accent.success, emoji: '🏖️' },
-  paris: { code: 'CDG', hue: '#F43F5E', emoji: '🗼' },
-  tokyo: { code: 'HND', hue: accent.purple, emoji: '🏯' },
-  bali: { code: 'DPS', hue: IDENTITY, emoji: '🏝️' },
-  new_york: { code: 'JFK', hue: accent.info, emoji: '🗽' },
-  swiss_alps: { code: 'ZRH', hue: '#60A5FA', emoji: '🏔️' },
-  london: { code: 'LHR', hue: accent.info, emoji: '🎡' },
-  dubai: { code: 'DXB', hue: accent.amber, emoji: '🏙️' },
-  rome: { code: 'FCO', hue: accent.warning, emoji: '🏛️' },
-  thailand: { code: 'BKK', hue: IDENTITY, emoji: '🛕' },
-  sydney: { code: 'SYD', hue: '#06B6D4', emoji: '🌊' },
-  cancun: { code: 'CUN', hue: IDENTITY, emoji: '🐚' },
-  iceland: { code: 'KEF', hue: '#60A5FA', emoji: '🌋' },
-  safari: { code: 'NBO', hue: accent.amber, emoji: '🦁' },
-  maldives: { code: 'MLE', hue: '#06B6D4', emoji: '🐠' },
-  camping_trip: { code: 'CMP', hue: accent.success, emoji: '🏕️' },
-  road_trip: { code: 'RTR', hue: accent.warning, emoji: '🚗' },
+const DEST_META: Record<string, { code: string; emoji: string }> = {
+  local_resort: { code: 'RST', emoji: '🏖️' },
+  paris: { code: 'CDG', emoji: '🗼' },
+  tokyo: { code: 'HND', emoji: '🏯' },
+  bali: { code: 'DPS', emoji: '🏝️' },
+  new_york: { code: 'JFK', emoji: '🗽' },
+  swiss_alps: { code: 'ZRH', emoji: '🏔️' },
+  london: { code: 'LHR', emoji: '🎡' },
+  dubai: { code: 'DXB', emoji: '🏙️' },
+  rome: { code: 'FCO', emoji: '🏛️' },
+  thailand: { code: 'BKK', emoji: '🛕' },
+  sydney: { code: 'SYD', emoji: '🌊' },
+  cancun: { code: 'CUN', emoji: '🐚' },
+  iceland: { code: 'KEF', emoji: '🌋' },
+  safari: { code: 'NBO', emoji: '🦁' },
+  maldives: { code: 'MLE', emoji: '🐠' },
+  camping_trip: { code: 'CMP', emoji: '🏕️' },
+  road_trip: { code: 'RTR', emoji: '🚗' },
 };
 const metaFor = (id: string) =>
-  DEST_META[id] || { code: id.slice(0, 3).toUpperCase(), hue: IDENTITY, emoji: '🌍' };
+  DEST_META[id] || { code: id.slice(0, 3).toUpperCase(), emoji: '🌍' };
 
 // Per-category glyph + semantic hue for the in-trip activities list. Colors are
 // categorical Recipe-C accents (not the teal identity) so each activity type
@@ -166,26 +161,15 @@ const ACTIVITY_META: Record<
   cuisine: { Icon: Utensils, hue: accent.warning },
   adventure: { Icon: Mountain, hue: accent.success },
   culture: { Icon: Landmark, hue: accent.purple },
-  nightlife: { Icon: Music, hue: '#F43F5E' },
+  nightlife: { Icon: Music, hue: accent.danger },
   shopping: { Icon: ShoppingBag, hue: accent.amber },
   relaxation: { Icon: Sparkles, hue: IDENTITY },
 };
 
-// FNV-1a - stable pseudo values for boarding-pass flavor (gate/seat/flight/ref).
-const hashStr = (s: string): number => {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-};
-const flightNo = (id: string) => `DL ${100 + (hashStr(id) % 900)}`;
-const gateOf = (id: string) =>
-  `${String.fromCharCode(65 + (hashStr(id + 'gate') % 6))}${1 + (hashStr(id + 'g2') % 30)}`;
-const seatOf = (id: string) =>
-  `${1 + (hashStr(id + 'seat') % 40)}${String.fromCharCode(65 + (hashStr(id + 's2') % 6))}`;
-const bookingRef = (seed: string) => hashStr(seed).toString(36).toUpperCase().slice(0, 6).padEnd(6, 'X');
+// The flight number, gate, seat, booking reference and barcode were all hashes
+// of the destination id: stable-looking noise that carried no state, could not
+// change, and told the player nothing. They are gone, and the FNV-1a hash that
+// generated them with them.
 const classForCost = (c: number) => (c >= 5000 ? 'FIRST' : c >= 2500 ? 'BUSINESS' : 'ECONOMY');
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -215,6 +199,13 @@ function benefitDescriptors(
 
 type TabType = 'destinations' | 'trip' | 'business' | 'history';
 
+const TABS: { key: TabType; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { key: 'destinations', label: 'Destinations', icon: Compass },
+  { key: 'trip', label: 'My Trip', icon: Ticket },
+  { key: 'business', label: 'Business', icon: Store },
+  { key: 'history', label: 'Passport', icon: Stamp },
+];
+
 interface TravelAppProps {
   onBack: () => void;
 }
@@ -239,7 +230,6 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   const currentTrip = travel.currentTrip;
   const week = gameState.weeksLived || 0;
   const money = gameState.stats?.money ?? 0;
-  const travelerName = (gameState.userProfile?.name || 'Traveler').toUpperCase();
 
   const passportItem = gameState.items?.find((i) => i.id === 'passport');
   const ownsPassport = !!(travel.passportOwned || passportItem?.owned);
@@ -378,7 +368,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     return (
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.edgeTitleRow}>
-          <View style={[getGlassIconContainer(darkMode, 30), styles.edgeGlyph, { backgroundColor: tint(0.15), borderColor: tint(0.3) }]}>
+          <View style={[getGlassIconContainer(darkMode, 30), styles.edgeGlyph, { backgroundColor: withAlpha(IDENTITY, 0.15), borderColor: withAlpha(IDENTITY, 0.3) }]}>
             <Sparkles size={scale(14)} color={IDENTITY} />
           </View>
           <Text style={[styles.edgeTitle, { color: theme.text }]}>
@@ -394,6 +384,14 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           const done = doneIds.has(a.id);
           const disabled = done || !q.ok;
           const netEnergy = netActivityEnergy(a);
+          const payoff = [
+            a.effects.happiness ? `+${a.effects.happiness} happiness` : null,
+            a.effects.health ? `${a.effects.health > 0 ? '+' : ''}${a.effects.health} health` : null,
+            netEnergy > 0 ? `+${netEnergy} energy` : null,
+            a.effects.reputation ? `+${a.effects.reputation} rep` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ');
           // Reason label when it can't be done (and isn't already done).
           const blockedLabel =
             !q.ok && !done
@@ -405,24 +403,26 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               : null;
           return (
             <View key={a.id} style={[styles.actRow, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}>
-              <View style={[styles.actGlyph, { backgroundColor: softFill(meta.hue), borderColor: softRim(meta.hue) }]}>
-                <meta.Icon size={scale(16)} color={meta.hue} />
+              <View style={[styles.actGlyph, { backgroundColor: withAlpha(IDENTITY, 0.15), borderColor: withAlpha(IDENTITY, 0.3) }]}>
+                <meta.Icon size={scale(16)} color={IDENTITY} />
               </View>
               <View style={styles.actBody}>
                 <Text style={[styles.actName, { color: theme.text }]} numberOfLines={1}>{a.name}</Text>
                 <Text style={[styles.actDesc, { color: theme.textSecondary }]} numberOfLines={2}>{a.description}</Text>
+                {/* Price and energy are the two numbers this row is decided on, so
+                    they get chips; the stat payoff is a sentence, because six chips
+                    on one row is a wall a player reads as texture, not as figures. */}
                 <View style={styles.actChips}>
-                  {a.cost > 0 && (
-                    <BenefitChip Icon={DollarSign} color={theme.textSecondary} value={formatMoney(a.cost)} />
-                  )}
-                  {a.energyCost > 0 && <BenefitChip Icon={Zap} color={accent.warning} value={`−${a.energyCost}`} />}
-                  {!!a.effects.happiness && <BenefitChip Icon={Heart} color={accent.danger} value={`+${a.effects.happiness}`} />}
-                  {!!a.effects.health && (
-                    <BenefitChip Icon={Battery} color={a.effects.health > 0 ? accent.success : accent.danger} value={`${a.effects.health > 0 ? '+' : ''}${a.effects.health}`} />
-                  )}
-                  {netEnergy > 0 && <BenefitChip Icon={Battery} color={accent.success} value={`+${netEnergy} en`} />}
-                  {!!a.effects.reputation && <BenefitChip Icon={Star} color={accent.gold} value={`+${a.effects.reputation} rep`} />}
+                  {a.cost > 0 ? (
+                    <Chip label={formatMoney(a.cost)} icon={<DollarSign size={scale(11)} color={theme.textSecondary} />} />
+                  ) : null}
+                  {a.energyCost > 0 ? (
+                    <Chip label={`−${a.energyCost} energy`} tone="warning" icon={<Zap size={scale(11)} color={accent.warning} />} />
+                  ) : null}
                 </View>
+                {payoff ? (
+                  <Text style={[styles.actDesc, { color: theme.textMuted }]} numberOfLines={1}>{payoff}</Text>
+                ) : null}
               </View>
               <TouchableOpacity
                 onPress={() => handleActivity(a)}
@@ -434,9 +434,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 style={[
                   styles.actBtn,
                   done
-                    ? { backgroundColor: softFill(accent.success), borderColor: softRim(accent.success) }
+                    ? { backgroundColor: withAlpha(accent.success, 0.15), borderColor: withAlpha(accent.success, 0.3) }
                     : q.ok
-                    ? { backgroundColor: tint(0.16), borderColor: tint(0.3) }
+                    ? { backgroundColor: withAlpha(IDENTITY, 0.16), borderColor: withAlpha(IDENTITY, 0.3) }
                     : { backgroundColor: theme.surface, borderColor: theme.border },
                 ]}
               >
@@ -471,20 +471,20 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     return (
       <View style={[getGlassCard(darkMode, 6), styles.edgeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.edgeTitleRow}>
-          <View style={[getGlassIconContainer(darkMode, 30), styles.edgeGlyph, { backgroundColor: tint(0.15), borderColor: tint(0.3) }]}>
+          <View style={[getGlassIconContainer(darkMode, 30), styles.edgeGlyph, { backgroundColor: withAlpha(IDENTITY, 0.15), borderColor: withAlpha(IDENTITY, 0.3) }]}>
             <TrendingUp size={scale(14)} color={IDENTITY} />
           </View>
           <Text style={[styles.edgeTitle, { color: theme.text }]}>Your travel edge</Text>
         </View>
         <View style={styles.edgeChipsRow}>
-          <View style={[styles.edgeChip, { backgroundColor: farePct > 0 ? softFill(accent.success) : theme.surfaceElevated, borderColor: farePct > 0 ? softRim(accent.success) : theme.border }]}>
+          <View style={[styles.edgeChip, { backgroundColor: farePct > 0 ? withAlpha(accent.success, 0.15) : theme.surfaceElevated, borderColor: farePct > 0 ? withAlpha(accent.success, 0.3) : theme.border }]}>
             <DollarSign size={scale(12)} color={farePct > 0 ? accent.success : theme.textMuted} />
             <Text style={[styles.edgeChipLabel, { color: theme.textSecondary }]}>Fares</Text>
             <Text style={[styles.edgeChipValue, { color: farePct > 0 ? accent.success : theme.text }]}>
               {farePct > 0 ? `${farePct}% off` : 'Standard'}
             </Text>
           </View>
-          <View style={[styles.edgeChip, { backgroundColor: speedPct > 0 ? tint(0.16) : theme.surfaceElevated, borderColor: speedPct > 0 ? tint(0.3) : theme.border }]}>
+          <View style={[styles.edgeChip, { backgroundColor: speedPct > 0 ? withAlpha(IDENTITY, 0.16) : theme.surfaceElevated, borderColor: speedPct > 0 ? withAlpha(IDENTITY, 0.3) : theme.border }]}>
             <Clock size={scale(12)} color={speedPct > 0 ? IDENTITY : theme.textMuted} />
             <Text style={[styles.edgeChipLabel, { color: theme.textSecondary }]}>Trip speed</Text>
             <Text style={[styles.edgeChipValue, { color: speedPct > 0 ? IDENTITY : theme.text }]}>
@@ -540,18 +540,19 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           <Compass size={scale(15)} color={IDENTITY} />
           <Text style={[styles.boardEyebrow, { color: theme.textMuted }]}>DEPARTURES</Text>
         </View>
-        <View style={styles.boardStatsRow}>
-          <BoardStat value={String(DESTINATIONS.length)} label="Destinations" theme={theme} />
-          <View style={[styles.boardDivider, { backgroundColor: theme.border }]} />
-          <BoardStat value={String(visitedCount)} label="Visited" theme={theme} color={IDENTITY} />
-          <View style={[styles.boardDivider, { backgroundColor: theme.border }]} />
-          <BoardStat value={String(historyCount)} label="Trips taken" theme={theme} />
-        </View>
-        <View style={[styles.boardPass, { backgroundColor: ownsPassport ? softFill(accent.success) : softFill(accent.warning), borderColor: ownsPassport ? softRim(accent.success) : softRim(accent.warning) }]}>
-          <Globe size={scale(12)} color={ownsPassport ? accent.success : accent.warning} />
-          <Text style={[styles.boardPassText, { color: ownsPassport ? accent.success : accent.warning }]}>
-            {ownsPassport ? 'Passport active - world unlocked' : 'No passport - domestic only'}
-          </Text>
+        <StatStrip
+          items={[
+            { label: 'Destinations', value: DESTINATIONS.length },
+            { label: 'Visited', value: visitedCount, tint: IDENTITY },
+            { label: 'Trips taken', value: historyCount },
+          ]}
+        />
+        <View style={styles.chipRow}>
+          <Chip
+            label={ownsPassport ? 'Passport active' : 'No passport · domestic only'}
+            tone={ownsPassport ? 'success' : 'warning'}
+            icon={<Globe size={scale(11)} color={ownsPassport ? accent.success : accent.warning} />}
+          />
         </View>
       </View>
 
@@ -565,11 +566,11 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           accessibilityLabel="Purchase passport for $500"
           style={[getGlassCard(darkMode, 6), styles.passportCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
         >
-          <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
+          <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: withAlpha(IDENTITY, 0.15), borderColor: withAlpha(IDENTITY, 0.3), borderWidth: 1 }]}>
             <Globe size={scale(22)} color={IDENTITY} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.passportTitle, { color: theme.text }]}>Unlock world travel</Text>
+            <Text style={[styles.passportTitle, { color: theme.text }]}>Buy a passport</Text>
             <Text style={[styles.passportSub, { color: theme.textSecondary }]}>$500 for a passport · international destinations</Text>
           </View>
           <View style={[styles.passportBadge, { backgroundColor: IDENTITY }]}>
@@ -578,10 +579,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         </TouchableOpacity>
       )}
 
-      <View style={styles.sectionHeadRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Where to next</Text>
-        <Text style={[styles.sectionCount, { color: theme.textMuted }]}>Tap a tile for details</Text>
-      </View>
+      <SectionTitle title="Where to next" subtitle="Tap a destination for fares, effects and what can happen." />
 
       <View style={styles.grid}>
         {DESTINATIONS.map((dest) => {
@@ -607,14 +605,14 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               // moves onto the full border. The hue was already carried by the
               // tile wash and the airport-code chip, so this is the third place
               // it appears, not the only one.
-              style={[getGlassCard(darkMode, 6), styles.tile, { backgroundColor: theme.surface, borderColor: meta.hue }]}
+              style={[getGlassCard(darkMode, 6), styles.tile, { backgroundColor: theme.surface, borderColor: IDENTITY }]}
             >
-              <View pointerEvents="none" style={[styles.tileWash, { backgroundColor: vibeTint(meta.hue, darkMode ? 0.1 : 0.07) }]} />
+              <View pointerEvents="none" style={[styles.tileWash, { backgroundColor: withAlpha(IDENTITY, darkMode ? 0.1 : 0.07) }]} />
 
               <View style={styles.tileTop}>
                 <Text style={styles.tileEmoji}>{meta.emoji}</Text>
-                <View style={[styles.tileCode, { backgroundColor: vibeTint(meta.hue, 0.16), borderColor: vibeTint(meta.hue, 0.32) }]}>
-                  <Text style={[styles.tileCodeText, { color: meta.hue }]}>{meta.code}</Text>
+                <View style={[styles.tileCode, { backgroundColor: withAlpha(IDENTITY, 0.16), borderColor: withAlpha(IDENTITY, 0.32) }]}>
+                  <Text style={[styles.tileCodeText, { color: IDENTITY }]}>{meta.code}</Text>
                 </View>
               </View>
 
@@ -626,16 +624,10 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
               <View style={styles.tileBadges}>
                 {visited && (
-                  <View style={[styles.tinyPill, { backgroundColor: softFill(accent.success) }]}>
-                    <CheckCircle size={scale(9)} color={accent.success} />
-                    <Text style={[styles.tinyPillText, { color: accent.success }]}>Visited</Text>
-                  </View>
+                  <Chip label="Visited" tone="success" icon={<CheckCircle size={scale(10)} color={accent.success} />} />
                 )}
                 {locked && (
-                  <View style={[styles.tinyPill, { backgroundColor: softFill(accent.warning) }]}>
-                    <Globe size={scale(9)} color={accent.warning} />
-                    <Text style={[styles.tinyPillText, { color: accent.warning }]}>Passport</Text>
-                  </View>
+                  <Chip label="Passport" tone="warning" icon={<Globe size={scale(10)} color={accent.warning} />} />
                 )}
               </View>
 
@@ -651,10 +643,9 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                     </Text>
                   </View>
                 </View>
-                <View style={[styles.tileView, { backgroundColor: tint(0.16) }]}>
-                  <Text style={[styles.tileViewText, { color: IDENTITY }]}>View</Text>
-                  <ChevronRight size={scale(12)} color={IDENTITY} />
-                </View>
+                {/* The tile itself opens the destination; a "View ›" pill inside
+                    it was a button for the thing the whole tile already does. */}
+                <ChevronRight size={scale(14)} color={theme.textMuted} />
               </View>
             </TouchableOpacity>
           );
@@ -699,7 +690,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         {/* Detail hero - ticket-style route header, vibe hue is this screen's one focal gradient. */}
         <View style={[getGlassCard(darkMode, 12), styles.heroCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={[styles.detailBlob, { backgroundColor: vibeTint(meta.hue, 0.1) }]} />
+            <View pointerEvents="none" style={[styles.detailBlob, { backgroundColor: withAlpha(IDENTITY, 0.1) }]} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
             <View style={styles.detailRouteRow}>
@@ -708,8 +699,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 <Text style={[styles.routeCity, { color: theme.textMuted }]}>Home</Text>
               </View>
               <View style={styles.routeMid}>
-                <Text style={styles.routeEmoji}>{meta.emoji}</Text>
-                <ArrowRight size={scale(18)} color={meta.hue} />
+                <ArrowRight size={scale(18)} color={IDENTITY} />
               </View>
               <View style={[styles.routeEnd, { alignItems: 'flex-end' }]}>
                 <Text style={[styles.routeCode, { color: theme.text }]}>{meta.code}</Text>
@@ -718,22 +708,16 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             </View>
             <Text style={[styles.detailName, { color: theme.text }]}>{dest.name}</Text>
             <View style={styles.detailTagRow}>
-              <View style={[styles.classChip, { backgroundColor: vibeTint(meta.hue, 0.16), borderColor: vibeTint(meta.hue, 0.32) }]}>
-                <Text style={[styles.classChipText, { color: meta.hue }]}>{classForCost(baseCost)}</Text>
-              </View>
+              <Chip label={classForCost(baseCost)} tint={IDENTITY} />
               {visited && (
-                <View style={[styles.tinyPill, { backgroundColor: softFill(accent.success) }]}>
-                  <CheckCircle size={scale(9)} color={accent.success} />
-                  <Text style={[styles.tinyPillText, { color: accent.success }]}>Visited {visits.length}×</Text>
-                </View>
+                <Chip label={`Visited ${visits.length}×`} tone="success" icon={<CheckCircle size={scale(10)} color={accent.success} />} />
               )}
               {passportRequired && (
-                <View style={[styles.tinyPill, { backgroundColor: ownsPassport ? softFill(accent.success) : softFill(accent.warning) }]}>
-                  <Globe size={scale(9)} color={ownsPassport ? accent.success : accent.warning} />
-                  <Text style={[styles.tinyPillText, { color: ownsPassport ? accent.success : accent.warning }]}>
-                    {ownsPassport ? 'Passport OK' : 'Passport needed'}
-                  </Text>
-                </View>
+                <Chip
+                  label={ownsPassport ? 'Passport OK' : 'Passport needed'}
+                  tone={ownsPassport ? 'success' : 'warning'}
+                  icon={<Globe size={scale(10)} color={ownsPassport ? accent.success : accent.warning} />}
+                />
               )}
             </View>
           </View>
@@ -743,7 +727,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
         {/* Fare breakdown */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Fare & duration</Text>
+          <SectionTitle title="Fare and duration" />
           <View style={styles.fareRow}>
             <Text style={[styles.fareLabel, { color: theme.textSecondary }]}>Base fare</Text>
             <Text style={[styles.fareValue, { color: savings > 0 ? theme.textMuted : theme.text }, savings > 0 && styles.strike]}>
@@ -757,8 +741,8 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             </View>
           )}
           <View style={styles.fareRow}>
-            <Text style={[styles.fareLabel, { color: theme.text, fontWeight: '800' }]}>You pay</Text>
-            <Text style={[styles.fareValue, { color: IDENTITY, fontWeight: '800' }]}>{formatMoney(adjustedCost)}</Text>
+            <Text style={[styles.fareLabel, { color: theme.text, fontWeight: '600' }]}>You pay</Text>
+            <Text style={[styles.fareValue, { color: IDENTITY, fontWeight: '600' }]}>{formatMoney(adjustedCost)}</Text>
           </View>
           <View style={[styles.fareDivider, { backgroundColor: theme.border }]} />
           <View style={styles.fareRow}>
@@ -772,7 +756,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
         {/* Stat effects - all benefits incl. stress + reputation */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Stat effects</Text>
+          <SectionTitle title="Stat effects" />
           <View style={styles.benefitRow}>
             {benefitDescriptors(dest.benefits).map((d) => (
               <BenefitChip key={d.key} Icon={d.Icon} color={d.color} value={d.value} />
@@ -782,7 +766,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
         {/* Event pool - what the engine can roll for this trip (cost-eligible). */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>What could happen</Text>
+          <SectionTitle title="What could happen" />
           <Text style={[styles.cardHint, { color: theme.textMuted }]}>
             0–2 of these may fire on your return ({events.length} possible)
           </Text>
@@ -790,7 +774,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             const { Icon, color } = eventIcon(e.category);
             return (
               <View key={e.id} style={[styles.eventRow, { backgroundColor: darkMode ? 'rgba(255,255,255,0.05)' : theme.surfaceElevated }]}>
-                <View style={[styles.eventIcon, { backgroundColor: softFill(color), borderColor: softRim(color), borderWidth: 1 }]}>
+                <View style={[styles.eventIcon, { backgroundColor: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.3), borderWidth: 1 }]}>
                   <Icon size={scale(13)} color={color} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -804,20 +788,17 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
         {/* Visit history for this destination */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.sectionHeadRow}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Your record</Text>
-            <View style={styles.tileRow}>
-              <Stamp size={scale(13)} color={IDENTITY} />
-              <Text style={[styles.recordCount, { color: IDENTITY }]}>{visits.length} visit{visits.length === 1 ? '' : 's'}</Text>
-            </View>
-          </View>
+          <SectionTitle
+            title="Your record"
+            right={<Chip label={`${visits.length} visit${visits.length === 1 ? '' : 's'}`} tint={IDENTITY} icon={<Stamp size={scale(11)} color={IDENTITY} />} />}
+          />
           <Text style={[styles.cardHint, { color: theme.textSecondary }]}>
             {lastVisit
               ? `Last stamped Week ${lastVisit.week}, Year ${lastVisit.year}.`
               : 'No stamps yet - this would be a first visit.'}
           </Text>
           {!visited && (
-            <View style={[styles.firstVisitRow, { backgroundColor: softFill(accent.gold), borderColor: softRim(accent.gold) }]}>
+            <View style={[styles.firstVisitRow, { backgroundColor: withAlpha(accent.gold, 0.15), borderColor: withAlpha(accent.gold, 0.3) }]}>
               <Award size={scale(13)} color={accent.gold} />
               <Text style={[styles.firstVisitText, { color: accent.gold }]}>First visit unlocks a local business deal</Text>
             </View>
@@ -827,7 +808,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
         {/* Business opportunity from this destination (if unlocked) */}
         {opp && (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Local business</Text>
+            <SectionTitle title="Local business" />
             <StorefrontBody
               name={opp.name}
               locLabel={`${dest.name} · ${meta.code}`}
@@ -835,7 +816,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               weeklyIncome={opp.weeklyIncome}
               cost={opp.cost}
               invested={!!opp.invested}
-              hue={meta.hue}
+              hue={IDENTITY}
               theme={theme}
               onInvest={() => handleInvest(opp.id)}
             />
@@ -850,17 +831,14 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           accessibilityRole="button"
           accessibilityLabel={ctaLabel}
           accessibilityState={{ disabled: !quote.ok }}
-          style={[styles.bookCta, quote.ok && getPlatformShadows(5, 0.3, 2, 8)]}
+          style={[
+            styles.bookCta,
+            { backgroundColor: quote.ok ? IDENTITY : theme.surfaceElevated },
+            quote.ok && getPlatformShadows(5, 0.3, 2, 8),
+          ]}
         >
-          <LinearGradient
-            colors={quote.ok ? [IDENTITY, IDENTITY_PAIR] : [theme.surfaceElevated, theme.surfaceElevated]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.bookCtaInner}
-          >
-            <Plane size={scale(16)} color={quote.ok ? 'white' : theme.textMuted} />
-            <Text style={[styles.bookCtaText, { color: quote.ok ? 'white' : theme.textMuted }]}>{ctaLabel}</Text>
-          </LinearGradient>
+          <Plane size={scale(16)} color={quote.ok ? 'white' : theme.textMuted} />
+          <Text style={[styles.bookCtaText, { color: quote.ok ? 'white' : theme.textMuted }]}>{ctaLabel}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -871,25 +849,13 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (!currentTrip) {
       return (
         <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, styles.emptyPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-          <View style={[styles.emptyTicket, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
-              <Ticket size={scale(28)} color={IDENTITY} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>No boarding pass</Text>
-            <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
-              Book a destination and your boarding pass appears here.
-            </Text>
-            <TouchableOpacity
-              onPress={() => setActiveTab('destinations')}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Browse destinations"
-              style={[styles.browseBtn, { backgroundColor: tint(0.16) }]}
-            >
-              <Compass size={scale(14)} color={IDENTITY} />
-              <Text style={[styles.browseBtnText, { color: IDENTITY }]}>Browse destinations</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon={<Ticket size={scale(28)} color={IDENTITY} />}
+            observation="You are not on a trip."
+            nudge="Book a destination and this becomes your trip card."
+            ctaLabel="Browse destinations"
+            onCtaPress={() => setActiveTab('destinations')}
+          />
         </ScrollView>
       );
     }
@@ -906,41 +872,26 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     const elapsed = clamp(week - startWeek, 0, totalWeeks);
     const progressPct = clamp((elapsed / totalWeeks) * 100, 0, 100);
     const fare = Math.max(0, Math.floor(dest.cost * mods.costMultiplier));
-    const barColor = darkMode ? theme.text : '#0F172A';
-    const dashColor = darkMode ? 'rgba(255,255,255,0.28)' : 'rgba(15,23,42,0.25)';
 
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-        {/* Recipe B hero rendered AS a boarding pass. Identity teal wash. */}
+        {/* The trip card. This was a literal boarding pass: an airline brand
+            line, an SVG barcode, a dashed perforation with punched notches, and
+            a FLIGHT / GATE / SEAT grid whose three values were hashes of the
+            destination id - stable-looking noise that no action could change.
+            What a player on a trip actually needs is where they are, when they
+            get back, and the button home. */}
         <View style={[getGlassCard(darkMode, 12), styles.passCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
           <View style={styles.passInner}>
             <View pointerEvents="none" style={styles.passBlob} />
             {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
 
-            {/* Airline header */}
-            <View style={styles.passHeadRow}>
-              <View style={styles.tileRow}>
-                <View style={[getGlassIconContainer(darkMode, 28), styles.edgeGlyph, { backgroundColor: tint(0.15), borderColor: tint(0.3) }]}>
-                  <Plane size={scale(14)} color={IDENTITY} />
-                </View>
-                <Text style={[styles.passBrand, { color: theme.text }]}>DEEPLIFE AIR</Text>
-              </View>
-              <Text style={[styles.passKind, { color: IDENTITY }]}>BOARDING PASS</Text>
-            </View>
-
-            {/* Route */}
             <View style={styles.passRouteRow}>
               <View style={styles.routeEnd}>
                 <Text style={[styles.routeCode, { color: theme.text }]}>{HOME_CODE}</Text>
                 <Text style={[styles.routeCity, { color: theme.textMuted }]}>Home</Text>
               </View>
               <View style={styles.passRouteMid}>
-                <Text style={styles.routeEmoji}>{meta.emoji}</Text>
-                <View style={styles.passDashWrap}>
-                  <Svg width="100%" height={2} viewBox="0 0 120 2" preserveAspectRatio="none">
-                    <Line x1="0" y1="1" x2="120" y2="1" stroke={dashColor} strokeWidth={2} strokeDasharray="5 4" strokeLinecap="round" />
-                  </Svg>
-                </View>
                 <Plane size={scale(15)} color={IDENTITY} />
               </View>
               <View style={[styles.routeEnd, { alignItems: 'flex-end' }]}>
@@ -949,17 +900,13 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               </View>
             </View>
 
-            {/* Info grid */}
-            <View style={styles.passGrid}>
-              <PassCell Icon={Ticket} label="FLIGHT" value={flightNo(dest.id)} theme={theme} />
-              <PassCell Icon={DoorGate} label="GATE" value={gateOf(dest.id)} theme={theme} />
-              <PassCell Icon={Seat} label="SEAT" value={seatOf(dest.id)} theme={theme} />
-            </View>
-            <View style={styles.passGrid}>
-              <PassCell Icon={Calendar} label="DEPART" value={`Wk ${startWeek}`} theme={theme} />
-              <PassCell Icon={Calendar} label="RETURN" value={`Wk ${effectiveReturn}`} theme={theme} />
-              <PassCell Icon={DollarSign} label="FARE" value={formatMoney(fare)} theme={theme} />
-            </View>
+            <StatStrip
+              items={[
+                { label: 'Departed', value: `Wk ${startWeek}` },
+                { label: 'Returns', value: `Wk ${effectiveReturn}` },
+                { label: 'Fare', value: formatMoney(fare) },
+              ]}
+            />
 
             {/* Progress ring + status */}
             <View style={styles.passProgressRow}>
@@ -989,34 +936,6 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               </View>
             </View>
 
-            {/* Perforation with punched notches */}
-            <View style={styles.perfRow}>
-              <View style={[styles.notch, styles.notchLeft, { backgroundColor: theme.background }]} pointerEvents="none" />
-              <View style={styles.perfLineWrap}>
-                <Svg width="100%" height={2} viewBox="0 0 240 2" preserveAspectRatio="none">
-                  <Line x1="0" y1="1" x2="240" y2="1" stroke={dashColor} strokeWidth={2} strokeDasharray="6 5" strokeLinecap="round" />
-                </Svg>
-              </View>
-              <View style={[styles.notch, styles.notchRight, { backgroundColor: theme.background }]} pointerEvents="none" />
-            </View>
-
-            {/* Stub: passenger + barcode */}
-            <View style={styles.stubRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.stubLabel, { color: theme.textMuted }]}>PASSENGER</Text>
-                <Text style={[styles.stubValue, { color: theme.text }]} numberOfLines={1}>{travelerName}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.stubLabel, { color: theme.textMuted }]}>BOOKING</Text>
-                <Text style={[styles.stubValue, { color: theme.text }]}>{bookingRef(`${dest.id}:${startWeek}`)}</Text>
-              </View>
-            </View>
-            <View style={styles.barcodeWrap}>
-              <Svg width="100%" height={scale(34)} viewBox="0 0 240 34" preserveAspectRatio="none" pointerEvents="none">
-                {barcodeBars(`${dest.id}:${startWeek}`, barColor)}
-              </Svg>
-            </View>
-
             {/* Return CTA */}
             <TouchableOpacity
               onPress={handleReturn}
@@ -1025,18 +944,15 @@ export default function TravelApp({ onBack }: TravelAppProps) {
               accessibilityRole="button"
               accessibilityLabel="Return home"
               accessibilityState={{ disabled: remaining > 0 }}
-              style={[styles.returnBtn, canReturn && getPlatformShadows(5, 0.3, 2, 8)]}
+              style={[
+                styles.returnBtn,
+                { backgroundColor: canReturn ? IDENTITY : theme.surfaceElevated },
+                canReturn && getPlatformShadows(5, 0.3, 2, 8),
+              ]}
             >
-              <LinearGradient
-                colors={canReturn ? [IDENTITY, IDENTITY_PAIR] : [theme.surfaceElevated, theme.surfaceElevated]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.returnBtnInner}
-              >
-                <Text style={[styles.returnBtnText, { color: canReturn ? 'white' : theme.textMuted }]}>
-                  {canReturn ? 'Return home' : 'Trip in progress…'}
-                </Text>
-              </LinearGradient>
+              <Text style={[styles.returnBtnText, { color: canReturn ? 'white' : theme.textMuted }]}>
+                {canReturn ? 'Return home' : 'Trip in progress…'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1056,25 +972,13 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (opps.length === 0) {
       return (
         <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, styles.emptyPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-          <View style={styles.empty}>
-            <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
-              <Store size={scale(28)} color={IDENTITY} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>No storefronts yet</Text>
-            <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
-              Visit a new destination to unlock a business deal there.
-            </Text>
-            <TouchableOpacity
-              onPress={() => setActiveTab('destinations')}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Browse destinations"
-              style={[styles.browseBtn, { backgroundColor: tint(0.16) }]}
-            >
-              <Compass size={scale(14)} color={IDENTITY} />
-              <Text style={[styles.browseBtnText, { color: IDENTITY }]}>Browse destinations</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon={<Store size={scale(28)} color={IDENTITY} />}
+            observation="You have no businesses abroad."
+            nudge="The first visit to a destination unlocks a local deal you can buy into."
+            ctaLabel="Browse destinations"
+            onCtaPress={() => setActiveTab('destinations')}
+          />
         </ScrollView>
       );
     }
@@ -1085,18 +989,13 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {/* Portfolio summary */}
-        <View style={[getGlassCard(darkMode, 6), styles.bizSummary, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: softFill(accent.gold), borderColor: softRim(accent.gold), borderWidth: 1 }]}>
-            <Award size={scale(22)} color={accent.gold} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.bizSummaryLabel, { color: theme.textMuted }]}>WEEKLY PASSIVE INCOME</Text>
-            <Text style={[styles.bizSummaryValue, { color: accent.success }]}>+{formatMoney(weeklyPassive)}/wk</Text>
-          </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[styles.bizSummaryValue, { color: theme.text }]}>{investedOpps.length}/{opps.length}</Text>
-            <Text style={[styles.bizSummaryLabel, { color: theme.textMuted }]}>OWNED</Text>
-          </View>
+        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <StatStrip
+            items={[
+              { label: 'Weekly passive income', value: `+${formatMoney(weeklyPassive)}`, tint: accent.success },
+              { label: 'Storefronts owned', value: `${investedOpps.length}/${opps.length}` },
+            ]}
+          />
         </View>
 
         {opps.map((opp) => {
@@ -1105,11 +1004,11 @@ export default function TravelApp({ onBack }: TravelAppProps) {
           return (
             <View key={opp.id} style={[getGlassCard(darkMode, 6), styles.storeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               {/* Awning */}
-              <View style={[styles.storeAwning, { backgroundColor: vibeTint(meta.hue, darkMode ? 0.18 : 0.14) }]}>
-                <Store size={scale(14)} color={meta.hue} />
+              <View style={[styles.storeAwning, { backgroundColor: withAlpha(IDENTITY, darkMode ? 0.18 : 0.14) }]}>
+                <Store size={scale(14)} color={IDENTITY} />
                 <Text style={[styles.storeAwningText, { color: theme.text }]} numberOfLines={1}>{destName}</Text>
-                <View style={[styles.storeCode, { backgroundColor: vibeTint(meta.hue, 0.2) }]}>
-                  <Text style={[styles.storeCodeText, { color: meta.hue }]}>{meta.code}</Text>
+                <View style={[styles.storeCode, { backgroundColor: withAlpha(IDENTITY, 0.2) }]}>
+                  <Text style={[styles.storeCodeText, { color: IDENTITY }]}>{meta.code}</Text>
                 </View>
               </View>
               <View style={styles.storeBodyWrap}>
@@ -1120,7 +1019,7 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                   weeklyIncome={opp.weeklyIncome}
                   cost={opp.cost}
                   invested={!!opp.invested}
-                  hue={meta.hue}
+                  hue={IDENTITY}
                   theme={theme}
                   onInvest={() => handleInvest(opp.id)}
                 />
@@ -1138,23 +1037,13 @@ export default function TravelApp({ onBack }: TravelAppProps) {
     if (history.length === 0) {
       return (
         <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, styles.emptyPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-          <View style={styles.empty}>
-            <View style={[getGlassIconContainer(darkMode, 64), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
-              <Stamp size={scale(28)} color={IDENTITY} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.text }]}>Empty passport</Text>
-            <Text style={[styles.emptySub, { color: theme.textSecondary }]}>Your trips get stamped here.</Text>
-            <TouchableOpacity
-              onPress={() => setActiveTab('destinations')}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Browse destinations"
-              style={[styles.browseBtn, { backgroundColor: tint(0.16) }]}
-            >
-              <Compass size={scale(14)} color={IDENTITY} />
-              <Text style={[styles.browseBtnText, { color: IDENTITY }]}>Browse destinations</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon={<Stamp size={scale(28)} color={IDENTITY} />}
+            observation="Your passport has no stamps."
+            nudge="Every trip you come back from is recorded here."
+            ctaLabel="Browse destinations"
+            onCtaPress={() => setActiveTab('destinations')}
+          />
         </ScrollView>
       );
     }
@@ -1167,50 +1056,37 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             <Stamp size={scale(15)} color={IDENTITY} />
             <Text style={[styles.boardEyebrow, { color: theme.textMuted }]}>PASSPORT</Text>
           </View>
-          <View style={styles.boardStatsRow}>
-            <BoardStat value={String(history.length)} label="Stamps" theme={theme} color={IDENTITY} />
-            <View style={[styles.boardDivider, { backgroundColor: theme.border }]} />
-            <BoardStat value={String(visitedCount)} label="Countries" theme={theme} />
-            <View style={[styles.boardDivider, { backgroundColor: theme.border }]} />
-            <BoardStat value={ownsPassport ? 'Yes' : 'No'} label="Passport" theme={theme} color={ownsPassport ? accent.success : accent.warning} />
-          </View>
+          <StatStrip
+            items={[
+              { label: 'Stamps', value: history.length, tint: IDENTITY },
+              { label: 'Countries', value: visitedCount },
+              { label: 'Passport', value: ownsPassport ? 'Yes' : 'No', tint: ownsPassport ? accent.success : accent.warning },
+            ]}
+          />
         </View>
 
         {/* Frequent-flyer milestones - a bounded one-off progression to aim for.
             Tiers are earned by distinct destinations visited; rewards apply on return. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.sectionHeadRow}>
-            <View style={styles.tileRow}>
-              <Award size={scale(14)} color={IDENTITY} />
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Frequent flyer</Text>
-            </View>
-            <Text style={[styles.sectionCount, { color: theme.textMuted }]}>{visitedCount} visited</Text>
-          </View>
+          <SectionTitle title="Frequent flyer" right={<Chip label={`${visitedCount} visited`} tint={IDENTITY} />} />
           <View style={styles.milestoneRow}>
             {TRAVEL_MILESTONE_TIERS.map((t) => {
               const earned = visitedCount >= t.threshold;
               return (
-                <View
+                <Chip
                   key={t.id}
-                  style={[
-                    styles.milestoneChip,
-                    {
-                      backgroundColor: earned ? softFill(accent.gold) : theme.surfaceElevated,
-                      borderColor: earned ? softRim(accent.gold) : theme.border,
-                    },
-                  ]}
-                >
-                  {earned ? <Award size={scale(11)} color={accent.gold} /> : <Globe size={scale(11)} color={theme.textMuted} />}
-                  <Text style={[styles.milestoneChipLabel, { color: earned ? accent.gold : theme.textSecondary }]} numberOfLines={1}>{t.label}</Text>
-                  <Text style={[styles.milestoneChipThreshold, { color: earned ? accent.gold : theme.textMuted }]}>{t.threshold}</Text>
-                </View>
+                  label={`${t.label} · ${t.threshold}`}
+                  tint={earned ? accent.gold : undefined}
+                  icon={earned ? <Award size={scale(11)} color={accent.gold} /> : <Globe size={scale(11)} color={theme.textMuted} />}
+                  accessibilityLabel={`${t.label}, ${t.threshold} destinations${earned ? ', earned' : ''}`}
+                />
               );
             })}
           </View>
           {(() => {
             const next = TRAVEL_MILESTONE_TIERS.find((t) => visitedCount < t.threshold);
             if (!next) {
-              return <Text style={[styles.cardHint, { color: accent.gold }]}>Every frequent-flyer tier unlocked. Bon voyage!</Text>;
+              return <Text style={[styles.cardHint, { color: accent.gold }]}>Every frequent-flyer tier unlocked.</Text>;
             }
             const remaining = next.threshold - visitedCount;
             return (
@@ -1226,7 +1102,6 @@ export default function TravelApp({ onBack }: TravelAppProps) {
             const dest = DESTINATIONS.find((d) => d.id === entry.destinationId);
             if (!dest) return null;
             const meta = metaFor(dest.id);
-            const rot = (hashStr(`${entry.destinationId}${entry.week}${idx}`) % 11) - 5; // -5°..+5°
             return (
               <TouchableOpacity
                 key={`${entry.destinationId}-${entry.week}-${idx}`}
@@ -1234,14 +1109,13 @@ export default function TravelApp({ onBack }: TravelAppProps) {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={`${dest.name} stamp, Week ${entry.week} Year ${entry.year}. View details`}
-                style={[styles.stamp, { transform: [{ rotate: `${rot}deg` }] }]}
+                style={styles.stamp}
               >
-                <View style={[styles.stampInner, { borderColor: vibeTint(meta.hue, 0.55) }]}>
-                  <View pointerEvents="none" style={[styles.stampWash, { backgroundColor: vibeTint(meta.hue, darkMode ? 0.12 : 0.08) }]} />
-                  <Text style={styles.stampEmoji}>{meta.emoji}</Text>
-                  <Text style={[styles.stampCode, { color: meta.hue }]}>{meta.code}</Text>
+                <View style={[styles.stampInner, { borderColor: withAlpha(IDENTITY, 0.55) }]}>
+                  <View pointerEvents="none" style={[styles.stampWash, { backgroundColor: withAlpha(IDENTITY, darkMode ? 0.12 : 0.08) }]} />
+                  <Text style={[styles.stampCode, { color: IDENTITY }]}>{meta.code}</Text>
                   <Text style={[styles.stampName, { color: theme.text }]} numberOfLines={1}>{dest.name}</Text>
-                  <View style={[styles.stampDivider, { backgroundColor: vibeTint(meta.hue, 0.4) }]} />
+                  <View style={[styles.stampDivider, { backgroundColor: withAlpha(IDENTITY, 0.4) }]} />
                   <Text style={[styles.stampMeta, { color: theme.textSecondary }]}>WK {entry.week} · YR {entry.year}</Text>
                 </View>
               </TouchableOpacity>
@@ -1257,44 +1131,26 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => (detailId ? setDetailId(null) : onBack())}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.headerBtn}
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
-        <View style={[styles.cashChip, { backgroundColor: tint(0.14), borderColor: tint(0.3) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={headerTitle}
+        onBack={() => (detailId ? setDetailId(null) : onBack())}
+        backLabel={detailId ? 'Back to destinations' : 'Back'}
+        right={<CashChip value={formatMoney(money)} tint={IDENTITY} />}
+      />
 
       {detailDest ? (
         renderDetail(detailDest)
       ) : (
         <>
-          <View style={[styles.tabBar, { borderColor: theme.border }]}>
-            {(['destinations', 'trip', 'business', 'history'] as TabType[]).map((tab) => {
-              const active = activeTab === tab;
-              return (
-                <TouchableOpacity
-                  key={tab}
-                  onPress={() => setActiveTab(tab)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  style={[styles.tabBtn, active && { borderBottomColor: IDENTITY, borderBottomWidth: 2 }]}
-                >
-                  <Text style={[styles.tabText, { color: active ? IDENTITY : theme.textMuted }]}>
-                    {tab === 'destinations' ? 'Destinations' : tab === 'trip' ? 'My Trip' : tab === 'business' ? 'Business' : 'Passport'}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {/* The old bar was four underlined text buttons with no label and no
+              tab role - unreachable by name to a screen reader. */}
+          <SegmentedControl
+            segments={TABS}
+            value={activeTab}
+            onChange={setActiveTab}
+            activeColor={IDENTITY}
+            style={styles.tabs}
+          />
 
           {activeTab === 'destinations' && renderDestinations()}
           {activeTab === 'trip' && renderTripTab()}
@@ -1316,31 +1172,6 @@ export default function TravelApp({ onBack }: TravelAppProps) {
 // ---------------------------------------------------------------------------
 // Small presentational pieces
 // ---------------------------------------------------------------------------
-
-function BoardStat({ value, label, theme, color }: { value: string; label: string; theme: ReturnType<typeof getThemeColors>; color?: string }) {
-  return (
-    <View style={styles.boardStat}>
-      <Text style={[styles.boardStatValue, { color: color || theme.text }]}>{value}</Text>
-      <Text style={[styles.boardStatLabel, { color: theme.textMuted }]}>{label}</Text>
-    </View>
-  );
-}
-
-function PassCell({ Icon, label, value, theme }: { Icon: React.ComponentType<{ size: number; color: string }>; label: string; value: string; theme: ReturnType<typeof getThemeColors> }) {
-  return (
-    <View style={styles.passCell}>
-      <View style={styles.tileRow}>
-        <Icon size={scale(11)} color={theme.textMuted} />
-        <Text style={[styles.passCellLabel, { color: theme.textMuted }]}>{label}</Text>
-      </View>
-      <Text style={[styles.passCellValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-    </View>
-  );
-}
-
-// Tiny glyph wrappers so the pass grid can pass a "gate"/"seat" icon component.
-const DoorGate = ({ size, color }: { size: number; color: string }) => <MapPin size={size} color={color} />;
-const Seat = ({ size, color }: { size: number; color: string }) => <Ticket size={size} color={color} />;
 
 function StorefrontBody({
   name,
@@ -1372,14 +1203,8 @@ function StorefrontBody({
       </View>
       <Text style={[styles.storeDesc, { color: theme.textSecondary }]} numberOfLines={2}>{description}</Text>
       <View style={styles.storeMetrics}>
-        <View style={[styles.storeMetric, { backgroundColor: softFill(accent.success), borderColor: softRim(accent.success) }]}>
-          <TrendingUp size={scale(11)} color={accent.success} />
-          <Text style={[styles.storeMetricText, { color: accent.success }]}>+{formatMoney(weeklyIncome)}/wk</Text>
-        </View>
-        <View style={[styles.storeMetric, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-          <DollarSign size={scale(11)} color={theme.textSecondary} />
-          <Text style={[styles.storeMetricText, { color: theme.textSecondary }]}>Cost {formatMoney(cost)}</Text>
-        </View>
+        <Chip label={`+${formatMoney(weeklyIncome)}/wk`} tone="success" icon={<TrendingUp size={scale(11)} color={accent.success} />} />
+        <Chip label={`Cost ${formatMoney(cost)}`} icon={<DollarSign size={scale(11)} color={theme.textSecondary} />} />
       </View>
       <TouchableOpacity
         onPress={onInvest}
@@ -1388,7 +1213,7 @@ function StorefrontBody({
         accessibilityRole="button"
         accessibilityLabel={invested ? 'Already invested' : `Invest ${formatMoney(cost)}`}
         accessibilityState={{ disabled: invested }}
-        style={[styles.investBtn, { backgroundColor: invested ? softFill(accent.success) : tint(0.16), borderColor: invested ? softRim(accent.success) : tint(0.3) }]}
+        style={[styles.investBtn, { backgroundColor: invested ? withAlpha(accent.success, 0.15) : withAlpha(IDENTITY, 0.16), borderColor: invested ? withAlpha(accent.success, 0.3) : withAlpha(IDENTITY, 0.3) }]}
       >
         {invested ? <CheckCircle size={scale(14)} color={accent.success} /> : <Store size={scale(14)} color={IDENTITY} />}
         <Text style={[styles.investBtnText, { color: invested ? accent.success : IDENTITY }]}>{invested ? 'Invested - earning' : 'Invest'}</Text>
@@ -1406,33 +1231,7 @@ function BenefitChip({
   color: string;
   value: string;
 }) {
-  return (
-    <View style={[styles.benefitChip, { backgroundColor: `${color}26`, borderColor: `${color}4D` }]}>
-      <Icon size={scale(11)} color={color} />
-      <Text style={[styles.benefitText, { color }]}>{value}</Text>
-    </View>
-  );
-}
-
-// Deterministic barcode bars for an SVG viewBox of 240×34, stretched to width.
-function barcodeBars(seed: string, color: string): React.ReactNode[] {
-  const VW = 240;
-  let s = hashStr(seed);
-  const next = () => {
-    s = (Math.imul(s, 1103515245) + 12345) >>> 0;
-    return s;
-  };
-  const bars: React.ReactNode[] = [];
-  let x = 0;
-  let i = 0;
-  while (x < VW && i < 200) {
-    const w = 1 + (next() % 4);
-    const draw = next() % 3 !== 0;
-    if (draw) bars.push(<Rect key={i} x={x} y={0} width={w} height={34} fill={color} />);
-    x += w + 1 + (next() % 2);
-    i++;
-  }
-  return bars;
+  return <Chip label={value} tint={color} icon={<Icon size={scale(11)} color={color} />} />;
 }
 
 function eventIcon(category: TravelEventDef['category']) {
@@ -1464,15 +1263,23 @@ function TripReturnModal({
   if (!result) return null;
   const events = result.events || [];
   return (
-    <Modal visible={!!result} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalScrim}>
-        <View style={[getGlassCard(darkMode, 12), styles.modalCard, { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 48), { backgroundColor: tint(0.15), borderColor: tint(0.3), borderWidth: 1 }]}>
-            <Plane size={scale(24)} color={IDENTITY} />
-          </View>
-          <Text style={[styles.modalTitle, { color: theme.text }]}>
-            Welcome back from {result.destinationName}!
-          </Text>
+    <BaseModal
+      visible={!!result}
+      onClose={onClose}
+      title={`Welcome back from ${result.destinationName}`}
+      footer={
+        <TouchableOpacity
+          onPress={onClose}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Done"
+          style={[styles.modalBtn, { backgroundColor: IDENTITY }]}
+        >
+          <Text style={styles.modalBtnText}>Done</Text>
+        </TouchableOpacity>
+      }
+    >
+      <View style={styles.modalBody}>
           {events.length === 0 ? (
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>
               A smooth, uneventful trip. Stat benefits applied.
@@ -1489,7 +1296,7 @@ function TripReturnModal({
                     key={e.id}
                     style={[styles.eventRow, { backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : theme.surfaceElevated }]}
                   >
-                    <View style={[styles.eventIcon, { backgroundColor: `${color}26`, borderColor: `${color}4D`, borderWidth: 1 }]}>
+                    <View style={[styles.eventIcon, { backgroundColor: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.3), borderWidth: 1 }]}>
                       <Icon size={scale(14)} color={color} />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -1497,7 +1304,7 @@ function TripReturnModal({
                       <Text style={[styles.eventDesc, { color: theme.textSecondary }]}>{e.description}</Text>
                       <View style={styles.eventDeltas}>
                         {e.moneyDelta ? (
-                          <Text style={{ color: e.moneyDelta < 0 ? accent.danger : accent.success, fontSize: fs.xs, fontWeight: '700' }}>
+                          <Text style={{ color: e.moneyDelta < 0 ? accent.danger : accent.success, fontSize: fs.xs, fontWeight: '600' }}>
                             {e.moneyDelta < 0 ? '−' : '+'}{formatMoney(Math.abs(e.moneyDelta))}
                           </Text>
                         ) : null}
@@ -1516,9 +1323,9 @@ function TripReturnModal({
               {result.milestonesEarned.map((m) => (
                 <View
                   key={m.id}
-                  style={[styles.eventRow, { backgroundColor: `${accent.gold}1A`, borderColor: `${accent.gold}4D`, borderWidth: 1 }]}
+                  style={[styles.eventRow, { backgroundColor: withAlpha(accent.gold, 0.1), borderColor: withAlpha(accent.gold, 0.3), borderWidth: 1 }]}
                 >
-                  <View style={[styles.eventIcon, { backgroundColor: `${accent.gold}26`, borderColor: `${accent.gold}4D`, borderWidth: 1 }]}>
+                  <View style={[styles.eventIcon, { backgroundColor: withAlpha(accent.gold, 0.15), borderColor: withAlpha(accent.gold, 0.3), borderWidth: 1 }]}>
                     <Award size={scale(14)} color={accent.gold} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -1533,83 +1340,44 @@ function TripReturnModal({
               ))}
             </View>
           ) : null}
-          <TouchableOpacity
-            onPress={onClose}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Done"
-            style={[styles.modalBtn, getPlatformShadows(5, 0.3, 2, 8)]}
-          >
-            <LinearGradient
-              colors={[IDENTITY, IDENTITY_PAIR]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.modalBtnInner}
-            >
-              <Text style={styles.modalBtnText}>Done</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  tabs: { marginHorizontal: sp.md, marginBottom: sp.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
   flex1: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.md, paddingBottom: sp['3xl'] },
   emptyPad: { flexGrow: 1, justifyContent: 'center' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-    gap: sp.sm,
-  },
-  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
-  cashChip: { paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.full, borderWidth: 1 },
-  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center' },
-  tabText: { fontSize: fs.sm, fontWeight: '700' },
 
   // Departures board / passport cover
   boardCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
   boardHead: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  boardEyebrow: { fontSize: fs.xs, fontWeight: '700', letterSpacing: 1.2 },
-  boardStatsRow: { flexDirection: 'row', alignItems: 'center' },
-  boardStat: { flex: 1, alignItems: 'center', gap: 2 },
-  boardStatValue: { fontSize: fs.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  boardStatLabel: { fontSize: fs.xs, fontWeight: '600' },
-  boardDivider: { width: 1, height: scale(28) },
-  boardPass: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.lg, borderWidth: 1 },
-  boardPassText: { fontSize: fs.xs, fontWeight: '700' },
+  boardEyebrow: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 1.2 },
 
   // Travel edge
   edgeCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
   edgeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   edgeGlyph: { borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  edgeTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
+  edgeTitle: { fontSize: fs.md, fontWeight: '600', letterSpacing: 0.2 },
   edgeChipsRow: { flexDirection: 'row', gap: sp.sm },
   edgeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.lg, borderWidth: 1 },
   edgeChipLabel: { fontSize: fs.xs, flex: 1 },
-  edgeChipValue: { fontSize: fs.xs, fontWeight: '800' },
+  edgeChipValue: { fontSize: fs.xs, fontWeight: '600' },
   edgeSources: { gap: sp.xs },
   edgeRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   edgeLine: { fontSize: fs.xs, flex: 1 },
 
   // Passport (purchase) card
   passportCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
-  passportTitle: { fontWeight: '800', fontSize: fs.md },
+  passportTitle: { fontWeight: '600', fontSize: fs.md },
   passportSub: { fontSize: fs.xs, marginTop: 2 },
   passportBadge: { width: scale(32), height: scale(32), borderRadius: scale(16), alignItems: 'center', justifyContent: 'center' },
 
   // Section headers
-  sectionHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
-  sectionCount: { fontSize: fs.xs },
 
   // Vibe grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
@@ -1618,18 +1386,14 @@ const styles = StyleSheet.create({
   tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: sp.xs },
   tileEmoji: { fontSize: scale(26) },
   tileCode: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.sm, borderWidth: 1 },
-  tileCodeText: { fontSize: fs.xs, fontWeight: '800', letterSpacing: 1 },
-  tileName: { fontSize: fs.md, fontWeight: '800' },
+  tileCodeText: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 1 },
+  tileName: { fontSize: fs.md, fontWeight: '600' },
   tileRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   tileCountry: { fontSize: fs.xs },
   tileBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs, marginTop: sp.xs, minHeight: scale(16) },
   tileFooter: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: sp.sm },
-  tilePrice: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  tilePrice: { fontSize: fs.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
   tileMeta: { fontSize: fs.xs },
-  tileView: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.sm, paddingVertical: scale(6), borderRadius: br.full },
-  tileViewText: { fontSize: fs.xs, fontWeight: '800' },
-  tinyPill: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full },
-  tinyPillText: { fontSize: fs.xs, fontWeight: '700' },
 
   // Detail hero
   heroCard: { borderRadius: br['2xl'], borderWidth: 1 },
@@ -1638,14 +1402,11 @@ const styles = StyleSheet.create({
   detailBlob: { position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75) },
   detailRouteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   routeEnd: { minWidth: scale(64) },
-  routeCode: { fontSize: fs['3xl'], fontWeight: '800', letterSpacing: 1 },
+  routeCode: { fontSize: fs['3xl'], fontWeight: '700', letterSpacing: 1 },
   routeCity: { fontSize: fs.xs },
   routeMid: { flex: 1, alignItems: 'center', gap: 2 },
-  routeEmoji: { fontSize: scale(22) },
-  detailName: { fontSize: fs.xl, fontWeight: '800' },
+  detailName: { fontSize: fs.xl, fontWeight: '700' },
   detailTagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.xs },
-  classChip: { paddingHorizontal: sp.sm, paddingVertical: 2, borderRadius: br.full, borderWidth: 1 },
-  classChipText: { fontSize: fs.xs, fontWeight: '800', letterSpacing: 0.6 },
   detailDesc: { fontSize: fs.sm, lineHeight: fs.lg },
 
   // Generic detail card
@@ -1653,96 +1414,59 @@ const styles = StyleSheet.create({
   cardHint: { fontSize: fs.xs },
   fareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fareLabel: { fontSize: fs.sm },
-  fareValue: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  fareValue: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   fareDivider: { height: 1, marginVertical: 2 },
   strike: { textDecorationLine: 'line-through' },
-  recordCount: { fontSize: fs.sm, fontWeight: '800' },
   firstVisitRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.lg, borderWidth: 1 },
-  firstVisitText: { fontSize: fs.xs, fontWeight: '700', flex: 1 },
+  firstVisitText: { fontSize: fs.xs, fontWeight: '600', flex: 1 },
 
   // In-trip activities
   actRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.lg, borderWidth: 1 },
   actGlyph: { width: scale(34), height: scale(34), borderRadius: br.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   actBody: { flex: 1, gap: 2 },
-  actName: { fontSize: fs.sm, fontWeight: '800' },
+  actName: { fontSize: fs.sm, fontWeight: '600' },
   actDesc: { fontSize: fs.xs },
   actChips: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs, marginTop: 2 },
-  actBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.sm, paddingVertical: scale(8), borderRadius: br.full, borderWidth: 1, minWidth: scale(56), justifyContent: 'center' },
-  actBtnText: { fontSize: fs.xs, fontWeight: '800' },
+  actBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.sm, minHeight: touchTargets.minimum, borderRadius: br.full, borderWidth: 1, minWidth: scale(56), justifyContent: 'center' },
+  actBtnText: { fontSize: fs.xs, fontWeight: '600' },
 
   // Benefits
   benefitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
-  benefitChip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, borderWidth: 1 },
-  benefitText: { fontSize: fs.xs, fontWeight: '700' },
 
   // Book CTA
-  bookCta: { borderRadius: br.full },
-  bookCtaInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: touchTargets.minimum, borderRadius: br.full, paddingHorizontal: sp.md, overflow: 'hidden' },
-  bookCtaText: { fontSize: fs.md, fontWeight: '800' },
+  bookCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: touchTargets.minimum, borderRadius: br.full, paddingHorizontal: sp.md },
+  bookCtaText: { fontSize: fs.md, fontWeight: '600' },
 
   // Boarding pass
   passCard: { borderRadius: br['2xl'], borderWidth: 1 },
   passInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg, gap: sp.md },
   passBlob: { position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: 'rgba(20, 184, 166, 0.10)' },
-  passHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  passBrand: { fontSize: fs.sm, fontWeight: '800', letterSpacing: 1 },
-  passKind: { fontSize: fs.xs, fontWeight: '800', letterSpacing: 1.2 },
   passRouteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   passRouteMid: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm },
-  passDashWrap: { flex: 1 },
-  passGrid: { flexDirection: 'row', gap: sp.sm },
-  passCell: { flex: 1, gap: 2 },
-  passCellLabel: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.5 },
-  passCellValue: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
   passProgressRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, paddingRight: sp.xs },
   passProgressText: { flex: 1, gap: 2 },
   passStatLabel: { fontSize: fs.xs },
-  passRemainValue: { fontSize: fs.lg, fontWeight: '800' },
+  passRemainValue: { fontSize: fs.lg, fontWeight: '600' },
 
-  // Perforation
-  perfRow: { flexDirection: 'row', alignItems: 'center', height: scale(16), marginHorizontal: -sp.lg },
-  perfLineWrap: { flex: 1, paddingHorizontal: sp.xs },
-  notch: { position: 'absolute', width: scale(16), height: scale(16), borderRadius: scale(8) },
-  notchLeft: { left: -scale(8) },
-  notchRight: { right: -scale(8) },
 
-  // Stub
-  stubRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  stubLabel: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.5 },
-  stubValue: { fontSize: fs.sm, fontWeight: '800', letterSpacing: 0.5 },
-  barcodeWrap: { height: scale(34), width: '100%' },
 
   // Return CTA
-  returnBtn: { width: '100%', borderRadius: br.full },
-  returnBtnInner: { width: '100%', minHeight: touchTargets.minimum, borderRadius: br.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: sp.md, overflow: 'hidden' },
-  returnBtnText: { fontSize: fs.md, fontWeight: '800' },
+  returnBtn: { width: '100%', minHeight: touchTargets.minimum, borderRadius: br.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: sp.md },
+  returnBtnText: { fontSize: fs.md, fontWeight: '600' },
 
-  // Empty ticket
-  emptyTicket: { alignItems: 'center', gap: sp.sm, padding: sp.xl, borderRadius: br['2xl'], borderWidth: 1, borderStyle: 'dashed' },
-  empty: { alignItems: 'center', justifyContent: 'center', padding: sp.lg, gap: sp.sm },
-  emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
-  emptySub: { fontSize: fs.sm, textAlign: 'center' },
-  browseBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.full, marginTop: sp.xs },
-  browseBtnText: { fontSize: fs.sm, fontWeight: '800' },
 
-  // Business summary + storefront
-  bizSummary: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
-  bizSummaryLabel: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.5 },
-  bizSummaryValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
   storeCard: { borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
   storeAwning: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.md, paddingVertical: sp.sm },
-  storeAwningText: { fontSize: fs.sm, fontWeight: '800', flex: 1 },
+  storeAwningText: { fontSize: fs.sm, fontWeight: '600', flex: 1 },
   storeCode: { paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.sm },
-  storeCodeText: { fontSize: fs.xs, fontWeight: '800', letterSpacing: 1 },
+  storeCodeText: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 1 },
   storeBodyWrap: { padding: sp.md, gap: sp.xs },
-  storeName: { fontSize: fs.md, fontWeight: '800' },
+  storeName: { fontSize: fs.md, fontWeight: '600' },
   storeLoc: { fontSize: fs.xs },
   storeDesc: { fontSize: fs.xs, marginTop: 2 },
   storeMetrics: { flexDirection: 'row', gap: sp.xs, marginTop: sp.xs, flexWrap: 'wrap' },
-  storeMetric: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: sp.xs, borderRadius: br.lg, borderWidth: 1 },
-  storeMetricText: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  investBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, paddingVertical: sp.sm, borderRadius: br.full, borderWidth: 1, marginTop: sp.sm, minHeight: scale(40) },
-  investBtnText: { fontSize: fs.sm, fontWeight: '800' },
+  investBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, paddingVertical: sp.sm, borderRadius: br.full, borderWidth: 1, marginTop: sp.sm, minHeight: touchTargets.minimum },
+  investBtnText: { fontSize: fs.sm, fontWeight: '600' },
 
   // Passport stamps
   coverCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
@@ -1750,30 +1474,23 @@ const styles = StyleSheet.create({
 
   // Frequent-flyer milestone strip
   milestoneRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
-  milestoneChip: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.sm, paddingVertical: scale(6), borderRadius: br.full, borderWidth: 1 },
-  milestoneChipLabel: { fontSize: fs.xs, fontWeight: '700' },
-  milestoneChipThreshold: { fontSize: fs.xs, fontWeight: '800', fontVariant: ['tabular-nums'] },
   stampsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.md, paddingVertical: sp.xs },
   stamp: { flexGrow: 1, flexBasis: '44%', minWidth: scale(140) },
   stampInner: { borderRadius: br.lg, borderWidth: 2, borderStyle: 'dashed', padding: sp.sm, alignItems: 'center', gap: 2, overflow: 'hidden' },
   stampWash: { ...StyleSheet.absoluteFillObject },
-  stampEmoji: { fontSize: scale(22) },
-  stampCode: { fontSize: fs.lg, fontWeight: '800', letterSpacing: 2 },
-  stampName: { fontSize: fs.xs, fontWeight: '700' },
+  stampCode: { fontSize: fs.lg, fontWeight: '600', letterSpacing: 2 },
+  stampName: { fontSize: fs.xs, fontWeight: '600' },
   stampDivider: { width: '60%', height: 1, marginVertical: 2 },
   stampMeta: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.5, fontVariant: ['tabular-nums'] },
 
   // Return modal
-  modalScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: sp.md },
-  modalCard: { width: '100%', maxWidth: 480, padding: sp.lg, borderRadius: br['2xl'], borderWidth: 1, alignItems: 'center', gap: sp.sm },
-  modalTitle: { fontSize: fs.xl, fontWeight: '800', textAlign: 'center' },
   modalSub: { fontSize: fs.sm, textAlign: 'center', marginBottom: sp.sm },
   eventRow: { flexDirection: 'row', gap: sp.sm, padding: sp.sm, borderRadius: br.lg, marginBottom: sp.xs },
   eventIcon: { width: scale(30), height: scale(30), borderRadius: scale(15), alignItems: 'center', justifyContent: 'center' },
-  eventHeadline: { fontSize: fs.sm, fontWeight: '800' },
+  eventHeadline: { fontSize: fs.sm, fontWeight: '600' },
   eventDesc: { fontSize: fs.xs, marginTop: 2 },
   eventDeltas: { flexDirection: 'row', gap: sp.sm, marginTop: sp.xs, flexWrap: 'wrap' },
-  modalBtn: { marginTop: sp.md, borderRadius: br.full },
-  modalBtnInner: { minHeight: touchTargets.minimum, paddingHorizontal: sp.xl, borderRadius: br.full, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  modalBtnText: { color: 'white', fontSize: fs.md, fontWeight: '800' },
+  modalBody: { gap: sp.sm },
+  modalBtn: { minHeight: touchTargets.minimum, alignItems: 'center', justifyContent: 'center', borderRadius: br.full },
+  modalBtnText: { color: 'white', fontSize: fs.md, fontWeight: '600' },
 });

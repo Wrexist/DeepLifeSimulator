@@ -1,15 +1,19 @@
 /**
- * RealEstateApp - desktop real-estate screen. "Zillow DNA" pass.
+ * RealEstateApp - desktop real-estate screen. "Zillow DNA" pass, on the shared
+ * primitives (AppHeader, SegmentedControl, StatStrip, Chip, SectionTitle,
+ * EmptyState).
  *
  * Skeleton (intentionally NOT the generic "eyebrow hero + uniform rows" template):
  *   - Browse: a stack of PHOTO LISTING CARDS - real property photo up top with a
- *     price + status overlay, bed/bath/sqft spec strip, and a tappable Buy button.
- *   - Portfolio: an equity dashboard (stacked value/mortgage bar + KPI strip) over
- *     PHOTO ROWS that carry a weekly-income read-out and a 2-point value trend line.
+ *     price + status overlay, bed/bath/sqft spec strip, and ONE Buy button.
+ *   - Portfolio: an equity dashboard (stacked value/mortgage bar + a three-tile
+ *     strip) over PHOTO ROWS carrying name, value, status and weekly income.
  *   - Activity: a property-events timeline.
  *   - Listing detail: a full list -> detail sub-page (local useState routing, no new
  *     game mechanics) that surfaces condition (ProgressRing), value trend, tenant,
- *     amenities, neighborhood cycle, and the loud primary CTA.
+ *     amenities, neighborhood cycle, and the loud primary CTA. Every row and card
+ *     opens it, so nothing carries a second "Details" button beside the tap that
+ *     already does the same thing.
  *
  * Real photos live in assets/images/Real Estate/*.png and are wired by property id
  * (catalog) with a name-keyword fallback for legacy-owned properties (§PROPERTY_IMAGES).
@@ -25,7 +29,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
 import Svg, { Polyline, Circle } from 'react-native-svg';
 import {
-  ArrowLeft,
   Home,
   ShoppingBag,
   Activity,
@@ -49,15 +52,20 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { RealEstate } from '@/contexts/game/types';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import EmptyState from '@/components/ui/EmptyState';
 
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import BuyPropertyModal from '@/components/realEstate/BuyPropertyModal';
 import ManagePropertyModal from '@/components/realEstate/ManagePropertyModal';
-import Gradient from '@/components/ui/Gradient';
 
 import {
   buyPropertyWithMortgage,
@@ -80,17 +88,14 @@ import { weeklyCareerSalary } from '@/lib/careers/weeklySalary';
 
 import { formatMoney } from '@/utils/moneyFormatting';
 import { gameAlert } from '@/utils/gameAlert';
-import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
-const LinearGradient = Gradient;
-
-// Real Estate identity accent - emerald (#10B981). Used ONLY as translucent
-// tints on large surfaces (hero wash/blob, Recipe C icon bubbles, value chip)
-// and as a solid on small CTAs/badges/active-tab state. Gains/losses stay
-// accent.success / accent.danger AS DATA, keeping portfolio P/L semantics
-// distinct from this identity usage.
-const IDENTITY = '#10B981';
-const IDENTITY_RGB = '16, 185, 129';
+// Real Estate identity accent - emerald, the shared `accent.success` token
+// (it was a private `#10B981` literal plus an `IDENTITY_RGB` string used to
+// build `rgba(...)` templates by hand; `withAlpha` is the one tint helper).
+// Used ONLY as translucent tints on large surfaces (hero wash/blob, Recipe C
+// icon bubbles, value chip) and as a solid on small CTAs/badges/active-tab
+// state. Gains/losses stay accent.success / accent.danger AS DATA.
+const IDENTITY = accent.success;
 
 // ─── Real property photos ───────────────────────────────────────────────────
 // require() needs static string literals (Metro), so every asset is spelled out.
@@ -223,7 +228,7 @@ interface RealEstateAppProps {
 type Tab = 'portfolio' | 'rent' | 'browse' | 'activity';
 type Route = { kind: 'list' } | { kind: 'detail'; id: string; source: 'portfolio' | 'browse' };
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
+const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Home },
   // Rent sits BEFORE Browse on purpose: the cheapest property is $95,000, which
   // is roughly 16 years of a bottom-rung wage, so for most of a life renting is
@@ -408,113 +413,80 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   };
 
   const CycleChip = ({ cycle }: { cycle: string }) => (
-    <View style={[styles.cycleChip, { backgroundColor: `${CYCLE_COLOR[cycle]}22`, borderColor: `${CYCLE_COLOR[cycle]}55` }]}>
-      <View style={[styles.cycleDot, { backgroundColor: CYCLE_COLOR[cycle] }]} />
-      <Text style={[styles.cycleText, { color: CYCLE_COLOR[cycle] }]}>{CYCLE_LABEL[cycle]}</Text>
-    </View>
+    <Chip label={CYCLE_LABEL[cycle]} tint={CYCLE_COLOR[cycle]} />
   );
 
   const OwnedBadges = ({ p }: { p: RealEstate }) => (
     <View style={styles.badgeRow}>
-      {p.currentResidence && <StatChip color={accent.info} icon={KeyRound} label="Residence" />}
-      {p.status === 'rented' && p.rentMode && (
-        <StatChip color={accent.success} icon={Users} label={RENT_MODE_LABEL[p.rentMode]} />
+      {p.currentResidence && (
+        <Chip label="Residence" tone="info" icon={<KeyRound size={scale(11)} color={accent.info} />} />
       )}
-      {p.status === 'rented' && !p.tenant && <StatChip color={accent.warning} icon={Users} label="Vacant" />}
-      {p.launderingFront && <StatChip color={accent.purple} icon={Building} label="Front" />}
+      {p.status === 'rented' && p.rentMode && (
+        <Chip label={RENT_MODE_LABEL[p.rentMode]} tone="success" icon={<Users size={scale(11)} color={accent.success} />} />
+      )}
+      {p.status === 'rented' && !p.tenant && (
+        <Chip label="Vacant" tone="warning" icon={<Users size={scale(11)} color={accent.warning} />} />
+      )}
+      {p.launderingFront && (
+        <Chip label="Front" tint={accent.purple} icon={<Building size={scale(11)} color={accent.purple} />} />
+      )}
       {p.mortgageId && (
-        <StatChip color={theme.textMuted} icon={Banknote} label={`Mortgage ${formatMoney(mortgageOf(p))}`} />
+        <Chip label={`Mortgage ${formatMoney(mortgageOf(p))}`} icon={<Banknote size={scale(11)} color={theme.textMuted} />} />
       )}
     </View>
   );
 
-  // Owned property PHOTO ROW (portfolio list). Photo + income + value trend.
+  /**
+   * Owned property row. It carried ~7 text lines and up to 7 chips - value,
+   * equity, gain, a sparkline, a condition bar and the whole badge set - which
+   * is the detail sub-page rendered twice at a third of the size. A row is now
+   * photo + name + value + ONE status chip + the weekly income it earns; the
+   * rest is one tap away, where it already lived. Tapping opens that detail
+   * page, whose loud CTA is Manage, so the row's own Manage button (a second
+   * door to the same handler) is gone.
+   */
   const PortfolioRow = ({ p }: { p: RealEstate }) => {
     const value = p.currentValue ?? p.price;
-    const basis = p.purchasePrice ?? p.price;
-    const equity = Math.max(0, value - mortgageOf(p));
-    const gain = value - basis;
-    const up = gain >= 0;
-    const condition = p.condition ?? 90;
-    const conditionColor = condition >= 70 ? accent.success : condition >= 40 ? accent.warning : accent.danger;
-    const cycle = p.marketCycle ?? 'stable';
     // Only a unit with an actual TENANT earns - a vacant rented-mode unit
     // falling back to asking rent painted phantom income in earning-green.
     const weeklyIncomeRow = p.status === 'rented' && p.tenant ? (p.tenant.weeklyRent ?? p.rent ?? 0) : 0;
+    const status: { label: string; tone: 'neutral' | 'info' | 'success' | 'warning' } =
+      p.status === 'rented' && !p.tenant
+        ? { label: 'Vacant', tone: 'warning' }
+        : p.status === 'rented' && p.rentMode
+        ? { label: RENT_MODE_LABEL[p.rentMode], tone: 'success' }
+        : p.currentResidence
+        ? { label: 'Your home', tone: 'info' }
+        : { label: 'Idle', tone: 'neutral' };
 
     return (
-      <View style={[getGlassCard(darkMode, 6), styles.rowCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => openDetail(p.id, 'portfolio')}
+        style={[getGlassCard(darkMode, 6), styles.rowCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityLabel={`${p.name}, ${formatMoney(value)}, ${status.label}. Open to manage`}
+      >
         <View style={styles.rowInner}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => openDetail(p.id, 'portfolio')}
-            style={styles.rowTapZone}
-            accessibilityRole="button"
-            accessibilityLabel={`${p.name}, view details`}
-          >
-            <View style={styles.rowThumbWrap}>
-              <Image source={propertyImage(p)} style={styles.rowThumb} resizeMode="cover" />
-              <View pointerEvents="none" style={[styles.thumbTag, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-                <Text style={styles.thumbTagText}>{propertyTypeLabel(p)}</Text>
-              </View>
+          <View style={styles.rowThumbWrap}>
+            <Image source={propertyImage(p)} style={styles.rowThumb} resizeMode="cover" />
+          </View>
+
+          <View style={styles.rowBody}>
+            <View style={styles.rowTopLine}>
+              <Text style={[styles.rowName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
+              <ChevronRight size={scale(16)} color={theme.textMuted} />
             </View>
-
-            <View style={styles.rowBody}>
-              <View style={styles.rowTopLine}>
-                <Text style={[styles.rowName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
-                <ChevronRight size={scale(16)} color={theme.textMuted} />
-              </View>
-              <View style={styles.metaLine}>
-                <MapPin size={scale(11)} color={theme.textMuted} />
-                <Text style={[styles.metaText, { color: theme.textMuted }]} numberOfLines={1}>
-                  {p.neighborhood ?? 'Your portfolio'}
-                </Text>
-                <CycleChip cycle={cycle} />
-              </View>
-
-              <View style={styles.rowStatsLine}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.rowValue, { color: theme.text }]}>{formatMoney(value)}</Text>
-                  <View style={styles.trendLine}>
-                    {up ? <TrendingUp size={scale(11)} color={accent.success} /> : <TrendingDown size={scale(11)} color={accent.danger} />}
-                    <Text style={[styles.trendText, { color: up ? accent.success : accent.danger }]}>
-                      {formatSignedMoney(gain)}
-                    </Text>
-                    <ValueTrend from={basis} to={value} width={scale(46)} height={scale(16)} />
-                  </View>
-                </View>
-                <View style={styles.rowRightStats}>
-                  <Text style={[styles.rowEquity, { color: accent.success }]}>{formatMoney(equity)}</Text>
-                  <Text style={[styles.rowEquityLabel, { color: theme.textMuted }]}>equity</Text>
-                  {weeklyIncomeRow > 0 && (
-                    <Text style={[styles.rowIncome, { color: IDENTITY }]}>{formatMoney(weeklyIncomeRow)}/wk</Text>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.conditionBarWrap}>
-                <View style={[styles.conditionBarTrack, { backgroundColor: theme.surfaceElevated }]}>
-                  <View style={[styles.conditionBarFill, { width: `${Math.max(3, Math.min(100, condition))}%`, backgroundColor: conditionColor }]} />
-                </View>
-                <Text style={[styles.conditionPct, { color: conditionColor }]}>{Math.round(condition)}%</Text>
-              </View>
-
-              <OwnedBadges p={p} />
+            <Text style={[styles.rowValue, { color: theme.text }]} numberOfLines={1}>{formatMoney(value)}</Text>
+            {weeklyIncomeRow > 0 ? (
+              <Text style={[styles.rowIncome, { color: IDENTITY }]}>{formatMoney(weeklyIncomeRow)}/wk rent</Text>
+            ) : null}
+            <View style={styles.badgeRow}>
+              <Chip label={status.label} tone={status.tone} />
             </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setManageTarget(p)}
-            style={styles.tintedBtn}
-            accessibilityRole="button"
-            accessibilityLabel={`Manage ${p.name}`}
-          >
-            <Wrench size={scale(14)} color={IDENTITY} />
-            <Text style={styles.tintedBtnText}>Manage</Text>
-          </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -565,16 +537,9 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             </View>
           </TouchableOpacity>
 
+          {/* One button. The card itself already opens the listing detail, so a
+              separate "Details" control was a second door to the same room. */}
           <View style={styles.listingFooter}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => openDetail(p.id, 'browse')}
-              style={[styles.ghostBtn, { borderColor: theme.border }]}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${p.name} details`}
-            >
-              <Text style={[styles.ghostBtnText, { color: theme.textSecondary }]}>Details</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => setBuyTarget(p)}
@@ -649,43 +614,44 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
           </View>
         </View>
 
-        {/* KPI strip - surfaces counts/rates the old UI hid. */}
-        <View style={styles.kpiWrap}>
-          <Kpi theme={theme} darkMode={darkMode} icon={Banknote} label="Weekly rent" value={formatMoney(weeklyRentEstimate)} />
-          <Kpi theme={theme} darkMode={darkMode} icon={Home} label="Owned" value={String(ownedProperties.length)} />
-          <Kpi theme={theme} darkMode={darkMode} icon={Users} label="Rented" value={String(portfolioStats.rented)} />
-          <Kpi theme={theme} darkMode={darkMode} icon={KeyRound} label="Vacant" value={String(portfolioStats.vacant)} />
-          <Kpi
-            theme={theme}
-            darkMode={darkMode}
-            icon={portfolioStats.appreciation >= 0 ? TrendingUp : TrendingDown}
-            label="Appreciation"
-            value={formatSignedMoney(portfolioStats.appreciation)}
-            valueColor={portfolioStats.appreciation >= 0 ? accent.success : accent.danger}
-          />
-          {portfolioStats.needsWork > 0 && (
-            <Kpi theme={theme} darkMode={darkMode} icon={Wrench} label="Needs work" value={String(portfolioStats.needsWork)} valueColor={accent.danger} />
-          )}
-        </View>
+        {/* Three numbers a landlord decides on. Rented/vacant is the sub-line
+            under Owned, and "needs work" is a chip - a count that is zero most
+            of the time does not earn a permanent tile. */}
+        <StatStrip
+          items={[
+            { label: 'Weekly rent', value: formatMoney(weeklyRentEstimate), tint: IDENTITY },
+            {
+              label: 'Owned',
+              value: ownedProperties.length,
+              sub: ownedProperties.length > 0 ? `${portfolioStats.rented} rented · ${portfolioStats.vacant} vacant` : undefined,
+            },
+            {
+              label: 'Appreciation',
+              value: formatSignedMoney(portfolioStats.appreciation),
+              tint: portfolioStats.appreciation >= 0 ? accent.success : accent.danger,
+            },
+          ]}
+        />
+        {portfolioStats.needsWork > 0 && (
+          <View style={styles.badgeRow}>
+            <Chip
+              label={`${portfolioStats.needsWork} need${portfolioStats.needsWork === 1 ? 's' : ''} work`}
+              tone="danger"
+              icon={<Wrench size={scale(11)} color={accent.danger} />}
+            />
+          </View>
+        )}
 
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Your properties</SectionTitle>
+          <SectionTitle title="Your properties" />
           {ownedProperties.length === 0 ? (
-            <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                You don&apos;t own any property yet. Browse listings to buy your first home.
-              </Text>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => { setActiveTab('browse'); setRoute({ kind: 'list' }); }}
-                style={styles.tintedBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Browse listings"
-              >
-                <ShoppingBag size={scale(14)} color={IDENTITY} />
-                <Text style={styles.tintedBtnText}>Browse listings</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyState
+              icon={<Building size={scale(22)} color={IDENTITY} />}
+              observation="You don't own any property yet."
+              nudge="Buying is the only way to earn rent instead of paying it."
+              ctaLabel="Browse listings"
+              onCtaPress={() => { setActiveTab('browse'); setRoute({ kind: 'list' }); }}
+            />
           ) : (
             ownedProperties.map((p) => <PortfolioRow key={p.id} p={p} />)
           )}
@@ -714,7 +680,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
     return (
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Where you live</SectionTitle>
+        <SectionTitle title="Where you live" />
 
         <View style={[getGlassCard(darkMode, 6), styles.rentStatusCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.rentStatusTitle, { color: theme.text }]}>
@@ -752,7 +718,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
         {ownsHome ? null : (
           <>
-            <SectionTitle theme={theme}>Available to rent</SectionTitle>
+            <SectionTitle title="Available to rent" />
             {options.map(({ tier, current, allowed, reason }) => (
               <View
                 key={tier.id}
@@ -805,7 +771,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   const renderBrowse = () => (
     <View style={{ gap: responsiveSpacing.sm }}>
       <View style={styles.browseHeader}>
-        <SectionTitle theme={theme}>Homes for sale</SectionTitle>
+        <SectionTitle title="Homes for sale" />
         {browseRange && (
           <View style={[styles.rangePill, { backgroundColor: theme.surfaceElevated }]}>
             <Tag size={scale(11)} color={theme.textMuted} />
@@ -816,25 +782,13 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
         )}
       </View>
       {browseList.length === 0 ? (
-        <View style={[getGlassCard(darkMode, 6), styles.browseEmptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 44), styles.activityBubble]}>
-            <Building size={scale(22)} color={IDENTITY} />
-          </View>
-          <Text style={[styles.browseEmptyTitle, { color: theme.text }]}>You own every listing</Text>
-          <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-            The market is picked clean for now - new listings drop as the neighborhoods cycle. Head to Portfolio to improve and rent out what you own.
-          </Text>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => { setActiveTab('portfolio'); setRoute({ kind: 'list' }); }}
-            style={styles.tintedBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Go to portfolio"
-          >
-            <Home size={scale(14)} color={IDENTITY} />
-            <Text style={styles.tintedBtnText}>Manage portfolio</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon={<Building size={scale(22)} color={IDENTITY} />}
+          observation="You own every listing."
+          nudge="New listings drop as the neighborhoods cycle. Until then, improve and rent out what you already hold."
+          ctaLabel="Manage portfolio"
+          onCtaPress={() => { setActiveTab('portfolio'); setRoute({ kind: 'list' }); }}
+        />
       ) : (
         browseList.map((p) => <ListingCard key={p.id} p={p} />)
       )}
@@ -843,11 +797,13 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
 
   const renderActivity = () => (
     <View style={{ gap: responsiveSpacing.sm }}>
-      <SectionTitle theme={theme}>Recent activity</SectionTitle>
+      <SectionTitle title="Recent activity" />
       {activity.length === 0 ? (
-        <EmptyText theme={theme} darkMode={darkMode}>
-          No recent real-estate events. Cycle shifts, tenant moves, and maintenance alerts will appear here.
-        </EmptyText>
+        <EmptyState
+          icon={<Activity size={scale(22)} color={IDENTITY} />}
+          observation="Nothing has happened to your properties yet."
+          nudge="Cycle shifts, tenants moving in and out, and maintenance alerts all land here."
+        />
       ) : (
         activity.map((e: any, idx: number) => (
           <View
@@ -933,10 +889,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               accessibilityRole="button"
               accessibilityLabel={`Buy ${p.name}`}
             >
-              <LinearGradient colors={[IDENTITY, IDENTITY]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
+              <View style={[styles.cta, { backgroundColor: IDENTITY }]}>
                 <Tag size={scale(16)} color="#fff" />
                 <Text style={styles.ctaText}>Buy this home · {formatMoney(value)}</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -946,10 +902,10 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
               accessibilityRole="button"
               accessibilityLabel={`Manage ${p.name}`}
             >
-              <LinearGradient colors={[IDENTITY, IDENTITY]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
+              <View style={[styles.cta, { backgroundColor: IDENTITY }]}>
                 <Wrench size={scale(16)} color="#fff" />
                 <Text style={styles.ctaText}>Manage property</Text>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           )}
         </View>
@@ -974,9 +930,9 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
                 <Wrench size={scale(20)} color={conditionColor} />
               </ProgressRing>
               <View style={{ flex: 1, gap: 6 }}>
-                <DetailStat theme={theme} label="Market value" value={formatMoney(value)} />
-                <DetailStat theme={theme} label="Equity" value={formatMoney(equity)} valueColor={accent.success} />
-                {p.mortgageId && <DetailStat theme={theme} label="Mortgage owed" value={formatMoney(mortgageOf(p))} />}
+                <Text style={[styles.detailStatLabel, { color: theme.textMuted }]}>
+                  Condition {Math.round(condition)}% · since you bought
+                </Text>
                 <View style={styles.detailTrendRow}>
                   {up ? <TrendingUp size={scale(13)} color={accent.success} /> : <TrendingDown size={scale(13)} color={accent.danger} />}
                   <Text style={[styles.detailTrendText, { color: up ? accent.success : accent.danger }]}>
@@ -986,6 +942,13 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
                 </View>
               </View>
             </View>
+            <StatStrip
+              items={[
+                { label: 'Market value', value: formatMoney(value) },
+                { label: 'Equity', value: formatMoney(equity), tint: accent.success },
+                ...(p.mortgageId ? [{ label: 'Mortgage owed', value: formatMoney(mortgageOf(p)) }] : []),
+              ]}
+            />
             {ownedWeeks != null && (
               <Text style={[styles.detailFoot, { color: theme.textMuted }]}>
                 Owned {ownedWeeks} {ownedWeeks === 1 ? 'week' : 'weeks'} · bought for {formatMoney(basis)}
@@ -1047,43 +1010,22 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
   // ── Screen ────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={goBack}
-          hitSlop={8}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: theme.text }]} numberOfLines={1}>
-          {inDetail ? 'Listing' : 'Real Estate'}
-        </Text>
-        <View style={[styles.cashChip, styles.cashChipTint]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={inDetail ? detailProperty?.name ?? 'Listing' : 'Real Estate'}
+        onBack={goBack}
+        backLabel={inDetail ? 'Back to listings' : 'Back'}
+        right={<CashChip value={formatMoney(cash)} tint={IDENTITY} />}
+      />
 
-      <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
-        {TABS.map((t) => {
-          const active = !inDetail && activeTab === t.id;
-          const Icon = t.icon;
-          return (
-            <TouchableOpacity
-              key={t.id}
-              onPress={() => { setActiveTab(t.id); setRoute({ kind: 'list' }); }}
-              style={[styles.tab, active && { borderBottomColor: IDENTITY }]}
-              accessibilityRole="button"
-              accessibilityLabel={t.label}
-              accessibilityState={{ selected: active }}
-            >
-              <Icon size={scale(16)} color={active ? IDENTITY : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? IDENTITY : theme.textMuted }]}>{t.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {!inDetail && (
+        <SegmentedControl
+          segments={TABS.map((t) => ({ key: t.id, label: t.label, icon: t.icon }))}
+          value={activeTab}
+          onChange={(id) => { setActiveTab(id); setRoute({ kind: 'list' }); }}
+          activeColor={IDENTITY}
+          style={styles.tabs}
+        />
+      )}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1118,7 +1060,7 @@ function RealEstateAppInner({ onBack }: RealEstateAppProps) {
             });
             // Signing a mortgage is a life milestone - celebrate it (and explain
             // rejections, which previously vanished into the log).
-            gameAlert(result.success ? '🏠 Sold!' : 'Purchase', result.message);
+            gameAlert(result.success ? 'Sold!' : 'Purchase', result.message);
             // On success the catalog detail would still read "For sale" with a
             // live Buy CTA (its source is the immutable CATALOG). Drop back to the
             // list so the now-owned property reflects its portfolio state.
@@ -1255,61 +1197,8 @@ function ValueTrend({ from, to, width, height }: { from: number; to: number; wid
   );
 }
 
-function StatChip({ color, icon: Icon, label }: { color: string; icon: React.ComponentType<{ size: number; color: string }>; label: string }) {
-  return (
-    <View style={[styles.statChip, { backgroundColor: `${color}22`, borderColor: `${color}44` }]}>
-      <Icon size={scale(11)} color={color} />
-      <Text style={[styles.statChipText, { color }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
 function AmenityChip({ icon: Icon, label }: { icon: React.ComponentType<{ size: number; color: string }>; label: string }) {
-  return (
-    <View style={styles.amenityChip}>
-      <Icon size={scale(12)} color={IDENTITY} />
-      <Text style={styles.amenityText} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-function Kpi({
-  icon: Icon,
-  label,
-  value,
-  valueColor,
-  theme,
-  darkMode,
-}: {
-  icon: React.ComponentType<{ size: number; color: string }>;
-  label: string;
-  value: string;
-  valueColor?: string;
-  theme: ReturnType<typeof getThemeColors>;
-  darkMode: boolean;
-}) {
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.kpiCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={[getGlassIconContainer(darkMode, 30), styles.kpiBubble]}>
-        <Icon size={scale(14)} color={IDENTITY} />
-      </View>
-      <Text style={[styles.kpiLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-      <Text style={[styles.kpiValue, { color: valueColor ?? theme.text }]} numberOfLines={1}>{value}</Text>
-    </View>
-  );
-}
-
-function DetailStat({ label, value, valueColor, theme }: { label: string; value: string; valueColor?: string; theme: ReturnType<typeof getThemeColors> }) {
-  return (
-    <View style={styles.detailStatRow}>
-      <Text style={[styles.detailStatLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.detailStatValue, { color: valueColor ?? theme.text }]}>{value}</Text>
-    </View>
-  );
-}
-
-function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
+  return <Chip label={label} tint={IDENTITY} icon={<Icon size={scale(12)} color={IDENTITY} />} />;
 }
 
 export default function RealEstateApp(props: RealEstateAppProps) {
@@ -1322,75 +1211,11 @@ export default function RealEstateApp(props: RealEstateAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  backBtn: {
-    width: scale(40),
-    height: scale(40),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -responsiveSpacing.xs,
-  },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  cashChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  cashChipTint: {
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.14)`,
-    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
-  },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  sectionTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginTop: responsiveSpacing.xs,
-  },
+  tabs: { marginHorizontal: responsiveSpacing.md, marginBottom: responsiveSpacing.sm },
 
   // Empty-state card.
-  emptyCard: {
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius.xl,
-    paddingVertical: responsiveSpacing.lg,
-    paddingHorizontal: responsiveSpacing.md,
-    gap: responsiveSpacing.md,
-    alignItems: 'center',
-  },
   emptyText: {
     fontSize: responsiveFontSize.sm,
-    textAlign: 'center',
-  },
-  browseEmptyCard: {
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius.xl,
-    paddingVertical: responsiveSpacing.lg,
-    paddingHorizontal: responsiveSpacing.md,
-    gap: responsiveSpacing.md,
-    alignItems: 'center',
-  },
-  browseEmptyTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -1412,7 +1237,7 @@ const styles = StyleSheet.create({
     width: scale(150),
     height: scale(150),
     borderRadius: scale(75),
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.1)`,
+    backgroundColor: withAlpha(IDENTITY, 0.1),
   },
   heroHairline: {
     position: 'absolute',
@@ -1428,12 +1253,12 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.md,
   },
   heroBubble: {
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.15)`,
+    backgroundColor: withAlpha(IDENTITY, 0.15),
     borderWidth: 1,
-    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
+    borderColor: withAlpha(IDENTITY, 0.3),
   },
   heroLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
-  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '800', marginTop: 2, fontVariant: ['tabular-nums'] },
+  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '700', marginTop: 2, fontVariant: ['tabular-nums'] },
   heroSub: { fontSize: responsiveFontSize.xs, marginTop: 4, fontVariant: ['tabular-nums'] },
   equityBar: {
     flexDirection: 'row',
@@ -1447,69 +1272,21 @@ const styles = StyleSheet.create({
   legendText: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // KPI strip.
-  kpiWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  kpiCard: {
-    flexGrow: 1,
-    flexBasis: '30%',
-    minWidth: scale(96),
-    padding: responsiveSpacing.md,
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    gap: 6,
-  },
-  kpiBubble: {
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.15)`,
-    borderWidth: 1,
-    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
-  },
-  kpiLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  kpiValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   // Portfolio photo row.
   rowCard: { borderWidth: 1, borderRadius: responsiveBorderRadius.xl },
-  rowInner: { borderRadius: responsiveBorderRadius.xl, overflow: 'hidden', padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
-  rowTapZone: { flexDirection: 'row', gap: responsiveSpacing.md },
+  rowInner: { flexDirection: 'row', gap: responsiveSpacing.md, borderRadius: responsiveBorderRadius.xl, overflow: 'hidden', padding: responsiveSpacing.md },
   rowThumbWrap: { width: scale(104), height: scale(96), borderRadius: responsiveBorderRadius.lg, overflow: 'hidden' },
   rowThumb: { width: '100%', height: '100%' },
-  thumbTag: {
-    position: 'absolute',
-    left: scale(6),
-    bottom: scale(6),
-    paddingHorizontal: scale(6),
-    paddingVertical: 2,
-    borderRadius: responsiveBorderRadius.sm,
-  },
-  thumbTagText: { color: '#fff', fontSize: responsiveFontSize.xs, fontWeight: '700' },
   rowBody: { flex: 1, gap: 4 },
   rowTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: responsiveSpacing.xs },
-  rowName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '700' },
+  rowName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600' },
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  metaText: { fontSize: responsiveFontSize.xs },
-  rowStatsLine: { flexDirection: 'row', alignItems: 'flex-end', gap: responsiveSpacing.sm, marginTop: 2 },
-  rowValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  trendLine: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  trendText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  rowRightStats: { alignItems: 'flex-end' },
-  rowEquity: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  rowEquityLabel: { fontSize: responsiveFontSize.xs, marginTop: -2 },
-  rowIncome: { fontSize: responsiveFontSize.xs, fontWeight: '700', marginTop: 2, fontVariant: ['tabular-nums'] },
-  conditionBarWrap: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm, marginTop: 2 },
-  conditionBarTrack: { flex: 1, height: scale(6), borderRadius: scale(3), overflow: 'hidden' },
-  conditionBarFill: { height: '100%', borderRadius: scale(3) },
-  conditionPct: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: scale(30), textAlign: 'right' },
+  rowValue: { fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  rowIncome: { fontSize: responsiveFontSize.xs, fontWeight: '600', marginTop: 2, fontVariant: ['tabular-nums'] },
 
   // Badges / chips.
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs, marginTop: 2 },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.xs,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.sm,
-    borderWidth: 1,
-  },
-  statChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
 
   // Tinted / ghost buttons.
   tintedBtn: {
@@ -1517,23 +1294,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.full,
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.14)`,
+    backgroundColor: withAlpha(IDENTITY, 0.14),
     borderWidth: 1,
-    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
+    borderColor: withAlpha(IDENTITY, 0.3),
   },
-  tintedBtnText: { color: IDENTITY, fontWeight: '700', fontSize: responsiveFontSize.sm },
-  ghostBtn: {
-    minHeight: scale(38),
-    paddingHorizontal: responsiveSpacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  ghostBtnText: { fontWeight: '700', fontSize: responsiveFontSize.sm },
+  tintedBtnText: { color: IDENTITY, fontWeight: '600', fontSize: responsiveFontSize.sm },
 
   // Browse listing card.
   browseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: responsiveSpacing.sm },
@@ -1555,7 +1323,7 @@ const styles = StyleSheet.create({
   },
   photoPillTL: { top: scale(10), left: scale(10) },
   photoPillTR: { top: scale(10), right: scale(10) },
-  photoPillText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
+  photoPillText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   pricePill: {
     position: 'absolute',
     left: scale(10),
@@ -1565,29 +1333,16 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0,0,0,0.62)',
   },
-  pricePillText: { color: '#fff', fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  pricePillText: { color: '#fff', fontSize: responsiveFontSize.lg, fontWeight: '600', fontVariant: ['tabular-nums'] },
   listingBody: { padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
-  listingName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '700' },
+  listingName: { flex: 1, fontSize: responsiveFontSize.md, fontWeight: '600' },
   specStrip: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm, flexWrap: 'wrap' },
   specItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   specText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   specDot: { width: scale(3), height: scale(3), borderRadius: scale(2) },
   amenityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs },
   amenityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs },
-  amenityChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.12)`,
-  },
-  amenityText: { fontSize: responsiveFontSize.xs, fontWeight: '600', color: IDENTITY },
   listingFooter: { flexDirection: 'row', gap: responsiveSpacing.sm, paddingHorizontal: responsiveSpacing.md, paddingBottom: responsiveSpacing.md },
-  cycleChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: responsiveSpacing.xs, paddingVertical: 2, borderRadius: responsiveBorderRadius.full, borderWidth: 1 },
-  cycleDot: { width: scale(6), height: scale(6), borderRadius: scale(3) },
-  cycleText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
 
   // Detail sub-page.
   detailHeroCard: { borderWidth: 1, borderRadius: responsiveBorderRadius['2xl'] },
@@ -1602,8 +1357,8 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.lg,
     backgroundColor: 'rgba(0,0,0,0.62)',
   },
-  detailPriceText: { color: '#fff', fontSize: responsiveFontSize['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
-  detailTitle: { fontSize: responsiveFontSize.xl, fontWeight: '800' },
+  detailPriceText: { color: '#fff', fontSize: responsiveFontSize['2xl'], fontWeight: '600', fontVariant: ['tabular-nums'] },
+  detailTitle: { fontSize: responsiveFontSize.xl, fontWeight: '700' },
   detailMeta: { fontSize: responsiveFontSize.sm },
   ctaWrap: {
     borderRadius: responsiveBorderRadius.full,
@@ -1617,32 +1372,30 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.full,
   },
-  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '800' },
+  ctaText: { color: '#fff', fontSize: responsiveFontSize.md, fontWeight: '600' },
   rentStatusCard: { padding: scale(14), borderRadius: scale(14), borderWidth: 1, gap: scale(6) },
-  rentStatusTitle: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  rentStatusTitle: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   rentCard: { padding: scale(14), borderRadius: scale(14), borderWidth: 1, gap: scale(8) },
   rentCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rentName: { fontSize: responsiveFontSize.md, fontWeight: '800', flex: 1 },
-  rentPrice: { fontSize: responsiveFontSize.md, fontWeight: '800' },
+  rentName: { fontSize: responsiveFontSize.md, fontWeight: '600', flex: 1 },
+  rentPrice: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   rentStats: { flexDirection: 'row', flexWrap: 'wrap', gap: scale(10) },
-  rentStat: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  rentStat: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   rentReason: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   detailBlock: { borderWidth: 1, borderRadius: responsiveBorderRadius.xl, padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   detailBlockRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
   detailBlockHeader: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  detailBlockTitle: { fontSize: responsiveFontSize.md, fontWeight: '700' },
-  detailStatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  detailBlockTitle: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   detailStatLabel: { fontSize: responsiveFontSize.sm },
-  detailStatValue: { fontSize: responsiveFontSize.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
   detailTrendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  detailTrendText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  detailTrendText: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   detailFoot: { fontSize: responsiveFontSize.xs, fontVariant: ['tabular-nums'] },
-  tenantName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  tenantName: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   satBarWrap: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
   satLabel: { fontSize: responsiveFontSize.xs },
   satTrack: { flex: 1, height: scale(7), borderRadius: scale(4), overflow: 'hidden' },
   satFill: { height: '100%', borderRadius: scale(4) },
-  satPct: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: scale(34), textAlign: 'right' },
+  satPct: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'], minWidth: scale(34), textAlign: 'right' },
 
   // Activity timeline.
   activityRow: {
@@ -1654,13 +1407,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   activityBubble: {
-    backgroundColor: `rgba(${IDENTITY_RGB}, 0.15)`,
+    backgroundColor: withAlpha(IDENTITY, 0.15),
     borderWidth: 1,
-    borderColor: `rgba(${IDENTITY_RGB}, 0.3)`,
+    borderColor: withAlpha(IDENTITY, 0.3),
   },
   activityText: { fontSize: responsiveFontSize.sm },
   activityMeta: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs, marginTop: 4 },
-  activityWeek: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  activityWeek: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   catChip: { paddingHorizontal: responsiveSpacing.xs, paddingVertical: 2, borderRadius: responsiveBorderRadius.sm },
   catChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
 });
