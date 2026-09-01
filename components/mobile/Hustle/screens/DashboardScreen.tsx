@@ -1,20 +1,31 @@
 /**
- * DashboardScreen - multi-company overview (business-dashboard DNA).
+ * DashboardScreen - multi-company overview.
  *
- * Top: hero KPI strip (total weekly revenue) with an SVG revenue-by-company
- * bar chart. Below: a KPI strip whose tiles each carry a mini chart, then a
- * Portfolio / Milestones segmented switch - Portfolio lists CompanyTile cards
- * with revenue bars; Milestones surfaces lifetime records. FAB founds a company.
+ * The landing surface is ONE headline (what the empire actually pays into the
+ * weekly paycheck), one sentence explaining the drag between what it earns and
+ * what it banks, the revenue-by-company bars, and a three-tile strip. It used
+ * to print ~10 numbers before the first company row: the headline, a sub line,
+ * the drag sentence, the chart AND four KPI cards that each carried their own
+ * mini chart. The four cards are the strip now, without the sparklines - the
+ * same data, read in one pass.
+ *
+ * Founding a company is a once-per-life action, so it is a chip on the
+ * "Your companies" heading rather than a floating gradient FAB parked over the
+ * list; the empty state's CTA already covers the first one.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import {
   AlertTriangle, Award, Briefcase, Building2, DollarSign, Megaphone, Plus,
-  Rocket, TrendingUp, UserMinus, UserPlus, Users,
+  Rocket, UserMinus, UserPlus,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import Chip from '@/components/ui/Chip';
+import EmptyState from '@/components/ui/EmptyState';
+import SectionTitle from '@/components/ui/SectionTitle';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip, { StatTile } from '@/components/ui/StatStrip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
 import {
@@ -25,16 +36,12 @@ import {
   passiveIncomeEfficiency,
 } from '@/lib/economy/passiveIncome';
 import { netWorth } from '@/lib/progress/achievements';
-import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import { Z_INDEX } from '@/utils/zIndexConstants';
-import KPICard from '../components/KPICard';
+import { withAlpha } from '@/lib/config/theme';
+import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getGlassCard } from '@/utils/glassmorphismStyles';
 import CompanyTile from '../components/CompanyTile';
-import EmptyState from '../components/EmptyState';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS } from '../styles/hustleTheme';
+import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
-
-const LinearGradient = Gradient;
 
 interface DashboardScreenProps {
   onOpenCompany: (companyId: string) => void;
@@ -75,15 +82,13 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   const overlays = gameState.hustleApp?.companies ?? {};
   const lifetime = gameState.hustleApp?.lifetimeStats;
 
-  const series = useMemo(() => {
-    // The bars must plot the same figure the tiles print - the stored
-    // `weeklyIncome` is only the FIRST step of the payout chain.
-    const revenue = companies.map((c) => companyWeeklyIncomeFor(gameState, c, 1));
-    const employees = companies.map((c) => c.employees ?? 0);
-    const share = companies.map((c) => overlays[c.id]?.marketSharePercent ?? 5);
-    const brand = companies.map((c) => overlays[c.id]?.brand?.score ?? 50);
-    return { revenue, employees, share, brand };
-  }, [companies, overlays, gameState]);
+  // The bars must plot the same figure the tiles print - the stored
+  // `weeklyIncome` is only the FIRST step of the payout chain. The per-company
+  // employee/share/brand series the four KPI sparklines used are gone with them.
+  const revenueSeries = useMemo(
+    () => companies.map((c) => companyWeeklyIncomeFor(gameState, c, 1)),
+    [companies, gameState],
+  );
 
   const totals = useMemo(() => {
     let employees = 0;
@@ -143,7 +148,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
     };
   }, [gameState]);
 
-  const maxWeekly = useMemo(() => Math.max(...series.revenue, 1), [series.revenue]);
+  const maxWeekly = useMemo(() => Math.max(...revenueSeries, 1), [revenueSeries]);
 
   const handleTilePress = useCallback((id: string) => {
     hustleHaptics.tap();
@@ -159,17 +164,12 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
     return (
       <View style={styles.emptyRoot}>
         <EmptyState
-          observation="No companies yet."
-          nudge="Found your first company to start building an empire."
-        >
-          <Pressable
-            onPress={handleCreatePress}
-            accessibilityRole="button"
-            accessibilityLabel="Found a company"
-          >
-            <Text style={[styles.cta, { color: HUSTLE_GRADIENT[0] }]}>Found a company →</Text>
-          </Pressable>
-        </EmptyState>
+          icon={<Building2 size={fontScale(26)} color={HUSTLE_COLORS.accent} />}
+          observation="You don't run any companies yet."
+          nudge="Found your first one to start building an empire."
+          ctaLabel="Found a company"
+          onCtaPress={handleCreatePress}
+        />
       </View>
     );
   }
@@ -177,7 +177,7 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]} showsVerticalScrollIndicator={false}>
-        {/* Hero strip - Recipe B (identity indigo) */}
+        {/* Hero - the ONE number, one sentence about it, and the bars. */}
         <View
           style={[
             getGlassCard(isDark, 12),
@@ -190,68 +190,69 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
           ]}
         >
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={styles.heroGlow} />
-            {isDark && <View pointerEvents="none" style={styles.heroHairline} />}
-            <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Empire snapshot</Text>
-            <Text style={[styles.heroValue, { color: theme.text }]}>
-              ${empire.paid.toLocaleString()}<Text style={[styles.heroSuffix, { color: theme.textSecondary }]}> / wk</Text>
-            </Text>
-            <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
-              {companies.length} {companies.length === 1 ? 'company' : 'companies'} · {totals.employees} employees
-              {totals.campaigns > 0 ? ` · ${totals.campaigns} campaign${totals.campaigns === 1 ? '' : 's'}` : ''}
-              {totals.scandals > 0 ? ` · ${totals.scandals} scandal${totals.scandals === 1 ? '' : 's'}` : ''}
-            </Text>
-            {empire.lost > 0 ? (
-              <Text style={[styles.heroDrag, { color: theme.textMuted }]}>
-                Take-home. ${empire.gross.toLocaleString()}/wk earned, ${empire.lost.toLocaleString()} to{' '}
-                {[
-                  empire.managementDrag ? 'management overhead' : null,
-                  empire.overCap ? `the $${(empire.cap / 1000).toFixed(0)}K/wk ceiling` : null,
-                  empire.softCap < 1 ? `net-worth overhead (${Math.round(empire.softCap * 100)}% efficiency)` : null,
-                ].filter(Boolean).join(' + ')}.
-              </Text>
-            ) : null}
+            <StatTile
+              hero
+              align="left"
+              label="Take-home per week"
+              value={`$${empire.paid.toLocaleString()}`}
+              sub={
+                empire.lost > 0
+                  ? `$${empire.gross.toLocaleString()} earned · $${empire.lost.toLocaleString()} to ${[
+                      empire.managementDrag ? 'management overhead' : null,
+                      empire.overCap ? `the $${(empire.cap / 1000).toFixed(0)}K/wk ceiling` : null,
+                      empire.softCap < 1 ? `net-worth overhead (${Math.round(empire.softCap * 100)}%)` : null,
+                    ].filter(Boolean).join(' + ')}`
+                  : `${companies.length} ${companies.length === 1 ? 'company' : 'companies'}${
+                      totals.campaigns > 0 ? ` · ${totals.campaigns} campaign${totals.campaigns === 1 ? '' : 's'}` : ''
+                    }${totals.scandals > 0 ? ` · ${totals.scandals} scandal${totals.scandals === 1 ? '' : 's'}` : ''}`
+              }
+            />
             {companies.length > 1 ? (
               <View style={styles.heroChart} pointerEvents="none">
-                <HeroRevenueBars data={series.revenue} color={HUSTLE_COLORS.accent} />
+                <HeroRevenueBars data={revenueSeries} color={HUSTLE_COLORS.accent} />
                 <Text style={[styles.heroChartCaption, { color: theme.textMuted }]}>Weekly revenue by company</Text>
               </View>
             ) : null}
           </View>
         </View>
 
-        {/* KPI grid - each tile carries a mini chart from real per-company data */}
-        <View style={styles.kpiGrid}>
-          <KPICard icon={DollarSign} label="Weekly" value={`$${(empire.paid / 1000).toFixed(1)}K`} accentColor={HUSTLE_COLORS.success} chart={series.revenue} caption={`${companies.length} co${companies.length === 1 ? '' : 's'}`} />
-          <KPICard icon={Users} label="Employees" value={String(totals.employees)} chart={series.employees} />
-          <KPICard icon={TrendingUp} label="Market" value={`${totals.share}%`} accentColor={HUSTLE_COLORS.accentSecondary} chart={series.share} />
-          <KPICard icon={Briefcase} label="Brand" value={String(totals.brand)} chart={series.brand} caption={lifetime ? `peak ${lifetime.peakBrandScore}` : undefined} />
-        </View>
+        {/* The three numbers you steer on. The weekly figure is the hero above;
+            the per-tile sparklines are the bar chart, once. */}
+        <StatStrip
+          items={[
+            { label: 'Employees', value: totals.employees },
+            { label: 'Market share', value: `${totals.share}%`, tint: HUSTLE_COLORS.accentSecondary },
+            { label: 'Brand', value: totals.brand, sub: lifetime ? `peak ${lifetime.peakBrandScore}` : undefined },
+          ]}
+          style={styles.strip}
+        />
 
-        {/* Portfolio / Milestones switch */}
-        <View style={[styles.segment, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          {(['portfolio', 'milestones'] as DashTab[]).map((t) => {
-            const active = tab === t;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => { hustleHaptics.tap(); setTab(t); }}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={t === 'portfolio' ? 'Portfolio' : 'Milestones'}
-                style={[styles.segmentBtn, active && { backgroundColor: HUSTLE_COLORS.accent + '29' }]}
-              >
-                <Text style={[styles.segmentText, { color: active ? HUSTLE_COLORS.accent : theme.textMuted }]}>
-                  {t === 'portfolio' ? 'Portfolio' : 'Milestones'}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl<DashTab>
+          segments={[
+            { key: 'portfolio', label: 'Portfolio' },
+            { key: 'milestones', label: 'Milestones' },
+          ]}
+          value={tab}
+          onChange={(t) => { hustleHaptics.tap(); setTab(t); }}
+          activeColor={HUSTLE_COLORS.accent}
+          style={styles.segment}
+        />
 
         {tab === 'portfolio' ? (
           <>
-            <Text style={[styles.sectionLabel, { color: theme.text }]}>Your companies</Text>
+            <SectionTitle
+              title="Your companies"
+              right={
+                <Chip
+                  label="Found a company"
+                  icon={<Plus size={fontScale(12)} color={HUSTLE_COLORS.accent} />}
+                  tint={HUSTLE_COLORS.accent}
+                  selected
+                  size="md"
+                  onPress={handleCreatePress}
+                />
+              }
+            />
             {companies.map((c) => (
               <CompanyTile key={c.id} company={c} overlay={overlays[c.id]} onPress={() => handleTilePress(c.id)} maxWeekly={maxWeekly} weekly={companyWeeklyIncomeFor(gameState, c, 1)} />
             ))}
@@ -260,29 +261,6 @@ export default function DashboardScreen({ onOpenCompany, onCreateCompany }: Dash
           <MilestonesView theme={theme} isDark={isDark} lifetime={lifetime} />
         )}
       </ScrollView>
-
-      {/* FAB */}
-      <Pressable
-        onPress={handleCreatePress}
-        accessibilityRole="button"
-        accessibilityLabel="Create new company"
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.fabTouch,
-          // Lift the FAB above the floating phone tab bar (was hidden under it).
-          { bottom: getAppScreenBottomPadding(insets.bottom) },
-          pressed && { transform: [{ scale: 0.94 }] },
-        ]}
-      >
-        <LinearGradient
-          colors={HUSTLE_GRADIENT as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fab}
-        >
-          <Plus size={fontScale(24)} color="#FFFFFF" strokeWidth={2.6} />
-        </LinearGradient>
-      </Pressable>
     </View>
   );
 }
@@ -306,8 +284,8 @@ function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boole
   ];
   return (
     <>
-      <Text style={[styles.sectionLabel, { color: theme.text }]}>Lifetime totals</Text>
-      <View style={styles.kpiGrid}>
+      <SectionTitle title="Lifetime totals" />
+      <View style={styles.milestoneGrid}>
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -316,7 +294,7 @@ function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boole
               style={[getGlassCard(isDark, 6), styles.milestoneCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}
             >
               <View style={styles.milestoneIconRow}>
-                <View style={[styles.milestoneBubble, { backgroundColor: s.color + '26', borderColor: s.color + '4D' }]}>
+                <View style={[styles.milestoneBubble, { backgroundColor: withAlpha(s.color, 0.15), borderColor: withAlpha(s.color, 0.3) }]}>
                   <Icon size={fontScale(14)} color={s.color} strokeWidth={2.4} />
                 </View>
                 <Text style={[styles.milestoneLabel, { color: theme.textSecondary }]} numberOfLines={2}>{s.label}</Text>
@@ -327,11 +305,11 @@ function MilestonesView({ theme, isDark, lifetime }: { theme: any; isDark: boole
         })}
       </View>
 
-      <Text style={[styles.sectionLabel, { color: theme.text }]}>Records</Text>
+      <SectionTitle title="Records" />
       <View style={[getGlassCard(isDark, 6), styles.recordsCard, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
         {records.map((r, i) => (
           <View key={r.label} style={[styles.recordRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-            <View style={[styles.recordMedal, { backgroundColor: HUSTLE_COLORS.warning + '26', borderColor: HUSTLE_COLORS.warning + '4D' }]}>
+            <View style={[styles.recordMedal, { backgroundColor: withAlpha(HUSTLE_COLORS.warning, 0.15), borderColor: withAlpha(HUSTLE_COLORS.warning, 0.3) }]}>
               <Award size={fontScale(14)} color={HUSTLE_COLORS.warning} strokeWidth={2.4} />
             </View>
             <Text style={[styles.recordLabel, { color: theme.text }]}>{r.label}</Text>
@@ -349,10 +327,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  cta: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-  },
   scroll: {
     paddingHorizontal: responsiveSpacing.md,
     paddingTop: responsiveSpacing.md,
@@ -360,97 +334,31 @@ const styles = StyleSheet.create({
   },
   hero: {
     borderRadius: responsiveBorderRadius['2xl'],
-    marginBottom: responsiveSpacing.md,
+    marginBottom: responsiveSpacing.sm,
   },
   heroInner: {
     borderRadius: responsiveBorderRadius['2xl'],
     overflow: 'hidden',
     padding: responsiveSpacing.lg,
   },
-  heroGlow: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(99, 102, 241, 0.10)',
-  },
-  heroHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  heroLabel: {
-    fontSize: fontScale(11),
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  heroValue: {
-    fontSize: fontScale(36),
-    fontWeight: '800',
-    marginTop: 4,
-    fontVariant: ['tabular-nums'],
-  },
-  heroSuffix: {
-    fontSize: fontScale(18),
-    fontWeight: '500',
-  },
-  heroSub: {
-    fontSize: fontScale(12),
-    marginTop: 2,
-  },
-  heroDrag: {
-    fontSize: fontScale(11),
-    marginTop: 6,
-    lineHeight: fontScale(15),
-  },
   heroChart: {
     marginTop: responsiveSpacing.sm,
   },
   heroChartCaption: {
     fontSize: fontScale(10),
-    fontWeight: '600',
     marginTop: 3,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
-  kpiGrid: {
+  strip: {
+    marginBottom: responsiveSpacing.sm,
+  },
+  segment: {
+    marginBottom: responsiveSpacing.sm,
+  },
+  milestoneGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: responsiveSpacing.sm,
     marginBottom: responsiveSpacing.md,
-  },
-  segment: {
-    flexDirection: 'row',
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-    padding: 3,
-    marginBottom: responsiveSpacing.md,
-  },
-  segmentBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.full,
-    minHeight: scale(38),
-  },
-  segmentText: {
-    fontSize: fontScale(13),
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  sectionLabel: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginBottom: responsiveSpacing.sm,
-    marginTop: responsiveSpacing.sm,
   },
   milestoneCard: {
     flexBasis: '48%',
@@ -475,14 +383,12 @@ const styles = StyleSheet.create({
   },
   milestoneLabel: {
     flex: 1,
-    fontSize: fontScale(10),
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    fontSize: fontScale(11),
+    fontWeight: '500',
   },
   milestoneValue: {
     fontSize: fontScale(22),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   recordsCard: {
@@ -507,27 +413,11 @@ const styles = StyleSheet.create({
   recordLabel: {
     flex: 1,
     fontSize: fontScale(13),
-    fontWeight: '600',
+    fontWeight: '500',
   },
   recordValue: {
     fontSize: fontScale(15),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
-  },
-  fabTouch: {
-    position: 'absolute',
-    bottom: scale(20),
-    right: scale(20),
-    width: touchTargets.large,
-    height: touchTargets.large,
-    borderRadius: touchTargets.large / 2,
-    zIndex: Z_INDEX.DROPDOWN,
-    ...getPlatformShadows(5, 0.3, 2, 8),
-  },
-  fab: {
-    flex: 1,
-    borderRadius: touchTargets.large / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

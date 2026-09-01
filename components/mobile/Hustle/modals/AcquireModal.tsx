@@ -2,13 +2,14 @@
  * AcquireModal - list pending acquisition offers + accept/decline.
  */
 import React, { useCallback } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Building2, X } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Building2 } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import EmptyState from '@/components/ui/EmptyState';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import {
   acceptAcquisition,
   declineAcquisition,
@@ -16,10 +17,8 @@ import {
   acquisitionSharePoints,
 } from '@/contexts/game/actions/HustleActions';
 import { WEEKS_PER_YEAR } from '@/lib/config/gameConstants';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
+import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
-
-const LinearGradient = Gradient;
 
 interface AcquireModalProps {
   visible: boolean;
@@ -53,22 +52,16 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.text }]}>Acquisition targets</Text>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.iconBtn}>
-              <X size={fontScale(20)} color={theme.text} />
-            </Pressable>
-          </View>
-
+    <BaseModal visible={visible} onClose={onDismiss} variant="bottom" title="Acquisition targets">
+      <View>
           {offers.length === 0 ? (
-            <Text style={[styles.empty, { color: theme.textMuted }]}>
-              No pending offers. Tick generates new targets every 8 weeks when your company qualifies.
-            </Text>
+            <EmptyState
+              compact
+              observation="No one is up for sale right now."
+              nudge="New targets appear every 8 weeks once your company qualifies."
+            />
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+            <>
               {offers.map((offer: any) => {
                 const color = industryColor(offer.targetIndustry);
                 const canAfford = playerMoney >= offer.askingPrice;
@@ -83,14 +76,9 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                     style={[styles.offerCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
                   >
                     <View style={styles.offerHeader}>
-                      <LinearGradient
-                        colors={[color, color + 'BB']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.offerIcon}
-                      >
-                        <Building2 size={fontScale(18)} color="#FFFFFF" />
-                      </LinearGradient>
+                      <View style={[styles.offerIcon, { backgroundColor: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.3) }]}>
+                        <Building2 size={fontScale(18)} color={color} />
+                      </View>
                       <View style={styles.offerText}>
                         <Text style={[styles.offerName, { color: theme.text }]}>{offer.targetName}</Text>
                         <Text style={[styles.offerSub, { color: theme.textSecondary }]}>
@@ -150,71 +138,25 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                         accessibilityRole="button"
                         accessibilityLabel={`Accept ${offer.targetName}`}
                         accessibilityState={{ disabled: !canAfford }}
-                        style={[styles.btnPrimary, !canAfford && { opacity: 0.55 }]}
+                        style={[
+                          styles.btnPrimary,
+                          { backgroundColor: canAfford ? HUSTLE_COLORS.accent : theme.border, opacity: canAfford ? 1 : 0.55 },
+                        ]}
                       >
-                        <LinearGradient
-                          colors={
-                            canAfford
-                              ? (HUSTLE_GRADIENT as unknown as string[])
-                              : [theme.border, theme.border]
-                          }
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={styles.btnPrimaryFill}
-                        >
-                          <Text style={styles.btnPrimaryText}>{canAfford ? 'Acquire' : 'Need cash'}</Text>
-                        </LinearGradient>
+                        <Text style={styles.btnPrimaryText}>{canAfford ? 'Acquire' : 'Need cash'}</Text>
                       </Pressable>
                     </View>
                   </View>
                 );
               })}
-            </ScrollView>
+            </>
           )}
-        </View>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
-  // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN - and the sheet itself does not
-  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
-  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: responsiveSpacing.md,
-  },
-  title: { fontSize: fontScale(20), fontWeight: '800' },
-  iconBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  empty: {
-    fontSize: fontScale(13),
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: responsiveSpacing.xl,
-  },
   offerCard: {
     borderRadius: scale(14),
     borderWidth: StyleSheet.hairlineWidth,
@@ -230,11 +172,12 @@ const styles = StyleSheet.create({
     width: scale(40),
     height: scale(40),
     borderRadius: scale(10),
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   offerText: { flex: 1 },
-  offerName: { fontSize: fontScale(14), fontWeight: '700' },
+  offerName: { fontSize: fontScale(14), fontWeight: '600' },
   offerSub: { fontSize: fontScale(11), marginTop: 2 },
   offerMetrics: {
     flexDirection: 'row',
@@ -243,13 +186,11 @@ const styles = StyleSheet.create({
   },
   offerMetric: { flex: 1 },
   metricLabel: {
-    fontSize: fontScale(10),
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: fontScale(11),
   },
   metricValue: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
   offerCtaRow: {
@@ -262,7 +203,9 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     borderRadius: scale(10),
     borderWidth: 1,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnSecondaryText: {
     fontSize: fontScale(13),
@@ -272,14 +215,14 @@ const styles = StyleSheet.create({
     flex: 1.4,
     borderRadius: scale(10),
     overflow: 'hidden',
-  },
-  btnPrimaryFill: {
     paddingVertical: responsiveSpacing.sm,
+    minHeight: touchTargets.minimum,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnPrimaryText: {
     color: '#FFFFFF',
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

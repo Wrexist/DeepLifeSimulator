@@ -91,7 +91,10 @@ describe('the swept card surfaces have no side accent bar', () => {
     // categorical palette where nothing about Paris is rose was decoration, not
     // meaning - but the colour still lives on the full border, never a stripe.
     expect(code(read('components/computer/TravelApp.tsx'))).toMatch(/borderColor: IDENTITY/);
-    expect(code(read('components/computer/BitcoinMiningApp.tsx'))).toMatch(/borderColor: amber\.solid/);
+    // Crypto's private seven-value `amber` object collapsed to the one shared
+    // identity tint (`AMBER = accent.amber`); the tainted-BTC notice still
+    // carries it on all four sides.
+    expect(code(read('components/computer/BitcoinMiningApp.tsx'))).toMatch(/borderColor: AMBER/);
     expect(code(read('components/stocks/StockRow.tsx'))).toMatch(/borderColor: sectorColor/);
   });
 

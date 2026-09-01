@@ -9,11 +9,13 @@
  */
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowLeft, Briefcase, Building2, Check, DollarSign, Factory, Utensils, Landmark } from 'lucide-react-native';
+import { Briefcase, Building2, Check, Factory, Utensils, Landmark } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Gradient from '@/components/ui/Gradient';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import Chip from '@/components/ui/Chip';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
 import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import { createCompany } from '@/contexts/game/actions/CompanyActions';
@@ -31,11 +33,9 @@ import {
   prestigeUnlockRequirement,
 } from '@/lib/progress/featureUnlocks';
 import { hasEarlyCompanyAccess } from '@/lib/prestige/applyUnlocks';
-import { HUSTLE_GRADIENT, HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
+import { HUSTLE_COLORS, industryColor } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleIndustry } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 // Presentational profile labels - mirror each industry's existing description
 // (no new mechanics; createCompany remains the single source of economy truth).
@@ -124,31 +124,22 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} style={styles.headerBtn}>
-          <ArrowLeft size={fontScale(22)} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Found a company</Text>
-        <View style={styles.headerBtn} />
-      </View>
+      <AppHeader
+        title="Found a company"
+        onBack={onBack}
+        backLabel="Back to portfolio"
+        centered
+        right={<CashChip value={formatMoney(playerMoney)} tint={HUSTLE_COLORS.accent} />}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Available-cash chip + affordability read */}
-        <View style={styles.introRow}>
-          <View style={[styles.cashChip, { backgroundColor: HUSTLE_COLORS.accent + '24', borderColor: HUSTLE_COLORS.accent + '4D' }]}>
-            <DollarSign size={fontScale(13)} color={HUSTLE_COLORS.accent} strokeWidth={2.6} />
-            <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(playerMoney)}</Text>
-          </View>
-          <Text style={[styles.affordText, { color: theme.textSecondary }]}>
-            {affordableCount} of {INDUSTRIES.length} within budget
-          </Text>
-        </View>
-
+        {/* The balance itself is in the header chip; this is the read on it. */}
         <Text style={[styles.intro, { color: theme.textSecondary }]}>
-          Pick your industry. Founding cost is paid up front; you'll have weekly revenue once operational.
+          {affordableCount} of {INDUSTRIES.length} within budget. Founding cost is paid up front;
+          the company pays weekly revenue once operational.
         </Text>
 
         {INDUSTRIES.map((ind) => {
@@ -204,7 +195,7 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
               ]}
             >
               <View style={styles.industryHeader}>
-                <View style={[styles.industryIcon, { backgroundColor: color + '26', borderColor: color + '4D' }]}>
+                <View style={[styles.industryIcon, { backgroundColor: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.3) }]}>
                   <Icon size={fontScale(22)} color={color} strokeWidth={2.2} />
                 </View>
                 <View style={styles.industryText}>
@@ -228,28 +219,22 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
 
               {/* Profile strip - presentational market descriptors */}
               <View style={styles.profileRow}>
-                <ProfileChip label="Growth" value={profile.growth} theme={theme} />
-                <ProfileChip label="Volatility" value={profile.volatility} theme={theme} />
-                <ProfileChip label="Moat" value={profile.moat} theme={theme} />
+                <Chip label={`Growth ${profile.growth}`} />
+                <Chip label={`Volatility ${profile.volatility}`} />
+                <Chip label={`Moat ${profile.moat}`} />
                 {locked ? (
-                  <View style={[styles.statusChip, { backgroundColor: HUSTLE_COLORS.warning + '1F' }]}>
-                    <Text style={[styles.statusChipText, { color: HUSTLE_COLORS.warning }]}>{lockReason}</Text>
-                  </View>
+                  <Chip label={lockReason} tone="warning" />
                 ) : canAfford ? (
-                  <View style={[styles.statusChip, { backgroundColor: HUSTLE_COLORS.success + '1F' }]}>
-                    <Text style={[styles.statusChipText, { color: HUSTLE_COLORS.success }]}>Affordable</Text>
-                  </View>
+                  <Chip label="Affordable" tone="success" />
                 ) : (
-                  <View style={[styles.statusChip, { backgroundColor: theme.surfaceElevated }]}>
-                    <Text style={[styles.statusChipText, { color: theme.textMuted }]}>Need {formatMoney(shortfall)} more</Text>
-                  </View>
+                  <Chip label={`Need ${formatMoney(shortfall)} more`} />
                 )}
               </View>
             </Pressable>
           );
         })}
 
-        {error ? <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text> : null}
+        {error ? <Text style={[styles.errorText, { color: HUSTLE_COLORS.danger }]}>{error}</Text> : null}
       </ScrollView>
 
       <View
@@ -267,88 +252,28 @@ export default function CreateCompanyScreen({ onBack, onCreated }: CreateCompany
           disabled={!selected}
           accessibilityRole="button"
           accessibilityLabel="Found this company"
+          accessibilityState={{ disabled: !selected }}
           style={({ pressed }) => [
             styles.cta,
+            {
+              backgroundColor: selected ? HUSTLE_COLORS.accent : theme.border,
+              opacity: selected ? (pressed ? 0.85 : 1) : 0.6,
+            },
             selected && getPlatformShadows(5, 0.3, 2, 8),
-            !selected && styles.ctaDisabled,
-            pressed && { transform: [{ scale: 0.98 }] },
           ]}
         >
-          <LinearGradient
-            colors={
-              selected
-                ? (HUSTLE_GRADIENT as unknown as string[])
-                : [theme.border, theme.border]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.ctaFill}
-          >
-            <Text style={styles.ctaText}>{selected ? `Found ${INDUSTRIES.find((i) => i.id === selected)?.name}` : 'Pick an industry'}</Text>
-          </LinearGradient>
+          <Text style={styles.ctaText}>{selected ? `Found ${INDUSTRIES.find((i) => i.id === selected)?.name}` : 'Pick an industry'}</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-function ProfileChip({ label, value, theme }: { label: string; value: string; theme: any }) {
-  return (
-    <View style={[styles.profileChip, { backgroundColor: theme.surfaceElevated }]}>
-      <Text style={[styles.profileChipLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.profileChipValue, { color: theme.text }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-  },
-  headerBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: fontScale(16),
-    fontWeight: '700',
-  },
   scroll: {
     padding: responsiveSpacing.md,
     paddingBottom: scale(120),
-  },
-  introRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: responsiveSpacing.sm,
-    marginBottom: responsiveSpacing.sm,
-  },
-  cashChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 5,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  cashChipText: {
-    fontSize: fontScale(13),
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  affordText: {
-    fontSize: fontScale(12),
-    fontWeight: '600',
-    flexShrink: 1,
   },
   intro: {
     fontSize: fontScale(13),
@@ -378,7 +303,7 @@ const styles = StyleSheet.create({
   },
   industryName: {
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   industryDesc: {
     fontSize: fontScale(11),
@@ -389,14 +314,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   industryCostLabel: {
-    fontSize: fontScale(9),
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: fontScale(10),
+    fontWeight: '500',
   },
   industryCost: {
     fontSize: fontScale(14),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   selectedTick: {
@@ -412,34 +335,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
-  profileChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  profileChipLabel: {
-    fontSize: fontScale(9),
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  profileChipValue: {
-    fontSize: fontScale(11),
-    fontWeight: '700',
-  },
-  statusChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  statusChipText: {
-    fontSize: fontScale(10),
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
   errorText: {
     fontSize: fontScale(12),
     textAlign: 'center',
@@ -451,11 +346,6 @@ const styles = StyleSheet.create({
   },
   cta: {
     borderRadius: responsiveBorderRadius.full,
-  },
-  ctaDisabled: { opacity: 0.6 },
-  ctaFill: {
-    borderRadius: responsiveBorderRadius.full,
-    overflow: 'hidden',
     paddingVertical: responsiveSpacing.md,
     minHeight: touchTargets.minimum,
     alignItems: 'center',
@@ -464,6 +354,6 @@ const styles = StyleSheet.create({
   ctaText: {
     color: '#FFFFFF',
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

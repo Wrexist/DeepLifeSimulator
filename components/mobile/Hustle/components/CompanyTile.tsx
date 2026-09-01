@@ -9,7 +9,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Briefcase, Building2, ChevronRight, DollarSign, Factory, Megaphone, Utensils, Landmark } from 'lucide-react-native';
+import Chip from '@/components/ui/Chip';
+import ProgressBar from '@/components/ui/ProgressBar';
 import { useTheme } from '@/hooks/useTheme';
+import { withAlpha } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, responsiveBorderRadius } from '@/utils/scaling';
 import { getGlassCard } from '@/utils/glassmorphismStyles';
 import { industryColor, HUSTLE_COLORS } from '../styles/hustleTheme';
@@ -93,7 +96,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
       ]}
     >
       <View style={styles.headerRow}>
-        <View style={[styles.iconSquare, { backgroundColor: color + '26', borderColor: color + '4D' }]}>
+        <View style={[styles.iconSquare, { backgroundColor: withAlpha(color, 0.15), borderColor: withAlpha(color, 0.3) }]}>
           <Icon size={fontScale(22)} color={color} strokeWidth={2.2} />
         </View>
         <View style={styles.headerText}>
@@ -104,11 +107,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
             {company.type.charAt(0).toUpperCase() + company.type.slice(1)} · {company.employees} employees
           </Text>
         </View>
-        {isPublic ? (
-          <View style={[styles.pubChip, { backgroundColor: HUSTLE_COLORS.accent + '26', borderColor: HUSTLE_COLORS.accent + '4D' }]}>
-            <Text style={[styles.pubChipText, { color: HUSTLE_COLORS.accent }]}>PUBLIC</Text>
-          </View>
-        ) : null}
+        {isPublic ? <Chip label="Public" tint={HUSTLE_COLORS.accent} /> : null}
         <ChevronRight size={fontScale(18)} color={theme.textMuted} />
       </View>
 
@@ -116,19 +115,13 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
       <View style={styles.revBlock}>
         <View style={styles.revTopRow}>
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Weekly revenue</Text>
-          {lift > 0 ? (
-            <View style={[styles.liftChip, { backgroundColor: HUSTLE_COLORS.success + '22' }]}>
-              <Text style={[styles.liftChipText, { color: HUSTLE_COLORS.success }]}>+${lift.toLocaleString()} vs base</Text>
-            </View>
-          ) : null}
+          {lift > 0 ? <Chip label={`+$${lift.toLocaleString()} vs base`} tone="success" /> : null}
         </View>
         <View style={styles.revValueRow}>
           <Text style={[styles.revValue, { color: theme.text }]}>${weekly.toLocaleString()}</Text>
           <Text style={[styles.revSuffix, { color: theme.textMuted }]}>/wk</Text>
         </View>
-        <View style={[styles.revTrack, { backgroundColor: theme.surfaceElevated }]}>
-          <View style={[styles.revFill, { width: `${revPct}%`, backgroundColor: color }]} />
-        </View>
+        <ProgressBar value={revPct / 100} color={color} label="Weekly revenue against the portfolio leader" />
       </View>
 
       {/* Stat strip */}
@@ -137,9 +130,7 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
           <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>Brand</Text>
           <View style={styles.brandRow}>
             <Text style={[styles.metricValue, { color: theme.text }]}>{brand}</Text>
-            <View style={[styles.brandBar, { backgroundColor: theme.surfaceElevated }]}>
-              <View style={[styles.brandFill, { width: `${brand}%`, backgroundColor: HUSTLE_COLORS.accent }]} />
-            </View>
+            <ProgressBar value={brand / 100} color={HUSTLE_COLORS.accent} height={4} label="Brand" />
           </View>
         </View>
         <View style={styles.metric}>
@@ -156,25 +147,24 @@ export default function CompanyTile({ company, overlay, onPress, maxWeekly, week
 
       {/* Chips - marketing tier + running campaigns (surfaced from overlay) */}
       <View style={styles.chipRow}>
-        <View style={[styles.infoChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-          <DollarSign size={fontScale(10)} color={theme.textSecondary} strokeWidth={2.4} />
-          <Text style={[styles.infoChipText, { color: theme.textSecondary }]}>Mktg Lv {company.marketingLevel ?? 0}</Text>
-        </View>
+        <Chip
+          label={`Mktg Lv ${company.marketingLevel ?? 0}`}
+          icon={<DollarSign size={fontScale(10)} color={theme.textSecondary} />}
+        />
         {campaigns > 0 ? (
-          <View style={[styles.infoChip, { backgroundColor: HUSTLE_COLORS.accentSecondary + '1F', borderColor: HUSTLE_COLORS.accentSecondary + '40' }]}>
-            <Megaphone size={fontScale(10)} color={HUSTLE_COLORS.accentSecondary} strokeWidth={2.4} />
-            <Text style={[styles.infoChipText, { color: HUSTLE_COLORS.accentSecondary }]}>{campaigns} campaign{campaigns === 1 ? '' : 's'}</Text>
-          </View>
+          <Chip
+            label={`${campaigns} campaign${campaigns === 1 ? '' : 's'}`}
+            icon={<Megaphone size={fontScale(10)} color={HUSTLE_COLORS.accentSecondary} />}
+            tint={HUSTLE_COLORS.accentSecondary}
+          />
         ) : null}
         {(company.upgrades?.length ?? 0) > 0 ? (
-          <View style={[styles.infoChip, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
-            <Text style={[styles.infoChipText, { color: theme.textSecondary }]}>{company.upgrades.length} upgrade{company.upgrades.length === 1 ? '' : 's'}</Text>
-          </View>
+          <Chip label={`${company.upgrades.length} upgrade${company.upgrades.length === 1 ? '' : 's'}`} />
         ) : null}
       </View>
 
       {scandal ? (
-        <View style={[styles.scandalChip, { backgroundColor: HUSTLE_COLORS.danger + '22', borderColor: HUSTLE_COLORS.danger }]}>
+        <View style={[styles.scandalChip, { backgroundColor: withAlpha(HUSTLE_COLORS.danger, 0.13), borderColor: HUSTLE_COLORS.danger }]}>
           <AlertTriangle size={fontScale(11)} color={HUSTLE_COLORS.danger} strokeWidth={2.4} />
           <Text style={[styles.scandalText, { color: HUSTLE_COLORS.danger }]} numberOfLines={1}>
             {scandal.headline}
@@ -208,22 +198,11 @@ const styles = StyleSheet.create({
   headerText: { flex: 1 },
   name: {
     fontSize: fontScale(15),
-    fontWeight: '700',
+    fontWeight: '600',
   },
   industry: {
     fontSize: fontScale(11),
     marginTop: 2,
-  },
-  pubChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  pubChipText: {
-    fontSize: fontScale(9),
-    fontWeight: '800',
-    letterSpacing: 0.6,
   },
   revBlock: {
     marginBottom: responsiveSpacing.sm,
@@ -242,31 +221,12 @@ const styles = StyleSheet.create({
   },
   revValue: {
     fontSize: fontScale(19),
-    fontWeight: '800',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   revSuffix: {
     fontSize: fontScale(11),
-    fontWeight: '600',
-  },
-  revTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  revFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  liftChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  liftChipText: {
-    fontSize: fontScale(9),
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
+    fontWeight: '500',
   },
   metricsRow: {
     flexDirection: 'row',
@@ -283,39 +243,17 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontSize: fontScale(14),
-    fontWeight: '700',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   brandRow: {
     gap: 2,
-  },
-  brandBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  brandFill: {
-    height: '100%',
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
     marginTop: responsiveSpacing.sm,
-  },
-  infoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  infoChipText: {
-    fontSize: fontScale(10),
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
   },
   scandalChip: {
     flexDirection: 'row',

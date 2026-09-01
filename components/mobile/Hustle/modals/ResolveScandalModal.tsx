@@ -5,19 +5,18 @@
  * cost+reputation+severity-drop profiles. Calls resolveScandal action.
  */
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { X, AlertTriangle, MessagesSquare, Undo2, Scale, EyeOff, Building2 } from 'lucide-react-native';
-import Gradient from '@/components/ui/Gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MessagesSquare, Undo2, Scale, EyeOff, Building2 } from 'lucide-react-native';
+import BaseModal from '@/components/ui/BaseModal';
+import SectionTitle from '@/components/ui/SectionTitle';
 import { useGame } from '@/contexts/GameContext';
 import { useTheme } from '@/hooks/useTheme';
+import { accent } from '@/lib/config/theme';
 import { scale, fontScale, responsiveSpacing, touchTargets } from '@/utils/scaling';
-import { Z_INDEX } from '@/utils/zIndexConstants';
 import { resolveScandal } from '@/contexts/game/actions/HustleActions';
 import { HUSTLE_COLORS } from '../styles/hustleTheme';
 import { hustleHaptics } from '../utils/hustleHaptics';
 import type { HustleScandalResolution } from '@/contexts/game/types';
-
-const LinearGradient = Gradient;
 
 type OptionMeta = {
   id: HustleScandalResolution;
@@ -31,11 +30,11 @@ type OptionMeta = {
 };
 
 const OPTIONS: OptionMeta[] = [
-  { id: 'apology', Icon: MessagesSquare, iconColor: '#3B82F6', title: 'Public apology', cost: 'Free', costValue: 0, effect: '+2 rep · severity drops faster' },
-  { id: 'recall', Icon: Undo2, iconColor: '#0EA5E9', title: 'Product recall', cost: '$50,000', costValue: 50_000, effect: '+4 rep · 40 severity drop' },
-  { id: 'lawsuit', Icon: Scale, iconColor: '#F59E0B', title: 'Lawsuit', cost: '$100,000', costValue: 100_000, effect: '-3 rep · 50 severity drop' },
-  { id: 'cover_up', Icon: EyeOff, iconColor: '#94A3B8', title: 'Cover up', cost: '$25,000', costValue: 25_000, effect: '-1 rep · 30% resurge risk' },
-  { id: 'restructure', Icon: Building2, iconColor: '#10B981', title: 'Restructure', cost: '$200,000', costValue: 200_000, effect: '+8 rep · 70 severity drop' },
+  { id: 'apology', Icon: MessagesSquare, iconColor: accent.info, title: 'Public apology', cost: 'Free', costValue: 0, effect: '+2 rep · severity drops faster' },
+  { id: 'recall', Icon: Undo2, iconColor: accent.info, title: 'Product recall', cost: '$50,000', costValue: 50_000, effect: '+4 rep · 40 severity drop' },
+  { id: 'lawsuit', Icon: Scale, iconColor: accent.warning, title: 'Lawsuit', cost: '$100,000', costValue: 100_000, effect: '-3 rep · 50 severity drop' },
+  { id: 'cover_up', Icon: EyeOff, iconColor: accent.muted, title: 'Cover up', cost: '$25,000', costValue: 25_000, effect: '-1 rep · 30% resurge risk' },
+  { id: 'restructure', Icon: Building2, iconColor: accent.success, title: 'Restructure', cost: '$200,000', costValue: 200_000, effect: '+8 rep · 70 severity drop' },
 ];
 
 interface ResolveScandalModalProps {
@@ -69,21 +68,14 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
   if (!visible || !scandal) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
-          <View style={styles.header}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <AlertTriangle size={fontScale(20)} color={HUSTLE_COLORS.danger} />
-              <Text style={[styles.title, { color: theme.text }]}>Crisis at the company</Text>
-            </View>
-            <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.iconBtn}>
-              <X size={fontScale(20)} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <Text style={[styles.headline, { color: theme.textSecondary }]}>{scandal.headline}</Text>
-
+    <BaseModal
+      visible={visible}
+      onClose={onDismiss}
+      variant="bottom"
+      title="Crisis at the company"
+      subtitle={scandal.headline}
+    >
+      <View>
           <View style={[styles.severityRow, { backgroundColor: theme.surfaceElevated }]}>
             <Text style={[styles.severityLabel, { color: theme.textSecondary }]}>Severity</Text>
             <Text style={[styles.severityValue, { color: HUSTLE_COLORS.danger }]}>
@@ -91,9 +83,8 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
             </Text>
           </View>
 
-          <Text style={[styles.subhead, { color: theme.text }]}>Choose a response</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
-            {OPTIONS.map((opt) => {
+          <SectionTitle title="Choose a response" />
+          {OPTIONS.map((opt) => {
               const Icon = opt.Icon;
               const unaffordable = opt.costValue > cash;
               return (
@@ -117,61 +108,21 @@ export default function ResolveScandalModal({ visible, companyId, onDismiss }: R
                   <Text style={[styles.optionCost, { color: unaffordable ? HUSTLE_COLORS.danger : theme.text }]}>{opt.cost}</Text>
                 </Pressable>
               );
-            })}
-          </ScrollView>
+          })}
           {resultMsg ? (
             <Text style={[styles.resultMsg, { color: theme.textSecondary }]}>{resultMsg}</Text>
           ) : null}
-        </View>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
   resultMsg: {
     fontSize: fontScale(12),
-    fontWeight: '600',
+    fontWeight: '500',
     textAlign: 'center',
     marginTop: responsiveSpacing.sm,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'flex-end',
-    zIndex: Z_INDEX.MODAL,
-  },
-  // `maxHeight` + `flexShrink` on the list below, together. A bottom sheet with
-  // no height bound grows to fit its content, so on a short screen its footer
-  // button lands off the bottom of the SCREEN - and the sheet itself does not
-  // scroll, so nothing can reach it. Bounding the sheet is what gives the list
-  // something to shrink within. Same fix as ApplyCardModal (2026-08-02).
-  sheet: {
-    borderTopLeftRadius: scale(24),
-    borderTopRightRadius: scale(24),
-    padding: responsiveSpacing.lg,
-    paddingBottom: responsiveSpacing.xl,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: responsiveSpacing.sm,
-  },
-  title: {
-    fontSize: fontScale(18),
-    fontWeight: '800',
-  },
-  iconBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headline: {
-    fontSize: fontScale(13),
-    marginBottom: responsiveSpacing.md,
   },
   severityRow: {
     flexDirection: 'row',
@@ -179,17 +130,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveSpacing.md,
     paddingVertical: responsiveSpacing.sm,
     borderRadius: scale(10),
-    marginBottom: responsiveSpacing.md,
   },
   severityLabel: { fontSize: fontScale(12) },
   severityValue: {
     fontSize: fontScale(16),
-    fontWeight: '800',
-  },
-  subhead: {
-    fontSize: fontScale(15),
-    fontWeight: '700',
-    marginBottom: responsiveSpacing.sm,
+    fontWeight: '600',
   },
   optionCard: {
     flexDirection: 'row',
@@ -198,14 +143,14 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     borderRadius: scale(12),
     borderWidth: StyleSheet.hairlineWidth,
+    minHeight: touchTargets.minimum,
     marginBottom: responsiveSpacing.sm,
   },
-  optionEmoji: { fontSize: fontScale(22) },
   optionText: { flex: 1 },
-  optionTitle: { fontSize: fontScale(13), fontWeight: '700' },
+  optionTitle: { fontSize: fontScale(13), fontWeight: '600' },
   optionEffect: { fontSize: fontScale(11), marginTop: 2 },
   optionCost: {
     fontSize: fontScale(13),
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });
