@@ -42,7 +42,7 @@ describe('taxDueThisYear finally has a writer', () => {
 
 describe('the Bank app has a Tax tab', () => {
   it('is registered in the tab bar', () => {
-    expect(BANK).toMatch(/\{ id: 'tax', label: 'Tax', icon: Percent \}/);
+    expect(BANK).toMatch(/\{ key: 'tax', label: 'Tax', icon: Percent \}/);
   });
 
   it('renders when selected - a tab that routes nowhere is the Discovery Center trap', () => {
@@ -130,21 +130,23 @@ describe('one implementation, two hosts', () => {
 });
 
 describe('the five-tab bar fits', () => {
-  it('stacks the icon over the label instead of laying them out in a row', () => {
-    // Four tabs at `flexDirection: 'row'` gave ~94pt each on a 375pt screen and
-    // just fit "Statement". The fifth cut that to 75pt.
-    const tabStyle = BANK.slice(BANK.indexOf('  tab: {'), BANK.indexOf('  tabText: {'));
-    expect(tabStyle.length).toBeGreaterThan(60);
-    expect(tabStyle).not.toMatch(/flexDirection: 'row'/);
-    expect(tabStyle).toMatch(/minHeight: touchTargets\./);
+  // The hand-rolled bar (which stacked the icon over the label so five tabs
+  // shared a 375pt row) is gone: Bank Pro now renders the shared
+  // `SegmentedControl`, which solves the same problem the other way - the row
+  // scrolls and each segment keeps its natural width, so no label truncates.
+  // The primitive owns `numberOfLines={1}`, the 40pt tap target and role=tab.
+  it('renders the shared control rather than a private tab bar', () => {
+    expect(BANK).toMatch(/from '@\/components\/ui\/SegmentedControl'/);
+    expect(BANK).toMatch(/<SegmentedControl/);
+    expect(BANK).not.toMatch(/\{TABS\.map\(\(t\) => \{/);
   });
 
-  it('the label cannot wrap to a second line and shift the bar height', () => {
-    const at = BANK.indexOf('{TABS.map((t) => {');
+  it('is scrollable, because five segments do not share a phone-width row', () => {
+    const at = BANK.indexOf('<SegmentedControl');
     expect(at).toBeGreaterThan(-1);
-    const bar = BANK.slice(at, BANK.indexOf('</View>', BANK.indexOf('</TouchableOpacity>', at)));
-    expect(bar).toMatch(/styles\.tabText/);
-    expect(bar).toMatch(/numberOfLines=\{1\}/);
+    const control = BANK.slice(at, BANK.indexOf('/>', at));
+    expect(control).toMatch(/segments=\{TABS\}/);
+    expect(control).toMatch(/scrollable/);
   });
 });
 
@@ -154,9 +156,13 @@ describe('both dead rows are alive and correctly labelled', () => {
     expect(BANK).not.toMatch(/Tax accrued this year/);
   });
 
-  it('the phone ledger chip says PAID, not due', () => {
-    expect(PHONE).toMatch(/label="Tax paid"/);
-    expect(PHONE).not.toMatch(/label="Tax due"/);
+  it('the phone ledger row says PAID, not due', () => {
+    // The five overview ledger chips became `StatStrip` items on the tax
+    // sub-page (shared-primitives conversion), so the label is an object
+    // property now rather than a JSX attribute. The assertion is the same one:
+    // the row must name tax PAID.
+    expect(PHONE).toMatch(/label: 'Tax paid'/);
+    expect(PHONE).not.toMatch(/'Tax due'/);
   });
 });
 

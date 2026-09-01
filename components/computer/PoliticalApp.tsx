@@ -21,7 +21,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
-  ArrowLeft,
   Briefcase,
   ClipboardList,
   TrendingUp,
@@ -36,7 +35,6 @@ import {
   Scale,
   ThumbsUp,
   ThumbsDown,
-  Award,
   DollarSign,
   Landmark,
   Banknote,
@@ -47,7 +45,7 @@ import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import Gradient from '@/components/ui/Gradient';
 import { getGlassCard, getGlassButton, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 
@@ -56,6 +54,13 @@ import ScandalRow from '@/components/politics/ScandalRow';
 import PACCard from '@/components/politics/PACCard';
 import AmountInputModal from '@/components/banking/AmountInputModal';
 import ProgressRing from '@/components/ui/ProgressRing';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import ProgressBar from '@/components/ui/ProgressBar';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
 
 import {
   raisePACClean,
@@ -104,7 +109,7 @@ import {
   describeSpecialties,
   policyDiscountFraction,
 } from '@/lib/politics/lobbyists';
-import type { Lobbyist, PoliticalAlliance } from '@/contexts/game/types';
+import type { Lobbyist, PoliticalAlliance, PoliticsState } from '@/contexts/game/types';
 import EnactPolicyModal from '@/components/politics/EnactPolicyModal';
 
 import { formatMoney } from '@/utils/moneyFormatting';
@@ -113,11 +118,12 @@ import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
 const LinearGradient = Gradient;
 
-// Identity accent - sky #60A5FA. Solid only on small CTAs / badges / dots;
-// everywhere else it appears as a translucent tint (fills 0.12–0.18, rims
-// 0.28–0.36, hero wash 0.10–0.16 flat). rgb = 96,165,250.
-const SKY = '#60A5FA';
-const sky = (a: number) => `rgba(96, 165, 250, ${a})`;
+// One identity colour, from the shared palette: politics reads as INFO.
+// Tints go through withAlpha rather than a private rgba() helper.
+const SKY = accent.info;
+// The deep stop of the ONE gradient in this file - the "Run for ..." primary.
+// (A gradient from a colour to itself is a bug; this one actually travels.)
+const PRIMARY_DEEP = '#1D4ED8';
 
 // Office rank (careerLevel) → the office you run for NEXT. careerLevel is the
 // 1-based rank (0=Citizen … 6=President); index N is the next step up.
@@ -140,12 +146,6 @@ const CAMPAIGN_COST: Record<string, number> = {
   senator: 500_000,
   president: 2_000_000,
 };
-const PARTIES: { id: 'democratic' | 'republican' | 'independent'; label: string }[] = [
-  { id: 'democratic', label: 'Democratic' },
-  { id: 'republican', label: 'Republican' },
-  { id: 'independent', label: 'Independent' },
-];
-
 interface PoliticalAppProps {
   onBack: () => void;
 }
@@ -179,11 +179,11 @@ const ALLIANCE_TARGETS: { id: string; name: string; role: string; description: s
 // Fixed alliance influence - mirrors the value formAlliance stamps on each ally.
 const ALLIANCE_INFLUENCE = 10;
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
-  { id: 'office',     label: 'Office',    icon: Briefcase },
-  { id: 'career',     label: 'Career',    icon: Landmark },
-  { id: 'policies',   label: 'Policies',  icon: ClipboardList },
-  { id: 'influence',  label: 'Influence', icon: TrendingUp },
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { key: 'office', label: 'Office', icon: Briefcase },
+  { key: 'career', label: 'Career', icon: Landmark },
+  { key: 'policies', label: 'Policies', icon: ClipboardList },
+  { key: 'influence', label: 'Influence', icon: TrendingUp },
 ];
 
 const OFFICE_NAME: Record<number, string> = {
@@ -294,7 +294,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   const theme = getThemeColors(darkMode);
 
   const politics = useMemo(
-    () => ensurePoliticsHasNewFields(gameState.politics ?? ({} as any)),
+    () => ensurePoliticsHasNewFields(gameState.politics ?? ({} as PoliticsState)),
     [gameState.politics]
   );
 
@@ -391,7 +391,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
   const handleRunForOffice = useCallback(() => {
     if (!nextOfficeKey) return;
     const result = runForOffice(gameState, setGameState, nextOfficeKey as Parameters<typeof runForOffice>[2], { updateMoney });
-    gameAlert(result.success ? '🗳️ Election Night' : 'Cannot run yet', result.message);
+    gameAlert(result.success ? 'Election Night' : 'Cannot run yet', result.message);
     if (result.success) queueSave();
   }, [gameState, setGameState, nextOfficeKey, queueSave]);
 
@@ -503,17 +503,10 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         ]}
       >
         <View style={styles.heroInner}>
-          <View pointerEvents="none" style={styles.heroBlob} />
-          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
-
           <View style={styles.heroTopRow}>
             <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>CAMPAIGN HEADQUARTERS</Text>
             {politics.party && (
-              <View style={[styles.partyChip, { backgroundColor: sky(0.14), borderColor: sky(0.3) }]}>
-                <Text style={[styles.partyChipText, { color: SKY }]}>
-                  {politics.party.charAt(0).toUpperCase() + politics.party.slice(1)}
-                </Text>
-              </View>
+              <Chip label={politics.party.charAt(0).toUpperCase() + politics.party.slice(1)} tint={SKY} />
             )}
           </View>
 
@@ -526,15 +519,14 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
               </Text>
               <View style={styles.heroChipRow}>
                 {salaryWeekly > 0 && (
-                  <View style={[styles.metaChip, { backgroundColor: sky(0.14), borderColor: sky(0.3) }]}>
-                    <DollarSign size={scale(11)} color={SKY} />
-                    <Text style={[styles.metaChipText, { color: theme.text }]}>{formatMoney(salaryWeekly)}/wk</Text>
-                  </View>
+                  <Chip label={`${formatMoney(salaryWeekly)}/wk`} icon={<DollarSign size={scale(11)} color={SKY} />} tint={SKY} />
                 )}
-                <View style={[styles.metaChip, { backgroundColor: sky(0.14), borderColor: sky(0.3) }]}>
-                  <Trophy size={scale(11)} color={SKY} />
-                  <Text style={[styles.metaChipText, { color: theme.text }]}>{politics.electionsWon ?? 0} won</Text>
-                </View>
+                <Chip
+                  label={`${politics.electionsWon ?? 0} won`}
+                  icon={<Trophy size={scale(11)} color={SKY} />}
+                  tint={SKY}
+                  accessibilityLabel={`${politics.electionsWon ?? 0} elections won`}
+                />
               </View>
             </View>
           </View>
@@ -543,7 +535,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
       {weeksToElection != null && (
         <View style={[getGlassCard(darkMode, 6), styles.electionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 30), styles.inlineBubble, { backgroundColor: `rgba(245,158,11,0.15)`, borderColor: `rgba(245,158,11,0.3)` }]}>
+          <View style={[getGlassIconContainer(darkMode, 30), styles.inlineBubble, { backgroundColor: withAlpha(accent.warning, 0.15), borderColor: withAlpha(accent.warning, 0.3) }]}>
             <Calendar size={scale(15)} color={accent.warning} />
           </View>
           <Text style={[styles.electionText, { color: theme.text }]}>
@@ -584,13 +576,14 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Term stat cluster - 2×2, densified with the alliance count. */}
-      <View style={styles.statGrid}>
-        <StatCard theme={theme} darkMode={darkMode} icon={Handshake} label="Lobbyists" value={String(lobbyists.length)} />
-        <StatCard theme={theme} darkMode={darkMode} icon={Users} label="Alliances" value={String(alliances.length)} />
-        <StatCard theme={theme} darkMode={darkMode} icon={Award} label="Influence" value={String(Math.round(politics.policyInfluence ?? 0))} />
-        <StatCard theme={theme} darkMode={darkMode} icon={ClipboardList} label="Policies" value={String((politics.policiesEnacted ?? []).length)} />
-      </View>
+      <StatStrip
+        items={[
+          { label: 'Lobbyists', value: lobbyists.length },
+          { label: 'Alliances', value: alliances.length },
+          { label: 'Influence', value: Math.round(politics.policyInfluence ?? 0) },
+          { label: 'Policies', value: (politics.policiesEnacted ?? []).length },
+        ]}
+      />
 
       {/* Primary action: run for the next office up (or the first office as a
           citizen). runForOffice enforces age / reputation / education / cash and
@@ -604,7 +597,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           accessibilityLabel={`Run for ${OFFICE_TITLE[nextOfficeKey]}`}
         >
           <LinearGradient
-            colors={[SKY, accent.info]}
+            colors={[SKY, PRIMARY_DEEP]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.ctaFill}
@@ -617,42 +610,36 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         </TouchableOpacity>
       ) : (
         <View style={[getGlassCard(darkMode, 6), styles.electionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 30), styles.inlineBubble, { backgroundColor: `rgba(245,158,11,0.15)`, borderColor: `rgba(245,158,11,0.3)` }]}>
+          <View style={[getGlassIconContainer(darkMode, 30), styles.inlineBubble, { backgroundColor: withAlpha(accent.warning, 0.15), borderColor: withAlpha(accent.warning, 0.3) }]}>
             <Trophy size={scale(15)} color={accent.warning} />
           </View>
           <Text style={[styles.electionText, { color: theme.text }]}>You hold the highest office in the land.</Text>
         </View>
       )}
 
-      {/* Campaign: spend cash to lift approval between elections - the lever that
-          protects your seat when re-election comes around. */}
-      <TouchableOpacity
-        onPress={() => setShowCampaign(true)}
-        activeOpacity={0.85}
-        style={[getGlassButton(darkMode), styles.secondaryCta]}
-        accessibilityRole="button"
-        accessibilityLabel="Fund a campaign push to raise approval"
-      >
-        <TrendingUp size={scale(15)} color={SKY} />
-        <Text style={[styles.secondaryCtaText, { color: SKY }]}>Fund a campaign push (raise approval)</Text>
-      </TouchableOpacity>
-
-      {/* Party, appointments, the war chest and retirement all live on the
-          Career tab - this tab is the seat you hold right now. */}
-      <TouchableOpacity
-        onPress={() => setActiveTab('career')}
-        activeOpacity={0.85}
-        style={[getGlassButton(darkMode), styles.secondaryCta]}
-        accessibilityRole="button"
-        accessibilityLabel="Open your political career: party, appointments and retirement"
-      >
-        <Landmark size={scale(15)} color={SKY} />
-        <Text style={[styles.secondaryCtaText, { color: SKY }]}>
-          {politics.party
-            ? `${findParty(politics.party)?.name ?? politics.party} Party · career & appointments`
-            : 'Join a party, take an appointment, plan your exit'}
-        </Text>
-      </TouchableOpacity>
+      {/* Everything that is not "the seat you hold right now" is one loud CTA
+          less: a named group of quiet rows under the primary action. */}
+      <View style={{ gap: responsiveSpacing.sm }}>
+        <SectionTitle title="More" />
+        <View style={styles.chipRow}>
+          <Chip
+            label="Fund a campaign push"
+            size="md"
+            icon={<TrendingUp size={scale(13)} color={SKY} />}
+            tint={SKY}
+            onPress={() => setShowCampaign(true)}
+            accessibilityLabel="Fund a campaign push to raise approval"
+          />
+          <Chip
+            label={politics.party ? `${findParty(politics.party)?.name ?? politics.party} Party` : 'Join a party'}
+            size="md"
+            icon={<Landmark size={scale(13)} color={SKY} />}
+            tint={SKY}
+            onPress={() => setActiveTab('career')}
+            accessibilityLabel="Open your political career: party, appointments and retirement"
+          />
+        </View>
+      </View>
     </View>
   );
 
@@ -687,137 +674,164 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
     });
     const retired = politics.retirement;
 
+    // One section carries a decision the player can act on today; that one
+    // opens, the rest stay folded with a one-line summary. Priority is the
+    // order a political life actually forces the choice.
+    const liveSection: 'party' | 'appointments' | 'warchest' | 'retirement' =
+      !party ? 'party'
+      : challenged ? 'party'
+      : !appointment && offers.some((o) => !o.blocker) ? 'appointments'
+      : skimAllowance > 0 && !skimmedAlready ? 'warchest'
+      : !retired && !retireBlocker ? 'retirement'
+      : 'party';
+
     return (
-      <View style={{ gap: responsiveSpacing.lg }}>
+      <View style={{ gap: responsiveSpacing.md }}>
         {/* ── Party ──────────────────────────────────────────────────── */}
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>{party ? 'Your party' : 'Choose a party'}</SectionTitle>
-
-          {party ? (
-            <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{partyDef?.name ?? party} Party</Text>
-              {hasPartyMachine(party) ? (
-                <>
-                  <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
-                    Standing {support}/100 · {endorsed
-                      ? 'endorsed - the machine is behind you'
-                      : challenged
-                        ? 'the party is shopping for another candidate'
-                        : `${ENDORSEMENT_THRESHOLD - support} more for an endorsement`}
-                  </Text>
-                  <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-                    <View
-                      style={[
-                        styles.meterFill,
-                        {
-                          width: `${support}%`,
-                          backgroundColor: endorsed ? accent.success : challenged ? accent.danger : SKY,
-                        },
-                      ]}
+        <CollapsibleSection
+          id="politics-party"
+          title={party ? 'Your party' : 'Choose a party'}
+          tint={SKY}
+          defaultCollapsed={liveSection !== 'party'}
+          summary={party ? `${partyDef?.name ?? party} · standing ${support}/100` : 'No party backing you'}
+        >
+          <View style={{ gap: responsiveSpacing.sm }}>
+            {party ? (
+              <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{partyDef?.name ?? party} Party</Text>
+                {hasPartyMachine(party) ? (
+                  <>
+                    <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                      Standing {support}/100 · {endorsed
+                        ? 'endorsed - the machine is behind you'
+                        : challenged
+                          ? 'the party is shopping for another candidate'
+                          : `${ENDORSEMENT_THRESHOLD - support} more for an endorsement`}
+                    </Text>
+                    <ProgressBar
+                      value={support / 100}
+                      color={endorsed ? accent.success : challenged ? accent.danger : SKY}
+                      height={scale(6)}
+                      label="Party standing"
                     />
-                  </View>
-                  <Text style={[styles.helperText, { color: theme.textMuted }]}>
-                    An endorsement moves election odds and pays into your war chest every week. Enacting
-                    the platform raises standing; scandals cost it.
+                    <Text style={[styles.helperText, { color: theme.textMuted }]}>
+                      An endorsement moves election odds and pays into your war chest every week. Enacting
+                      the platform raises standing; scandals cost it.
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                    No platform to answer to, and nobody to call when you need money.
                   </Text>
-                </>
-              ) : (
-                <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
-                  No platform to answer to, and nobody to call when you need money.
-                </Text>
-              )}
-            </View>
-          ) : null}
+                )}
+              </View>
+            ) : null}
 
-          <View style={styles.partyRow}>
-            {POLITICAL_PARTIES.map((p) => {
-              const isCurrent = party === p.id;
+            <View style={styles.partyRow}>
+              {POLITICAL_PARTIES.map((p) => {
+                const isCurrent = party === p.id;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => handleJoinParty(p.id)}
+                    disabled={isCurrent}
+                    activeOpacity={0.85}
+                    style={[getGlassButton(darkMode), styles.partyBtn, isCurrent && { opacity: 0.45 }]}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isCurrent, selected: isCurrent }}
+                    accessibilityLabel={isCurrent ? `Already in the ${p.name} Party` : `Join the ${p.name} Party`}
+                  >
+                    <Text style={[styles.partyBtnText, { color: theme.text }]}>{p.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {party ? (
+              <Text style={[styles.helperText, { color: theme.textMuted }]}>
+                Crossing the floor costs public approval - more every time - and drops you to the bottom of
+                the new party&apos;s pecking order.
+              </Text>
+            ) : null}
+          </View>
+        </CollapsibleSection>
+
+        {/* ── Appointments ───────────────────────────────────────────── */}
+        <CollapsibleSection
+          id="politics-appointments"
+          title="Appointed positions"
+          tint={SKY}
+          defaultCollapsed={liveSection !== 'appointments'}
+          summary={
+            appointment
+              ? `${appointment.title} · ${formatMoney(appointment.weeklySalary)}/wk`
+              : `${offers.filter((o) => !o.blocker).length} open to you`
+          }
+        >
+          <View style={{ gap: responsiveSpacing.sm }}>
+            {appointment ? (
+              <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{appointment.title}</Text>
+                <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                  {formatMoney(appointment.weeklySalary)}/wk · serving since week {politics.appointment?.startedWeek ?? 0}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleResignAppointment}
+                  activeOpacity={0.85}
+                  style={[getGlassButton(darkMode), styles.secondaryCta]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Step down as ${appointment.title}`}
+                >
+                  <LogOut size={scale(15)} color={theme.textSecondary} />
+                  <Text style={[styles.secondaryCtaText, { color: theme.textSecondary }]}>Step down</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {offers.map((offer) => {
+              const held = politics.appointment?.id === offer.id;
+              if (held) return null;
               return (
                 <TouchableOpacity
-                  key={p.id}
-                  onPress={() => handleJoinParty(p.id)}
-                  disabled={isCurrent}
+                  key={offer.id}
+                  onPress={() => handleTakeAppointment(offer.id)}
+                  disabled={!!offer.blocker}
                   activeOpacity={0.85}
-                  style={[getGlassButton(darkMode), styles.partyBtn, isCurrent && { opacity: 0.45 }]}
+                  style={[
+                    getGlassCard(darkMode, 6),
+                    styles.lifeCard,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                    !!offer.blocker && { opacity: 0.55 },
+                  ]}
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: isCurrent, selected: isCurrent }}
-                  accessibilityLabel={isCurrent ? `Already in the ${p.name} Party` : `Join the ${p.name} Party`}
+                  accessibilityState={{ disabled: !!offer.blocker }}
+                  accessibilityLabel={
+                    offer.blocker
+                      ? `${offer.title}, unavailable: ${offer.blocker}`
+                      : `Accept the position of ${offer.title}, ${formatMoney(offer.weeklySalary)} per week`
+                  }
                 >
-                  <Text style={[styles.partyBtnText, { color: theme.text }]}>{p.name}</Text>
+                  <View style={styles.lifeCardHeader}>
+                    <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{offer.title}</Text>
+                    <Text style={[styles.lifeCardPay, { color: accent.success }]}>{formatMoney(offer.weeklySalary)}/wk</Text>
+                  </View>
+                  <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>{offer.blurb}</Text>
+                  {offer.blocker ? (
+                    <Text style={[styles.helperText, { color: accent.warning }]}>{offer.blocker}</Text>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
           </View>
-          {party ? (
-            <Text style={[styles.helperText, { color: theme.textMuted }]}>
-              Crossing the floor costs public approval - more every time - and drops you to the bottom of
-              the new party&apos;s pecking order.
-            </Text>
-          ) : null}
-        </View>
-
-        {/* ── Appointments ───────────────────────────────────────────── */}
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Appointed positions</SectionTitle>
-
-          {appointment ? (
-            <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{appointment.title}</Text>
-              <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
-                {formatMoney(appointment.weeklySalary)}/wk · serving since week {politics.appointment?.startedWeek ?? 0}
-              </Text>
-              <TouchableOpacity
-                onPress={handleResignAppointment}
-                activeOpacity={0.85}
-                style={[getGlassButton(darkMode), styles.secondaryCta]}
-                accessibilityRole="button"
-                accessibilityLabel={`Step down as ${appointment.title}`}
-              >
-                <LogOut size={scale(15)} color={theme.textSecondary} />
-                <Text style={[styles.secondaryCtaText, { color: theme.textSecondary }]}>Step down</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
-          {offers.map((offer) => {
-            const held = politics.appointment?.id === offer.id;
-            if (held) return null;
-            return (
-              <TouchableOpacity
-                key={offer.id}
-                onPress={() => handleTakeAppointment(offer.id)}
-                disabled={!!offer.blocker}
-                activeOpacity={0.85}
-                style={[
-                  getGlassCard(darkMode, 6),
-                  styles.lifeCard,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                  !!offer.blocker && { opacity: 0.55 },
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !!offer.blocker }}
-                accessibilityLabel={
-                  offer.blocker
-                    ? `${offer.title}, unavailable: ${offer.blocker}`
-                    : `Accept the position of ${offer.title}, ${formatMoney(offer.weeklySalary)} per week`
-                }
-              >
-                <View style={styles.lifeCardHeader}>
-                  <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{offer.title}</Text>
-                  <Text style={[styles.lifeCardPay, { color: accent.success }]}>{formatMoney(offer.weeklySalary)}/wk</Text>
-                </View>
-                <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>{offer.blurb}</Text>
-                {offer.blocker ? (
-                  <Text style={[styles.helperText, { color: accent.warning }]}>{offer.blocker}</Text>
-                ) : null}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        </CollapsibleSection>
 
         {/* ── The war chest ──────────────────────────────────────────── */}
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>The war chest</SectionTitle>
+        <CollapsibleSection
+          id="politics-warchest"
+          title="The war chest"
+          tint={SKY}
+          defaultCollapsed={liveSection !== 'warchest'}
+          summary={`${formatMoney(pot)} · exposure ${embezzlement.heat}%`}
+        >
           <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.lifeCardHeader}>
               <Text style={[styles.lifeCardTitle, { color: theme.text }]}>{formatMoney(pot)}</Text>
@@ -857,39 +871,50 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </CollapsibleSection>
 
         {/* ── The exit ───────────────────────────────────────────────── */}
-        <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Retirement</SectionTitle>
-          {retired ? (
-            <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.lifeCardTitle, { color: theme.text }]}>Retired as {retired.title}</Text>
-              <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
-                {retired.termsServed} election win{retired.termsServed === 1 ? '' : 's'} ·
-                {' '}{formatMoney(retired.weeklyPension)}/wk pension for life
+        <CollapsibleSection
+          id="politics-retirement"
+          title="Retirement"
+          tint={SKY}
+          defaultCollapsed={liveSection !== 'retirement'}
+          summary={
+            retired
+              ? `Retired as ${retired.title}`
+              : (retireBlocker ?? 'Eligible to stand down')
+          }
+        >
+          <View style={{ gap: responsiveSpacing.sm }}>
+            {retired ? (
+              <View style={[getGlassCard(darkMode, 6), styles.lifeCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.lifeCardTitle, { color: theme.text }]}>Retired as {retired.title}</Text>
+                <Text style={[styles.lifeCardMeta, { color: theme.textSecondary }]}>
+                  {retired.termsServed} election win{retired.termsServed === 1 ? '' : 's'} ·
+                  {' '}{formatMoney(retired.weeklyPension)}/wk pension for life
+                </Text>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              onPress={handleRetire}
+              disabled={!!retireBlocker}
+              activeOpacity={0.85}
+              style={[getGlassButton(darkMode), styles.secondaryCta, !!retireBlocker && { opacity: 0.45 }]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !!retireBlocker }}
+              accessibilityLabel="Stand down from office with a pension"
+            >
+              <ShieldAlert size={scale(15)} color={theme.textSecondary} />
+              <Text style={[styles.secondaryCtaText, { color: theme.textSecondary }]}>
+                {retireBlocker ?? 'Stand down with a pension'}
               </Text>
-            </View>
-          ) : null}
-          <TouchableOpacity
-            onPress={handleRetire}
-            disabled={!!retireBlocker}
-            activeOpacity={0.85}
-            style={[getGlassButton(darkMode), styles.secondaryCta, !!retireBlocker && { opacity: 0.45 }]}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !!retireBlocker }}
-            accessibilityLabel="Stand down from office with a pension"
-          >
-            <ShieldAlert size={scale(15)} color={theme.textSecondary} />
-            <Text style={[styles.secondaryCtaText, { color: theme.textSecondary }]}>
-              {retireBlocker ?? 'Stand down with a pension'}
+            </TouchableOpacity>
+            <Text style={[styles.helperText, { color: theme.textMuted }]}>
+              Retiring keeps your title and pays a pension scaled by the office you held, the elections you
+              won and how the public saw you on the way out. You can still take appointments afterwards.
             </Text>
-          </TouchableOpacity>
-          <Text style={[styles.helperText, { color: theme.textMuted }]}>
-            Retiring keeps your title and pays a pension scaled by the office you held, the elections you
-            won and how the public saw you on the way out. You can still take appointments afterwards.
-          </Text>
-        </View>
+          </View>
+        </CollapsibleSection>
       </View>
     );
   };
@@ -909,14 +934,12 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={styles.heroBlob} />
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <View style={styles.heroCountRow}>
               <View
                 style={[
                   getGlassIconContainer(darkMode, 44),
                   styles.heroBubble,
-                  { backgroundColor: sky(0.15), borderColor: sky(0.3) },
+                  { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) },
                 ]}
               >
                 <Scale size={scale(22)} color={SKY} />
@@ -926,11 +949,13 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                 <Text style={[styles.heroName, { color: theme.text }]}>{enacted.length} bills passed</Text>
               </View>
             </View>
-            <View style={styles.aggRow}>
-              <AggStat label="One-time cash" value={`${agg.money > 0 ? '+' : ''}${formatMoney(agg.money)}`} theme={theme} />
-              <AggStat label="Reputation" value={`${agg.reputation > 0 ? '+' : ''}${agg.reputation}`} theme={theme} />
-              <AggStat label="Happiness" value={`${agg.happiness > 0 ? '+' : ''}${agg.happiness}`} theme={theme} />
-            </View>
+            <StatStrip
+              items={[
+                { label: 'One-time cash', value: `${agg.money > 0 ? '+' : ''}${formatMoney(agg.money)}` },
+                { label: 'Reputation', value: `${agg.reputation > 0 ? '+' : ''}${agg.reputation}` },
+                { label: 'Happiness', value: `${agg.happiness > 0 ? '+' : ''}${agg.happiness}` },
+              ]}
+            />
           </View>
         </View>
 
@@ -944,20 +969,15 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
           accessibilityState={{ disabled: careerLevel === 0 }}
           accessibilityLabel={careerLevel === 0 ? 'Win an election to enact policies' : 'Enact a policy'}
         >
-          <LinearGradient
-            colors={careerLevel === 0 ? [theme.surfaceElevated, theme.surfaceElevated] : [SKY, accent.info]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.ctaFill}
-          >
+          <View style={[styles.ctaFill, { backgroundColor: careerLevel === 0 ? theme.surfaceElevated : SKY }]}>
             {careerLevel !== 0 && <ClipboardList size={scale(16)} color="white" />}
             <Text style={[styles.enactCtaText, careerLevel === 0 && { color: theme.textMuted }]}>
               {careerLevel === 0 ? 'Win an election to enact policies' : 'Enact a policy'}
             </Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
 
-        <SectionTitle theme={theme}>Bills on the books</SectionTitle>
+        <SectionTitle title="Bills on the books" />
         {enacted.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>
             No policies enacted yet. Win an office, then push your first bill.
@@ -993,11 +1013,9 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
       <View style={{ gap: responsiveSpacing.sm }}>
         <View style={styles.rosterHeadRow}>
-          <SectionTitle theme={theme}>Lobbyist roster</SectionTitle>
+          <SectionTitle title="Lobbyist roster" />
           {lobbyists.length > 0 && (
-            <View style={[styles.countPill, { backgroundColor: sky(0.14), borderColor: sky(0.3) }]}>
-              <Text style={[styles.countPillText, { color: SKY }]}>+{lobbyistInfluence} influence</Text>
-            </View>
+            <Chip label={`+${lobbyistInfluence} influence`} tint={SKY} />
           )}
         </View>
         {lobbyists.length === 0 ? (
@@ -1026,7 +1044,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       </View>
 
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Alliances</SectionTitle>
+        <SectionTitle title="Alliances" />
         {alliances.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>No political alliances formed.</EmptyText>
         ) : (
@@ -1045,7 +1063,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       </View>
 
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>Active scandals</SectionTitle>
+        <SectionTitle title="Active scandals" />
         {activeScandals.length === 0 ? (
           <EmptyText theme={theme} darkMode={darkMode}>No active scandals. Keep it clean.</EmptyText>
         ) : (
@@ -1062,7 +1080,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
       {pastScandals.length > 0 && (
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Past scandals</SectionTitle>
+          <SectionTitle title="Past scandals" />
           {pastScandals.slice(0, 5).map((s) => (
             <ScandalRow key={s.id} scandal={s} darkMode={darkMode} />
           ))}
@@ -1090,20 +1108,19 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                 <Text style={[styles.rungName, { color: r.status === 'current' ? SKY : theme.text }]} numberOfLines={1}>
                   {r.name}
                 </Text>
-                <View style={[styles.statusChip, statusChipStyle(r.status, theme)]}>
-                  <Text style={[styles.statusChipText, { color: statusChipColor(r.status, theme) }]}>
-                    {r.status === 'held' ? 'Held' : r.status === 'current' ? 'In office' : r.status === 'next' ? 'Next' : 'Locked'}
-                  </Text>
-                </View>
+                <Chip
+                  label={r.status === 'held' ? 'Held' : r.status === 'current' ? 'In office' : r.status === 'next' ? 'Next' : 'Locked'}
+                  tint={r.status === 'current' ? SKY : r.status === 'held' ? accent.success : undefined}
+                />
               </View>
               <View style={styles.reqChipRow}>
-                {r.salaryWeekly > 0 && <ReqChip theme={theme} text={`${formatMoney(r.salaryWeekly)}/wk`} />}
-                {r.cost > 0 && <ReqChip theme={theme} text={`${formatMoney(r.cost)} to run`} />}
-                {reqs?.minAge != null && <ReqChip theme={theme} text={`Age ${reqs.minAge}+`} />}
-                {reqs?.minReputation != null && <ReqChip theme={theme} text={`Rep ${reqs.minReputation}+`} />}
-                {reqs?.education?.length ? <ReqChip theme={theme} text={reqs.education.map((e) => e.replace(/_/g, ' ')).join(', ')} /> : null}
-                {reqs?.minWeeksInPrevious != null && <ReqChip theme={theme} text={`${Math.round(reqs.minWeeksInPrevious / 52)}yr in prev`} />}
-                {reqs?.specialEvent && <ReqChip theme={theme} text="Special election" />}
+                {r.salaryWeekly > 0 && <Chip label={`${formatMoney(r.salaryWeekly)}/wk`} />}
+                {r.cost > 0 && <Chip label={`${formatMoney(r.cost)} to run`} />}
+                {reqs?.minAge != null && <Chip label={`Age ${reqs.minAge}+`} />}
+                {reqs?.minReputation != null && <Chip label={`Rep ${reqs.minReputation}+`} />}
+                {reqs?.education?.length ? <Chip label={reqs.education.map((e) => e.replace(/_/g, ' ')).join(', ')} /> : null}
+                {reqs?.minWeeksInPrevious != null && <Chip label={`${Math.round(reqs.minWeeksInPrevious / 52)}yr in prev`} />}
+                {reqs?.specialEvent && <Chip label="Special election" />}
               </View>
               {r.status === 'next' && r.key && (
                 <TouchableOpacity
@@ -1113,15 +1130,10 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                   accessibilityRole="button"
                   accessibilityLabel={`Run for ${OFFICE_TITLE[r.key]}`}
                 >
-                  <LinearGradient
-                    colors={[SKY, accent.info]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.ctaFill}
-                  >
+                  <View style={[styles.ctaFill, { backgroundColor: SKY }]}>
                     <Vote size={scale(15)} color="white" />
                     <Text style={styles.enactCtaText}>Run for {OFFICE_TITLE[r.key]}</Text>
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               )}
             </View>
@@ -1159,7 +1171,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         {/* Bill header */}
         <View style={[getGlassCard(darkMode, 6), styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.cardHeadRow}>
-            <View style={[getGlassIconContainer(darkMode, 40), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+            <View style={[getGlassIconContainer(darkMode, 40), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
               <Scale size={scale(18)} color={SKY} />
             </View>
             <View style={{ flex: 1 }}>
@@ -1231,7 +1243,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
       <View style={{ gap: responsiveSpacing.lg }}>
         <View style={[getGlassCard(darkMode, 6), styles.sectionCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.cardHeadRow}>
-            <View style={[getGlassIconContainer(darkMode, 40), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+            <View style={[getGlassIconContainer(darkMode, 40), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
               <Handshake size={scale(18)} color={SKY} />
             </View>
             <View style={{ flex: 1 }}>
@@ -1244,19 +1256,17 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                 </View>
               )}
             </View>
-            <View style={[styles.statusChip, { backgroundColor: held?.active ? `rgba(16,185,129,0.15)` : theme.surfaceElevated, borderColor: held?.active ? `rgba(16,185,129,0.3)` : theme.border }]}>
-              <Text style={[styles.statusChipText, { color: held?.active ? accent.success : theme.textMuted }]}>
-                {held?.active ? 'Active' : 'Inactive'}
-              </Text>
-            </View>
+            <Chip label={held?.active ? 'Active' : 'Inactive'} tone={held?.active ? 'success' : 'neutral'} />
           </View>
           {cat?.description && <Text style={[styles.detailDesc, { color: theme.textSecondary }]}>{cat.description}</Text>}
         </View>
 
-        <View style={styles.statGrid}>
-          <StatCard theme={theme} darkMode={darkMode} icon={Award} label="Influence" value={`+${influence}`} />
-          <StatCard theme={theme} darkMode={darkMode} icon={DollarSign} label="Retainer" value={formatMoney(cost)} />
-        </View>
+        <StatStrip
+          items={[
+            { label: 'Influence', value: `+${influence}` },
+            { label: 'Retainer', value: formatMoney(cost) },
+          ]}
+        />
       </View>
     );
   };
@@ -1284,7 +1294,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
             const affordable = cash >= lob.cost;
             return (
               <View key={lob.id} style={[getGlassCard(darkMode, 6), styles.rosterRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+                <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
                   <Handshake size={scale(17)} color={SKY} />
                 </View>
                 <View style={styles.pickerRowText}>
@@ -1299,7 +1309,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
                   style={[
                     styles.pickerBtn,
                     affordable
-                      ? { backgroundColor: sky(0.16), borderColor: sky(0.3) }
+                      ? { backgroundColor: withAlpha(SKY, 0.16), borderColor: withAlpha(SKY, 0.3) }
                       : { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
                   ]}
                   accessibilityRole="button"
@@ -1337,7 +1347,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
         ) : (
           available.map((t) => (
             <View key={t.id} style={[getGlassCard(darkMode, 6), styles.rosterRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+              <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
                 <Users size={scale(17)} color={SKY} />
               </View>
               <View style={styles.pickerRowText}>
@@ -1348,7 +1358,7 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
               <TouchableOpacity
                 onPress={() => handleFormAlliance(t.id, t.name)}
                 activeOpacity={0.85}
-                style={[styles.pickerBtn, { backgroundColor: sky(0.16), borderColor: sky(0.3) }]}
+                style={[styles.pickerBtn, { backgroundColor: withAlpha(SKY, 0.16), borderColor: withAlpha(SKY, 0.3) }]}
                 accessibilityRole="button"
                 accessibilityLabel={`Form an alliance with ${t.name}`}
               >
@@ -1381,42 +1391,21 @@ function PoliticalAppInner({ onBack }: PoliticalAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => (subView ? setSubView(null) : onBack())}
-          hitSlop={8}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: theme.text }]}>{detailTitle}</Text>
-        <View style={[styles.cashChip, { backgroundColor: sky(0.14), borderColor: sky(0.3) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={detailTitle}
+        onBack={() => (subView ? setSubView(null) : onBack())}
+        backLabel={subView ? 'Back to Politics' : 'Back'}
+        right={<CashChip value={formatMoney(cash)} tint={SKY} />}
+      />
 
       {!subView && (
-        <View style={[styles.tabBar, { borderBottomColor: theme.border }]}>
-          {TABS.map((t) => {
-            const active = activeTab === t.id;
-            const Icon = t.icon;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => setActiveTab(t.id)}
-                style={[styles.tab, active && { borderBottomColor: SKY }]}
-                accessibilityRole="button"
-                accessibilityLabel={t.label}
-                accessibilityState={{ selected: active }}
-              >
-                <Icon size={scale(16)} color={active ? SKY : theme.textMuted} />
-                <Text style={[styles.tabText, { color: active ? SKY : theme.textMuted }]}>{t.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          segments={TABS}
+          value={activeTab}
+          onChange={setActiveTab}
+          activeColor={SKY}
+          style={styles.tabs}
+        />
       )}
 
       <ScrollView
@@ -1619,14 +1608,14 @@ function OfficeTimeline({
         return (
           <View key={r.index} style={styles.rungRow}>
             <View style={styles.nodeCol}>
-              <View style={[styles.connector, { backgroundColor: topReached ? sky(0.5) : theme.border }, isFirst && styles.connectorHidden]} />
+              <View style={[styles.connector, { backgroundColor: topReached ? withAlpha(SKY, 0.5) : theme.border }, isFirst && styles.connectorHidden]} />
               <View style={[styles.node, nodeStyle(r.status, theme)]}>
                 {r.status === 'held' && <Check size={scale(13)} color="#FFFFFF" />}
                 {r.status === 'current' && <Landmark size={scale(13)} color="#FFFFFF" />}
                 {r.status === 'next' && <Vote size={scale(12)} color={SKY} />}
                 {r.status === 'locked' && <Lock size={scale(12)} color={theme.textMuted} />}
               </View>
-              <View style={[styles.connector, { backgroundColor: bottomReached ? sky(0.5) : theme.border }, isLast && styles.connectorHidden]} />
+              <View style={[styles.connector, { backgroundColor: bottomReached ? withAlpha(SKY, 0.5) : theme.border }, isLast && styles.connectorHidden]} />
             </View>
             <View style={styles.rungContent}>{renderContent(r)}</View>
           </View>
@@ -1637,21 +1626,10 @@ function OfficeTimeline({
 }
 
 function nodeStyle(status: Rung['status'], theme: ReturnType<typeof getThemeColors>) {
-  if (status === 'held') return { backgroundColor: sky(0.85), borderColor: sky(0.85) };
-  if (status === 'current') return { backgroundColor: SKY, borderColor: sky(0.4) };
+  if (status === 'held') return { backgroundColor: withAlpha(SKY, 0.85), borderColor: withAlpha(SKY, 0.85) };
+  if (status === 'current') return { backgroundColor: SKY, borderColor: withAlpha(SKY, 0.4) };
   if (status === 'next') return { backgroundColor: 'transparent', borderColor: SKY };
   return { backgroundColor: theme.surfaceElevated, borderColor: theme.border };
-}
-
-function statusChipStyle(status: Rung['status'], theme: ReturnType<typeof getThemeColors>) {
-  if (status === 'current') return { backgroundColor: sky(0.15), borderColor: sky(0.3) };
-  if (status === 'held') return { backgroundColor: `rgba(16,185,129,0.15)`, borderColor: `rgba(16,185,129,0.3)` };
-  return { backgroundColor: theme.surfaceElevated, borderColor: theme.border };
-}
-function statusChipColor(status: Rung['status'], theme: ReturnType<typeof getThemeColors>) {
-  if (status === 'current') return SKY;
-  if (status === 'held') return accent.success;
-  return theme.textMuted;
 }
 
 // A single enacted bill as a vote card with a FOR/AGAINST split bar.
@@ -1679,7 +1657,7 @@ function VoteCard({
       accessibilityLabel={`View ${name} details`}
     >
       <View style={styles.voteHeadRow}>
-        <View style={[getGlassIconContainer(darkMode, 34), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+        <View style={[getGlassIconContainer(darkMode, 34), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
           <Scale size={scale(15)} color={SKY} />
         </View>
         <View style={{ flex: 1 }}>
@@ -1739,7 +1717,7 @@ function LobbyistRow({
       accessibilityRole="button"
       accessibilityLabel={`View ${lobbyist.name}`}
     >
-      <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+      <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
         <Handshake size={scale(17)} color={SKY} />
       </View>
       <View style={{ flex: 1, gap: scale(4) }}>
@@ -1750,9 +1728,7 @@ function LobbyistRow({
         <Text style={[styles.rosterMeta, { color: theme.textMuted }]} numberOfLines={1}>
           {describeSpecialties(cat?.specialties)} · {formatMoney(lobbyist.cost)}
         </Text>
-        <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-          <View style={[styles.meterFill, { width: `${meterPct}%`, backgroundColor: SKY }]} />
-        </View>
+        <ProgressBar value={meterPct / 100} color={SKY} height={scale(5)} label="Influence" style={styles.meterBar} />
       </View>
       <View style={styles.rosterRight}>
         <Text style={[styles.rosterInfluence, { color: SKY }]}>+{lobbyist.influence}</Text>
@@ -1776,7 +1752,7 @@ function AllyRow({
   const meterPct = clamp((ally.influence / 50) * 100, 6, 100);
   return (
     <View style={[getGlassCard(darkMode, 6), styles.rosterRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
+      <View style={[getGlassIconContainer(darkMode, 38), styles.inlineBubble, { backgroundColor: withAlpha(SKY, 0.15), borderColor: withAlpha(SKY, 0.3) }]}>
         <Users size={scale(17)} color={SKY} />
       </View>
       <View style={{ flex: 1, gap: scale(4) }}>
@@ -1784,59 +1760,12 @@ function AllyRow({
         <Text style={[styles.rosterMeta, { color: theme.textMuted }]} numberOfLines={1}>
           Ally since week {ally.formedWeek}
         </Text>
-        <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-          <View style={[styles.meterFill, { width: `${meterPct}%`, backgroundColor: SKY }]} />
-        </View>
+        <ProgressBar value={meterPct / 100} color={SKY} height={scale(5)} label="Influence" style={styles.meterBar} />
       </View>
       <View style={styles.rosterRight}>
         <Text style={[styles.rosterInfluence, { color: SKY }]}>+{ally.influence}</Text>
         <Text style={[styles.rosterInfluenceLabel, { color: theme.textMuted }]}>infl.</Text>
       </View>
-    </View>
-  );
-}
-
-function ReqChip({ theme, text }: { theme: ReturnType<typeof getThemeColors>; text: string }) {
-  return (
-    <View style={[styles.reqChip, { backgroundColor: theme.surfaceElevated }]}>
-      <Text style={[styles.reqChipText, { color: theme.textSecondary }]}>{text}</Text>
-    </View>
-  );
-}
-
-function AggStat({ label, value, theme }: { label: string; value: string; theme: ReturnType<typeof getThemeColors> }) {
-  return (
-    <View style={styles.aggStat}>
-      <Text style={[styles.aggValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-      <Text style={[styles.aggLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
-}
-
-function StatCard({
-  theme,
-  darkMode,
-  icon: Icon,
-  label,
-  value,
-}: {
-  theme: ReturnType<typeof getThemeColors>;
-  darkMode: boolean;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={[getGlassCard(darkMode, 6), styles.statCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={[getGlassIconContainer(darkMode, 30), styles.statBubble, { backgroundColor: sky(0.15), borderColor: sky(0.3) }]}>
-        <Icon size={scale(14)} color={SKY} />
-      </View>
-      <Text style={[styles.statSmallValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.statSmallLabel, { color: theme.textMuted }]}>{label}</Text>
     </View>
   );
 }
@@ -1851,6 +1780,9 @@ export default function PoliticalApp(props: PoliticalAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  tabs: { marginHorizontal: responsiveSpacing.md, marginBottom: responsiveSpacing.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
+  meterBar: { marginTop: 2 },
 
   // --- Hero (Recipe B) ---------------------------------------------------
   heroCard: {
@@ -1862,23 +1794,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: responsiveSpacing.lg,
     gap: responsiveSpacing.md,
-  },
-  heroBlob: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(96, 165, 250, 0.10)',
-  },
-  heroHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -1919,47 +1834,20 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.xs,
     marginTop: 2,
   },
-  metaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  metaChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  partyChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  partyChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
 
   // --- Approval ring center ----------------------------------------------
   ringEyebrow: {
     fontSize: responsiveFontSize.xs,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   ringBand: {
     fontSize: responsiveFontSize.md,
-    fontWeight: '800',
+    fontWeight: '600',
     marginTop: 1,
   },
 
   // --- Aggregate policy effect strip -------------------------------------
-  aggRow: {
-    flexDirection: 'row',
-    gap: responsiveSpacing.sm,
-  },
-  aggStat: {
-    flex: 1,
-    gap: 2,
-  },
-  aggValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  aggLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
 
   // --- Primary CTA (Recipe D) --------------------------------------------
   ctaShadow: {
@@ -1979,7 +1867,7 @@ const styles = StyleSheet.create({
   enactCtaText: {
     color: 'white',
     fontSize: responsiveFontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 
   // --- Secondary CTA (glass button) --------------------------------------
@@ -1988,21 +1876,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: responsiveSpacing.xs,
+    minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
   },
-  secondaryCtaText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  secondaryCtaText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   linkBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: touchTargets.minimum,
     gap: responsiveSpacing.xs,
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.xs,
   },
-  linkBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  linkBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   partyRow: { flexDirection: 'row', gap: responsiveSpacing.sm },
   // Career-tab cards. Full four-sided hairline (Hard Rule #7 - no one-sided
@@ -2019,17 +1909,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: responsiveSpacing.sm,
   },
-  lifeCardTitle: { fontSize: responsiveFontSize.md, fontWeight: '700' },
-  lifeCardPay: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  lifeCardTitle: { fontSize: responsiveFontSize.md, fontWeight: '600' },
+  lifeCardPay: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   lifeCardMeta: { fontSize: responsiveFontSize.sm, lineHeight: responsiveFontSize.lg },
   // The party-standing bar reuses the lobbyist roster's `meterTrack`/`meterFill`
   // further down rather than declaring a second pair at a different height.
   partyBtn: {
     flex: 1,
+    minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  partyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  partyBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // --- Section cards -----------------------------------------------------
   sectionCard: {
@@ -2039,7 +1931,7 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
-  cardHeadText: { fontSize: responsiveFontSize.md, fontWeight: '700', letterSpacing: 0.2 },
+  cardHeadText: { fontSize: responsiveFontSize.md, fontWeight: '600', letterSpacing: 0.2 },
   cardSubText: { fontSize: responsiveFontSize.xs, lineHeight: responsiveFontSize.lg },
 
   // --- Office timeline ---------------------------------------------------
@@ -2061,59 +1953,13 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
     justifyContent: 'center',
   },
-  rungName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  rungName: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   rungMeta: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   ladderTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: responsiveSpacing.sm },
-  statusChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  statusChipText: { fontSize: responsiveFontSize.xs, fontWeight: '700' },
   reqChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.xs },
-  reqChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.md,
-  },
-  reqChipText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   ladderRunBtn: { marginTop: responsiveSpacing.xs },
 
   // --- Top bar + tabs ----------------------------------------------------
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  backBtn: {
-    width: touchTargets.minimum,
-    height: touchTargets.minimum,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  cashChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: responsiveSpacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   inlineBubble: { borderWidth: 1 },
   electionCard: {
@@ -2124,21 +1970,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: responsiveBorderRadius.xl,
   },
-  electionText: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  electionText: { flex: 1, fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
-  statCard: {
-    flexGrow: 1,
-    flexBasis: '46%',
-    padding: responsiveSpacing.md,
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius.xl,
-    gap: responsiveSpacing.xs,
-    alignItems: 'flex-start',
-  },
-  statBubble: { borderWidth: 1 },
-  statSmallLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statSmallValue: { fontSize: responsiveFontSize.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   // --- Vote card ---------------------------------------------------------
   voteCard: {
@@ -2148,12 +1981,12 @@ const styles = StyleSheet.create({
     gap: responsiveSpacing.sm,
   },
   voteHeadRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm },
-  voteName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  voteName: { fontSize: responsiveFontSize.md, fontWeight: '600' },
   voteMetaRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs, marginTop: 3 },
   voteMetaText: { fontSize: responsiveFontSize.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
   voteSplitLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   voteInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  voteSplitText: { fontSize: responsiveFontSize.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  voteSplitText: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   splitTrack: {
     flexDirection: 'row',
     height: scale(8),
@@ -2174,7 +2007,7 @@ const styles = StyleSheet.create({
   typeTagText: { fontSize: responsiveFontSize.xs, fontWeight: '600', textTransform: 'capitalize' },
   voteLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   voteSide: { gap: 2 },
-  voteBig: { fontSize: responsiveFontSize['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
+  voteBig: { fontSize: responsiveFontSize['2xl'], fontWeight: '600', fontVariant: ['tabular-nums'] },
   voteSideLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
   effectRow: {
     flexDirection: 'row',
@@ -2183,17 +2016,10 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveSpacing.sm,
   },
   effectLabel: { fontSize: responsiveFontSize.sm, flex: 1 },
-  effectValue: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  effectValue: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // --- Roster rows -------------------------------------------------------
   rosterHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: responsiveSpacing.sm },
-  countPill: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 3,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  countPillText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
   rosterRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2203,18 +2029,11 @@ const styles = StyleSheet.create({
     borderRadius: responsiveBorderRadius.xl,
   },
   rosterNameRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.xs },
-  rosterName: { fontSize: responsiveFontSize.md, fontWeight: '700', flexShrink: 1 },
+  rosterName: { fontSize: responsiveFontSize.md, fontWeight: '600', flexShrink: 1 },
   rosterMeta: { fontSize: responsiveFontSize.xs, textTransform: 'capitalize' },
   liveDot: { width: scale(7), height: scale(7), borderRadius: scale(4) },
-  meterTrack: {
-    height: scale(5),
-    borderRadius: responsiveBorderRadius.full,
-    overflow: 'hidden',
-    marginTop: 2,
-  },
-  meterFill: { height: '100%', borderRadius: responsiveBorderRadius.full },
   rosterRight: { alignItems: 'flex-end', gap: 1 },
-  rosterInfluence: { fontSize: responsiveFontSize.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  rosterInfluence: { fontSize: responsiveFontSize.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
   rosterInfluenceLabel: { fontSize: responsiveFontSize.xs },
 
   // --- Hire-lobbyist / form-alliance picker rows -------------------------
@@ -2230,26 +2049,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: touchTargets.minimum,
   },
-  pickerBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  pickerBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
-  policyDesc: { fontSize: responsiveFontSize.xs, marginTop: 2 },
   helperText: { fontSize: responsiveFontSize.xs, fontStyle: 'italic', lineHeight: responsiveFontSize.lg },
 
-  sectionTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginTop: responsiveSpacing.xs,
-  },
-  emptyCard: {
-    padding: responsiveSpacing.md,
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius.xl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: responsiveFontSize.sm,
-    textAlign: 'center',
-    opacity: 0.7,
-  },
 });

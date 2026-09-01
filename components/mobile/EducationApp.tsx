@@ -25,20 +25,27 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
-  ArrowLeft, GraduationCap, BookOpen, Trophy, Briefcase, Clock, Award, Pause, Play,
+  GraduationCap, BookOpen, Trophy, Briefcase, Clock, Award, Pause, Play,
   ChevronRight, Plus, Shield, Scale, Gavel, Rocket, Cpu, TrendingUp, Stethoscope,
-  FlaskConical, CalendarDays, Users, Zap, Banknote, Percent, Target, BadgeCheck, CircleCheck,
+  FlaskConical, CalendarDays, Users, Zap, Banknote, BadgeCheck, CircleCheck,
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Education, GameState, Loan } from '@/contexts/game/types';
-import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, getAppScreenBottomPadding } from '@/utils/scaling';
-import { getThemeColors, accent } from '@/lib/config/theme';
-import { getGlassCard, getGlassIconContainer, getGlassCategoryTabsContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
-import Gradient from '@/components/ui/Gradient';
+import { responsiveFontSize, responsiveSpacing, responsiveBorderRadius, scale, touchTargets, getAppScreenBottomPadding } from '@/utils/scaling';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
+import { getGlassCard, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import ProgressRing from '@/components/ui/ProgressRing';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip, { StatTile } from '@/components/ui/StatStrip';
+import Chip from '@/components/ui/Chip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import BaseModal from '@/components/ui/BaseModal';
+import { Card, IconBubble } from '@/components/ui/Card';
+import { useToast } from '@/contexts/ToastContext';
 import EnrollModal, { EnrollTemplate } from '@/components/education/EnrollModal';
 import {
   EDUCATION_PROGRAMS,
@@ -67,14 +74,13 @@ import { meritRate } from '@/lib/education/scholarships';
 import { formatMoney } from '@/utils/moneyFormatting';
 import { EmptyCard as EmptyText } from '@/components/ui/EmptyState';
 
-const LinearGradient = Gradient;
+// Education's identity colour. It was a private cyan pair (`#06B6D4` /
+// `#0891B2`) that existed nowhere else in the app; it is one of the shared
+// accents now, so "informational blue" means the same thing on this screen as
+// it does on every other one.
+const EDU = accent.info;
 
-// Education identity accent - cyan. Solid only on small CTAs/badges (≤44pt);
-// everywhere else it appears as translucent tints per the Slate Glass system.
-const CYAN = '#06B6D4';
-const CYAN_PAIR = '#0891B2'; // CTA gradient pair (fallback renders CYAN flat)
-
-type IconType = React.ComponentType<{ size: number; color: string }>;
+type IconType = React.ComponentType<{ size?: number; color?: string }>;
 
 interface EducationAppProps {
   onBack: () => void;
@@ -102,25 +108,42 @@ type CatalogEntry = EnrollTemplate & { tier: TierId };
 
 const CATALOG: CatalogEntry[] = EDUCATION_PROGRAMS;
 
-// --- Subject identity - a glyph + tint per program, so each course reads as a
-// distinct "subject" (directory silhouette), not a uniform row. Tints are only
-// ever used as Recipe-C tinted bubbles (15% fill / 30% rim / saturated glyph),
-// never as large fills - matching the categorical-icon rule in the design system.
-const SUBJECTS: Record<string, { Icon: IconType; tint: string }> = {
-  high_school:      { Icon: GraduationCap, tint: '#06B6D4' },
-  police_academy:   { Icon: Shield,        tint: '#3B82F6' },
-  legal_studies:    { Icon: Scale,         tint: '#F59E0B' },
-  law_school:       { Icon: Gavel,         tint: '#F59E0B' },
-  entrepreneurship: { Icon: Rocket,        tint: '#F97316' },
-  business_degree:  { Icon: Briefcase,     tint: '#10B981' },
-  computer_science: { Icon: Cpu,           tint: '#8B5CF6' },
-  masters_degree:   { Icon: BookOpen,      tint: '#14B8A6' },
-  mba:              { Icon: TrendingUp,    tint: '#10B981' },
-  medical_school:   { Icon: Stethoscope,   tint: '#F43F5E' },
-  phd:              { Icon: FlaskConical,  tint: '#8B5CF6' },
+// --- Subject identity: a distinct GLYPH per programme, and a tint per FAMILY.
+//
+// Eleven programmes carried eleven private hexes, so the catalogue read as a
+// paint chart while telling the player nothing - two law programmes shared an
+// amber that meant "law" to nobody, and none of it was a colour used anywhere
+// else in the app. The glyph is what makes a row recognisable; the tint now
+// says which family it belongs to, in three shared accents.
+const SUBJECT_ICON: Record<string, IconType> = {
+  high_school: GraduationCap,
+  police_academy: Shield,
+  legal_studies: Scale,
+  law_school: Gavel,
+  entrepreneurship: Rocket,
+  business_degree: Briefcase,
+  computer_science: Cpu,
+  masters_degree: BookOpen,
+  mba: TrendingUp,
+  medical_school: Stethoscope,
+  phd: FlaskConical,
+};
+/** info = general & public service, success = business & law, purple = science. */
+const SUBJECT_TINT: Record<string, string> = {
+  high_school: accent.info,
+  police_academy: accent.info,
+  legal_studies: accent.success,
+  law_school: accent.success,
+  entrepreneurship: accent.success,
+  business_degree: accent.success,
+  mba: accent.success,
+  computer_science: accent.purple,
+  masters_degree: accent.purple,
+  medical_school: accent.purple,
+  phd: accent.purple,
 };
 function subjectFor(id: string): { Icon: IconType; tint: string } {
-  return SUBJECTS[id] ?? { Icon: GraduationCap, tint: CYAN };
+  return { Icon: SUBJECT_ICON[id] ?? GraduationCap, tint: SUBJECT_TINT[id] ?? EDU };
 }
 
 const BAND_COLOR: Record<GpaBand, string> = {
@@ -135,14 +158,6 @@ const BAND_COLOR: Record<GpaBand, string> = {
 // ---------------------------------------------------------------------------
 // Pure display helpers
 // ---------------------------------------------------------------------------
-
-function withAlpha(hex: string, a: number): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-}
 
 /** Friendly programme length: weeks under a year, otherwise years. */
 function formatDuration(weeks: number): string {
@@ -212,13 +227,13 @@ function computeStudyState(gameState: GameState, ed: Education): StudyState {
 
 function EducationAppInner({ onBack }: EducationAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
   const educations: Education[] = gameState.educations ?? [];
   const cash = gameState.stats?.money ?? 0;
-  const energy = gameState.stats?.energy ?? 0;
 
   const enrolled = useMemo(() => educations.filter((e) => !e.completed), [educations]);
   const completed = useMemo(() => educations.filter((e) => e.completed), [educations]);
@@ -311,14 +326,6 @@ function EducationAppInner({ onBack }: EducationAppProps) {
     [educations, pendingCampusEventId]
   );
   const [activeCampusEvent, setActiveCampusEvent] = useState<CampusEvent | null>(null);
-  const [campusEventResult, setCampusEventResult] = useState<string | null>(null);
-  const eventResultTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  React.useEffect(() => {
-    // Clear the result-line timer on unmount so it can't set state afterwards.
-    return () => {
-      if (eventResultTimerRef.current) clearTimeout(eventResultTimerRef.current);
-    };
-  }, []);
   React.useEffect(() => {
     if (pendingCampusEventId) {
       setActiveCampusEvent((cur) => cur ?? getRandomCampusEvent());
@@ -329,11 +336,11 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   const handleCampusEventChoice = useCallback((choice: CampusEventChoice) => {
     resolveCampusEventChoice(setGameState, choice);
     queueSave();
-    setCampusEventResult(choice.resultText);
-    // The result line lingers briefly, then clears itself.
-    if (eventResultTimerRef.current) clearTimeout(eventResultTimerRef.current);
-    eventResultTimerRef.current = setTimeout(() => setCampusEventResult(null), 4000);
-  }, [setGameState, queueSave]);
+    // The outcome used to be a second hand-rolled floating card with its own
+    // dismiss timer. It is one line of text with a lifetime - which is a toast,
+    // and the app already has one.
+    showToast(choice.resultText, 'info');
+  }, [setGameState, queueSave, showToast]);
 
   // --- Tab bodies --------------------------------------------------------
   const renderAvailable = () => (
@@ -343,7 +350,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
       <EconomyEventBanner context="generic" />
       {availableForCatalog.length === 0 ? (
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Catalog</SectionTitle>
+          <SectionTitle title="Catalog" />
           <EmptyText theme={theme} darkMode={darkMode}>You&apos;ve enrolled in every program in the catalog.</EmptyText>
         </View>
       ) : (
@@ -352,12 +359,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
           if (items.length === 0) return null;
           return (
             <View key={tier} style={{ gap: responsiveSpacing.sm }}>
-              <View style={styles.sectionHeaderRow}>
-                <SectionTitle theme={theme}>{TIER_LABEL[tier]}</SectionTitle>
-                <View style={[styles.countPill, { backgroundColor: withAlpha(CYAN, 0.14), borderColor: withAlpha(CYAN, 0.30) }]}>
-                  <Text style={[styles.countPillText, { color: CYAN }]}>{items.length}</Text>
-                </View>
-              </View>
+              <SectionTitle title={TIER_LABEL[tier]} right={<Chip label={String(items.length)} tint={EDU} />} />
               {items.map((entry) => (
                 <CatalogRow
                   key={entry.id}
@@ -378,42 +380,41 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   const renderEnrolled = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
       {bestGpa > 0 && (
-        // Recipe B hero - the ONE focal gradient surface of this tab (cyan identity).
-        <HeroCard theme={theme} darkMode={darkMode}>
+        // Six numbers became three: the GPA a player studies to raise, how many
+        // programmes are running, and what the loans cost every week. Energy is
+        // on the HUD already, and the letter grade, the band and the hiring
+        // multiplier are all restatements of the GPA - so they ride as its
+        // sub-line and one chip rather than as three more tiles.
+        <Card style={styles.heroCard}>
           <View style={styles.heroTopRow}>
-            <View
-              style={[
-                getGlassIconContainer(darkMode, 46),
-                { backgroundColor: withAlpha(CYAN, 0.15), borderWidth: 1, borderColor: withAlpha(CYAN, 0.30) },
-              ]}
-            >
-              <GraduationCap size={scale(22)} color={CYAN} />
-            </View>
+            <IconBubble color={EDU}>
+              <GraduationCap size={scale(22)} color={EDU} />
+            </IconBubble>
             <View style={{ flex: 1 }}>
               <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Academic standing</Text>
               <Text style={[styles.heroValue, { color: bestGradeColor }]}>
                 {bestGpa.toFixed(2)} · {gpaLetter(bestGpa)}
               </Text>
-              <View style={styles.heroSubRow}>
-                <Target size={scale(12)} color={theme.textMuted} />
-                <Text style={[styles.heroSub, { color: theme.textMuted }]}>
-                  Hiring boost ×{hiringMult.toFixed(2)} on job offers
-                </Text>
-              </View>
             </View>
-            <View style={[styles.chip, { backgroundColor: withAlpha(bestGradeColor, 0.15), borderColor: withAlpha(bestGradeColor, 0.30) }]}>
-              <Award size={scale(11)} color={bestGradeColor} />
-              <Text style={[styles.chipText, { color: bestGradeColor }]}>{gpaBandLabel(gpaBand(bestGpa))}</Text>
-            </View>
+            <Chip
+              label={gpaBandLabel(gpaBand(bestGpa))}
+              icon={<Award size={scale(11)} color={bestGradeColor} />}
+              tint={bestGradeColor}
+            />
           </View>
-          <View style={[styles.heroStatStrip, { borderTopColor: theme.border }]}>
-            <StatTile theme={theme} icon={GraduationCap} tint={CYAN} label="Enrolled" value={String(enrolled.length)} />
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <StatTile theme={theme} icon={Zap} tint={accent.warning} label="Energy" value={String(Math.round(energy))} />
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <StatTile theme={theme} icon={Banknote} tint={accent.info} label="Loans / wk" value={formatMoney(weeklyLoanPayment)} />
-          </View>
-        </HeroCard>
+          <StatStrip
+            items={[
+              {
+                label: 'GPA',
+                value: bestGpa.toFixed(2),
+                tint: bestGradeColor,
+                sub: `×${hiringMult.toFixed(2)} on job offers`,
+              },
+              { label: 'Enrolled', value: enrolled.length, tint: EDU },
+              { label: 'Loans / wk', value: formatMoney(weeklyLoanPayment), tint: accent.info },
+            ]}
+          />
+        </Card>
       )}
 
       <View style={{ gap: responsiveSpacing.md }}>
@@ -429,13 +430,8 @@ function EducationAppInner({ onBack }: EducationAppProps) {
               theme={theme}
               darkMode={darkMode}
               study={computeStudyState(gameState, e)}
-              loan={findStudentLoan(gameState.loans, e)}
               onOpen={() => setSelectedId(e.id)}
               onStudy={() => handleStudy(e.id)}
-              onTogglePause={() => handleTogglePause(e.id)}
-              onToggleStudyGroup={() => handleToggleStudyGroup(e.id)}
-              onWithdraw={() => handleWithdraw(e.id)}
-              canAffordStudyGroup={cash >= STUDY_GROUP_JOIN_COST}
             />
           ))
         )}
@@ -446,16 +442,11 @@ function EducationAppInner({ onBack }: EducationAppProps) {
   const renderCompleted = () => (
     <View style={{ gap: responsiveSpacing.lg }}>
       {completed.length > 0 && (
-        <HeroCard theme={theme} darkMode={darkMode}>
+        <Card style={styles.heroCard}>
           <View style={styles.heroTopRow}>
-            <View
-              style={[
-                getGlassIconContainer(darkMode, 46),
-                { backgroundColor: withAlpha(CYAN, 0.15), borderWidth: 1, borderColor: withAlpha(CYAN, 0.30) },
-              ]}
-            >
-              <Trophy size={scale(22)} color={CYAN} />
-            </View>
+            <IconBubble color={EDU}>
+              <Trophy size={scale(22)} color={EDU} />
+            </IconBubble>
             <View style={{ flex: 1 }}>
               <Text style={[styles.heroLabel, { color: theme.textMuted }]}>Transcript</Text>
               <Text style={[styles.heroValue, { color: theme.text }]}>{completed.length}</Text>
@@ -464,14 +455,18 @@ function EducationAppInner({ onBack }: EducationAppProps) {
               </Text>
             </View>
           </View>
-          <View style={[styles.heroStatStrip, { borderTopColor: theme.border }]}>
-            <StatTile theme={theme} icon={Target} tint={bestGradeColor} label="Best GPA" value={bestGpa.toFixed(2)} />
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <StatTile theme={theme} icon={Award} tint={accent.success} label="Honors" value={String(honorsCount)} />
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <StatTile theme={theme} icon={BadgeCheck} tint={accent.info} label="Exams" value={String(totalExamsPassed)} />
-          </View>
-        </HeroCard>
+          <StatStrip
+            items={[
+              { label: 'Best GPA', value: bestGpa.toFixed(2), tint: bestGradeColor },
+              {
+                label: 'Honors',
+                value: honorsCount,
+                tint: accent.success,
+                sub: `${totalExamsPassed} exams passed`,
+              },
+            ]}
+          />
+        </Card>
       )}
 
       <View style={{ gap: responsiveSpacing.sm }}>
@@ -479,7 +474,7 @@ function EducationAppInner({ onBack }: EducationAppProps) {
           <EmptyText theme={theme} darkMode={darkMode}>No completed programs yet.</EmptyText>
         ) : (
           <>
-            <SectionTitle theme={theme}>Credentials</SectionTitle>
+            <SectionTitle title="Credentials" />
             {completed.map((e) => (
               <TranscriptRow key={e.id} ed={e} theme={theme} darkMode={darkMode} onOpen={() => setSelectedId(e.id)} />
             ))}
@@ -494,23 +489,15 @@ function EducationAppInner({ onBack }: EducationAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: 0 }]}>
-      {/* Header renders unconditionally; back returns to the list from a detail
-          page, or exits the app from the tab list. */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={goBack}
-          hitSlop={10}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.appTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
-        <View style={[styles.cashChip, { backgroundColor: withAlpha(CYAN, 0.14), borderColor: withAlpha(CYAN, 0.30) }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(cash)}</Text>
-        </View>
-      </View>
+      {/* Renders unconditionally; back returns to the list from a detail page,
+          or exits the app from the tab list. The cash chip is now read out to
+          screen readers, which the hand-rolled one never was. */}
+      <AppHeader
+        title={headerTitle}
+        onBack={goBack}
+        backLabel={inDetail ? 'Back to courses' : 'Back'}
+        right={<CashChip value={formatMoney(cash)} tint={EDU} />}
+      />
 
       {inDetail && selectedCourse ? (
         <ScrollView
@@ -534,25 +521,13 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         </ScrollView>
       ) : (
         <>
-          <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
-            {TABS.map((t) => {
-              const active = activeTab === t.id;
-              const Icon = t.icon;
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => setActiveTab(t.id)}
-                  style={[styles.tab, active && { backgroundColor: withAlpha(CYAN, 0.16) }]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={t.label}
-                >
-                  <Icon size={scale(16)} color={active ? CYAN : theme.textMuted} />
-                  <Text style={[styles.tabText, { color: active ? CYAN : theme.textMuted }]}>{t.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <SegmentedControl
+            style={styles.tabs}
+            activeColor={EDU}
+            value={activeTab}
+            onChange={setActiveTab}
+            segments={TABS.map((t) => ({ key: t.id, label: t.label, icon: t.icon }))}
+          />
 
           <ScrollView
             style={{ flex: 1 }}
@@ -589,73 +564,50 @@ function EducationAppInner({ onBack }: EducationAppProps) {
         }}
       />
 
-      {pendingCampusEventId && activeCampusEvent ? (
-        <View
-          style={{
-            position: 'absolute',
-            left: responsiveSpacing.md,
-            right: responsiveSpacing.md,
-            bottom: getAppScreenBottomPadding(insets.bottom),
-            gap: responsiveSpacing.sm,
-            padding: responsiveSpacing.md,
-            borderRadius: 14,
-            backgroundColor: theme.surface,
-            borderWidth: 1,
-            borderColor: withAlpha(CYAN, 0.45),
-          }}
-        >
-          <Text style={{ color: CYAN, fontWeight: '800', fontSize: scale(10), letterSpacing: 0.6 }}>
-            {`CAMPUS EVENT${pendingCampusEventName ? ` · ${pendingCampusEventName.toUpperCase()}` : ''}`}
-          </Text>
-          <Text style={{ color: theme.text, fontWeight: '800', fontSize: scale(14) }}>
-            {activeCampusEvent.title}
-          </Text>
-          <Text style={{ color: theme.textSecondary, fontSize: scale(12), lineHeight: scale(17) }}>
-            {activeCampusEvent.description}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: responsiveSpacing.sm }}>
-            {activeCampusEvent.choices.map((choice) => (
-              <TouchableOpacity
-                key={choice.label}
-                onPress={() => handleCampusEventChoice(choice)}
-                accessibilityRole="button"
-                accessibilityLabel={choice.label}
-                style={{
-                  flex: 1,
-                  paddingVertical: responsiveSpacing.sm,
-                  paddingHorizontal: responsiveSpacing.sm,
-                  borderRadius: 10,
-                  backgroundColor: withAlpha(CYAN, 0.16),
-                  borderWidth: 1,
-                  borderColor: withAlpha(CYAN, 0.35),
-                }}
-              >
-                <Text style={{ color: CYAN, fontWeight: '700', fontSize: scale(12), textAlign: 'center' }}>
-                  {choice.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+      {/* The campus event was a hand-rolled absolutely-positioned card - some
+          48 lines of inline style reimplementing a dialog. It is a centred
+          BaseModal now: same choices, same handlers, same effects. */}
+      <BaseModal
+        visible={!!(pendingCampusEventId && activeCampusEvent)}
+        // No dismiss. The event is a decision with effects and the card it
+        // replaces had no way out either; `hideCloseButton` keeps that true
+        // rather than offering an X that would do nothing.
+        onClose={() => {}}
+        hideCloseButton
+        title={activeCampusEvent?.title ?? 'Campus event'}
+        subtitle={pendingCampusEventName}
+        variant="center"
+      >
+        {activeCampusEvent ? (
+          <View style={{ gap: responsiveSpacing.sm }}>
+            <Text style={[styles.eventBody, { color: theme.textSecondary }]}>
+              {activeCampusEvent.description}
+            </Text>
+            <View style={styles.actionRow}>
+              {activeCampusEvent.choices.map((choice) => (
+                <TouchableOpacity
+                  key={choice.label}
+                  onPress={() => handleCampusEventChoice(choice)}
+                  accessibilityRole="button"
+                  accessibilityLabel={choice.label}
+                  style={[
+                    styles.actionBtn,
+                    {
+                      flex: 1,
+                      backgroundColor: withAlpha(EDU, 0.16),
+                      borderWidth: 1,
+                      borderColor: withAlpha(EDU, 0.35),
+                    },
+                  ]}
+                >
+                  <Text style={[styles.actionBtnText, { color: EDU }]}>{choice.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </BaseModal>
 
-      {campusEventResult ? (
-        <View
-          style={{
-            position: 'absolute',
-            left: responsiveSpacing.md,
-            right: responsiveSpacing.md,
-            bottom: getAppScreenBottomPadding(insets.bottom),
-            padding: responsiveSpacing.md,
-            borderRadius: 14,
-            backgroundColor: theme.surface,
-            borderWidth: 1,
-            borderColor: theme.border,
-          }}
-        >
-          <Text style={{ color: theme.text, fontSize: scale(13) }}>{campusEventResult}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -663,84 +615,6 @@ function EducationAppInner({ onBack }: EducationAppProps) {
 // ---------------------------------------------------------------------------
 // Signature components
 // ---------------------------------------------------------------------------
-
-/** Recipe B hero shell - cyan identity wash + one glow blob + lit hairline. */
-function HeroCard({ theme, darkMode, children }: { theme: ReturnType<typeof getThemeColors>; darkMode: boolean; children: React.ReactNode }) {
-  return (
-    <View
-      style={[
-        getGlassCard(darkMode, 12),
-        {
-          backgroundColor: theme.surface,
-          borderColor: darkMode ? theme.glassBorder : theme.border,
-          borderWidth: 1,
-          borderRadius: responsiveBorderRadius['2xl'],
-        },
-      ]}
-    >
-      <View style={styles.heroInner}>
-        <View pointerEvents="none" style={[styles.heroBlob, { backgroundColor: withAlpha(CYAN, 0.10) }]} />
-        {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
-        <View style={{ gap: responsiveSpacing.md }}>{children}</View>
-      </View>
-    </View>
-  );
-}
-
-/** Tinted micro-metric used inside heroes and detail. */
-function StatTile({ theme, icon: Icon, tint, label, value }: {
-  theme: ReturnType<typeof getThemeColors>;
-  icon: IconType;
-  tint: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.statTile}>
-      <View style={styles.statTileHead}>
-        <Icon size={scale(12)} color={tint} />
-        <Text style={[styles.statTileLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-      </View>
-      <Text style={[styles.statTileValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-    </View>
-  );
-}
-
-/** Small labelled chip - the reusable readout/affordance unit. */
-function Chip({ theme, icon: Icon, label, tint }: {
-  theme: ReturnType<typeof getThemeColors>;
-  icon?: IconType;
-  label: string;
-  tint?: string;
-}) {
-  // Tinted chips carry accent identity; untinted chips fall back to a neutral
-  // inset (surfaceElevated) so they read as micro-surfaces, not accents.
-  const fill = tint ? withAlpha(tint, 0.13) : theme.surfaceElevated;
-  const border = tint ? withAlpha(tint, 0.28) : theme.border;
-  const textColor = tint ?? theme.textSecondary;
-  const iconColor = tint ?? theme.textMuted;
-  return (
-    <View style={[styles.chip, { backgroundColor: fill, borderColor: border }]}>
-      {Icon ? <Icon size={scale(11)} color={iconColor} /> : null}
-      <Text style={[styles.chipText, { color: textColor }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-/** Recipe-C tinted subject bubble. */
-function SubjectBubble({ id, darkMode, size = 44 }: { id: string; darkMode: boolean; size?: number }) {
-  const { Icon, tint } = subjectFor(id);
-  return (
-    <View
-      style={[
-        getGlassIconContainer(darkMode, size),
-        { backgroundColor: withAlpha(tint, 0.15), borderWidth: 1, borderColor: withAlpha(tint, 0.30) },
-      ]}
-    >
-      <Icon size={scale(size * 0.42)} color={tint} />
-    </View>
-  );
-}
 
 /** Join / leave a study group - the missing writer for `studyGroupActive`.
  *  Active: leave (free). Inactive: join for a one-time cost, gated on affordability. */
@@ -753,7 +627,7 @@ function StudyGroupButton({ ed, theme, canAfford, onPress }: {
   const active = !!ed.studyGroupActive;
   // Inactive + unaffordable is the only disabled case (leaving is always allowed).
   const disabled = !active && !canAfford;
-  const tint = active ? accent.success : CYAN;
+  const tint = active ? accent.success : EDU;
   const label = active
     ? 'Leave study group'
     : `Join study group · ${formatMoney(STUDY_GROUP_JOIN_COST)}`;
@@ -779,25 +653,27 @@ function StudyGroupButton({ ed, theme, canAfford, onPress }: {
   );
 }
 
-/** Enrolled course - wide signature card: ProgressRing + info + action buttons. */
-function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onTogglePause, onToggleStudyGroup, onWithdraw, canAffordStudyGroup }: {
+/**
+ * Enrolled course - the list row: ring, name, three chips, one Study button.
+ *
+ * Everything this card used to carry as well (the study group, Pause,
+ * Withdraw, the loan balance, the exam record) is on the course page, one tap
+ * away through the head. Nothing was removed - a list of three programmes was
+ * offering twelve equally-weighted buttons, and the weekly action was one of
+ * them.
+ */
+function CourseCard({ ed, theme, darkMode, study, onOpen, onStudy }: {
   ed: Education;
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
   study: StudyState;
-  loan?: Loan;
   onOpen: () => void;
   onStudy: () => void;
-  onTogglePause: () => void;
-  onToggleStudyGroup: () => void;
-  onWithdraw: () => void;
-  canAffordStudyGroup: boolean;
 }) {
   const grade = gradeInfo(ed);
   const pct = progressOf(ed);
   const { Icon: SubjIcon, tint: subjTint } = subjectFor(ed.id);
   const weeksLeft = ed.weeksRemaining ?? ed.duration;
-  const exams = (ed.examsPassed ?? 0) + (ed.examsFailed ?? 0);
 
   return (
     <View
@@ -820,7 +696,7 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
             size={72}
             strokeWidth={6}
             state="active"
-            accentColor={CYAN}
+            accentColor={EDU}
             trackColor={darkMode ? 'rgba(148, 163, 184, 0.22)' : 'rgba(148, 163, 184, 0.30)'}
             surfaceColor={theme.surface}
             borderColor={theme.border}
@@ -833,26 +709,26 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
 
           <View style={{ flex: 1, gap: responsiveSpacing.xs }}>
             <Text style={[styles.courseName, { color: theme.text }]} numberOfLines={1}>{ed.name}</Text>
+            {/* Three chips, not seven: how it is going, how long is left, and
+                whether it is running at all. A paused programme says so here
+                because that changes what the Study button will do. */}
             <View style={styles.chipRow}>
-              <Chip theme={theme} label={`${grade.letter} ${grade.gpa.toFixed(2)}`} tint={grade.color} />
-              <Chip theme={theme} icon={Clock} label={`${weeksLeft}w left`} tint={CYAN} />
-              <Chip theme={theme} icon={CalendarDays} label={`Sem ${ed.semesterNumber ?? 1}`} />
-            </View>
-            <View style={styles.chipRow}>
-              {exams > 0 && (
-                <Chip theme={theme} icon={BadgeCheck} label={`${ed.examsPassed ?? 0}✓ / ${ed.examsFailed ?? 0}✗`} />
+              <Chip label={`${grade.letter} ${grade.gpa.toFixed(2)}`} tint={grade.color} />
+              <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${weeksLeft}w left`} tint={EDU} />
+              {ed.paused ? (
+                <Chip icon={<Pause size={scale(11)} color={accent.warning} />} label="Paused" tint={accent.warning} />
+              ) : (
+                <Chip icon={<CalendarDays size={scale(11)} color={theme.textMuted} />} label={`Sem ${ed.semesterNumber ?? 1}`} />
               )}
-              {ed.studyGroupActive && <Chip theme={theme} icon={Users} label="Study group" tint={accent.success} />}
-              {loan && <Chip theme={theme} icon={Banknote} label={`Loan ${formatMoney(loan.remaining)}`} tint={accent.info} />}
-              {ed.paused && <Chip theme={theme} icon={Pause} label="Paused" tint={accent.warning} />}
             </View>
           </View>
 
           <ChevronRight size={scale(18)} color={theme.textMuted} />
         </TouchableOpacity>
 
-        {/* Actions - always visible & tappable. Study spans a full row so its
-            gated label (sessions / energy / reason) stays legible. */}
+        {/* ONE action on the card - the one taken every week. Study spans the
+            full row so its gated label (sessions / energy / reason) stays
+            legible. */}
         <TouchableOpacity
           disabled={study.disabled}
           onPress={onStudy}
@@ -860,49 +736,17 @@ function CourseCard({ ed, theme, darkMode, study, loan, onOpen, onStudy, onToggl
             styles.actionBtn,
             study.disabled
               ? { backgroundColor: theme.surfaceElevated }
-              : { backgroundColor: withAlpha(CYAN, 0.16), borderWidth: 1, borderColor: withAlpha(CYAN, 0.30) },
+              : { backgroundColor: withAlpha(EDU, 0.16), borderWidth: 1, borderColor: withAlpha(EDU, 0.30) },
           ]}
           accessibilityRole="button"
           accessibilityLabel={study.label}
           accessibilityState={{ disabled: study.disabled }}
         >
-          <Zap size={scale(14)} color={study.disabled ? theme.textMuted : CYAN} />
-          <Text style={[styles.actionBtnText, { color: study.disabled ? theme.textMuted : CYAN }]} numberOfLines={1}>
+          <Zap size={scale(14)} color={study.disabled ? theme.textMuted : EDU} />
+          <Text style={[styles.actionBtnText, { color: study.disabled ? theme.textMuted : EDU }]} numberOfLines={1}>
             {study.label}
           </Text>
         </TouchableOpacity>
-
-        <StudyGroupButton
-          ed={ed}
-          theme={theme}
-          canAfford={canAffordStudyGroup}
-          onPress={onToggleStudyGroup}
-        />
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            onPress={onTogglePause}
-            style={[styles.actionBtn, { flex: 1, backgroundColor: theme.surfaceElevated }]}
-            accessibilityRole="button"
-            accessibilityLabel={ed.paused ? 'Resume program' : 'Pause program'}
-          >
-            {ed.paused ? <Play size={scale(14)} color={accent.success} /> : <Pause size={scale(14)} color={accent.warning} />}
-            <Text style={[styles.actionBtnText, { color: ed.paused ? accent.success : accent.warning }]}>
-              {ed.paused ? 'Resume' : 'Pause'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onWithdraw}
-            style={[
-              styles.actionBtn,
-              { flex: 1, backgroundColor: withAlpha(accent.danger, darkMode ? 0.10 : 0.08), borderWidth: 1, borderColor: withAlpha(accent.danger, 0.30) },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Withdraw from program"
-          >
-            <Text style={[styles.actionBtnText, { color: accent.danger }]}>Withdraw</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </View>
   );
@@ -928,23 +772,29 @@ function CatalogRow({ entry, theme, darkMode, canAfford, onEnroll }: {
       accessibilityLabel={`Enroll in ${entry.name}`}
     >
       <View style={styles.catalogInner}>
-        <SubjectBubble id={entry.id} darkMode={darkMode} size={44} />
+        <IconBubble color={subjectFor(entry.id).tint} style={styles.bubble44}>
+          {React.createElement(subjectFor(entry.id).Icon, { size: scale(19), color: subjectFor(entry.id).tint })}
+        </IconBubble>
         <View style={{ flex: 1, gap: responsiveSpacing.xs }}>
           <Text style={[styles.courseName, { color: theme.text }]} numberOfLines={1}>{entry.name}</Text>
           <Text style={[styles.catalogDesc, { color: theme.textMuted }]} numberOfLines={1}>{entry.description}</Text>
           <View style={styles.chipRow}>
-            <Chip theme={theme} icon={Banknote} label={entry.cost === 0 ? 'Free' : formatMoney(entry.cost)} tint={entry.cost === 0 ? accent.success : CYAN} />
-            <Chip theme={theme} icon={Clock} label={formatDuration(entry.duration)} />
+            <Chip
+              icon={<Banknote size={scale(11)} color={entry.cost === 0 ? accent.success : EDU} />}
+              label={entry.cost === 0 ? 'Free' : formatMoney(entry.cost)}
+              tint={entry.cost === 0 ? accent.success : EDU}
+            />
+            <Chip icon={<Clock size={scale(11)} color={theme.textMuted} />} label={formatDuration(entry.duration)} />
           </View>
         </View>
         <View
           style={[
             styles.enrollBtn,
-            { backgroundColor: withAlpha(CYAN, 0.16), borderColor: withAlpha(CYAN, 0.32) },
+            { backgroundColor: withAlpha(EDU, 0.16), borderColor: withAlpha(EDU, 0.32) },
           ]}
         >
-          <Plus size={scale(13)} color={CYAN} />
-          <Text style={[styles.enrollBtnText, { color: CYAN }]}>{canAfford ? 'Enroll' : 'Options'}</Text>
+          <Plus size={scale(13)} color={EDU} />
+          <Text style={[styles.enrollBtnText, { color: EDU }]}>{canAfford ? 'Enroll' : 'Options'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -959,7 +809,6 @@ function TranscriptRow({ ed, theme, darkMode, onOpen }: {
   onOpen: () => void;
 }) {
   const grade = gradeInfo(ed);
-  const exams = (ed.examsPassed ?? 0) + (ed.examsFailed ?? 0);
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -972,18 +821,22 @@ function TranscriptRow({ ed, theme, darkMode, onOpen }: {
       accessibilityLabel={`View transcript for ${ed.name}`}
     >
       <View style={styles.transcriptInner}>
-        <SubjectBubble id={ed.id} darkMode={darkMode} size={42} />
+        <IconBubble color={subjectFor(ed.id).tint} style={styles.bubble44}>
+          {React.createElement(subjectFor(ed.id).Icon, { size: scale(19), color: subjectFor(ed.id).tint })}
+        </IconBubble>
         <View style={{ flex: 1, gap: responsiveSpacing.xs }}>
           <Text style={[styles.courseName, { color: theme.text }]} numberOfLines={1}>{ed.name}</Text>
           <View style={styles.chipRow}>
             <Chip
-              theme={theme}
-              icon={Award}
+              icon={<Award size={scale(11)} color={grade.color} />}
               label={grade.noRecord ? 'Graduated' : `${grade.letter} ${grade.gpa.toFixed(2)}`}
               tint={grade.color}
             />
-            <Chip theme={theme} label={grade.noRecord ? 'On record' : grade.label} tint={grade.color} />
-            {exams > 0 && <Chip theme={theme} icon={BadgeCheck} label={`${ed.examsPassed ?? 0}✓ / ${ed.examsFailed ?? 0}✗`} />}
+            <Chip label={grade.noRecord ? 'On record' : grade.label} tint={grade.color} />
+            {/* Was "3✓ / 1✗" - two glyphs doing the work of two words, at a
+                size where they are hard to tell apart. */}
+            {(ed.examsPassed ?? 0) > 0 && <Chip tone="success" label={`${ed.examsPassed} passed`} />}
+            {(ed.examsFailed ?? 0) > 0 && <Chip tone="danger" label={`${ed.examsFailed} failed`} />}
           </View>
         </View>
         <View style={[styles.credentialBadge, { backgroundColor: withAlpha(accent.success, 0.15), borderColor: withAlpha(accent.success, 0.30) }]}>
@@ -1026,15 +879,14 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
 
   return (
     <View style={{ gap: responsiveSpacing.lg }}>
-      {/* Recipe B hero - the ONE gradient surface on this screen. */}
-      <HeroCard theme={theme} darkMode={darkMode}>
+      <Card style={styles.heroCard}>
         <View style={styles.detailHeroRow}>
           <ProgressRing
             value={pct * 100}
             size={104}
             strokeWidth={8}
             state={ed.completed ? 'done' : 'active'}
-            accentColor={CYAN}
+            accentColor={EDU}
             positiveColor={grade.color}
             trackColor={darkMode ? 'rgba(148, 163, 184, 0.22)' : 'rgba(148, 163, 184, 0.30)'}
             surfaceColor={theme.surface}
@@ -1051,39 +903,57 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
             </Text>
             <Text style={[styles.detailTitle, { color: theme.text }]} numberOfLines={2}>{ed.name}</Text>
             <View style={styles.chipRow}>
-              <Chip theme={theme} icon={Award} label={grade.noRecord ? 'Graduated' : `${grade.letter} ${grade.gpa.toFixed(2)}`} tint={grade.color} />
-              <Chip theme={theme} label={grade.noRecord ? 'On record' : grade.label} tint={grade.color} />
+              <Chip icon={<Award size={scale(11)} color={grade.color} />} label={grade.noRecord ? 'Graduated' : `${grade.letter} ${grade.gpa.toFixed(2)}`} tint={grade.color} />
+              <Chip label={grade.noRecord ? 'On record' : grade.label} tint={grade.color} />
             </View>
             {ed.completed ? (
               <View style={styles.chipRow}>
-                <Chip theme={theme} icon={BadgeCheck} label="Earned" tint={accent.success} />
+                <Chip icon={<BadgeCheck size={scale(11)} color={accent.success} />} label="Earned" tint={accent.success} />
               </View>
             ) : (
               <View style={styles.chipRow}>
-                <Chip theme={theme} icon={Clock} label={`${weeksLeft}w left`} tint={CYAN} />
-                <Chip theme={theme} icon={CalendarDays} label={`Sem ${ed.semesterNumber ?? 1}`} />
+                <Chip icon={<Clock size={scale(11)} color={EDU} />} label={`${weeksLeft}w left`} tint={EDU} />
+                <Chip icon={<CalendarDays size={scale(11)} color={theme.textMuted} />} label={`Sem ${ed.semesterNumber ?? 1}`} />
               </View>
             )}
           </View>
         </View>
-      </HeroCard>
+      </Card>
 
       {/* Stat grid - surfaces record fields the list rows can't fit. */}
       <View style={styles.detailGrid}>
-        <DetailStat theme={theme} darkMode={darkMode} icon={Percent} tint={CYAN} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${weeksLeft}w of ${ed.duration}w`} />
-        <DetailStat theme={theme} darkMode={darkMode} icon={Target} tint={grade.color} label="GPA" value={grade.noRecord ? '-' : grade.gpa.toFixed(2)} sub={grade.noRecord ? 'no grade on file' : `${grade.letter} · ${grade.label}`} />
-        <DetailStat theme={theme} darkMode={darkMode} icon={BadgeCheck} tint={accent.info} label="Exams" value={exams > 0 ? `${passed}✓ / ${failed}✗` : 'None yet'} sub={passRate != null ? `${passRate}% pass rate` : 'no exams taken'} />
-        <DetailStat theme={theme} darkMode={darkMode} icon={CalendarDays} tint={accent.purple} label="Semester" value={String(ed.semesterNumber ?? 1)} sub={ed.studyGroupActive ? 'study group active' : 'solo study'} />
+        <DetailCard theme={theme} darkMode={darkMode}>
+          <StatTile align="left" tint={EDU} label="Progress" value={`${Math.round(pct * 100)}%`} sub={`${weeksLeft}w of ${ed.duration}w`} />
+        </DetailCard>
+        <DetailCard theme={theme} darkMode={darkMode}>
+          <StatTile align="left" tint={grade.color} label="GPA" value={grade.noRecord ? '-' : grade.gpa.toFixed(2)} sub={grade.noRecord ? 'no grade on file' : `${grade.letter} · ${grade.label}`} />
+        </DetailCard>
+        <DetailCard theme={theme} darkMode={darkMode}>
+          <StatTile
+            align="left"
+            tint={accent.info}
+            label="Exams"
+            value={exams > 0 ? `${passed} of ${exams}` : 'None yet'}
+            sub={passRate != null ? `${passRate}% pass rate` : 'no exams taken'}
+          />
+        </DetailCard>
+        <DetailCard theme={theme} darkMode={darkMode}>
+          <StatTile align="left" tint={accent.purple} label="Semester" value={String(ed.semesterNumber ?? 1)} sub={ed.studyGroupActive ? 'study group active' : 'solo study'} />
+        </DetailCard>
         {!ed.completed && (
-          <DetailStat theme={theme} darkMode={darkMode} icon={Zap} tint={accent.warning} label="Study budget" value={`${study.sessionsThisWeek}/3`} sub="sessions this week" />
+          <DetailCard theme={theme} darkMode={darkMode}>
+            <StatTile align="left" tint={accent.warning} label="Study budget" value={`${study.sessionsThisWeek}/3`} sub="sessions this week" />
+          </DetailCard>
         )}
-        <DetailStat theme={theme} darkMode={darkMode} icon={Percent} tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-programme GPA" />
+        <DetailCard theme={theme} darkMode={darkMode}>
+          <StatTile align="left" tint={accent.success} label="Scholarship rate" value={`${currentMerit}%`} sub="at your best paid-programme GPA" />
+        </DetailCard>
       </View>
 
       {/* Enrolled classes - richest previously-hidden data. */}
       {classes.length > 0 && (
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Classes ({classes.length})</SectionTitle>
+          <SectionTitle title="Classes" right={<Chip label={String(classes.length)} tint={EDU} />} />
           <View
             style={[
               getGlassCard(darkMode, 6),
@@ -1093,7 +963,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
             <View style={styles.classList}>
               {classes.map((c, i) => (
                 <View key={c.id} style={[styles.classRow, i > 0 && { borderTopWidth: 1, borderTopColor: theme.border }]}>
-                  <View style={[styles.classDot, { backgroundColor: c.completed ? accent.success : withAlpha(CYAN, 0.5) }]} />
+                  <View style={[styles.classDot, { backgroundColor: c.completed ? accent.success : withAlpha(EDU, 0.5) }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.className, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
                     <Text style={[styles.classMeta, { color: theme.textMuted }]} numberOfLines={1}>
@@ -1115,7 +985,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
       {/* Linked student loan - cross-system readout (routed through the bank). */}
       {loan && (
         <View style={{ gap: responsiveSpacing.sm }}>
-          <SectionTitle theme={theme}>Student loan</SectionTitle>
+          <SectionTitle title="Student loan" />
           <View
             style={[
               getGlassCard(darkMode, 6),
@@ -1124,22 +994,22 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
           >
             <View style={styles.loanInner}>
               <View style={styles.loanTopRow}>
-                <View style={[getGlassIconContainer(darkMode, 40), { backgroundColor: withAlpha(accent.info, 0.15), borderWidth: 1, borderColor: withAlpha(accent.info, 0.30) }]}>
+                <IconBubble color={accent.info}>
                   <Banknote size={scale(18)} color={accent.info} />
-                </View>
+                </IconBubble>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.loanBalance, { color: theme.text }]}>{formatMoney(loan.remaining)}</Text>
                   <Text style={[styles.loanSub, { color: theme.textMuted }]}>remaining of {formatMoney(loan.principal)}</Text>
                 </View>
-                {loan.autoPay && <Chip theme={theme} icon={CircleCheck} label="Auto-pay" tint={accent.success} />}
+                {loan.autoPay && <Chip icon={<CircleCheck size={scale(11)} color={accent.success} />} label="Auto-pay" tint={accent.success} />}
               </View>
-              <View style={[styles.heroStatStrip, { borderTopColor: theme.border }]}>
-                <StatTile theme={theme} icon={Banknote} tint={accent.info} label="Weekly" value={formatMoney(loan.weeklyPayment)} />
-                <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-                <StatTile theme={theme} icon={Percent} tint={accent.warning} label="APR" value={`${(loan.rateAPR * 100).toFixed(1)}%`} />
-                <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-                <StatTile theme={theme} icon={Clock} tint={CYAN} label="Weeks left" value={String(loan.weeksRemaining)} />
-              </View>
+              <StatStrip
+                items={[
+                  { label: 'Weekly', value: formatMoney(loan.weeklyPayment), tint: accent.info },
+                  { label: 'APR', value: `${(loan.rateAPR * 100).toFixed(1)}%`, tint: accent.warning },
+                  { label: 'Weeks left', value: loan.weeksRemaining, tint: EDU },
+                ]}
+              />
             </View>
           </View>
         </View>
@@ -1147,7 +1017,7 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
 
       {/* Description */}
       <View style={{ gap: responsiveSpacing.sm }}>
-        <SectionTitle theme={theme}>About</SectionTitle>
+        <SectionTitle title="About" />
         <View
           style={[
             getGlassCard(darkMode, 6),
@@ -1173,20 +1043,15 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
             accessibilityState={{ disabled: study.disabled }}
             style={[
               styles.primaryCtaWrap,
-              { backgroundColor: study.disabled ? theme.surfaceElevated : CYAN },
+              { backgroundColor: study.disabled ? theme.surfaceElevated : EDU },
               !study.disabled && getPlatformShadows(5, 0.3, 2, 8),
             ]}
           >
+            {/* The wrap above carries the solid fill; the gradient that used to
+                sit here ran from the identity colour to a second shade of
+                itself, which is decoration on a button that is already one
+                colour. */}
             <View style={styles.primaryCta}>
-              {!study.disabled && (
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={[CYAN, CYAN_PAIR]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              )}
               <Zap size={scale(16)} color={study.disabled ? theme.textMuted : '#FFFFFF'} />
               <Text style={[styles.primaryCtaText, { color: study.disabled ? theme.textMuted : '#FFFFFF' }]} numberOfLines={1}>
                 {study.label}
@@ -1242,14 +1107,11 @@ function CourseDetail({ ed, theme, darkMode, bestGpa, scholarshipGpa, study, loa
   );
 }
 
-function DetailStat({ theme, darkMode, icon: Icon, tint, label, value, sub }: {
+/** The card shell around one detail statistic. */
+function DetailCard({ theme, darkMode, children }: {
   theme: ReturnType<typeof getThemeColors>;
   darkMode: boolean;
-  icon: IconType;
-  tint: string;
-  label: string;
-  value: string;
-  sub: string;
+  children: React.ReactNode;
 }) {
   return (
     <View
@@ -1259,18 +1121,9 @@ function DetailStat({ theme, darkMode, icon: Icon, tint, label, value, sub }: {
         { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: responsiveBorderRadius.xl },
       ]}
     >
-      <View style={styles.statTileHead}>
-        <Icon size={scale(13)} color={tint} />
-        <Text style={[styles.statTileLabel, { color: theme.textMuted }]} numberOfLines={1}>{label}</Text>
-      </View>
-      <Text style={[styles.detailStatValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      <Text style={[styles.detailStatSub, { color: theme.textMuted }]} numberOfLines={1}>{sub}</Text>
+      {children}
     </View>
   );
-}
-
-function SectionTitle({ theme, children }: { theme: ReturnType<typeof getThemeColors>; children: React.ReactNode }) {
-  return <Text style={[styles.sectionTitle, { color: theme.text }]}>{children}</Text>;
 }
 
 export default function EducationApp(props: EducationAppProps) {
@@ -1283,100 +1136,18 @@ export default function EducationApp(props: EducationAppProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: responsiveSpacing.md,
-    paddingVertical: responsiveSpacing.sm,
-    gap: responsiveSpacing.sm,
-  },
-  backBtn: {
-    minWidth: scale(40),
-    minHeight: scale(40),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appTitle: { flex: 1, fontSize: responsiveFontSize.lg, fontWeight: '700' },
-  cashChip: {
-    paddingHorizontal: responsiveSpacing.sm,
-    paddingVertical: 4,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  cashChipText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  // Segmented control in its own glass container directly under the top bar,
-  // which anchors the screen - so the top bar drops its bottom border.
-  tabBar: {
-    flexDirection: 'row',
-    gap: scale(4),
+  // The segmented control sits directly under the header, which anchors the
+  // screen - so the header carries no bottom border.
+  tabs: {
     marginHorizontal: responsiveSpacing.md,
     marginTop: responsiveSpacing.sm,
     marginBottom: responsiveSpacing.sm,
   },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: responsiveSpacing.sm,
-    borderRadius: responsiveBorderRadius.lg,
-  },
-  tabText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
-  sectionTitle: {
-    fontSize: responsiveFontSize.md,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  countPill: {
-    minWidth: scale(22),
-    paddingHorizontal: scale(7),
-    paddingVertical: 2,
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  countPillText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  emptyText: {
-    fontSize: responsiveFontSize.sm,
-    textAlign: 'center',
-    opacity: 0.6,
-  },
-  emptyCard: {
-    borderRadius: responsiveBorderRadius.xl,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: responsiveSpacing.lg,
-  },
 
   // --- Hero ---
-  heroInner: {
-    borderRadius: responsiveBorderRadius['2xl'],
-    overflow: 'hidden',
-    padding: responsiveSpacing.lg,
-  },
-  heroBlob: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-  },
-  heroHairline: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
+  // The shared Card, minus its own outer margins: this screen's ScrollView
+  // already pads the content.
+  heroCard: { marginHorizontal: 0, marginBottom: 0 },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1388,38 +1159,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
-  heroSubRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  heroValue: { fontSize: responsiveFontSize['3xl'], fontWeight: '700', fontVariant: ['tabular-nums'] },
   heroSub: { fontSize: responsiveFontSize.xs, fontVariant: ['tabular-nums'] },
-  heroStatStrip: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    borderTopWidth: 1,
-    paddingTop: responsiveSpacing.sm,
-  },
-  statTile: { flex: 1, gap: 2, paddingHorizontal: scale(2) },
-  statTileHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statTileLabel: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
-  statTileValue: { fontSize: responsiveFontSize.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  statDivider: { width: 1, marginHorizontal: responsiveSpacing.sm, alignSelf: 'stretch' },
+
+  // Subject bubble box; IconBubble owns the tint recipe.
+  bubble44: { width: scale(44), height: scale(44) },
 
   // --- Chips ---
   chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: scale(6) },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(3),
-    borderRadius: responsiveBorderRadius.full,
-    borderWidth: 1,
-  },
-  chipText: { fontSize: responsiveFontSize.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // --- Course card (enrolled) ---
   courseInner: { padding: responsiveSpacing.md, gap: responsiveSpacing.sm },
   courseHead: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
-  courseName: { fontSize: responsiveFontSize.md, fontWeight: '700' },
+  courseName: { fontSize: responsiveFontSize.md, fontWeight: '600' },
 
   // --- Catalog row ---
   catalogInner: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md, padding: responsiveSpacing.md },
@@ -1428,12 +1180,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    minHeight: scale(36),
+    minHeight: touchTargets.minimum,
     paddingHorizontal: responsiveSpacing.md,
     borderRadius: responsiveBorderRadius.full,
     borderWidth: 1,
   },
-  enrollBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  enrollBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
 
   // --- Transcript row ---
   transcriptInner: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md, padding: responsiveSpacing.md },
@@ -1453,16 +1205,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
     paddingVertical: responsiveSpacing.sm,
     paddingHorizontal: responsiveSpacing.sm,
     borderRadius: responsiveBorderRadius.lg,
   },
-  actionBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  actionBtnText: { fontSize: responsiveFontSize.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // --- Detail ---
   detailHeroRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.lg },
-  detailTitle: { fontSize: responsiveFontSize.xl, fontWeight: '800' },
+  detailTitle: { fontSize: responsiveFontSize.xl, fontWeight: '700' },
   detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: responsiveSpacing.sm },
   detailStatCard: {
     flexGrow: 1,
@@ -1470,26 +1222,24 @@ const styles = StyleSheet.create({
     padding: responsiveSpacing.md,
     gap: 4,
   },
-  detailStatValue: { fontSize: responsiveFontSize.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  detailStatSub: { fontSize: responsiveFontSize.xs },
 
   classList: { padding: responsiveSpacing.md, paddingVertical: 0 },
   classRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.sm, paddingVertical: responsiveSpacing.sm },
   classDot: { width: scale(8), height: scale(8), borderRadius: scale(4) },
-  className: { fontSize: responsiveFontSize.sm, fontWeight: '700' },
+  className: { fontSize: responsiveFontSize.sm, fontWeight: '600' },
   classMeta: { fontSize: responsiveFontSize.xs, marginTop: 1, textTransform: 'capitalize' },
   classPending: { fontSize: responsiveFontSize.xs, fontWeight: '600' },
 
   loanInner: { padding: responsiveSpacing.md, gap: responsiveSpacing.md },
   loanTopRow: { flexDirection: 'row', alignItems: 'center', gap: responsiveSpacing.md },
-  loanBalance: { fontSize: responsiveFontSize.xl, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  loanBalance: { fontSize: responsiveFontSize.xl, fontWeight: '700', fontVariant: ['tabular-nums'] },
   loanSub: { fontSize: responsiveFontSize.xs, marginTop: 1, fontVariant: ['tabular-nums'] },
 
   aboutText: { fontSize: responsiveFontSize.sm, lineHeight: scale(20), padding: responsiveSpacing.md },
+  // The same body copy inside a modal, which brings its own padding.
+  eventBody: { fontSize: responsiveFontSize.sm, lineHeight: scale(20) },
 
-  primaryCtaWrap: {
-    borderRadius: responsiveBorderRadius.full,
-  },
+  primaryCtaWrap: { borderRadius: responsiveBorderRadius.full },
   primaryCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1500,5 +1250,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: responsiveSpacing.md,
   },
-  primaryCtaText: { fontSize: responsiveFontSize.md, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  primaryCtaText: { fontSize: responsiveFontSize.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

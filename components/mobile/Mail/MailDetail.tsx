@@ -34,6 +34,7 @@ import { senderColor, senderInitial } from '@/lib/mail/senders';
 import { docDate, docMoney } from '@/lib/mail/format';
 import { decisionDeadline } from '@/lib/mail/filters';
 import MailDocument from './MailDocument';
+import { mailPalette } from './mailPalette';
 import {
   fontScale,
   responsiveSpacing,
@@ -98,6 +99,7 @@ function MailDetail({
   thread,
 }: Props) {
   const theme = getThemeColors(darkMode);
+  const pal = mailPalette(darkMode);
   const s = makeStyles(theme, darkMode);
 
   const resolved = !!message.actionTaken;
@@ -143,8 +145,8 @@ function MailDetail({
         >
           <Star
             size={scale(19)}
-            color={message.starred ? '#F9AB00' : theme.text}
-            fill={message.starred ? '#F9AB00' : 'transparent'}
+            color={message.starred ? pal.star : theme.text}
+            fill={message.starred ? pal.star : 'transparent'}
           />
         </TouchableOpacity>
       </View>
@@ -189,7 +191,7 @@ function MailDetail({
                 {message.senderName}
               </Text>
               {message.verified ? (
-                <BadgeCheck size={scale(14)} color={darkMode ? '#8AB4F8' : '#1A73E8'} />
+                <BadgeCheck size={scale(14)} color={pal.link} />
               ) : null}
             </View>
             <Text style={s.senderEmail} numberOfLines={1}>
@@ -205,7 +207,7 @@ function MailDetail({
             the answer. */}
         {!message.verified ? (
           <View style={s.unverified}>
-            <ShieldAlert size={scale(15)} color={darkMode ? '#FDD663' : '#B06000'} />
+            <ShieldAlert size={scale(15)} color={pal.warn} />
             <Text style={s.unverifiedText}>
               This sender is not verified. Check the address against mail you know is genuine.
             </Text>
@@ -235,7 +237,7 @@ function MailDetail({
               accessibilityRole="button"
               accessibilityLabel="Report phishing"
             >
-              <ShieldCheck size={scale(15)} color={darkMode ? '#81C995' : '#188038'} />
+              <ShieldCheck size={scale(15)} color={pal.positive} />
               <Text style={s.reportBtnText}>Report phishing</Text>
             </TouchableOpacity>
           </View>
@@ -250,7 +252,7 @@ function MailDetail({
             accessibilityRole="button"
             accessibilityLabel="Report phishing"
           >
-            <ShieldCheck size={scale(15)} color={darkMode ? '#81C995' : '#188038'} />
+            <ShieldCheck size={scale(15)} color={pal.positive} />
             <Text style={s.reportBtnText}>Report phishing</Text>
           </TouchableOpacity>
         ) : null}
@@ -310,7 +312,7 @@ function MailDetail({
         {message.decision?.chosenId ? (
           <View style={s.outcome}>
             <View style={s.outcomeHead}>
-              <ShieldCheck size={scale(16)} color={darkMode ? '#81C995' : '#188038'} />
+              <ShieldCheck size={scale(16)} color={pal.positive} />
               <Text style={s.outcomeTitle}>
                 {message.decision.resolvedAs === 'lapsed' ? 'Expired' : 'Answered'}
               </Text>
@@ -324,9 +326,9 @@ function MailDetail({
           <View style={s.outcome}>
             <View style={s.outcomeHead}>
               {message.actionTaken === 'accepted' ? (
-                <TriangleAlert size={scale(16)} color={darkMode ? '#F28B82' : '#C5221F'} />
+                <TriangleAlert size={scale(16)} color={pal.negative} />
               ) : (
-                <ShieldCheck size={scale(16)} color={darkMode ? '#81C995' : '#188038'} />
+                <ShieldCheck size={scale(16)} color={pal.positive} />
               )}
               <Text style={s.outcomeTitle}>
                 {message.actionTaken === 'accepted'
@@ -339,10 +341,9 @@ function MailDetail({
 
             <Text style={s.tellsHead}>What gave it away</Text>
             {message.scam.tells.map((tell) => (
-              <View key={tell} style={s.tellRow}>
-                <Text style={s.tellBullet}>•</Text>
-                <Text style={s.tellText}>{tell}</Text>
-              </View>
+              <Text key={tell} style={s.tellText}>
+                {tell}
+              </Text>
             ))}
 
             {message.actionTaken === 'accepted' && lost > 0 && !message.disputed ? (
@@ -369,9 +370,10 @@ function MailDetail({
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: darkMode ? '#0F141A' : '#FFFFFF' },
+const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) => {
+  const pal = mailPalette(darkMode);
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: pal.bg },
     toolbar: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -401,10 +403,10 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarText: { color: '#FFFFFF', fontSize: fontScale(17), fontWeight: '600' },
+    avatarText: { color: pal.onAccent, fontSize: fontScale(17), fontWeight: '600' },
     senderBody: { flex: 1 },
     senderLine: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
-    senderName: { fontSize: fontScale(14), fontWeight: '700', color: theme.text },
+    senderName: { fontSize: fontScale(14), fontWeight: '600', color: theme.text },
     senderEmail: { fontSize: fontScale(11.5), color: theme.textSecondary },
     date: { fontSize: fontScale(11), color: theme.textSecondary, marginTop: scale(1) },
     unverified: {
@@ -422,7 +424,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       flex: 1,
       fontSize: fontScale(11.5),
       lineHeight: fontScale(16),
-      color: darkMode ? '#FDD663' : '#B06000',
+      color: pal.warn,
     },
     body: {
       marginTop: responsiveSpacing.md,
@@ -440,9 +442,9 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       gap: scale(6),
       paddingHorizontal: responsiveSpacing.md,
     },
-    dangerBtn: { backgroundColor: '#1A73E8' },
-    safeBtn: { backgroundColor: '#1A73E8' },
-    actionBtnText: { color: '#FFFFFF', fontSize: fontScale(14), fontWeight: '700' },
+    dangerBtn: { backgroundColor: pal.linkStrong },
+    safeBtn: { backgroundColor: pal.linkStrong },
+    actionBtnText: { color: pal.onAccent, fontSize: fontScale(14), fontWeight: '600' },
     reportBtn: {
       borderWidth: 1,
       borderColor: darkMode ? 'rgba(129,201,149,0.4)' : 'rgba(24,128,56,0.35)',
@@ -450,7 +452,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     },
     reportAlone: { marginTop: responsiveSpacing.md },
     reportBtnText: {
-      color: darkMode ? '#81C995' : '#188038',
+      color: pal.positive,
       fontSize: fontScale(13),
       fontWeight: '600',
     },
@@ -459,17 +461,17 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       padding: responsiveSpacing.sm,
       borderRadius: responsiveBorderRadius.md,
       borderWidth: 1,
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      borderColor: pal.border,
       gap: responsiveSpacing.xs,
     },
     threadHead: {
       fontSize: fontScale(10.5),
       letterSpacing: 0.8,
-      fontWeight: '700',
+      fontWeight: '600',
       color: theme.textSecondary,
     },
     threadRow: { gap: scale(1) },
-    threadSender: { fontSize: fontScale(12), fontWeight: '700', color: theme.text },
+    threadSender: { fontSize: fontScale(12), fontWeight: '600', color: theme.text },
     threadSubject: { fontSize: fontScale(11.5), color: theme.text },
     threadSnippet: {
       fontSize: fontScale(11),
@@ -483,8 +485,8 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     deadline: {
       fontSize: fontScale(11),
       letterSpacing: 0.8,
-      fontWeight: '700',
-      color: darkMode ? '#FDD663' : '#B06000',
+      fontWeight: '600',
+      color: pal.warn,
     },
     choiceBtn: {
       minHeight: touchTargets.minimum,
@@ -493,11 +495,11 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       paddingVertical: responsiveSpacing.sm,
       borderRadius: responsiveBorderRadius.md,
       borderWidth: 1,
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      borderColor: pal.border,
     },
-    choicePrimary: { backgroundColor: '#1A73E8', borderColor: '#1A73E8' },
-    choiceLabel: { fontSize: fontScale(13.5), fontWeight: '700', color: theme.text },
-    choiceLabelPrimary: { color: '#FFFFFF' },
+    choicePrimary: { backgroundColor: pal.linkStrong, borderColor: pal.linkStrong },
+    choiceLabel: { fontSize: fontScale(13.5), fontWeight: '600', color: theme.text },
+    choiceLabelPrimary: { color: pal.onAccent },
     choiceDetail: {
       marginTop: scale(2),
       fontSize: fontScale(11.5),
@@ -516,23 +518,20 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       padding: responsiveSpacing.md,
       borderRadius: responsiveBorderRadius.md,
       borderWidth: 1,
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
-      backgroundColor: darkMode ? '#151B23' : '#F8F9FA',
+      borderColor: pal.border,
+      backgroundColor: pal.surfaceMuted,
       gap: responsiveSpacing.xs,
     },
     outcomeHead: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-    outcomeTitle: { flex: 1, fontSize: fontScale(13.5), fontWeight: '700', color: theme.text },
+    outcomeTitle: { flex: 1, fontSize: fontScale(13.5), fontWeight: '600', color: theme.text },
     tellsHead: {
       marginTop: responsiveSpacing.sm,
       fontSize: fontScale(11),
       letterSpacing: 0.8,
-      fontWeight: '700',
+      fontWeight: '600',
       color: theme.textSecondary,
     },
-    tellRow: { flexDirection: 'row', gap: scale(6), paddingRight: scale(4) },
-    tellBullet: { fontSize: fontScale(12), color: theme.textSecondary },
     tellText: {
-      flex: 1,
       fontSize: fontScale(12),
       lineHeight: fontScale(18),
       color: theme.text,
@@ -543,9 +542,9 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       borderColor: darkMode ? 'rgba(138,180,248,0.45)' : 'rgba(26,115,232,0.4)',
     },
     disputeBtnText: {
-      color: darkMode ? '#8AB4F8' : '#1A73E8',
+      color: pal.link,
       fontSize: fontScale(13),
-      fontWeight: '700',
+      fontWeight: '600',
     },
     disputedNote: {
       marginTop: responsiveSpacing.xs,
@@ -554,5 +553,6 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       color: theme.textSecondary,
     },
   });
+};
 
 export default React.memo(MailDetail);

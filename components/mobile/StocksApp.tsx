@@ -288,7 +288,7 @@ function StocksAppInner({ onBack }: StocksAppProps) {
 
       <View style={{ gap: responsiveSpacing.sm }}>
         <View style={styles.listHeader}>
-          <SectionTitle title="{sectorFilter ? `${SECTOR_LABEL[sectorFilter]} stocks` : 'All stocks'}" />
+          <SectionTitle title={sectorFilter ? `${SECTOR_LABEL[sectorFilter]} stocks` : 'All stocks'} />
           {sectorFilter && (
             <TouchableOpacity
               onPress={() => setSectorFilter(null)}

@@ -1,13 +1,20 @@
 /**
- * GamingStreamingApp - "Streamly" (Remake 14, Twitch DNA pass).
+ * GamingStreamingApp - "Streaming", the live half of the creator career.
  *
  * Shares the sibling GamingApp's monetization via `lib/content/` +
- * `ContentActions.ts`. This pass gives Streamly a distinct Twitch skeleton on
- * top of the Slate Glass tokens: a live channel-preview hero over real box art,
- * box-art game-CATEGORY tiles, a broadcast-console "Go Live" panel with the
- * game + duration as big tiles, and past broadcasts as VOD cards. Two
- * presentational sub-views (category / broadcast detail) surface history and
- * channel fields the old rows ignored. No new mechanics - data is unchanged.
+ * `ContentActions.ts`, and now its identity colour and its vocabulary: the
+ * shared AppHeader/CashChip, SegmentedControl, StatStrip, Chip, SectionTitle,
+ * ProgressBar, EmptyState, CollapsibleSection and useToast.
+ *
+ * Two things were said twice and are now said once. "Go Live" appeared in four
+ * places; it lives on the Go Live console (the control) and on a past
+ * broadcast ("Stream this again" - a different intent), while the dashboard
+ * hero just links to the tab. The five-category box-art grid appeared on both
+ * Dashboard and Go Live; it is the SELECTION control, so it belongs to Go Live
+ * alone and the dashboard shows the best stream instead.
+ *
+ * ONE gradient in the file: the Go Live console's primary action. The
+ * real-time drain loop and the stale-session resolver are untouched.
  *
  * Tabs: Dashboard / Go Live / History / Shop   (+ category & broadcast pages)
  */
@@ -23,11 +30,8 @@ import {
   ImageSourcePropType,
 } from 'react-native';
 import {
-  ArrowLeft,
   Radio,
   Activity,
-  Users,
-  Heart,
   History,
   ShoppingBag,
   Zap,
@@ -37,11 +41,8 @@ import {
   ChevronRight,
   Clock,
   MessageCircle,
-  Gift,
   Award,
   Cpu,
-  DollarSign,
-  TrendingUp,
   Flame,
   Play,
   Square,
@@ -50,7 +51,6 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTimerManager } from '@/hooks/useTimerManager';
 import { computeQuality } from '@/lib/content/quality';
 import { monetizationSummary } from '@/lib/content/monetization';
 import { nextHypeStreak, hypeChanceForStreak, HYPE_MAX_CHANCE } from '@/lib/content/streamMeta';
@@ -68,20 +68,30 @@ import {
   LIVE_TICK_MS,
 } from '@/contexts/game/actions/ContentActions';
 import { formatMoney } from '@/utils/moneyFormatting';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import {
   getGlassCard,
   getGlassIconContainer,
-  getGlassCategoryTabsContainer,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
 import Gradient from '@/components/ui/Gradient';
 import ProgressRing from '@/components/ui/ProgressRing';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import ProgressBar from '@/components/ui/ProgressBar';
+import EmptyState from '@/components/ui/EmptyState';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import KeyValueRow from '@/components/ui/KeyValueRow';
+import { useToast } from '@/contexts/ToastContext';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { GamingStreamingState, StreamHistoryItem, StreamSession } from '@/contexts/game/types';
@@ -89,15 +99,13 @@ import { gameAlert } from '@/utils/gameAlert';
 
 const LinearGradient = Gradient;
 
-// Identity accent - fuchsia. Solid (FUCHSIA / FUCHSIA_PAIR) only on small
-// CTAs, badges and glyphs; everywhere else the translucent tints below.
-const FUCHSIA = '#D946EF';
-const FUCHSIA_PAIR = '#C026D3';
-const FUCHSIA_FILL = 'rgba(217, 70, 239, 0.15)'; // Recipe C icon-bubble fill
-const FUCHSIA_TINT = 'rgba(217, 70, 239, 0.14)'; // chips + selected rows
-const FUCHSIA_TAB = 'rgba(217, 70, 239, 0.16)'; // active tab pill
-const FUCHSIA_RIM = 'rgba(217, 70, 239, 0.30)'; // tinted rims
-const LIVE_RED = accent.danger; // Twitch live indicator (semantic red)
+// One identity colour, shared with the sibling YouVideo app - the two are the
+// halves of one creator career, and a private fuchsia palette only made them
+// look like different products. The deep stop below is the second colour of
+// the ONE gradient in this file (the Go Live action).
+const IDENTITY = accent.purple;
+const IDENTITY_DEEP = '#7C3AED';
+const LIVE_RED = accent.danger; // live indicator (semantic red)
 
 type IconCmp = React.ComponentType<{ size?: number; color?: string }>;
 type TabType = 'dashboard' | 'live' | 'history' | 'shop';
@@ -135,6 +143,13 @@ const PC_LABELS: Record<keyof GamingStreamingState['pcUpgradeLevels'], string> =
   case: 'Case',
   network: 'Network',
 };
+
+const TABS: { key: TabType; label: string; icon: IconCmp }[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: Activity },
+  { key: 'live', label: 'Go Live', icon: Radio },
+  { key: 'history', label: 'History', icon: History },
+  { key: 'shop', label: 'Shop', icon: ShoppingBag },
+];
 
 const GAME_OPTIONS = [
   { id: 'fps', name: 'Just Chatting', viewersHint: 'Wide audience' },
@@ -184,18 +199,16 @@ interface Props {
 export default function GamingStreamingApp({ onBack }: Props) {
   const { gameState, setGameState, saveGame } = useGame();
   const insets = useSafeAreaInsets();
-  // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
-  const timers = useTimerManager();
+  const { showToast } = useToast();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [route, setRoute] = useState<Route>({ kind: 'main' });
   const [selectedGame, setSelectedGame] = useState(GAME_OPTIONS[0]);
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const channel = gameState.gamingStreaming;
-  const streamHistory = channel?.streamHistory ?? [];
+  const streamHistory = useMemo(() => channel?.streamHistory ?? [], [channel?.streamHistory]);
   const quality = useMemo(
     () => computeQuality(channel?.equipment, channel?.pcUpgradeLevels),
     [channel]
@@ -267,10 +280,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
     [route, streamHistory]
   );
 
-  const flash = useCallback((message: string) => {
-    setFeedback(message);
-    timers.setTimeout(() => setFeedback(null), 2800);
-  }, [timers]);
+  const flash = useCallback((message: string) => showToast(message, 'info'), [showToast]);
 
   const goBack = useCallback(() => {
     if (route.kind !== 'main') setRoute({ kind: 'main' });
@@ -388,37 +398,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   // ── Shared building blocks ────────────────────────────────────────────────
 
-  // A tinted section header with an optional right-aligned nav chip.
-  const SectionHead = ({
-    icon: Icon,
-    title,
-    linkLabel,
-    onLink,
-  }: {
-    icon: IconCmp;
-    title: string;
-    linkLabel?: string;
-    onLink?: () => void;
-  }) => (
-    <View style={styles.sectionHeaderRow}>
-      <Icon size={scale(14)} color={FUCHSIA} />
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      <View style={styles.flexSpacer} />
-      {linkLabel && onLink ? (
-        <TouchableOpacity
-          onPress={onLink}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={linkLabel}
-          style={styles.linkChip}
-        >
-          <Text style={[styles.linkChipText, { color: FUCHSIA }]}>{linkLabel}</Text>
-          <ChevronRight size={scale(12)} color={FUCHSIA} />
-        </TouchableOpacity>
-      ) : null}
-    </View>
-  );
-
   // Twitch VOD row: box-art thumb + duration badge + peak viewers + metrics.
   const renderVodCard = (s: StreamHistoryItem) => (
     <TouchableOpacity
@@ -455,12 +434,10 @@ export default function GamingStreamingApp({ onBack }: Props) {
             </View>
           ) : null}
         </View>
-        <View style={styles.metricsRow}>
-          <Metric icon={Heart} text={`+${s.subscribers}`} color={theme.textSecondary} />
-          <Metric icon={TrendingUp} text={`+${s.followers}`} color={theme.textSecondary} />
-          <Metric icon={Gift} text={formatMoney(s.donations ?? 0)} color={theme.textSecondary} />
-          <Metric icon={DollarSign} text={formatMoney(s.earnings ?? 0)} color={accent.success} />
-        </View>
+        <Text style={[styles.vodMeta, { color: theme.textSecondary }]} numberOfLines={1}>
+          +{s.subscribers} subs · +{s.followers} followers ·{' '}
+          <Text style={{ color: accent.success }}>{formatMoney(s.earnings ?? 0)}</Text>
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -485,21 +462,11 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(lastGame)} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <View pointerEvents="none" style={styles.heroGlow} />
-              {darkMode && <View pointerEvents="none" style={styles.hairline} />}
 
               <View style={styles.mediaTopRow}>
-                {isLive ? (
-                  <View style={[styles.statusPill, { backgroundColor: LIVE_RED }]}>
-                    <View style={styles.statusDot} />
-                    <Text style={styles.statusPillText}>LIVE</Text>
-                  </View>
-                ) : (
-                  <View style={[styles.statusPill, { backgroundColor: 'rgba(15,23,42,0.72)' }]}>
-                    <View style={[styles.statusDot, { backgroundColor: theme.textMuted }]} />
-                    <Text style={styles.statusPillText}>OFFLINE</Text>
-                  </View>
-                )}
+                <View style={[styles.statusPill, { backgroundColor: isLive ? LIVE_RED : 'rgba(15,23,42,0.72)' }]}>
+                  <Text style={styles.statusPillText}>{isLive ? 'LIVE' : 'OFFLINE'}</Text>
+                </View>
                 <View style={styles.viewersPill}>
                   <Eye size={scale(12)} color="#fff" />
                   <Text style={styles.viewersPillText}>{fmt(channel?.averageViewers)} avg</Text>
@@ -514,17 +481,10 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   <View style={styles.flex1}>
                     <Text style={styles.heroChannelName} numberOfLines={1}>Your Channel</Text>
                     <View style={styles.heroLevelChip}>
-                      <Award size={scale(11)} color={FUCHSIA} />
+                      <Award size={scale(11)} color={IDENTITY} />
                       <Text style={styles.heroLevelText}>Level {level} Partner</Text>
                     </View>
                   </View>
-                </View>
-                <View style={styles.heroStatStrip}>
-                  <HeroStat label="Followers" value={fmt(channel?.followers)} />
-                  <View style={styles.heroStatDivider} />
-                  <HeroStat label="Subs" value={fmt(channel?.subscribers)} />
-                  <View style={styles.heroStatDivider} />
-                  <HeroStat label="Hours" value={fmt(Math.round(channel?.streamHours ?? 0))} />
                 </View>
               </View>
             </View>
@@ -532,23 +492,35 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroFooter}>
               <TouchableOpacity
                 onPress={() => setActiveTab('live')}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel="Open the Go Live console"
-                style={[styles.heroCtaWrap, getPlatformShadows(5, 0.3, 2, 8)]}
+                style={styles.heroLink}
               >
-                <LinearGradient colors={[FUCHSIA, FUCHSIA_PAIR]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCta}>
-                  <Play size={scale(15)} color="#fff" />
-                  <Text style={styles.heroCtaText}>Go Live</Text>
-                </LinearGradient>
+                <Play size={scale(14)} color={IDENTITY} />
+                <Text style={[styles.heroLinkText, { color: IDENTITY }]}>Go live</Text>
+                <ChevronRight size={scale(14)} color={IDENTITY} />
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
+        {/* The three numbers a streamer decides on. The rest of the revenue
+            readout is a record of what happened - it lives behind the fold. */}
+        <StatStrip
+          items={[
+            { label: 'Followers', value: fmt(channel?.followers) },
+            { label: 'Subs', value: fmt(channel?.subscribers) },
+            { label: '$ / wk', value: formatMoney(monetization.membershipWeekly ?? 0), tint: accent.success },
+          ]}
+        />
+
         {/* Stream health - setup ring + partner level + gear/rig sub-scores. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead icon={Cpu} title="Stream health" linkLabel="Upgrade" onLink={() => setActiveTab('shop')} />
+          <SectionTitle
+            title="Stream health"
+            right={<Chip label="Upgrade" tint={IDENTITY} onPress={() => setActiveTab('shop')} />}
+          />
           <View style={styles.healthRow}>
             <ProgressRing
               value={quality.total}
@@ -567,75 +539,39 @@ export default function GamingStreamingApp({ onBack }: Props) {
             </ProgressRing>
             <View style={styles.healthMeta}>
               <View style={styles.levelLine}>
-                <Award size={scale(13)} color={FUCHSIA} />
+                <Award size={scale(13)} color={IDENTITY} />
                 <Text style={[styles.levelText, { color: theme.text }]}>Level {level}</Text>
                 <Text style={[styles.xpText, { color: theme.textMuted }]}>{fmt(experience)} XP</Text>
               </View>
-              <Meter label="Gear" value={quality.accessories} max={18} theme={theme} />
-              <Meter label="Rig" value={Math.min(100, quality.pc)} max={100} theme={theme} />
+              <MeterRow label="Gear" value={quality.accessories} max={18} theme={theme} />
+              <MeterRow label="Rig" value={Math.min(100, quality.pc)} max={100} theme={theme} />
             </View>
           </View>
         </View>
 
-        {/* Revenue - dense monetization grid. */}
-        <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead icon={DollarSign} title="Revenue" />
-          <View style={styles.statsRow}>
-            <MoneyStat label="$/viewer" value={`$${monetization.viewerPay.toFixed(3)}`} color={theme.text} theme={theme} />
-            <MoneyStat label="RPM" value={`$${monetization.rpm.toFixed(2)}`} color={theme.text} theme={theme} />
-            <MoneyStat label="Members/wk" value={formatMoney(monetization.membershipWeekly ?? 0)} color={theme.text} theme={theme} />
-            <MoneyStat label="Members" value={fmt(channel?.paidMembers)} color={theme.text} theme={theme} />
-            <MoneyStat label="Total views" value={fmt(channel?.totalViews)} color={theme.text} theme={theme} />
-            <MoneyStat label="Donations" value={formatMoney(channel?.totalDonations ?? 0)} color={accent.success} theme={theme} />
-            <MoneyStat label="Sub earnings" value={formatMoney(channel?.totalSubEarnings ?? 0)} color={accent.success} theme={theme} />
-            <MoneyStat label="Total $" value={formatMoney(channel?.totalEarnings ?? 0)} color={accent.success} theme={theme} />
-          </View>
-        </View>
-
-        {/* Browse categories - the signature box-art directory (tap → detail). */}
-        <View style={styles.section}>
-          <SectionHead icon={Gamepad2} title="Browse categories" />
-          <View style={styles.tileGrid}>
-            {GAME_OPTIONS.map((g) => {
-              const st = statsFor(g.name);
-              return (
-                <TouchableOpacity
-                  key={g.id}
-                  onPress={() => setRoute({ kind: 'category', id: g.id })}
-                  activeOpacity={0.9}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${g.name} category, ${st.count} broadcasts`}
-                  style={[getGlassCard(darkMode, 6), styles.catTile, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                >
-                  <View style={styles.catTileClip}>
-                    <Image source={GAME_ART[g.id]} style={styles.catTileImg} resizeMode="cover" />
-                    <View pointerEvents="none" style={styles.thumbScrim} />
-                    <View pointerEvents="none" style={styles.catViewers}>
-                      <Eye size={scale(11)} color="#fff" />
-                      <Text style={styles.catViewersText}>{st.count ? fmt(st.avg) : '-'}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.catBody}>
-                    <Text style={[styles.catName, { color: theme.text }]} numberOfLines={1}>{g.name}</Text>
-                    <View style={styles.rowTopLine}>
-                      <Text style={[styles.catMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-                        {st.count ? `${st.count} broadcast${st.count > 1 ? 's' : ''}` : 'Not streamed'}
-                      </Text>
-                      <ChevronRight size={scale(14)} color={theme.textMuted} />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <CollapsibleSection
+          id="streaming-all-revenue"
+          title="All revenue"
+          defaultCollapsed
+          tint={IDENTITY}
+          summary={`${formatMoney(channel?.totalEarnings ?? 0)} lifetime`}
+        >
+          <KeyValueRow label="$ / viewer" value={`$${monetization.viewerPay.toFixed(3)}`} />
+          <KeyValueRow label="RPM" value={`$${monetization.rpm.toFixed(2)}`} />
+          <KeyValueRow label="Members" value={fmt(channel?.paidMembers)} />
+          <KeyValueRow label="Total views" value={fmt(channel?.totalViews)} />
+          <KeyValueRow label="Watch hours" value={fmt(Math.round(channel?.streamHours ?? 0))} />
+          <KeyValueRow label="Donations" value={formatMoney(channel?.totalDonations ?? 0)} />
+          <KeyValueRow label="Sub earnings" value={formatMoney(channel?.totalSubEarnings ?? 0)} />
+          <KeyValueRow label="Total earned" value={formatMoney(channel?.totalEarnings ?? 0)} />
+        </CollapsibleSection>
 
         {/* Best stream. */}
         {channel?.bestStream ? (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SectionHead icon={Trophy} title="Best stream" />
+            <SectionTitle title="Best stream" />
             <View style={styles.bestRow}>
-              <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: 'rgba(250, 204, 21, 0.15)', borderWidth: 1, borderColor: 'rgba(250, 204, 21, 0.30)' }]}>
+              <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: withAlpha(accent.gold, 0.15), borderWidth: 1, borderColor: withAlpha(accent.gold, 0.3) }]}>
                 <Trophy size={scale(20)} color={accent.gold} />
               </View>
               <View style={styles.flex1}>
@@ -684,10 +620,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(session.game)} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: LIVE_RED }]}>
-                  <View style={styles.statusDot} />
                   <Text style={styles.statusPillText}>LIVE</Text>
                 </View>
                 <View style={styles.viewersPill}>
@@ -721,9 +655,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
             </View>
             <Text style={[styles.capValue, { color: energy < 20 ? accent.danger : theme.text }]}>{Math.round(energy)} / 100</Text>
           </View>
-          <View style={[styles.capTrack, { backgroundColor: theme.surfaceElevated }]}>
-            <View style={[styles.capFill, { width: `${energyPct}%`, backgroundColor: energy < 20 ? accent.danger : FUCHSIA }]} />
-          </View>
+          <ProgressBar value={energyPct / 100} color={energy < 20 ? accent.danger : IDENTITY} height={scale(7)} label="Energy" />
           <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: sp.xs }]}>
             Streaming drains energy live - about {fmtElapsed(secondsLeft)} left before you run out.
           </Text>
@@ -731,13 +663,15 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
         {/* Live session stats. */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead icon={Activity} title="Live session" />
-          <View style={styles.statGrid}>
-            <StatCell icon={Eye} label="Viewers" value={fmt(liveViewers)} theme={theme} />
-            <StatCell icon={Clock} label="Elapsed" value={fmtElapsed(elapsed)} theme={theme} />
-            <StatCell icon={MessageCircle} label="Chat" value={fmt(session.chatMessages)} theme={theme} />
-            <StatCell icon={Cpu} label="Setup" value={quality.tier.toUpperCase()} color={qualityColor(quality.tier)} theme={theme} />
-          </View>
+          <SectionTitle title="Live session" />
+          <StatStrip
+            items={[
+              { label: 'Viewers', value: fmt(liveViewers) },
+              { label: 'Elapsed', value: fmtElapsed(elapsed) },
+              { label: 'Chat', value: fmt(session.chatMessages) },
+              { label: 'Setup', value: quality.tier.toUpperCase(), tint: qualityColor(quality.tier) },
+            ]}
+          />
         </View>
 
         {/* Stop Stream - end + finalise the broadcast. */}
@@ -746,17 +680,10 @@ export default function GamingStreamingApp({ onBack }: Props) {
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Stop stream"
-          style={[styles.publishBtnWrap, getPlatformShadows(5, 0.3, 2, 8)]}
+          style={[styles.publishBtn, { backgroundColor: LIVE_RED }]}
         >
-          <LinearGradient
-            colors={[LIVE_RED, '#B91C1C']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.publishBtn}
-          >
-            <Square size={scale(14)} color="#fff" />
-            <Text style={styles.publishBtnText}>Stop stream</Text>
-          </LinearGradient>
+          <Square size={scale(14)} color="#fff" />
+          <Text style={styles.publishBtnText}>Stop stream</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -784,10 +711,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={GAME_ART[selectedGame.id]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: 'rgba(15,23,42,0.72)' }]}>
-                  <View style={[styles.statusDot, { backgroundColor: theme.textMuted }]} />
                   <Text style={styles.statusPillText}>PREVIEW</Text>
                 </View>
                 <View style={styles.monitorTierChip}>
@@ -812,9 +737,9 @@ export default function GamingStreamingApp({ onBack }: Props) {
           </View>
         </View>
 
-        {/* Category - big box-art tiles. */}
+        {/* Category - the SELECTION control, so it lives here and nowhere else. */}
         <View style={styles.section}>
-          <SectionHead icon={Gamepad2} title="Category" />
+          <SectionTitle title="Category" subtitle="Pick what you are streaming." />
           <View style={styles.tileGrid}>
             {GAME_OPTIONS.map((g) => {
               const selected = selectedGame.id === g.id;
@@ -829,7 +754,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   style={[
                     getGlassCard(darkMode, 6),
                     styles.gameTile,
-                    { backgroundColor: theme.surface, borderColor: selected ? FUCHSIA : theme.border, borderWidth: selected ? 2 : 1 },
+                    { backgroundColor: theme.surface, borderColor: selected ? IDENTITY : theme.border, borderWidth: selected ? 2 : 1 },
                   ]}
                 >
                   <View style={styles.gameTileClip}>
@@ -857,9 +782,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <Text style={[styles.capLabel, { color: theme.textSecondary }]}>Streams this week</Text>
             <Text style={[styles.capValue, { color: capped ? accent.warning : theme.text }]}>{streamsThisWeek} / 5</Text>
           </View>
-          <View style={[styles.capTrack, { backgroundColor: theme.surfaceElevated }]}>
-            <View style={[styles.capFill, { width: `${Math.min(100, (streamsThisWeek / 5) * 100)}%`, backgroundColor: capped ? accent.warning : FUCHSIA }]} />
-          </View>
+          <ProgressBar value={streamsThisWeek / 5} color={capped ? accent.warning : IDENTITY} height={scale(7)} label="Streams this week" />
           <View style={styles.hypeHeadRow}>
             <View style={[styles.hintRow, { flex: 1 }]}>
               <Flame size={scale(12)} color={accent.warning} />
@@ -870,14 +793,13 @@ export default function GamingStreamingApp({ onBack }: Props) {
             </View>
             <Text style={[styles.hypeMax, { color: theme.textMuted }]}>max {Math.round(HYPE_MAX_CHANCE * 100)}%</Text>
           </View>
-          <View style={[styles.hypeTrack, { backgroundColor: theme.surfaceElevated }]}>
-            <View
-              style={[
-                styles.hypeFill,
-                { width: `${Math.min(100, (projectedHypeChance / HYPE_MAX_CHANCE) * 100)}%`, backgroundColor: accent.warning },
-              ]}
-            />
-          </View>
+          <ProgressBar
+            value={projectedHypeChance / HYPE_MAX_CHANCE}
+            color={accent.warning}
+            height={scale(7)}
+            label="Hype-train chance"
+            style={styles.hypeBar}
+          />
           <View style={[styles.hintRow, { marginTop: sp.sm }]}>
             <Zap size={scale(13)} color={canGo ? accent.warning : accent.danger} />
             <Text style={[styles.recordHint, { color: theme.textMuted, marginTop: 0 }]}>
@@ -894,7 +816,7 @@ export default function GamingStreamingApp({ onBack }: Props) {
             style={[styles.publishBtnWrap, canGo && !capped && getPlatformShadows(5, 0.3, 2, 8)]}
           >
             <LinearGradient
-              colors={canGo && !capped ? [FUCHSIA, FUCHSIA_PAIR] : [theme.surfaceElevated, theme.surfaceElevated]}
+              colors={canGo && !capped ? [IDENTITY, IDENTITY_DEEP] : [theme.surfaceElevated, theme.surfaceElevated]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.publishBtn}
@@ -918,33 +840,25 @@ export default function GamingStreamingApp({ onBack }: Props) {
       contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
     >
       {streamHistory.length === 0 ? (
-        <View style={[getGlassCard(darkMode, 6), styles.emptyCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={[getGlassIconContainer(darkMode, 56), { backgroundColor: FUCHSIA_FILL, borderWidth: 1, borderColor: FUCHSIA_RIM }]}>
-            <History size={scale(26)} color={FUCHSIA} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>No streams yet</Text>
-          <Text style={[styles.emptySub, { color: theme.textSecondary }]}>Go live to start your broadcast history.</Text>
-          <TouchableOpacity
-            onPress={() => setActiveTab('live')}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Go to Go Live"
-            style={[styles.emptyCta, { backgroundColor: FUCHSIA_TINT, borderColor: FUCHSIA_RIM }]}
-          >
-            <Play size={scale(13)} color={FUCHSIA} />
-            <Text style={[styles.emptyCtaText, { color: FUCHSIA }]}>Go Live</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon={<History size={scale(26)} color={IDENTITY} />}
+          observation="No broadcasts yet."
+          nudge="Every stream you finish is banked here with its peak viewers and what it paid."
+          ctaLabel="Go live"
+          onCtaPress={() => setActiveTab('live')}
+        />
       ) : (
         <>
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SectionHead icon={History} title="Broadcast summary" />
-            <View style={styles.statGrid}>
-              <StatCell icon={Radio} label="Broadcasts" value={fmt(streamHistory.length)} theme={theme} />
-              <StatCell icon={Eye} label="Avg viewers" value={fmt(channel?.averageViewers)} theme={theme} />
-              <StatCell icon={Clock} label="Hours" value={fmt(Math.round(channel?.streamHours ?? 0))} theme={theme} />
-              <StatCell icon={Trophy} label="Peak" value={fmt(channel?.bestStream?.viewers)} theme={theme} />
-            </View>
+            <SectionTitle title="Broadcast summary" />
+            <StatStrip
+              items={[
+                { label: 'Broadcasts', value: fmt(streamHistory.length) },
+                { label: 'Avg viewers', value: fmt(channel?.averageViewers) },
+                { label: 'Hours', value: fmt(Math.round(channel?.streamHours ?? 0)) },
+                { label: 'Peak', value: fmt(channel?.bestStream?.viewers) },
+              ]}
+            />
           </View>
           {streamHistory.slice(0, 50).map(renderVodCard)}
         </>
@@ -962,22 +876,20 @@ export default function GamingStreamingApp({ onBack }: Props) {
       {/* Setup summary - links gear spend to the quality score. */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <View style={styles.bestRow}>
-          <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: FUCHSIA_FILL, borderWidth: 1, borderColor: FUCHSIA_RIM }]}>
-            <Cpu size={scale(20)} color={FUCHSIA} />
+          <View style={[getGlassIconContainer(darkMode, 44), { backgroundColor: withAlpha(IDENTITY, 0.15), borderWidth: 1, borderColor: withAlpha(IDENTITY, 0.30) }]}>
+            <Cpu size={scale(20)} color={IDENTITY} />
           </View>
           <View style={styles.flex1}>
             <Text style={[styles.bestTitle, { color: theme.text }]}>{quality.tier.toUpperCase()} setup · {quality.total}/100</Text>
             <Text style={[styles.bestSub, { color: theme.textSecondary }]}>{ownedAccessories}/5 gear owned · rig {quality.pc} pts</Text>
           </View>
         </View>
-        <View style={[styles.capTrack, { backgroundColor: theme.surfaceElevated }]}>
-          <View style={[styles.capFill, { width: `${quality.total}%`, backgroundColor: qualityColor(quality.tier) }]} />
-        </View>
+        <ProgressBar value={quality.total / 100} color={qualityColor(quality.tier)} height={scale(7)} label="Setup quality" />
       </View>
 
       {/* Accessories. */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead icon={Sparkles} title="Accessories" />
+        <SectionTitle title="Accessories" />
         {(Object.keys(ACCESSORY_LABELS) as (keyof GamingStreamingState['equipment'])[]).map((k) => {
           const owned = !!channel?.equipment?.[k];
           return (
@@ -986,11 +898,11 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 style={[
                   getGlassIconContainer(darkMode, 36),
                   owned
-                    ? { backgroundColor: 'rgba(16,185,129,0.15)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.30)' }
-                    : { backgroundColor: FUCHSIA_FILL, borderWidth: 1, borderColor: FUCHSIA_RIM },
+                    ? { backgroundColor: withAlpha(accent.success, 0.15), borderWidth: 1, borderColor: withAlpha(accent.success, 0.3) }
+                    : { backgroundColor: withAlpha(IDENTITY, 0.15), borderWidth: 1, borderColor: withAlpha(IDENTITY, 0.30) },
                 ]}
               >
-                <Sparkles size={scale(15)} color={owned ? accent.success : FUCHSIA} />
+                <Sparkles size={scale(15)} color={owned ? accent.success : IDENTITY} />
               </View>
               <View style={styles.flex1}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{ACCESSORY_LABELS[k]}</Text>
@@ -1004,9 +916,9 @@ export default function GamingStreamingApp({ onBack }: Props) {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={owned ? `${ACCESSORY_LABELS[k]} owned` : `Buy ${ACCESSORY_LABELS[k]}`}
-                style={[styles.gearBtn, owned ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: FUCHSIA_TINT }]}
+                style={[styles.gearBtn, owned ? { backgroundColor: theme.surfaceElevated } : { backgroundColor: withAlpha(IDENTITY, 0.14) }]}
               >
-                <Text style={[styles.gearBtnText, { color: owned ? theme.textMuted : FUCHSIA }]}>{owned ? 'Owned' : 'Buy'}</Text>
+                <Text style={[styles.gearBtnText, { color: owned ? theme.textMuted : IDENTITY }]}>{owned ? 'Owned' : 'Buy'}</Text>
               </TouchableOpacity>
             </View>
           );
@@ -1015,23 +927,20 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
       {/* PC components. */}
       <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <SectionHead icon={Cpu} title="PC components" />
+        <SectionTitle title="PC components" />
         {(Object.keys(PC_LABELS) as (keyof GamingStreamingState['pcUpgradeLevels'])[]).map((k) => {
           const tier = channel?.pcUpgradeLevels?.[k] ?? 0;
           const maxed = tier >= MAX_PC_TIER;
           const cost = Math.round(PC_BASE_PRICES[k] * Math.pow(2, tier));
           return (
             <View key={k} style={styles.gearRow}>
-              <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: FUCHSIA_FILL, borderWidth: 1, borderColor: FUCHSIA_RIM }]}>
-                <Cpu size={scale(15)} color={FUCHSIA} />
+              <View style={[getGlassIconContainer(darkMode, 36), { backgroundColor: withAlpha(IDENTITY, 0.15), borderWidth: 1, borderColor: withAlpha(IDENTITY, 0.30) }]}>
+                <Cpu size={scale(15)} color={IDENTITY} />
               </View>
               <View style={styles.flex1}>
                 <Text style={[styles.gearName, { color: theme.text }]}>{PC_LABELS[k]}</Text>
-                <View style={styles.tierDots}>
-                  {Array.from({ length: Math.min(6, tier) }).map((_, i) => (
-                    <View key={i} style={styles.tierDot} />
-                  ))}
-                  <Text style={[styles.gearMeta, { color: theme.textMuted }]}>Tier {tier}</Text>
+                <View style={styles.gearTierRow}>
+                  <Chip label={`T${tier}`} tint={maxed ? accent.success : IDENTITY} accessibilityLabel={`Tier ${tier}`} />
                 </View>
               </View>
               <View style={styles.gearRight}>
@@ -1047,9 +956,9 @@ export default function GamingStreamingApp({ onBack }: Props) {
                   accessibilityLabel={maxed
                     ? `${PC_LABELS[k]} is at max tier`
                     : `Upgrade ${PC_LABELS[k]} to tier ${tier + 1} for ${formatMoney(cost)}`}
-                  style={[styles.gearBtn, { backgroundColor: maxed ? 'rgba(148, 163, 184, 0.18)' : FUCHSIA_TINT }]}
+                  style={[styles.gearBtn, { backgroundColor: maxed ? withAlpha(accent.muted, 0.18) : withAlpha(IDENTITY, 0.14) }]}
                 >
-                  <Text style={[styles.gearBtnText, { color: maxed ? theme.textMuted : FUCHSIA }]}>
+                  <Text style={[styles.gearBtnText, { color: maxed ? theme.textMuted : IDENTITY }]}>
                     {maxed ? 'Maxed' : 'Upgrade'}
                   </Text>
                 </TouchableOpacity>
@@ -1081,8 +990,6 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={GAME_ART[g.id]} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <View pointerEvents="none" style={styles.heroGlow} />
-              {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
                 <View style={styles.catBadge}>
                   <Gamepad2 size={scale(11)} color="#fff" />
@@ -1102,16 +1009,20 @@ export default function GamingStreamingApp({ onBack }: Props) {
         </View>
 
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead icon={Activity} title="Your performance" />
-          <View style={styles.statGrid}>
-            <StatCell icon={Radio} label="Broadcasts" value={fmt(st.count)} theme={theme} />
-            <StatCell icon={Eye} label="Peak" value={fmt(st.peak)} theme={theme} />
-            <StatCell icon={Users} label="Avg" value={fmt(st.avg)} theme={theme} />
-            <StatCell icon={Heart} label="Subs" value={fmt(st.subs)} theme={theme} />
-            <StatCell icon={TrendingUp} label="Followers" value={fmt(st.followers)} theme={theme} />
-            <StatCell icon={MessageCircle} label="Chat" value={fmt(st.chat)} theme={theme} />
-            <StatCell icon={Gift} label="Donations" value={formatMoney(st.donations ?? 0)} theme={theme} />
-            <StatCell icon={DollarSign} label="Earned" value={formatMoney(st.earnings ?? 0)} color={accent.success} theme={theme} />
+          <SectionTitle title="Your performance" />
+          <StatStrip
+            items={[
+              { label: 'Broadcasts', value: fmt(st.count) },
+              { label: 'Peak', value: fmt(st.peak) },
+              { label: 'Avg', value: fmt(st.avg) },
+              { label: 'Earned', value: formatMoney(st.earnings ?? 0), tint: accent.success },
+            ]}
+          />
+          <View style={styles.rowGroup}>
+            <KeyValueRow label="Subs gained" value={fmt(st.subs)} />
+            <KeyValueRow label="Followers gained" value={fmt(st.followers)} />
+            <KeyValueRow label="Chat messages" value={fmt(st.chat)} />
+            <KeyValueRow label="Donations" value={formatMoney(st.donations ?? 0)} />
           </View>
         </View>
 
@@ -1120,17 +1031,15 @@ export default function GamingStreamingApp({ onBack }: Props) {
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel={`Go live with ${g.name}`}
-          style={[styles.publishBtnWrap, getPlatformShadows(5, 0.3, 2, 8)]}
+          style={[styles.publishBtn, { backgroundColor: IDENTITY }]}
         >
-          <LinearGradient colors={[FUCHSIA, FUCHSIA_PAIR]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishBtn}>
-            <Play size={scale(15)} color="white" />
-            <Text style={styles.publishBtnText}>Go live with {g.name}</Text>
-          </LinearGradient>
+          <Play size={scale(15)} color="white" />
+          <Text style={styles.publishBtnText}>Go live with {g.name}</Text>
         </TouchableOpacity>
 
         {st.list.length > 0 ? (
           <View style={styles.section}>
-            <SectionHead icon={History} title="Recent broadcasts" />
+            <SectionTitle title="Recent broadcasts" />
             {st.list.slice(0, 20).map(renderVodCard)}
           </View>
         ) : null}
@@ -1157,11 +1066,8 @@ export default function GamingStreamingApp({ onBack }: Props) {
             <View style={styles.heroMedia}>
               <Image source={gameArtFor(s.game)} style={styles.mediaFill} resizeMode="cover" />
               <View pointerEvents="none" style={styles.mediaScrim} />
-              <View pointerEvents="none" style={styles.heroGlow} />
-              {darkMode && <View pointerEvents="none" style={styles.hairline} />}
               <View style={styles.mediaTopRow}>
                 <View style={[styles.statusPill, { backgroundColor: LIVE_RED }]}>
-                  <View style={styles.statusDot} />
                   <Text style={styles.statusPillText}>BROADCAST</Text>
                 </View>
                 {s.uploadedAt != null ? (
@@ -1184,16 +1090,20 @@ export default function GamingStreamingApp({ onBack }: Props) {
         </View>
 
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <SectionHead icon={Activity} title="Session details" />
-          <View style={styles.statGrid}>
-            <StatCell icon={Clock} label="Duration" value={`${s.duration}m`} theme={theme} />
-            <StatCell icon={Users} label="Peak" value={fmt(s.viewers)} theme={theme} />
-            <StatCell icon={Heart} label="Subs gained" value={`+${fmt(s.subscribers)}`} theme={theme} />
-            <StatCell icon={TrendingUp} label="Followers" value={`+${fmt(s.followers)}`} theme={theme} />
-            <StatCell icon={MessageCircle} label="Chat msgs" value={fmt(s.chatMessages)} theme={theme} />
-            <StatCell icon={Gift} label="Donations" value={formatMoney(s.donations ?? 0)} theme={theme} />
-            <StatCell icon={DollarSign} label="Earnings" value={formatMoney(s.earnings ?? 0)} color={accent.success} theme={theme} />
-            <StatCell icon={Award} label="Category" value={splitDur(s.game)[0] || s.game} theme={theme} />
+          <SectionTitle title="Session details" />
+          <StatStrip
+            items={[
+              { label: 'Duration', value: `${s.duration}m` },
+              { label: 'Peak', value: fmt(s.viewers) },
+              { label: 'Earnings', value: formatMoney(s.earnings ?? 0), tint: accent.success },
+            ]}
+          />
+          <View style={styles.rowGroup}>
+            <KeyValueRow label="Category" value={splitDur(s.game)[0] || s.game} />
+            <KeyValueRow label="Subs gained" value={`+${fmt(s.subscribers)}`} />
+            <KeyValueRow label="Followers gained" value={`+${fmt(s.followers)}`} />
+            <KeyValueRow label="Chat messages" value={fmt(s.chatMessages)} />
+            <KeyValueRow label="Donations" value={formatMoney(s.donations ?? 0)} />
           </View>
         </View>
 
@@ -1202,12 +1112,10 @@ export default function GamingStreamingApp({ onBack }: Props) {
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel={`Stream ${s.game} again`}
-          style={[styles.publishBtnWrap, getPlatformShadows(5, 0.3, 2, 8)]}
+          style={[styles.publishBtn, { backgroundColor: IDENTITY }]}
         >
-          <LinearGradient colors={[FUCHSIA, FUCHSIA_PAIR]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishBtn}>
-            <Play size={scale(15)} color="white" />
-            <Text style={styles.publishBtnText}>Stream this again</Text>
-          </LinearGradient>
+          <Play size={scale(15)} color="white" />
+          <Text style={styles.publishBtnText}>Stream this again</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -1220,21 +1128,12 @@ export default function GamingStreamingApp({ onBack }: Props) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={goBack}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.headerBtn}
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{headerTitle}</Text>
-        <View style={[styles.cashChip, { backgroundColor: FUCHSIA_TINT, borderColor: FUCHSIA_RIM }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
-        </View>
-      </View>
+      <AppHeader
+        title={headerTitle}
+        onBack={goBack}
+        backLabel={inDetail ? 'Back to Streaming' : 'Back'}
+        right={<CashChip value={formatMoney(money)} tint={IDENTITY} />}
+      />
 
       {inCategory ? (
         renderCategoryDetail()
@@ -1242,29 +1141,13 @@ export default function GamingStreamingApp({ onBack }: Props) {
         renderBroadcastDetail()
       ) : (
         <>
-          <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
-            {[
-              { id: 'dashboard' as TabType, label: 'Dashboard', Icon: Activity },
-              { id: 'live' as TabType, label: 'Go Live', Icon: Radio },
-              { id: 'history' as TabType, label: 'History', Icon: History },
-              { id: 'shop' as TabType, label: 'Shop', Icon: ShoppingBag },
-            ].map(({ id, label, Icon }) => {
-              const active = activeTab === id;
-              return (
-                <TouchableOpacity
-                  key={id}
-                  onPress={() => setActiveTab(id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={label}
-                  style={[styles.tabBtn, active && { backgroundColor: FUCHSIA_TAB }]}
-                >
-                  <Icon size={scale(14)} color={active ? FUCHSIA : theme.textMuted} />
-                  <Text style={[styles.tabText, { color: active ? FUCHSIA : theme.textMuted }]}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <SegmentedControl
+            segments={TABS}
+            value={activeTab}
+            onChange={setActiveTab}
+            activeColor={IDENTITY}
+            style={styles.tabs}
+          />
 
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'live' && renderLive()}
@@ -1273,78 +1156,16 @@ export default function GamingStreamingApp({ onBack }: Props) {
         </>
       )}
 
-      {feedback && !inDetail ? (
-        <View style={[getGlassCard(darkMode, 12), styles.toast, { backgroundColor: theme.surface, borderColor: FUCHSIA_RIM, bottom: getAppScreenBottomPadding(insets.bottom) }]}>
-          <Text style={{ color: theme.text }}>{feedback}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
 
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.heroStatItem}>
-      <Text style={styles.heroStatValue} numberOfLines={1}>{value}</Text>
-      <Text style={styles.heroStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function Meter({ label, value, max, theme }: { label: string; value: number; max: number; theme: ReturnType<typeof getThemeColors> }) {
-  const pct = Math.max(0, Math.min(100, max > 0 ? (value / max) * 100 : 0));
+function MeterRow({ label, value, max, theme }: { label: string; value: number; max: number; theme: ReturnType<typeof getThemeColors> }) {
   return (
     <View style={styles.meterRow}>
       <Text style={[styles.meterLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <View style={[styles.meterTrack, { backgroundColor: theme.surfaceElevated }]}>
-        <View style={[styles.meterFill, { width: `${pct}%`, backgroundColor: FUCHSIA }]} />
-      </View>
+      <ProgressBar value={max > 0 ? value / max : 0} color={IDENTITY} height={scale(7)} label={label} style={styles.meterBar} />
       <Text style={[styles.meterVal, { color: theme.text }]}>{Math.round(value)}</Text>
-    </View>
-  );
-}
-
-function StatCell({ icon: Icon, label, value, color, theme }: { icon: IconCmp; label: string; value: string; color?: string; theme: ReturnType<typeof getThemeColors> }) {
-  return (
-    <View style={styles.statCell}>
-      <Icon size={scale(14)} color={color ?? theme.textMuted} />
-      <Text style={[styles.statCellVal, { color: color ?? theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{value}</Text>
-      <Text style={[styles.statCellLabel, { color: theme.textSecondary }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-function Metric({ icon: Icon, text, color }: { icon: IconCmp; text: string; color: string }) {
-  return (
-    <View style={styles.metric}>
-      <Icon size={scale(11)} color={color} />
-      <Text style={[styles.metricText, { color }]}>{text}</Text>
-    </View>
-  );
-}
-
-function MoneyStat({
-  label,
-  value,
-  color,
-  theme,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <View style={styles.moneyStat}>
-      <Text
-        style={[styles.moneyValue, { color }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.65}
-      >
-        {value}
-      </Text>
-      <Text style={[styles.moneyLabel, { color: theme.textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -1361,51 +1182,17 @@ function qualityColor(tier: string): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
-  flexSpacer: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.lg, paddingBottom: sp['3xl'] },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-    gap: sp.sm,
-  },
-  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
-  cashChip: {
-    paddingHorizontal: sp.sm,
-    paddingVertical: 4,
-    borderRadius: br.full,
-    borderWidth: 1,
-  },
-  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  tabs: { marginHorizontal: sp.md, marginTop: sp.sm, marginBottom: sp.sm },
   // Segmented control directly under the top bar; it has its own container
   // (glass tabs), so the top bar drops its bottom border.
-  tabBar: {
-    flexDirection: 'row',
-    gap: scale(4),
-    marginHorizontal: sp.md,
-    marginTop: sp.sm,
-    marginBottom: sp.sm,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scale(4),
-    paddingVertical: sp.sm,
-    borderRadius: br.lg,
-  },
-  tabText: { fontSize: fs.sm, fontWeight: '600' },
 
   // ── Sections & cards ──
   section: { gap: sp.sm },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
-  linkChip: { flexDirection: 'row', alignItems: 'center', gap: scale(2), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: FUCHSIA_TINT },
-  linkChipText: { fontSize: fs.xs, fontWeight: '700' },
   card: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
+
+  // Key/value rows - the readout behind a strip's three headline numbers.
+  rowGroup: { marginTop: sp.xs },
 
   // ── Media (hero / monitor / detail) ──
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden' },
@@ -1415,69 +1202,47 @@ const styles = StyleSheet.create({
   heroMedia: { width: '100%', height: scale(210), position: 'relative', justifyContent: 'space-between' },
   mediaFill: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   mediaScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.42)' },
-  heroGlow: { position: 'absolute', top: -scale(48), right: -scale(36), width: scale(150), height: scale(150), borderRadius: scale(75), backgroundColor: 'rgba(217, 70, 239, 0.10)' },
-  hairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   mediaTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: sp.sm },
   mediaBottom: { padding: sp.md, gap: sp.xs },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: scale(5), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm },
-  statusDot: { width: scale(6), height: scale(6), borderRadius: scale(3), backgroundColor: '#fff' },
-  statusPillText: { fontSize: fs.xs, fontWeight: '800', color: '#fff', letterSpacing: 0.6 },
-  catBadge: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm, backgroundColor: 'rgba(192,38,211,0.85)' },
+  statusPillText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', letterSpacing: 0.6 },
+  catBadge: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.sm, backgroundColor: withAlpha(IDENTITY, 0.85) },
   viewersPill: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
   viewersPillText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
 
   // Hero identity + stat strip (over media).
   heroIdRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
-  heroAvatar: { width: scale(38), height: scale(38), borderRadius: scale(19), alignItems: 'center', justifyContent: 'center', backgroundColor: FUCHSIA, borderWidth: 2, borderColor: 'rgba(255,255,255,0.65)' },
-  heroChannelName: { fontSize: fs.lg, fontWeight: '800', color: '#fff' },
+  heroAvatar: { width: scale(38), height: scale(38), borderRadius: scale(19), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY, borderWidth: 2, borderColor: 'rgba(255,255,255,0.65)' },
+  heroChannelName: { fontSize: fs.lg, fontWeight: '700', color: '#fff' },
   heroLevelChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), alignSelf: 'flex-start', marginTop: 2, paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.5)' },
   heroLevelText: { fontSize: fs.xs, fontWeight: '700', color: '#fff' },
-  heroStatStrip: { flexDirection: 'row', alignItems: 'center', marginTop: sp.sm, paddingTop: sp.sm, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.18)' },
-  heroStatItem: { flex: 1, alignItems: 'center' },
-  heroStatValue: { fontSize: fs.xl, fontWeight: '800', color: '#fff', fontVariant: ['tabular-nums'] },
-  heroStatLabel: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.7)', marginTop: 1 },
-  heroStatDivider: { width: 1, height: scale(26), backgroundColor: 'rgba(255,255,255,0.18)' },
   heroFooter: { padding: sp.md },
-  heroCtaWrap: { borderRadius: br.full },
-  heroCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, paddingVertical: sp.md, borderRadius: br.full, minHeight: scale(48) },
-  heroCtaText: { fontSize: fs.md, fontWeight: '800', color: '#fff' },
+  heroLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: touchTargets.minimum },
+  heroLinkText: { fontSize: fs.md, fontWeight: '600' },
 
   // ── Stream health card ──
   healthRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, paddingTop: sp.xs },
-  ringTier: { fontSize: fs.sm, fontWeight: '800' },
+  ringTier: { fontSize: fs.sm, fontWeight: '600' },
   ringTierSub: { fontSize: fs.xs, fontWeight: '600' },
   healthMeta: { flex: 1, gap: sp.sm },
   levelLine: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
-  levelText: { fontSize: fs.md, fontWeight: '800' },
+  levelText: { fontSize: fs.md, fontWeight: '600' },
   xpText: { fontSize: fs.xs, fontWeight: '600', marginLeft: 'auto', fontVariant: ['tabular-nums'] },
   meterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
   meterLabel: { fontSize: fs.xs, fontWeight: '600', width: scale(34) },
-  meterTrack: { flex: 1, height: scale(7), borderRadius: br.full, overflow: 'hidden' },
-  meterFill: { height: '100%', borderRadius: br.full },
-  meterVal: { fontSize: fs.xs, fontWeight: '700', width: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
+  meterBar: { flex: 1 },
+  meterVal: { fontSize: fs.xs, fontWeight: '600', width: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
 
   // ── Revenue grid ──
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
-  moneyStat: { alignItems: 'center', flexBasis: '30%', flexGrow: 1, minWidth: scale(88) },
-  moneyValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  moneyLabel: { fontSize: fs.xs, marginTop: 2 },
 
   // ── Category tiles (Twitch directory) ──
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
-  catTile: { width: '47.5%', flexGrow: 1, borderRadius: br.xl, borderWidth: 1, overflow: 'hidden' },
-  catTileClip: { width: '100%', height: scale(84), position: 'relative' },
-  catTileImg: { width: '100%', height: '100%' },
   thumbScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.28)' },
-  catViewers: { position: 'absolute', left: sp.xs, bottom: sp.xs, flexDirection: 'row', alignItems: 'center', gap: scale(3), paddingHorizontal: scale(6), paddingVertical: 2, borderRadius: br.sm, backgroundColor: 'rgba(2,6,23,0.6)' },
-  catViewersText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
-  catBody: { padding: sp.sm, gap: 2 },
-  catName: { fontSize: fs.sm, fontWeight: '800' },
-  catMeta: { fontSize: fs.xs, flex: 1 },
   rowTopLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: sp.xs },
 
   // ── Go Live monitor ──
   monitorTierChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4), paddingHorizontal: sp.sm, paddingVertical: 4, borderRadius: br.full, backgroundColor: 'rgba(2,6,23,0.55)' },
-  monitorTierText: { fontSize: fs.xs, fontWeight: '800', color: '#fff', letterSpacing: 0.4 },
+  monitorTierText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
   monitorGame: { fontSize: fs['2xl'], fontWeight: '800', color: '#fff' },
   monitorMetaRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginTop: 2 },
   monitorMeta: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
@@ -1488,56 +1253,41 @@ const styles = StyleSheet.create({
   gameTileClip: { width: '100%', height: scale(88), position: 'relative', justifyContent: 'flex-end' },
   gameTileImg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   gameTileScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2,6,23,0.4)' },
-  gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: FUCHSIA },
+  gameTileCheck: { position: 'absolute', top: sp.xs, right: sp.xs, width: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', backgroundColor: IDENTITY },
   gameTileLabel: { padding: sp.sm, gap: 1 },
-  gameTileName: { fontSize: fs.sm, fontWeight: '800', color: '#fff' },
+  gameTileName: { fontSize: fs.sm, fontWeight: '700', color: '#fff' },
   gameTileHint: { fontSize: fs.xs, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
 
   // ── Duration tiles ──
-  durRow: { flexDirection: 'row', gap: sp.sm },
-  durTile: { flex: 1, borderRadius: br.xl, padding: sp.sm, alignItems: 'center', gap: 2 },
-  durMain: { fontSize: fs.sm, fontWeight: '800' },
-  durSub: { fontSize: fs.xs, fontWeight: '600' },
-  durEnergy: { flexDirection: 'row', alignItems: 'center', gap: scale(3), marginTop: 2 },
-  durEnergyText: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // ── Publish console ──
   capRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   capLabel: { fontSize: fs.sm, fontWeight: '600' },
-  capValue: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  capTrack: { height: scale(7), borderRadius: br.full, overflow: 'hidden' },
-  capFill: { height: '100%', borderRadius: br.full },
+  capValue: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   recordHint: { fontSize: fs.xs, fontStyle: 'italic', flex: 1 },
   hypeHeadRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.sm },
-  hypeMax: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  hypeTrack: { height: scale(7), borderRadius: br.full, overflow: 'hidden', marginTop: sp.xs },
-  hypeFill: { height: '100%', borderRadius: br.full },
+  hypeMax: { fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  hypeBar: { marginTop: sp.xs },
   publishBtnWrap: { borderRadius: br.full },
   publishBtn: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingVertical: sp.md, paddingHorizontal: sp.md, borderRadius: br.full, justifyContent: 'center', minHeight: scale(48) },
-  publishBtnText: { fontSize: fs.md, fontWeight: '800', color: '#fff' },
+  publishBtnText: { fontSize: fs.md, fontWeight: '600', color: '#fff' },
 
   // ── History summary + VOD cards ──
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: sp.md, columnGap: sp.xs },
-  statCell: { flexBasis: '22%', flexGrow: 1, minWidth: scale(70), alignItems: 'center', gap: 2 },
-  statCellVal: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  statCellLabel: { fontSize: fs.xs, fontWeight: '600' },
   vodCard: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, padding: sp.sm, borderRadius: br.xl, borderWidth: 1 },
   vodThumbWrap: { width: scale(104), height: scale(72), borderRadius: br.lg, overflow: 'hidden', position: 'relative' },
   vodThumb: { width: '100%', height: '100%' },
   vodDurBadge: { position: 'absolute', right: scale(4), bottom: scale(4), flexDirection: 'row', alignItems: 'center', gap: scale(3), paddingHorizontal: scale(5), paddingVertical: 2, borderRadius: br.sm, backgroundColor: 'rgba(2,6,23,0.72)' },
   vodDurText: { fontSize: fs.xs, fontWeight: '700', color: '#fff', fontVariant: ['tabular-nums'] },
   vodBody: { flex: 1, gap: sp.xs },
-  vodGame: { fontSize: fs.md, fontWeight: '800', flex: 1 },
+  vodMeta: { fontSize: fs.xs, fontVariant: ['tabular-nums'] },
+  vodGame: { fontSize: fs.md, fontWeight: '600', flex: 1 },
   vodPeakRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs },
   peakPill: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
-  peakVal: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  peakVal: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   peakLabel: { fontSize: fs.xs, fontWeight: '600' },
   weekChip: { flexDirection: 'row', alignItems: 'center', gap: scale(3), paddingHorizontal: sp.xs, paddingVertical: 2, borderRadius: br.full, borderWidth: 1 },
   weekChipText: { fontSize: fs.xs, fontWeight: '600' },
-  metricsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
-  metric: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },
-  metricText: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // ── Detail sub-views ──
   detailSub: { fontSize: fs.sm, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
@@ -1547,34 +1297,19 @@ const styles = StyleSheet.create({
 
   // ── Best stream ──
   bestRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm },
-  bestTitle: { fontSize: fs.md, fontWeight: '800' },
+  bestTitle: { fontSize: fs.md, fontWeight: '600' },
   bestSub: { fontSize: fs.xs },
 
   // ── Shop gear rows ──
   gearRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, paddingVertical: sp.xs },
-  gearName: { fontSize: fs.sm, fontWeight: '700' },
+  gearName: { fontSize: fs.sm, fontWeight: '600' },
   gearMeta: { fontSize: fs.xs },
   gearRight: { alignItems: 'flex-end', gap: 2 },
+  gearTierRow: { flexDirection: 'row', marginTop: 2 },
   gearPrice: { fontSize: fs.xs, fontVariant: ['tabular-nums'] },
   gearBtn: { paddingHorizontal: sp.md, minHeight: scale(36), minWidth: scale(64), borderRadius: br.full, alignItems: 'center', justifyContent: 'center' },
-  gearBtnText: { fontSize: fs.sm, fontWeight: '700' },
-  tierDots: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },
-  tierDot: { width: scale(5), height: scale(5), borderRadius: scale(2.5), backgroundColor: FUCHSIA },
+  gearBtnText: { fontSize: fs.sm, fontWeight: '600' },
 
   // ── Empty state ──
-  emptyCard: { borderRadius: br.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: sp.lg, gap: sp.sm },
-  emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
-  emptySub: { fontSize: fs.sm, textAlign: 'center' },
-  emptyCta: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.full, borderWidth: 1, marginTop: sp.xs },
-  emptyCtaText: { fontSize: fs.sm, fontWeight: '700' },
 
-  toast: {
-    position: 'absolute',
-    bottom: sp.lg,
-    left: sp.md,
-    right: sp.md,
-    padding: sp.md,
-    borderRadius: br.lg,
-    borderWidth: 1,
-  },
 });

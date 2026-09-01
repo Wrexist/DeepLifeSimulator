@@ -119,6 +119,10 @@ import {
   touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
+import Chip from '@/components/ui/Chip';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import EmptyState from '@/components/ui/EmptyState';
+import { linkSurface, mailPalette } from './mailPalette';
 
 type View_ = MailFolder | 'starred';
 
@@ -189,6 +193,7 @@ function MailAppInner({ onBack }: Props) {
   const pillClearance = decisionPending ? scale(110) : 0;
 
   const theme = getThemeColors(darkMode);
+  const pal = mailPalette(darkMode);
   const s = useMemo(() => makeStyles(theme, darkMode), [theme, darkMode]);
 
   const [folder, setFolder] = useState<View_>('inbox');
@@ -455,18 +460,17 @@ function MailAppInner({ onBack }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         {folder !== 'inbox' && !searching ? (
-          <TouchableOpacity
-            style={[s.chip, s.chipLocation]}
+          <Chip
+            label={folderLabel}
+            tint={pal.link}
+            selected
+            icon={<X size={scale(12)} color={pal.link} />}
             onPress={() => {
               setFolder('inbox');
               setFilter(null);
             }}
-            accessibilityRole="button"
             accessibilityLabel={`In ${folderLabel}. Back to inbox`}
-          >
-            <Text style={[s.chipText, s.chipTextLocation]}>{folderLabel}</Text>
-            <X size={scale(12)} color={darkMode ? '#8AB4F8' : '#1A73E8'} />
-          </TouchableOpacity>
+          />
         ) : null}
 
         {chips.map((key) => {
@@ -474,26 +478,15 @@ function MailAppInner({ onBack }: Props) {
           const Icon = FILTER_ICONS[key];
           const count = chipCounts[key];
           return (
-            <TouchableOpacity
+            <Chip
               key={key}
-              style={[s.chip, active && s.chipActive]}
+              label={`${FILTER_LABELS[key]}${count > 0 ? ` ${count}` : ''}`}
+              tint={pal.link}
+              selected={active}
+              icon={<Icon size={scale(12)} color={active ? pal.link : theme.textSecondary} />}
               onPress={() => setFilter(active ? null : key)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
               accessibilityLabel={`${FILTER_LABELS[key]}${count > 0 ? `, ${count}` : ''}`}
-            >
-              <Icon
-                size={scale(12)}
-                color={active ? (darkMode ? '#8AB4F8' : '#1A73E8') : theme.textSecondary}
-              />
-              <Text style={[s.chipText, active && s.chipTextActive]}>
-                {FILTER_LABELS[key]}
-                {count > 0 ? ` ${count}` : ''}
-              </Text>
-              {active ? (
-                <X size={scale(12)} color={darkMode ? '#8AB4F8' : '#1A73E8'} />
-              ) : null}
-            </TouchableOpacity>
+            />
           );
         })}
       </ScrollView>
@@ -503,28 +496,21 @@ function MailAppInner({ onBack }: Props) {
           the most confusing thing in the app, and a chip intersected with a
           tab is the same problem with two controls instead of one. */}
       {folder === 'inbox' && !searching && !filter ? (
-        <View style={s.tabs}>
-          {CATEGORIES.map((c) => {
-            const active = c.key === category;
-            return (
-              <TouchableOpacity
-                key={c.key}
-                style={[s.tab, active && s.tabActive]}
-                onPress={() => setCategory(c.key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`${c.label} category`}
-              >
-                <Text style={[s.tabText, active && s.tabTextActive]}>{c.label}</Text>
-                {catUnread[c.key] > 0 ? (
-                  <View style={s.tabDot}>
-                    <Text style={s.tabDotText}>{catUnread[c.key]}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        // Compact, because it is the SECOND level of navigation on this screen -
+        // the chip strip above it is the first. The unread count rides in the
+        // label rather than a badge: a shared control has one slot per segment,
+        // and "Primary 3" is what a screen reader would have read out anyway.
+        <SegmentedControl
+          compact
+          style={s.categories}
+          segments={CATEGORIES.map((c) => ({
+            key: c.key,
+            label: catUnread[c.key] > 0 ? `${c.label} ${catUnread[c.key]}` : c.label,
+          }))}
+          value={category}
+          onChange={setCategory}
+          activeColor={pal.link}
+        />
       ) : (
         <View style={s.folderHeader}>
           <Text style={s.folderHeaderText}>
@@ -554,35 +540,28 @@ function MailAppInner({ onBack }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {visible.length === 0 ? (
-          <View style={s.empty}>
-            <MailCheck size={scale(44)} color={theme.textSecondary} />
-            {/* Named dead ends. "Nothing here" under an active filter reads as
-                an empty mailbox, which sends the player looking for a message
-                that is one tap away in the folder behind the chip. */}
-            <Text style={s.emptyTitle}>
-              {searching
+          // Named dead ends. "Nothing here" under an active filter reads as an
+          // empty mailbox, which sends the player looking for a message that is
+          // one tap away in the folder behind the chip.
+          <EmptyState
+            icon={<MailCheck size={scale(28)} color={theme.textSecondary} />}
+            observation={
+              searching
                 ? 'No matches'
                 : filter
                   ? `No ${FILTER_LABELS[filter].toLowerCase()} mail`
-                  : 'Nothing here'}
-            </Text>
-            <Text style={s.emptyText}>
-              {searching
+                  : 'Nothing here'
+            }
+            nudge={
+              searching
                 ? 'Search covers every folder except Trash. Try a sender, an address or a word from the subject.'
                 : filter
                   ? FILTER_EMPTY_TEXT[filter]
-                  : 'Payslips, statements and invoices arrive as the weeks pass.'}
-            </Text>
-            {filter ? (
-              <TouchableOpacity
-                onPress={() => setFilter(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Clear filter"
-              >
-                <Text style={s.emptyAction}>Clear filter</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
+                  : 'Payslips, statements and invoices arrive as the weeks pass.'
+            }
+            ctaLabel={filter ? 'Clear filter' : undefined}
+            onCtaPress={filter ? () => setFilter(null) : undefined}
+          />
         ) : (
           visible.map((m) => (
             <MailRow
@@ -638,7 +617,7 @@ function MailAppInner({ onBack }: Props) {
                 accessibilityRole="button"
                 accessibilityLabel={`${waiting} waiting on a reply`}
               >
-                <Clock size={scale(18)} color={darkMode ? '#FDD663' : '#B06000'} />
+                <Clock size={scale(18)} color={pal.warn} />
                 <Text style={[s.drawerRowText, s.drawerRowTextWaiting]}>
                   Waiting on a reply
                 </Text>
@@ -669,7 +648,7 @@ function MailAppInner({ onBack }: Props) {
                       : label
                   }
                 >
-                  <Icon size={scale(18)} color={active ? '#1A73E8' : theme.text} />
+                  <Icon size={scale(18)} color={active ? pal.link : theme.text} />
                   <Text style={[s.drawerRowText, active && s.drawerRowTextActive]}>{label}</Text>
                   {count > 0 ? <Text style={s.drawerCount}>{count}</Text> : null}
                 </TouchableOpacity>
@@ -700,12 +679,12 @@ function MailAppInner({ onBack }: Props) {
               </View>
               {risk.reasons.map((r) => (
                 <Text key={r} style={s.riskReason}>
-                  • {r}
+                  {r}
                 </Text>
               ))}
               {defences.map((d) => (
                 <Text key={d} style={s.riskDefence}>
-                  ✓ {d}
+                  {d}
                 </Text>
               ))}
             </View>
@@ -716,13 +695,14 @@ function MailAppInner({ onBack }: Props) {
   );
 }
 
-const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: darkMode ? '#0F141A' : '#FFFFFF' },
+const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean) => {
+  const pal = mailPalette(darkMode);
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: pal.bg },
     banner: {
       paddingHorizontal: responsiveSpacing.md,
       paddingVertical: responsiveSpacing.sm,
-      backgroundColor: darkMode ? '#202B37' : '#E8F0FE',
+      backgroundColor: pal.banner,
     },
     bannerText: { fontSize: fontScale(12.5), color: theme.text, fontWeight: '600' },
     searchWrap: {
@@ -746,7 +726,7 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       paddingHorizontal: responsiveSpacing.sm,
       height: scale(42),
       borderRadius: responsiveBorderRadius.full,
-      backgroundColor: darkMode ? '#1C2530' : '#F1F3F4',
+      backgroundColor: pal.field,
     },
     searchInput: { flex: 1, fontSize: fontScale(13), color: theme.text, padding: 0 },
     // Height-capped so the strip occupies exactly its own row. See the note at
@@ -759,61 +739,10 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       paddingHorizontal: responsiveSpacing.sm,
       paddingBottom: responsiveSpacing.sm,
     },
-    // Full border on all four sides. Hard Rule #7 bans a one-sided coloured
-    // stripe; a pill outlined the whole way round is the sanctioned form, and
-    // RN will not curl it against the radius.
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: scale(5),
-      paddingHorizontal: responsiveSpacing.sm,
-      height: scale(30),
-      borderRadius: responsiveBorderRadius.full,
-      borderWidth: 1,
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+    categories: {
+      marginHorizontal: responsiveSpacing.sm,
+      marginBottom: responsiveSpacing.sm,
     },
-    chipActive: {
-      borderColor: darkMode ? '#4A6E9E' : '#1A73E8',
-      backgroundColor: darkMode ? 'rgba(138,180,248,0.14)' : '#E8F0FE',
-    },
-    chipLocation: {
-      borderColor: darkMode ? '#4A6E9E' : '#1A73E8',
-      backgroundColor: darkMode ? 'rgba(138,180,248,0.14)' : '#E8F0FE',
-    },
-    chipText: { fontSize: fontScale(12), fontWeight: '600', color: theme.textSecondary },
-    chipTextActive: { color: darkMode ? '#8AB4F8' : '#1A73E8' },
-    chipTextLocation: { color: darkMode ? '#8AB4F8' : '#1A73E8', fontWeight: '700' },
-    tabs: {
-      flexDirection: 'row',
-      paddingHorizontal: responsiveSpacing.sm,
-      gap: responsiveSpacing.xs,
-      // Structural divider under the tab strip - allowed by Hard Rule #7.
-      borderBottomWidth: 1,
-      borderBottomColor: darkMode ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
-    },
-    tab: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: scale(4),
-      paddingVertical: responsiveSpacing.sm,
-      paddingHorizontal: responsiveSpacing.sm,
-      // Active-tab underline - the other structural exception in Hard Rule #7.
-      borderBottomWidth: 2,
-      borderBottomColor: 'transparent',
-    },
-    tabActive: { borderBottomColor: '#1A73E8' },
-    tabText: { fontSize: fontScale(12.5), color: theme.textSecondary, fontWeight: '600' },
-    tabTextActive: { color: darkMode ? '#8AB4F8' : '#1A73E8' },
-    tabDot: {
-      minWidth: scale(16),
-      height: scale(16),
-      borderRadius: scale(8),
-      paddingHorizontal: scale(4),
-      backgroundColor: '#1A73E8',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tabDotText: { color: '#FFFFFF', fontSize: fontScale(9.5), fontWeight: '700' },
     folderHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -821,42 +750,23 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       paddingHorizontal: responsiveSpacing.md,
       paddingBottom: responsiveSpacing.sm,
     },
-    folderHeaderText: { fontSize: fontScale(15), fontWeight: '700', color: theme.text },
+    folderHeaderText: { fontSize: fontScale(15), fontWeight: '600', color: theme.text },
     folderAction: {
       fontSize: fontScale(12.5),
-      fontWeight: '700',
-      color: darkMode ? '#8AB4F8' : '#1A73E8',
-    },
-    empty: {
-      alignItems: 'center',
-      gap: responsiveSpacing.xs,
-      paddingHorizontal: responsiveSpacing.xl,
-      paddingTop: scale(80),
-    },
-    emptyTitle: { fontSize: fontScale(15), fontWeight: '700', color: theme.text },
-    emptyText: {
-      fontSize: fontScale(12.5),
-      color: theme.textSecondary,
-      textAlign: 'center',
-      lineHeight: fontScale(18),
-    },
-    emptyAction: {
-      marginTop: responsiveSpacing.sm,
-      fontSize: fontScale(13),
-      fontWeight: '700',
-      color: darkMode ? '#8AB4F8' : '#1A73E8',
+      fontWeight: '600',
+      color: pal.link,
     },
     scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', flexDirection: 'row' },
     drawer: {
       width: '78%',
       maxWidth: scale(320),
-      backgroundColor: darkMode ? '#151B23' : '#FFFFFF',
+      backgroundColor: pal.surface,
       paddingHorizontal: responsiveSpacing.md,
       paddingBottom: responsiveSpacing.md,
       borderTopRightRadius: responsiveBorderRadius.lg,
       borderBottomRightRadius: responsiveBorderRadius.lg,
     },
-    drawerTitle: { fontSize: fontScale(18), fontWeight: '800', color: theme.text },
+    drawerTitle: { fontSize: fontScale(18), fontWeight: '700', color: theme.text },
     drawerAddress: {
       fontSize: fontScale(11.5),
       color: theme.textSecondary,
@@ -870,26 +780,26 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
       paddingHorizontal: responsiveSpacing.sm,
       borderRadius: responsiveBorderRadius.full,
     },
-    drawerRowActive: { backgroundColor: darkMode ? 'rgba(138,180,248,0.14)' : '#E8F0FE' },
+    drawerRowActive: { backgroundColor: linkSurface(darkMode) },
     drawerRowWaiting: {
-      backgroundColor: darkMode ? 'rgba(249,171,0,0.13)' : '#FEF7E0',
+      backgroundColor: pal.warnSurface,
       marginBottom: scale(4),
     },
     drawerRowText: { flex: 1, fontSize: fontScale(13.5), color: theme.text },
-    drawerRowTextActive: { color: darkMode ? '#8AB4F8' : '#1A73E8', fontWeight: '700' },
-    drawerRowTextWaiting: { color: darkMode ? '#FDD663' : '#B06000', fontWeight: '700' },
-    drawerCount: { fontSize: fontScale(12), fontWeight: '700', color: theme.textSecondary },
+    drawerRowTextActive: { color: pal.link, fontWeight: '600' },
+    drawerRowTextWaiting: { color: pal.warn, fontWeight: '600' },
+    drawerCount: { fontSize: fontScale(12), fontWeight: '600', color: theme.textSecondary },
     riskCard: {
       marginTop: responsiveSpacing.md,
       padding: responsiveSpacing.sm,
       borderRadius: responsiveBorderRadius.md,
       borderWidth: 1,
-      borderColor: darkMode ? '#2A3441' : '#DADCE0',
+      borderColor: pal.border,
       gap: scale(3),
     },
     riskHead: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
-    riskTitle: { flex: 1, fontSize: fontScale(12.5), fontWeight: '700', color: theme.text },
-    riskValue: { fontSize: fontScale(13), fontWeight: '800', color: theme.text },
+    riskTitle: { flex: 1, fontSize: fontScale(12.5), fontWeight: '600', color: theme.text },
+    riskValue: { fontSize: fontScale(13), fontWeight: '600', color: theme.text },
     riskReason: {
       fontSize: fontScale(11),
       lineHeight: fontScale(16),
@@ -898,9 +808,10 @@ const makeStyles = (theme: ReturnType<typeof getThemeColors>, darkMode: boolean)
     riskDefence: {
       fontSize: fontScale(11),
       lineHeight: fontScale(16),
-      color: darkMode ? '#81C995' : '#188038',
+      color: pal.positive,
     },
   });
+};
 
 export default function MailApp({ onBack }: Props) {
   return (

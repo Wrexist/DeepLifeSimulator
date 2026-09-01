@@ -24,17 +24,8 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-} from 'react-native';
-import {
-  ArrowLeft,
   Heart,
   HeartPulse,
   Zap,
@@ -52,7 +43,6 @@ import {
 } from 'lucide-react-native';
 import { useGame } from '@/contexts/GameContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTimerManager } from '@/hooks/useTimerManager';
 import {
   PET_BREEDS,
   PET_FOODS,
@@ -79,44 +69,47 @@ import {
   enterCompetition,
 } from '@/contexts/game/actions/PetActions';
 import { updateMoney } from '@/contexts/game/actions/MoneyActions';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import {
   responsiveFontSize as fs,
   responsiveSpacing as sp,
   responsiveBorderRadius as br,
   scale,
+  touchTargets,
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { formatMoney } from '@/utils/moneyFormatting';
-import {
-  getGlassCard,
-  getGlassIconContainer,
-  getGlassCategoryTabsContainer,
-  getPlatformShadows,
-} from '@/utils/glassmorphismStyles';
+import { getGlassCard, getGlassIconContainer, getPlatformShadows } from '@/utils/glassmorphismStyles';
 import ProgressRing from '@/components/ui/ProgressRing';
+import ProgressBar from '@/components/ui/ProgressBar';
+import AppHeader, { CashChip } from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import Chip from '@/components/ui/Chip';
+import KeyValueRow from '@/components/ui/KeyValueRow';
+import EmptyState from '@/components/ui/EmptyState';
+import BaseModal from '@/components/ui/BaseModal';
+import { useToast } from '@/contexts/ToastContext';
 import { Pet } from '@/contexts/game/types';
 import { gameAlert } from '@/utils/gameAlert';
 
 const WEEKS_PER_YEAR = 52; // display constant only - mirrors lib/pets/lifecycle
 
-// Identity accent - gold. Solid hex only lands on small CTAs / badges; every
-// larger surface uses the translucent tints below.
-const GOLD = '#EAB308';
+// Identity accent - the shared gold token. The twelve private GOLD_*/DANGER_*
+// constants this file used to carry were one colour at a dozen slightly
+// different opacities; `withAlpha` derives them from the one token instead.
+const GOLD = accent.gold;
 // Dark ink for text on solid gold (white on gold fails contrast).
 const GOLD_INK = '#0F172A';
-const GOLD_GLOW = 'rgba(234, 179, 8, 0.10)';
-const GOLD_FILL = 'rgba(234, 179, 8, 0.15)';
-const GOLD_FILL_SOFT = 'rgba(234, 179, 8, 0.12)';
-const GOLD_RIM = 'rgba(234, 179, 8, 0.30)';
-const GOLD_RIM_SOFT = 'rgba(234, 179, 8, 0.28)';
-const GOLD_CHIP = 'rgba(234, 179, 8, 0.14)';
-const GOLD_TAB = 'rgba(234, 179, 8, 0.16)';
-const HAIRLINE = 'rgba(255, 255, 255, 0.08)';
-const DANGER_FILL = 'rgba(239, 68, 68, 0.12)';
-const DANGER_RIM = 'rgba(239, 68, 68, 0.30)';
+const GOLD_FILL = withAlpha(GOLD, 0.15);
+const GOLD_FILL_SOFT = withAlpha(GOLD, 0.12);
+const GOLD_RIM = withAlpha(GOLD, 0.3);
 
 const clampPct = (n: number): number => Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
+
+/** "+3" / "0" / "-2" - the bond deltas read as movement, so the sign is kept. */
+const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
 // Vital → semantic color (kept as data encoding across the whole app).
 const HEALTH_C = accent.success;
@@ -126,14 +119,20 @@ const ENERGY_C = accent.info;
 
 type TabType = 'pets' | 'shop' | 'vet' | 'compete';
 
+const TABS: { key: TabType; label: string; icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { key: 'pets', label: 'Pets', icon: PawPrint },
+  { key: 'shop', label: 'Shop', icon: ShoppingBag },
+  { key: 'vet', label: 'Vet', icon: Stethoscope },
+  { key: 'compete', label: 'Compete', icon: Trophy },
+];
+
 interface PetAppProps {
   onBack: () => void;
 }
 
 export default function PetApp({ onBack }: PetAppProps) {
   const { gameState, setGameState, saveGame } = useGame();
-  // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
-  const timers = useTimerManager();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
@@ -143,7 +142,6 @@ export default function PetApp({ onBack }: PetAppProps) {
   const [detailPetId, setDetailPetId] = useState<string | null>(null); // Pets-tab drill-down
   const [buyModal, setBuyModal] = useState<string | null>(null); // breed id
   const [petName, setPetName] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const pets = useMemo(() => (gameState.pets ?? []).filter((p) => !p.isDead), [gameState.pets]);
   const deadPets = useMemo(() => (gameState.pets ?? []).filter((p) => p.isDead), [gameState.pets]);
@@ -151,10 +149,10 @@ export default function PetApp({ onBack }: PetAppProps) {
   const week = gameState.weeksLived || 0;
   const money = gameState.stats?.money ?? 0;
 
+  // The hand-rolled `styles.toast` + timer pair is now the app-wide toast.
   const flash = useCallback((message: string) => {
-    setFeedback(message);
-    timers.setTimeout(() => setFeedback(null), 2500);
-  }, [timers]);
+    showToast(message, 'info');
+  }, [showToast]);
 
   // Tab switch also exits any pet-profile drill-down so the Pets tab returns to
   // the roster instead of re-opening a stale profile.
@@ -266,7 +264,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       );
       if (r.success) {
         saveGame();
-        gameAlert(r.won ? '🏆 Victory!' : 'Better luck next time', r.message);
+        gameAlert(r.won ? 'Victory!' : 'Better luck next time', r.message);
       } else {
         flash(r.message);
       }
@@ -300,16 +298,16 @@ export default function PetApp({ onBack }: PetAppProps) {
     const sick = p.isSick && p.sickness ? findSickness(p.sickness) : null;
     return (
       <View style={styles.chipWrap}>
-        <InfoChip label={stage} color={GOLD} theme={theme} />
+        <Chip label={stage} tint={GOLD} />
         {p.vaccinated ? (
-          <InfoChip label="Vaccinated" Icon={Shield} color={accent.success} theme={theme} />
+          <Chip label="Vaccinated" tone="success" icon={<Shield size={scale(11)} color={accent.success} />} />
         ) : (
-          <InfoChip label="Unvaccinated" Icon={Shield} color={accent.warning} theme={theme} />
+          <Chip label="Unvaccinated" tone="warning" icon={<Shield size={scale(11)} color={accent.warning} />} />
         )}
         {p.isSick ? (
-          <InfoChip label={sick ? sick.name : (p.sickness ?? 'Sick')} Icon={Skull} color={accent.danger} theme={theme} />
+          <Chip label={sick ? sick.name : (p.sickness ?? 'Sick')} tone="danger" icon={<Skull size={scale(11)} color={accent.danger} />} />
         ) : null}
-        {past ? <InfoChip label="Past lifespan" color={accent.warning} theme={theme} /> : null}
+        {past ? <Chip label="Past lifespan" tone="warning" /> : null}
       </View>
     );
   };
@@ -318,12 +316,8 @@ export default function PetApp({ onBack }: PetAppProps) {
   const renderPetStage = (p: Pet) => {
     const breed = findBreed(p.type);
     const stage = lifeStage(p, breed);
-    const past = isPastLifespan(p, breed);
     const health = p.health ?? 0;
     const happiness = p.happiness ?? 0;
-    // Bond level (0–5 stars) derived from happiness + health - presentation of
-    // existing state, not a new stat.
-    const bond = Math.max(0, Math.min(5, Math.round((health + happiness) / 2 / 20)));
     return (
       <View
         key={p.id}
@@ -333,35 +327,17 @@ export default function PetApp({ onBack }: PetAppProps) {
           { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
         ]}
       >
+        {/* Six elements, not fifteen. The bond stars, the four status chips and
+            the two mini-meters moved to the profile page, which already repeats
+            every vital in full - they are what you read when you go looking,
+            not what you decide the next tap on. */}
         <View style={styles.heroInner}>
-          <View pointerEvents="none" style={styles.heroGlow} />
-          {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
-
-          <Text style={[styles.heroEyebrow, styles.centerText, { color: theme.textMuted }]}>ACTIVE COMPANION</Text>
           <StageCore health={health} happiness={happiness} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
 
           <Text style={[styles.stageName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
           <Text style={[styles.stageSub, { color: theme.textSecondary }]}>
-            {breed?.name ?? 'Unknown'} · {ageInYears(p)}y old
+            {breed?.name ?? 'Unknown'} · {stage} · {ageInYears(p)}y old
           </Text>
-          {renderStatusChips(p, stage, past)}
-
-          <View style={styles.bondRow}>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Star
-                key={i}
-                size={scale(15)}
-                color={i < bond ? GOLD : theme.textMuted}
-                fill={i < bond ? GOLD : 'transparent'}
-              />
-            ))}
-            <Text style={[styles.bondLabelInline, { color: theme.textSecondary }]}>Bond</Text>
-          </View>
-
-          <View style={styles.vitalsRow}>
-            <MiniMeter label="Hunger" value={p.hunger ?? 0} color={HUNGER_C} Icon={Bone} theme={theme} />
-            <MiniMeter label="Energy" value={p.energy ?? 0} color={ENERGY_C} Icon={Zap} theme={theme} />
-          </View>
 
           {renderCarePad(p)}
 
@@ -380,41 +356,15 @@ export default function PetApp({ onBack }: PetAppProps) {
     );
   };
 
-  // Recipe B "adopt your first pet" state - the hero when there are no pets.
+  // "No pets yet" - the shared empty-state primitive.
   const renderAdoptHero = () => (
-    <View
-      style={[
-        getGlassCard(darkMode, 12),
-        styles.heroCard,
-        { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
-      ]}
-    >
-      <View style={styles.heroInner}>
-        <View pointerEvents="none" style={styles.heroGlow} />
-        {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
-        <View style={styles.heroContent}>
-          <View style={[getGlassIconContainer(darkMode, 56), styles.goldBubble]}>
-            <PawPrint size={scale(28)} color={GOLD} />
-          </View>
-          <View style={styles.headerText}>
-            <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>YOUR FIRST COMPANION</Text>
-            <Text style={[styles.heroTitle, { color: theme.text }]}>No pets yet</Text>
-            <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
-              Head to the Shop to adopt your first companion.
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={[styles.chipBase, styles.primaryGold, styles.adoptCta, getPlatformShadows(5, 0.3, 2, 8)]}
-          onPress={() => goTab('shop')}
-          accessibilityRole="button"
-          accessibilityLabel="Browse the pet shop"
-        >
-          <ShoppingBag size={scale(16)} color={GOLD_INK} />
-          <Text style={[styles.chipText, { color: GOLD_INK }]}>Browse the shop</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    <EmptyState
+      icon={<PawPrint size={scale(26)} color={GOLD} />}
+      observation="You don't have a companion yet"
+      nudge="Adopt one in the Shop - a healthy pet lifts your happiness and health every week."
+      ctaLabel="Browse the shop"
+      onCtaPress={() => goTab('shop')}
+    />
   );
 
   const renderPets = () => {
@@ -427,10 +377,7 @@ export default function PetApp({ onBack }: PetAppProps) {
 
         {pets.length > 0 ? (
           <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Your companions</Text>
-              <Text style={[styles.sectionCount, { color: theme.textMuted }]}>{pets.length}</Text>
-            </View>
+            <SectionTitle title="Your companions" right={<Chip label={`${pets.length}`} />} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -464,19 +411,21 @@ export default function PetApp({ onBack }: PetAppProps) {
         ) : null}
 
         <View style={[getGlassCard(darkMode, 6), styles.bondCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.bondTitle, { color: theme.text }]}>Companion bonus</Text>
-          <View style={styles.bondRowStats}>
-            <BondStat label="Happiness" value={bonding.playerHappinessDelta} color={HAPPY_C} theme={theme} />
-            <BondStat label="Health" value={bonding.playerHealthDelta} color={HEALTH_C} theme={theme} />
-            <BondStat label="Healthy pets" value={bonding.healthyPetCount} color={ENERGY_C} theme={theme} />
-          </View>
+          <SectionTitle title="Companion bonus" />
+          <StatStrip
+            items={[
+              { label: 'Happiness / wk', value: signed(bonding.playerHappinessDelta), tint: HAPPY_C },
+              { label: 'Health / wk', value: signed(bonding.playerHealthDelta), tint: HEALTH_C },
+              { label: 'Healthy pets', value: bonding.healthyPetCount },
+            ]}
+          />
           <View style={styles.chipWrap}>
-            <InfoChip label={`${pets.length} companions`} Icon={PawPrint} color={GOLD} theme={theme} />
-            <InfoChip label={`${pets.filter((p) => p.isSick).length} sick`} Icon={Skull} color={accent.danger} theme={theme} />
-            <InfoChip label={`${pets.filter((p) => p.vaccinated).length} vaccinated`} Icon={Shield} color={accent.success} theme={theme} />
+            <Chip label={`${pets.length} companions`} tint={GOLD} icon={<PawPrint size={scale(11)} color={GOLD} />} />
+            <Chip label={`${pets.filter((p) => p.isSick).length} sick`} tone="danger" icon={<Skull size={scale(11)} color={accent.danger} />} />
+            <Chip label={`${pets.filter((p) => p.vaccinated).length} vaccinated`} tone="success" icon={<Shield size={scale(11)} color={accent.success} />} />
           </View>
           {bonding.hasCriticalPet ? (
-            <View style={[styles.warningBanner, { backgroundColor: DANGER_FILL, borderColor: DANGER_RIM }]}>
+            <View style={[styles.warningBanner, { backgroundColor: withAlpha(accent.danger, 0.12), borderColor: withAlpha(accent.danger, 0.3) }]}>
               <Skull size={scale(14)} color={accent.danger} />
               <Text style={[styles.warningText, { color: accent.danger }]}>
                 A pet is in critical condition - feed or visit the vet.
@@ -487,7 +436,7 @@ export default function PetApp({ onBack }: PetAppProps) {
 
         {deadPets.length > 0 ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.textMuted }]}>In memoriam</Text>
+            <SectionTitle title="In memoriam" />
             {deadPets.map((p) => (
               <View
                 key={p.id}
@@ -524,24 +473,13 @@ export default function PetApp({ onBack }: PetAppProps) {
     const contrib = bonding.perPet.find((x) => x.petId === p.id);
     const ownedToyIds = p.toys ?? p.ownedToys ?? [];
     const ownedToys = ownedToyIds.map(findToy).filter((t): t is NonNullable<typeof t> => !!t);
+    const bond = Math.max(0, Math.min(5, Math.round(((p.health ?? 0) + (p.happiness ?? 0)) / 2 / 20)));
 
     return (
       <ScrollView
         style={styles.flex1}
         contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}
       >
-        <TouchableOpacity
-          style={[styles.detailBack, { backgroundColor: theme.surfaceElevated }]}
-          onPress={() => setDetailPetId(null)}
-          hitSlop={8}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Back to roster"
-        >
-          <ArrowLeft size={scale(18)} color={theme.text} />
-          <Text style={[styles.detailBackText, { color: theme.text }]}>Roster</Text>
-        </TouchableOpacity>
-
         {/* Identity hero */}
         <View
           style={[
@@ -551,87 +489,119 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={styles.heroGlow} />
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             <StageCore health={p.health ?? 0} happiness={p.happiness ?? 0} emoji={breed?.emoji ?? '🐾'} theme={theme} darkMode={darkMode} />
             <Text style={[styles.stageName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
             <Text style={[styles.stageSub, { color: theme.textSecondary }]}>
               {breed?.name ?? 'Unknown'} · {stage} · {ageInYears(p)}y ({ageW}w)
             </Text>
+            {/* Bond level (0-5 stars) derived from happiness + health -
+                presentation of existing state, not a new stat. It lives here
+                rather than on the stage: it is a thing you look up. */}
+            <View
+              style={styles.bondRow}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel={`Bond ${bond} of 5`}
+            >
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Star
+                  key={i}
+                  size={scale(15)}
+                  color={i < bond ? GOLD : theme.textMuted}
+                  fill={i < bond ? GOLD : 'transparent'}
+                />
+              ))}
+              <Text style={[styles.bondLabelInline, { color: theme.textSecondary }]}>Bond</Text>
+            </View>
             {renderStatusChips(p, stage, past)}
           </View>
         </View>
 
         {/* Vitals (all four, full width) */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Vitals</Text>
+          <SectionTitle title="Vitals" />
           <StatBar label="Hunger" value={p.hunger ?? 0} color={HUNGER_C} theme={theme} />
           <StatBar label="Happiness" value={p.happiness ?? 0} color={HAPPY_C} theme={theme} />
           <StatBar label="Health" value={p.health ?? 0} color={HEALTH_C} theme={theme} />
           <StatBar label="Energy" value={p.energy ?? 0} color={ENERGY_C} theme={theme} />
+          <View style={styles.vitalsRow}>
+            <MiniMeter label="Hunger" value={p.hunger ?? 0} color={HUNGER_C} Icon={Bone} theme={theme} />
+            <MiniMeter label="Energy" value={p.energy ?? 0} color={ENERGY_C} Icon={Zap} theme={theme} />
+          </View>
         </View>
 
         {/* Life stage */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Life stage</Text>
+          <SectionTitle title="Life stage" />
           <StatBar label="Lifespan" value={lifeProgress} color={GOLD} theme={theme} />
           <View style={styles.chipWrap}>
-            <InfoChip label={stage} color={GOLD} theme={theme} />
-            <InfoChip label={`${ageInYears(p)} / ${breed?.lifespan ?? '?'} yrs`} color={ENERGY_C} theme={theme} />
-            <InfoChip label={`${Math.round(lifeProgress)}% of life`} color={accent.success} theme={theme} />
-            {past ? <InfoChip label="Living on borrowed time" Icon={Skull} color={accent.danger} theme={theme} /> : null}
+            <Chip label={stage} tint={GOLD} />
+            <Chip label={`${ageInYears(p)} / ${breed?.lifespan ?? '?'} yrs`} tone="info" />
+            <Chip label={`${Math.round(lifeProgress)}% of life`} tone="success" />
+            {past ? <Chip label="Living on borrowed time" tone="danger" icon={<Skull size={scale(11)} color={accent.danger} />} /> : null}
           </View>
         </View>
 
         {/* Breed traits */}
         {breed ? (
           <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{breed.name} traits</Text>
+            <SectionTitle title={`${breed.name} traits`} />
             <View style={styles.chipWrap}>
-              <InfoChip label={`Base hunger -${breed.hungerDecayPerWeek}/wk`} Icon={Bone} color={HUNGER_C} theme={theme} />
-              <InfoChip label={`Now -${Math.round(effHunger)}/wk`} color={HUNGER_C} theme={theme} />
-              <InfoChip label={`Rest +${breed.energyRecoveryPerWeek}/wk`} Icon={Zap} color={ENERGY_C} theme={theme} />
-              <InfoChip label={`Illness ${(breed.illnessChancePerWeek * 100).toFixed(1)}%/wk`} color={accent.warning} theme={theme} />
-              <InfoChip label={`Age illness ×${band.illnessMultiplier}`} color={accent.warning} theme={theme} />
+              <Chip label={`Base hunger -${breed.hungerDecayPerWeek}/wk`} tone="warning" icon={<Bone size={scale(11)} color={HUNGER_C} />} />
+              <Chip label={`Now -${Math.round(effHunger)}/wk`} tone="warning" />
+              <Chip label={`Rest +${breed.energyRecoveryPerWeek}/wk`} tone="info" icon={<Zap size={scale(11)} color={ENERGY_C} />} />
+              <Chip label={`Illness ${(breed.illnessChancePerWeek * 100).toFixed(1)}%/wk`} tone="warning" />
+              <Chip label={`Age illness ×${band.illnessMultiplier}`} tone="warning" />
             </View>
           </View>
         ) : null}
 
         {/* Bond contribution */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Bond with you</Text>
+          <SectionTitle title="Bond with you" />
           <View style={styles.bondRowStats}>
-            <BondStat label="Happiness / wk" value={contrib?.happinessContribution ?? 0} color={HAPPY_C} theme={theme} />
-            <BondStat label="Health / wk" value={contrib?.healthContribution ?? 0} color={HEALTH_C} theme={theme} />
+            <StatStrip
+              items={[
+                { label: 'Happiness / wk', value: signed(contrib?.happinessContribution ?? 0), tint: HAPPY_C },
+                { label: 'Health / wk', value: signed(contrib?.healthContribution ?? 0), tint: HEALTH_C },
+              ]}
+            />
           </View>
         </View>
 
         {/* Care log */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Care log</Text>
-          <KV label="Competition wins" value={`${p.competitionWins ?? 0}`} theme={theme} />
-          <KV label="Last vet visit" value={fmtWeek(p.lastVetVisit)} theme={theme} />
-          <KV label="Last slept" value={fmtWeek(p.lastSleepWeek)} theme={theme} />
-          <KV label="Last competed" value={fmtWeek(p.lastCompetitionWeek)} theme={theme} />
+          <SectionTitle title="Care log" />
+          <KeyValueRow label="Competition wins" value={p.competitionWins ?? 0} />
+          <KeyValueRow label="Last vet visit" value={fmtWeek(p.lastVetVisit)} />
+          <KeyValueRow label="Last slept" value={fmtWeek(p.lastSleepWeek)} />
+          <KeyValueRow
+            label="Last competed"
+            value={fmtWeek(p.lastCompetitionWeek)}
+            divider={!p.weeksAtZeroHealth}
+          />
           {p.weeksAtZeroHealth ? (
-            <KV label="Weeks at 0 HP" value={`${p.weeksAtZeroHealth}`} theme={theme} danger />
+            <KeyValueRow label="Weeks at 0 HP" value={p.weeksAtZeroHealth} tint={accent.danger} divider={false} />
           ) : null}
         </View>
 
         {/* Toy chest */}
         <View style={[getGlassCard(darkMode, 6), styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.sectionHead}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Toy chest</Text>
-            <Text style={[styles.sectionCount, { color: theme.textMuted }]}>{ownedToys.length}</Text>
-          </View>
+          <SectionTitle title="Toy chest" right={<Chip label={`${ownedToys.length}`} />} />
           {ownedToys.length > 0 ? (
             <View style={styles.chipWrap}>
               {ownedToys.map((t) => (
-                <InfoChip key={t.id} label={`${t.emoji} ${t.name} +${t.fun}`} color={GOLD} theme={theme} />
+                <Chip key={t.id} label={`${t.name} +${t.fun}`} tint={GOLD} />
               ))}
             </View>
           ) : (
-            <Text style={[styles.cardSub, { color: theme.textMuted }]}>No toys yet - buy some in the Shop.</Text>
+            <EmptyState
+              compact
+              observation={`${p.name} has no toys`}
+              nudge="A toy adds fun on every play, which is what keeps happiness up."
+              ctaLabel="Browse the shop"
+              onCtaPress={() => goTab('shop')}
+            />
           )}
         </View>
 
@@ -655,7 +625,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       />
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Feed your pets</Text>
+        <SectionTitle title="Feed your pets" />
         <View style={styles.grid}>
           {PET_FOODS.map((f) => {
             const owned = gameState.petFood?.[f.id] ?? 0;
@@ -704,7 +674,7 @@ export default function PetApp({ onBack }: PetAppProps) {
 
       {selectedPet ? (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Toys for {selectedPet.name}</Text>
+          <SectionTitle title={`Toys for ${selectedPet.name}`} />
           <View style={styles.grid}>
             {PET_TOYS.map((toy) => {
               const owned = (selectedPet.toys ?? selectedPet.ownedToys ?? []).includes(toy.id);
@@ -743,7 +713,7 @@ export default function PetApp({ onBack }: PetAppProps) {
       ) : null}
 
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Adopt a pet</Text>
+        <SectionTitle title="Adopt a pet" />
         <View style={styles.grid}>
           {PET_BREEDS.map((b) => (
             <View
@@ -798,8 +768,6 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={styles.heroGlow} />
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
             {p ? (
               <View style={styles.clinicRow}>
                 <VitalRing value={p.health ?? 0} color={HEALTH_C} Icon={HeartPulse} label="HEALTH" theme={theme} darkMode={darkMode} size={72} />
@@ -809,37 +777,35 @@ export default function PetApp({ onBack }: PetAppProps) {
                   <Text style={[styles.heroSub, { color: theme.textSecondary }]}>{breed?.name ?? 'Unknown'} · {stage}</Text>
                   <View style={styles.chipWrap}>
                     {p.vaccinated ? (
-                      <InfoChip label="Vaccinated" Icon={Shield} color={accent.success} theme={theme} />
+                      <Chip label="Vaccinated" tone="success" icon={<Shield size={scale(11)} color={accent.success} />} />
                     ) : (
-                      <InfoChip label="Unvaccinated" Icon={Shield} color={accent.warning} theme={theme} />
+                      <Chip label="Unvaccinated" tone="warning" icon={<Shield size={scale(11)} color={accent.warning} />} />
                     )}
                     {p.isSick ? (
-                      <InfoChip label={sick ? `${sick.name} (${sick.severity})` : 'Sick'} Icon={Skull} color={accent.danger} theme={theme} />
+                      <Chip label={sick ? `${sick.name} (${sick.severity})` : 'Sick'} tone="danger" icon={<Skull size={scale(11)} color={accent.danger} />} />
                     ) : (
-                      <InfoChip label="No illness" color={accent.success} theme={theme} />
+                      <Chip label="No illness" tone="success" />
                     )}
-                    <InfoChip label={`Visit ${fmtWeek(p.lastVetVisit)}`} Icon={Stethoscope} color={ENERGY_C} theme={theme} />
+                    <Chip label={`Visit ${fmtWeek(p.lastVetVisit)}`} tone="info" icon={<Stethoscope size={scale(11)} color={ENERGY_C} />} />
                   </View>
                 </View>
               </View>
             ) : (
-              <View style={styles.heroContent}>
-                <View style={[getGlassIconContainer(darkMode, 48), styles.goldBubble]}>
-                  <Stethoscope size={scale(22)} color={GOLD} />
-                </View>
-                <View style={styles.headerText}>
-                  <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>VET CLINIC</Text>
-                  <Text style={[styles.heroTitle, { color: theme.text }]}>No patient</Text>
-                  <Text style={[styles.heroSub, { color: theme.textSecondary }]}>Adopt a pet first to visit the vet.</Text>
-                </View>
-              </View>
+              <EmptyState
+                compact
+                icon={<Stethoscope size={scale(22)} color={GOLD} />}
+                observation="The clinic has no patient"
+                nudge="Adopt a companion first - vaccinations and treatment are what keep it alive."
+                ctaLabel="Browse the shop"
+                onCtaPress={() => goTab('shop')}
+              />
             )}
           </View>
         </View>
 
         {p ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Clinic services</Text>
+            <SectionTitle title="Clinic services" />
             {VET_SERVICES.map((s) => {
               // Treatment services bill the pet's active sickness's own cost
               // (e.g. a mild cold is cheaper than a severe infection); other
@@ -869,11 +835,11 @@ export default function PetApp({ onBack }: PetAppProps) {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.chipWrap}>
-                  {s.healthBonus ? <InfoChip label={`+${s.healthBonus} health`} Icon={HeartPulse} color={accent.success} theme={theme} /> : null}
-                  {s.happinessBonus ? <InfoChip label={`+${s.happinessBonus} happy`} Icon={Heart} color={accent.danger} theme={theme} /> : null}
-                  {s.vaccinates ? <InfoChip label="Vaccinates" Icon={Shield} color={ENERGY_C} theme={theme} /> : null}
-                  {s.treatsSickness ? <InfoChip label="Treats illness" color={accent.warning} theme={theme} /> : null}
-                  {scaled && sick ? <InfoChip label={`${sick.name} rate`} color={accent.info} theme={theme} /> : null}
+                  {s.healthBonus ? <Chip label={`+${s.healthBonus} health`} tone="success" icon={<HeartPulse size={scale(11)} color={accent.success} />} /> : null}
+                  {s.happinessBonus ? <Chip label={`+${s.happinessBonus} happy`} tone="danger" icon={<Heart size={scale(11)} color={accent.danger} />} /> : null}
+                  {s.vaccinates ? <Chip label="Vaccinates" tone="info" icon={<Shield size={scale(11)} color={ENERGY_C} />} /> : null}
+                  {s.treatsSickness ? <Chip label="Treats illness" tone="warning" /> : null}
+                  {scaled && sick ? <Chip label={`${sick.name} rate`} tone="info" /> : null}
                 </View>
               </View>
               );
@@ -900,42 +866,47 @@ export default function PetApp({ onBack }: PetAppProps) {
           ]}
         >
           <View style={styles.heroInner}>
-            <View pointerEvents="none" style={styles.heroGlow} />
-            {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
-            <View style={styles.heroContent}>
-              <View style={[getGlassIconContainer(darkMode, 56), styles.goldBubble]}>
-                <Medal size={scale(26)} color={GOLD} />
-              </View>
-              <View style={styles.headerText}>
-                <Text style={[styles.heroEyebrow, { color: theme.textMuted }]}>COMPETITION ARENA</Text>
-                <Text style={[styles.heroTitle, { color: theme.text }]} numberOfLines={1}>{p ? p.name : 'No competitor'}</Text>
-                <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
-                  {p ? 'Enter shows to win prize money.' : 'Adopt a pet first to enter competitions.'}
-                </Text>
-              </View>
-              {p ? (
-                <View style={styles.winsBadge}>
-                  <Text style={[styles.winsNum, { color: GOLD }]}>{p.competitionWins ?? 0}</Text>
-                  <Text style={[styles.winsLabel, { color: theme.textMuted }]}>WINS</Text>
-                </View>
-              ) : null}
-            </View>
             {p ? (
-              <View style={styles.chipWrap}>
-                <InfoChip label={`Happiness ${p.happiness ?? 0}`} Icon={Heart} color={HAPPY_C} theme={theme} />
-                <InfoChip label={`Health ${p.health ?? 0}`} Icon={HeartPulse} color={HEALTH_C} theme={theme} />
-                <InfoChip label={`Energy ${p.energy ?? 0}`} Icon={Zap} color={ENERGY_C} theme={theme} />
+              <>
+                <View style={styles.heroContent}>
+                  <View style={[getGlassIconContainer(darkMode, 56), styles.goldBubble]}>
+                    <Medal size={scale(26)} color={GOLD} />
+                  </View>
+                  <View style={styles.headerText}>
+                    <Text style={[styles.heroTitle, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
+                    <Text style={[styles.heroSub, { color: theme.textSecondary }]}>Enter shows to win prize money.</Text>
+                  </View>
+                </View>
+                <StatStrip
+                  items={[
+                    { label: 'Wins', value: p.competitionWins ?? 0, tint: GOLD },
+                    { label: 'Happiness', value: p.happiness ?? 0, tint: HAPPY_C },
+                    { label: 'Health', value: p.health ?? 0, tint: HEALTH_C },
+                    { label: 'Energy', value: p.energy ?? 0, tint: ENERGY_C },
+                  ]}
+                />
                 {p.lastCompetitionWeek === week ? (
-                  <InfoChip label="Competed this week" color={accent.warning} theme={theme} />
+                  <View style={styles.chipWrap}>
+                    <Chip label="Competed this week" tone="warning" />
+                  </View>
                 ) : null}
-              </View>
-            ) : null}
+              </>
+            ) : (
+              <EmptyState
+                compact
+                icon={<Medal size={scale(22)} color={GOLD} />}
+                observation="You have no competitor"
+                nudge="Adopt a companion first - shows pay prize money on top of the bond bonus."
+                ctaLabel="Browse the shop"
+                onCtaPress={() => goTab('shop')}
+              />
+            )}
           </View>
         </View>
 
         {p ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Upcoming shows</Text>
+            <SectionTitle title="Upcoming shows" />
             {PET_COMPETITIONS.map((c) => {
               const evalResult = evaluatePetForCompetition(p, c.id);
               if (!evalResult) return null;
@@ -966,7 +937,7 @@ export default function PetApp({ onBack }: PetAppProps) {
                     <Text style={[styles.compRingPct, { color: theme.text }]}>{winPct}%</Text>
                   </ProgressRing>
                   <View style={styles.headerText}>
-                    <Text style={[styles.cardName, { color: theme.text }]}>{c.emoji} {c.name}</Text>
+                    <Text style={[styles.cardName, { color: theme.text }]}>{c.name}</Text>
                     <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
                       Prize {formatMoney(c.prize)} · Entry {formatMoney(c.entryFee)}
                     </Text>
@@ -997,104 +968,67 @@ export default function PetApp({ onBack }: PetAppProps) {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={styles.headerBtn}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Pets</Text>
-        <View style={[styles.cashChip, { backgroundColor: GOLD_CHIP, borderColor: GOLD_RIM }]}>
-          <Text style={[styles.cashChipText, { color: theme.text }]}>{formatMoney(money)}</Text>
-        </View>
-      </View>
+      {/* One bar for both levels: the title names where you are - the app, or
+          the pet whose profile is open - and the arrow pops the profile before
+          it leaves the app, which is why the in-body "Roster" button is gone. */}
+      <AppHeader
+        title={detailPet ? detailPet.name : 'Pets'}
+        onBack={detailPet ? () => setDetailPetId(null) : onBack}
+        backLabel={detailPet ? 'Back to pets' : 'Back'}
+        right={<CashChip value={formatMoney(money)} tint={GOLD} />}
+      />
 
-      <View style={[styles.tabBar, getGlassCategoryTabsContainer(darkMode)]}>
-        {[
-          { id: 'pets' as TabType, label: 'Pets', Icon: PawPrint },
-          { id: 'shop' as TabType, label: 'Shop', Icon: ShoppingBag },
-          { id: 'vet' as TabType, label: 'Vet', Icon: Stethoscope },
-          { id: 'compete' as TabType, label: 'Compete', Icon: Trophy },
-        ].map(({ id, label, Icon }) => {
-          const active = activeTab === id;
-          return (
-            <TouchableOpacity
-              key={id}
-              onPress={() => goTab(id)}
-              style={[styles.tabBtn, active && styles.tabBtnActive]}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              accessibilityState={{ selected: active }}
-            >
-              <Icon size={scale(16)} color={active ? GOLD : theme.textMuted} />
-              <Text style={[styles.tabText, { color: active ? theme.text : theme.textMuted }]}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        segments={TABS}
+        value={activeTab}
+        onChange={goTab}
+        activeColor={GOLD}
+        style={styles.tabBar}
+      />
 
       {activeTab === 'pets' && (detailPet ? renderDetail(detailPet) : renderPets())}
       {activeTab === 'shop' && renderShop()}
       {activeTab === 'vet' && renderVet()}
       {activeTab === 'compete' && renderCompete()}
 
-      <Modal visible={!!buyModal} transparent animationType="fade" onRequestClose={() => setBuyModal(null)}>
-        <View style={styles.modalScrim}>
-          <View
-            style={[
-              getGlassCard(darkMode, 12),
-              styles.modalCard,
-              { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Name your new companion</Text>
-            <TextInput
-              value={petName}
-              onChangeText={setPetName}
-              placeholder="e.g. Rex"
-              placeholderTextColor={theme.textMuted}
-              // Unbounded, and the name renders in every pet card and event
-              // line afterwards. 20 matches the character-name cap.
-              maxLength={20}
-              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.chipBase, { backgroundColor: theme.surfaceElevated }]}
-                onPress={() => setBuyModal(null)}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel"
-              >
-                <Text style={[styles.chipText, { color: theme.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.chipBase, styles.primaryGold, getPlatformShadows(5, 0.3, 2, 8)]}
-                onPress={() => buyModal && handleBuy(buyModal, petName.trim())}
-                accessibilityRole="button"
-                accessibilityLabel="Adopt"
-              >
-                <Text style={[styles.chipText, { color: GOLD_INK }]}>Adopt</Text>
-              </TouchableOpacity>
-            </View>
+      <BaseModal
+        visible={!!buyModal}
+        onClose={() => setBuyModal(null)}
+        title="Name your new companion"
+        variant="center"
+        scrollable={false}
+        footer={
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={[styles.chipBase, { backgroundColor: theme.surfaceElevated }]}
+              onPress={() => setBuyModal(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+            >
+              <Text style={[styles.chipText, { color: theme.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.chipBase, styles.primaryGold, getPlatformShadows(5, 0.3, 2, 8)]}
+              onPress={() => buyModal && handleBuy(buyModal, petName.trim())}
+              accessibilityRole="button"
+              accessibilityLabel="Adopt"
+            >
+              <Text style={[styles.chipText, { color: GOLD_INK }]}>Adopt</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-
-      {feedback ? (
-        <View
-          style={[
-            styles.toast,
-            getPlatformShadows(6, 0.2, 3, 16),
-            { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: GOLD_RIM },
-          ]}
-        >
-          <Text style={{ color: theme.text }}>{feedback}</Text>
-        </View>
-      ) : null}
+        }
+      >
+        <TextInput
+          value={petName}
+          onChangeText={setPetName}
+          placeholder="e.g. Rex"
+          placeholderTextColor={theme.textMuted}
+          // Unbounded, and the name renders in every pet card and event line
+          // afterwards. 20 matches the character-name cap.
+          maxLength={20}
+          style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
+        />
+      </BaseModal>
     </View>
   );
 }
@@ -1118,7 +1052,6 @@ function StageCore({
     <View style={styles.stageRow}>
       <VitalRing value={health} color={HEALTH_C} Icon={HeartPulse} label="HEALTH" theme={theme} darkMode={darkMode} />
       <View style={styles.stageMat}>
-        <View pointerEvents="none" style={styles.stageMatGlow} />
         <Text style={styles.stageEmoji}>{emoji}</Text>
       </View>
       <VitalRing value={happiness} color={HAPPY_C} Icon={Heart} label="HAPPY" theme={theme} darkMode={darkMode} />
@@ -1189,9 +1122,7 @@ function MiniMeter({
         <Text style={[styles.miniMeterLabel, { color: theme.textSecondary }]}>{label}</Text>
         <Text style={[styles.miniMeterVal, { color: theme.text }]}>{Math.round(v)}</Text>
       </View>
-      <View style={[styles.miniTrack, { backgroundColor: theme.surfaceElevated }]}>
-        <View style={[styles.miniFill, { width: `${v}%`, backgroundColor: color }]} />
-      </View>
+      <ProgressBar value={v / 100} color={color} label={label} height={scale(5)} />
     </View>
   );
 }
@@ -1263,47 +1194,6 @@ function RailAvatar({
   );
 }
 
-// A small status / trait chip. `color` is a solid hex; fill/rim derive via
-// #RRGGBBAA alpha suffixes (RN supports 8-digit hex).
-function InfoChip({
-  label,
-  color,
-  Icon,
-  theme,
-}: {
-  label: string;
-  color: string;
-  Icon?: React.ComponentType<{ size: number; color: string }>;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <View style={[styles.infoChip, { backgroundColor: `${color}22`, borderColor: `${color}55` }]}>
-      {Icon ? <Icon size={scale(11)} color={color} /> : null}
-      <Text style={[styles.infoChipText, { color: theme.text }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
-// Key/value row for the care log.
-function KV({
-  label,
-  value,
-  theme,
-  danger,
-}: {
-  label: string;
-  value: string;
-  theme: ReturnType<typeof getThemeColors>;
-  danger?: boolean;
-}) {
-  return (
-    <View style={styles.kvRow}>
-      <Text style={[styles.kvLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <Text style={[styles.kvValue, { color: danger ? accent.danger : theme.text }]}>{value}</Text>
-    </View>
-  );
-}
-
 // Recipe B context hero for the Shop tab - one gold focal surface carrying the
 // active-pet context.
 function TabHero({
@@ -1330,8 +1220,6 @@ function TabHero({
       ]}
     >
       <View style={styles.heroInner}>
-        <View pointerEvents="none" style={styles.heroGlow} />
-        {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <View style={styles.heroContent}>
           <View style={[getGlassIconContainer(darkMode, 48), styles.goldBubble]}>
             <Icon size={scale(22)} color={GOLD} />
@@ -1363,35 +1251,8 @@ function StatBar({
   return (
     <View style={styles.statBarRow}>
       <Text style={[styles.statBarLabel, { color: theme.textSecondary }]}>{label}</Text>
-      <View style={[styles.statBar, { backgroundColor: theme.surfaceElevated }]}>
-        <View
-          style={[
-            styles.statBarFill,
-            { width: `${clampPct(value)}%`, backgroundColor: color },
-          ]}
-        />
-      </View>
-      <Text style={[styles.statBarValue, { color: theme.text }]}>{Math.round(value)}</Text>
-    </View>
-  );
-}
-
-function BondStat({
-  label,
-  value,
-  color,
-  theme,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  const display = typeof value === 'number' && value > 0 ? `+${value}` : `${value}`;
-  return (
-    <View style={styles.bondStat}>
-      <Text style={[styles.bondValue, { color }]}>{display}</Text>
-      <Text style={[styles.bondLabel, { color: theme.textSecondary }]}>{label}</Text>
+      <ProgressBar value={clampPct(value) / 100} color={color} label={label} style={styles.statBar} />
+      <Text style={[styles.statBarValue, { color: theme.text }]}>{Math.round(clampPct(value))}</Text>
     </View>
   );
 }
@@ -1400,25 +1261,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.lg },
-  centerText: { textAlign: 'center' },
 
   // Top bar - no bottom border; the segmented tab strip below anchors the screen.
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-    gap: sp.sm,
-  },
-  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: fs.lg, fontWeight: '700' },
-  cashChip: {
-    paddingHorizontal: sp.sm,
-    paddingVertical: 4,
-    borderRadius: br.full,
-    borderWidth: 1,
-  },
-  cashChipText: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // Segmented tab control.
   tabBar: {
@@ -1428,17 +1272,6 @@ const styles = StyleSheet.create({
     marginTop: sp.sm,
     marginBottom: sp.sm,
   },
-  tabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: sp.sm,
-    borderRadius: br.lg,
-  },
-  tabBtnActive: { backgroundColor: GOLD_TAB },
-  tabText: { fontSize: fs.sm, fontWeight: '600' },
 
   // Hero (Recipe B) anatomy: outer carries shadow+radius+border+fill (no clip);
   // heroInner clips the gold wash / glow / hairline to the radius.
@@ -1450,18 +1283,8 @@ const styles = StyleSheet.create({
     gap: sp.xs,
   },
   heroContent: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
-  heroGlow: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: GOLD_GLOW,
-  },
-  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: HAIRLINE },
   heroEyebrow: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8, marginBottom: 2 },
-  heroTitle: { fontSize: fs['2xl'], fontWeight: '800' },
+  heroTitle: { fontSize: fs['2xl'], fontWeight: '600' },
   heroSub: { fontSize: fs.sm, marginTop: 2 },
 
   // Stage - dual rings flanking the emoji mat.
@@ -1474,17 +1297,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: GOLD_FILL_SOFT,
     borderWidth: 1,
-    borderColor: GOLD_RIM_SOFT,
-  },
-  stageMatGlow: {
-    position: 'absolute',
-    width: scale(76),
-    height: scale(76),
-    borderRadius: scale(38),
-    backgroundColor: GOLD_GLOW,
+    borderColor: GOLD_RIM,
   },
   stageEmoji: { fontSize: scale(56) },
-  stageName: { fontSize: fs['2xl'], fontWeight: '800', textAlign: 'center', marginTop: sp.xs },
+  stageName: { fontSize: fs['2xl'], fontWeight: '600', textAlign: 'center', marginTop: sp.xs },
   stageSub: { fontSize: fs.sm, textAlign: 'center', marginTop: 2 },
 
   ringCol: { alignItems: 'center' },
@@ -1497,9 +1313,7 @@ const styles = StyleSheet.create({
   miniMeter: { flex: 1, gap: 4 },
   miniMeterHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   miniMeterLabel: { fontSize: fs.xs, flex: 1 },
-  miniMeterVal: { fontSize: fs.xs, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  miniTrack: { height: scale(6), borderRadius: br.full, overflow: 'hidden' },
-  miniFill: { height: '100%', borderRadius: br.full },
+  miniMeterVal: { fontSize: fs.xs, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
   // Care pad.
   carePad: { flexDirection: 'row', gap: sp.xs, marginTop: sp.sm },
@@ -1513,9 +1327,9 @@ const styles = StyleSheet.create({
     borderRadius: br.md,
     backgroundColor: GOLD_FILL_SOFT,
     borderWidth: 1,
-    borderColor: GOLD_RIM_SOFT,
+    borderColor: GOLD_RIM,
   },
-  careBtnText: { fontSize: fs.xs, fontWeight: '700' },
+  careBtnText: { fontSize: fs.xs, fontWeight: '600' },
 
   profileBtn: {
     flexDirection: 'row',
@@ -1527,17 +1341,15 @@ const styles = StyleSheet.create({
     minHeight: scale(40),
     borderRadius: br.md,
     borderWidth: 1,
-    backgroundColor: GOLD_CHIP,
+    backgroundColor: GOLD_FILL_SOFT,
   },
-  profileBtnText: { fontSize: fs.sm, fontWeight: '700' },
+  profileBtnText: { fontSize: fs.sm, fontWeight: '600' },
 
   // Tinted icon bubbles (Recipe C).
   goldBubble: { backgroundColor: GOLD_FILL, borderWidth: 1, borderColor: GOLD_RIM },
-  goldBubbleSoft: { backgroundColor: GOLD_FILL_SOFT, borderWidth: 1, borderColor: GOLD_RIM_SOFT },
+  goldBubbleSoft: { backgroundColor: GOLD_FILL_SOFT, borderWidth: 1, borderColor: GOLD_RIM },
 
   // Roster rail.
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionCount: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
   railScroll: { gap: sp.md, paddingVertical: sp.xs, paddingRight: sp.sm },
   railItem: { alignItems: 'center', width: scale(64), gap: 4 },
   railEmoji: { fontSize: scale(26) },
@@ -1550,52 +1362,34 @@ const styles = StyleSheet.create({
   // Cards / rows.
   card: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.xs },
   headerText: { flex: 1 },
-  cardName: { fontSize: fs.md, fontWeight: '800' },
+  cardName: { fontSize: fs.md, fontWeight: '600' },
   cardSub: { fontSize: fs.xs, marginTop: 2 },
   cardMeta: { fontSize: fs.xs, marginTop: 2 },
 
   statBarRow: { flexDirection: 'row', alignItems: 'center', gap: sp.sm, marginTop: sp.xs },
   statBarLabel: { fontSize: fs.xs, width: scale(78) },
   statBar: { flex: 1, height: scale(6), borderRadius: br.full, overflow: 'hidden' },
-  statBarFill: { height: '100%', borderRadius: br.full },
-  statBarValue: { fontSize: fs.xs, fontWeight: '700', width: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
+  statBarValue: { fontSize: fs.xs, fontWeight: '600', width: scale(28), textAlign: 'right', fontVariant: ['tabular-nums'] },
 
   // Info / trait chips.
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.xs, marginTop: sp.xs, justifyContent: 'center' },
-  infoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: sp.sm,
-    paddingVertical: 4,
-    borderRadius: br.full,
-    borderWidth: 1,
-    maxWidth: '100%',
-  },
-  infoChipText: { fontSize: fs.xs, fontWeight: '700' },
 
   // Key/value rows.
-  kvRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: sp.xs },
-  kvLabel: { fontSize: fs.sm },
-  kvValue: { fontSize: fs.sm, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   // Companion-bonus + warning.
   bondCard: { padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.sm },
-  bondTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
   bondRowStats: { flexDirection: 'row', justifyContent: 'space-around' },
-  bondStat: { alignItems: 'center' },
-  bondValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  bondLabel: { fontSize: fs.xs },
   warningBanner: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, padding: sp.sm, borderRadius: br.md, borderWidth: 1 },
-  warningText: { fontSize: fs.xs, fontWeight: '700', flex: 1 },
+  warningText: { fontSize: fs.xs, fontWeight: '600', flex: 1 },
 
   // Shop tile grid.
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: sp.sm },
   tile: { width: '48%', padding: sp.md, borderRadius: br.xl, borderWidth: 1, gap: sp.xs },
   tileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  tilePrice: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  tilePrice: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
   tileBtns: { gap: sp.xs, marginTop: sp.xs },
   tileBtn: {
+    // 34pt was under the 44pt minimum; these are the Buy / Feed / Adopt taps.
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1603,7 +1397,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: sp.sm,
     paddingVertical: sp.xs,
     borderRadius: br.md,
-    minHeight: scale(38),
+    minHeight: touchTargets.minimum,
   },
   shopEmoji: { fontSize: scale(22) },
 
@@ -1616,12 +1410,11 @@ const styles = StyleSheet.create({
 
   // Competition arena.
   compCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1 },
-  compRingPct: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  winsBadge: { alignItems: 'center', minWidth: scale(44) },
-  winsNum: { fontSize: fs['2xl'], fontWeight: '800', fontVariant: ['tabular-nums'] },
-  winsLabel: { fontSize: fs.xs, fontWeight: '700', letterSpacing: 0.6 },
+  compRingPct: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
 
-  // Chips: base geometry, plus a gold-tinted or solid-gold variant.
+  // Chips: base geometry, plus a gold-tinted or solid-gold variant. Every
+  // remaining user is an interactive button (Cancel / Adopt), so the base
+  // carries the 44pt minimum rather than the old 34.
   chipBase: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1629,36 +1422,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
     borderRadius: br.md,
-    minHeight: scale(34),
+    minHeight: touchTargets.minimum,
     justifyContent: 'center',
   },
-  goldChip: { backgroundColor: GOLD_CHIP, borderWidth: 1, borderColor: GOLD_RIM },
-  chipText: { fontSize: fs.sm, fontWeight: '700' },
+  goldChip: { backgroundColor: GOLD_FILL_SOFT, borderWidth: 1, borderColor: GOLD_RIM },
+  chipText: { fontSize: fs.sm, fontWeight: '600' },
   primaryGold: { backgroundColor: GOLD },
-  adoptCta: { marginTop: sp.sm },
 
   section: { gap: sp.sm },
-  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2 },
 
   // Detail-page in-content back.
-  detailBack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sp.xs,
-    alignSelf: 'flex-start',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-    minHeight: scale(40),
-    borderRadius: br.full,
-  },
-  detailBackText: { fontSize: fs.sm, fontWeight: '700' },
 
   memoryCard: { flexDirection: 'row', alignItems: 'center', gap: sp.md, padding: sp.md, borderRadius: br.xl, borderWidth: 1, opacity: 0.75 },
   memoryEmoji: { fontSize: scale(20), opacity: 0.8 },
 
-  modalScrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: sp.md },
-  modalCard: { width: '100%', maxWidth: 420, padding: sp.lg, borderRadius: br['2xl'], borderWidth: 1, gap: sp.md },
-  modalTitle: { fontSize: fs.lg, fontWeight: '800' },
   input: { borderWidth: 1, borderRadius: br.md, paddingHorizontal: sp.md, paddingVertical: sp.sm, fontSize: fs.md },
   modalActions: { flexDirection: 'row', gap: sp.sm, justifyContent: 'flex-end' },
 

@@ -43,7 +43,6 @@ import {
   Baby,
   Ban,
   Gem,
-  HeartHandshake,
   UserMinus,
   Pin,
   Target,
@@ -76,11 +75,10 @@ import {
 import { applyMoneyDelta } from '@/contexts/game/actions/MoneyActions';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
 import { childParentSources } from '@/lib/avatar/family';
-import { getMoodLabel, getMoodEmoji } from '@/lib/social/npcDepth';
-import { getThemeColors, accent } from '@/lib/config/theme';
+import { getMoodLabel } from '@/lib/social/npcDepth';
+import { getThemeColors, accent, withAlpha } from '@/lib/config/theme';
 import {
   getGlassCard,
-  getGlassIconContainer,
   getGlassButton,
   getPlatformShadows,
 } from '@/utils/glassmorphismStyles';
@@ -96,6 +94,15 @@ import {
   getAppScreenBottomPadding,
 } from '@/utils/scaling';
 import { gameAlert } from '@/utils/gameAlert';
+import AppHeader from '@/components/ui/AppHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import StatStrip from '@/components/ui/StatStrip';
+import Chip from '@/components/ui/Chip';
+import SectionTitle from '@/components/ui/SectionTitle';
+import EmptyState from '@/components/ui/EmptyState';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import { IconBubble } from '@/components/ui/Card';
+import { useToast } from '@/contexts/ToastContext';
 
 const LinearGradient = Gradient;
 
@@ -141,6 +148,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
   } = useGame();
   // Auto-cleaned timers so the feedback-clear flash can't setState after unmount.
   const timers = useTimerManager();
+  const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
@@ -153,20 +161,11 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
     { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: br.xl },
   ];
 
-  // Recipe C - tinted glass icon "badge" (same-hue trio: 15% fill, 30% rim,
-  // saturated glyph). Reused by network tiles, favor ledger rows, triage cards,
-  // and the network detail hero.
-  const iconBubble = useCallback(
-    (color: string, size = 40) => [
-      getGlassIconContainer(darkMode, size),
-      { backgroundColor: hexToRgba(color, 0.15), borderWidth: 1, borderColor: hexToRgba(color, 0.3) },
-    ],
-    [darkMode]
-  );
-
-  // Recipe B - the single focal amber hero per tab-view. Depth is a flat tint
-  // wash + one glow blob (a shape the flat gradient stub forced at the
-  // time, kept as-is); the passed-in content is the hero body.
+  // The summary card each tab opens with. One flat surface and one label: the
+  // glow blob and the lit hairline it used to carry were decoration on a card
+  // whose whole job is to hold three numbers, and the numbers now come from the
+  // shared StatStrip - so what a player reads here is the same shape as every
+  // other strip in the app.
   const statsHero = (title: string, children: React.ReactNode) => (
     <View
       style={[
@@ -180,8 +179,6 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       ]}
     >
       <View style={styles.heroInner}>
-        <View pointerEvents="none" style={styles.heroGlow} />
-        {darkMode && <View pointerEvents="none" style={styles.heroHairline} />}
         <Text style={[styles.statsTitle, { color: theme.textMuted }]}>{title}</Text>
         {children}
       </View>
@@ -509,12 +506,12 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       const r = redeemFavor(gameState, setGameState, favorId);
       if (r.success) {
         saveGame();
-        flash(r.message);
+        showToast(r.message, 'success');
       } else {
         gameAlert('Cannot redeem', r.message);
       }
     },
-    [gameState, setGameState, saveGame, flash]
+    [gameState, setGameState, saveGame, showToast]
   );
 
   const handleRepayFavor = useCallback(
@@ -522,12 +519,12 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       const r = repayFavor(gameState, setGameState, favorId);
       if (r.success) {
         saveGame();
-        flash(r.message);
+        showToast(r.message, 'success');
       } else {
         gameAlert('Cannot repay', r.message);
       }
     },
-    [gameState, setGameState, saveGame, flash]
+    [gameState, setGameState, saveGame, showToast]
   );
 
   const handleSpecial = useCallback(
@@ -566,7 +563,7 @@ export default function ContactsApp({ onBack }: ContactsAppProps) {
       });
       if (r.success) saveGame();
       if (r.accepted) {
-        gameAlert('Congratulations! 💍', `${r.message}\n\nNext step: plan the wedding!`);
+        gameAlert('Congratulations!', `${r.message}\n\nNext step: plan the wedding!`);
       } else {
         flash(r.message, contactId);
       }
@@ -649,7 +646,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={1}>
               {c.subtitle}{r.personality ? ` · ${r.personality}` : ''}
-              {r.npcMood ? ` · ${getMoodEmoji(r.npcMood)} ${getMoodLabel(r.npcMood)}` : ''}
+              {r.npcMood ? ` · ${getMoodLabel(r.npcMood)}` : ''}
             </Text>
             <View style={styles.recencyRow}>
               <View style={[styles.recencyDotInline, { backgroundColor: rec.color }]} />
@@ -658,9 +655,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             {c.tags && c.tags.length > 0 ? (
               <View style={styles.tagRow}>
                 {c.tags.slice(0, 3).map((t) => (
-                  <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(accent.amber, 0.12) }]}>
-                    <Text style={[styles.tagText, { color: accent.amber }]}>{t}</Text>
-                  </View>
+                  <Chip key={t} label={t} tint={accent.amber} />
                 ))}
               </View>
             ) : null}
@@ -690,14 +685,37 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
 
         {expanded && (
           <View style={styles.actionsBox}>
-            {/* Densified facts - job/income/dates/gifts/interactions were all in
-                state but never surfaced. */}
+            {/* An expanded card used to open on twenty controls at one weight.
+                It opens on TWO now - the things you do with a person - with the
+                rest grouped behind their own headings below. Every action, cost
+                and gate is exactly what it was; only the order changed. */}
+            <View style={styles.actionsRow}>
+              <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} darkMode={darkMode} />
+              <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} darkMode={darkMode} />
+            </View>
+            {/* The money and bond moves, one step quieter than the two above. */}
+            <View style={styles.actionsRow}>
+              <Chip label="Ask $" size="md" tone="warning" onPress={() => handleAskMoney(c.id)} accessibilityLabel={`Ask ${c.name} for money`} />
+              <Chip label="Lend $100" size="md" tint={accent.purple} onPress={() => handleLendMoney(c.id, 100)} accessibilityLabel={`Lend ${c.name} $100`} />
+              {!isFamilyRelationship(r) ? (
+                <Chip
+                  label={`Bond · $${relationshipBondCost(r.relationshipScore ?? 0).toLocaleString()}`}
+                  size="md"
+                  tone="info"
+                  onPress={() => handleBond(c.id)}
+                  accessibilityLabel={`Raise your bond with ${c.name} for $${relationshipBondCost(r.relationshipScore ?? 0).toLocaleString()}`}
+                />
+              ) : null}
+            </View>
+            {/* Who they are: nine readouts the NPC-depth tick keeps current.
+                All real, none of it a decision - so it folds away by default. */}
+            <CollapsibleSection id={`contact-about-${c.id}`} title="About them" defaultCollapsed compact>
             <View style={styles.factRow}>
-              {r.job ? <Fact label="Job" value={r.job} theme={theme} /> : null}
-              {r.income ? <Fact label="Income" value={`$${r.income.toLocaleString()}/wk`} theme={theme} /> : null}
-              {typeof r.datesCount === 'number' && r.datesCount > 0 ? <Fact label="Dates" value={String(r.datesCount)} theme={theme} /> : null}
-              {typeof r.giftsReceived === 'number' && r.giftsReceived > 0 ? <Fact label="Gifts" value={String(r.giftsReceived)} theme={theme} /> : null}
-              {typeof r.weeklyInteractions === 'number' && r.weeklyInteractions > 0 ? <Fact label="This wk" value={`${r.weeklyInteractions}`} theme={theme} /> : null}
+              {r.job ? <Chip label={`Job · ${r.job}`} /> : null}
+              {r.income ? <Chip label={`Income · $${r.income.toLocaleString()}/wk`} /> : null}
+              {typeof r.datesCount === 'number' && r.datesCount > 0 ? <Chip label={`Dates · ${r.datesCount}`} /> : null}
+              {typeof r.giftsReceived === 'number' && r.giftsReceived > 0 ? <Chip label={`Gifts · ${r.giftsReceived}`} /> : null}
+              {typeof r.weeklyInteractions === 'number' && r.weeklyInteractions > 0 ? <Chip label={`This week · ${r.weeklyInteractions}`} /> : null}
             </View>
             {/* Inner life: the weekly NPC-depth tick evolves opinion (trust/
                 attraction/respect), goals, gift tastes, and memories. */}
@@ -706,19 +724,19 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 <View style={styles.innerLifeRow}>
                   <Handshake size={fontScale(12)} color={theme.textSecondary} />
                   <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
-                    Trust <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.trust ?? 0)}</Text>
+                    Trust <Text style={{ color: theme.text, fontWeight: '600' }}>{Math.round(r.npcOpinion.trust ?? 0)}</Text>
                   </Text>
                 </View>
                 <View style={styles.innerLifeRow}>
                   <Heart size={fontScale(12)} color={theme.textSecondary} />
                   <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
-                    Attraction <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.attraction ?? 0)}</Text>
+                    Attraction <Text style={{ color: theme.text, fontWeight: '600' }}>{Math.round(r.npcOpinion.attraction ?? 0)}</Text>
                   </Text>
                 </View>
                 <View style={styles.innerLifeRow}>
                   <Award size={fontScale(12)} color={theme.textSecondary} />
                   <Text style={[styles.opinionStat, { color: theme.textSecondary }]}>
-                    Respect <Text style={{ color: theme.text, fontWeight: '700' }}>{Math.round(r.npcOpinion.respect ?? 0)}</Text>
+                    Respect <Text style={{ color: theme.text, fontWeight: '600' }}>{Math.round(r.npcOpinion.respect ?? 0)}</Text>
                   </Text>
                 </View>
               </View>
@@ -743,7 +761,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
               <View style={styles.innerLifeRow}>
                 <MessageCircle size={fontScale(12)} color={theme.textSecondary} />
                 <Text style={innerLine} numberOfLines={1}>
-                  Right now: <Text style={{ color: theme.text, fontWeight: '700' }}>{r.npcWant.label}</Text>
+                  Right now: <Text style={{ color: theme.text, fontWeight: '600' }}>{r.npcWant.label}</Text>
                 </Text>
               </View>
             ) : null}
@@ -793,27 +811,9 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                 Remembers: {r.npcMemories[r.npcMemories.length - 1].description}
               </Text>
             ) : null}
-            <View style={styles.actionsRow}>
-              <ActionBtn label="Call" Icon={Phone} color={accent.info} onPress={() => handleSimple(c.id, 'call', 0, 3)} darkMode={darkMode} />
-              <ActionBtn label="Hang Out" Icon={Coffee} color={accent.success} onPress={() => handleSimple(c.id, 'hangout', 30, 5)} darkMode={darkMode} />
-              <ActionBtn label="Ask $" Icon={DollarSign} color={accent.warning} onPress={() => handleAskMoney(c.id)} darkMode={darkMode} />
-              <ActionBtn label="Lend $100" Icon={Handshake} color={accent.purple} onPress={() => handleLendMoney(c.id, 100)} darkMode={darkMode} />
-            </View>
-            {!isFamilyRelationship(r) ? (
-              <View style={styles.actionsRow}>
-                <ActionBtn
-                  label={`Bond · $${relationshipBondCost(r.relationshipScore ?? 0).toLocaleString()}`}
-                  Icon={HeartHandshake}
-                  color={accent.info}
-                  onPress={() => handleBond(c.id)}
-                  darkMode={darkMode}
-                />
-                <ActionBtn label="Remove" Icon={UserMinus} color={accent.danger} onPress={() => handleRemoveContact(r)} darkMode={darkMode} />
-              </View>
-            ) : null}
+            </CollapsibleSection>
             {isPartner && (
-              <>
-                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Dating</Text>
+              <CollapsibleSection id={`contact-dates-${c.id}`} title="Plan a date" defaultCollapsed compact>
                 <View style={styles.dateList}>
                   {DATE_TIER_META.map((t) => {
                     const cost = DATE_CONFIGS[t.type].cost;
@@ -828,9 +828,9 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                         accessibilityRole="button"
                         accessibilityLabel={`${t.label} date, ${cost === 0 ? 'free' : `$${cost}`} - ${t.vibe}`}
                       >
-                        <View style={iconBubble(t.color, 34)}>
+                        <IconBubble color={t.color} style={styles.bubble34}>
                           <DIcon size={scale(16)} color={t.color} />
-                        </View>
+                        </IconBubble>
                         <View style={styles.dateRowBody}>
                           <Text style={[styles.dateRowName, { color: theme.text }]} numberOfLines={1}>{t.label}</Text>
                           <Text style={[styles.dateRowVibe, { color: theme.textMuted }]} numberOfLines={1}>{t.vibe}</Text>
@@ -847,26 +847,42 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                     );
                   })}
                 </View>
-                <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Gifts</Text>
-                <View style={styles.actionsRow}>
-                  <ActionBtn label="Flowers" Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
-                  <ActionBtn label="Jewelry" Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
+              </CollapsibleSection>
+            )}
+            {/* Where the relationship itself changes shape. Grouped because
+                these are the moves you make once, not the ones you make weekly
+                - and a "Break up" sitting next to "Hang Out" at the same weight
+                is how a mis-tap happens. */}
+            {isPartner || r.type === 'spouse' || !isFamilyRelationship(r) ? (
+              <CollapsibleSection id={`contact-relationship-${c.id}`} title="Relationship" defaultCollapsed compact>
+                <View style={styles.groupBody}>
+                  {isPartner && (
+                    <>
+                      <View style={styles.actionsRow}>
+                        <ActionBtn label="Flowers" Icon={Gift} color={accent.danger} onPress={() => handleGift(c.id, 'flowers')} darkMode={darkMode} />
+                        <ActionBtn label="Jewelry" Icon={Gift} color={accent.purple} onPress={() => handleGift(c.id, 'jewelry')} darkMode={darkMode} />
+                      </View>
+                      {!r.livingTogether && (
+                        <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} darkMode={darkMode} wide />
+                      )}
+                      {!r.engagementWeek && r.livingTogether && (
+                        <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} darkMode={darkMode} wide />
+                      )}
+                      {r.engagementWeek != null && !r.weddingPlanned && (
+                        <ActionBtn label="Plan Wedding" Icon={Heart} color={accent.purple} onPress={() => setWeddingTargetId(c.id)} darkMode={darkMode} wide />
+                      )}
+                      <ActionBtn label="Break up" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'breakup')} darkMode={darkMode} wide subtle />
+                    </>
+                  )}
+                  {r.type === 'spouse' && (
+                    <ActionBtn label="File for divorce" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'divorce')} darkMode={darkMode} wide subtle />
+                  )}
+                  {!isFamilyRelationship(r) && (
+                    <ActionBtn label="Remove contact" Icon={UserMinus} color={accent.danger} onPress={() => handleRemoveContact(r)} darkMode={darkMode} wide subtle />
+                  )}
                 </View>
-                {!r.livingTogether && (
-                  <ActionBtn label="Move in together" Icon={Handshake} color={accent.success} onPress={() => handleSpecial(c.id, 'movein')} darkMode={darkMode} wide />
-                )}
-                {!r.engagementWeek && r.livingTogether && (
-                  <ActionBtn label="Propose" Icon={Heart} color={accent.gold} onPress={() => handleSpecial(c.id, 'propose')} darkMode={darkMode} wide />
-                )}
-                {r.engagementWeek != null && !r.weddingPlanned && (
-                  <ActionBtn label="Plan Wedding" Icon={Heart} color={accent.purple} onPress={() => setWeddingTargetId(c.id)} darkMode={darkMode} wide />
-                )}
-                <ActionBtn label="Break up" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'breakup')} darkMode={darkMode} wide subtle />
-              </>
-            )}
-            {r.type === 'spouse' && (
-              <ActionBtn label="File for divorce" Icon={XIcon} color={accent.danger} onPress={() => handleSpecial(c.id, 'divorce')} darkMode={darkMode} wide subtle />
-            )}
+              </CollapsibleSection>
+            ) : null}
           </View>
         )}
       </View>
@@ -886,9 +902,9 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         accessibilityLabel={`View ${c.name}`}
       >
         <View style={styles.tileTop}>
-          <View style={iconBubble(color, 40)}>
+          <IconBubble color={color}>
             <Icon size={scale(20)} color={color} />
-          </View>
+          </IconBubble>
           <ProgressRing
             value={c.strength}
             size={40}
@@ -908,14 +924,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         ) : null}
         <View style={styles.tagRow}>
           {c.tags.slice(0, 2).map((t) => (
-            <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(color, 0.12) }]}>
-              <Text style={[styles.tagText, { color }]}>{t}</Text>
-            </View>
+            <Chip key={t} label={t} tint={color} />
           ))}
           {c.costPerWeek ? (
-            <View style={[styles.tag, { backgroundColor: hexToRgba(accent.warning, 0.12) }]}>
-              <Text style={[styles.tagText, { color: accent.warning }]}>${c.costPerWeek.toLocaleString()}/wk</Text>
-            </View>
+            <Chip label={`$${c.costPerWeek.toLocaleString()}/wk`} tone="warning" />
           ) : null}
         </View>
         <View style={styles.tileFooter}>
@@ -943,9 +955,9 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
       >
         {statsHero(kindLabel(c.kind), (
           <View style={styles.detailHeroRow}>
-            <View style={iconBubble(color, 56)}>
+            <IconBubble color={color} style={styles.bubble56}>
               <Icon size={scale(26)} color={color} />
-            </View>
+            </IconBubble>
             <View style={{ flex: 1 }}>
               <Text style={[styles.detailName, { color: theme.text }]} numberOfLines={2}>{c.name}</Text>
               {c.subtitle ? (
@@ -966,7 +978,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           </View>
         ))}
         <View style={cardSurface}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Overview</Text>
+          <SectionTitle title="Overview" />
           <DetailRow label="Relationship strength" value={`${Math.round(c.strength)} / 100`} theme={theme} />
           <DetailRow label="Category" value={kindLabel(c.kind)} theme={theme} />
           <DetailRow label="Managed in" value={sourceLabel(c.sourceApp)} theme={theme} />
@@ -975,12 +987,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         </View>
         {c.tags.length > 0 ? (
           <View style={cardSurface}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Tags</Text>
+            <SectionTitle title="Tags" />
             <View style={styles.tagRow}>
               {c.tags.map((t) => (
-                <View key={t} style={[styles.tag, { backgroundColor: hexToRgba(color, 0.12) }]}>
-                  <Text style={[styles.tagText, { color }]}>{t}</Text>
-                </View>
+                <Chip key={t} label={t} tint={color} />
               ))}
             </View>
           </View>
@@ -990,7 +1000,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             that vendors and politicals "can't [be] associate[d] with". */}
         {favorKind ? (
           <View style={cardSurface}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Call in a favour</Text>
+            <SectionTitle title="Call in a favour" />
             <Text style={[styles.cardSub, { color: theme.textSecondary }]}>
               {owedFavor
                 ? `${c.name} already owes you a ${owedFavor.kind}. Redeem it from the Favors tab.`
@@ -1033,9 +1043,9 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
     const amt = favorAmount(f);
     return (
       <View style={styles.ledgerRow}>
-        <View style={iconBubble(favorColor(f.kind), 36)}>
+        <IconBubble color={favorColor(f.kind)} style={styles.bubble36}>
           <Handshake size={scale(16)} color={favorColor(f.kind)} />
-        </View>
+        </IconBubble>
         <View style={{ flex: 1 }}>
           <Text style={[styles.ledgerTitle, { color: isSettled ? theme.textSecondary : theme.text }]}>
             {f.direction === 'owed-to-player' ? 'You hold' : 'You owe'} · {f.kind}
@@ -1050,12 +1060,10 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         <View style={styles.ledgerRight}>
           <Text style={[styles.ledgerAmount, { color: isSettled ? theme.textMuted : amt.color }]}>{amt.text}</Text>
           {isSettled ? (
-            <View style={[styles.tag, { backgroundColor: theme.surfaceElevated }]}>
-              <Text style={[styles.tagText, { color: theme.textSecondary }]}>{f.status}</Text>
-            </View>
+            <Chip label={f.status} />
           ) : f.direction === 'owed-to-player' ? (
             <TouchableOpacity
-              style={[styles.redeemBtn, { backgroundColor: hexToRgba(accent.success, 0.16) }]}
+              style={[styles.redeemBtn, { backgroundColor: withAlpha(accent.success, 0.16) }]}
               onPress={() => handleRedeemFavor(f.id)}
               accessibilityRole="button"
               accessibilityLabel="Redeem favor"
@@ -1064,7 +1072,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
             </TouchableOpacity>
           ) : f.kind === 'money' ? (
             <TouchableOpacity
-              style={[styles.redeemBtn, { backgroundColor: hexToRgba(accent.warning, 0.16) }]}
+              style={[styles.redeemBtn, { backgroundColor: withAlpha(accent.warning, 0.16) }]}
               onPress={() => handleRepayFavor(f.id)}
               accessibilityRole="button"
               accessibilityLabel="Repay debt"
@@ -1085,9 +1093,9 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
     return (
       <View key={c.id} style={cardSurface}>
         <View style={styles.cardHeader}>
-          <View style={iconBubble(rec.color, 44)}>
+          <IconBubble color={rec.color} style={styles.bubble44}>
             <AlertTriangle size={scale(20)} color={rec.color} />
-          </View>
+          </IconBubble>
           <View style={{ flex: 1 }}>
             <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
             <Text style={[styles.cardSub, { color: theme.textSecondary }]} numberOfLines={2}>{c.subtitle}</Text>
@@ -1113,7 +1121,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
         </View>
         {isPersonal ? (
           <TouchableOpacity
-            style={[styles.triageBtn, { backgroundColor: hexToRgba(accent.amber, 0.16), borderColor: hexToRgba(accent.amber, 0.34) }]}
+            style={[styles.triageBtn, { backgroundColor: withAlpha(accent.amber, 0.16), borderColor: withAlpha(accent.amber, 0.34) }]}
             onPress={() => handleSimple(c.id, 'call', 0, 3)}
             activeOpacity={0.85}
             accessibilityRole="button"
@@ -1124,7 +1132,7 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.triageBtn, { backgroundColor: hexToRgba(accent.info, 0.16), borderColor: hexToRgba(accent.info, 0.34) }]}
+            style={[styles.triageBtn, { backgroundColor: withAlpha(accent.info, 0.16), borderColor: withAlpha(accent.info, 0.34) }]}
             onPress={() => setNetworkDetailId(c.id)}
             activeOpacity={0.85}
             accessibilityRole="button"
@@ -1168,16 +1176,14 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
       keyExtractor={personalKeyExtractor}
       renderItem={({ item }) => renderPersonalCard(item)}
       ListEmptyComponent={
-        <EmptyHero
-          Icon={Users}
-          title="No relationships yet"
+        <EmptyState
+          icon={<Users size={scale(28)} color={theme.textSecondary} />}
+          observation="No relationships yet"
           // Was "Date, befriend, or build family ties" while nothing in the game
-          // could create a friend. Now it can - and the subtitle says WHERE,
+          // could create a friend. Now it can - and the nudge says WHERE,
           // because naming an action without naming its home is how the old copy
           // read as a missing feature rather than a hidden one.
-          subtitle="Match on Spark, then start dating or add them as a friend."
-          theme={theme}
-          darkMode={darkMode}
+          nudge="Match on Spark, then start dating or add them as a friend."
         />
       }
       ListHeaderComponent={
@@ -1213,12 +1219,25 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
                   </Text>
                 </View>
               ) : null}
-              <View style={styles.statsRow}>
-                <Stat label="People" value={personalCount} color={accent.amber} theme={theme} />
-                <Stat label="Avg bond" value={avgStrength} color={strengthColor(avgStrength)} theme={theme} />
-                <Stat label="Strong" value={strongCount} color={accent.success} theme={theme} />
-                <Stat label="At risk" value={personalAttention} color={personalAttention > 0 ? accent.warning : theme.textMuted} theme={theme} />
-              </View>
+              {/* Three numbers, not four: "Strong" is a slice of the average
+                  it sits next to, so it rides as that tile's sub-line rather
+                  than competing with it for a decision. */}
+              <StatStrip
+                items={[
+                  { label: 'People', value: personalCount, tint: accent.amber },
+                  {
+                    label: 'Avg bond',
+                    value: avgStrength,
+                    tint: strengthColor(avgStrength),
+                    sub: `${strongCount} strong`,
+                  },
+                  {
+                    label: 'At risk',
+                    value: personalAttention,
+                    tint: personalAttention > 0 ? accent.warning : undefined,
+                  },
+                ]}
+              />
             </>
           ))
         )
@@ -1229,22 +1248,31 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   const renderNetwork = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {statsHero('Your network', (
-        <View style={styles.statsRow}>
-          <Stat label="Lobbyists" value={countByKind(networkContacts, 'lobbyist')} color={accent.purple} theme={theme} />
-          <Stat label="Allies" value={countByKind(networkContacts, 'alliance')} color={accent.info} theme={theme} />
-          <Stat label="Vendors" value={countByKind(networkContacts, 'vendor')} color={accent.warning} theme={theme} />
-          <Stat label="Business" value={countByKind(networkContacts, 'business')} color={accent.success} theme={theme} />
-          <Stat label="Teams" value={countByKind(networkContacts, 'employee')} color={accent.info} theme={theme} />
-          <Stat label="Cost/wk" value={networkCost > 0 ? `$${networkCost.toLocaleString()}` : '$0'} color={networkCost > 0 ? accent.warning : theme.textMuted} theme={theme} />
-        </View>
+        /* Six per-kind counters were a census, not a decision. The tiles the
+           player acts on are how many people there are, what they cost, and
+           how many can be leaned on; the per-kind breakdown is on the tiles
+           below, which carry the kind on every badge. */
+        <StatStrip
+          items={[
+            { label: 'People', value: networkContacts.length, tint: accent.amber },
+            {
+              label: 'Cost per week',
+              value: networkCost > 0 ? `$${networkCost.toLocaleString()}` : '$0',
+              tint: networkCost > 0 ? accent.warning : undefined,
+            },
+            {
+              label: 'Allies',
+              value: countByKind(networkContacts, 'alliance') + countByKind(networkContacts, 'lobbyist'),
+              tint: accent.info,
+            },
+          ]}
+        />
       ))}
       {networkContacts.length === 0 ? (
-        <EmptyHero
-          Icon={Briefcase}
-          title="No network contacts yet"
-          subtitle="Hire lobbyists, invest in travel businesses, or buy from dark-web vendors to build your network."
-          theme={theme}
-          darkMode={darkMode}
+        <EmptyState
+          icon={<Briefcase size={scale(28)} color={theme.textSecondary} />}
+          observation="No network contacts yet"
+          nudge="Hire lobbyists, invest in travel businesses, or buy from dark-web vendors to build your network."
         />
       ) : (
         <View style={styles.grid}>{networkContacts.map(renderNetworkTile)}</View>
@@ -1255,25 +1283,24 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
   const renderFavors = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
       {statsHero('IOU position', (
-        <View style={styles.statsRow}>
-          <Stat label="Owed to you" value={`$${moneyPos.owedToPlayer.toLocaleString()}`} color={accent.success} theme={theme} />
-          <Stat label="You owe" value={`$${moneyPos.owedByPlayer.toLocaleString()}`} color={accent.danger} theme={theme} />
-          <Stat
-            label="Net"
-            value={`${moneyPos.net >= 0 ? '+' : '−'}$${Math.abs(moneyPos.net).toLocaleString()}`}
-            color={moneyPos.net >= 0 ? accent.success : accent.danger}
-            theme={theme}
-          />
-          <Stat label="Open" value={open.length} color={accent.amber} theme={theme} />
-        </View>
+        /* "Open" is the tab's own badge, so it does not need a tile too. */
+        <StatStrip
+          items={[
+            { label: 'Owed to you', value: `$${moneyPos.owedToPlayer.toLocaleString()}`, tint: accent.success },
+            { label: 'You owe', value: `$${moneyPos.owedByPlayer.toLocaleString()}`, tint: accent.danger },
+            {
+              label: 'Net',
+              value: `${moneyPos.net >= 0 ? '+' : '−'}$${Math.abs(moneyPos.net).toLocaleString()}`,
+              tint: moneyPos.net >= 0 ? accent.success : accent.danger,
+            },
+          ]}
+        />
       ))}
       {open.length === 0 ? (
-        <EmptyHero
-          Icon={Handshake}
-          title="No open favors"
-          subtitle="Favors get added when you lend, owe, or do business with contacts. Redeem them here when you call them in."
-          theme={theme}
-          darkMode={darkMode}
+        <EmptyState
+          icon={<Handshake size={scale(28)} color={theme.textSecondary} />}
+          observation="No open favors"
+          nudge="Favors get added when you lend, owe, or do business with contacts. Redeem them here when you call them in."
         />
       ) : (
         <View style={cardSurface}>
@@ -1326,21 +1353,21 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
     return (
       <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
         {needAttention.length === 0 ? (
-          <EmptyHero
-            Icon={Heart}
-            title="Everyone's content"
-            subtitle="No stale or struggling contacts. Keep it up."
-            theme={theme}
-            darkMode={darkMode}
+          <EmptyState
+            icon={<Heart size={scale(28)} color={theme.textSecondary} />}
+            observation="Everyone's content"
+            nudge="No stale or struggling contacts. Keep it up."
           />
         ) : (
           <>
             {statsHero('Triage queue', (
-              <View style={styles.statsRow}>
-                <Stat label="At risk" value={needAttention.length} color={accent.warning} theme={theme} />
-                <Stat label="Coldest" value={`${coldest}w`} color={accent.danger} theme={theme} />
-                <Stat label="Avg bond" value={attnAvg} color={strengthColor(attnAvg)} theme={theme} />
-              </View>
+              <StatStrip
+                items={[
+                  { label: 'At risk', value: needAttention.length, tint: accent.warning },
+                  { label: 'Coldest', value: `${coldest}w`, tint: accent.danger },
+                  { label: 'Avg bond', value: attnAvg, tint: strengthColor(attnAvg) },
+                ]}
+              />
             ))}
             {needAttention.map(renderTriageCard)}
           </>
@@ -1351,51 +1378,36 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <TouchableOpacity
-          onPress={handleBack}
-          style={styles.headerBtn}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <ArrowLeft size={scale(22)} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-          {inDetail && detailContact ? detailContact.name : 'Contacts'}
-        </Text>
-        <View style={styles.headerBtn} />
-      </View>
+      <AppHeader
+        centered
+        title={inDetail && detailContact ? detailContact.name : 'Contacts'}
+        onBack={handleBack}
+        backLabel={inDetail ? 'Back to contacts' : 'Back'}
+        style={{ backgroundColor: theme.surface }}
+      />
 
       {inDetail && detailContact ? (
         renderNetworkDetail(detailContact)
       ) : (
         <>
-          <View style={[styles.tabBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            {(['personal', 'network', 'favors', 'attention'] as TabType[]).map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                onPress={() => setActiveTab(tab)}
-                style={[
-                  styles.tabBtn,
-                  activeTab === tab && { borderBottomColor: accent.amber, borderBottomWidth: 2 },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={tab}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    { color: activeTab === tab ? accent.amber : theme.textMuted },
-                  ]}
-                >
-                  {tab[0].toUpperCase() + tab.slice(1)}
-                  {tab === 'attention' && needAttention.length > 0 ? ` · ${needAttention.length}` : ''}
-                  {tab === 'favors' && open.length > 0 ? ` · ${open.length}` : ''}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* The count rides in the label ("Favors 2") rather than as a "· 2"
+              suffix: the shared control reads its label out to screen readers
+              verbatim, and a middot is not a word. */}
+          <SegmentedControl
+            style={styles.tabs}
+            activeColor={accent.amber}
+            value={activeTab}
+            onChange={setActiveTab}
+            segments={[
+              { key: 'personal' as TabType, label: 'Personal' },
+              { key: 'network' as TabType, label: 'Network' },
+              { key: 'favors' as TabType, label: open.length > 0 ? `Favors ${open.length}` : 'Favors' },
+              {
+                key: 'attention' as TabType,
+                label: needAttention.length > 0 ? `Attention ${needAttention.length}` : 'Attention',
+              },
+            ]}
+          />
 
           {activeTab === 'personal' && renderPersonal()}
           {activeTab === 'network' && renderNetwork()}
@@ -1403,12 +1415,6 @@ function faceTraitsOf(raw: unknown): { sex?: string; age?: number } {
           {activeTab === 'attention' && renderAttention()}
         </>
       )}
-
-      {feedback && !feedback.id ? (
-        <View style={[styles.toast, getPlatformShadows(8, 0.2, 0, 16), { bottom: getAppScreenBottomPadding(insets.bottom), backgroundColor: theme.surface, borderColor: accent.amber }]}>
-          <Text style={{ color: theme.text }}>{feedback.message}</Text>
-        </View>
-      ) : null}
 
       {(() => {
         const ringTarget = ringTargetId
@@ -1533,7 +1539,7 @@ function ActionBtn({
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.actionChip, { backgroundColor: hexToRgba(color, 0.14) }]}
+      style={[styles.actionChip, { backgroundColor: withAlpha(color, 0.14) }]}
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -1541,50 +1547,6 @@ function ActionBtn({
       <Icon size={scale(14)} color={color} />
       <Text style={[styles.actionBtnText, { color }]}>{label}</Text>
     </TouchableOpacity>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  color,
-  theme,
-}: {
-  label: string;
-  value: number | string;
-  color: string;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <View style={styles.stat}>
-      <Text
-        style={[styles.statValue, { color }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.6}
-      >
-        {value}
-      </Text>
-      <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
-    </View>
-  );
-}
-
-/** Small labelled fact pill for the expanded personal profile. */
-function Fact({
-  label,
-  value,
-  theme,
-}: {
-  label: string;
-  value: string;
-  theme: ReturnType<typeof getThemeColors>;
-}) {
-  return (
-    <View style={[styles.factChip, { backgroundColor: theme.surfaceElevated }]}>
-      <Text style={[styles.factLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.factValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-    </View>
   );
 }
 
@@ -1602,36 +1564,6 @@ function DetailRow({
     <View style={styles.detailRow}>
       <Text style={[styles.detailKey, { color: theme.textSecondary }]}>{label}</Text>
       <Text style={[styles.detailVal, { color: theme.text }]} numberOfLines={1}>{value}</Text>
-    </View>
-  );
-}
-
-function EmptyHero({
-  Icon,
-  title,
-  subtitle,
-  theme,
-  darkMode,
-}: {
-  Icon: React.ComponentType<{ size: number; color: string }>;
-  title: string;
-  subtitle: string;
-  theme: ReturnType<typeof getThemeColors>;
-  darkMode: boolean;
-}) {
-  return (
-    <View
-      style={[
-        getGlassCard(darkMode, 6),
-        styles.emptyCard,
-        { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: br.xl },
-      ]}
-    >
-      <View style={styles.emptyContent}>
-        <Icon size={scale(44)} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
-        <Text style={[styles.emptySub, { color: theme.textSecondary }]}>{subtitle}</Text>
-      </View>
     </View>
   );
 }
@@ -1724,34 +1656,14 @@ function strengthColor(s: number): string {
   return accent.danger;
 }
 
-/** #RRGGBB → rgba(). Every accent token fed here is a 6-digit hex, so a simple parse is safe. */
-function hexToRgba(hex: string, alpha: number): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex1: { flex: 1 },
   scrollPad: { padding: sp.md, gap: sp.lg, paddingBottom: sp['3xl'] },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: sp.md,
-    paddingVertical: sp.sm,
-  },
-  headerBtn: { width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: fs.lg, fontWeight: '700', flex: 1, textAlign: 'center', marginHorizontal: sp.sm },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tabBtn: { flex: 1, paddingVertical: sp.sm, alignItems: 'center' },
-  tabText: { fontSize: fs.sm, fontWeight: '700' },
+  tabs: { marginHorizontal: sp.md, marginBottom: sp.sm },
   card: { padding: sp.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
-  cardName: { fontSize: fs.md, fontWeight: '800' },
+  cardName: { fontSize: fs.md, fontWeight: '600' },
   cardSub: { fontSize: fs.sm, marginTop: 2 },
   avatarWrap: { position: 'relative' },
   avatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: scale(48), height: scale(48), borderRadius: scale(24), borderWidth: 1 },
@@ -1761,12 +1673,12 @@ const styles = StyleSheet.create({
   recencyRow: { flexDirection: 'row', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
   recencyText: { fontSize: fs.xs, fontWeight: '600' },
   // Number that sits inside a compact strength ring (row/tile/triage).
-  ringNum: { fontSize: fontScale(13), fontWeight: '800', fontVariant: ['tabular-nums'] },
+  ringNum: { fontSize: fontScale(13), fontWeight: '600', fontVariant: ['tabular-nums'] },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: sp.xs, marginTop: sp.xs },
-  tag: { paddingHorizontal: sp.sm, paddingVertical: 2, borderRadius: br.full },
-  tagText: { fontSize: fs.xs, fontWeight: '700' },
   actionsBox: { gap: sp.sm, marginTop: sp.md },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
+  // Body of a folded group inside an expanded card.
+  groupBody: { gap: sp.sm },
   // Date sheet: one tappable row per tier (icon + name/vibe + price).
   dateList: { gap: sp.xs },
   dateRow: {
@@ -1776,21 +1688,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: sp.sm,
     paddingVertical: sp.sm,
     borderRadius: br.md,
+    minHeight: touchTargets.minimum,
   },
   dateRowBody: { flex: 1 },
-  dateRowName: { fontSize: fs.sm, fontWeight: '700' },
+  dateRowName: { fontSize: fs.sm, fontWeight: '600' },
   dateRowVibe: { fontSize: fs.xs, marginTop: 1 },
-  dateRowPrice: { fontSize: fs.sm, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  dateRowPrice: { fontSize: fs.sm, fontWeight: '600', fontVariant: ['tabular-nums'] },
   opinionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.sm },
   opinionStat: { fontSize: fontScale(11) },
   innerLifeLine: { flex: 1, fontSize: fontScale(11.5) },
   // Icon + text row for the inner-life readouts (lucide glyphs, not emoji).
   innerLifeRow: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
-  // Labelled fact pills (job / income / dates / gifts) on a surfaceElevated inset.
+  // Fact chips (job / income / dates / gifts) inside "About them".
   factRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.xs },
-  factChip: { flexDirection: 'row', alignItems: 'center', gap: scale(5), paddingHorizontal: sp.sm, paddingVertical: scale(4), borderRadius: br.md },
-  factLabel: { fontSize: fs.xs, fontWeight: '600' },
-  factValue: { fontSize: fs.xs, fontWeight: '800' },
+  // Tinted icon bubbles at the sizes this screen uses; IconBubble owns the
+  // fill/rim recipe, these only set the box.
+  bubble34: { width: scale(34), height: scale(34) },
+  bubble36: { width: scale(36), height: scale(36) },
+  bubble44: { width: scale(44), height: scale(44) },
+  bubble56: { width: scale(56), height: scale(56) },
   // Standard tinted action chip: same-hue soft fill, no border (de-noise).
   actionChip: {
     flexDirection: 'row',
@@ -1802,6 +1718,7 @@ const styles = StyleSheet.create({
     borderRadius: br.full,
     flex: 1,
     minWidth: scale(90),
+    minHeight: touchTargets.minimum,
   },
   // Destructive glass button (danger label rides on top, set inline).
   actionGlassBtn: {
@@ -1811,6 +1728,7 @@ const styles = StyleSheet.create({
     gap: sp.xs,
     paddingHorizontal: sp.md,
     paddingVertical: sp.sm,
+    minHeight: touchTargets.minimum,
   },
   // Recipe D primary CTA: outer carries shadow + solid fill; inner gradient clips.
   ctaWrap: { flexBasis: '100%', borderRadius: br.full, backgroundColor: accent.amber },
@@ -1824,70 +1742,40 @@ const styles = StyleSheet.create({
     borderRadius: br.full,
     overflow: 'hidden',
   },
-  ctaLabel: { color: 'white', fontSize: fs.md, fontWeight: '700' },
-  actionBtnText: { fontSize: fs.xs, fontWeight: '700' },
-  sectionLabel: { fontSize: fs.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: sp.xs },
+  ctaLabel: { color: 'white', fontSize: fs.md, fontWeight: '600' },
+  actionBtnText: { fontSize: fs.xs, fontWeight: '600' },
   feedback: { fontSize: fs.xs, fontStyle: 'italic', marginTop: sp.xs },
-  // Recipe B hero interior: clipped so the tint wash + glow blob stay inside the radius.
+  // Summary-card interior: clipped so the fill stays inside the radius.
   heroInner: { borderRadius: br['2xl'], overflow: 'hidden', padding: sp.lg },
-  heroGlow: {
-    position: 'absolute',
-    top: -scale(48),
-    right: -scale(36),
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    backgroundColor: 'rgba(249, 115, 22, 0.10)',
-  },
-  heroHairline: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   statsTitle: { fontSize: fs.xs, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sp.sm },
-  // Wrap to handle 4-up / 6-up stat rows and long $-formatted values.
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', gap: sp.xs },
-  stat: { alignItems: 'center', flexBasis: '22%', flexGrow: 1, minWidth: scale(72) },
-  statValue: { fontSize: fs.lg, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: fs.xs, marginTop: 2 },
   // Inner-circle avatar stack in the personal hero.
   clusterRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, marginBottom: sp.md },
   avatarStack: { flexDirection: 'row' },
   clusterAvatar: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', width: scale(38), height: scale(38), borderRadius: scale(19), borderWidth: 2 },
-  clusterLabel: { flex: 1, fontSize: fs.sm, fontWeight: '700' },
+  clusterLabel: { flex: 1, fontSize: fs.sm, fontWeight: '600' },
   // Network badge-tile grid.
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: sp.md },
   tile: { flexBasis: '47%', flexGrow: 1, minWidth: scale(150), gap: sp.xs },
   tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   tileFooter: { flexDirection: 'row', alignItems: 'center', gap: scale(2), marginTop: sp.xs },
-  viewLink: { fontSize: fs.sm, fontWeight: '700' },
+  viewLink: { fontSize: fs.sm, fontWeight: '600' },
   // Favor ledger rows.
   ledgerRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md, paddingVertical: sp.sm },
   ledgerDivider: { height: StyleSheet.hairlineWidth },
-  ledgerTitle: { fontSize: fs.md, fontWeight: '700', textTransform: 'capitalize' },
+  ledgerTitle: { fontSize: fs.md, fontWeight: '600', textTransform: 'capitalize' },
   ledgerRight: { alignItems: 'flex-end', gap: sp.xs },
-  ledgerAmount: { fontSize: fs.md, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  toggleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, paddingVertical: sp.sm, paddingHorizontal: sp.md, borderRadius: br.full },
-  toggleText: { fontSize: fs.sm, fontWeight: '700' },
+  ledgerAmount: { fontSize: fs.md, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  toggleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, paddingVertical: sp.sm, paddingHorizontal: sp.md, borderRadius: br.full, minHeight: touchTargets.minimum },
+  toggleText: { fontSize: fs.sm, fontWeight: '600' },
   // Triage / detail-page shared prominent button.
-  triageBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: scale(40), borderRadius: br.full, borderWidth: 1, marginTop: sp.sm, paddingHorizontal: sp.md },
-  triageBtnText: { fontSize: fs.sm, fontWeight: '700' },
+  triageBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: sp.xs, minHeight: touchTargets.minimum, borderRadius: br.full, borderWidth: 1, marginTop: sp.sm, paddingHorizontal: sp.md },
+  triageBtnText: { fontSize: fs.sm, fontWeight: '600' },
   // Network detail page.
   detailHeroRow: { flexDirection: 'row', alignItems: 'center', gap: sp.md },
-  detailName: { fontSize: fs.xl, fontWeight: '800' },
-  sectionTitle: { fontSize: fs.md, fontWeight: '700', letterSpacing: 0.2, marginBottom: sp.xs },
+  detailName: { fontSize: fs.xl, fontWeight: '700' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: sp.md, paddingVertical: sp.sm },
   detailKey: { fontSize: fs.sm },
-  detailVal: { fontSize: fs.sm, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
-  emptyCard: { paddingVertical: sp['2xl'], paddingHorizontal: sp.lg, alignItems: 'center' },
-  emptyContent: { alignItems: 'center', gap: sp.sm, opacity: 0.6 },
-  emptyTitle: { fontSize: fs.lg, fontWeight: '800' },
-  emptySub: { fontSize: fs.sm, textAlign: 'center' },
-  redeemBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.full },
-  redeemText: { fontSize: fs.sm, fontWeight: '700' },
-  toast: {
-    position: 'absolute',
-    bottom: sp.lg,
-    left: sp.md,
-    right: sp.md,
-    padding: sp.md,
-    borderRadius: br.xl,
-    borderWidth: 1,
-  },
+  detailVal: { fontSize: fs.sm, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+  redeemBtn: { paddingHorizontal: sp.md, paddingVertical: sp.sm, borderRadius: br.full, minHeight: touchTargets.minimum, justifyContent: 'center' },
+  redeemText: { fontSize: fs.sm, fontWeight: '600' },
 });
