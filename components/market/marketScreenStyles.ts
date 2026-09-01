@@ -389,9 +389,6 @@ export const styles = StyleSheet.create({
     lineHeight: fontScale(16),
     textAlign: 'center',
   },
-  highlightedCard: {
-    borderColor: 'rgba(245, 158, 11, 0.55)',
-  },
   recommendedCard: {
     borderColor: 'rgba(255, 255, 255, 0.16)',
   },

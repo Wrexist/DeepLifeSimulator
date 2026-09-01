@@ -58,11 +58,6 @@ const POPUPS: ReadonlyArray<{ file: string; bound: RegExp; label: string }> = [
     bound: /maxHeight: '100%'/,
     label: 'LifeMomentModal',
   },
-  {
-    file: 'components/SimpleTutorialModal.tsx',
-    bound: /maxHeight: '80%'/,
-    label: 'SimpleTutorialModal',
-  },
 ];
 
 describe.each(POPUPS)('$label - a blocking popup must be escapable', ({ file, bound }) => {

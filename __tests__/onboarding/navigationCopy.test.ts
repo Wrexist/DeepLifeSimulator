@@ -43,7 +43,7 @@ const REMOVED_TABS = [
  */
 const COPY_SURFACES = [
   'components/HelpModal.tsx',
-  'components/FirstWeekGuide.tsx',
+  'components/ContextualTip.tsx',
   'components/IdentityCard.tsx',
 ];
 

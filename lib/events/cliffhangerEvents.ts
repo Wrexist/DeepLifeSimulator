@@ -7,7 +7,7 @@
  * staying rare enough (roughly one every 10–15 weeks) to feel special.
  *
  * Each cliffhanger has:
- * - teaser: text shown on WeeklyResultSheet
+ * - teaser: text shown on the LastWeekRecap card (formerly the WeeklyResultSheet)
  * - condition: when eligible (e.g., must have a spouse)
  * - resolveEvent: the event that fires next week
  */

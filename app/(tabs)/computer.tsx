@@ -37,7 +37,6 @@ import { useFeedback } from '@/utils/feedbackSystem';
 import EconomyEventBanner from '@/components/shared/EconomyEventBanner';
 import { useNavigation , useIsFocused } from '@react-navigation/native';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useRouter, useSegments } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 
@@ -172,7 +171,6 @@ export function ComputerScreenContent({
     const feature = featureForAppId(activeApp);
     if (feature) trackFeatureUse(feature, weeksLivedRef.current);
   }, [activeApp]);
-  const { highlightedItem } = useTutorialHighlight();
   const { settings } = gameState;
   // Haptic parity with the phone grid - opening an app on mobile buzzed,
   // opening one on the computer was silent.
@@ -589,14 +587,12 @@ export function ComputerScreenContent({
             </Text>
             <View style={styles.appsGrid}>
               {section.apps.map((app) => {
-              const isHighlighted = highlightedItem === 'stock-app' && app.id === 'stocks';
               return (
                 <TouchableOpacity
                   key={app.id}
                   style={[
                     styles.appCardGlass,
                     { width: cardWidth },
-                    isHighlighted && styles.highlightedCardGlass,
                     // Dim rather than hide - the card still teaches what exists.
                     app.locked && { opacity: 0.45 },
                   ]}
@@ -897,28 +893,6 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     fontSize: fontScale(14),
     fontWeight: '700',
-  },
-  highlightedCardGlass: {
-    ...Platform.select({
-      ios: {
-        shadowColor: '#F59E0B',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: scale(20),
-      },
-      android: {
-        elevation: 12,
-      },
-      web: {
-        boxShadow: '0px 0px 24px rgba(245, 158, 11, 0.8)',
-      },
-    }),
-    transform: [{ scale: 1.05 }],
-  },
-  categoryTabsWrapper: {
-    paddingHorizontal: responsivePadding.horizontal,
-    paddingTop: responsivePadding.vertical,
-    paddingBottom: responsiveSpacing.md,
   },
 });
 

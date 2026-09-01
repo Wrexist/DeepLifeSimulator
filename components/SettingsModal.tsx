@@ -11,7 +11,7 @@ import { useGameState } from '@/contexts/game/GameStateContext';
 import { useRouter, type Href } from 'expo-router';
 import { X, Vibrate,
   VibrateOff,
-  Save, HelpCircle, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
+  Save, Calendar, Settings, Target, Sparkles, RefreshCw, MessageCircle, Users, Shield, Code, DollarSign, Gem, Gift, Megaphone, Bell, BellOff } from 'lucide-react-native';
 import LegacyOverviewTab from './LegacyOverviewTab';
 import LifeGoalsPanel from './settings/LifeGoalsPanel';
 import BugReportSheet from './settings/BugReportSheet';
@@ -19,7 +19,6 @@ import DangerZone from './settings/DangerZone';
 import CloudBackupRow from './settings/CloudBackupRow';
 import WhatsNewModal from './WhatsNewModal';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useTutorial } from '@/contexts/UIUXContext';
 // import AsyncStorage from '@react-native-async-storage/async-storage'; // Unused but may be needed
 import { setHapticsEnabled } from '@/utils/haptics';
 import { scale } from '@/utils/scaling';
@@ -129,7 +128,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'settings' | 'lifeGoals'>('settings');
   const [showBugReport, setShowBugReport] = useState(false);
-  const { startEnhancedTutorial, resetTutorial } = useTutorial();
   const [showLegacyOverview, setShowLegacyOverview] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const openWhatsNew = useCallback(() => setShowWhatsNew(true), []);
@@ -639,26 +637,6 @@ function SettingsModal({ visible, onClose }: SettingsModalProps) {
                     suspendLifeAutosave('settings -> switch save slot');
                     const saveSlotsPath: Href = '/(onboarding)/SaveSlots';
                     router.push(saveSlotsPath);
-                  }}
-                />
-
-                <SettingsActionButton
-                  icon={HelpCircle}
-                  label={t('settings.showTutorial')}
-                  accent="#34D399"
-                  onPress={async () => {
-                    try {
-                      logger.info('Opening tutorial...');
-                      await resetTutorial();
-                      onClose();
-                      setTimeout(() => {
-                        startEnhancedTutorial('game');
-                        logger.info('Tutorial opened');
-                      }, 150);
-                    } catch (error) {
-                      logger.error('Error opening tutorial:', error);
-                      gameAlert('Error', 'Failed to open tutorial. Please try again.');
-                    }
                   }}
                 />
 

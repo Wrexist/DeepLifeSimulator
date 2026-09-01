@@ -185,7 +185,6 @@ export default {
         reportBug: 'Report a Bug',
         restartGame: 'Restart Game',
         switchSaveSlot: 'Switch Save Slot',
-        showTutorial: 'Show Tutorial',
         leaderboard: 'Leaderboard',
     },
 };

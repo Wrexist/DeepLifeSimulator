@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,7 +11,6 @@ import { getItemPurchasePrice } from '@/lib/economy/itemPricing';
 import { ShoppingBag, Dumbbell, Apple, Smartphone, Heart, Layers, Package, TrendingUp, Home, Check } from 'lucide-react-native';
 import { getItemBadges, getUnlockDescription } from '@/utils/marketBadges';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useTutorialHighlight } from '@/contexts/TutorialHighlightContext';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import LoadingButton from '@/components/ui/LoadingButton';
@@ -109,10 +108,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       router.replace('/(tabs)/work');
     }
   }, [embedded, navReady, gameState.jailWeeks, router]);
-  const { highlightedItem, clearHighlight } = useTutorialHighlight();
   const { settings } = gameState;
   const { showSuccess, showError, showInfo } = useToast();
-  const flatListRef = useRef<any>(null);
   const [showSellConfirm, setShowSellConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [showPurchaseConfirm, setShowPurchaseConfirm] = useState<{ itemId: string; itemName: string; price: number } | null>(null);
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
@@ -169,13 +166,6 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
   };
 
 
-
-  // Clear highlight when highlighted item is purchased
-  React.useEffect(() => {
-    if (highlightedItem && gameState.items.find(item => item.id === highlightedItem)?.owned) {
-      clearHighlight();
-    }
-  }, [gameState.items, highlightedItem, clearHighlight]);
 
   // P1-8: scroll-indicator state was dead - the setters had been renamed with
   // an underscore by an unused-variable lint sweep, so `contentHeight` and
@@ -251,31 +241,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     return hasMembership && gameState.stats.money >= 50 && gameState.stats.energy >= 20 && (!gymGainsAllZero || gymTimerStale);
   }, [hasMembership, gameState.stats.money, gameState.stats.energy, gymGainsAllZero, gymTimerStale]);
 
-  // Auto-switch to items tab if tutorial is highlighting an item
-  React.useEffect(() => {
-    if (highlightedItem && highlightedItem !== 'stock-app') {
-      setActiveTab('items');
-      // Scroll to highlighted item after a delay. Capture + clear the timer so it
-      // can't fire setState/scroll after unmount or after deps change.
-      const id = setTimeout(() => {
-        if (flatListRef.current && highlightedItem) {
-          const itemIndex = sortedItems.findIndex(item => item.id === highlightedItem);
-          if (itemIndex !== -1) {
-            flatListRef.current.scrollToOffset({
-              offset: itemIndex * 120, // 120 is itemHeight
-              animated: true
-            });
-          }
-        }
-      }, 300);
-      return () => clearTimeout(id);
-    }
-    return undefined;
-  }, [highlightedItem, sortedItems]);
-
   // Memoized render functions with proper dependencies
   const renderItem = useCallback(({ item }: { item: typeof gameState.items[0] }) => {
-    const isHighlighted = highlightedItem === item.id;
     const inflatedPrice = getItemPurchasePrice(item.price, gameState.economy?.priceIndex ?? 1, gameState.prestige?.unlockedBonuses);
 
     // Get badges for this item
@@ -297,7 +264,6 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
       <View key={item.id} style={[
         styles.itemCard,
         settings.darkMode && styles.itemCardDark,
-        isHighlighted && styles.highlightedCard,
         badges.some(b => b.type === 'recommended') && styles.recommendedCard,
       ]}>
         <View style={styles.itemInfo}>
@@ -384,7 +350,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
         )}
       </View>
     );
-  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, gameState.items, highlightedItem, loadingStates, canAffordItem, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
+  }, [settings.darkMode, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, gameState.items, loadingStates, canAffordItem, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
 
   const renderFood = useCallback(({ item: food }: { item: typeof gameState.foods[0] }) => {
     // Calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)

@@ -8,7 +8,7 @@ import { modalEventCount } from '@/lib/events/routing';
 // GameState mutation, so a money tick re-rendered the navigator. The sibling
 // app/(onboarding)/_layout.tsx documents the same reasoning (it also avoids the
 // GameContext barrel's import cycle by importing the leaf module directly).
-import { useGameSelector, useGameStateGetter } from '@/contexts/game/useGameSelector';
+import { useGameSelector } from '@/contexts/game/useGameSelector';
 import { scale } from '@/utils/scaling';
 import { useFullscreenApp } from '@/utils/fullscreenAppStore';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -26,7 +26,6 @@ import { useInterruptionSlot, INTERRUPTION_PRIORITY } from '@/contexts/Interrupt
 
 const WeeklyEventModal = lazy(() => import('@/components/WeeklyEventModal'));
 const LifeMomentModal = lazy(() => import('@/components/LifeMomentModal'));
-const WeeklyResultSheet = lazy(() => import('@/components/WeeklyResultSheet'));
 
 // The game home tab lives at `home`, NOT the bare `index`. app/index.tsx is the
 // boot loader and owns "/"; if a (tabs)/index.tsx existed it would ALSO resolve
@@ -126,23 +125,14 @@ export default function TabLayout() {
     (s?.items ?? []).some((item) => item.id === 'computer' && item.owned)
   );
   const weeksLived = useGameSelector((s) => s?.weeksLived ?? 0);
-  const weekResult = useGameSelector((s) => s?.weekResult);
   const showDeathPopup = useGameSelector((s) => s?.showDeathPopup === true);
   const showWeddingPopup = useGameSelector((s) => s?.showWeddingPopup === true);
   const pendingMoment = useGameSelector((s) => s?.lifeMoments?.pendingMoment);
-  const weekSummaryEnabled = useGameSelector(
-    (s) => s?.settings?.weeklySummaryEnabled !== false
-  );
   // Letter-shaped events live in the mail app, so they must not inflate the
   // pill - a player who saw "2 decisions waiting", opened the inbox and found
   // one would have no way to find the other. One selector, shared with
   // `WeeklyEventModal`, so the two can never disagree.
   const pendingEventCount = useGameSelector((s) => modalEventCount(s));
-  // `WeeklyResultSheet` takes the whole GameState (it reads `weekResult`,
-  // `playStreak` and `settings.darkMode`). Read it on demand rather than
-  // subscribing: the sheet only mounts right after a week advance, and
-  // `weeksLived` above already re-renders this layout on exactly that commit.
-  const getGameState = useGameStateGetter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -165,29 +155,9 @@ export default function TabLayout() {
   const fullscreenApp = useFullscreenApp();
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : null;
 
-  // Weekly payoff sheet - shows after a week actually advances during the
-  // session (never on app load), and only when the week had something worth
-  // reporting. Sits below the death/wedding/life-moment/event modals.
-  const [resultWeek, setResultWeek] = useState<number | null>(null);
-  const prevWeekRef = useRef<number | null>(null);
-  // (`weekSummaryEnabled` is the player-facing on/off switch, Settings → "Week
-  // Summary"; it defaults to on and only an explicit `false` suppresses the sheet.)
-  useEffect(() => {
-    const w = weeksLived;
-    if (prevWeekRef.current === null) { prevWeekRef.current = w; return; } // first observe
-    if (w > prevWeekRef.current) {
-      prevWeekRef.current = w;
-      const wr = weekResult;
-      const meaningful = !!wr && (
-        (wr.incomeEarned ?? 0) > 0 || (wr.expensesPaid ?? 0) > 0 ||
-        (wr.luckyBonus ?? 0) > 0 || (wr.streakBonus ?? 0) > 0 ||
-        (wr.careerProgressPercent ?? 0) > 0 || !!wr.cliffhangerTeaser
-      );
-      if (meaningful && weekSummaryEnabled && !showDeathPopup) setResultWeek(w);
-    } else {
-      prevWeekRef.current = w;
-    }
-  }, [weeksLived, weekResult, showDeathPopup, weekSummaryEnabled]);
+  // The blocking end-of-week sheet is retired: LastWeekRecap on Home is the
+  // week summary now, non-blocking and gated by the same Settings switch. One
+  // less surface competing for the post-tick moment.
 
   // Non-blocking weekly-event inbox: events queue but never auto-pop. The
   // player opens them from a pill; the modal walks the queue on demand.
@@ -224,19 +194,13 @@ export default function TabLayout() {
   const showEventInbox = useInterruptionSlot(
     'tabs:event-inbox',
     INTERRUPTION_PRIORITY.EVENT_INBOX,
-    eventInboxOpen && pendingEventCount > 0 && !showDeathPopup && !showWeddingPopup
-  );
-  // The weekly sheet is a plain absolute View, so the RN Modals raised by Home
-  // (goal / daily reward / welcome back / community) covered it outright and its
-  // "Continue" button became unreachable until they were dismissed. Routing it
-  // through the shared queue makes it WAIT for them instead of racing them.
-  const showWeekResult = useInterruptionSlot(
-    'tabs:week-result',
-    INTERRUPTION_PRIORITY.WEEK_RESULT,
-    resultWeek !== null && !higherModalUp && weekSummaryEnabled
+    eventInboxOpen && pendingEventCount > 0 && !showDeathPopup && !showWeddingPopup,
+    // Player-initiated (the pill was tapped) - never deferred by the
+    // per-week interruption budget; refusing a direct tap reads as a bug.
+    { countsTowardBudget: false }
   );
   // The inbox pill shows when decisions are waiting and nothing else is up.
-  const showEventPill = pendingEventCount > 0 && !higherModalUp && !showWeekResult && !isInPrison;
+  const showEventPill = pendingEventCount > 0 && !higherModalUp && !isInPrison;
 
   // Force navigation to work tab when entering prison
   useEffect(() => {
@@ -418,17 +382,6 @@ export default function TabLayout() {
     {/* Occasional animated premium-pass upsell (gated: unsubscribed + rewards
         already earned & waiting + long cooldown). */}
     <PremiumPassPromo />
-    {/* Weekly payoff sheet - the satisfying end-of-week beat. Lowest priority:
-        only shows once the modals above have cleared. */}
-    {showWeekResult ? (
-      <Suspense fallback={null}>
-        <WeeklyResultSheet
-          visible={showWeekResult}
-          gameState={getGameState()}
-          onClose={() => setResultWeek(null)}
-        />
-      </Suspense>
-    ) : null}
     {/* Non-blocking event inbox pill - tap to review decisions on your own time. */}
     {showEventPill ? (
       <EventInboxPill

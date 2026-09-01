@@ -24,7 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 import { weeksInThisLife } from '@/lib/progress/lifeChapters';
-import { useContextualTip } from '@/components/FirstWeekGuide';
+import { useContextualTip } from '@/components/ContextualTip';
 import { createTestGameState } from '../helpers/createTestGameState';
 import type { GameState } from '@/contexts/game/types';
 
@@ -121,7 +121,7 @@ describe('the no-job nudge waits for the player to actually be jobless a while',
 describe('the first-session gates do not compare the absolute counter to a literal', () => {
   const GATED_FILES = [
     'app/(tabs)/home.tsx',
-    'components/FirstWeekGuide.tsx',
+    'components/ContextualTip.tsx',
     'components/BannerAd.tsx',
     'components/AchievementsProgress.tsx',
     'lib/analytics/AnalyticsTracker.tsx',

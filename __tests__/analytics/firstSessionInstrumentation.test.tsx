@@ -5,7 +5,8 @@
  * ------------------
  * `lib/analytics/events.ts` declares the events its own docstring says exist to
  * measure "retention (D1/D7/D30) … and churn points". Three of them —
- * `onboarding_step`, `tutorial_step`, `session_end` — were declared and emitted
+ * `onboarding_step`, `tutorial_step` (since retired with the modal tutorial),
+ * and `session_end` — were declared and emitted
  * by NOTHING, which is invisible in every way that matters: it does not fail a
  * build, it does not throw, and the code that records the data locally looks
  * completely healthy. `onboardingAnalytics.ts` logged every step view and
@@ -27,7 +28,6 @@ import {
   logOnboardingStepComplete,
   logOnboardingValidationError,
 } from '@/src/features/onboarding/onboardingAnalytics';
-import { UIUXProvider, useUIUX } from '@/contexts/UIUXContext';
 import { AnalyticsTracker } from '@/lib/analytics/AnalyticsTracker';
 import { GameStoreContext } from '@/contexts/game/useGameSelector';
 import { GameUIProvider } from '@/contexts/game/GameUIContext';
@@ -92,71 +92,6 @@ describe('onboarding funnel reaches the transport', () => {
     logOnboardingStepView('MainMenu');
     spy.mockRestore();
     expect(mockTrack).toHaveBeenCalled();
-  });
-});
-
-describe('tutorial funnel reports WHERE it was abandoned', () => {
-  function harness() {
-    const api: { current: ReturnType<typeof useUIUX> | null } = { current: null };
-    function Probe() {
-      api.current = useUIUX();
-      return null;
-    }
-    act(() => {
-      TestRenderer.create(
-        <UIUXProvider>
-          <Probe />
-        </UIUXProvider>
-      );
-    });
-    return api;
-  }
-
-  const steps = [
-    { id: 'a', title: 'A', description: 'a' },
-    { id: 'b', title: 'B', description: 'b' },
-    { id: 'c', title: 'C', description: 'c' },
-  ] as never;
-
-  it('emits start with the total, so a completion rate has a denominator', () => {
-    const api = harness();
-    act(() => api.current!.startTutorial(steps));
-    expect(mockTrack).toHaveBeenCalledWith(
-      'tutorial_step',
-      expect.objectContaining({ action: 'start', step: 0, total: 3 })
-    );
-  });
-
-  it('reports the step a player skipped ON, not merely that they skipped', () => {
-    // "They quit the tutorial" is not actionable. "They quit on step 2" names
-    // the screen to rewrite.
-    const api = harness();
-    act(() => api.current!.startTutorial(steps));
-    act(() => api.current!.setTutorialStep(2));
-    mockTrack.mockClear();
-    act(() => {
-      void api.current!.skipTutorial();
-    });
-    expect(mockTrack).toHaveBeenCalledWith(
-      'tutorial_step',
-      expect.objectContaining({ action: 'skip', step: 2, total: 3 })
-    );
-  });
-
-  it('emits completion exactly once per call, not once per state commit', () => {
-    // The step is read from a ref precisely so the emit sits OUTSIDE the
-    // setState updater. React may invoke an updater more than once for a single
-    // commit (§4.4), which would report one abandonment as two.
-    const api = harness();
-    act(() => api.current!.startTutorial(steps));
-    mockTrack.mockClear();
-    act(() => {
-      void api.current!.completeTutorial();
-    });
-    const completions = mockTrack.mock.calls.filter(
-      ([name, props]) => name === 'tutorial_step' && (props as { action: string }).action === 'complete'
-    );
-    expect(completions).toHaveLength(1);
   });
 });
 
