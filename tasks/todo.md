@@ -1,3 +1,21 @@
+# UI Overhaul Master Program 1 — IN PROGRESS
+
+Blueprint: `tasks/ui-overhaul-blueprint.md` (full forensic audit + 8-phase plan).
+Phase status — audit complete, implementation not started:
+
+- [x] Phase A — Forensic audit (screens, navigation, design system, overlay layer)
+- [x] Phase A — Redesign blueprint written (14 sections + metric ratchet table)
+- [ ] Phase 0 — Foundations: Card/Button/Text/IconBubble/StatBreakdownModal primitives, single stat-color source, lint guards, dead-code deletion
+- [ ] Phase 1 — Kill the noise: interruption budget (≤2/tick), tutorial de-triplication, WeeklyResultSheet removal, paywalls 8→2
+- [ ] Phase 2 — HUD rebuild (TopStatsBar → ≤7 readouts, labeled Next Week)
+- [ ] Phase 3 — Home rebuild (unified Goals surface, IdentityCard diet)
+- [ ] Phase 4 — Work rebuild (3-chip JobCard, button-state collapse)
+- [ ] Phase 5 — Structure: one AppLauncher, Market flatten, route dedup
+- [ ] Phase 6 — Progression + onboarding trim (Perks/Ambitions out of FTUE)
+- [ ] Phase 7 — Sub-app pass (merge Vehicle+Luxury, Gaming+Streaming, one Bank)
+
+---
+
 # Live Operations — COMPLETE
 
 Shipped on `claude/deep-life-analytics-system-l44b7j`. Reference: `docs/LIVEOPS.md`.
