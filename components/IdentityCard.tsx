@@ -5,9 +5,7 @@ import { View,
   TouchableOpacity,
   Modal,
   ScrollView } from 'react-native';
-import Gradient from '@/components/ui/Gradient';
-import DailyGemClaim from '@/components/DailyGemClaim';
-import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils, Activity, AlertTriangle } from 'lucide-react-native';
+import { ChevronRight, DollarSign, Star, Heart, TrendingUp, Crown, Brain, History, X, Flame, Home, Building2, Smartphone, FlaskConical, Sparkles, Gamepad2, CreditCard, Zap, Car, Utensils } from 'lucide-react-native';
 import { MINDSET_TRAITS } from '@/lib/mindset/config';
 import { getCosmetic } from '@/lib/cosmetics/cosmetics';
 import {
@@ -16,7 +14,6 @@ import {
   fontScale,
 } from '@/utils/scaling';
 import { styles } from '@/components/IdentityCardStyles';
-import DeepLifePlusUpsell from '@/components/DeepLifePlusUpsell';
 import { PLAYER_RENT_RATE_WEEKLY } from '@/lib/economy/constants';
 import { MINER_POWER_UNITS, minerFleetWeeklyPowerCost } from '@/lib/economy/minerPower';
 import { propertyTaxWeekly } from '@/lib/realEstate/carryingCosts';
@@ -44,7 +41,6 @@ import CollapsibleSection from '@/components/ui/CollapsibleSection';
 const YouthPillModal = lazy(() => import('./YouthPillModal'));
 const LegacyTimeline = lazy(() => import('./LegacyTimeline'));
 const NetWorthBreakdownModal = lazy(() => import('./NetWorthBreakdownModal'));
-const LinearGradient = Gradient;
 
 // Type guard helpers for Loan properties
 function hasLoanName(loan: Loan | unknown): loan is Loan & { name: string } {
@@ -526,74 +522,6 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
   // Health issues surfaced passively on the player card. This replaces the
   // interruptive week-advance popups (sickness modal + zero-stat warning):
   // every active problem is listed here alongside how to fix it.
-  const healthIssues = useMemo(() => {
-    const issues: { id: string; title: string; fix: string; level: 'critical' | 'warning' | 'info' }[] = [];
-
-    (gameState.diseases || []).forEach((d, i) => {
-      if (!d || !d.name) return;
-      const hasDeathCountdown = 'weeksUntilDeath' in d && typeof (d as { weeksUntilDeath?: unknown }).weeksUntilDeath === 'number';
-      const level: 'critical' | 'warning' | 'info' =
-        hasDeathCountdown || d.severity === 'critical'
-          ? 'critical'
-          : d.severity === 'serious'
-            ? 'warning'
-            : 'info';
-      const sevLabel = d.severity ? d.severity.charAt(0).toUpperCase() + d.severity.slice(1) : 'Mild';
-      const fix = (d.treatmentRequired || hasDeathCountdown)
-        ? 'See a doctor or hospital under Life → Health to treat it.'
-        : 'Rest and eat well - it should pass, or treat it under Life → Health.';
-      issues.push({ id: `disease-${d.id}-${i}`, title: `${d.name} · ${sevLabel}`, fix, level });
-    });
-
-    const health = stats?.health ?? 100;
-    if (health <= 0) {
-      const weeksLeft = Math.max(1, 4 - (gameState.healthZeroWeeks || 0));
-      issues.push({
-        id: 'health-zero',
-        title: `Health critical - ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
-        fix: "Eat, rest and start a diet plan under Life → Health before it's too late.",
-        level: 'critical',
-      });
-    } else if (health <= 30) {
-      issues.push({
-        id: 'health-low',
-        title: 'Low health',
-        fix: 'Improve your diet, rest, and exercise under Life → Health.',
-        level: 'warning',
-      });
-    }
-
-    const happiness = stats?.happiness ?? 100;
-    if (happiness <= 0) {
-      const weeksLeft = Math.max(1, 4 - (gameState.happinessZeroWeeks || 0));
-      issues.push({
-        id: 'happiness-zero',
-        title: `Happiness critical - ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''} to recover`,
-        fix: 'Do something fun or spend time with people you care about.',
-        level: 'critical',
-      });
-    } else if (happiness <= 30) {
-      issues.push({
-        id: 'happiness-low',
-        title: 'Low happiness',
-        fix: 'Spend on hobbies, socialize, or take a break to recover.',
-        level: 'warning',
-      });
-    }
-
-    const energy = stats?.energy ?? 100;
-    if (energy <= 20) {
-      issues.push({
-        id: 'energy-low',
-        title: 'Low energy',
-        fix: 'Rest or sleep to recover energy before working.',
-        level: 'info',
-      });
-    }
-
-    return issues;
-  }, [gameState.diseases, gameState.healthZeroWeeks, gameState.happinessZeroWeeks, stats?.health, stats?.happiness, stats?.energy]);
-
   const perksCount = activePerks.length;
   const traitsCount = traits.length;
 
@@ -609,12 +537,9 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
 
   return (
     <View style={styles.cardContainer}>
-      <LinearGradient
-        colors={['#1E293B', '#0F172A']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
+      {/* Solid fill: the old #1E293B->#0F172A diagonal gradient was near
+          invisible and cost an SVG layer on the first card of the feed. */}
+      <View style={[styles.card, { backgroundColor: '#182236' }]}>
         <View style={styles.avatarContainer}>
           {/* The ring lives on a wrapper: the avatar is an SVG, so a border on
               the element itself would not follow the circular clip. */}
@@ -633,9 +558,9 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           <View
             style={[styles.avatarGlow, equippedTheme ? { backgroundColor: `${equippedTheme.color}33` } : null]}
           />
-          {/* DeepLife+ upsell - a glowing crown at the avatar's top-left corner
-              (prestige badge owns the top-right). Self-hides for members. */}
-          <DeepLifePlusUpsell variant="badge" surface="player_card" style={styles.premiumAvatarCrown} />
+          {/* The avatar-corner DeepLife+ crown is gone - the store button in
+              the HUD and the banner inside the gem store are the paywall
+              entries now (audit: four concurrent store affordances on Home). */}
           {gameState?.prestige?.prestigeLevel !== undefined && (gameState?.prestige?.prestigeLevel ?? 0) > 0 && (
             /* The badge used to be a TouchableOpacity whose onPress was an empty
                body with a comment admitting it did nothing - it dimmed on press
@@ -651,27 +576,17 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
                 accessibilityLabel={`Prestige level ${gameState?.prestige?.prestigeLevel ?? 0}`}
                 accessibilityHint="Opens the Prestige Shop"
               >
-                <LinearGradient
-                  colors={['#FCD34D', '#F59E0B', '#D97706']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.prestigeBadgeGradient}
-                >
+                <View style={[styles.prestigeBadgeGradient, { backgroundColor: '#F59E0B' }]}>
                   <Crown size={14} color="#FFFFFF" />
                   <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             ) : (
               <View style={styles.prestigeBadge}>
-                <LinearGradient
-                  colors={['#FCD34D', '#F59E0B', '#D97706']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.prestigeBadgeGradient}
-                >
+                <View style={[styles.prestigeBadgeGradient, { backgroundColor: '#F59E0B' }]}>
                   <Crown size={14} color="#FFFFFF" />
                   <Text style={styles.prestigeBadgeText}>P{gameState?.prestige?.prestigeLevel ?? 0}</Text>
-                </LinearGradient>
+                </View>
               </View>
             )
           )}
@@ -767,9 +682,6 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
         </View>
         </CollapsibleSection>
 
-        {/* Daily gem drop - 250 for DeepLife+ members, 20 for free players; nudges non-members to upgrade. */}
-        <DailyGemClaim />
-
         <TouchableOpacity
           style={styles.netWorthContainer}
           onPress={() => setShowNetWorth(true)}
@@ -781,14 +693,9 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           </Text>
           <ChevronRight size={16} color="#10B981" style={{ marginLeft: responsiveSpacing.xs }} />
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
 
-      <LinearGradient
-        colors={['#1E293B', '#0F172A']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.list}
-      >
+      <View style={[styles.list, { backgroundColor: '#182236' }]}>
         <TouchableOpacity style={styles.listItem} onPress={() => setShowCash(true)}>
           <View style={styles.listItemContent}>
             <DollarSign size={20} color="#10B981" />
@@ -849,88 +756,12 @@ function IdentityCard({ onOpenPrestigeShop }: IdentityCardProps) {
           </View>
           <ChevronRight size={20} color="#94A3B8" />
         </TouchableOpacity>
-      </LinearGradient>
-
-      {/* Health Issues - passive replacement for the week-advance health popups.
-          Lists every active health problem and how to fix it. */}
-      <View
-        style={{
-          marginTop: responsiveSpacing.sm,
-          borderRadius: scale(16),
-          padding: scale(14),
-          backgroundColor: isDarkMode ? '#1E293B' : '#FFFFFF',
-          borderWidth: 1,
-          borderColor: healthIssues.length > 0
-            ? 'rgba(239,68,68,0.35)'
-            : (isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: scale(8) }}>
-          {healthIssues.length > 0 ? (
-            <AlertTriangle size={scale(18)} color="#EF4444" />
-          ) : (
-            <Activity size={scale(18)} color="#10B981" />
-          )}
-          <Text
-            style={{
-              marginLeft: scale(8),
-              fontSize: fontScale(15),
-              fontWeight: '700',
-              color: isDarkMode ? '#F8FAFC' : '#0F172A',
-            }}
-          >
-            {`Health Issues${healthIssues.length > 0 ? ` (${healthIssues.length})` : ''}`}
-          </Text>
-        </View>
-
-        {healthIssues.length === 0 ? (
-          <Text style={{ fontSize: fontScale(13), color: isDarkMode ? '#94A3B8' : '#64748B' }}>
-            You&apos;re in good shape - no health issues right now.
-          </Text>
-        ) : (
-          healthIssues.map(issue => {
-            const color =
-              issue.level === 'critical' ? '#EF4444' : issue.level === 'warning' ? '#F59E0B' : '#3B82F6';
-            return (
-              <View
-                key={issue.id}
-                style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: scale(8) }}
-              >
-                <View
-                  style={{
-                    width: scale(8),
-                    height: scale(8),
-                    borderRadius: scale(4),
-                    backgroundColor: color,
-                    marginTop: scale(5),
-                    marginRight: scale(8),
-                  }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: fontScale(13.5),
-                      fontWeight: '600',
-                      color: isDarkMode ? '#F1F5F9' : '#1E293B',
-                    }}
-                  >
-                    {issue.title}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: fontScale(12),
-                      color: isDarkMode ? '#94A3B8' : '#64748B',
-                      marginTop: scale(1),
-                    }}
-                  >
-                    {issue.fix}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
       </View>
+
+      {/* Health issues moved to the Health screen (components/health/
+          HealthIssuesCard) - "how healthy am I?" was answered on four surfaces
+          and the list with treatment guidance belongs where the treatments
+          are. The HUD's ring + disease badge stay the at-a-glance answer. */}
 
       <AutoSaveIndicator position="relative" />
 

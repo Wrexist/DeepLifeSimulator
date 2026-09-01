@@ -111,12 +111,16 @@ describe('C-4 - the honest warning for the same state survives (the control)', (
   /**
    * Deleting the false row must not have left a player at 12 health with no
    * warning at all. `healthIssues` tests the SAME condition and says something
-   * true, with the fix attached.
+   * true, with the fix attached. The list moved to the Health screen in the
+   * UI overhaul (components/health/HealthIssuesCard) - the invariant follows
+   * the code.
    */
+  const ISSUES = read('components/health/HealthIssuesCard.tsx');
+
   it('healthIssues still raises Low health on the same threshold', () => {
-    const start = CARD.indexOf('const healthIssues = useMemo(');
+    const start = ISSUES.indexOf('const healthIssues = useMemo(');
     expect(start).toBeGreaterThan(-1);
-    const block = CARD.slice(start, CARD.indexOf('return issues;', start));
+    const block = ISSUES.slice(start, ISSUES.indexOf('return issues;', start));
 
     expect(block).toMatch(/health <= 30/);
     expect(block).toMatch(/title: 'Low health'/);
@@ -124,7 +128,7 @@ describe('C-4 - the honest warning for the same state survives (the control)', (
   });
 
   it('and still counts down the four weeks once health hits zero', () => {
-    expect(CARD).toMatch(/4 - \(gameState\.healthZeroWeeks \|\| 0\)/);
+    expect(ISSUES).toMatch(/4 - \(healthZeroWeeks \|\| 0\)/);
   });
 
   it('the modifiers list still shows the effects that ARE real', () => {

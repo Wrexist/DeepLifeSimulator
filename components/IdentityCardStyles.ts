@@ -483,12 +483,6 @@ export const styles = StyleSheet.create({
   // against a round avatar: at the old -xs inset its lower-right corner pushed
   // into the character's hair and face. Hanging it off the avatar's edge lets it
   // read as a badge pinned to the portrait rather than something covering it.
-  premiumAvatarCrown: {
-    position: 'absolute',
-    top: -responsiveSpacing.sm,
-    left: -scale(18),
-    zIndex: 10,
-  },
   prestigeBadgeGradient: {
     flexDirection: 'row',
     alignItems: 'center',

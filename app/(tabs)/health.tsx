@@ -5,11 +5,12 @@ import { useRouter } from 'expo-router';
 import { useNavigationReady } from '@/hooks/useNavigationReady';
 import { useGame } from '@/contexts/GameContext';
 import { HealthActivity } from '@/contexts/game/types';
-import { Activity, Utensils, AlertTriangle, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
+import { Activity, Utensils, Heart, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import EmptyState from '@/components/ui/EmptyState';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import HealthIssuesCard from '@/components/health/HealthIssuesCard';
 import ProgressRing from '@/components/ui/ProgressRing';
 import { fontScale, responsiveSpacing, responsiveBorderRadius, scale, verticalScale, getTabBarSafePadding } from '@/utils/scaling';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
@@ -161,8 +162,6 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
   };
 
   const activeDietPlan = (gameState.dietPlans ?? []).find(plan => plan.active);
-  const currentDiseases = gameState.diseases || [];
-  const hasDiseases = currentDiseases.length > 0;
 
   // At-a-glance vitals - the health screen never showed the player's own stats.
   const stats = gameState.stats ?? { health: 0, energy: 0, happiness: 0, fitness: 0 };
@@ -239,38 +238,11 @@ export function HealthScreenContent({ embedded = false }: { embedded?: boolean }
           </CollapsibleSection>
         </View>
 
-        {/* Disease status - quiet warning card, no left bar */}
-        {hasDiseases && (
-          <View style={styles.diseaseCard}>
-            <View style={styles.diseaseHeader}>
-              <View style={styles.diseaseIconWrap}>
-                <AlertTriangle size={scale(15)} color="#F87171" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.diseaseTitle}>
-                  {currentDiseases.length} active condition{currentDiseases.length !== 1 ? 's' : ''}
-                </Text>
-                <Text style={styles.diseaseHint}>Visit a doctor or hospital to treat.</Text>
-              </View>
-            </View>
-            <View style={styles.diseaseList}>
-              {currentDiseases.map((disease, index) => {
-                const dotColor =
-                  disease.severity === 'critical' ? '#DC2626'
-                    : disease.severity === 'serious' ? '#EF4444'
-                      : '#F59E0B';
-                return (
-                  <View key={disease.id ?? disease.name ?? index} style={styles.diseaseRow}>
-                    <View style={[styles.diseaseDot, { backgroundColor: dotColor }]} />
-                    <Heart size={scale(12)} color={dotColor} />
-                    <Text style={styles.diseaseName}>{disease.name}</Text>
-                    <Text style={styles.diseaseSeverity}>{disease.severity}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
+        {/* Every active health problem and how to fix it - moved here from the
+            Home identity card (the audit found health answered on four
+            surfaces). Supersedes the old diseases-only card: it lists diseases
+            AND critical/low vitals, each with its fix. Self-nulls when clear. */}
+        <HealthIssuesCard />
 
         {/* Activities */}
         <View style={styles.section}>
@@ -504,70 +476,6 @@ const styles = StyleSheet.create({
   },
   sectionDescriptionDark: {
     color: 'rgba(226, 232, 240, 0.6)',
-  },
-  // Disease status card - quiet, no left bar.
-  diseaseCard: {
-    backgroundColor: 'rgba(248, 113, 113, 0.08)',
-    borderRadius: responsiveBorderRadius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(248, 113, 113, 0.25)',
-    padding: responsiveSpacing.md,
-    gap: verticalScale(10),
-  },
-  diseaseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(10),
-  },
-  diseaseIconWrap: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(9),
-    backgroundColor: 'rgba(248, 113, 113, 0.12)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(248, 113, 113, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  diseaseTitle: {
-    fontSize: fontScale(14),
-    fontWeight: '700',
-    color: '#FCA5A5',
-    letterSpacing: -0.2,
-  },
-  diseaseHint: {
-    fontSize: fontScale(11),
-    color: 'rgba(252, 165, 165, 0.7)',
-    marginTop: 1,
-  },
-  diseaseList: {
-    gap: verticalScale(6),
-    paddingTop: verticalScale(4),
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(248, 113, 113, 0.2)',
-  },
-  diseaseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-  },
-  diseaseDot: {
-    width: scale(5),
-    height: scale(5),
-    borderRadius: scale(3),
-  },
-  diseaseName: {
-    flex: 1,
-    fontSize: fontScale(13),
-    fontWeight: '600',
-    color: '#FCA5A5',
-  },
-  diseaseSeverity: {
-    fontSize: fontScale(10),
-    fontWeight: '700',
-    color: 'rgba(252, 165, 165, 0.75)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
   },
   activeDietFooter: {
     fontSize: fontScale(11),
