@@ -184,7 +184,12 @@ function BitcoinMiningAppInner({ onBack }: BitcoinMiningAppProps) {
   const market = gameState.cryptoMarket ?? initialGameState.cryptoMarket!;
   const banking = gameState.banking ?? initialGameState.banking;
 
-  const [activeTab, setActiveTab] = useState<Tab>('trade');
+  // Land on the rig console once a rig exists: a miner's question is "what
+  // did my rigs do", and the trade tab (the only tab with no hero) answered
+  // it for nobody (Program 4).
+  const [activeTab, setActiveTab] = useState<Tab>(() =>
+    Object.values(gameState.warehouse?.miners ?? {}).some((n) => (n || 0) > 0) ? 'mine' : 'trade'
+  );
   const [subView, setSubView] = useState<SubView>(null);
   const [selectedCoinId, setSelectedCoinId] = useState<string>('btc');
   const [orderCoin, setOrderCoin] = useState<Crypto | null>(null);

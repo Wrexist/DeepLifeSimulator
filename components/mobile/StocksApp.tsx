@@ -114,7 +114,10 @@ function StocksAppInner({ onBack }: StocksAppProps) {
   const totalDividends = stocks?.totalDividends ?? 0;
   const dividendsThisYear = stocks?.dividendsThisYear ?? 0;
 
-  const [activeTab, setActiveTab] = useState<Tab>('market');
+  // Land on the player's own position once they hold anything: the market
+  // strip (advancing / declining / owned) is the same for everyone, the
+  // portfolio is theirs (Program 4).
+  const [activeTab, setActiveTab] = useState<Tab>(() => (holdings.length > 0 ? 'portfolio' : 'market'));
   const [tradeTarget, setTradeTarget] = useState<{ symbol: string; price: number } | null>(null);
   const [detailSymbol, setDetailSymbol] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<Sector | null>(null);

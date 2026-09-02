@@ -216,7 +216,11 @@ export default function TravelApp({ onBack }: TravelAppProps) {
   const darkMode = !!gameState.settings?.darkMode;
   const theme = getThemeColors(darkMode);
 
-  const [activeTab, setActiveTab] = useState<TabType>('destinations');
+  // A trip in flight is the one thing happening; land on it rather than on
+  // the board of places to go next (Program 4).
+  const [activeTab, setActiveTab] = useState<TabType>(() =>
+    gameState.travel?.currentTrip ? 'trip' : 'destinations'
+  );
   const [returnEvents, setReturnEvents] = useState<TripReturnResult | null>(null);
   // list → detail sub-view: presents existing destination data on its own page.
   const [detailId, setDetailId] = useState<string | null>(null);

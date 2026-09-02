@@ -269,7 +269,37 @@ export default function StatisticsApp({ onBack }: Props) {
   // =====================================================================
   const renderOverview = () => (
     <ScrollView style={styles.flex1} contentContainerStyle={[styles.scrollPad, { paddingBottom: getAppScreenBottomPadding(insets.bottom) }]}>
-      {/* Vitals ring cluster - the signature silhouette */}
+      {/* Net worth HERO - the ONE headline number, so it comes FIRST. It used to
+          sit under a cluster of four rings that outranked it by area (Program 4). */}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => setDetail({ kind: 'metric', id: 'networth' })}
+        accessibilityRole="button"
+        accessibilityLabel="Net worth detail"
+        style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}
+      >
+        <View style={styles.heroInner}>
+          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
+          <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            ${Math.round(netWorth).toLocaleString()}
+          </Text>
+          <View style={styles.trendRow}>
+            <TrendChip trend={netWorthTrend} label="vs prior weeks" />
+          </View>
+          {netWorthSeries.length >= 2 ? (
+            <View style={styles.heroSpark} pointerEvents="none">
+              <Sparkline data={netWorthSeries} color={accent.info} width={scale(300)} height={scale(38)} />
+            </View>
+          ) : null}
+          <View style={styles.peakRow}>
+            <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
+            <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString()}</Text>
+            {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>week {s.peakNetWorthWeek}</Text> : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Vitals ring cluster - the signature silhouette, second to the number. */}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => setDetail({ kind: 'vitals' })}
@@ -299,35 +329,6 @@ export default function StatisticsApp({ onBack }: Props) {
               </View>
             </View>
           ))}
-        </View>
-      </TouchableOpacity>
-
-      {/* Net worth HERO - the ONE headline number, tapping opens the metric detail. */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => setDetail({ kind: 'metric', id: 'networth' })}
-        accessibilityRole="button"
-        accessibilityLabel="Net worth detail"
-        style={[getGlassCard(darkMode, 12), { backgroundColor: theme.surface, borderColor: darkMode ? theme.glassBorder : theme.border, borderWidth: 1, borderRadius: br['2xl'] }]}
-      >
-        <View style={styles.heroInner}>
-          <Text style={[styles.heroLabel, { color: theme.textMuted }]}>NET WORTH</Text>
-          <Text style={[styles.heroValue, { color: theme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-            ${Math.round(netWorth).toLocaleString()}
-          </Text>
-          <View style={styles.trendRow}>
-            <TrendChip trend={netWorthTrend} label="vs prior weeks" />
-          </View>
-          {netWorthSeries.length >= 2 ? (
-            <View style={styles.heroSpark} pointerEvents="none">
-              <Sparkline data={netWorthSeries} color={accent.info} width={scale(300)} height={scale(38)} />
-            </View>
-          ) : null}
-          <View style={styles.peakRow}>
-            <Text style={[styles.peakLabel, { color: theme.textMuted }]}>Peak</Text>
-            <Text style={[styles.peakValue, { color: accent.gold }]}>${Math.round(s.peakNetWorth || netWorth).toLocaleString()}</Text>
-            {s.peakNetWorthWeek ? <Text style={[styles.peakLabel, { color: theme.textMuted }]}>week {s.peakNetWorthWeek}</Text> : null}
-          </View>
         </View>
       </TouchableOpacity>
 

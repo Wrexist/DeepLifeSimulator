@@ -337,9 +337,9 @@ export default function SwipeScreen({ onMatch, onOpenBoost, onOpenPremium }: Swi
           <ProfileCard
             profile={top}
             catfishSuspected={showCatfishWarning(top)}
-            likeOpacity={likeOpacity as any as number}
-            nopeOpacity={nopeOpacity as any as number}
-            superOpacity={superOpacity as any as number}
+            likeOpacity={likeOpacity}
+            nopeOpacity={nopeOpacity}
+            superOpacity={superOpacity}
           />
         </Animated.View>
       </View>
