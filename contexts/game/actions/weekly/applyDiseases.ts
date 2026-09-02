@@ -332,6 +332,14 @@ export function applyDiseasesForWeek(
       if (recoveryWeeks <= 0) {
         // Disease naturally recovered.
         diseasesToRemove.push(index);
+        // RECOVERY → LOWER RISK (Program 8). The generator's 4-week cooldown
+        // (`shouldGenerateDisease`) counted from ONSET, so a 12-week illness
+        // could be joined by a second one at week 4 and a third at week 8 -
+        // measured: a careful 40-year-old spent 45 of 52 weeks ill, mostly
+        // with two or three conditions at once. Restarting the clock at
+        // recovery makes illnesses sequential: four clear weeks after every
+        // one, whether it ran its course here or was cured by a doctor.
+        lastDiseaseWeek = nextWeeksLived;
         updatedDiseaseHistory = {
           ...updatedDiseaseHistory,
           totalCured: updatedDiseaseHistory.totalCured + 1,

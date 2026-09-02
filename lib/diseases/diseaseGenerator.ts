@@ -4,6 +4,17 @@ import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
 import { makeLifeRoll } from '@/utils/seededRoll';
 
 /**
+ * The weekly chance an illness arrives for a life whose overall risk
+ * multiplier is exactly 1 (age 25, health ≥ 70, fitness 30-70). The Help copy
+ * has always said "1-2% per week"; a young, fit, healthy life multiplies this
+ * by 0.3-0.5 and lands there, an unfit 40-year-old by ~2.5, a frail 75-year-old
+ * by 3-4. See `calculateDiseaseRisk`.
+ */
+export const DISEASE_BASE_WEEKLY_CHANCE = 0.03;
+/** Safety ceiling on occurrence per eligible week. The multiplier's own cap (5.0) keeps it below this. */
+export const DISEASE_OCCURRENCE_CAP = 0.35;
+
+/**
  * Deterministic seeded random function for consistency
  * Uses the same pattern as the event system
  */
@@ -14,7 +25,7 @@ function seededRandom(seed: number): number {
 
 /**
  * Cache for disease risk calculations
- * Key: `${weeksLived}_${health}_${age}`
+ * Key: `${weeksLived}_${health}_${fitness}_${age}`
  */
 const riskCache = new Map<string, number>();
 const CACHE_MAX_SIZE = 100;
@@ -34,35 +45,37 @@ function clearOldCacheEntries() {
 }
 
 /**
- * Calculate base disease risk based on player stats
- * Returns a risk multiplier (0-1)
- * Uses caching for performance
+ * The OVERALL weekly disease-risk multiplier: health, fitness and age.
  *
- * HEALTH and AGE only. Fitness used to be in here as well (+1.0 at fitness 0,
- * −0.5 above 70) AND in `calculateDiseaseSpecificRisk`, which multiplies each
- * template's chance by its own `fitnessRiskModifier` (1.2-1.8 at fitness 0)
- * and then by THIS multiplier - so the same number was charged twice. For a
- * fresh 25-year-old at the seeded fitness of 10 that was ×1.67 here times
- * ×2.5 there: the disease chance of a 60-year-old, and enough to fail the
- * "healthy and young" gate below (`< 1.2`) that every 18-24 start passes.
- * Measured on the real tick (Master Program 7, 2026-09-02): a careful
- * age-25 start - housed, one walk and one meditation a week - caught four
- * illnesses in 17 weeks and reached health 0 at week 18; with fitness
- * counted once it ends week 20 at health 96. The per-template term is the
- * one kept: it is disease-specific (a heart condition cares more about
- * fitness than a cold does) and still bites - fitness 0 raises every chance
- * by 120-180% and fitness 100 lowers it by 40%.
+ * Since Master Program 8 this is the number the occurrence roll uses -
+ * `DISEASE_BASE_WEEKLY_CHANCE × calculateDiseaseRisk(state)` is the chance an
+ * illness arrives this week - which is exactly what the Help copy has always
+ * described ("the base chance is low, 1-2% per week, but risk factors multiply
+ * it"). The per-template curves (`calculateDiseaseSpecificRisk`) decide WHICH
+ * illness, not whether one arrives.
+ *
+ * Before, the occurrence roll was the SUM of every template's chance, and
+ * that sum was ~16%/week before a single modifier - eight times the advertised
+ * base - then multiplied by this function AND by each template's own age /
+ * health / fitness terms. Any adult at the seeded fitness of 10 (0 within a
+ * month) sat at the 35% cap with nothing left to do about it; a careful,
+ * housed 40-year-old was ill 51 of 52 simulated weeks. Fitness is counted
+ * here and only here for occurrence (Program 7 removed the double count).
+ *
+ * Age is CONTINUOUS at 50: the old "past 50" branch restarted from zero, so a
+ * 49-year-old carried +0.8 and a 50-year-old +0.0.
  */
 export function calculateDiseaseRisk(state: GameState): number {
   // BUGFIX: use ?? for health so a 0-health player is correctly treated as
   // high-risk. With `|| 100`, 0 was silently mapped to 100 (full health),
   // making severely sick players incorrectly disease-resistant.
   const health = state.stats.health ?? 100;
+  const fitness = state.stats.fitness ?? 0;
   const age = state.date?.age ?? ADULTHOOD_AGE;
   const weeksLived = state.weeksLived || 0;
 
   // Check cache first
-  const cacheKey = `${weeksLived}_${Math.round(health)}_${age}`;
+  const cacheKey = `${weeksLived}_${Math.round(health)}_${Math.round(fitness)}_${age}`;
   const cachedRisk = riskCache.get(cacheKey);
   if (cachedRisk !== undefined) {
     return cachedRisk;
@@ -82,8 +95,17 @@ export function calculateDiseaseRisk(state: GameState): number {
     riskMultiplier += healthPenalty * 0.5; // Up to 1.5x risk
   }
 
-  // Fitness is deliberately NOT here - see the header. It is applied once,
-  // per disease, in `calculateDiseaseSpecificRisk`.
+  // Fitness-based risk (lower fitness = higher risk, higher fitness = lower risk).
+  // Counted here for OCCURRENCE only; the per-template fitness term below only
+  // weights which illness is picked.
+  if (fitness < 30) {
+    const fitnessPenalty = (30 - fitness) / 30; // 0 to 1
+    riskMultiplier += fitnessPenalty * 1.0; // Up to +1.0 at fitness 0
+  } else if (fitness > 70) {
+    const fitnessBonus = (fitness - 70) / 30; // 0 to 1 for fitness 70-100
+    riskMultiplier -= fitnessBonus * 0.5; // Up to -0.5 at fitness 100
+    riskMultiplier = Math.max(0.3, riskMultiplier);
+  }
 
   // Age-based risk (scales dramatically with age)
   if (age < 25) {
@@ -91,9 +113,9 @@ export function calculateDiseaseRisk(state: GameState): number {
     const youthProtection = (25 - age) / 25; // 0 to 1 for ages 0-25
     riskMultiplier *= (0.3 + youthProtection * 0.2); // 30-50% of base risk (very low)
   } else if (age >= 50) {
-    // Drastic increase after 50
+    // Steeper past 50, continuing from where the 25-50 ramp ends (+0.8).
     const agePenalty = (age - 50) / 50; // 0 to 1+ for ages 50-100+
-    riskMultiplier += agePenalty * 2.5; // Very significant increase (up to 3.5x additional risk)
+    riskMultiplier += 0.8 + agePenalty * 2.5; // +0.8 at 50 → +3.3 at 100
   } else {
     // Gradual increase from 25 to 50
     const ageProgress = (age - 25) / 25; // 0 to 1 for ages 25-50
@@ -134,14 +156,16 @@ export function shouldGenerateDisease(state: GameState): boolean {
 }
 
 /**
- * Calculate individual disease risk based on template and player state.
- * Exported for the fitness-monotonicity test: this is the ONE place fitness
- * moves a disease chance.
+ * A template's WEIGHT in the "which illness" pick: its base chance shaped by
+ * the template's own age / health / fitness sensitivities, immunity and
+ * vaccination. Relative, not absolute - whether an illness arrives at all is
+ * `DISEASE_BASE_WEEKLY_CHANCE × calculateDiseaseRisk` (Program 8); this only
+ * says that a low-fitness life is more likely to draw a heart condition than a
+ * cold. Exported for the curve tests.
  */
 export function calculateDiseaseSpecificRisk(
   template: DiseaseTemplate,
   state: GameState,
-  baseRiskMultiplier: number
 ): number {
   // BUGFIX: `||` treats health=0 as falsy and inflates it to 100, masking a
   // dying player as healthy in disease-risk calc.
@@ -159,9 +183,9 @@ export function calculateDiseaseSpecificRisk(
     const youthProtection = (25 - age) / 25; // 0 to 1 for ages 0-25
     ageRisk = -(0.5 + youthProtection * 0.3); // 50-80% reduction in chance
   } else if (age >= 50) {
-    // Drastic increase after 50
+    // Continues from where the 25-50 ramp ends (0.8 × modifier) - see calculateDiseaseRisk.
     const agePenalty = (age - 50) / 50; // 0 to 1+ for ages 50-100+
-    ageRisk = agePenalty * template.ageRiskModifier * 2.0; // Very significant increase
+    ageRisk = template.ageRiskModifier * (0.8 + agePenalty * 2.0);
   } else {
     // Gradual increase from 25 to 50
     const ageProgress = (age - 25) / 25; // 0 to 1 for ages 25-50
@@ -185,9 +209,6 @@ export function calculateDiseaseSpecificRisk(
     fitnessRisk = -fitnessProtection * 0.4; // Up to 40% reduction at 100 fitness
   }
   chance *= (1 + fitnessRisk);
-
-  // Apply base risk multiplier from overall health
-  chance *= baseRiskMultiplier;
 
   // Check for immunity (if implemented)
   if ('diseaseImmunities' in state && Array.isArray(state.diseaseImmunities)) {
@@ -228,21 +249,12 @@ export function generateRandomDisease(state: GameState): Disease | null {
   // (reload-safe, StrictMode-safe); a different life gets its own. Program 8.
   const roll = makeLifeRoll(state, weeksLived);
 
-  // Calculate base risk
+  // The overall multiplier - health, fitness, age - drives OCCURRENCE (below).
+  // The old "healthy and young" 2% fast path is gone with the summed model it
+  // patched: a young, fit, healthy life now sits at ~1% through the multiplier
+  // itself (0.3-0.5 × the base), which is what that gate approximated.
   const baseRiskMultiplier = calculateDiseaseRisk(state);
   const age = state.date?.age || ADULTHOOD_AGE;
-
-  // If risk is very low and health is good, reduce chance further (but less so for older players)
-  // BUGFIX: use ?? so a 0-health player is correctly excluded from the
-  // "healthy young → low disease chance" path. Previously, 0 was silently
-  // treated as 100, making sick players inadvertently disease-resistant.
-  if (baseRiskMultiplier < 1.2 && (state.stats.health ?? 100) > 80 && age < 30) {
-    // Very low chance when healthy and young
-    const healthyRoll = roll('disease-healthy-gate');
-    if (healthyRoll > 0.02) { // 2% chance even when healthy and young
-      return null;
-    }
-  }
 
   // Filter the pool before rolling:
   //  - minAge keeps age-related conditions (heart disease, stroke, dementia…)
@@ -266,24 +278,31 @@ export function generateRandomDisease(state: GameState): Disease | null {
   const diseaseRoll = roll('disease-pick');
   let cumulativeChance = 0;
 
-  // Calculate chances for all diseases
+  // Pick weights for every eligible template (immunity and vaccination fold in
+  // here, so a cold you are immune to is rarely drawn).
   const diseaseChances = eligibleTemplates.map(template => ({
     template,
-    chance: calculateDiseaseSpecificRisk(template, state, baseRiskMultiplier),
+    chance: calculateDiseaseSpecificRisk(template, state),
   }));
 
   const totalChance = diseaseChances.reduce((sum, d) => sum + d.chance, 0);
-
-  // If total chance is very low, likely no disease
-  if (totalChance < 0.01) {
+  if (!(totalChance > 0)) {
     return null;
   }
 
-  // Occurrence gate: roll against the summed absolute risk. Previously the
-  // per-disease chances were only normalized into a "which disease" pick, so
-  // once past the gates above a disease landed EVERY cooldown window (~13 a
-  // year) regardless of how small the individual chances were.
-  const occurrenceChance = Math.min(totalChance, 0.35);
+  // Occurrence: ONE base chance × the overall multiplier, scaled down by how
+  // much of the pool immunity and vaccines have covered (the ratio of the
+  // weighted pool to the same pool unprotected). Program 8 - see the header
+  // on `calculateDiseaseRisk` for why this replaced the summed-template gate.
+  const unprotectedTotal = eligibleTemplates.reduce(
+    (sum, template) => sum + calculateDiseaseSpecificRisk(template, { ...state, diseaseImmunities: [], vaccinations: [] }),
+    0,
+  );
+  const coverage = unprotectedTotal > 0 ? Math.min(1, totalChance / unprotectedTotal) : 1;
+  const occurrenceChance = Math.min(
+    DISEASE_OCCURRENCE_CAP,
+    DISEASE_BASE_WEEKLY_CHANCE * baseRiskMultiplier * coverage,
+  );
   if (roll('disease-occurrence') >= occurrenceChance) {
     return null;
   }

@@ -41,6 +41,7 @@ import { validateGameState } from '@/utils/saveValidation';
 import {
   calculateDiseaseRisk,
   calculateDiseaseSpecificRisk,
+  DISEASE_BASE_WEEKLY_CHANCE,
   shouldGenerateDisease,
   generateRandomDisease,
   generateEventDisease,
@@ -159,28 +160,23 @@ describe('Disease lifecycle audit', () => {
     expect(calculateDiseaseRisk(old)).toBeGreaterThan(calculateDiseaseRisk(young));
   });
 
-  it('fitness is counted ONCE: per disease, not again in the base multiplier', () => {
-    // Program 7: fitness used to enter the chance twice (base multiplier AND
-    // per-template modifier), which gave a fresh 25-year-old at the seeded
-    // fitness of 10 the disease rate of a 60-year-old. The base multiplier is
-    // fitness-blind now; the per-template term still makes fitness matter.
+  it('fitness drives OCCURRENCE once, through the overall multiplier; the template term only weights the pick', () => {
+    // Program 7 removed a double count; Program 8 moved occurrence to
+    // DISEASE_BASE_WEEKLY_CHANCE × calculateDiseaseRisk, so fitness lives in
+    // that multiplier (once) and the per-template factor only decides WHICH
+    // illness is drawn.
     const fit = freshState({ stats: { ...initialGameState.stats, health: 80, fitness: 100 }, date: { ...initialGameState.date, age: 40 } });
     const unfit = freshState({ stats: { ...initialGameState.stats, health: 80, fitness: 0 }, date: { ...initialGameState.date, age: 40 } });
-    expect(calculateDiseaseRisk(unfit)).toBe(calculateDiseaseRisk(fit));
+    expect(calculateDiseaseRisk(unfit)).toBeGreaterThan(calculateDiseaseRisk(fit));
 
     const template = DISEASE_DEFINITIONS.find((t) => t.id === 'flu')!;
-    const base = calculateDiseaseRisk(fit);
-    expect(calculateDiseaseSpecificRisk(template, unfit, base)).toBeGreaterThan(
-      calculateDiseaseSpecificRisk(template, fit, base),
-    );
+    expect(calculateDiseaseSpecificRisk(template, unfit)).toBeGreaterThan(calculateDiseaseSpecificRisk(template, fit));
   });
 
-  it('a healthy fresh 25-year-old at the seeded fitness still counts as young and healthy', () => {
-    // The "healthy and young" gate in generateRandomDisease reads
-    // `calculateDiseaseRisk < 1.2`. With fitness double-counted, fitness 10
-    // alone pushed a 25-year-old to 1.67 and off the gate.
+  it('a healthy fresh 25-year-old at the seeded fitness is nowhere near the occurrence cap', () => {
+    // Under the summed-template model this life sat at the 35%/week cap.
     const s = freshState({ stats: { ...initialGameState.stats, health: 100, fitness: 10 }, date: { ...initialGameState.date, age: 25 } });
-    expect(calculateDiseaseRisk(s)).toBeLessThan(1.2);
+    expect(DISEASE_BASE_WEEKLY_CHANCE * calculateDiseaseRisk(s)).toBeLessThan(0.06);
   });
 
   // ── BUG-FIX REGRESSION (this turn) ─────────────────────────────────────

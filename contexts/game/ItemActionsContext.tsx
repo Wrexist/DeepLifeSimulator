@@ -705,6 +705,9 @@ export function ItemActionsProvider({ children }: ItemActionsProviderProps) {
         // two sources, and listing it twice reads as a bug of its own.
         curedDiseases: Array.from(new Set(curedDiseases)),
         showCureSuccessModal: showCureSuccessModal,
+        // A cure restarts the generator's cooldown, like a natural recovery
+        // does in the tick (Program 8): four clear weeks before the next roll.
+        ...(curedDiseases.length > 0 ? { lastDiseaseWeek: prevState.weeksLived || 0 } : {}),
         diseaseHistory: updatedDiseaseHistory,
         diseaseImmunities: updatedImmunities,
         vaccinations: vaccinationsResult,

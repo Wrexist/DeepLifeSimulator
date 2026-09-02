@@ -88,7 +88,7 @@ const helpContent = [
       },
       {
         question: 'How do I get diseases?',
-        answer: 'Diseases occur randomly each week based on risk factors: Low health increases risk (health < 60 = 60% higher risk). Low fitness increases risk. Older age increases risk for some diseases. Previous diseases can increase risk. Some diseases grant immunity after recovery. The base chance is low (1-2% per week), but risk factors multiply it. Keep health and fitness high to reduce disease risk.',
+        answer: 'Each week there is a small base chance of falling ill (about 1-2% for a young, fit, healthy character), multiplied by your risk: low health raises it (up to 3x at 0), low fitness raises it (up to 2x at 0; fitness above 70 lowers it), and age raises it from 25 on, steeply past 50. Which illness you get depends on the same factors - low fitness draws heavier conditions. After you recover or are cured there is a four-week clear spell before the next roll. Some diseases grant immunity after recovery. Keep health and fitness up to keep the risk low.',
       },
       {
         question: 'How do I cure diseases?',
