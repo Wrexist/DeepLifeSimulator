@@ -212,3 +212,71 @@ lint warnings 748 → 728 · lint errors 0 · test-tree type errors 0.
 | Accessibility | 70 | 76 | labels on every new pressable; two-axis rule |
 | Human-design quality | 30 | 62 | the squint test now has an answer on the main screens |
 | **Overall UI quality** | **45** | **67** | |
+
+---
+
+## Report — Master Program 5, consistency closure (2026-09-02)
+
+### 1. Program 4's remaining issues, verified against the code
+- Health green vs HUD red — REAL and wider than reported: the Health screen, HealthCard, the sickness modal (energy and happiness swapped) and Statistics ("Mood" in gold, fitness green) all disagreed with `statIdentity`; nine different "low" thresholds existed. Fixed at the root (§2).
+- 13 apps on the template — PARTLY: a landing-by-landing audit of 15 apps found 7 that correctly keep their structure and 8 escape candidates; 7 escaped (§4–6).
+- Work's three chrome layers — REAL; reduced (§7).
+- The three merges — unchanged in `appCatalog.ts`; still owner decisions.
+
+### 2. Health semantic consistency
+`vitalState()` in `lib/config/hierarchy.ts` is the one ladder: critical ≤ 20 (danger), low ≤ 40 (warning), fair, good — only a PROBLEM takes a colour, so a screen of fine numbers stays as quiet as the HUD. Identity comes from `STAT_IDENTITY` everywhere a vital is drawn (Health rings and summary, HealthCard chips, SicknessModal, Statistics, GymCard now fitness purple). The rule that disambiguates the shared hues (danger red IS health's red): identity paints the icon and ring, state paints only the number. Tips fire on the critical band, the same line at which the HUD turns red and Home calls it a crisis. The HUD's dead grader is deleted. `theme.palette.money` (wrong value, no readers) is gone. Pinned by `__tests__/render/vitalState.test.ts`.
+
+### 3. State contradictions found and fixed
+| Contradiction | Fix |
+|---|---|
+| health `#34D399` on Health / HealthCard vs `#EF4444` HUD | STAT_IDENTITY |
+| energy amber, happiness green in SicknessModal | STAT_IDENTITY |
+| "Mood" in gold, fitness in money-green (Statistics) | "Happiness", identity colours |
+| 25 / 30 / 40 / 50 / 15 "low" thresholds | one ladder |
+| danger red as a primary button (Health 'vitality', "Free" price in red) | action accent is the info blue; Free is a gain |
+| `LoadingButton secondary` == `danger` (Sell wore destructive red) | secondary is the flat tonal |
+| green = selected (active diet) vs green = success | active is tonal + check |
+| six locked treatments; "- Locked" + lock icon + reason on one card | grey lock + reason line; one disabled opacity |
+| Buy / Purchase / Acquire; Close / Done | Buy; Done for sheet dismissal |
+Not changed, on purpose: crime stays red (illegal = risk is a real semantic); the Sparkles / Star / Crown icon overloads (a sweep, not a closure item); "Got it" on the coach (a teaching voice).
+
+### 4–6. The template audit
+KEEP (7): DeepMail (rows are the content, chips carry state), Pulse (scandal banner already pre-empts the feed), YouVideo (the composer is the model), Political (timeline + costed CTA), Spark (deck), Education (tab already state-chosen), Hustle (a real tier-1 hero). ESCAPED (7): Streaming (current activity + history), Real Estate (lead state + action), Bank ("Due now" slot by severity), Contacts (worst at-risk triage card leads), Dark Web (threat monitor leads at burning heat), Pets (critical banner under the stage, sick pet selected), Garage (costed Refuel / Repair replaces the details bar when urgent). Deferred: Bank Pro (Program 3 proposes deleting it).
+
+### 7. Work chrome
+Title → segments → fold header → card. The three generic instruction sentences are gone; the board note ("4 openings · new in 8 wks") and the crime tab's cap line ride in their fold summaries. Chrome budget recorded: Home 0 layers before content (the coach or the identity strip IS content), Work 2 (title, segments), Life 2 (title, segments), Market 1 (fold header), Health 1 (fold header).
+
+### 8. Button hierarchy
+No new component. `LoadingButton` `secondary` became the flat tonal secondary; `GradientButton` gained `emphasis="secondary"`; `Chip` md is the 44pt quiet action. Rule applied: one saturated button per viewport - the first job the player can take on each Work board (none when the hero holds Promote), the first cure when treatment leads on Health, the recommended item (or the first meal when food leads) on Market, "Go live" on Streaming.
+
+### 9. Typography: 243 → 94 raw sizes. Modal/screen titles → `tier1Title`; the two hero numbers → `tier1Value`; card and section titles → `tier2`; bodies in those files → `fontScale()` with scaled line boxes. Kept raw with reasons: splash wordmark, the two last-resort crash screens, the tab-bar label (scaling deliberately off), the animated toast, dev tooling.
+
+### 10. Dead code: `CareerPathCard` (602 L), `ui/InfoButton`, `onboarding/GlassActionButton`, `AnimatedMoneyNative`, 148 dead style keys (four wrongly pruned keys restored - see lessons).
+
+### 11. Edge-state hierarchy (`stateDrivenHierarchy.render.test`, 16 cases): sick + starving + broke + promotion → one tip (health first) above one goal ladder; disease + critical energy → one treatment lead with energy as a row; starving + recommended item → one saturated Buy; quiet state → no tip, no treatment, no red, goals lead, identity and net worth visible; health 0 → the countdown leads; negative cash → one lead.
+
+### 12–14. Responsive 390 / 360 captures of Home, Work, Health, Market, Stats: no clipping, no truncation. Every new pressable carries a role and label; tier-1 text carries `maxFontSizeMultiplier`; reduced motion untouched. Routes: 17, one door per room.
+
+### 15–16. Tests and ratchets — see the closing lines below (filled after the full run).
+
+### 17. Remaining issues (honest)
+- Icon overloads (Sparkles / Star / Crown / Check) still carry several meanings; a sweep for another program.
+- Bank Pro keeps the statement-first landing pending the owner's merge decision.
+- Six apps keep the strip-first shape by choice; Contacts' "Avg bond" and Bank's three totals are inventory, not decisions.
+- The 94 raw sizes left are the documented keep list plus dev tooling.
+- The coach card and a crisis tip can both show in a first session with a crisis (rare: health falls below 20 before the first pay).
+
+### 18. Scores (0–100)
+| Category | P4 | P5 | Basis |
+|---|---|---|---|
+| Semantic consistency | 50 | 82 | one identity source, one state ladder, red = danger |
+| Hierarchy | 70 | 76 | seven more landings choose from state; one primary per screen |
+| Simplicity | 68 | 72 | Work chrome, dead code, tonal lists |
+| Template repetition | 45 | 68 | 7 escapes with reasons; 7 keeps with reasons |
+| Visual rhythm | 60 | 64 | tier tokens on the modal surfaces |
+| Action clarity | 55 | 78 | one saturated button per viewport; Sell no longer red |
+| Responsiveness | 74 | 76 | verified at 360/390 |
+| Accessibility | 76 | 79 | vital numbers announce their band; labels on new pressables |
+| Human-design quality | 62 | 70 | every kept template has a written reason |
+| UI polish | 60 | 72 | contradictions closed; locked / disabled / copy unified |
+| **Overall** | **67** | **74** | |

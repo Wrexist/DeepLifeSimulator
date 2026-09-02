@@ -4681,3 +4681,32 @@ Third: **Metro's transform cache does not key on `EXPO_PUBLIC_*` values.**
 A web export run without the save-signing key, then re-run with it, still
 shipped the keyless module. `expo export --clear` is the fix; a worktree at
 HEAD is the way to get a clean baseline without `git stash` (see 2026-09-01).
+
+---
+
+## 2026-09-02 — Program 5: three tool traps that made a green gate lie
+
+1. **`eslint -f unix` does not exist in this ESLint** and the command
+   exits non-zero with the error on stderr. Piped through `2>/dev/null |
+   grep warning`, that is an empty result - which reads as "no warnings".
+   Every per-file lint check in Program 4 was vacuous; only `lint:ratchet`
+   (which runs eslint with its default formatter and counts) was real. Use
+   the default formatter, and treat "no output" from a tool as a question,
+   not an answer.
+2. **`tsc --pretty` colours the word "error" separately from "TS2339"**, so
+   `grep "error TS"` matches nothing on a failing run. Gate on the exit
+   code (`npm run -s type-check; echo $?`), never on a grep of pretty
+   output. The four style keys the dead-key prune removed by mistake were
+   only caught by `type-check:tests`, which is not pretty-printed.
+3. **A liveness regex that excludes `key :` as "a definition" also
+   excludes `cond ? styles.key : null`.** The prune deleted four live keys
+   that were only ever read inside a ternary. When a scan decides what to
+   DELETE, the false-positive direction must be "keep": test for member
+   access (`.key` / `['key']`) and nothing else, and let generic names
+   survive.
+
+Also from this program: **a shared warning colour can equal a stat's
+identity colour** (accent.warning IS happiness's amber; accent.danger IS
+health's red). That is not a contradiction to fix with a second red - the
+rule that disambiguates is positional: identity paints the icon and ring,
+state paints only the number. Write the rule down where the tokens live.

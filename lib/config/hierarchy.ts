@@ -101,8 +101,9 @@ export const rhythm = {
  *
  *   critical  <= 20   danger   the HUD glows, the number goes red, a tip fires
  *   low       <= 40   warning  listed as an issue, amber
- *   fair      <  80   neutral
- *   good      >= 80   success
+ *   fair      <  80   quiet
+ *   good      >= 80   quiet    (the word exists; the colour does not - a number
+ *                               that is fine says nothing, like the HUD's)
  *
  * The rule the HUD already followed: a stat's IDENTITY colour (STAT_IDENTITY)
  * paints its icon, ring and label; the graded STATE paints only the number
@@ -116,7 +117,8 @@ export type VitalLevel = 'critical' | 'low' | 'fair' | 'good';
 
 export interface VitalState {
   level: VitalLevel;
-  /** Danger / warning / success from `accent`; undefined for fair (use the text colour). */
+  /** Danger / warning from `accent`; undefined for fair AND good - only a
+   *  problem takes a colour, so a screen full of fine numbers stays quiet. */
   color: string | undefined;
   /** The one word every surface uses for the band. */
   word: 'Critical' | 'Low' | 'Fair' | 'Good';
@@ -127,5 +129,5 @@ export function vitalState(value: number | undefined | null): VitalState {
   if (v <= CRITICAL_VITAL) return { level: 'critical', color: accent.danger, word: 'Critical' };
   if (v <= LOW_VITAL) return { level: 'low', color: accent.warning, word: 'Low' };
   if (v < GOOD_VITAL) return { level: 'fair', color: undefined, word: 'Fair' };
-  return { level: 'good', color: accent.success, word: 'Good' };
+  return { level: 'good', color: undefined, word: 'Good' };
 }

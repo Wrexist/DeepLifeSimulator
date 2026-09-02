@@ -27,7 +27,7 @@ describe('vitalState - the one ladder', () => {
     expect(vitalState(100).level).toBe('good');
   });
 
-  it('paints state with the semantic accents (danger / warning / success), fair with none', () => {
+  it('paints only a PROBLEM: danger / warning; fair and good stay quiet like the HUD', () => {
     // Note the palette shares hues between identity and state on purpose
     // (health's identity IS the danger red): the disambiguation is the RULE -
     // identity paints the icon and ring, state paints only the number - not
@@ -35,7 +35,7 @@ describe('vitalState - the one ladder', () => {
     expect(vitalState(10).color).toBe(accent.danger);
     expect(vitalState(30).color).toBe(accent.warning);
     expect(vitalState(60).color).toBeUndefined();
-    expect(vitalState(95).color).toBe(accent.success);
+    expect(vitalState(95).color).toBeUndefined();
     expect(STAT_IDENTITY.health.color).toBe(accent.danger);
   });
 
