@@ -1,3 +1,62 @@
+# Master Program 7 — NEW LIFE BALANCE — IN PROGRESS
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 6 (`b544fd2`).
+Scope: early-game survivability, economic fairness, recovery paths. Programs 1-6
+are complete and are not redone. The repository is authoritative; every number
+below is read from the code or measured on the real tick.
+
+## Phase 1 — repository and system audit (done; evidence)
+
+The early-game vital loop, as the tick actually runs it (`GameActionsContext.tsx`
+~700-960, `preTick.computeDecayInputs`, `applyHousingWellbeing`,
+`applyCareerSalaryAndPenalty`):
+
+| system | value | source |
+|---|---|---|
+| natural decay | base 4 × wealth multiplier × prestige × grace ramp; health ×0.6, happiness ×0.8, fitness ×0.2 (×1.5-4 without gym) | `preTick.ts`, tick ~879-916 |
+| wealth multiplier | `100000 / max(1000, netWorth)` clamped 0.5-2.0 → **2.0 for every net worth ≤ $50k** | `computeDecayInputs` |
+| grace ramp | `0.25 + 0.75 × min(1, weeksInThisLife / 8)` | `computeDecayInputs` (v43 baseline) |
+| full-rate decay, early game | 8/week → −4.8 health, −6.4 happiness, −1.6 fitness | derived |
+| homeless penalty | −2 health / −4 happiness / −5 energy every week; every scenario starts with no home | `rentals.ts HOMELESS_PENALTY`, `scenarioData.ts` |
+| entry job toll | authored per career, −1 floor, scaled ×(1−0.7×levelProgress); unprofiled −3/−2 | `applyCareerSalaryAndPenalty` |
+| energy | +40 regen, minus job toll (−8..−18), minus homeless −5 | tick ~815-853 |
+| death | 4 consecutive weeks at 0 health OR 0 happiness (`ZERO_STAT_DEATH_WEEKS`) | tick ~1441/1471 |
+| free recovery | Walk +6 hap/+3 hp/−5 en; Meditation +10 hap/+2 hp/−3 en; **no weekly cap** | `initialState.healthActivities`, `ItemActionsContext.performHealthActivity` |
+| paid recovery | Yoga $100, Massage $300, Doctor $500 (+25 hp), Therapy $400 | same |
+| housing | Shared Room $45/wk (+1/+1/0), Bedsit $80 (needs $100/wk income) … | `RENTAL_TIERS` |
+| rent surface | **Market → Housing (tier 0, no device)** since `a67ca7d` (Program 5); Program 6's "computer-only" note is stale | `app/(tabs)/market.tsx:437` |
+| poverty | `weeksInPoverty` counts liquid < $500; gates one scholarship event; NO decay multiplier of its own | `applyPovertyTracking` |
+| disease | base 0.1-2%/wk × risk (health<50 up to 3×, fitness<30 up to 2×, age<25 ×0.3-0.5), 4-week cooldown | `diseaseGenerator.ts` |
+
+Finding 1 (root cause of the Program 6 death): the "poverty decay" is not a
+poverty system. It is the wealth multiplier, which is pinned at its 2.0 ceiling
+for every net worth under $50,000 — i.e. for the whole early game of every
+scenario except `trust_fund_baby`. "Base 4" is a number nobody in the first
+years of a life ever experiences; the real base is 8.
+
+Finding 2: the three drains are independent and additive (no multiplication,
+no double count found in the tick). At full grace, a housed-nowhere entry
+worker loses 4.8+2+2 = 8.8 health and 6.4+4+3 = 13.4 happiness a week.
+Happiness reaches 0 at ~week 9, death at week 13 — the Program 6 measurement.
+
+Finding 3: the free fixes are uncapped and energy-bound only. One walk + one
+meditation a week (+16 hap / +5 hp for 8 energy) more than covers the
+happiness drain and covers about half the health drain. This is what the
+careful Program 6 script did and it survived to week 20 at 68/87.
+
+## Phase 2-6 — starting-state, decay, stacking, recovery, 20-week simulations
+Harness: `__tests__/simulation/earlyGamePersonas.sim.test.ts` — the REAL
+provider `nextWeek()` on the REAL onboarding seed, seeded `Math.random`, five
+personas as weekly policies over the real action functions
+(`applyForJob`, `performHealthActivity`, `rentHome`, `performStreetJob`,
+`buyFood`, `promoteCareer`). Results below (Phase 6 table) once measured.
+
+## Phase 7 — evidence-based balance changes (each row: one change, one test)
+(filled in after Phase 6)
+
+## Phase 8-10 — recovery validation, fresh walkthrough, red team
+(filled in after Phase 7)
+
 # Master Program 6 — THE FIRST 30 MINUTES — COMPLETE
 
 Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, on top of Program 5
