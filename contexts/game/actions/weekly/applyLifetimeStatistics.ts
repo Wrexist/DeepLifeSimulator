@@ -64,8 +64,15 @@ export interface LifetimeStatisticsInput {
    * 2026-07-28 audit GL-3.
    */
   politicalWeeklySalary?: number;
-  /** From preTick.computeDecayInputs — clamped net worth used as a
-   * tradeoff between "real" peaks and avoiding overflow on huge stocks. */
+  /**
+   * The net-worth sample for `peakNetWorth` and `netWorthHistory`. The caller
+   * passes the CANONICAL `netWorth()` (lib/progress/achievements) - the HUD's
+   * figure - since 2026-09-02; before that it was preTick's private
+   * `calculateNetWorth`, which counts owned Market items, so a $1,500 quick
+   * start "peaked" at $2,550 on tick one and `wealthMark` opened unlock tier 2
+   * a month early. The parameter keeps its name so the equivalence snapshot
+   * of this function is untouched.
+   */
   safeNetWorth: number;
   totalIncome: number;
   nextWeeksLived: number;

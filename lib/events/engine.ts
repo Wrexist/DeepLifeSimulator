@@ -3850,8 +3850,8 @@ export const starterEventTemplates: EventTemplate[] = [
     // `=== 1`, not `=== 0`: the roll runs on the state AFTER the week advances
     // (`applyWeeklyEvents` builds it with `weeksLived: nextWeeksLived`), so the
     // first tick of a life evaluates at week 1 and week 0 is never rolled at
-    // all. With `=== 0` this template — the first decision a new player was
-    // meant to face — could not fire for any scenario. Program 6.
+    // all. With `=== 0` this template - the first decision a new player was
+    // meant to face - could not fire for any scenario. Program 6.
     condition: (state) => weeksInThisLife(state) === 1,
     generate: () => ({
       id: 'starter_luck',

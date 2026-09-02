@@ -1,12 +1,12 @@
 /**
- * Where the vitals go each week, and why — as a projection the player can read.
+ * Where the vitals go each week, and why - as a projection the player can read.
  *
  * ── Why this exists ─────────────────────────────────────────────────────────
  *
  * Measured on a fresh Quick Start (Program 6 walkthrough): a player who takes
  * the first job and taps Next Week loses ~9 happiness and ~6 health a week
- * from three causes at once — the poverty-scaled natural decay, the homeless
- * penalty (every scenario starts without a home) and the job's weekly toll —
+ * from three causes at once - the poverty-scaled natural decay, the homeless
+ * penalty (every scenario starts without a home) and the job's weekly toll -
  * and nothing on screen names any of them. The recap reports money and
  * career; the breakdown modals behind the HUD rings do list the causes, but
  * nothing invites that tap. Happiness reached 0 on week 9 and the character
@@ -20,13 +20,13 @@
  *
  * ── What it deliberately mirrors ────────────────────────────────────────────
  *
- * - Natural decay: `computeDecayInputs` in `preTick.ts` — base 4 × wealth
+ * - Natural decay: `computeDecayInputs` in `preTick.ts` - base 4 × wealth
  *   multiplier (100k / net worth, clamped 0.5–2.0) × prestige multiplier ×
  *   the 8-week grace ramp; health takes ×0.6, happiness ×0.8 (halved by the
  *   Happiness Boost gold upgrade). `lib/` may not import that function
  *   (CLAUDE.md §5), so the formula is restated here and a parity test pins the
  *   two together (`lib/economy/__tests__/vitalDrift.test.ts`).
- * - Housing: `computeHousingWellbeing` — the same function the tick calls.
+ * - Housing: `computeHousingWellbeing` - the same function the tick calls.
  * - Job toll: the entry-job profile scaled by level, as
  *   `applyCareerSalaryAndPenalty` does; non-profiled careers take the −3/−2
  *   default it uses.
@@ -74,7 +74,7 @@ const finite = (v: unknown, fallback = 0): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 
 /**
- * The tick's `effectiveDecayRate` for this state — the number health (×0.6)
+ * The tick's `effectiveDecayRate` for this state - the number health (×0.6)
  * and happiness (×0.8) lose to "natural decay" on the next Next Week.
  */
 export function projectedDecayRate(state: GameState): number {
@@ -125,7 +125,7 @@ function itemBonuses(state: GameState): DriftCause | null {
  * Project next week's vital changes from the current state.
  *
  * Pure and total: a malformed state yields the natural-decay line and nothing
- * else, never a throw — this is read on Home after every tick.
+ * else, never a throw - this is read on Home after every tick.
  */
 export function projectWeeklyVitalDrift(state: GameState | null | undefined): VitalDrift {
   const empty: VitalDrift = { health: 0, happiness: 0, energy: 0, causes: [] };
@@ -179,7 +179,7 @@ export function projectWeeklyVitalDrift(state: GameState | null | undefined): Vi
   return { health: sum('health'), happiness: sum('happiness'), energy: sum('energy'), causes: ordered };
 }
 
-/** The causes that cost happiness or health, worst first — for a short label. */
+/** The causes that cost happiness or health, worst first - for a short label. */
 export function driftDrainLabels(drift: VitalDrift, max = 3): string[] {
   return drift.causes
     .filter((c) => c.happiness < 0 || c.health < 0)

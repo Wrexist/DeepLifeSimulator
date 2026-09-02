@@ -102,7 +102,7 @@ export function applyChapterProgress(input: ChapterProgressInput): ChapterProgre
   // Announce only what THIS completion opens. `unlockTier` is the max of the
   // chapter ladder and the wealth/employment milestones, so a player who was
   // hired in week 0 (or started with $1,500) already held tier 1 when Chapter 1
-  // completed — and was told "Progression and Contacts are now available" about
+  // completed - and was told "Progression and Contacts are now available" about
   // apps they had been using for six weeks. A reward message that describes an
   // unlock that never happened teaches the player to skim rewards. Program 6.
   const unlocked = unlockTier(state) >= tier ? '' : unlockAnnouncement(tier);

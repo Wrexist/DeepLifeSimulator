@@ -282,3 +282,130 @@ No new component. `LoadingButton` `secondary` became the flat tonal secondary; `
 | Human-design quality | 62 | 70 | every kept template has a written reason |
 | UI polish | 60 | 72 | contradictions closed; locked / disabled / copy unified |
 | **Overall** | **67** | **74** | |
+
+## Report — Master Program 6, the first 30 minutes (2026-09-02)
+
+Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, two commits on top of
+Program 5. Plan, minute map and proposals: `tasks/todo.md` (Program 6).
+
+### 1. Minute-by-minute map (measured, not imagined)
+
+Method: a Quick Start in the web export of HEAD, driven by Playwright as a
+text-skipping player (Play → coach → Apply → Next week ×20), plus four
+read-only audits verified against the code. Each row is what was on screen.
+
+| min | week | on screen before | on screen after |
+|---|---|---|---|
+| 0–1 | 0 | Play → HUD 100/100/100, $1,500, coach "You need work / Find a job" | same |
+| 1–4 | 0 | Work board, 4 jobs at $110, Apply → hired → coach "Hired. Now live a week / Got it" (Got it retired the coach for good) | Got it folds the card; the coach returns with the wage |
+| 4–5 | 1 | Daily Reward modal ("+1 gem", "$25 money bonus" for a 25-gem grant), "+25 Gems" floater, "🌟 Perfect Week!" toast, recap "+$142 · Career +16%", vitals 95/91 with no cause | coach "You earned $142 / That's the loop… Life → Health tops them up for free"; recap "+$142 · Promotion 13% · Each week −7 happiness · −6 health · No home · Natural decay · Line Cook shifts · free fixes in Health"; "1 decision waiting" (the starter envelope); no modal, no toast |
+| 5–8 | 2–4 | identical taps; happiness −10/wk unexplained; "Career +48%" | drift line grows with the grace ramp (−7 → −13); "Promotion 39%" |
+| 8–10 | 5 | Apps: Spark/Stocks/Education/Pets already open (tier 2 by a peak that counted the bike and phone); lead goal "Have 80+ fitness · 0/4 objectives" at fitness 10 | padlocks hold until cash reaches $2,000; the challenge row is hidden below tier 2; the routed goal ("Build a cash buffer", later "Get your health back up") is always second |
+| 10–12 | 6 | Chapter 1 +$800 +35 gems, banner "Progression and Contacts… now available" (open since week 0) | banner names the money and gems only |
+| 12–16 | 7–8 | happiness 39 → 17; tip "Feeling down? Do activities you enjoy or socialize!" (no route); disease; "Saved" pill over the net-worth figure | tip "Happiness is low. Meditation and a walk in Life → Health are free." routes to Health; "Saved" lives beside the Gen badge |
+| 16–30 | 9–13 | happiness 0 → health 0 → "You Died. MEDIOCRE." | unchanged for a player who ignores every surface (balance, §12); a player who follows the recap line ends week 20 at 68/87/$2,561 |
+
+### 2. Confusion points found → fixed / left
+
+Fixed: the reward popup's two false numbers; "Career +48%" read as a weekly
+gain; "Hold $5,000 in cash · 0/3 done" under a 30% bar; a chapter banner
+announcing apps the player already used; a "Perfect Week" for a week not
+played; a homeless banner pointing at an app the player cannot reach; tips
+with no destination; the coach deleting its own payoff; the daily reward
+landing on the wage's tick; padlocks that opened on tick one.
+
+Left (owner content): Chapter 2 ships two pre-ticked goals (phone, "Make a
+Friend" via the seeded parents); the Ambition picker asks a week-1 player for
+a lifelong commitment; every weekly challenge is mid-game content (hidden from
+the goal feed below tier 2, the card itself untouched); "Earn $500 · 0/3
+goals" still reads as a fraction of the goal rather than of the chapter.
+
+### 3. Pacing problems
+
+The first tick carried four surfaces (modal, floater, toast, recap) — now one
+card and one recap. Weeks 2–5 are still advance-and-watch: the only inputs
+are street jobs and the free activities; the starter envelope (week 1), the
+first-paycheck bonus (weeks 2–5) and the windfall (weeks 5–8) sit in the
+inbox pill and were never opened by the scripted player. Promotion needs a
+manual tap on Work at ~week 8; the tip and the recap both say so now.
+
+### 4. First meaningful decision, first success, first setback
+
+Decision: which entry job (minute 2–4; ceiling / climb / toll differ, pay
+does not) — and now the starter envelope on tick one (save $300 vs invest in
+yourself). Success: the first wage at minute 4, with the loop named. Setback:
+the vitals slide, now named on the tick it starts, with its causes and the
+free fix one tap away; then a disease at ~week 8, for which the Health
+screen's treatment lead (Program 4) already works — the careful script cured a
+depression at week 8 for $2,000.
+
+### 5. Consequence and discovery improvements
+
+`lib/economy/vitalDrift.ts` is the one projection of next week's vital
+changes; the recap line is its only surface, and a parity test pins it to the
+tick's formula. Discovery: the routed catalogue row is pinned second in the
+goal feed; the Apps padlocks now hold until the stated condition; a hire that
+resolves on a later tick pushes a "Hired:" banner with the wage.
+
+### 6. First personal goal and return hook
+
+The first goal the player can hold is "Build a cash buffer $2k / $5k" (a
+routed row from minute 4) with the chapter's "Earn $500" above it; the first
+one they choose is the starter envelope. Return hook: the recap's cliffhanger
+teaser and the drift line together give a reason to tap once more and a
+reason to open Health; the daily reward now arrives on tap two.
+
+### 7. Tests (all from a fresh life)
+
+`__tests__/firstSession/firstSessionSignals.test.ts` (starter event on tick
+one, hire banner, chapter banner honesty, Perfect Week gating, coach
+contract), `firstThirtyMinutes.render.test.tsx` (coach fold → payoff with the
+second loop, daily reward on tick two not one, reward popup copy, recap drift
+line + route, Promotion label, quiet state, tip routes, week-8 collision:
+three problems → one lead + one routed goal), `firstTickProgression.test.ts`
+(the real provider loop on the real onboarding seed: peak = HUD net worth,
+tier 1 after tick one), `lib/economy/__tests__/vitalDrift.test.ts` (parity
+with `computeDecayInputs`, causes worst-first, malformed state). Updated:
+goalsCardRows, featureUnlocks, lifeRelativeGates, stateDrivenHierarchy,
+subsystemEquivalence (snapshot gains `hiredNotification` only).
+
+### 8. Verification
+
+type-check, type-check:tests, lint:ratchet 0 errors / 722 warnings (ceiling
+722), ui ratchets 152 / 94 / 652 (at ceiling), check:routes 17, full Jest
+suite and preflight — recorded in the commit messages and the closing
+summary. Two scripted players on the new export: the text-skipper (unchanged
+outcome, §12) and the careful player (alive at week 20).
+
+### 9. Remaining problems (proposals in tasks/todo.md §Phase 12)
+
+1. Balance: a passive new life dies at week 13 (poverty-doubled decay + the
+   homeless penalty every scenario starts with + the job toll = −13
+   happiness a week). Three options with numbers.
+2. Reachability: the $45/wk Shared Room exists but the only rent UI is a
+   computer-only, tier-2 app.
+3. Chapter 2's pre-ticked goals; the week-1 Ambition picker; weekly
+   challenges as mid-game content.
+4. The floating event pill covers whatever scrolls under it (a goal fraction,
+   an activity's stat row) — the same trade every floating pill makes.
+
+### 10. Scores (0–100, honest)
+
+| dimension | before | after |
+|---|---|---|
+| first-session clarity | 45 | 72 |
+| agency | 40 | 52 |
+| decision quality | 45 | 55 |
+| consequence clarity | 25 | 70 |
+| game feel | 50 | 58 |
+| pacing | 40 | 62 |
+| discovery | 35 | 64 |
+| personal investment | 35 | 48 |
+| early goal formation | 40 | 60 |
+| return motivation | 40 | 55 |
+| accessibility | 60 | 66 |
+| overall | 41 | 60 |
+
+Agency and investment move least: the weeks between the first wage and the
+first promotion still offer nothing to decide, and that is content and
+balance, not hierarchy.

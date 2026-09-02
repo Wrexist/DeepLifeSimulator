@@ -26,7 +26,7 @@ import { useGameState } from './GameStateContext';
 import { useGameUI } from './GameUIContext';
 import { useMoneyActions } from './MoneyActionsContext';
 import { useUIUX } from '@/contexts/UIUXContext';
-import { evaluateAchievements, netWorth } from '@/lib/progress/achievements';
+import { evaluateAchievements, netWorth, netWorth as canonicalNetWorth } from '@/lib/progress/achievements';
 import { resolveEventMoney, isScaledMoneyEffect } from '@/lib/events/moneyScaling';
 import { applyEventStatDeltas } from '@/lib/events/statEffects';
 import { rollWeeklyLuckSeed, netEngagementBonus, ENGAGEMENT_BONUS_BASE_CAP } from '@/lib/economy/luckyBonus';
@@ -704,10 +704,21 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
  const prestigeMultiplier = getStatDecayMultiplier(prevState.prestige?.unlockedBonuses || []);
  // `graceFactor` is deliberately not taken: only the outer logger uses it, and
  // pulling it in here would shadow that with an identically-named unused value.
- const { netWorth, safeNetWorth, effectiveDecayRate } = computeDecayInputs(prevState, {
+ const { netWorth, effectiveDecayRate } = computeDecayInputs(prevState, {
    baseDecayRate: 4,
    prestigeMultiplier,
  });
+ // See the lifetimeStatistics block: the peak-net-worth sample is the canonical
+ // figure (`lib/progress/achievements`), read once here before `netWorth` is
+ // shadowed by the decay inputs' number.
+ const canonicalNetWorthForPeak = (() => {
+   try {
+     const v = canonicalNetWorth(prevState);
+     return Number.isFinite(v) ? v : 0;
+   } catch {
+     return 0;
+   }
+ })();
 
       const currentWeeksLived = typeof prevState.weeksLived === 'number' &&!isNaN(prevState.weeksLived) && prevState.weeksLived >= 0
  ? prevState.weeksLived
@@ -3227,7 +3238,15 @@ export function GameActionsProvider({ children }: GameActionsProviderProps) {
    // while in office - without this the work accumulators (and therefore the
    // pension) never moved for a career politician. GL-3.
    politicalWeeklySalary: getPoliticalWeeklySalary(prevState),
-   safeNetWorth,
+   // The CANONICAL net worth, not preTick's `safeNetWorth`. That figure counts
+   // owned Market items (a quick start's bike + smartphone are $1,050), so a
+   // $1,500 life "peaked" at $2,550 on its first tick, `wealthMark` read the
+   // peak, and `unlockTier` opened tier 2 - Spark, Stocks, Education, Pets -
+   // after ONE Next Week, under padlocks that say "Finish Chapter 2". The
+   // peak now records the same number the HUD, prestige and the leaderboard
+   // show. The decay wealth multiplier still reads preTick's figure (both
+   // clamp to 2.0 below $50k, so nothing about decay moves). Program 6.
+   safeNetWorth: Math.max(0, canonicalNetWorthForPeak),
    totalIncome,
    nextWeeksLived,
  }).updatedLifetimeStatistics, prevState.lifetimeStatistics),

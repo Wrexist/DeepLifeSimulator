@@ -1,4 +1,4 @@
-# Master Program 6 — THE FIRST 30 MINUTES — IN PROGRESS
+# Master Program 6 — THE FIRST 30 MINUTES — COMPLETE
 
 Branch `claude/ui-hierarchy-asymmetry-pass-fwqtue`, on top of Program 5
 (`cf2bc0f`, verified). Scope: comprehension, consequence clarity, game feel,
@@ -30,6 +30,15 @@ Measured passive life (job at week 0, Next week only):
 | 13 | 0 | 0 | 4,240 | **"You Died — The weight of life became too much." MEDIOCRE, Life Quality 5%.** |
 
 Thirteen taps. In real time roughly 8–15 minutes.
+
+After the changes (same script, new build): tick one shows the coach's
+"You earned $142 / That's the loop… Life → Health tops them up for free" and
+the recap line "Each week −7 happiness · −6 health · No home · Natural decay ·
+Line Cook shifts · free fixes in Health"; no reward modal, no praise toast, one
+decision waiting (the starter envelope). The fast-clicker who ignores all of it
+still dies on week 13 (the balance, Phase 12). A second script that follows the
+recap line each week and does the two free activities ends week 20 alive at
+health 68 / happiness 87 / $2,561, having also cured a depression at week 8.
 
 ## Phase 2 — minute map (0–30, careful new player, ~2 min per week)
 | min | knows | can do | primary goal | decision | consequence seen | feeling | confusion | load | reason to continue |
@@ -71,6 +80,7 @@ BEHAVIOUR · STATE · VERIFICATION.
 - [x] **Agency: dead starter event.** wk 1 · `starter_luck` condition `weeksInThisLife === 0` can never be true (events roll on `nextWeeksLived`) · off-by-one · `=== 1` · the first decision (save $300 / invest in yourself) lands on tick one as an inbox item, not a modal · low · one more inbox event in week 1 · none · `lifeRelativeGates` test.
 - [x] **Honesty: homeless banner** · "Renting even a shared room would help" — the only rent UI is Real Estate, computer-only ($5,000) and tier 2 · copy assumes a mid-game player · name the cost and the free offset instead · none · none · none · unit test.
 - [x] **Collision: "Saved" pill over the net-worth figure** (wk 8 capture) · AutoSaveIndicator absolute at `top: insets.top + 70`, right 16 — lands on the identity strip · verify + move below the HUD band or make it non-overlapping · low · none · none · capture.
+- [x] **Discovery: the padlocks open on tick one.** wk 1 · Apps grid reads "Locked (6)" at week 0 and "Locked (1)" after ONE Next Week with $1,642 cash, under padlocks that say "Finish Chapter 2: Settling In" (browser capture) · the tick stamped `lifetimeStatistics.peakNetWorth` from preTick's private net worth, which counts owned Market items (bike + smartphone = $1,050), so a $1,500 life "peaked" at $2,550 and `wealthMark`'s ratchet put `unlockTier` at 2 · the peak sample is the canonical `netWorth()` (the HUD's figure); decay still reads preTick's number (both clamp to 2.0 below $50k, so no balance change) · the ladder means what its copy says · low · tier 2 arrives when cash reaches $2,000 (~week 4-5) instead of week 1; peak net worth stops counting furniture · `peakNetWorth` now equals the HUD figure (a stats field, not a schema change) · `__tests__/firstSession/firstTickProgression.test.ts` runs the real provider loop on the real onboarding seed.
 - [x] Tests: `__tests__/firstSession/*` — fresh-state truth (quick start seeds), first meaningful decision reachable, consequence visibility (drift line), critical-state prioritisation (tip leads, routed), quiet state (nothing to say → recap silent), simultaneous problems (low health + low happiness + promotion), new-player progression (row order over weeks 1–12), tutorial triggers (coach steps).
 - [ ] Gates after each phase; full `npm test` + `npm run preflight` at the end.
 - [ ] Red team (new / confused / impatient / text-skipping / fast-clicking / unlucky), five- and thirty-minute tests, scores, report in `tasks/ui-hierarchy.md` §Program 6, lessons appended.

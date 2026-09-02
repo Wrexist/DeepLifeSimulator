@@ -53,7 +53,7 @@ export interface SmartNotification {
      * Weeks into THIS life (v43 `lifeStartWeek` baseline) the player must have
      * lived before the notification is eligible. A celebration for "all stats
      * above 90" fired on the first tick of every new life, when the stats had
-     * started at 100 and done nothing but fall — praise for a week the player
+     * started at 100 and done nothing but fall - praise for a week the player
      * had not yet played, delivered on top of the first wage and the first
      * daily reward. Program 6.
      */

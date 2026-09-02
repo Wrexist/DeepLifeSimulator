@@ -89,7 +89,7 @@ export function applyHousingWellbeing(
         title: 'Nowhere to live',
         // Names the number and the free offset. The old copy ("Renting even a
         // shared room would help") pointed a week-1 player at the Real Estate
-        // app, which is computer-only and tier 2 — an action they could not
+        // app, which is computer-only and tier 2 - an action they could not
         // take for ~25 weeks. Program 6.
         message: `Sleeping rough costs ${Math.abs(HOMELESS_PENALTY.happiness)} happiness and ${Math.abs(HOMELESS_PENALTY.health)} health every week. A walk or meditation in Life → Health is free and offsets it.`,
       });

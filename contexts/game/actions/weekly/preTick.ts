@@ -35,7 +35,12 @@ import { weeksSinceLifeStart } from '@/utils/weekCounters';
 // same field iteration order, same logger calls. Any change here will
 // surface as a snapshot diff in `subsystemEquivalence.test.ts`.
 //
-// ⚠ NOT THE CANONICAL NET WORTH, AND NOT CALLED BY THE WEEK LOOP.
+// ⚠ NOT THE CANONICAL NET WORTH. The week loop reaches it through ONE door:
+// `computeDecayInputs` reads it for the decay wealth multiplier (clamped to
+// 0.5-2.0, so the two figures agree everywhere the clamp binds). It used to
+// feed `lifetimeStatistics.peakNetWorth` too, which is how a fresh life
+// "peaked" $1,050 above its cash (owned Market items) and opened unlock tier 2
+// on its first tick; the peak sample is the canonical figure now (Program 6).
 //
 // The figure the game actually uses is `netWorth()` in
 // `lib/progress/achievements.ts` — it gates prestige, the $10M achievement,

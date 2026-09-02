@@ -19,7 +19,7 @@ import { DAILY_LOGIN_REWARDS } from '@/lib/config/gameConstants';
 interface DailyRewardPopupProps {
  visible: boolean;
  /**
- * The GEMS credited by the grant in `home.tsx` — the one number this popup
+ * The GEMS credited by the grant in `home.tsx` - the one number this popup
  * exists to report. It used to render a hard-coded "Gem +1" and then this
  * amount under a "Money bonus" label with a dollar sign, so the first thing a
  * new player was told about their first reward was wrong twice over (the

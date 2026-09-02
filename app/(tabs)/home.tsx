@@ -237,7 +237,7 @@ function HomeScreenContent() {
     // `< 2`, not `< 1`: the first Next Week of a life is the tick that teaches
     // the loop (the coach's "You earned $N" payoff, the first recap, the first
     // vital drift). Measured on a fresh quick start, this modal landed on that
-    // same tick together with a gem floater and a "Perfect Week" toast — three
+    // same tick together with a gem floater and a "Perfect Week" toast - three
     // surfaces over the one consequence the player needed to read. One tap
     // later costs the player nothing (same session) and gives the wage its
     // moment. Program 6, pacing.
