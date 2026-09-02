@@ -1981,7 +1981,7 @@ exports[`pre-tick equivalence - applyDiseasesForWeek high health/fitness acceler
       "totalDiseases": 0,
     },
     "diseases": [],
-    "lastDiseaseWeek": undefined,
+    "lastDiseaseWeek": 100,
     "showSicknessModal": false,
   },
 }
@@ -2016,7 +2016,7 @@ exports[`pre-tick equivalence - applyDiseasesForWeek natural recovery removes di
       "totalDiseases": 1,
     },
     "diseases": [],
-    "lastDiseaseWeek": 90,
+    "lastDiseaseWeek": 100,
     "showSicknessModal": false,
   },
 }
