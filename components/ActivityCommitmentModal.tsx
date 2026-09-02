@@ -10,6 +10,7 @@ import { scale, fontScale, responsivePadding } from '@/utils/scaling';
 import { CLOSE_BUTTON_A11Y, hitSlopToMinTarget, minTouchTargetStyle } from '@/utils/touchTargets';
 import { getCommitmentBonuses, getCommitmentPenalties, canChangeCommitments, type CommitmentArea } from '@/lib/commitments/commitmentSystem';
 import { gameAlert } from '@/utils/gameAlert';
+import { tier1Title } from '@/lib/config/hierarchy';
 const LinearGradient = Gradient;
 const BlurView = BlurViewFallback;
 
@@ -412,8 +413,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#1E293B',
   },
   subtitle: {

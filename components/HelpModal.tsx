@@ -11,6 +11,8 @@ import { SUPPORT_EMAIL } from '@/lib/config/appConfig';
 // just did.
 import { REVIVE_GEM_COST } from '@/lib/config/gameConstants';
 import { gameAlert } from '@/utils/gameAlert';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 
 /**
  * The Onion Browser explainer, shared by the two FAQ sections that both ask
@@ -895,8 +897,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...tier1Title,
     color: '#0F172A',
   },
   titleDark: {
@@ -926,8 +927,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...tier2,
     color: '#0F172A',
     marginBottom: 8,
   },
@@ -938,7 +938,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   itemText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#1E293B',
   },
   itemTextDark: {
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
   },
   answer: {
     marginTop: 4,
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#475569',
   },
   answerDark: {
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
   },
   contactButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
   },
 });

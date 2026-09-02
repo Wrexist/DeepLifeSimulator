@@ -588,4 +588,8 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.5,
-  },});
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
+  },
+});

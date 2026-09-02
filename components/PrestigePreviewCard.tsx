@@ -7,6 +7,8 @@ import { safeSettings } from '@/utils/safeGameState';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
 
@@ -159,15 +161,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
   },
   titleDark: {
     color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
     marginTop: 2,
   },
@@ -189,9 +190,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   description: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     color: '#475569',
-    lineHeight: 18,
+    lineHeight: fontScale(18),
   },
   descriptionDark: {
     color: '#CBD5E1',
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   progressLabel: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#64748B',
   },
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   progressText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#94A3B8',
     fontWeight: '600',
   },
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressPercent: {
-    fontSize: 10,
+    fontSize: fontScale(10),
     color: '#64748B',
     textAlign: 'right',
   },
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   benefitsTitle: {
-    fontSize: 13,
+    fontSize: fontScale(13),
     fontWeight: '600',
     color: '#1E293B',
     marginBottom: 8,
@@ -267,10 +268,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   benefitText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#64748B',
     flex: 1,
-    lineHeight: 16,
+    lineHeight: fontScale(16),
   },
   benefitTextDark: {
     color: '#94A3B8',

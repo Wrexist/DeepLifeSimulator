@@ -7,6 +7,7 @@ import { applyKarmaChange, INITIAL_KARMA } from '@/lib/karma/karmaSystem';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 import { statIdentity, DIRECTION_COLOR, withAlpha } from '@/lib/config/statIdentity';
 import { scale, fontScale } from '@/utils/scaling';
+import { tier1Title } from '@/lib/config/hierarchy';
 
 const LinearGradient = Gradient;
 
@@ -262,8 +263,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#1E293B',
     marginBottom: 16,
     textAlign: 'center',
@@ -272,11 +272,11 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   situation: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#334155',
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 24,
+    lineHeight: fontScale(24),
   },
   situationDark: {
     color: '#CBD5E1',
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   choiceText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#1E293B',
     marginBottom: 8,
     fontWeight: '500',

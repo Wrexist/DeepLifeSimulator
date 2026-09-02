@@ -1601,6 +1601,10 @@ const local = StyleSheet.create({
         ...tier4,
         color: 'rgba(226, 232, 240, 0.55)',
     },
+    /** Full progress but held by a review / tenure gate: the reason is the line. */
+    heroStageGated: {
+        color: 'rgba(251, 191, 36, 0.92)',
+    },
     heroMeta: {
         fontSize: fontScale(16),
         lineHeight: fontScale(21),

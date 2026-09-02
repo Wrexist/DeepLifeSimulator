@@ -4,7 +4,8 @@ import { Leaf, Sun, Snowflake, X, Calendar, Heart, Ghost, Trees, Sparkles } from
 import { useGameSelector, shallowEqual } from '@/contexts/game/useGameSelector';
 import { safeSettings } from "@/utils/safeGameState";
 import { getCurrentSeason } from '@/lib/events/seasonalEvents';
-import { isIPad, touchTargets } from '@/utils/scaling';
+import { isIPad, touchTargets, fontScale } from '@/utils/scaling';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
 
 interface SeasonalIndicatorProps {
   size?: number;
@@ -268,8 +269,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#FFFFFF',
   },
   closeButton: {
@@ -292,8 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   holidayName: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -301,7 +300,7 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   holidayDescription: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     textAlign: 'center',
   },
@@ -321,7 +320,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     marginBottom: 2,
   },
@@ -329,7 +328,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
     color: '#1E293B',
   },
@@ -345,8 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#334155',
   },
   tipTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...tier2,
     color: '#1E293B',
     marginBottom: 8,
   },
@@ -354,9 +352,9 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
   },
   tipText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   tipTextDark: {
     color: '#CBD5E1',

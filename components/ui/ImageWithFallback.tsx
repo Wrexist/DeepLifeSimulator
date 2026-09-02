@@ -25,6 +25,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Image, View, Text, StyleSheet, ImageStyle, StyleProp } from 'react-native';
 import CharacterAvatar from '@/components/avatar/CharacterAvatar';
+import { fontScale } from '@/utils/scaling';
 
 interface ImageWithFallbackProps {
   /** Source URI. If undefined/null/empty, the fallback renders directly. */
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   placeholderText: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
   },
 });

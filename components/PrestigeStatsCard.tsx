@@ -7,6 +7,8 @@ import { safeSettings } from '@/utils/safeGameState';
 import { getPrestigeThreshold } from '@/lib/prestige/prestigeTypes';
 import { netWorth } from '@/lib/progress/achievements';
 import { formatMoney } from '@/utils/moneyFormatting';
+import { tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 
 const LinearGradient = Gradient;
 
@@ -197,8 +199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#1E293B',
     flexShrink: 1,
   },
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
     marginTop: 2,
   },
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   infoButtonText: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   shopButtonText: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#FFFFFF',
   },
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: 'bold',
     color: '#1E293B',
     marginTop: 4,
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#64748B',
     marginTop: 2,
   },
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   progressLabel: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '600',
     color: '#64748B',
   },
@@ -291,7 +292,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   progressText: {
-    fontSize: 11,
+    fontSize: fontScale(11),
     color: '#94A3B8',
   },
   progressTextDark: {

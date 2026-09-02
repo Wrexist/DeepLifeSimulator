@@ -4,6 +4,7 @@ import Gradient from '@/components/ui/Gradient';
 import { MotiView } from '@/components/anim/MotiStub';
 import { Loader } from 'lucide-react-native';
 import { Z_INDEX } from '@/utils/zIndexConstants';
+import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
 
 interface LoadingSpinnerProps {
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   message: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     color: '#334155',
     textAlign: 'center',
     fontWeight: '500',

@@ -27,6 +27,8 @@ import { useGame } from '@/contexts/GameContext';
 import { SmartNotification, NotificationContext, useSmartNotifications } from '@/utils/smartNotifications';
 import { useFeedback } from '@/utils/feedbackSystem';
 import { getPlatformShadows } from '@/utils/glassmorphismStyles';
+import { tier1Title, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
 
 interface SmartNotificationCenterProps {
@@ -467,8 +469,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...tier1Title,
     color: '#1E293B',
     marginLeft: 12,
   },
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#334155',
   },
   settingsTitle: {
-    fontSize: 16,
+    fontSize: fontScale(16),
     fontWeight: '600',
     color: '#334155',
     marginBottom: 12,
@@ -518,7 +519,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   settingLabel: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#334155',
   },
   settingLabelDark: {
@@ -535,7 +536,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   clearButtonText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '500',
     color: '#EF4444',
   },
@@ -557,7 +558,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
   },
   filterButtonText: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '500',
     color: '#334155',
   },
@@ -574,8 +575,7 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...tier2,
     color: '#334155',
     marginTop: 16,
   },
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
   },
   emptyStateSubtext: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
     marginTop: 4,
     textAlign: 'center',
@@ -629,8 +629,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   notificationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...tier2,
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -638,9 +637,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   notificationMessage: {
-    fontSize: 14,
+    fontSize: fontScale(14),
     color: '#64748B',
-    lineHeight: 20,
+    lineHeight: fontScale(20),
   },
   notificationMessageDark: {
     color: '#94A3B8',
@@ -665,7 +664,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   notificationCategory: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '500',
     color: '#64748B',
     textTransform: 'capitalize',
@@ -674,7 +673,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   notificationPriority: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     fontWeight: '500',
     color: '#64748B',
     textTransform: 'capitalize',

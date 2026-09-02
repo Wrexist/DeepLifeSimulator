@@ -513,4 +513,8 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FB923C',
     letterSpacing: scale(0.2),
-  },});
+  },
+  positiveText: {
+    color: '#059669',
+  },
+});

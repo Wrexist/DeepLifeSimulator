@@ -155,3 +155,100 @@ describe('state-driven hierarchy - Work', () => {
     unmount();
   });
 });
+
+/**
+ * Program 5 - the DOMINANCE-COLLISION and QUIET-STATE tests. Several urgent
+ * states at once must still yield exactly one lead per screen, in a
+ * deterministic order; and a life with nothing urgent must not invent one.
+ */
+describe('dominance collisions - one lead, deterministic', () => {
+  it('sick + starving + broke + promotion-ready: Home shows one crisis tip, health first', () => {
+    const { json, unmount } = renderSeeded(<Home />, (s) => ({
+      ...s,
+      stats: { ...s.stats, health: 10, happiness: 10, energy: 5, money: 10 },
+    }));
+    // ContextualTip's ladder is health > happiness > energy > money.
+    expect(json).toContain('Health is low');
+    expect(json).not.toContain('Feeling down');
+    expect(json).not.toContain('Low energy');
+    expect(json).not.toContain('Running low on cash');
+    // and the tip sits above the goal ladder, which still renders once.
+    before(json, 'Health is low', 'What matters now');
+    expect(count(json, 'What matters now')).toBe(1);
+    unmount();
+  });
+
+  it('a disease AND critical energy: Health has one treatment lead, energy is a row in it', () => {
+    const { json, unmount } = renderSeeded(<Health />, (s) => ({
+      ...s,
+      diseases: [
+        { id: 'flu', name: 'Flu', severity: 'serious', effects: {}, curable: true, treatmentRequired: true },
+      ],
+      stats: { ...s.stats, energy: 8 },
+    }));
+    expect(count(json, 'Treat this first')).toBe(1);
+    before(json, 'Treat this first', 'Your Vitals');
+    expect(json).toContain('Critical energy');
+    unmount();
+  });
+
+  it('starving AND a recommended item: Market has one saturated Buy - the first meal', () => {
+    const { json, unmount } = renderSeeded(<MarketScreenContent />, (s) => ({
+      ...s,
+      stats: { ...s.stats, energy: 5 },
+    }));
+    before(json, '"Food"', '"Items"');
+    expect(json).toContain('Energy is critical');
+    unmount();
+  });
+});
+
+describe('quiet state - identity, direction, progress, no invented urgency', () => {
+  it('everything high and funded: no tip, no treatment, no red number, the goal ladder leads', () => {
+    const { json, unmount } = renderSeeded(<Home />, (s) => ({
+      ...s,
+      stats: { ...s.stats, health: 100, happiness: 100, energy: 100, money: 50000 },
+      diseases: [],
+    }));
+    expect(json).not.toContain('Health is low');
+    expect(json).not.toContain('Running low on cash');
+    expect(json).toContain('What matters now');
+    expect(json).toContain('Net Worth');
+    unmount();
+  });
+
+  it('Health with everything high shows the vitals and the list, nothing promoted', () => {
+    const { json, unmount } = renderSeeded(<Health />, (s) => ({
+      ...s,
+      stats: { ...s.stats, health: 100, happiness: 100, energy: 100 },
+      diseases: [],
+    }));
+    expect(json).not.toContain('Treat this first');
+    expect(json).not.toContain('Health Issues');
+    before(json, 'Your Vitals', '"Health Activities"');
+    unmount();
+  });
+});
+
+describe('extremes', () => {
+  it('health at zero: the countdown wording leads treatment', () => {
+    const { json, unmount } = renderSeeded(<Health />, (s) => ({
+      ...s,
+      stats: { ...s.stats, health: 0 },
+      healthZeroWeeks: 1,
+    }));
+    before(json, 'Treat this first', 'Your Vitals');
+    expect(json).toMatch(/Health critical - \d week/);
+    unmount();
+  });
+
+  it('negative cash: Home still has exactly one lead', () => {
+    const { json, unmount } = renderSeeded(<Home />, (s) => ({
+      ...s,
+      stats: { ...s.stats, health: 90, happiness: 90, energy: 90, money: -500 },
+    }));
+    expect(json).toContain('Running low on cash');
+    expect(count(json, 'What matters now')).toBe(1);
+    unmount();
+  });
+});

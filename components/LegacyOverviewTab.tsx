@@ -8,6 +8,8 @@ import FamilyTreeModal from './FamilyTreeModal';
 import MemoryBookModal from './MemoryBookModal';
 import { getTraitById } from '@/lib/legacy/geneticTraits';
 import { getDynastyProgress } from '@/lib/legacy/dynasty';
+import { tier1Title, tier1Value, tier2 } from '@/lib/config/hierarchy';
+import { fontScale } from '@/utils/scaling';
 const LinearGradient = Gradient;
 
 const { width, height } = Dimensions.get('window');
@@ -197,8 +199,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...tier1Title,
     color: '#0F172A',
   },
   closeButton: {
@@ -217,15 +218,14 @@ const styles = StyleSheet.create({
   },
   genLabel: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
+    fontSize: fontScale(14),
     fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   genValue: {
+    ...tier1Value,
     color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: 'bold',
   },
   rankCard: {
     marginTop: 12,
@@ -242,9 +242,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.10)',
   },
   rankHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rankTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
-  rankScore: { fontSize: 15, fontWeight: '800', color: '#0F172A', fontVariant: ['tabular-nums'] },
-  rankDesc: { fontSize: 12, color: '#64748B', marginTop: 4 },
+  rankTitle: {
+    ...tier2,
+    ...tier2, fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  rankScore: { fontSize: fontScale(15), fontWeight: '800', color: '#0F172A', fontVariant: ['tabular-nums'] },
+  rankDesc: { fontSize: fontScale(12), color: '#64748B', marginTop: 4 },
   rankDescDark: { color: '#94A3B8' },
   rankTrack: {
     height: 8,
@@ -289,8 +291,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#334155',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
     color: '#0F172A',
     marginBottom: 12,
   },
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   traitDesc: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
   },
   bonusRow: {
@@ -327,13 +328,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bonusLabel: {
-    fontSize: 12,
+    fontSize: fontScale(12),
     color: '#64748B',
     marginBottom: 4,
   },
   bonusValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...tier2,
   },
   emptyText: {
     fontStyle: 'italic',
