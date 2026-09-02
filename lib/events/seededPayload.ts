@@ -33,11 +33,13 @@
  * first pass's call sites are untouched.
  */
 import type { GameState } from '@/contexts/game/types';
-import { makeWeeklyRoll } from '@/utils/seededRoll';
+import { makeLifeRoll } from '@/utils/seededRoll';
 
 /** A namespaced, deterministic [0,1) roll for one event's PAYLOAD. */
 export const payloadRoll = (state: GameState, eventId: string): ((salt: string) => number) => {
-  const weekly = makeWeeklyRoll(state?.weeksLived || 0);
+  // Keyed on the life as well as the week (Program 8): the same event on the
+  // same week paid the same "variable" amount in every life.
+  const weekly = makeLifeRoll(state, state?.weeksLived || 0);
   return (salt: string) => weekly(`payload-${eventId}-${salt}`);
 };
 

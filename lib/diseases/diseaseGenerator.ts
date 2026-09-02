@@ -1,6 +1,7 @@
 import type { GameState, Disease } from '@/contexts/game/types';
 import { DISEASE_DEFINITIONS, DiseaseTemplate, createDiseaseFromTemplate, getDiseaseTemplate } from './diseaseDefinitions';
 import { ADULTHOOD_AGE } from '@/lib/config/gameConstants';
+import { makeLifeRoll } from '@/utils/seededRoll';
 
 /**
  * Deterministic seeded random function for consistency
@@ -220,8 +221,12 @@ export function generateRandomDisease(state: GameState): Disease | null {
   }
 
   const weeksLived = state.weeksLived || 0;
-  const year = state.date?.year || 2025;
-  const weekSeed = weeksLived * 1000 + year * 100;
+  // Keyed on the LIFE and the week (`makeLifeRoll`), not the week alone. The
+  // old seed was `weeksLived * 1000 + year * 100` - identical for every life at
+  // the same age - so every Quick Start with health under 80 at week 7 rolled
+  // Depression at week 7. Same life + same week still yields the same result
+  // (reload-safe, StrictMode-safe); a different life gets its own. Program 8.
+  const roll = makeLifeRoll(state, weeksLived);
 
   // Calculate base risk
   const baseRiskMultiplier = calculateDiseaseRisk(state);
@@ -233,7 +238,7 @@ export function generateRandomDisease(state: GameState): Disease | null {
   // treated as 100, making sick players inadvertently disease-resistant.
   if (baseRiskMultiplier < 1.2 && (state.stats.health ?? 100) > 80 && age < 30) {
     // Very low chance when healthy and young
-    const healthyRoll = seededRandom(weekSeed + 10000);
+    const healthyRoll = roll('disease-healthy-gate');
     if (healthyRoll > 0.02) { // 2% chance even when healthy and young
       return null;
     }
@@ -258,7 +263,7 @@ export function generateRandomDisease(state: GameState): Disease | null {
   });
 
   // Roll for each disease type
-  let diseaseRoll = seededRandom(weekSeed + 20000);
+  const diseaseRoll = roll('disease-pick');
   let cumulativeChance = 0;
 
   // Calculate chances for all diseases
@@ -279,7 +284,7 @@ export function generateRandomDisease(state: GameState): Disease | null {
   // once past the gates above a disease landed EVERY cooldown window (~13 a
   // year) regardless of how small the individual chances were.
   const occurrenceChance = Math.min(totalChance, 0.35);
-  if (seededRandom(weekSeed + 30000) >= occurrenceChance) {
+  if (roll('disease-occurrence') >= occurrenceChance) {
     return null;
   }
 

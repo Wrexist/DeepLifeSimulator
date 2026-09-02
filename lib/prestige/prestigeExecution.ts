@@ -1,4 +1,5 @@
 import { GameState } from '@/contexts/game/types';
+import { mintId } from '@/utils/uniqueId';
 import { PrestigeData, PrestigeRecord, defaultPrestigeData, getPrestigeThreshold } from './prestigeTypes';
 import { carryAccountLevelEntitlements } from './accountEntitlements';
 import { calculatePrestigePoints, calculateLifetimeStats } from './prestigePoints';
@@ -284,7 +285,13 @@ function createResetGameState(
   // NOTE: Generation is NOT incremented on prestige reset - only when continuing as child
   // This allows players to prestige multiple times without increasing generation
   newState.generationNumber = oldState.generationNumber || 1; // Keep same generation on prestige reset
-  newState.lineageId = oldState.lineageId || 'initial-lineage';
+  // A reset is a NEW LIFE, so it gets a new lineage id. The id is only ever read
+  // as the per-life salt (`lifeSalt`, utils/seededRoll.ts) and as the id of an
+  // EMPTY family tree below - the preserved tree JSON keeps its own. Carrying
+  // the old id over with the same generation replayed every seeded roll of the
+  // previous reset life: the same illnesses, the same market, the same
+  // cliffhangers, on the same weeks. Program 8.
+  newState.lineageId = mintId('life');
   newState.ancestors = [...(oldState.ancestors || [])];
 
   /**

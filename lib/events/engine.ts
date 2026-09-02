@@ -887,9 +887,9 @@ const luckyCoin: EventTemplate = {
   condition: state => weeksInThisLife(state) < 12,
   generate: state => {
     // Variable reward: $20-$100 based on seeded random for anti-exploit consistency
-    const seed = (state.weeksLived || 0) * 777 + 42;
-    const x = Math.sin(seed) * 10000;
-    const roll = x - Math.floor(x);
+    // Life-keyed (Program 8): the old `Math.sin(weeksLived * 777 + 42)` paid
+    // the same "variable" amount to every life on the same week.
+    const roll = payloadRoll(state, 'inline-777-42')('amount');
     const reward = Math.floor(20 + roll * 80); // $20-$100
     return {
       id: 'lucky_coin',
@@ -911,9 +911,9 @@ const mysteryPackage: EventTemplate = {
   category: 'economy',
   weight: 0.25,
   generate: state => {
-    const seed = (state.weeksLived || 0) * 333 + 7;
-    const x = Math.sin(seed) * 10000;
-    const roll = x - Math.floor(x);
+    // Life-keyed (Program 8): the old `Math.sin(weeksLived * 333 + 7)` paid
+    // the same "variable" amount to every life on the same week.
+    const roll = payloadRoll(state, 'inline-333-7')('amount');
     const reward = Math.floor(50 + roll * 450); // $50-$500
     const statBoost = Math.floor(3 + roll * 7); // 3-10
     return {
@@ -936,9 +936,9 @@ const scratchTicket: EventTemplate = {
     const rewards = [10, 25, 50, 100, 250, 500, 1000];
     const weights = [30, 25, 20, 12, 8, 4, 1];
     const totalWeight = weights.reduce((a, b) => a + b, 0);
-    const seed = (state.weeksLived || 0) * 555 + 13;
-    const x = Math.sin(seed) * 10000;
-    const roll = (x - Math.floor(x)) * totalWeight;
+    // Life-keyed (Program 8): the old `Math.sin(weeksLived * 555 + 13)` dealt
+    // the same tier to every life on the same week.
+    const roll = payloadRoll(state, 'inline-555-13')('tier') * totalWeight;
     let cumulative = 0;
     let reward = rewards[0];
     for (let i = 0; i < weights.length; i++) {
@@ -962,9 +962,9 @@ const talentScout: EventTemplate = {
   weight: 0.2,
   condition: state => weeksInThisLife(state) > 4,
   generate: state => {
-    const seed = (state.weeksLived || 0) * 888 + 21;
-    const x = Math.sin(seed) * 10000;
-    const roll = x - Math.floor(x);
+    // Life-keyed (Program 8): the old `Math.sin(weeksLived * 888 + 21)` paid
+    // the same "variable" amount to every life on the same week.
+    const roll = payloadRoll(state, 'inline-888-21')('amount');
     const cashBonus = Math.floor(50 + roll * 200); // $50-$250
     return {
       id: 'talent_scout',
@@ -983,9 +983,9 @@ const generousTipper: EventTemplate = {
   weight: 0.25,
   condition: state => Boolean(state.careers?.some((c: any) => c.accepted)),
   generate: state => {
-    const seed = (state.weeksLived || 0) * 444 + 99;
-    const x = Math.sin(seed) * 10000;
-    const roll = x - Math.floor(x);
+    // Life-keyed (Program 8): the old `Math.sin(weeksLived * 444 + 99)` paid
+    // the same "variable" amount to every life on the same week.
+    const roll = payloadRoll(state, 'inline-444-99')('amount');
     const tip = Math.floor(25 + roll * 225); // $25-$250
     return {
       id: 'generous_tipper',
@@ -1004,9 +1004,9 @@ const viralMomentRandom: EventTemplate = {
   weight: 0.15,
   condition: state => weeksInThisLife(state) > 10,
   generate: state => {
-    const seed = (state.weeksLived || 0) * 666 + 17;
-    const x = Math.sin(seed) * 10000;
-    const roll = x - Math.floor(x);
+    // Life-keyed (Program 8): the old `Math.sin(weeksLived * 666 + 17)` paid
+    // the same "variable" amount to every life on the same week.
+    const roll = payloadRoll(state, 'inline-666-17')('amount');
     const cashReward = Math.floor(roll * 200); // $0-$200
     return {
       id: 'viral_moment_random',

@@ -13,16 +13,17 @@
  * for a given input is byte-identical to the previous inline code —
  * verified by snapshot tests on a 6-fixture battery.
  *
- * Note on `buildPreRolls`: it calls `Math.random()` and `Date.now()`, so
- * its output is NOT deterministic. That's the point — these are the RNG
- * sources pre-rolled BEFORE the React updater runs so StrictMode's
- * double-invoke produces identical results both times.
+ * Note on `buildPreRolls`: since Master Program 8 it is a pure function of
+ * the life salt and the week (plus a wall-clock `timestamp` the caller
+ * captures outside the updater), so StrictMode's double-invoke produces
+ * identical results AND the same life reproduces on every device.
  */
 
 import type { GameState } from '@/contexts/game/types';
 import { MINER_PRICES } from '@/lib/economy/constants';
 import { STAT_DECAY_GRACE_WEEKS, wealthDecayMultiplier } from '@/lib/economy/statDecay';
 import { logger } from '@/utils/logger';
+import { makeLifeRoll } from '@/utils/seededRoll';
 import { weeksSinceLifeStart } from '@/utils/weekCounters';
 
 // ============================================================================
@@ -294,18 +295,26 @@ export function computeDecayInputs(state: GameState, opts: DecayInputsOptions): 
 }
 
 // ============================================================================
-// 3. buildPreRolls — pre-roll every RNG draw the updater will consume.
+// 3. buildPreRolls — derive every draw the updater will consume from the
+// life-and-week seeded stream.
 // ============================================================================
 //
 // React StrictMode invokes the updater twice in development to surface
-// impure logic. If the updater itself calls Math.random(), the two
-// invocations produce different state and tests/dev-builds become flaky.
-// The pre-roll pattern fixes this: every RNG draw happens ONCE here,
-// outside setGameState, and the updater only reads from the result.
+// impure logic. The first fix (R7) pre-rolled every `Math.random()` ONCE,
+// outside the updater, so both invocations read the same numbers. That made
+// the tick consistent, not reproducible: the same save ticked twice on two
+// devices (or before and after a reload) got different accidents, breakups
+// and application delays, and no two lives shared anything either way.
 //
-// This is the exact same object literal that was inlined at
-// GameActionsContext.tsx:451-478 — same keys, same array lengths, same
-// distributions. Moved verbatim.
+// Master Program 8: the draws come from `makeLifeRoll(state, nextWeeksLived)`
+// - a pure function of the life salt, the week and a key - so the function is
+// StrictMode-safe by construction (call it as often as you like) AND the same
+// life + the same week yields the same draws on every device. Distinct keys
+// stay independent. Only `timestamp` is still wall-clock; it is passed in from
+// outside the updater for the same reason it always was.
+//
+// The keys and array lengths are unchanged from the R7 object literal, so every
+// consumer is untouched.
 
 export interface PreRolls {
   /** Career application acceptance delay (1 or 2 weeks). */
@@ -343,36 +352,42 @@ export interface PreRolls {
   [key: string]: unknown;
 }
 
-export function buildPreRolls(): PreRolls {
+/** The slice `buildPreRolls` reads: the life salt and the week being ticked. */
+export type PreRollSeed = Pick<GameState, 'lineageId' | 'generationNumber'> & { nextWeeksLived: number };
+
+export function buildPreRolls(seed: PreRollSeed, timestamp: number = Date.now()): PreRolls {
+  const roll = makeLifeRoll(seed, seed.nextWeeksLived);
+  const series = (key: string, length: number): number[] =>
+    Array.from({ length }, (_, i) => roll(`${key}:${i}`));
   return {
     // Career application acceptance delay (1 or 2 weeks)
-    careerAcceptDelay: Math.random() < 0.5 ? 1 : 2,
+    careerAcceptDelay: roll('career-accept-delay') < 0.5 ? 1 : 2,
     // Auto-reinvest stock pick
-    stockPickRoll: Math.random(),
+    stockPickRoll: roll('stock-pick'),
     // Child birth
-    childGender: Math.random() < 0.5 ? 'male' as const : 'female' as const,
-    childIdSuffix: Math.random().toString(36).slice(2, 8),
-    childPersonality: Math.floor(Math.random() * 5),
+    childGender: roll('child-gender') < 0.5 ? 'male' as const : 'female' as const,
+    childIdSuffix: roll('child-id-suffix').toString(36).slice(2, 8),
+    childPersonality: Math.floor(roll('child-personality') * 5),
     // Relationship breakup/disappointment (one pair per relationship, max 20)
-    relBreakup: Array.from({ length: 20 }, () => Math.random()),
-    relDisappointed: Array.from({ length: 20 }, () => Math.random()),
+    relBreakup: series('rel-breakup', 20),
+    relDisappointed: series('rel-disappointed', 20),
     // Police encounter
-    policeEncounter: Math.random(),
+    policeEncounter: roll('police-encounter'),
     // Miner durability degradation (2-5% per week)
-    minerDegradation: 2 + Math.random() * 3,
+    minerDegradation: 2 + roll('miner-degradation') * 3,
     // Disease complications (one set per disease, max 20)
-    diseaseComplication: Array.from({ length: 20 }, () => Math.random()),
-    diseaseProgression: Array.from({ length: 20 }, () => Math.random()),
+    diseaseComplication: series('disease-complication', 20),
+    diseaseProgression: series('disease-progression', 20),
     // Pet sickness (one pair per pet). Sized to 20; the consumer wraps the
     // index (modulo) so larger pet collections still get a valid roll instead
     // of an out-of-range `undefined` that reads as sickness-immune.
-    luxuryIncident: Array.from({ length: 20 }, () => Math.random()),
-    petSickness: Array.from({ length: 20 }, () => Math.random()),
-    petSicknessType: Array.from({ length: 20 }, () => Math.random()),
+    luxuryIncident: series('luxury-incident', 20),
+    petSickness: series('pet-sickness', 20),
+    petSicknessType: series('pet-sickness-type', 20),
     // Vehicle accidents (one pair per vehicle, max 10)
-    vehicleAccident: Array.from({ length: 10 }, () => Math.random()),
-    vehicleAccidentSeverity: Array.from({ length: 10 }, () => Math.random()),
-    // Timestamps (Date.now() is impure under StrictMode double-invoke)
-    timestamp: Date.now(),
+    vehicleAccident: series('vehicle-accident', 10),
+    vehicleAccidentSeverity: series('vehicle-accident-severity', 10),
+    // Wall-clock, captured OUTSIDE the updater by the caller.
+    timestamp,
   };
 }

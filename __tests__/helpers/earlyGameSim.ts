@@ -105,6 +105,13 @@ export interface SimSpec {
   policy: SimPolicy;
   /** Optional tweak applied to the seeded state before the first frame. */
   mutateSeed?: (state: GameState) => GameState;
+  /**
+   * Replace `Math.random` with a seeded stream for the run (default true).
+   * Pass false to exercise the GAME's own determinism - the life-reproducibility
+   * tests do, so a stubbed generator cannot hide a live `Math.random()` in the
+   * tick.
+   */
+  seedMathRandom?: boolean;
 }
 
 /** mulberry32 — small, fast, good enough to make a run reproducible. */
@@ -206,7 +213,7 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
   const seed = spec.seed ?? 1;
   const weeks = spec.weeks ?? 20;
   const originalRandom = Math.random;
-  Math.random = mulberry32(seed);
+  if (spec.seedMathRandom !== false) Math.random = mulberry32(seed);
 
   const mounted = mountGame();
   try {
@@ -321,6 +328,21 @@ export async function runPersona(spec: SimSpec): Promise<SimResult> {
     captured = null;
     Math.random = originalRandom;
   }
+}
+
+/**
+ * Re-age a seeded life. Moves `weeksLived`, `lifeStartWeek` and `date.age`
+ * together, the way `computeWeeksLived` seeds them, so every week-relative gate
+ * (grace ramp, chapters, coach) sees a fresh life at that age.
+ */
+export function withStartingAge(state: GameState, age: number): GameState {
+  const weeksLived = Math.max(0, Math.round((age - 18) * 52));
+  return {
+    ...state,
+    weeksLived,
+    lifeStartWeek: weeksLived,
+    date: { ...state.date, age },
+  };
 }
 
 /** Format a run as a fixed-width table for the soak's stdout. */

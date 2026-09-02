@@ -1,3 +1,84 @@
+# Master Program 8 — LIFE VARIATION + DISEASE FAIRNESS + PROGRESSION INTEGRITY — IN PROGRESS
+
+Branch `claude/early-game-survivability-g2ejfj`, on top of Program 7 (`3bfee78`).
+Programs 1–7 untouched. Every row: PROBLEM · ROOT CAUSE · PLAYER IMPACT · PLAN ·
+RISK · TEST · STATUS. Full report when done: `tasks/life-variation-2026-09-02.md`.
+
+## Phase 1–2 — system map and randomness audit (done, read-only)
+
+Randomness sources on the week-tick path, as found:
+
+| source | seed | per-life? | reproducible from save? |
+|---|---|---|---|
+| `buildPreRolls()` (career delay, breakups, police, miners, disease complications/progression, pets, luxury, vehicles) | `Math.random()` | n/a | **no** |
+| `oldAgeDeathRoll` | `Math.random()` | n/a | **no** |
+| `makeWeeklyRoll(weeksLived)` keyed streams (education, crypto, dark web, politics, pulse, relationships, events) | week + key | only where the caller folds `lineageId:generationNumber` into the key (stocks, lucky bonus, cliffhangers, life moments, spark) | yes |
+| `generateRandomDisease` | `weeksLived*1000 + year*100` via `Math.sin` | **no** | yes |
+| event payload rolls (`payloadRoll`, six inline `Math.sin(weeksLived*777+42)`) | week only | **no** | yes |
+| job board | `rngCommitLog.seed` + first name + week block | first name only | yes |
+| `deterministicRng` commit log (street jobs, applications, dating, luxury) | `rngCommitLog.seed` → falls back to `lineageId:generation` | see below | yes (persisted) |
+
+**Root finding.** `initialState.lineageId = 'initial-lineage'` "will be replaced
+with a UUID on first load" — nothing ever does. Every fresh life carries the same
+lineage id and generation 1, so the per-life salt the codebase already adopted
+(`${lineageId}:${generationNumber}`) is one constant for every new game. The
+seeded architecture is sound; its seed is never minted. That is why every Quick
+Start rolled Depression at week 7, why stock tapes and cliffhangers replay
+across lives, and why "unlucky" was a schedule. Two systems (`preRolls`, the
+old-age roll) are not seeded at all, so a life is not reproducible either.
+
+## Phase 3 — reproducibility and variation (simulation)
+- PROBLEM: identical lives across players; non-reproducible ticks. ROOT CAUSE: above.
+- PLAN: harness option to run the game's own RNG (no `Math.random` stub) and set
+  `lineageId`; 20 same-seed runs must be byte-identical; 50 seeds must diverge
+  in disease timing/type; repeated Quick Starts must mint distinct ids.
+- TEST: `__tests__/simulation/lifeReproducibility.test.ts`. STATUS: pending.
+
+## Phase 4–5 — disease curves, age fairness, the treadmill
+- PROBLEM: 35%/week occurrence cap binds for 30+ at low fitness. ROOT CAUSE (to
+  verify): summed template base chances (~0.16) × age × fitness saturate the cap;
+  recovery grants no resistance (immunity list is short), cooldown is 4 weeks.
+- PLAN: measure curves at ages 18/25/30/35/40/50/60 × fitness 0/10/30/50/100 ×
+  health bands; run the careful persona 50–100 weeks at ages 30/40/50/60; define
+  the treadmill as (expected interval ≤ recovery time). Change only what the
+  measurement names. TEST: `diseaseCurves.test.ts`, long-run gates. STATUS: pending.
+
+## Phase 6 — fitness forensic audit
+- PROBLEM: the "base" fitness-decay bracket is unreachable. ROOT CAUSE:
+  `weeksSinceLastGym = nextWeeksLived − lastGymVisitWeek ≥ 1` always, so
+  `> 0` is always true and a player who trained THIS week is charged ×1.5.
+- PLAN: `> 1` (trained this week = base); brackets otherwise unchanged. RISK:
+  none found (gym-goers lose ~1.1 fitness/wk instead of 1.6). TEST: unit +
+  real-tick. STATUS: pending.
+
+## Phase 7 — recovery loop
+- Measure interval between illnesses vs recovery length, overlapping illness,
+  time spent ill, across ages; verify recovery lowers future risk. STATUS: pending.
+
+## Phase 8–9 — Chapter 2 ledger and reward integrity
+- FINDING (verified in code): `applyChapterProgress` pays `completion + perGoal ×
+  totalGoals` in ONE grant on the tick the LAST goal completes; the promotion
+  itself pays nothing. Chapter 2 = $2,000 + 4 × $200 = $2,800, two of four goals
+  complete at frame one for phone-seeded scenarios ("Buy a Smartphone") and all
+  scenarios ("Make a Friend", seeded parents, load-bearing).
+- PLAN: reproduce with a ledger on the real tick; assert paid once, never
+  re-paid on reload or a second tick; decide the phone goal on evidence. STATUS: pending.
+
+## Phase 10 — ambition picker timing
+- FINDING: `AmbitionPickerCard` renders on frame one for any life without an
+  ambition; every milestone needs tier-2+ systems. PLAN: evidence table of what
+  the player knows at each candidate moment; decide. STATUS: pending.
+
+## Phase 11 — implementation (evidence-backed, one commit each)
+1. Mint a per-life `lineageId` at new-life creation (`mintId`); prestige keeps it.
+2. Disease seeds and event payload rolls fold the life salt.
+3. `buildPreRolls` and the old-age roll derive from the salted weekly stream
+   (pure → StrictMode-safe AND reproducible; `timestamp` stays `Date.now()`).
+4. Fitness bracket.
+5. Whatever Phases 4–5 and 8–10 prove.
+
+## Phase 12–14 — long-run sims (20/50/100 weeks), red team, full gates. STATUS: pending.
+
 # Master Program 7 — NEW LIFE BALANCE — COMPLETE
 
 Branch `claude/early-game-survivability-g2ejfj`, on top of Program 6 (`b544fd2`).
