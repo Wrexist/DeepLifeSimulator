@@ -143,7 +143,7 @@ export default function AcquireModal({ visible, companyId, onDismiss }: AcquireM
                           { backgroundColor: canAfford ? HUSTLE_COLORS.accent : theme.border, opacity: canAfford ? 1 : 0.55 },
                         ]}
                       >
-                        <Text style={styles.btnPrimaryText}>{canAfford ? 'Acquire' : 'Need cash'}</Text>
+                        <Text style={styles.btnPrimaryText}>{canAfford ? 'Buy' : 'Need cash'}</Text>
                       </Pressable>
                     </View>
                   </View>

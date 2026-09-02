@@ -476,7 +476,7 @@ export default function AchievementsProgress() {
                   </Text>
                   {a.isSecret && (
                     <View style={styles.secretBadge}>
-                      <Lock size={scale(10)} color="#F59E0B" />
+                      <Lock size={scale(10)} color="#94A3B8" />
                       <Text style={styles.secretBadgeText}>Secret</Text>
                     </View>
                   )}

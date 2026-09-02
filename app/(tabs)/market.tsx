@@ -259,7 +259,10 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
             title={t('market.buy')}
             loading={loadingStates[item.id] || false}
             disabled={!canAffordItem(item.price)}
-            variant="success"
+            // The recommended item is the one saturated Buy on the list; the
+            // rest are tonal. Success green on every row said every purchase
+            // was the good one.
+            variant={badges.length > 0 ? 'primary' : 'secondary'}
             size="small"
             style={styles.buyButton}
             loadingText="Buying..."
@@ -269,7 +272,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
     );
   }, [settings.darkMode, gameState.economy?.priceIndex, gameState.prestige?.unlockedBonuses, gameState.items, loadingStates, canAffordItem, handleSell, handlePurchase, showError, showSuccess, showInfo, setShowSellConfirm, setShowPurchaseConfirm]);
 
-  const renderFood = useCallback(({ item: food }: { item: typeof gameState.foods[0] }) => {
+  const renderFood = useCallback(({ item: food }: { item: typeof gameState.foods[0] }, isLead = false) => {
     // Calculate happiness restore based on food quality (healthRestore / 2, rounded, minimum 1)
     const happinessRestore = Math.max(1, Math.round(food.healthRestore / 2));
 
@@ -329,7 +332,8 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           }}
           title={t('market.buy')}
           disabled={!canAfford(food.price)}
-          variant="success"
+          // When food leads (energy critical) the first meal is the primary.
+          variant={isLead ? 'primary' : 'secondary'}
           size="small"
           style={styles.buyButton}
         />
@@ -387,7 +391,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
           {satietyHint(gameState.weeklyFoodPurchases)}
         </Text>
       )}
-      {sortedFoods.map((food) => renderFood({ item: food }))}
+      {sortedFoods.map((food, i) => renderFood({ item: food }, foodFirst && i === 0))}
     </CollapsibleSection>
 
     </>
@@ -555,7 +559,7 @@ export function MarketScreenContent({ embedded = false }: { embedded?: boolean }
               ? '\n\nThis will unlock mobile apps including Banking, Dating, and Social Media!'
               : ''
             }`}
-          confirmText="Purchase"
+          confirmText="Buy"
           cancelText="Cancel"
           onConfirm={async () => {
             await handlePurchase(showPurchaseConfirm.itemId, showPurchaseConfirm.itemName);

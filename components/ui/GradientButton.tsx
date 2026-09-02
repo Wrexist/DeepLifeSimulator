@@ -25,6 +25,13 @@ interface GradientButtonProps {
   icon?: React.ReactNode;
   style?: ViewStyle;
   accessibilityLabel?: string;
+  /**
+   * 'primary' (default) is the saturated gradient with a glow - ONE per
+   * viewport. 'secondary' is the same button flat: a tint of the glow colour,
+   * a rim, the label in that colour. Lists of cards used to stack a saturated
+   * primary on every row, so none of them read as the one to press.
+   */
+  emphasis?: 'primary' | 'secondary';
 }
 
 // Unique-ish gradient id per render so multiple buttons don't collide on web.
@@ -39,7 +46,9 @@ export default function GradientButton({
   icon,
   style,
   accessibilityLabel,
+  emphasis = 'primary',
 }: GradientButtonProps) {
+  const secondary = emphasis === 'secondary';
   const press = useRef(new Animated.Value(0)).current;
   const idRef = useRef(`gb${_gid++}`);
   const gid = idRef.current;
@@ -54,7 +63,7 @@ export default function GradientButton({
   // rectangle poking past the corners) and a solid bottom-color background so
   // iOS has a rounded shape to cast the shadow from (the rounded SVG rect sits
   // exactly on top of it, hiding it).
-  const glowStyle: ViewStyle = disabled
+  const glowStyle: ViewStyle = disabled || secondary
     ? {}
     : Platform.select<ViewStyle>({
         web: { boxShadow: `0px ${scale(5)}px ${scale(14)}px ${glow}4D` } as ViewStyle,
@@ -72,7 +81,7 @@ export default function GradientButton({
     <Animated.View
       style={[
         styles.wrap,
-        { transform: [{ scale: scaleAnim }], backgroundColor: disabled ? 'transparent' : colors[2] },
+        { transform: [{ scale: scaleAnim }], backgroundColor: disabled || secondary ? 'transparent' : colors[2] },
         glowStyle,
         style,
       ]}
@@ -94,6 +103,8 @@ export default function GradientButton({
         <View style={styles.clip}>
           {disabled ? (
             <View style={styles.disabledFill} />
+          ) : secondary ? (
+            <View style={[styles.disabledFill, { backgroundColor: `${glow}24`, borderColor: `${glow}59` }]} />
           ) : (
             <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
               <Defs>
@@ -120,7 +131,13 @@ export default function GradientButton({
 
           <View style={styles.content}>
             {icon}
-            <Text style={[styles.label, disabled ? styles.labelDisabled : styles.labelActive]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.label,
+                disabled ? styles.labelDisabled : secondary ? { color: colors[0], fontWeight: '600' } : styles.labelActive,
+              ]}
+              numberOfLines={1}
+            >
               {label}
             </Text>
           </View>

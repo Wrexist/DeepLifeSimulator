@@ -24,7 +24,6 @@ import SegmentedControl from '@/components/ui/SegmentedControl';
 import EmptyState from '@/components/ui/EmptyState';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import CollapsibleSection from '@/components/ui/CollapsibleSection';
-import { hitSlopToMinTarget } from '@/utils/touchTargets';
 import { useGame, CrimeSkillId, StreetJob, Career } from '@/contexts/GameContext';
 import type { PromotionDetails } from '@/contexts/game/types';
 import {
@@ -424,7 +423,24 @@ function WorkScreenContent() {
         gameState.criminalLevel,
     ]);
 
-    const renderJobCard = (job: StreetJob) => {
+    // The one gate both card branches read for `locked`, so the board can
+    // also ask "which is the first job the player can take" and give THAT
+    // card the one saturated button; every other card is tonal.
+    const streetJobLocked = (job: StreetJob): boolean => {
+        const lacksEnergy = (gameState?.stats?.energy ?? 0) < getStreetJobEnergyCost(gameState, job);
+        const inJail = gameState.jailWeeks > 0;
+        const doneThisWeek = (gameState.weeklyStreetJobs || {})[job.id] || 0;
+        if (lacksEnergy || inJail || doneThisWeek >= 3 || streetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK) return true;
+        if (job.illegal) {
+            const meetsCriminalLevel = !job.criminalLevelReq || gameState.criminalLevel >= job.criminalLevelReq;
+            const missingItems = (job.requirements || []).filter((id: string) => !(gameState.items || []).find(i => i.id === id)?.owned);
+            const missingDark = (job.darkWebRequirements || []).filter((id: string) => !(gameState.darkWebItems || []).find(i => i.id === id)?.owned);
+            return !meetsCriminalLevel || missingItems.length > 0 || missingDark.length > 0;
+        }
+        return getMissingRequirements(job).length > 0;
+    };
+
+    const renderJobCard = (job: StreetJob, isLead = false) => {
         const lowReward = Math.floor(job.basePayment * 0.7);
         const highReward = Math.floor(job.basePayment * 1.3 * (1 + (job.rank - 1) * 0.3));
         const reward = `$${lowReward}–${highReward}`;
@@ -480,7 +496,7 @@ function WorkScreenContent() {
             // here, so at 8/8 every card stayed enabled and every tap bounced off
             // a rejection message. UX-4.
             const atGlobalLimit = streetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK;
-            const locked = lacksEnergy || inJail || atLimit || atGlobalLimit || !meetsCriminalLevel || missingItems.length > 0 || missingDark.length > 0;
+            const locked = streetJobLocked(job);
 
             let lockReason: string | undefined;
             if (atLimit) {
@@ -525,6 +541,7 @@ function WorkScreenContent() {
                     metadata={crimeMetadata}
                     buttonText="Execute"
                     onPress={() => handleStreetJob(job.id)}
+                    emphasis={isLead && !locked ? 'primary' : 'secondary'}
                     locked={locked}
                     lockReason={lockReason}
                     feedback={workFeedback[job.id]}
@@ -539,7 +556,7 @@ function WorkScreenContent() {
         const streetMaxPerWeek = 3;
         const streetAtLimit = streetDoneThisWeek >= streetMaxPerWeek;
         const atGlobalLimit = streetJobsThisWeek >= MAX_TOTAL_STREET_JOBS_PER_WEEK;
-        const locked = lacksEnergy || inJail || missing.length > 0 || streetAtLimit || atGlobalLimit;
+        const locked = streetJobLocked(job);
         const lockReason = streetAtLimit
             ? `Used ${streetDoneThisWeek}/${streetMaxPerWeek} this week - wait for next week.`
             : atGlobalLimit
@@ -580,6 +597,7 @@ function WorkScreenContent() {
                 metadata={streetMetadata}
                 buttonText="Work"
                 onPress={() => handleStreetJob(job.id)}
+                emphasis={isLead && !locked ? 'primary' : 'secondary'}
                 locked={locked}
                 lockReason={lockReason}
                 feedback={workFeedback[job.id]}
@@ -671,7 +689,9 @@ function WorkScreenContent() {
         // $13000 and $13K across three screens. `paidWeeklySalaryForLevel` is
         // the function the week loop itself pays from.
         const paidWeekly = paidWeeklySalaryForLevel(gameState, career, career.level);
-        const reward = requiresEdu && !hasEdu ? '- Locked' : `${formatMoney(paidWeekly)}/wk`;
+        // The reward slot keeps the number: the lock icon beside it and the
+        // reason line under it already say locked, and '- Locked' made it three.
+        const reward = `${formatMoney(paidWeekly)}/wk`;
         // Only entry-tier jobs have a hiring bar; everything else is governed by
         // the career's own `requirements`.
         const entryHiring = isEntryTierCareer(career.id) && !isEmployedHere && !career.accepted
@@ -821,6 +841,7 @@ function WorkScreenContent() {
             <JobCard
                 key={career.id}
                 accent="career"
+                emphasis={career.id === leadBoardId ? 'primary' : 'secondary'}
                 title={level?.name ?? 'Unemployed'}
                 description={entryProfile && !isEmployedHere ? entryProfile.vibe : career.description}
                 reward={reward}
@@ -890,9 +911,10 @@ function WorkScreenContent() {
             <JobCard
                 key={career.id}
                 accent="career"
+                emphasis="secondary"
                 title={displayName}
                 description={career.description}
-                reward={isLocked ? '- Locked' : `${formatMoney(salary)}/wk`}
+                reward={`${formatMoney(salary)}/wk`}
                 metadata={metadata}
                 buttonText={buttonText}
                 onPress={onPress}
@@ -992,6 +1014,12 @@ function WorkScreenContent() {
         ? currentJobEligibility?.reason
         : undefined;
     const nextLevelName = currentJob?.levels?.[currentJob.level + 1]?.name;
+    // ONE saturated button per screen. When the hero holds the Promote
+    // button nothing on the board competes with it; otherwise the first job
+    // the player can actually take is the board's primary and the rest are
+    // tonal. A board of six glowing Apply buttons said six things were the
+    // thing to press.
+    const leadBoardId = currentJobCanPromote ? undefined : boardCareers.find(isApplicableNow)?.id;
 
     // Plain background - the "gradient" this screen shipped with blended
     // #020617 into #020617 (two identical colors), pure decoration cost.
@@ -1108,12 +1136,6 @@ function WorkScreenContent() {
                             )}
                             {activeTab === 'street' && (
                                 <View>
-                                    {/* No heading: the segment control 40pt above already names this
-                                        section; a second title restating it was a layer of
-                                        chrome between the player and the first card. */}
-                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
-                                        Quick gigs paid on the spot - each job ranks up and pays more with repetition.
-                                    </Text>
                                     {/* BOTH weekly caps the reducer enforces, in ONE line.
                                         Stated up front so the player never discovers a
                                         limit by being refused (UX-4); per-job usage also
@@ -1187,7 +1209,7 @@ function WorkScreenContent() {
                                         }}
                                     />
                                     {legalStreetJobs.length > 0 ? (
-                                        legalStreetJobs.map(renderJobCard)
+                                        legalStreetJobs.map((job) => renderJobCard(job, job.id === legalStreetJobs.find((j) => !streetJobLocked(j))?.id))
                                     ) : (
                                         <EmptyState
                                             compact
@@ -1204,24 +1226,18 @@ function WorkScreenContent() {
                                     {/* No compact CareerPathCard here any more: the hero
                                         Current Job card 100px above already shows the same
                                         job, salary and promotion progress. */}
-                                    {/* No heading: the segment control 40pt above already names this
-                                        section; a second title restating it was a layer of
-                                        chrome between the player and the first card. */}
-                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
-                                        Meet a career’s requirements, apply, and climb its ladder for bigger salaries.
-                                    </Text>
                                     <CollapsibleSection
                                         id="work.standardCareers"
                                         title="Standard Careers"
                                         compact
-                                        summary={`${visibleBasicCareers.length} listed`}
+                                        // The board note rides in the fold's summary instead of as a
+                                        // line above the first card: same two facts, one less layer
+                                        // of chrome (Program 5's chrome budget for Work: title,
+                                        // segments, fold header, then the card).
+                                        summary={openingsCount > 0
+                                            ? `${openingsCount} ${openingsCount === 1 ? 'opening' : 'openings'} · new in ${boardRefreshWeeks} wk${boardRefreshWeeks === 1 ? '' : 's'}`
+                                            : `${visibleBasicCareers.length} listed`}
                                     >
-                                    {openingsCount > 0 && (
-                                        <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
-                                            {openingsCount} {openingsCount === 1 ? 'opening' : 'openings'} on the board
-                                            {' · '}new listings in {boardRefreshWeeks} {boardRefreshWeeks === 1 ? 'week' : 'weeks'}
-                                        </Text>
-                                    )}
                                     {boardCareers.length > 0 ? (
                                         boardCareers.map(career => renderCareerCard(career))
                                     ) : (
@@ -1306,12 +1322,6 @@ function WorkScreenContent() {
 
                             {activeTab === 'skills' && (
                                 <View>
-                                    {/* No heading: the segment control 40pt above already names this
-                                        section; a second title restating it was a layer of
-                                        chrome between the player and the first card. */}
-                                    <Text style={[local.sectionSub, settings.darkMode && local.sectionSubDark]}>
-                                        Illegal jobs level these skills, and their talents add success and payout bonuses.
-                                    </Text>
 
                                     <CollapsibleSection
                                         id="work.crimeSkills"
@@ -1359,15 +1369,13 @@ function WorkScreenContent() {
                                         id="work.crimeJobs"
                                         title={`Crime Jobs (Level ${gameState.criminalLevel})`}
                                         compact
-                                        summary={`${criminalStreetJobs.length} available`}
+                                        // Crime jobs share the street-work weekly cap; the Street tab
+                                        // states it as a line, here it is the fold's summary so the
+                                        // same fact is not a second layer above the cards.
+                                        summary={`${criminalStreetJobs.length} available · ${streetJobsThisWeek}/${MAX_TOTAL_STREET_JOBS_PER_WEEK} this week`}
                                     >
-                                    {/* Crime jobs share the street-work weekly caps -
-                                        same single-line statement as the Street tab. */}
-                                    <Text style={[local.boardNote, settings.darkMode && local.boardNoteDark]}>
-                                        Street work: {streetJobsThisWeek}/{MAX_TOTAL_STREET_JOBS_PER_WEEK} this week · max 3 per job
-                                    </Text>
                                     {criminalStreetJobs.length > 0 ? (
-                                        criminalStreetJobs.map(renderJobCard)
+                                        criminalStreetJobs.map((job) => renderJobCard(job, job.id === criminalStreetJobs.find((j) => !streetJobLocked(j))?.id))
                                     ) : (
                                         <EmptyState
                                             compact
@@ -1533,17 +1541,6 @@ const local = StyleSheet.create({
         color: 'rgba(148, 163, 184, 0.85)',
     },
     // One-line section subtitles - replaced the three InfoButton "?" modals.
-    sectionSub: {
-        fontSize: fontScale(12),
-        fontWeight: '500',
-        color: 'rgba(71, 85, 105, 0.9)',
-        marginTop: scale(-4),
-        marginBottom: scale(10),
-        lineHeight: fontScale(16),
-    },
-    sectionSubDark: {
-        color: 'rgba(148, 163, 184, 0.85)',
-    },
     workTabs: {
         marginHorizontal: scale(16),
         marginTop: scale(12),
@@ -1604,30 +1601,12 @@ const local = StyleSheet.create({
         ...tier4,
         color: 'rgba(226, 232, 240, 0.55)',
     },
-    /** Full progress but held by a review / tenure gate: the reason is the line. */
-    heroStageGated: {
-        color: 'rgba(251, 191, 36, 0.92)',
-    },
     heroMeta: {
         fontSize: fontScale(16),
         lineHeight: fontScale(21),
         fontWeight: '600',
         color: '#E2E8F0',
         fontVariant: ['tabular-nums'],
-    },
-    // Promotion-gated footer - full progress but locked on performance/experience.
-    cardLockRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: scale(8),
-        paddingVertical: scale(4),
-        paddingHorizontal: scale(2),
-    },
-    cardLockText: {
-        flex: 1,
-        fontSize: fontScale(11.5),
-        fontWeight: '600',
-        color: 'rgba(251, 191, 36, 0.92)',
     },
     // Action sheet
     sheetOverlay: {
@@ -1690,8 +1669,7 @@ const local = StyleSheet.create({
         fontSize: fontScale(14),
         fontWeight: '700',
         color: 'rgba(226, 232, 240, 0.55)',
-    },
-});
+    },});
 
 
 export default React.memo(WorkScreen);

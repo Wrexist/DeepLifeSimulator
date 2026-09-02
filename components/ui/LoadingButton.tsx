@@ -45,7 +45,11 @@ export default function LoadingButton({
       case 'primary':
         return ['#3B82F6', '#2563EB'];
       case 'secondary':
-        return ['#EF4444', '#DC2626']; // Red for sell buttons
+        // Tonal, not red. 'secondary' used to alias 'danger', so a routine
+        // sale wore the destructive treatment and nothing was left for real
+        // destruction. The flat surface is drawn below; these colours are
+        // only read by the gradient path.
+        return ['transparent', 'transparent'];
       case 'danger':
         return ['#EF4444', '#DC2626'];
       case 'success':
@@ -115,6 +119,7 @@ export default function LoadingButton({
         end={{ x: 1, y: 1 }}
         style={[
           styles.gradient,
+          variant === 'secondary' && !isDisabled && styles.tonal,
           {
             paddingVertical: sizeStyles.paddingVertical,
             paddingHorizontal: sizeStyles.paddingHorizontal,
@@ -133,6 +138,7 @@ export default function LoadingButton({
           <Text
             style={[
               styles.text,
+              variant === 'secondary' && !isDisabled && styles.textTonal,
               { fontSize: sizeStyles.fontSize },
               textStyle,
             ]}
@@ -169,6 +175,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  /** The flat secondary: a tinted surface and a rim, the label in the text
+   *  colour. Sits a tier under the saturated primary beside it. */
+  tonal: {
+    backgroundColor: 'rgba(148, 163, 184, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.35)',
+  },
+  textTonal: {
+    color: '#E2E8F0',
   },
 });
 
